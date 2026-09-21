@@ -166,7 +166,7 @@ internal fun ConversationWidgetConfigContent(
     }
 }
 
-private fun chatTitle(chat: Chat, ownerUserId: String): String {
+internal fun chatTitle(chat: Chat, ownerUserId: String): String {
     if (chat.isGroup) return chat.groupName?.takeIf { it.isNotBlank() } ?: chat.id.take(12)
     return chat.participants
         .firstOrNull { it.id != ownerUserId }

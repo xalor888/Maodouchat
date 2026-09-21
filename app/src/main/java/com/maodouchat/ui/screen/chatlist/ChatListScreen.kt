@@ -256,228 +256,8 @@ fun ChatListScreen(
     }
 
     LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val raw = ApiService.getPublicStatus().getOrNull().orEmpty()
-            if (raw.isBlank()) return@withContext
-            val o = runCatching { JSONObject(raw) }.getOrNull() ?: return@withContext
-            // optString 缺失键返回字面 "null"（非 blank）——统一用 safeOpt 排除，避免横幅显示 "null"/写入垃圾 key
-            fun safeOpt(key: String): String = if (o.has(key)) o.optString(key).takeIf { it != "null" }.orEmpty() else ""
-            val banner = safeOpt("banner").ifBlank { safeOpt("globalBanner") }
-            val e2eeBanner = safeOpt("forceE2eeBanner").ifBlank { safeOpt("e2eeBanner") }
-            val announcement = safeOpt("publicAnnouncement").ifBlank { safeOpt("announcement") }
-            val maintMsg = safeOpt("maintenanceMessage")
-            // 兼容键名：服务端下发 "maintenance"；旧版本曾用 "maintenanceMode"
-            val publicMaintenance = if (o.has("maintenance")) o.optBoolean("maintenance", false) else o.optBoolean("maintenanceMode", false)
-            val minApp = safeOpt("minAppVersion")
-            val pqxdh = o.optBoolean("pqxdhPreview", false)
-
-            val appLockEnabledOn = if (o.has("appLockEnabled")) o.optBoolean("appLockEnabled", true) else true
-            val autoDownloadEnabledOn = if (o.has("autoDownloadEnabled")) o.optBoolean("autoDownloadEnabled", true) else true
-            val blindWatermarkEnabledOn = if (o.has("blindWatermarkEnabled")) o.optBoolean("blindWatermarkEnabled", true) else true
-            val blockReportEnabledOn = if (o.has("blockReportEnabled")) o.optBoolean("blockReportEnabled", true) else true
-            val callsEnabledOn = if (o.has("callsEnabled")) o.optBoolean("callsEnabled", true) else true
-            val captureAlertEnabledOn = if (o.has("captureAlertEnabled")) o.optBoolean("captureAlertEnabled", true) else true
-            val chatAnimationsEnabledOn = if (o.has("chatAnimationsEnabled")) o.optBoolean("chatAnimationsEnabled", true) else true
-            val chatArchiveEnabledOn = if (o.has("chatArchiveEnabled")) o.optBoolean("chatArchiveEnabled", true) else true
-            val chatDraftsEnabledOn = if (o.has("chatDraftsEnabled")) o.optBoolean("chatDraftsEnabled", true) else true
-            val chatExportEnabledOn = if (o.has("chatExportEnabled")) o.optBoolean("chatExportEnabled", false) else false
-            val chatFoldersEnabledOn = if (o.has("chatFoldersEnabled")) o.optBoolean("chatFoldersEnabled", true) else true
-            val chatFontScaleEnabledOn = if (o.has("chatFontScaleEnabled")) o.optBoolean("chatFontScaleEnabled", true) else true
-            val chatLockEnabledOn = if (o.has("chatLockEnabled")) o.optBoolean("chatLockEnabled", true) else true
-            val chatMuteEnabledOn = if (o.has("chatMuteEnabled")) o.optBoolean("chatMuteEnabled", true) else true
-            val chatPinEnabledOn = if (o.has("chatPinEnabled")) o.optBoolean("chatPinEnabled", true) else true
-            val chatWallpaperEnabledOn = if (o.has("chatWallpaperEnabled")) o.optBoolean("chatWallpaperEnabled", true) else true
-            val contactCardEnabledOn = if (o.has("contactCardEnabled")) o.optBoolean("contactCardEnabled", true) else true
-            val disappearingMessagesEnabledOn = if (o.has("disappearingMessagesEnabled")) o.optBoolean("disappearingMessagesEnabled", true) else true
-            val dndEnabledOn = if (o.has("dndEnabled")) o.optBoolean("dndEnabled", true) else true
-            val fileShareEnabledOn = if (o.has("fileShareEnabled")) o.optBoolean("fileShareEnabled", true) else true
-            val friendRequestsEnabledOn = if (o.has("friendRequestsEnabled")) o.optBoolean("friendRequestsEnabled", true) else true
-            val gifSendEnabledOn = if (o.has("gifSendEnabled")) o.optBoolean("gifSendEnabled", true) else true
-            val globalSearchEnabledOn = if (o.has("globalSearchEnabled")) o.optBoolean("globalSearchEnabled", true) else true
-            val groupInvitesEnabledOn = if (o.has("groupInvitesEnabled")) o.optBoolean("groupInvitesEnabled", true) else true
-            val groupPlayEnabledOn = if (o.has("groupPlayEnabled")) o.optBoolean("groupPlayEnabled", true) else true
-            val hapticsEnabledOn = if (o.has("hapticsEnabled")) o.optBoolean("hapticsEnabled", true) else true
-            val imageSendEnabledOn = if (o.has("imageSendEnabled")) o.optBoolean("imageSendEnabled", true) else true
-            val inAppSoundsEnabledOn = if (o.has("inAppSoundsEnabled")) o.optBoolean("inAppSoundsEnabled", true) else true
-            val linkPreviewEnabledOn = if (o.has("linkPreviewEnabled")) o.optBoolean("linkPreviewEnabled", true) else true
-            val liveLocationEnabledOn = if (o.has("liveLocationEnabled")) o.optBoolean("liveLocationEnabled", true) else true
-            val markdownEnabledOn = if (o.has("markdownEnabled")) o.optBoolean("markdownEnabled", true) else true
-            val markedUnreadEnabledOn = if (o.has("markedUnreadEnabled")) o.optBoolean("markedUnreadEnabled", true) else true
-            val mediaUploadEnabledOn = if (o.has("mediaUploadEnabled")) o.optBoolean("mediaUploadEnabled", true) else true
-            val mentionsEnabledOn = if (o.has("mentionsEnabled")) o.optBoolean("mentionsEnabled", true) else true
-            val messageEditEnabledOn = if (o.has("messageEditEnabled")) o.optBoolean("messageEditEnabled", true) else true
-            val messageForwardingEnabledOn = if (o.has("messageForwardingEnabled")) o.optBoolean("messageForwardingEnabled", true) else true
-            val messagePinEnabledOn = if (o.has("messagePinEnabled")) o.optBoolean("messagePinEnabled", true) else true
-            val messageRevokeEnabledOn = if (o.has("messageRevokeEnabled")) o.optBoolean("messageRevokeEnabled", true) else true
-            val messageStarringEnabledOn = if (o.has("messageStarringEnabled")) o.optBoolean("messageStarringEnabled", true) else true
-            val navTransitionsEnabledOn = if (o.has("navTransitionsEnabled")) o.optBoolean("navTransitionsEnabled", true) else true
-            val nearbyEnabledOn = if (o.has("nearbyEnabled")) o.optBoolean("nearbyEnabled", false) else false
-            val notificationPreviewEnabledOn = if (o.has("notificationPreviewEnabled")) o.optBoolean("notificationPreviewEnabled", true) else true
-            val notificationSoundEnabledOn = if (o.has("notificationSoundEnabled")) o.optBoolean("notificationSoundEnabled", true) else true
-            val nudgeEnabledOn = if (o.has("nudgeEnabled")) o.optBoolean("nudgeEnabled", true) else true
-            val pollsEnabledOn = if (o.has("pollsEnabled")) o.optBoolean("pollsEnabled", true) else true
-            val postsEnabledOn = if (o.has("postsEnabled")) o.optBoolean("postsEnabled", true) else true
-            val presenceEnabledOn = if (o.has("presenceEnabled")) o.optBoolean("presenceEnabled", true) else true
-            val pushNotificationsEnabledOn = if (o.has("pushNotificationsEnabled")) o.optBoolean("pushNotificationsEnabled", true) else true
-            val qrCodeEnabledOn = if (o.has("qrCodeEnabled")) o.optBoolean("qrCodeEnabled", true) else true
-            val reactionsEnabledOn = if (o.has("reactionsEnabled")) o.optBoolean("reactionsEnabled", true) else true
-            val readReceiptsEnabledOn = if (o.has("readReceiptsEnabled")) o.optBoolean("readReceiptsEnabled", true) else true
-            val recentsExclusionEnabledOn = if (o.has("recentsExclusionEnabled")) o.optBoolean("recentsExclusionEnabled", true) else true
-            val ringtoneEnabledOn = if (o.has("ringtoneEnabled")) o.optBoolean("ringtoneEnabled", true) else true
-            val safetyCodeEnabledOn = if (o.has("safetyCodeEnabled")) o.optBoolean("safetyCodeEnabled", true) else true
-            val scheduledMessagesEnabledOn = if (o.has("scheduledMessagesEnabled")) o.optBoolean("scheduledMessagesEnabled", true) else true
-            val screenSecureRuntimeEnabledOn = if (o.has("screenSecureRuntimeEnabled")) o.optBoolean("screenSecureRuntimeEnabled", true) else true
-            val screenshotDetectEnabledOn = if (o.has("screenshotDetectEnabled")) o.optBoolean("screenshotDetectEnabled", true) else true
-            val sealedSenderEnabledOn = if (o.has("sealedSenderEnabled")) o.optBoolean("sealedSenderEnabled", true) else true
-            val secretAutoDisappearEnabledOn = if (o.has("secretAutoDisappearEnabled")) o.optBoolean("secretAutoDisappearEnabled", true) else true
-            val secretChatExportBlockEnabledOn = if (o.has("secretChatExportBlockEnabled")) o.optBoolean("secretChatExportBlockEnabled", true) else true
-            val secretChatEnabledOn = if (o.has("secretChatEnabled")) o.optBoolean("secretChatEnabled", true) else true
-            val secretCopyBlockEnabledOn = if (o.has("secretCopyBlockEnabled")) o.optBoolean("secretCopyBlockEnabled", true) else true
-            val secretExternalLinkBlockEnabledOn = if (o.has("secretExternalLinkBlockEnabled")) o.optBoolean("secretExternalLinkBlockEnabled", false) else false
-            val secretForwardBlockEnabledOn = if (o.has("secretForwardBlockEnabled")) o.optBoolean("secretForwardBlockEnabled", true) else true
-            val secretLinkPreviewBlockEnabledOn = if (o.has("secretLinkPreviewBlockEnabled")) o.optBoolean("secretLinkPreviewBlockEnabled", true) else true
-            val secretListPreviewBlockEnabledOn = if (o.has("secretListPreviewBlockEnabled")) o.optBoolean("secretListPreviewBlockEnabled", true) else true
-            val secretMediaExportBlockEnabledOn = if (o.has("secretMediaExportBlockEnabled")) o.optBoolean("secretMediaExportBlockEnabled", true) else true
-            val secretNotifPreviewBlockEnabledOn = if (o.has("secretNotifPreviewBlockEnabled")) o.optBoolean("secretNotifPreviewBlockEnabled", true) else true
-            val secretReactionBlockEnabledOn = if (o.has("secretReactionBlockEnabled")) o.optBoolean("secretReactionBlockEnabled", true) else true
-            val secretStarBlockEnabledOn = if (o.has("secretStarBlockEnabled")) o.optBoolean("secretStarBlockEnabled", true) else true
-            val secretTypingBlockEnabledOn = if (o.has("secretTypingBlockEnabled")) o.optBoolean("secretTypingBlockEnabled", true) else true
-            val secretReadReceiptBlockEnabledOn = if (o.has("secretReadReceiptBlockEnabled")) o.optBoolean("secretReadReceiptBlockEnabled", true) else true
-            val secretPresenceBlockEnabledOn = if (o.has("secretPresenceBlockEnabled")) o.optBoolean("secretPresenceBlockEnabled", true) else true
-            val secretLastSeenBlockEnabledOn = if (o.has("secretLastSeenBlockEnabled")) o.optBoolean("secretLastSeenBlockEnabled", true) else true
-            val pushHmacKey = safeOpt("pushHmacKey").ifBlank { null }
-            val silentSendEnabledOn = if (o.has("silentSendEnabled")) o.optBoolean("silentSendEnabled", true) else true
-            val spoilerMediaEnabledOn = if (o.has("spoilerMediaEnabled")) o.optBoolean("spoilerMediaEnabled", true) else true
-            val staticLocationEnabledOn = if (o.has("staticLocationEnabled")) o.optBoolean("staticLocationEnabled", true) else true
-            val stickersEnabledOn = if (o.has("stickersEnabled")) o.optBoolean("stickersEnabled", true) else true
-            val taskRemindersEnabledOn = if (o.has("taskRemindersEnabled")) o.optBoolean("taskRemindersEnabled", true) else true
-            val typingIndicatorsEnabledOn = if (o.has("typingIndicatorsEnabled")) o.optBoolean("typingIndicatorsEnabled", true) else true
-            val unreadPriorityEnabledOn = if (o.has("unreadPriorityEnabled")) o.optBoolean("unreadPriorityEnabled", true) else true
-            val videoCallEnabledOn = if (o.has("videoCallEnabled")) o.optBoolean("videoCallEnabled", true) else true
-            val videoSendEnabledOn = if (o.has("videoSendEnabled")) o.optBoolean("videoSendEnabled", true) else true
-            val viewOnceEnabledOn = if (o.has("viewOnceEnabled")) o.optBoolean("viewOnceEnabled", true) else true
-            val voiceCallEnabledOn = if (o.has("voiceCallEnabled")) o.optBoolean("voiceCallEnabled", true) else true
-            val voiceMessagesEnabledOn = if (o.has("voiceMessagesEnabled")) o.optBoolean("voiceMessagesEnabled", true) else true
-
-            RuntimeFlags.setEnabled(context, RuntimeFlags.APP_LOCK, appLockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.AUTO_DOWNLOAD, autoDownloadEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.BLIND_WATERMARK, blindWatermarkEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.BLOCK_REPORT, blockReportEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CALLS, callsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CAPTURE_ALERT, captureAlertEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_ANIMATIONS, chatAnimationsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_ARCHIVE, chatArchiveEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_DRAFTS, chatDraftsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_EXPORT, chatExportEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_FOLDERS, chatFoldersEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_FONT_SCALE, chatFontScaleEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_LOCK, chatLockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_MUTE, chatMuteEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_PIN, chatPinEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CHAT_WALLPAPER, chatWallpaperEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.CONTACT_CARD, contactCardEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.DISAPPEARING_MESSAGES, disappearingMessagesEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.DND, dndEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.FILE_SHARE, fileShareEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.FRIEND_REQUESTS, friendRequestsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.GIF_SEND, gifSendEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.GLOBAL_SEARCH, globalSearchEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.GROUP_INVITES, groupInvitesEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.GROUP_PLAY, groupPlayEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.HAPTICS, hapticsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.IMAGE_SEND, imageSendEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.IN_APP_SOUNDS, inAppSoundsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.LINK_PREVIEW, linkPreviewEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.LIVE_LOCATION, liveLocationEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MARKDOWN, markdownEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MARKED_UNREAD, markedUnreadEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MEDIA_UPLOAD, mediaUploadEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MENTIONS, mentionsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MESSAGE_EDIT, messageEditEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MESSAGE_FORWARDING, messageForwardingEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MESSAGE_PIN, messagePinEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MESSAGE_REVOKE, messageRevokeEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.MESSAGE_STARRING, messageStarringEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.NAV_TRANSITIONS, navTransitionsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.NEARBY, nearbyEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.NOTIFICATION_PREVIEW, notificationPreviewEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.NOTIFICATION_SOUND, notificationSoundEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.NUDGE, nudgeEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.POLLS, pollsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.POSTS, postsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.PRESENCE, presenceEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.PUSH_NOTIFICATIONS, pushNotificationsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.QR_CODE, qrCodeEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.REACTIONS, reactionsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.READ_RECEIPTS, readReceiptsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.RECENTS_EXCLUSION, recentsExclusionEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.RINGTONE, ringtoneEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SAFETY_CODE, safetyCodeEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SCHEDULED_MESSAGES, scheduledMessagesEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SCREEN_SECURE, screenSecureRuntimeEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SCREENSHOT_DETECT, screenshotDetectEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SEALED_SENDER, sealedSenderEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_AUTO_DISAPPEAR, secretAutoDisappearEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_CHAT_EXPORT_BLOCK, secretChatExportBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_CHAT, secretChatEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK, secretCopyBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_EXTERNAL_LINK_BLOCK, secretExternalLinkBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK, secretForwardBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_LINK_PREVIEW_BLOCK, secretLinkPreviewBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_LIST_PREVIEW_BLOCK, secretListPreviewBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK, secretMediaExportBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_NOTIF_PREVIEW_BLOCK, secretNotifPreviewBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_REACTION_BLOCK, secretReactionBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_STAR_BLOCK, secretStarBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_TYPING_BLOCK, secretTypingBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_READ_RECEIPT_BLOCK, secretReadReceiptBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_PRESENCE_BLOCK, secretPresenceBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SECRET_LAST_SEEN_BLOCK, secretLastSeenBlockEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SILENT_SEND, silentSendEnabledOn)
-            pushHmacKey?.let { com.maodouchat.util.PushVerifyPrefs.setKey(context, it) }
-            RuntimeFlags.setEnabled(context, RuntimeFlags.SPOILER_MEDIA, spoilerMediaEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.STATIC_LOCATION, staticLocationEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.STICKERS, stickersEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.TASK_REMINDERS, taskRemindersEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.TYPING_INDICATORS, typingIndicatorsEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.UNREAD_PRIORITY, unreadPriorityEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.VIDEO_CALL, videoCallEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.VIDEO_SEND, videoSendEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.VIEW_ONCE, viewOnceEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.VOICE_CALL, voiceCallEnabledOn)
-            RuntimeFlags.setEnabled(context, RuntimeFlags.VOICE_MESSAGES, voiceMessagesEnabledOn)
-
-            // 服务端 AI 总开关 → 本地 AI_MASTER（false 时折叠全部 AI 入口）
-            if (o.has("aiEnabled")) RuntimeFlags.setEnabled(context, RuntimeFlags.AI_MASTER, o.optBoolean("aiEnabled", true))
-            // B2 密聊防泄漏扩展（surface #71–#78）：服务端开关 → SecretXxxPrefs。
-            // 仅当用户从未在设置页显式设置过时接受服务端默认值，本地开关永远优先
-            //（设置页声明"仅本机生效"；无条件覆盖会让用户"关了又开"）。
-            val ssf = o.optJSONObject("secretSurfaceFlags")
-            if (ssf != null) {
-                com.maodouchat.util.SecretScreenshotBurnPrefs.applyServerDefault(context, ssf.optBoolean("secretScreenshotBurnEnabled", true))
-                com.maodouchat.util.SecretAutoDestroyPrefs.applyServerDefault(context, ssf.optBoolean("secretAutoDestroyEnabled", true))
-                com.maodouchat.util.SecretForwardWhitelistPrefs.applyServerDefault(context, ssf.optBoolean("secretForwardWhitelistEnabled", true))
-                com.maodouchat.util.SecretSimChangePrefs.applyServerDefault(context, ssf.optBoolean("secretSimChangeProtectionEnabled", true))
-                com.maodouchat.util.Secret2faGatePrefs.applyServerDefault(context, ssf.optBoolean("secret2faGateEnabled", true))
-                com.maodouchat.util.SecretNewDeviceRiskPrefs.applyServerDefault(context, ssf.optBoolean("secretNewDeviceRiskEnabled", true))
-                com.maodouchat.util.SecretDeviceVerifyPrefs.applyServerDefault(context, ssf.optBoolean("secretDeviceVerifyEnabled", true))
-                com.maodouchat.util.SecretSessionNoticePrefs.applyServerDefault(context, ssf.optBoolean("secretSessionNoticeEnabled", true))
-            }
-            val upgradeHint = if (minApp.isNotBlank() && minApp != "0") "Min version: $minApp" else null
-            val pqxdhHint = if (pqxdh) "PQXDH preview on" else null
-            val parts = listOfNotNull(
-                banner.takeIf { it.isNotBlank() },
-                e2eeBanner.takeIf { it.isNotBlank() },
-                announcement.takeIf { it.isNotBlank() },
-                upgradeHint,
-                pqxdhHint
-            )
-            publicBanner = when {
-                publicMaintenance && maintMsg.isNotBlank() -> maintMsg
-                parts.isNotEmpty() -> parts.joinToString(" · ")
-                else -> null
-            }
-        }
+        // G144：公屏状态拉取（53 行）抽到 ChatListServerFlags.kt，纯搬移不改判断。
+        publicBanner = fetchPublicStatusBanner(context)
         viewModel.refreshSecretChats()
         viewModel.refreshLockedChats()
     }
@@ -488,41 +268,13 @@ fun ChatListScreen(
         viewModel.clearError()
     }
 
-    // 公告中心：高优先级（EMERGENCY/MAINTENANCE）未读公告弹窗提示，确认后 ack（重复点击由 ViewModel 防重入）
-    val priorityAnnouncement = state.activeAnnouncements.firstOrNull { a ->
-        a.level == "EMERGENCY" || a.level == "MAINTENANCE"
-    }
-    if (priorityAnnouncement != null) {
-        AlertDialog(
-            onDismissRequest = { /* 高优先级公告不可跳过，必须确认 */ },
-            title = { Text(priorityAnnouncement.title.ifBlank { stringResource(R.string.announcement_title_default) }, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        when (priorityAnnouncement.level) {
-                            "EMERGENCY" -> stringResource(R.string.announcement_level_emergency)
-                            else -> stringResource(R.string.announcement_level_maintenance)
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (priorityAnnouncement.level == "EMERGENCY") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        priorityAnnouncement.content,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .heightIn(max = 320.dp)
-                            .verticalScroll(rememberScrollState())
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.ackAnnouncement(priorityAnnouncement.id) }
-                ) { Text(stringResource(R.string.common_confirm)) }
-            }
-        )
-    }
+    // G139：置顶公告条（35 行）抽到 ChatListAnnouncementBanner.kt，纯搬移不改判断。
+    ChatListAnnouncementBanner(
+        priorityAnnouncement = state.activeAnnouncements.firstOrNull { a ->
+            a.level == "EMERGENCY" || a.level == "MAINTENANCE"
+        },
+        onAck = { viewModel.ackAnnouncement(it) },
+    )
 
     // 1.368：多选模式下系统返回优先退出多选（再返回才退出聊天列表）
     androidx.activity.compose.BackHandler(enabled = state.selectionMode) {
@@ -533,881 +285,148 @@ fun ChatListScreen(
     val floatingDockOn by com.maodouchat.util.ChromePreferences.floatingDock.collectAsState()
     val floatingDock = liquidGlass && floatingDockOn
     Scaffold(
+        // G140：顶栏（143 行）抽到 ChatListScaffoldChrome.kt，纯搬移不改判断。
         topBar = {
-            TopAppBar(
-                title = {
-                    if (state.selectionMode) {
-                        Text(
-                            pluralStringResource(R.plurals.chat_list_selected_count, state.selectedChatIds.size, state.selectedChatIds.size),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                if (state.showArchived) stringResource(R.string.chat_archived_title)
-                                else stringResource(R.string.nav_chats)
-                            )
-                            // 9.286：第三方服务器提醒——平时不显示服务器名；第三方且未确认时
-                            // 仅一个小感叹号，点开提示后「我知道了」不再显示（按地址隔离）
-                            if (com.maodouchat.network.ServerIdentity.isThirdPartyServer &&
-                                !com.maodouchat.network.ServerIdentity.isWarningAcknowledged(context, com.maodouchat.network.ApiConfig.BASE_URL)
-                            ) {
-                                IconButton(
-                                    onClick = { showThirdPartyServerDialog = true },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Outlined.WarningAmber,
-                                        contentDescription = stringResource(R.string.home_third_server_title),
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    if (state.selectionMode) {
-                        IconButton(onClick = viewModel::exitSelectionMode) {
-                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close))
-                        }
-                    }
-                },
-                actions = {
-                    if (state.selectionMode) {
-                        // 1.368：多选模式操作条（置顶 / 已读 / 删除）
-                        val hasSelection = state.selectedChatIds.isNotEmpty()
-                        IconButton(
-                            onClick = viewModel::batchTogglePinSelected,
-                            enabled = hasSelection
-                        ) {
-                            Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.chat_pin), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(
-                            onClick = viewModel::batchMarkReadSelected,
-                            enabled = hasSelection
-                        ) {
-                            Icon(Icons.Outlined.DoneAll, contentDescription = stringResource(R.string.chat_mark_read), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(
-                            // 1.373：批量删除先确认（防止误触批量清空）
-                            onClick = { showBatchDeleteConfirm = true },
-                            enabled = hasSelection
-                        ) {
-                            Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.chat_delete), tint = if (hasSelection) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    } else {
-                        if (state.selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) {
-                            IconButton(
-                                onClick = viewModel::markAllUnreadChatsRead,
-                                enabled = state.unreadInFolder(com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) > 0
-                            ) {
-                                Icon(
-                                    Icons.Outlined.DoneAll,
-                                    contentDescription = stringResource(R.string.notif_center_mark_all_read)
-                                )
-                            }
-                        }
-                        IconButton(onClick = onOpenGlobalSearch) {
-                            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.global_search_title))
-                        }
-                        IconButton(onClick = onOpenNotificationCenter) {
-                            Box {
-                                Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.notif_center_title))
-                                if (notifUnread > 0) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.error)
-                                    )
-                                }
-                            }
-                        }
-                        IconButton(onClick = { viewModel.setShowArchived(!state.showArchived) }) {
-                            Icon(if (state.showArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, contentDescription = stringResource(R.string.chat_archived_title))
-                        }
-                        if (liquidGlass) {
-                            Box {
-                                IconButton(onClick = { showCreateMenu = true }) {
-                                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_empty_action_add))
-                                }
-                                DropdownMenu(
-                                    expanded = showCreateMenu,
-                                    onDismissRequest = { showCreateMenu = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.contacts_add_contact)) },
-                                        onClick = {
-                                            showCreateMenu = false
-                                            onNavigateToTab(MainTab.CONTACTS)
-                                        },
-                                        leadingIcon = { Icon(Icons.Outlined.PersonAdd, contentDescription = null) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.contacts_start_group)) },
-                                        onClick = {
-                                            showCreateMenu = false
-                                            onNavigateToTab(MainTab.CONTACTS)
-                                        },
-                                        leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.chat_create_channel)) },
-                                        onClick = {
-                                            showCreateMenu = false
-                                            onNavigateToTab(MainTab.CONTACTS)
-                                        },
-                                        leadingIcon = { Icon(Icons.Outlined.Campaign, contentDescription = null) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.contacts_scan)) },
-                                        onClick = {
-                                            showCreateMenu = false
-                                            onOpenScan()
-                                        },
-                                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                colors = com.maodouchat.ui.theme.liquidGlassTopAppBarColors()
+            ChatListTopBar(
+            state = state,
+            viewModel = viewModel,
+            liquidGlass = liquidGlass,
+            notifUnread = notifUnread,
+            showCreateMenu = showCreateMenu,
+            showBatchDeleteConfirm = showBatchDeleteConfirm,
+            showThirdPartyServerDialog = showThirdPartyServerDialog,
+            onShowCreateMenuChange = { showCreateMenu = it },
+            onShowBatchDeleteConfirmChange = { showBatchDeleteConfirm = it },
+            onShowThirdPartyServerDialogChange = { showThirdPartyServerDialog = it },
+            onNavigateToTab = onNavigateToTab,
+            onOpenGlobalSearch = onOpenGlobalSearch,
+            onOpenNotificationCenter = onOpenNotificationCenter,
+            onOpenScan = onOpenScan,
             )
         },
         containerColor = if (liquidGlass) Color.Transparent else MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
+        // G140：悬浮新建按钮（50 行）抽到 ChatListScaffoldChrome.kt，纯搬移不改判断。
         floatingActionButton = {
-            if (!liquidGlass && !state.selectionMode) {
-                Box {
-                    FloatingActionButton(
-                        onClick = { showCreateMenu = true },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ) {
-                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.chat_empty_action_add))
-                    }
-                    DropdownMenu(
-                        expanded = showCreateMenu,
-                        onDismissRequest = { showCreateMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.contacts_add_contact)) },
-                            onClick = {
-                                showCreateMenu = false
-                                onNavigateToTab(MainTab.CONTACTS)
-                            },
-                            leadingIcon = { Icon(Icons.Outlined.PersonAdd, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.contacts_start_group)) },
-                            onClick = {
-                                showCreateMenu = false
-                                onNavigateToTab(MainTab.CONTACTS)
-                            },
-                            leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_create_channel)) },
-                            onClick = {
-                                showCreateMenu = false
-                                onNavigateToTab(MainTab.CONTACTS)
-                            },
-                            leadingIcon = { Icon(Icons.Outlined.Campaign, contentDescription = null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.contacts_scan)) },
-                            onClick = {
-                                showCreateMenu = false
-                                onOpenScan()
-                            },
-                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
-                        )
-                    }
-                }
-            }
+            ChatListFab(
+            state = state,
+            viewModel = viewModel,
+            liquidGlass = liquidGlass,
+            notifUnread = notifUnread,
+            showCreateMenu = showCreateMenu,
+            showBatchDeleteConfirm = showBatchDeleteConfirm,
+            showThirdPartyServerDialog = showThirdPartyServerDialog,
+            onShowCreateMenuChange = { showCreateMenu = it },
+            onShowBatchDeleteConfirmChange = { showBatchDeleteConfirm = it },
+            onShowThirdPartyServerDialogChange = { showThirdPartyServerDialog = it },
+            onNavigateToTab = onNavigateToTab,
+            onOpenGlobalSearch = onOpenGlobalSearch,
+            onOpenNotificationCenter = onOpenNotificationCenter,
+            onOpenScan = onOpenScan,
+            )
         },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            val bannerText = publicBanner ?: state.realtimeBanner
-            AnimatedVisibility(visible = !bannerText.isNullOrBlank(), enter = fadeIn(), exit = fadeOut()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        bannerText.orEmpty(),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    IconButton(onClick = { publicBanner = null; viewModel.clearRealtimeBanner() }) {
-                        Icon(Icons.Filled.Close, contentDescription = null)
-                    }
-                }
-            }
-
-            SearchBar(
-                value = state.searchQuery,
-                onValueChange = viewModel::onSearchQueryChange,
-                placeholder = stringResource(R.string.global_search_chats_placeholder),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-
-            ChatFolderStrip(
-                folders = state.folders,
-                selectedFolderId = state.selectedFolderId,
-                secretChatCount = state.secretChatIds.size,
-                lockedChatCount = state.lockedChatIds.size,
-                unreadInFolder = { state.unreadInFolder(it) },
-                onSelectFolder = viewModel::selectFolder,
-                onManage = { showFolderManager = true },
-                onCreate = { showCreateFolder = true }
-            )
-
-            // 8.45：未读优先轻提示条（恢复被重写丢失的抛光项）——未读会话较多且未读优先开启时提示
-            if (state.showUnreadPriorityHint) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.setUnreadPriorityEnabled(false) }
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Icon(Icons.Outlined.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.chat_unread_priority_hint, state.unreadChatCount),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = LocalChatPalette.current.textSecondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = { viewModel.setUnreadPriorityEnabled(false) }) {
-                        Text(stringResource(R.string.chat_unread_priority_hint_dismiss), color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-
-            if (state.missedCalls.isNotEmpty()) {
-                MissedCallsCard(calls = state.missedCalls, onOpen = {
-                    showMissedCallsSheet = true
-                    viewModel.markMissedCallsRead()
-                })
-            }
-
-            // 8.47：智能归档建议卡片（纯本地启发式；采纳走现有归档流程）
-            if (state.archiveSuggestions.isNotEmpty()) {
-                ArchiveSuggestionsCard(
-                    suggestions = state.archiveSuggestions.take(3),
-                    chatsById = state.chats.associateBy { it.id },
-                    onArchive = { chatId ->
-                        state.chats.firstOrNull { it.id == chatId }?.let { viewModel.archiveChatFromSuggestion(it) }
-                    },
-                    onDismissOne = viewModel::dismissArchiveSuggestion,
-                    onDismissAll = viewModel::dismissAllArchiveSuggestions
-                )
-            }
-
-            when {
-                state.isLoading && state.chats.isEmpty() -> ShimmerChatList()
-                // 8.52 UX：会话列表支持下拉刷新（此前仅靠 ON_RESUME 触发，无手动刷新入口）
-                else -> PullToRefreshLayout(
-                    isRefreshing = state.isLoading,
-                    onRefresh = { viewModel.refresh() },
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Column {
-                        // 8.45：列表已有数据时的刷新指示（重写后丢失的抛光项）
-                        if (state.isLoading) {
-                            LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth().height(2.dp),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        if (state.filteredChats.isEmpty()) {
-                            EmptyChatState(
-                                hasSearchQuery = state.searchQuery.isNotBlank(),
-                                showArchived = state.showArchived,
-                                selectedFolderId = state.selectedFolderId,
-                                // 8.52 UX：加载失败且列表为空时显示错误态 + 重试
-                                loadError = if (state.errorMessage != null && state.chats.isEmpty()) state.errorMessage else null,
-                                onRetry = { viewModel.refresh() },
-                                onAddContact = { onNavigateToTab(MainTab.CONTACTS) },
-                                onScan = onOpenScan
-                            )
-                        } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                bottom = if (floatingDock) FloatingBottomBarContentPadding else 80.dp
-                            )
-                        ) {
-                            val archivedCount = state.chats.count { it.archived }
-                            if (!state.showArchived && archivedCount > 0 && state.searchQuery.isBlank()) {
-                                item(key = "archive-row") {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { viewModel.setShowArchived(true) }
-                                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            Icons.Outlined.Archive,
-                                            contentDescription = null,
-                                            tint = LocalChatPalette.current.textSecondary,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                        Spacer(Modifier.width(16.dp))
-                                        Text(
-                                            stringResource(R.string.chat_archived_title),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Text(
-                                            archivedCount.toString(),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = LocalChatPalette.current.textHint
-                                        )
-                                    }
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(start = 72.dp),
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                                    )
-                                }
-                            }
-                            items(state.filteredChats, key = { it.id }) { chat ->
-                                // 0.73：会话左滑操作（置顶/静音/归档 + 全滑删除）——组件早已存在未接入
-                                SwipeableChatItem(
-                                    isPinned = chat.pinnedAt > 0,
-                                    isMuted = chat.notificationsMuted,
-                                    isArchived = chat.archived,
-                                    onPin = { viewModel.togglePinned(chat.id) },
-                                    onMute = { viewModel.toggleNotificationsMuted(chat.id) },
-                                    onArchive = { viewModel.toggleArchived(chat.id) },
-                                    onDelete = { viewModel.deleteChat(chat.id) },
-                                    modifier = Modifier.animateItem(
-                                        fadeInSpec = motion.listItemFadeInSpec(),
-                                        fadeOutSpec = motion.listItemFadeOutSpec(),
-                                        placementSpec = motion.listItemPlacementSpec()
-                                    )
-                                ) {
-                                    ChatListItem(
-                                        chat = chat,
-                                        draft = state.drafts[chat.id],
-                                        typingUserId = state.typingByChat[chat.id],
-                                        scheduledCount = state.scheduledByChat[chat.id] ?: 0,
-                                        searchQuery = state.searchQuery,
-                                        isLocked = chat.id in state.lockedChatIds,
-                                        isSecret = chat.id in state.secretChatIds,
-                                        identityChanged = !chat.isGroup && chat.participants.firstOrNull()?.id in state.identityChangedUserIds,
-                                        isDeleting = chat.id in state.deletingChatIds,
-                                        // 1.368：多选模式下点按勾选，长按保持原单条菜单
-                                        isSelecting = state.selectionMode,
-                                        isSelected = chat.id in state.selectedChatIds,
-                                        receipt = state.receiptsByChat[chat.id],
-                                        onClick = {
-                                            if (state.selectionMode) viewModel.toggleSelectChat(chat.id)
-                                            else onChatClick(chat.id)
-                                        },
-                                        onLongClick = {
-                                            if (state.selectionMode) viewModel.toggleSelectChat(chat.id)
-                                            else menuChat = chat
-                                        },
-                                        // 1.182：点未读角标标记已读
-                                        onBadgeClick = { viewModel.toggleMarkedUnread(chat.id) }
-                                    )
-                                }
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(start = 72.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-    menuChat?.let { menuSnapshot ->
-        // 9.150：菜单文案与动作均以 state.chats 最新快照为准，避免长按瞬间的 Chat 快照在 WS 刷新后陈旧
-        val chat = state.chats.firstOrNull { it.id == menuSnapshot.id } ?: menuSnapshot
-        DropdownMenu(expanded = true, onDismissRequest = { menuChat = null }) {
-            // 1.368：多选（长按菜单进入批量模式，先勾选当前会话）
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_multi_select)) },
-                onClick = {
-                    menuChat = null
-                    viewModel.enterSelectionMode()
-                    viewModel.toggleSelectChat(chat.id)
-                }
-            )
-            // 1.267：全部已读（所有未读会话）
-            if (state.unreadChatCount > 0) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.chat_mark_all_read)) }, onClick = { viewModel.markAllUnreadChatsRead(); menuChat = null })
-            }
-            DropdownMenuItem(text = { Text(stringResource(if (chat.pinnedAt > 0) R.string.chat_unpin else R.string.chat_pin)) }, onClick = { viewModel.togglePinned(chat.id); menuChat = null })
-            DropdownMenuItem(text = { Text(stringResource(if (chat.notificationsMuted) R.string.chat_unmute_notifications else R.string.chat_mute_notifications)) }, onClick = { viewModel.toggleNotificationsMuted(chat.id); menuChat = null })
-            // 1.31：临时静音至快捷项（本地，1/8/24 小时）
-            if (
-                com.maodouchat.security.SecretChatPolicy.canStartFromDirect(
-                    isGroup = chat.isGroup,
-                    chatType = chat.chatType
-                )
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.secret_chat_menu_start)) },
-                    onClick = {
-                        val peerId = chat.participants.firstOrNull()?.id.orEmpty()
-                        menuChat = null
-                        viewModel.startSecretChatWithPeer(peerId)
-                    }
-                )
-            }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_silent_until_menu)) },
-                onClick = { silentUntilChat = chat; menuChat = null }
-            )
-            DropdownMenuItem(text = { Text(stringResource(if (chat.archived) R.string.chat_unarchive else R.string.chat_archive)) }, onClick = { viewModel.toggleArchived(chat.id); menuChat = null })
-            DropdownMenuItem(text = { Text(stringResource(if (chat.markedUnread || chat.unreadCount > 0) R.string.chat_mark_read else R.string.chat_mark_unread)) }, onClick = { viewModel.toggleMarkedUnread(chat.id); menuChat = null })
-            // 1.142：有草稿时清除草稿（本地）
-            if (state.drafts[chat.id]?.text?.isNotBlank() == true) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.chat_clear_draft)) }, onClick = { viewModel.clearChatDraft(chat.id); menuChat = null })
-            }
-            // 1.171：清空本地聊天记录（保留会话）
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_clear_local_history), color = LocalChatPalette.current.unreadRed) },
-                onClick = { clearHistoryChat = chat; menuChat = null }
-            )
-            // 1.185：查看共享媒体
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_view_shared_media)) },
-                onClick = { onOpenMediaCenter(chat.id); menuChat = null }
-            )
-            // 1.223：复制会话名称
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_copy_chat_name)) },
-                onClick = {
-                    val name = when {
-                        chat.isChannel -> chat.groupName?.takeIf(String::isNotBlank) ?: ""
-                        chat.isGroup -> chat.groupName?.takeIf(String::isNotBlank) ?: ""
-                        else -> chat.participants.firstOrNull()?.displayName.orEmpty()
-                    }
-                    if (name.isNotBlank()) {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_copy_chat_name), name))
-                        android.widget.Toast.makeText(context, context.getString(R.string.chat_copied), android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                    menuChat = null
-                }
-            )
-            // 1.249：复制会话 ID（便于反馈/排查）
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_copy_chat_id)) },
-                onClick = {
-                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_copy_chat_id), chat.id))
-                    android.widget.Toast.makeText(context, context.getString(R.string.chat_copied), android.widget.Toast.LENGTH_SHORT).show()
-                    menuChat = null
-                }
-            )
-            // 1.251：查看资料（群聊进群详情，单聊进作者主页）
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_view_profile)) },
-                onClick = {
-                    if (chat.isGroup || chat.isChannel) {
-                        onOpenGroupDetail(chat.id)
-                    } else {
-                        chat.participants.firstOrNull()?.id?.takeIf(String::isNotBlank)?.let(onOpenProfile)
-                    }
-                    menuChat = null
-                }
-            )
-            // 1.215：查看收藏
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.chat_view_starred)) },
-                onClick = { onOpenStarredMessages(chat.id); menuChat = null }
-            )
-            DropdownMenuItem(text = { Text(stringResource(R.string.chat_folder_manage)) }, onClick = { folderMoveChat = chat; menuChat = null })
-            DropdownMenuItem(text = {
-                Text(
-                    stringResource(
-                        when {
-                            chat.isChannel -> R.string.chat_channel_leave
-                            chat.isGroup -> R.string.chat_leave_group
-                            else -> R.string.chat_delete
-                        }
-                    )
-                )
-            }, onClick = { viewModel.deleteChat(chat.id); menuChat = null })
-        }
-    }
-
-    // 1.373：多选批量删除确认（显示选中数，确认后才执行）
-    // 9.286：第三方服务器提醒弹窗——确认名/地址与信任提示，「我知道了」后不再显示
-    if (showThirdPartyServerDialog) {
-        val thirdPartyInfo by com.maodouchat.network.ServerIdentity.current.collectAsState()
-        AlertDialog(
-            onDismissRequest = { showThirdPartyServerDialog = false },
-            title = { Text(stringResource(R.string.home_third_server_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        stringResource(
-                            R.string.home_third_server_body,
-                            thirdPartyInfo?.name?.takeIf { it.isNotBlank() }
-                                ?: com.maodouchat.network.ApiConfig.BASE_URL
-                        )
-                    )
-                    Text(
-                        com.maodouchat.network.ApiConfig.BASE_URL,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = LocalChatPalette.current.textHint
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    com.maodouchat.network.ServerIdentity.acknowledgeWarning(context, com.maodouchat.network.ApiConfig.BASE_URL)
-                    showThirdPartyServerDialog = false
-                }) { Text(stringResource(R.string.home_third_server_ack)) }
-            }
-        )
-    }
-
-    if (showBatchDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showBatchDeleteConfirm = false },
-            title = { Text(stringResource(R.string.chat_delete_title), color = MaterialTheme.colorScheme.onSurface) },
-            text = { Text(stringResource(R.string.chat_list_batch_delete_confirm, state.selectedChatIds.size)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showBatchDeleteConfirm = false
-                    viewModel.batchDeleteSelected()
-                }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBatchDeleteConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
-            }
-        )
-    }
-
-    // 1.31：会话列表「临时静音至」对话框（1/8/24 小时，本地 per-chat）
-    silentUntilChat?.let { chat ->
-        AlertDialog(
-            onDismissRequest = { silentUntilChat = null },
-            title = { Text(stringResource(R.string.chat_silent_until_title)) },
-            text = {
-                Column {
-                    listOf(
-                        (1L * 3600_000L) to R.string.chat_silent_until_1h,
-                        (8L * 3600_000L) to R.string.chat_silent_until_8h,
-                        (24L * 3600_000L) to R.string.chat_silent_until_24h
-                    ).forEach { (ms, labelRes) ->
-                        TextButton(
-                            onClick = {
-                                com.maodouchat.notification.ChatQuietHoursStore.setSilentUntil(
-                                    context,
-                                    chat.id,
-                                    System.currentTimeMillis() + ms
-                                )
-                                android.widget.Toast.makeText(context, context.getString(R.string.chat_silent_until_set), android.widget.Toast.LENGTH_SHORT).show()
-                                silentUntilChat = null
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(labelRes), modifier = Modifier.fillMaxWidth()) }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { silentUntilChat = null }) { Text(stringResource(R.string.common_cancel)) }
-            }
-        )
-    }
-
-    // 1.171：清空本地聊天记录确认
-    clearHistoryChat?.let { chat ->
-        AlertDialog(
-            onDismissRequest = { clearHistoryChat = null },
-            title = { Text(stringResource(R.string.chat_clear_local_history)) },
-            text = { Text(stringResource(R.string.chat_clear_local_history_confirm, chat.groupName?.takeIf(String::isNotBlank) ?: chat.participants.firstOrNull()?.displayName.orEmpty())) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.clearLocalChatHistory(chat.id)
-                    clearHistoryChat = null
-                }) { Text(stringResource(R.string.chat_clear_history_yes), color = LocalChatPalette.current.unreadRed) }
-            },
-            dismissButton = {
-                TextButton(onClick = { clearHistoryChat = null }) { Text(stringResource(R.string.common_cancel)) }
-            }
+        // G141：列表主体（206 行）抽到 ChatListContent.kt，纯搬移不改判断。
+        ChatListContent(
+            paddingValues = padding,
+            state = state,
+            viewModel = viewModel,
+            floatingDock = floatingDock,
+            motion = motion,
+            menuChat = menuChat,
+            publicBanner = publicBanner,
+            showMissedCallsSheet = showMissedCallsSheet,
+            showFolderManager = showFolderManager,
+            showCreateFolder = showCreateFolder,
+            onMenuChatChange = { menuChat = it },
+            onPublicBannerChange = { publicBanner = it },
+            onShowMissedCallsSheetChange = { showMissedCallsSheet = it },
+            onShowFolderManagerChange = { showFolderManager = it },
+            onShowCreateFolderChange = { showCreateFolder = it },
+            onChatClick = onChatClick,
+            onNavigateToTab = onNavigateToTab,
+            onOpenGlobalSearch = onOpenGlobalSearch,
+            onOpenGroupDetail = onOpenGroupDetail,
+            onOpenMediaCenter = onOpenMediaCenter,
+            onOpenNotificationCenter = onOpenNotificationCenter,
+            onOpenProfile = onOpenProfile,
+            onOpenScan = onOpenScan,
+            onOpenStarredMessages = onOpenStarredMessages,
+            onVideoCall = onVideoCall,
+            onVoiceCall = onVoiceCall,
         )
     }
 
 
-    if (showMissedCallsSheet) {
-        // 8.52：升级为全量通话记录——Room 未接（历史）+ CallLogStore（呼出/已接/未接）合并去重
-        val callLogRows = remember(state.missedCalls) {
-            val storeLog = runCatching { com.maodouchat.call.CallLogStore.list(context) }.getOrDefault(emptyList())
-            val seen = HashSet<String>()
-            buildList {
-                // 8.53：CallLogStore 优先——同 id 竞态下（接听瞬间对端挂断）已接记录不被 Room 的 MISSED 覆盖
-                storeLog.forEach { e ->
-                    if (seen.add(e.id)) {
-                        add(
-                            CallLogRow(
-                                id = e.id,
-                                peerId = e.peerId,
-                                peerName = e.peerName,
-                                video = e.isVideo,
-                                direction = e.direction,
-                                state = e.state,
-                                at = e.startedAt,
-                                durationMs = e.durationMs
-                            )
-                        )
-                    }
-                }
-                state.missedCalls.forEach { mc ->
-                    if (seen.add(mc.id)) {
-                        add(
-                            CallLogRow(
-                                id = mc.id,
-                                peerId = mc.callerId,
-                                peerName = mc.callerName,
-                                video = mc.callType.equals("VIDEO", ignoreCase = true),
-                                direction = com.maodouchat.call.CallLogStore.Direction.INCOMING,
-                                state = com.maodouchat.call.CallLogStore.State.MISSED,
-                                at = mc.receivedAt,
-                                durationMs = 0L
-                            )
-                        )
-                    }
-                }
-            }.sortedByDescending { it.at }
-        }
-        MissedCallsSheet(
-            rows = callLogRows,
-            onDismiss = { showMissedCallsSheet = false },
-            onClear = {
-                viewModel.clearMissedCalls()
-                com.maodouchat.call.CallLogStore.clear(context)
-                showMissedCallsSheet = false
-            },
-            onOpenChat = { userId, name, video ->
-                showMissedCallsSheet = false
-                val chatId = viewModel.findDirectChatIdForUser(userId)
-                if (chatId != null) onChatClick(chatId)
-                else if (video) onVideoCall(userId, name) else onVoiceCall(userId, name)
-            },
-            // 1.289：长按单条删除（与通话记录页一致；Room + CallLogStore + 本地 state 同步清理）
-            onDeleteRow = { row ->
-                com.maodouchat.call.CallLogStore.remove(context, row.id)
-                viewModel.removeMissedCallLocally(row.id)
-            }
-        )
-    }
 
-    if (showCreateFolder) {
-        AlertDialog(
-            onDismissRequest = { showCreateFolder = false; createFolderError = null },
-            title = { Text(stringResource(R.string.chat_folder_create)) },
-            text = {
-                Column {
-                    TextField(value = createFolderName, onValueChange = { createFolderName = it }, singleLine = true)
-                    createFolderError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (viewModel.createFolder(createFolderName)) { showCreateFolder = false; createFolderName = ""; createFolderError = null }
-                    else createFolderError = context.getString(R.string.chat_folder_create_failed)
-                }) { Text(stringResource(R.string.chat_folder_create)) }
-            },
-            dismissButton = { TextButton(onClick = { showCreateFolder = false }) { Text(stringResource(android.R.string.cancel)) } }
-        )
-    }
 
-    // 8.47：首次登录引导（去添加好友 / 扫一扫 / 稍后再说；任一动作后 markSeen 不再弹）
-    if (showPostLoginGuide) {
-        AlertDialog(
-            onDismissRequest = {
-                showPostLoginGuide = false
-                com.maodouchat.util.PostLoginGuidePreferences.markSeen(context)
-            },
-            title = { Text(stringResource(R.string.post_login_guide_title)) },
-            text = { Text(stringResource(R.string.post_login_guide_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPostLoginGuide = false
-                    com.maodouchat.util.PostLoginGuidePreferences.markSeen(context)
-                    // 跳转通讯录 tab（MainTab.CONTACTS）
-                    onNavigateToTab(MainTab.CONTACTS)
-                }) { Text(stringResource(R.string.post_login_guide_add)) }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = {
-                        showPostLoginGuide = false
-                        com.maodouchat.util.PostLoginGuidePreferences.markSeen(context)
-                        onOpenScan()
-                    }) { Text(stringResource(R.string.post_login_guide_scan)) }
-                    TextButton(onClick = {
-                        showPostLoginGuide = false
-                        com.maodouchat.util.PostLoginGuidePreferences.markSeen(context)
-                    }) { Text(stringResource(R.string.post_login_guide_later)) }
-                }
-            }
-        )
-    }
 
-    if (showFolderManager) {
-        // 9.233：文件夹拖拽排序（TG 式）——长按拖柄拖动，实时预览目标插入位，松手提交
-        val sortedFolders = remember(state.folders) { state.folders.sortedBy { it.sortOrder } }
-        var dragFolder by remember { mutableStateOf<Pair<String, Float>?>(null) }
-        var rowPitchPx by remember { mutableStateOf(0f) }
-        val localDensity = LocalDensity.current
-        val dragIndex = dragFolder?.let { st -> sortedFolders.indexOfFirst { it.id == st.first } } ?: -1
-        val previewTarget = if (dragIndex >= 0 && rowPitchPx > 0f) {
-            val shift = ((dragFolder?.second ?: 0f) / rowPitchPx).roundToInt()
-            (dragIndex + shift).coerceIn(0, sortedFolders.size - 1)
-        } else -1
-        AlertDialog(
-            onDismissRequest = { showFolderManager = false; dragFolder = null },
-            title = { Text(stringResource(R.string.chat_folder_manage)) },
-            text = {
-                Column {
-                    if (sortedFolders.isEmpty()) Text(stringResource(R.string.chat_folder_list_empty))
-                    else sortedFolders.forEachIndexed { index, folder ->
-                        val isDragging = dragFolder?.first == folder.id
-                        val offsetY = if (isDragging) dragFolder?.second ?: 0f else 0f
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .zIndex(if (isDragging) 1f else 0f)
-                                .onGloballyPositioned { coords ->
-                                    // 行距 = 行高 + 上下 padding，用于把拖动位移换算成目标位置
-                                    if (rowPitchPx == 0f) {
-                                        rowPitchPx = coords.size.height.toFloat() + with(localDensity) { 12.dp.toPx() }
-                                    }
-                                }
-                                .graphicsLayer {
-                                    translationY = offsetY
-                                    if (isDragging) {
-                                        shadowElevation = 12f
-                                        alpha = 0.92f
-                                    }
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // 拖柄：长按拖动排序（箭头按钮保留作无障碍替代）
-                            Icon(
-                                Icons.Outlined.DragIndicator,
-                                contentDescription = stringResource(R.string.chat_folder_move_up),
-                                tint = LocalChatPalette.current.textHint,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .pointerInput(folder.id) {
-                                        detectDragGesturesAfterLongPress(
-                                            onDragStart = { dragFolder = folder.id to 0f },
-                                            onDrag = { change, dragAmount ->
-                                                change.consume()
-                                                dragFolder = dragFolder?.let { it.first to it.second + dragAmount.y }
-                                            },
-                                            onDragEnd = {
-                                                val st = dragFolder
-                                                if (st != null && previewTarget >= 0 && previewTarget != index) {
-                                                    viewModel.reorderFolder(st.first, previewTarget)
-                                                }
-                                                dragFolder = null
-                                            },
-                                            onDragCancel = { dragFolder = null }
-                                        )
-                                    }
-                            )
-                            Text(
-                                folder.name,
-                                modifier = Modifier.weight(1f).padding(start = 6.dp),
-                                color = if (previewTarget == index && !isDragging) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-                            // 9.222：文件夹排序（TG 式顺序自定义，云端同步）
-                            IconButton(onClick = { viewModel.moveFolder(folder.id, -1) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = stringResource(R.string.chat_folder_move_up), tint = LocalChatPalette.current.textSecondary)
-                            }
-                            IconButton(onClick = { viewModel.moveFolder(folder.id, 1) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.chat_folder_move_down), tint = LocalChatPalette.current.textSecondary)
-                            }
-                            TextButton(onClick = { renameFolderId = folder.id; renameFolderName = folder.name }) { Text(stringResource(R.string.chat_folder_rename)) }
-                            TextButton(onClick = { viewModel.deleteFolder(folder.id) }) { Text(stringResource(R.string.chat_delete)) }
-                        }
-                        // 目标插入位指示线：拖拽经过时在对应行下方划线预览落点
-                        if (dragFolder != null && previewTarget == index + 1 && previewTarget < sortedFolders.size) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.primary, thickness = 2.dp)
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showFolderManager = false; dragFolder = null }) { Text(stringResource(android.R.string.ok)) } }
-        )
-    }
 
-    renameFolderId?.let { fid ->
-        AlertDialog(
-            onDismissRequest = { renameFolderId = null; renameFolderError = null },
-            title = { Text(stringResource(R.string.chat_folder_manage)) },
-            text = {
-                Column {
-                    TextField(value = renameFolderName, onValueChange = { renameFolderName = it }, singleLine = true)
-                    renameFolderError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (viewModel.renameFolder(fid, renameFolderName)) { renameFolderId = null; renameFolderError = null }
-                    else renameFolderError = context.getString(R.string.chat_folder_rename_failed)
-                }) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = { TextButton(onClick = { renameFolderId = null }) { Text(stringResource(android.R.string.cancel)) } }
-        )
-    }
 
-    folderMoveChat?.let { chat ->
-        AlertDialog(
-            onDismissRequest = { folderMoveChat = null },
-            title = { Text(stringResource(R.string.chat_folder_manage)) },
-            text = {
-                Column {
-                    TextButton(onClick = { viewModel.moveChatToFolder(chat.id, null); folderMoveChat = null }) { Text(stringResource(R.string.chat_folder_show_all)) }
-                    state.folders.forEach { folder ->
-                        TextButton(onClick = { viewModel.moveChatToFolder(chat.id, folder.id); folderMoveChat = null }) { Text(folder.name) }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { folderMoveChat = null }) { Text(stringResource(android.R.string.cancel)) } }
-        )
-    }
 
-    state.ownerTransferRequiredChatId?.let { chatId ->
-        AlertDialog(
-            onDismissRequest = { viewModel.clearOwnerTransferRequired() },
-            // 9.150：正文误用 chat_group（"群聊"），改用专为转让群主提示定义的字符串
-            title = { Text(stringResource(R.string.chat_owner_transfer_required_title)) },
-            text = { Text(stringResource(R.string.chat_owner_transfer_required_message)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.clearOwnerTransferRequired(); onOpenGroupDetail(chatId) }) { Text(stringResource(android.R.string.ok)) }
-            }
-        )
-    }
+
+
+
+
+
+    // G136：会话长按菜单 + 第三方服务器提醒 + 批量删除确认 + 清空历史确认
+    // （174 行）抽到 ChatListScreenDialogs.kt，纯搬移不改判断。
+    ChatListScreenDialogs(
+        state = state,
+        viewModel = viewModel,
+        menuChat = menuChat,
+        clearHistoryChat = clearHistoryChat,
+        silentUntilChat = silentUntilChat,
+        folderMoveChat = folderMoveChat,
+        showBatchDeleteConfirm = showBatchDeleteConfirm,
+        showThirdPartyServerDialog = showThirdPartyServerDialog,
+        onMenuChatChange = { menuChat = it },
+        onClearHistoryChatChange = { clearHistoryChat = it },
+        onSilentUntilChatChange = { silentUntilChat = it },
+        onFolderMoveChatChange = { folderMoveChat = it },
+        onShowBatchDeleteConfirmChange = { showBatchDeleteConfirm = it },
+        onShowThirdPartyServerDialogChange = { showThirdPartyServerDialog = it },
+        onOpenMediaCenter = onOpenMediaCenter,
+        onOpenStarredMessages = onOpenStarredMessages,
+        onOpenProfile = onOpenProfile,
+        onOpenGroupDetail = onOpenGroupDetail,
+    )
+
+    // G137：未拨来电 + 文件夹管理弹层（222 行）抽到 ChatListFolderDialogs.kt，纯搬移不改判断。
+    ChatListFolderDialogs(
+        state = state,
+        viewModel = viewModel,
+        showMissedCallsSheet = showMissedCallsSheet,
+        showCreateFolder = showCreateFolder,
+        showFolderManager = showFolderManager,
+        createFolderName = createFolderName,
+        createFolderError = createFolderError,
+        renameFolderId = renameFolderId,
+        renameFolderName = renameFolderName,
+        renameFolderError = renameFolderError,
+        folderMoveChat = folderMoveChat,
+        onShowMissedCallsSheetChange = { showMissedCallsSheet = it },
+        onShowCreateFolderChange = { showCreateFolder = it },
+        onShowFolderManagerChange = { showFolderManager = it },
+        onCreateFolderNameChange = { createFolderName = it },
+        onCreateFolderErrorChange = { createFolderError = it },
+        onRenameFolderIdChange = { renameFolderId = it },
+        onRenameFolderNameChange = { renameFolderName = it },
+        onRenameFolderErrorChange = { renameFolderError = it },
+        onFolderMoveChatChange = { folderMoveChat = it },
+        onOpenGroupDetail = onOpenGroupDetail,
+        onChatClick = onChatClick,
+        onVoiceCall = onVoiceCall,
+        onVideoCall = onVideoCall,
+    )
+
+    // G138：临时静音 + 首次登录引导弹层（65 行）抽到 ChatListScreenDialogs.kt，纯搬移不改判断。
+    ChatListMiscDialogs(
+        silentUntilChat = silentUntilChat,
+        showPostLoginGuide = showPostLoginGuide,
+        onSilentUntilChatChange = { silentUntilChat = it },
+        onShowPostLoginGuideChange = { showPostLoginGuide = it },
+        onNavigateToTab = onNavigateToTab,
+        onOpenScan = onOpenScan,
+    )
 }

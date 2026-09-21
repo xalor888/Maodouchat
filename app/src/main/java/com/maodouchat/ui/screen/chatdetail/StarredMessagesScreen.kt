@@ -39,6 +39,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import com.maodouchat.ui.component.SearchHighlightSurface
+import com.maodouchat.ui.component.SearchHighlightAccent
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -674,23 +677,9 @@ private fun Message.starredPreview(context: android.content.Context): String = w
 private fun formatStarredTime(timestamp: Long): String =
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault()).format(Date(timestamp))
 
-// 1.232：搜索关键词高亮（与 ChatList 一致）
+// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
 @Composable
-private fun highlightedText(text: String, query: String): androidx.compose.ui.text.AnnotatedString = buildAnnotatedString {
-    val snippet = remember(text, query) {
-        com.maodouchat.ui.screen.chatlist.GlobalSearchTextHighlight.buildSnippet(text, query)
-    }
-    if (snippet.highlights.isEmpty()) {
-        append(snippet.text)
-        return@buildAnnotatedString
-    }
-    var cursor = 0
-    snippet.highlights.forEach { span ->
-        if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
-        append(snippet.text.substring(span.start, span.end))
-        pop()
-        cursor = span.end
-    }
-    if (cursor < snippet.text.length) append(snippet.text.substring(cursor))
+private fun highlightedText(text: String, query: String): AnnotatedString {
+    val (c, bg) = SearchHighlightAccent
+    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }

@@ -60,6 +60,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import com.maodouchat.ui.component.SearchHighlightSurface
+import com.maodouchat.ui.component.SearchHighlightAccent
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -661,7 +664,7 @@ private fun NotificationFilterStrip(
     }
 }
 
-private fun iconForType(item: NotificationCenterItem): Pair<ImageVector, Color> {
+internal fun iconForType(item: NotificationCenterItem): Pair<ImageVector, Color> {
     // 非 Composable：不能读 MaterialTheme.colorScheme。图标色用常量。
     if (item.type == NotificationCenterType.POST_INTERACTION) {
         val kind = item.extra["kind"].orEmpty()
@@ -740,25 +743,9 @@ private fun relativeTime(timestamp: Long): String {
     }
 }
 
-/** 1.284：通知中心搜索关键词高亮（复用 GlobalSearchTextHighlight，与 Explore/收藏/会话列表一致）。 */
+// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
 @Composable
-private fun highlightedText(text: String, query: String): androidx.compose.ui.text.AnnotatedString {
-    val highlighted = remember(text, query) {
-        com.maodouchat.ui.screen.chatlist.GlobalSearchTextHighlight.buildSnippet(text, query)
-    }
-    return androidx.compose.ui.text.buildAnnotatedString {
-        if (highlighted.highlights.isEmpty()) {
-            append(highlighted.text)
-            return@buildAnnotatedString
-        }
-        var cursor = 0
-        highlighted.highlights.forEach { span ->
-            if (span.start > cursor) append(highlighted.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primaryContainer))
-            append(highlighted.text.substring(span.start, span.end))
-            pop()
-            cursor = span.end
-        }
-        if (cursor < highlighted.text.length) append(highlighted.text.substring(cursor))
-    }
+private fun highlightedText(text: String, query: String): AnnotatedString {
+    val (c, bg) = SearchHighlightSurface
+    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }

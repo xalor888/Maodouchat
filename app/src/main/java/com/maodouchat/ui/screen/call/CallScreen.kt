@@ -587,7 +587,7 @@ private fun GroupParticipantTile(
     }
 }
 
-private fun groupParticipantStatusLabel(state: GroupPeerConnectionState): Int = when (state) {
+internal fun groupParticipantStatusLabel(state: GroupPeerConnectionState): Int = when (state) {
     GroupPeerConnectionState.CONNECTING -> R.string.call_group_member_connecting
     GroupPeerConnectionState.CONNECTED -> R.string.call_group_member_connected
     GroupPeerConnectionState.RECONNECTING -> R.string.call_group_member_reconnecting

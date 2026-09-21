@@ -53,7 +53,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-private data class BotUi(
+internal data class BotUi(
     val id: String,
     val name: String,
     val username: String,
@@ -510,7 +510,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
     }
 }
 
-private fun extractTokenOnce(raw: String?): String? {
+internal fun extractTokenOnce(raw: String?): String? {
     val text = raw.orEmpty().trim()
     if (text.isEmpty()) return null
     runCatching { JSONObject(text) }.getOrNull()?.let { obj ->
@@ -523,7 +523,7 @@ private fun extractTokenOnce(raw: String?): String? {
     return null
 }
 
-private fun extractBotArray(raw: String): JSONArray? {
+internal fun extractBotArray(raw: String): JSONArray? {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return null
     runCatching { JSONArray(trimmed) }.getOrNull()?.let { return it }
@@ -535,7 +535,7 @@ private fun extractBotArray(raw: String): JSONArray? {
     return null
 }
 
-private fun parseBots(raw: String): List<BotUi> {
+internal fun parseBots(raw: String): List<BotUi> {
     val arr = extractBotArray(raw) ?: return emptyList()
     val seen = HashSet<String>()
     return buildList {

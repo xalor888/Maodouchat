@@ -23,6 +23,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.maodouchat.ui.component.SearchHighlightSurface
+import com.maodouchat.ui.component.SearchHighlightAccent
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,26 +71,11 @@ object GroupMemberSectionUtils {
         return formatter.format(Date(timestamp))
     }
 
+    // G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
     @Composable
-    fun highlightedText(text: String, query: String): androidx.compose.ui.text.AnnotatedString {
-        val snippet = remember(text, query) {
-            com.maodouchat.ui.screen.chatlist.GlobalSearchTextHighlight.buildSnippet(text, query)
-        }
-        return androidx.compose.ui.text.buildAnnotatedString {
-            if (snippet.highlights.isEmpty()) {
-                append(snippet.text)
-                return@buildAnnotatedString
-            }
-            var cursor = 0
-            snippet.highlights.forEach { span ->
-                if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-                pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
-                append(snippet.text.substring(span.start, span.end))
-                pop()
-                cursor = span.end
-            }
-            if (cursor < snippet.text.length) append(snippet.text.substring(cursor))
-        }
+    internal fun highlightedText(text: String, query: String): AnnotatedString {
+        val (c, bg) = SearchHighlightAccent
+        return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
     }
 }
 

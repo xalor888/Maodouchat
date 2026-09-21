@@ -21,8 +21,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +40,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
@@ -163,6 +168,9 @@ internal fun MainContainer(navController: NavHostController) {
             },
             label = "mainTabContent"
         ) { tab ->
+                // 渐隐遮罩必须画在本层内：dock 的玻璃折射采样的是本层（liquidBackdrop）。
+                // 画在外侧只会让胶囊外变淡，胶囊内折射出的仍是未渐隐原文（底栏文字叠印的根源）。
+                Box(modifier = Modifier.fillMaxSize()) {
                 when (tab) {
                     MainTab.CHATS -> ChatListScreen(
                         onChatClick = { chatId -> navController.navigate(Routes.chatDetail(chatId)) },
@@ -228,6 +236,25 @@ internal fun MainContainer(navController: NavHostController) {
                             }
                         }
                     )
+                }
+                val dockFadeActive = com.maodouchat.ui.theme.LocalLiquidGlassEnabled.current &&
+                    com.maodouchat.util.ChromePreferences.floatingDock.collectAsState().value
+                if (dockFadeActive) {
+                    val fadeColor = MaterialTheme.colorScheme.background
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(com.maodouchat.ui.component.FloatingBottomBarContentPadding)
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to fadeColor.copy(alpha = 0f),
+                                    0.55f to fadeColor.copy(alpha = 0.72f),
+                                    1f to fadeColor.copy(alpha = 0.97f),
+                                )
+                            )
+                    )
+                }
                 }
         }
         BottomNavBar(

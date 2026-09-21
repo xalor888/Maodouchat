@@ -23,7 +23,7 @@ internal fun normalizeAttachmentMetadata(
     }
 }
 
-private fun normalizeVideoMetadata(fileName: String, declaredMimeType: String, sizeBytes: Long): MediaCache.LocalFileMetadata {
+internal fun normalizeVideoMetadata(fileName: String, declaredMimeType: String, sizeBytes: Long): MediaCache.LocalFileMetadata {
     val declaredMime = normalizeMimeType(declaredMimeType)
     val declaredExtension = VIDEO_MIME_TO_EXTENSION[declaredMime]
     val existingExtension = fileName.substringAfterLast('.', "").lowercase()

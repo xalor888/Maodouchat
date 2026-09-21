@@ -121,19 +121,27 @@ fun LoginScreen(
         label = "loginEnterProgress"
     )
 
-    val infiniteTransition = rememberInfiniteTransition(label = "logoFloat")
-    val floatY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = -4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = motion.duration(2400),
-                easing = FastOutSlowInEasing
+    // 关闭系统动画（animator_duration_scale=0）时 motion.duration 返回 0，
+    // infiniteRepeatable(0ms) 会直接抛 IllegalArgumentException 崩溃登录页——
+    // 与 rememberMotionPulse 一致：动画禁用时退化为静态值。
+    val floatY: Float = if (motion.animationsEnabled) {
+        val infiniteTransition = rememberInfiniteTransition(label = "logoFloat")
+        val animatedY by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = -4f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = motion.duration(2400).coerceAtLeast(1),
+                    easing = FastOutSlowInEasing
+                ),
+                repeatMode = RepeatMode.Reverse
             ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "logoFloatY"
-    )
+            label = "logoFloatY"
+        )
+        animatedY
+    } else {
+        0f
+    }
 
     // 服务端全局状态（注册开关 / 邀请提示 / 维护模式）——登录页横幅与 tab 禁用依据
     val context = LocalContext.current

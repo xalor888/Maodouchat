@@ -27,7 +27,9 @@ data class MyQrCodeUiState(
 )
 
 class MyQrCodeViewModel(application: Application) : AndroidViewModel(application) {
-    private val userRepo = UserRepository(application.let { (it as com.maodouchat.MaodouchatApp).database.userDao() })
+    // G72：经 AppDatabase.getInstance(context) 这个中立入口取库，不再 import/转型 MaodouchatApp。
+    // 装配点只剩 data 层的单例访问，ui 层从此不认识应用类（ClientArchitectureTest 的名单因此能收紧）。
+    private val userRepo = UserRepository(com.maodouchat.data.local.AppDatabase.getInstance(application).userDao())
     private val tokenManager = TokenManager.getInstance(application)
 
     private val _uiState = MutableStateFlow(MyQrCodeUiState())
@@ -42,13 +44,33 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
     private fun load() {
         viewModelScope.launch {
             try {
-                if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.QR_CODE)) {
-                    _uiState.update { it.copy(isLoading = false, errorMessage = getApplication<Application>().getString(R.string.qr_code_disabled)) }
+                val token0 = tokenManager.getToken().orEmpty()
+                val userId0 = tokenManager.getUserId().orEmpty()
+                // G72：加载判定下沉到纯策略（可单测），这里只编排副作用。
+                val precheck = MyQrCodeLoadPolicy.plan(
+                    qrEnabled = RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.QR_CODE),
+                    token = token0,
+                    userId = userId0,
+                    local = null,
+                    remote = null,
+                )
+                if (precheck is MyQrCodeLoadPolicy.Decision.Reject) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = when (precheck.reason) {
+                                MyQrCodeLoadPolicy.RejectReason.DISABLED ->
+                                    getApplication<Application>().getString(R.string.qr_code_disabled)
+                                MyQrCodeLoadPolicy.RejectReason.NO_SESSION ->
+                                    getApplication<Application>().getString(R.string.error_session_expired)
+                            },
+                        )
+                    }
                     return@launch
                 }
                 _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-                val token = tokenManager.getToken().orEmpty()
-                val userId = tokenManager.getUserId().orEmpty()
+                val token = token0
+                val userId = userId0
                 val local = if (userId.isNotBlank()) userRepo.getUserById(userId) else null
                 var name = local?.name.orEmpty()
                 var avatar = local?.avatar
@@ -86,11 +108,16 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
                     val bmp = withContext(Dispatchers.Default) {
                         QrCodeGenerator.generateBitmap(QrCodeGenerator.encodeUserQrPayload(targetUserId), 600)
                     }
+                    val outcome = MyQrCodeLoadPolicy.finalize(bmp)
                     _uiState.update {
                         it.copy(
-                            qrBitmap = bmp,
+                            qrBitmap = outcome.bitmap,
                             isLoading = false,
-                            errorMessage = if (bmp == null) getApplication<Application>().getString(R.string.contacts_qr_generation_failed) else null
+                            errorMessage = if (outcome.success) {
+                                null
+                            } else {
+                                getApplication<Application>().getString(R.string.contacts_qr_generation_failed)
+                            },
                         )
                     }
                 } else {

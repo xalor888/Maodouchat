@@ -90,10 +90,13 @@ fun LiquidBottomTabs(
 ) {
     val blurScale = LocalLiquidGlassBlur.current
     val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    // 胶囊底色不透明度：内容滚到 dock 下方时，玻璃折射会把列表文字带进胶囊，
+    // 与 tab 标签叠印（「底栏文字重叠」）。0.28 太透，抬到 0.62/0.55 保留玻璃质感
+    // 同时压掉残影；配合内容层底部渐隐遮罩（MainContainerRoute）。
     val containerColor = if (isLightTheme) {
-        Color(0xFFFAFAFA).copy(alpha = 0.28f)
+        Color(0xFFFAFAFA).copy(alpha = 0.62f)
     } else {
-        Color(0xFF121212).copy(alpha = 0.32f)
+        Color(0xFF121212).copy(alpha = 0.55f)
     }
     val navigationContentColor = liquidGlassContentColor(
         preferredColor = MaterialTheme.colorScheme.onSurfaceVariant,

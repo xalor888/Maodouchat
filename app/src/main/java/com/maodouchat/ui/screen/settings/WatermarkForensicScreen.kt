@@ -54,7 +54,7 @@ import kotlinx.coroutines.withContext
  * 计算 BitmapFactory 的 inSampleSize，使解码后图片尺寸不超过 [reqWidth]x[reqHeight]。
  * 算法来自 Android 官方文档：每次 inSampleSize 翻倍直到半尺寸仍大于需求。
  */
-private fun computeInSampleSize(outWidth: Int, outHeight: Int, reqWidth: Int, reqHeight: Int): Int {
+internal fun computeInSampleSize(outWidth: Int, outHeight: Int, reqWidth: Int, reqHeight: Int): Int {
     if (outWidth <= 0 || outHeight <= 0) return 1
     var inSampleSize = 1
     if (outHeight > reqHeight || outWidth > reqWidth) {

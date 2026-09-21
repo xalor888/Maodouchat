@@ -149,17 +149,33 @@ internal fun messageSafetyWarning(text: String, enabled: Boolean): String? {
     val findings = remember(text) { MessageSafetyScanner.scan(text) }
     if (findings.isEmpty()) return null
     val primary = findings.first()
-    val detail = when (primary.code) {
-        MessageSafetyScanner.CODE_SUSPICIOUS_LINK -> {
-            val host = primary.matched?.takeIf { it.isNotBlank() }
-            if (host == null) stringResource(R.string.chat_safety_suspicious_link)
-            else stringResource(R.string.chat_safety_suspicious_link_host, host)
-        }
-        MessageSafetyScanner.CODE_PAYMENT_INDUCEMENT -> stringResource(R.string.chat_safety_payment)
-        MessageSafetyScanner.CODE_IMPERSONATION -> stringResource(R.string.chat_safety_impersonation)
-        MessageSafetyScanner.CODE_CREDENTIAL_REQUEST -> stringResource(R.string.chat_safety_credential)
-        MessageSafetyScanner.CODE_SENSITIVE_DATA -> stringResource(R.string.chat_safety_sensitive_data)
-        else -> stringResource(R.string.chat_safety_generic)
-    }
+    // Android 的 getString(id, vararg) 忽略多余实参，所以统一把 host 传下去，
+    // 只有「可疑链接（带主机）」那一支真的用到它。
+    val (detailRes, host) = safetyDetailText(primary.code, primary.matched)
+    val detail = if (host == null) stringResource(detailRes) else stringResource(detailRes, host)
     return stringResource(R.string.chat_safety_banner, detail)
 }
+
+/**
+ * 安全告警码 → 详情文案（G162 从 `messageSafetyWarning` 抽出的纯映射）。
+ *
+ * 抽开之前这段 `when` 和 `stringResource` 耦在一起，只能靠仪器测试覆盖；
+ * 现在返回 (资源 id, 是否带 host 实参) 二元组，普通 JVM 单测就能逐分支断言。
+ *
+ * `CODE_SUSPICIOUS_LINK` 按 `matched` 是否空白二选一：有主机时文案带上主机名，
+ * 用户才知道是哪个链接可疑——漏了 host 会变成一句泛泛的「请谨慎点击」。
+ */
+internal fun safetyDetailText(code: String, matched: String?): Pair<Int, String?> =
+    when (code) {
+        MessageSafetyScanner.CODE_SUSPICIOUS_LINK ->
+            if (matched.isNullOrBlank()) {
+                R.string.chat_safety_suspicious_link to null
+            } else {
+                R.string.chat_safety_suspicious_link_host to matched
+            }
+        MessageSafetyScanner.CODE_PAYMENT_INDUCEMENT -> R.string.chat_safety_payment to null
+        MessageSafetyScanner.CODE_IMPERSONATION -> R.string.chat_safety_impersonation to null
+        MessageSafetyScanner.CODE_CREDENTIAL_REQUEST -> R.string.chat_safety_credential to null
+        MessageSafetyScanner.CODE_SENSITIVE_DATA -> R.string.chat_safety_sensitive_data to null
+        else -> R.string.chat_safety_generic to null
+    }

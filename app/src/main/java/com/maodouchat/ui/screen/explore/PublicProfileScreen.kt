@@ -302,7 +302,7 @@ private fun ProfileContentView(
         // 状态
         if (profile.status.isNotBlank()) {
             Text(
-                profile.status,
+                com.maodouchat.ui.component.localizedCustomStatusLabel(profile.status),
                 style = MaterialTheme.typography.bodyMedium,
                 color = LocalChatPalette.current.textSecondary,
                 textAlign = TextAlign.Center

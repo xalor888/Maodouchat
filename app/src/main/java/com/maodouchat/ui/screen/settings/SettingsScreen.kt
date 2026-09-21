@@ -526,7 +526,7 @@ private fun ProfileCard(
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = status.ifBlank { stringResource(R.string.status_empty_placeholder) },
+                    text = com.maodouchat.ui.component.localizedCustomStatusLabel(status).ifBlank { stringResource(R.string.status_empty_placeholder) },
                     style = MaterialTheme.typography.bodySmall,
                     color = if (status.isBlank()) MaterialTheme.colorScheme.outline else LocalChatPalette.current.textSecondary,
                     maxLines = 2,
@@ -597,7 +597,7 @@ private fun StatusEditorDialog(
                                 FilterChip(
                                     selected = status == preset,
                                     onClick = { onPreset(preset) },
-                                    label = { Text(statusPresetLabel(preset)) }
+                                    label = { Text(com.maodouchat.ui.component.localizedCustomStatusLabel(preset)) }
                                 )
                             }
                         }
@@ -802,35 +802,7 @@ private fun privacyVisibilityLabel(value: String): String = when (value) {
     else -> stringResource(R.string.explore_visibility_public)
 }
 
-/** UI labels for [CustomStatusPolicy.PRESETS] wire values (multi-device keeps Chinese wire text). */
-@Composable
-private fun statusPresetLabel(wire: String): String = when (wire) {
-    "在线" -> stringResource(R.string.status_preset_online)
-    "忙碌" -> stringResource(R.string.status_preset_busy)
-    "开会中" -> stringResource(R.string.status_preset_meeting)
-    "请勿打扰" -> stringResource(R.string.status_preset_dnd)
-    "马上回来" -> stringResource(R.string.status_preset_brb)
-    "休假中" -> stringResource(R.string.status_preset_vacation)
-    "学习中" -> stringResource(R.string.status_preset_studying)
-    "通勤中" -> stringResource(R.string.status_preset_commuting)
-    "专注中" -> stringResource(R.string.status_preset_focusing)
-    "吃饭中" -> stringResource(R.string.status_preset_eating)
-    "旅游中" -> stringResource(R.string.status_preset_traveling)
-    "运动中" -> stringResource(R.string.status_preset_exercising)
-    "工作中" -> stringResource(R.string.status_preset_working)
-    "通话中" -> stringResource(R.string.status_preset_on_call)
-    "开车中" -> stringResource(R.string.status_preset_driving)
-    "游戏中" -> stringResource(R.string.status_preset_gaming)
-    "睡觉中" -> stringResource(R.string.status_preset_sleeping)
-    "写作中" -> stringResource(R.string.status_preset_writing)
-    "出差中" -> stringResource(R.string.status_preset_business_trip)
-    "充电中" -> stringResource(R.string.status_preset_charging)
-    "听歌中" -> stringResource(R.string.status_preset_listening)
-    "阅读中" -> stringResource(R.string.status_preset_reading)
-        "观影中" -> stringResource(R.string.status_preset_watching)
-        "做饭中" -> stringResource(R.string.status_preset_cooking)
-    else -> wire
-}
+
 
 @Composable
 private fun SettingsGroup(content: @Composable () -> Unit) {

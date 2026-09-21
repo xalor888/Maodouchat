@@ -15,7 +15,9 @@ object ThemePreferences {
     private const val PREFS = "general_settings"
     private const val KEY_THEME = "theme_mode"
     private const val KEY_THEME_STYLE = "theme_style"
-    private const val DEFAULT_THEME_STYLE = "tg_classic"
+    // 品牌默认 = MAODOU 白底液态玻璃（ThemeStyle.kt 的注释与 PICKABLE 均以它为唯一可选家族；
+    // 此前误设 tg_classic，导致液态玻璃 / 悬浮 dock / 玻璃底栏在全新安装上全部默认失效）
+    private const val DEFAULT_THEME_STYLE = "maodou"
     private const val KEY_ACCENT = "accent_color"
     // 9.211：定时深色（TG 式）——本地分钟数时段，默认 21:00 → 07:00
     private const val KEY_NIGHT_START = "night_start_minutes"

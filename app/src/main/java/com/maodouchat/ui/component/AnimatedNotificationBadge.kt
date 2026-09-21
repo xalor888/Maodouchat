@@ -103,19 +103,26 @@ fun PulsingDot(
     size: androidx.compose.ui.unit.Dp = 8.dp
 ) {
     val motion = LocalMotionSettings.current
-    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulsingDot")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.3f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-            animation = androidx.compose.animation.core.tween(
-                durationMillis = motion.duration(1000),
-                easing = androidx.compose.animation.core.FastOutSlowInEasing
+    // 动画禁用时 motion.duration 返回 0，infiniteRepeatable(0ms) 会抛
+    // IllegalArgumentException——与其它脉冲组件一致，先守卫再创建无限动画。
+    val pulseAlpha: Float = if (motion.animationsEnabled) {
+        val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulsingDot")
+        val alpha by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 0.3f,
+            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                animation = androidx.compose.animation.core.tween(
+                    durationMillis = motion.duration(1000),
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                ),
+                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
             ),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-        ),
-        label = "pulsingAlpha"
-    )
+            label = "pulsingAlpha"
+        )
+        alpha
+    } else {
+        1f
+    }
 
     Box(
         contentAlignment = Alignment.Center,
@@ -126,7 +133,7 @@ fun PulsingDot(
                 modifier = Modifier
                     .size(size)
                     .clip(CircleShape)
-                    .background(color.copy(alpha = alpha * 0.3f))
+                    .background(color.copy(alpha = pulseAlpha * 0.3f))
             )
         }
         Box(

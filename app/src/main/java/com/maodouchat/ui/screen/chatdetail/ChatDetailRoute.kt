@@ -258,18 +258,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private data class BubbleBounds(
-    val offset: androidx.compose.ui.unit.IntOffset,
-    val size: androidx.compose.ui.unit.IntSize
-)
-
 /** 8.43：图片发送前预览的待确认项（URI + 单次查看/剧透标记，选取时刻捕获）。 */
-private data class PendingImageSend(
-    val uri: Uri,
-    val viewOnce: Boolean,
-    val spoiler: Boolean
-)
-
 private enum class ParticleAction { DELETE, REVOKE }
 
 internal data class TranslationLanguageOption(
@@ -689,14 +678,12 @@ internal fun ChatDetailRoute(
     }
     val searchResults = if (searchMode == ChatSearchMode.SEMANTIC) semanticSearchResults else localSearchResults
 
+    // 8.48：禁言到期重组触发器（到期写入后提示条随重组消失）
+    var muteTick by remember { mutableLongStateOf(0L) }
     var pendingViewOnce by remember { mutableStateOf(false) }
     var pendingSpoiler by remember { mutableStateOf(false) }
-    // 8.43：图片发送前预览确认（选图 → 预览 → 发送/取消）
     var pendingImageConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
-    // 0.69：视频发送前预览确认（此前点即发，误选无法挽回）
     var pendingVideoConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
-    // 8.48：禁言提示到期重组触发器（到期时刻写入以驱动提示条消失）
-    var muteTick by remember { mutableLongStateOf(0L) }
     // Photo Picker (PickVisualMedia) on some AVDs finishes MainActivity and lands on the launcher.
     // GetContent stays in our task and is enough for IMAGE/VIDEO send confirmation.
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -993,12 +980,9 @@ internal fun ChatDetailRoute(
         classifyLoading = true
         classifyFailed = false
         chatClassifications = emptyList()
-        val appContext = context.applicationContext
-        val db = (appContext as com.maodouchat.MaodouchatApp).database
+        // G73：经端口调用，不再自己抓 app 数据库单例
         val result = withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching {
-                com.maodouchat.ai.AiMessageClassifier.classifyChat(appContext, db, chatId)
-            }
+            runCatching { viewModel.aiChatClassificationSource.classify(chatId) }
         }
         classifyLoading = false
         classifyFailed = result.isFailure
@@ -1008,10 +992,9 @@ internal fun ChatDetailRoute(
         if (!emotionReplyRequested) return@LaunchedEffect
         emotionReplyRequested = false
         val chatId = state.chat?.id ?: return@LaunchedEffect
-        val appContext = context.applicationContext
-        val db = (appContext as com.maodouchat.MaodouchatApp).database
+        // G73：经端口调用，不再自己抓 app 数据库单例
         val reply = withContext(kotlinx.coroutines.Dispatchers.IO) {
-            com.maodouchat.ai.AiEmotionReply.reply(appContext, db, chatId).getOrNull().orEmpty()
+            viewModel.aiEmotionReplySource.reply(chatId)
         }
         if (reply.isNotBlank()) {
             viewModel.onInputChange(reply)
@@ -1025,10 +1008,9 @@ internal fun ChatDetailRoute(
         val chatId = state.chat?.id ?: return@LaunchedEffect
         conversationProfileLoading = true
         conversationProfileFailed = false
-        val appContext = context.applicationContext
-        val db = (appContext as com.maodouchat.MaodouchatApp).database
+        // G73：经 ViewModel 暴露的端口调用，不再自己抓 app 数据库单例
         val built = withContext(kotlinx.coroutines.Dispatchers.IO) {
-            com.maodouchat.ai.AiConversationProfile.build(appContext, db, chatId)
+            viewModel.aiConversationProfileSource.build(chatId)
         }
         if (built.local.messageCount > 0 || !built.narrative.isNullOrBlank()) {
             conversationProfile = built
@@ -1042,10 +1024,9 @@ internal fun ChatDetailRoute(
         val chatId = state.chat?.id ?: return@LaunchedEffect
         weeklyReportLoading = true
         weeklyReportFailed = false
-        val appContext = context.applicationContext
-        val db = (appContext as com.maodouchat.MaodouchatApp).database
+        // G73：经端口调用，不再自己抓 app 数据库单例
         weeklyReport = withContext(kotlinx.coroutines.Dispatchers.IO) {
-            com.maodouchat.ai.AiWeeklyReport.generate(appContext, db, chatId)
+            viewModel.aiWeeklyReportSource.generate(chatId)
         }
         weeklyReportFailed = weeklyReport == null
         weeklyReportLoading = false
@@ -1225,194 +1206,18 @@ internal fun ChatDetailRoute(
         if (showGroupInfo && state.chatIsGroup) viewModel.loadGroupCandidates()
     }
 
+    // G77：群信息对话框（190 行）抽到 ChatDetailGroupInfoDialog.kt，纯搬移不改判断。
+    // 块内三个 groupInfo* 状态的所有权随之搬走，Route 不再持有。
     if (showGroupInfo) {
-        val chat = state.chat
-        var groupNameDraft by remember(chat?.id, chat?.groupName) { mutableStateOf(chat?.groupName.orEmpty()) }
-        var groupInfoSearch by remember(chat?.id) { mutableStateOf("") }
-        var groupInfoSearchExpanded by remember(chat?.id) { mutableStateOf(false) }
-        var groupInfoCandidatesExpanded by remember(chat?.id) { mutableStateOf(false) }
-        val groupInfoCandidatePage = 20
-        AlertDialog(
-            onDismissRequest = {
-                showGroupInfo = false
-                groupInfoSearch = ""
-                groupInfoSearchExpanded = false
-                groupInfoCandidatesExpanded = false
-            },
-            title = { Text(chat?.groupName ?: stringResource(R.string.chat_group)) },
-            text = {
-                Column(
-                    modifier = Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    val members = chat?.participants.orEmpty()
-                    val q = groupInfoSearch.trim()
-                    val filteredMembers = if (q.isEmpty()) {
-                        members
-                    } else {
-                        members.filter { m ->
-                            m.displayName.contains(q, ignoreCase = true) ||
-                                m.name.contains(q, ignoreCase = true) ||
-                                m.id.contains(q, ignoreCase = true) ||
-                                m.status.contains(q, ignoreCase = true)
-                        }
-                    }
-                    val filteredCandidates = if (q.isEmpty()) {
-                        state.groupCandidates
-                    } else {
-                        state.groupCandidates.filter { u ->
-                            u.displayName.contains(q, ignoreCase = true) ||
-                                u.name.contains(q, ignoreCase = true) ||
-                                u.id.contains(q, ignoreCase = true)
-                        }
-                    }
-                    val visibleCandidates = if (groupInfoCandidatesExpanded || filteredCandidates.size <= groupInfoCandidatePage) {
-                        filteredCandidates
-                    } else {
-                        filteredCandidates.take(groupInfoCandidatePage)
-                    }
-                    TextField(
-                        value = groupNameDraft,
-                        onValueChange = { groupNameDraft = it.take(50) },
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.chat_group_name)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                            unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                            focusedIndicatorColor = Primary,
-                            unfocusedIndicatorColor = Outline,
-                            cursorColor = Primary,
-                            focusedTextColor = OnSurface,
-                            unfocusedTextColor = OnSurface
-                        )
-                    )
-                    TextButton(
-                        onClick = { viewModel.renameGroup(groupNameDraft) },
-                        enabled = !state.isUpdatingGroup && groupNameDraft.trim().isNotBlank() && groupNameDraft.trim() != chat?.groupName.orEmpty()
-                    ) {
-                        if (state.isUpdatingGroup) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                        else Text(stringResource(R.string.chat_save_group_name))
-                    }
-                    if (members.size + state.groupCandidates.size >= 4) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            IconButton(
-                                onClick = {
-                                    groupInfoSearchExpanded = !groupInfoSearchExpanded
-                                    if (!groupInfoSearchExpanded) groupInfoSearch = ""
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = if (groupInfoSearchExpanded) Icons.Outlined.Close else Icons.Outlined.Search,
-                                    contentDescription = stringResource(
-                                        if (groupInfoSearchExpanded) R.string.chat_search_close else R.string.chat_search_action
-                                    ),
-                                    tint = Primary,
-                                )
-                            }
-                        }
-                        AnimatedVisibility(
-                            visible = groupInfoSearchExpanded,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut(),
-                        ) {
-                            OutlinedTextField(
-                                value = groupInfoSearch,
-                                onValueChange = { groupInfoSearch = it.take(100) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = { Text(stringResource(R.string.chat_group_info_search_hint)) },
-                                leadingIcon = {
-                                    Icon(Icons.Outlined.Search, contentDescription = null, tint = Secondary)
-                                },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Primary,
-                                    unfocusedBorderColor = Outline,
-                                    focusedTextColor = OnSurface,
-                                    unfocusedTextColor = OnSurface,
-                                    cursorColor = Primary
-                                )
-                            )
-                        }
-                    }
-                    Text(pluralStringResource(R.plurals.chat_members_count, members.size, members.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-                    if (filteredMembers.isEmpty() && q.isNotEmpty()) {
-                        Text(
-                            stringResource(R.string.chat_group_info_search_empty),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = LocalChatPalette.current.textHint
-                        )
-                    } else {
-                        filteredMembers.forEach { member ->
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                                Avatar(name = member.name, size = AvatarSize.SM)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(member.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (member.status.isNotBlank()) Text(member.status, style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                                if (member.id == state.currentUserId) Text(stringResource(R.string.chat_me), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                else TextButton(
-                                    enabled = !state.isUpdatingGroup,
-                                    onClick = { viewModel.removeGroupMember(member.id) }
-                                ) { Text(stringResource(R.string.chat_remove), color = LocalChatPalette.current.unreadRed) }
-                            }
-                        }
-                    }
-                    if (state.groupCandidates.isNotEmpty()) {
-                        Text(stringResource(R.string.chat_add_member), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-                        if (filteredCandidates.isEmpty() && q.isNotEmpty()) {
-                            Text(
-                                stringResource(R.string.chat_group_info_search_empty),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LocalChatPalette.current.textHint
-                            )
-                        } else {
-                            visibleCandidates.forEach { user ->
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                                    Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.SM)
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(user.displayName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                    TextButton(
-                                        enabled = !state.isUpdatingGroup,
-                                        onClick = { viewModel.addGroupMember(user.id) }
-                                    ) { Text(stringResource(R.string.chat_add)) }
-                                }
-                            }
-                            if (!groupInfoCandidatesExpanded && filteredCandidates.size > groupInfoCandidatePage) {
-                                TextButton(
-                                    onClick = { groupInfoCandidatesExpanded = true },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        stringResource(
-                                            R.string.chat_candidates_more,
-                                            filteredCandidates.size - groupInfoCandidatePage
-                                        ),
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            } else if (groupInfoCandidatesExpanded && filteredCandidates.size > groupInfoCandidatePage) {
-                                Text(
-                                    stringResource(R.string.chat_candidates_showing_all, filteredCandidates.size),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = LocalChatPalette.current.textHint
-                                )
-                            }
-                        }
-                    } else {
-                        Text(stringResource(R.string.chat_no_candidates), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showGroupInfo = false
-                    groupInfoSearch = ""
-                    groupInfoSearchExpanded = false
-                    groupInfoCandidatesExpanded = false
-                }) { Text(stringResource(R.string.common_done)) }
-            }
+        ChatDetailGroupInfoDialog(
+            chat = state.chat,
+            currentUserId = state.currentUserId,
+            groupCandidates = state.groupCandidates,
+            isUpdatingGroup = state.isUpdatingGroup,
+            onDismiss = { showGroupInfo = false },
+            onRenameGroup = { name -> viewModel.renameGroup(name) },
+            onAddGroupMember = { userId -> viewModel.addGroupMember(userId) },
+            onRemoveGroupMember = { userId -> viewModel.removeGroupMember(userId) },
         )
     }
 
@@ -1436,168 +1241,31 @@ internal fun ChatDetailRoute(
         )
     }
 
-    if (state.showAiConsentDialog) {
-        AiConsentDialog(
-            onAccept = { viewModel.acceptAiConsentAndContinue() },
-            onDismiss = { viewModel.dismissAiConsent() }
-        )
-    }
-
-    if (showAiSummaryScopeDialog) {
-        AiSummaryScopeDialog(
-            searchResultCount = if (showSearchBar) searchResults.size else 0,
-            onDismiss = { showAiSummaryScopeDialog = false },
-            onSelect = { scope, style ->
-                showAiSummaryScopeDialog = false
-                viewModel.requestAiSummary(
-                    scope = scope,
-                    searchResultIds = if (scope == AiSummaryScope.SEARCH_RESULTS) searchResults.map(Message::id) else emptyList(),
-                    style = style
-                )
-            }
-        )
-    }
-
-    if (state.showAiSummaryHistory) {
-        AiSummaryHistoryDialog(
-            summaries = state.aiSummaryHistory,
-            isLoading = state.isAiSummaryHistoryLoading,
-            onSelect = viewModel::openAiSummaryFromHistory,
-            onDismiss = viewModel::dismissAiSummaryHistory
-        )
-    }
-
-    state.aiSummary?.let { summary ->
-        AiSummaryDialog(
-            summary = summary,
-            scope = state.aiSummaryScope ?: AiSummaryScope.RECENT,
-            messageCount = state.aiSummaryMessageCount,
-            onDismiss = { viewModel.clearAiSummary() }
-        )
-    }
-
-    // B4：会话画像对话框（本地统计 + 可选叙事摘要）
-    if (showConversationProfile) {
-        ConversationProfileDialog(
-            loading = conversationProfileLoading,
-            profile = conversationProfile,
-            failed = conversationProfileFailed,
-            onDismiss = { showConversationProfile = false },
-            // 1.317：复制会话画像
-            onCopyProfile = { profileText ->
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_ai_conversation_profile_title), profileText))
-                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-            }
-        )
-    }
-
-    // B4：本周周报对话框（生成并缓存到本地）
-    if (showWeeklyReport) {
-        WeeklyReportDialog(
-            loading = weeklyReportLoading,
-            report = weeklyReport,
-            failed = weeklyReportFailed,
-            onDismiss = { showWeeklyReport = false },
-            // 1.310：复制周报全文
-            onCopyReport = { reportText ->
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_ai_weekly_report_title), reportText))
-                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-            }
-        )
-    }
-
-    // 8.47：消息分类统计对话框（纯本地）
-    if (showMessageClassify) {
-        MessageClassifyDialog(
-            loading = classifyLoading,
-            categories = chatClassifications,
-            failed = classifyFailed,
-            onDismiss = { showMessageClassify = false },
-            // 1.349：复制分类结果（与周报/画像复制一致）
-            onCopyClassify = { classifyText ->
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.ai_enhance_classify_title), classifyText))
-                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-            }
-        )
-    }
-
-    state.aiImageAnalysisResult?.let { result ->
-        AiImageAnalysisResultDialog(
-            result = result,
-            mode = state.aiImageAnalysisMode ?: AiImageAnalysisMode.DESCRIBE,
-            onCopy = {
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatAiImageResultTitle, result))
-                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-            },
-            onDismiss = viewModel::clearAiImageAnalysis
-        )
-    }
-
-    state.aiFileAnalysisResult?.let { result ->
-        AiFileAnalysisResultDialog(
-            result = result,
-            fileName = state.aiFileAnalysisName.orEmpty(),
-            mode = state.aiFileAnalysisMode ?: AiFileAnalysisMode.SUMMARIZE,
-            onCopy = {
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatAiFileResultTitle, result))
-                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-            },
-            onDismiss = viewModel::clearAiFileAnalysis
-        )
-    }
-
-    var confirmShareGroupAi by remember { mutableStateOf(false) }
-    state.groupAiAnswer?.let { answer ->
-        val canShare = !state.groupAiAnswerShared &&
-            com.maodouchat.ai.GroupAiSharePolicy.decideShare(
-                isGroup = state.chatIsGroup || state.chat?.isGroup == true,
-                answer = answer,
-                alreadyShared = state.groupAiAnswerShared
-            ).allowed
-        GroupAiAssistantDialog(
-            question = state.groupAiQuestion,
-            answer = answer,
-            tasks = state.groupAiTasks,
-            isSavingTasks = state.isSavingGroupAiTasks,
-            tasksSaved = state.groupAiTasksSaved,
-            taskSaveError = state.groupAiTaskSaveError,
-            shareEnabled = canShare,
-            onCopy = {
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatGroupAiTitle, answer))
-                Toast.makeText(context, chatGroupAiCopiedMsg, Toast.LENGTH_SHORT).show()
-            },
-            onSaveTasks = { viewModel.saveGroupAiTasks() },
-            onShare = { if (canShare) confirmShareGroupAi = true },
-            onDismiss = {
-                confirmShareGroupAi = false
-                viewModel.clearGroupAiAnswer()
-            }
-        )
-        if (confirmShareGroupAi && canShare) {
-            AlertDialog(
-                onDismissRequest = { confirmShareGroupAi = false },
-                title = { Text(stringResource(R.string.chat_group_ai_share_confirm_title)) },
-                text = { Text(stringResource(R.string.chat_group_ai_share_confirm_body)) },
-                confirmButton = {
-                    Button(onClick = {
-                        confirmShareGroupAi = false
-                        viewModel.shareGroupAiAnswer()
-                    }) { Text(stringResource(R.string.chat_group_ai_share_confirm_action)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { confirmShareGroupAi = false }) {
-                        Text(stringResource(R.string.common_cancel))
-                    }
-                }
-            )
-        }
-    }
+    // G74：AI 相关对话框簇（10 个）抽到 ChatDetailAiDialogs.kt，纯搬移不改判断。
+    // 四个 rememberSaveable 开关的 setter 经回调传回，所有权仍在本 Composable。
+    ChatDetailAiDialogs(
+        state = state,
+        viewModel = viewModel,
+        searchResults = searchResults,
+        showSearchBar = showSearchBar,
+        showAiSummaryScopeDialog = showAiSummaryScopeDialog,
+        onDismissAiSummaryScope = { showAiSummaryScopeDialog = false },
+        showConversationProfile = showConversationProfile,
+        onDismissConversationProfile = { showConversationProfile = false },
+        conversationProfile = conversationProfile,
+        conversationProfileLoading = conversationProfileLoading,
+        conversationProfileFailed = conversationProfileFailed,
+        showWeeklyReport = showWeeklyReport,
+        onDismissWeeklyReport = { showWeeklyReport = false },
+        weeklyReport = weeklyReport,
+        weeklyReportLoading = weeklyReportLoading,
+        weeklyReportFailed = weeklyReportFailed,
+        showMessageClassify = showMessageClassify,
+        onDismissMessageClassify = { showMessageClassify = false },
+        chatClassifications = chatClassifications,
+        classifyLoading = classifyLoading,
+        classifyFailed = classifyFailed,
+    )
 
     if (showDisappearDialog && !state.chatIsGroup && state.isSecretChat != true) {
         DisappearingMessagesDialog(
@@ -1643,116 +1311,37 @@ internal fun ChatDetailRoute(
     }
 
     // 1.02：临时静音至（本地，1/8/24 小时）
+    // G83：静音至对话框（45 行）抽到 ChatDetailChatSettingsDialogs.kt，纯搬移不改判断。
     if (showSilentUntilDialog && state.chat?.id?.isNotBlank() == true) {
+        // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
         val chatIdForSilent = state.chat?.id ?: return
-        val hasActiveSilent = com.maodouchat.notification.ChatQuietHoursStore.silentUntil(context, chatIdForSilent) > System.currentTimeMillis()
-        AlertDialog(
-            onDismissRequest = { showSilentUntilDialog = false },
-            title = { Text(stringResource(R.string.chat_silent_until_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-            text = {
-                Column {
-                    listOf(
-                        1L to R.string.chat_silent_until_1h,
-                        8L to R.string.chat_silent_until_8h,
-                        24L to R.string.chat_silent_until_24h
-                    ).forEach { (hours, labelRes) ->
-                        TextButton(
-                            onClick = {
-                                com.maodouchat.notification.ChatQuietHoursStore.setSilentUntil(
-                                    context,
-                                    chatIdForSilent,
-                                    System.currentTimeMillis() + hours * 3600_000L
-                                )
-                                showSilentUntilDialog = false
-                                Toast.makeText(context, context.getString(R.string.chat_silent_until_set), Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(labelRes), color = MaterialTheme.colorScheme.onSurface) }
-                    }
-                    // 1.41：已有生效静音时可一键取消
-                    if (hasActiveSilent) {
-                        TextButton(
-                            onClick = {
-                                com.maodouchat.notification.ChatQuietHoursStore.setSilentUntil(context, chatIdForSilent, 0L)
-                                showSilentUntilDialog = false
-                                Toast.makeText(context, context.getString(R.string.chat_silent_until_cleared), Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(stringResource(R.string.chat_silent_until_clear), color = LocalChatPalette.current.unreadRed) }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showSilentUntilDialog = false }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
-            }
+        ChatSilentUntilDialog(
+            chatId = chatIdForSilent,
+            onDismiss = { showSilentUntilDialog = false },
         )
     }
 
     // 8.48：稍后提醒列表（查看/取消）
+    // G82：稍后提醒列表对话框（65 行）抽到 ChatDetailReminderListDialog.kt，纯搬移不改判断。
     if (showReminderList && state.chat?.id?.isNotBlank() == true) {
         // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
         val reminderChatId = state.chat?.id ?: return
-        var reminders by remember(showReminderList, reminderChatId) {
+        var reminderList by remember(showReminderList, reminderChatId) {
             mutableStateOf(viewModel.listRemindersForChat(reminderChatId))
         }
-        AlertDialog(
-            onDismissRequest = { showReminderList = false },
-            title = { Text(stringResource(R.string.message_reminder_list_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-            text = {
-                if (reminders.isEmpty()) {
-                    Text(
-                        stringResource(R.string.message_reminder_list_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = LocalChatPalette.current.textSecondary
-                    )
-                } else {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())
-                    ) {
-                        reminders.forEach { reminder ->
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        reminder.messagePreview.ifBlank { stringResource(R.string.message_reminder_list_media) },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        android.text.format.DateUtils.getRelativeTimeSpanString(
-                                            reminder.remindAtMillis,
-                                            System.currentTimeMillis(),
-                                            android.text.format.DateUtils.MINUTE_IN_MILLIS
-                                        ).toString(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = LocalChatPalette.current.textSecondary
-                                    )
-                                }
-                                TextButton(onClick = {
-                                    viewModel.cancelReminder(reminder.id)
-                                    reminders = reminders.filterNot { it.id == reminder.id }
-                                }) {
-                                    Text(stringResource(R.string.common_delete), color = LocalChatPalette.current.unreadRed)
-                                }
-                            }
-                        }
-                        // 1.32：清除该会话全部提醒
-                        TextButton(
-                            onClick = {
-                                viewModel.clearRemindersForChat(reminderChatId)
-                                reminders = emptyList()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.message_reminder_clear_all), color = LocalChatPalette.current.unreadRed, modifier = Modifier.fillMaxWidth())
-                        }
-                    }
-                }
+        ChatDetailReminderListDialog(
+            reminders = reminderList,
+            chatId = reminderChatId,
+            onDismiss = { showReminderList = false },
+            onCancelReminder = { id ->
+                viewModel.cancelReminder(id)
+                reminderList = reminderList.filterNot { it.id == id }
             },
-            confirmButton = { TextButton(onClick = { showReminderList = false }) { Text(stringResource(R.string.common_done)) } }
+            onClearAll = { chatId ->
+                viewModel.clearRemindersForChat(chatId)
+                reminderList = emptyList()
+            },
+            onRemindersChange = { reminderList = it },
         )
     }
 
@@ -1812,111 +1401,29 @@ internal fun ChatDetailRoute(
         )
     }
 
+    // G81：设置聊天锁对话框（71 行）抽到 ChatDetailSetChatLockDialog.kt，纯搬移不改判断。
     if (showSetChatLock) {
-        AlertDialog(
-            onDismissRequest = {
-                showSetChatLock = false
-                setLockError = null
-            },
-            title = { Text(stringResource(R.string.chat_lock_set_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = setLockPinDraft,
-                        onValueChange = { raw ->
-                            setLockPinDraft = raw.filter { it.isDigit() }.take(8)
-                            setLockError = null
-                        },
-                        label = { Text(stringResource(R.string.chat_lock_enter_pin, state.contact.displayName)) },
-                        singleLine = true,
-                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = setLockPinConfirm,
-                        onValueChange = { raw ->
-                            setLockPinConfirm = raw.filter { it.isDigit() }.take(8)
-                            setLockError = null
-                        },
-                        label = { Text(stringResource(R.string.chat_lock_confirm_pin)) },
-                        singleLine = true,
-                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    setLockError?.let {
-                        Text(it, color = LocalChatPalette.current.unreadRed, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    when {
-                        setLockPinDraft.length !in 4..8 ->
-                            setLockError = context.getString(R.string.chat_lock_pin_length)
-                        setLockPinDraft != setLockPinConfirm ->
-                            setLockError = context.getString(R.string.chat_lock_pin_mismatch)
-                        else -> {
-                            viewModel.setChatLockPin(setLockPinDraft)
-                            showSetChatLock = false
-                            setLockPinDraft = ""
-                            setLockPinConfirm = ""
-                            setLockError = null
-                        }
-                    }
-                }) {
-                    Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showSetChatLock = false
-                    setLockError = null
-                }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            }
+        ChatDetailSetChatLockDialog(
+            pinDraft = setLockPinDraft,
+            pinConfirmDraft = setLockPinConfirm,
+            errorMessage = setLockError,
+            contactDisplayName = state.contact.displayName,
+            onPinDraftChange = { setLockPinDraft = it },
+            onPinConfirmDraftChange = { setLockPinConfirm = it },
+            onErrorMessageChange = { setLockError = it },
+            onDismiss = { showSetChatLock = false },
+            onSaved = { pin -> viewModel.setChatLockPin(pin) },
         )
     }
 
+    // G83：解除聊天锁对话框（35 行）抽到 ChatDetailChatSettingsDialogs.kt，纯搬移不改判断。
     if (showDisableChatLock) {
-        AlertDialog(
-            onDismissRequest = { showDisableChatLock = false },
-            title = { Text(stringResource(R.string.chat_lock_disable_title)) },
-            text = {
-                OutlinedTextField(
-                    value = disableLockPinDraft,
-                    onValueChange = { raw ->
-                        disableLockPinDraft = raw.filter { it.isDigit() }.take(8)
-                    },
-                    label = { Text(stringResource(R.string.chat_lock_enter_pin, state.contact.displayName)) },
-                    singleLine = true,
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.removeChatLock(disableLockPinDraft)
-                    showDisableChatLock = false
-                    disableLockPinDraft = ""
-                }) {
-                    Text(stringResource(R.string.chat_lock_menu_disable), color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDisableChatLock = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            }
+        ChatDisableChatLockDialog(
+            pinDraft = disableLockPinDraft,
+            contactDisplayName = state.contact.displayName,
+            onPinDraftChange = { disableLockPinDraft = it },
+            onDismiss = { showDisableChatLock = false },
+            onRemoveLock = { pin -> viewModel.removeChatLock(pin) },
         )
     }
 
@@ -1942,49 +1449,19 @@ internal fun ChatDetailRoute(
         )
     }
 
+    // G83：联系人操作对话框（45 行）抽到 ChatDetailChatSettingsDialogs.kt，纯搬移不改判断。
     if (showContactActions && !state.chatIsGroup) {
-        AlertDialog(
-            onDismissRequest = { showContactActions = false },
-            title = { Text(state.contact.displayName.ifBlank { stringResource(R.string.chat_contact) }) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = stringResource(if (state.isContactBlocked) R.string.chat_blocked_description else R.string.chat_block_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = LocalChatPalette.current.textSecondary
-                    )
-                    TextButton(
-                        onClick = {
-                            showContactActions = false
-                            showContactProfile = true
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.chat_view_profile), color = MaterialTheme.colorScheme.primary)
-                    }
-                    TextButton(
-                        enabled = !state.isBlockingContact,
-                        onClick = {
-                            if (state.isContactBlocked) viewModel.unblockContact() else viewModel.blockContact()
-                            showContactActions = false
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (state.isBlockingContact) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                        else Text(stringResource(if (state.isContactBlocked) R.string.chat_unblock_user else R.string.chat_block_user), color = if (state.isContactBlocked) Primary else UnreadRed)
-                    }
-                    TextButton(
-                        onClick = {
-                            showContactActions = false
-                            showReportContactDialog = true
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.chat_report_user), color = LocalChatPalette.current.unreadRed)
-                    }
-                }
+        ChatContactActionsDialog(
+            contactDisplayName = state.contact.displayName,
+            isContactBlocked = state.isContactBlocked,
+            isBlockingContact = state.isBlockingContact,
+            isGroup = state.chatIsGroup,
+            onDismiss = { showContactActions = false },
+            onViewProfile = { showContactProfile = true },
+            onToggleBlock = {
+                if (state.isContactBlocked) viewModel.unblockContact() else viewModel.blockContact()
             },
-            confirmButton = { TextButton(onClick = { showContactActions = false }) { Text(stringResource(R.string.common_done)) } }
+            onReport = { showReportContactDialog = true },
         )
     }
 
@@ -2097,127 +1574,20 @@ if (showGroupCallTypeDialog) {
         )
     }
 
+    // G78：群通话成员选择对话框（123 行）抽到 ChatDetailGroupCallMemberDialog.kt，纯搬移不改判断。
+    // 三个 rememberSaveable 开关的所有权留在 Route（打开入口也在这里），以「值 + setter」传入。
     if (showGroupCallMemberDialog) {
-        val candidates = state.chat?.participants.orEmpty().filter { it.id != state.currentUserId }
-        val maxSelected = com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1
-        val memberQuery = groupCallMemberSearch.trim()
-        val filteredCallCandidates = if (memberQuery.isBlank()) {
-            candidates
-        } else {
-            candidates.filter { user ->
-                user.displayName.contains(memberQuery, ignoreCase = true) ||
-                    user.id.contains(memberQuery, ignoreCase = true)
-            }
-        }
-        AlertDialog(
-            onDismissRequest = {
-                showGroupCallMemberDialog = false
-                pendingGroupCallType = null
-                selectedGroupCallMemberIds = emptySet()
-                groupCallMemberSearch = ""
-            },
-            title = { Text(stringResource(R.string.call_select_members_title)) },
-            text = {
-                Column {
-                    Text(
-                        stringResource(R.string.call_select_members_count, selectedGroupCallMemberIds.size, maxSelected),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        stringResource(
-                            R.string.call_group_mesh_limit,
-                            com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalChatPalette.current.textSecondary
-                    )
-                    if (candidates.size >= 4) {
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = groupCallMemberSearch,
-                            onValueChange = { groupCallMemberSearch = it.take(100) },
-                            singleLine = true,
-                            placeholder = { Text(stringResource(R.string.call_select_members_search_hint)) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    if (filteredCallCandidates.isEmpty()) {
-                        Text(
-                            stringResource(R.string.call_select_members_search_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LocalChatPalette.current.textHint,
-                            modifier = Modifier.padding(vertical = 12.dp)
-                        )
-                    } else {
-                        LazyColumn(modifier = Modifier.heightIn(max = 400.dp)) {
-                            itemsIndexed(
-                                filteredCallCandidates,
-                                key = { _, user -> user.id },
-                                contentType = { _, _ -> "group_call_candidate" }
-                            ) { _, user ->
-                                val selected = user.id in selectedGroupCallMemberIds
-                                val enabled = selected || selectedGroupCallMemberIds.size < maxSelected
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable(enabled = enabled) {
-                                            selectedGroupCallMemberIds = if (selected) {
-                                                selectedGroupCallMemberIds - user.id
-                                            } else {
-                                                selectedGroupCallMemberIds + user.id
-                                            }
-                                        }
-                                        .padding(vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Avatar(name = user.displayName, avatarUrl = user.avatar, size = AvatarSize.SM)
-                                    Spacer(Modifier.width(12.dp))
-                                    Text(user.displayName, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Checkbox(
-                                        checked = selected,
-                                        enabled = enabled,
-                                        onCheckedChange = {
-                                            selectedGroupCallMemberIds = if (selected) {
-                                                selectedGroupCallMemberIds - user.id
-                                            } else {
-                                                selectedGroupCallMemberIds + user.id
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = selectedGroupCallMemberIds.isNotEmpty() && pendingGroupCallType != null,
-                    onClick = {
-                        val type = pendingGroupCallType ?: return@TextButton
-                        viewModel.startGroupCallFromChat(type, selectedGroupCallMemberIds)
-                        showGroupCallMemberDialog = false
-                        pendingGroupCallType = null
-                        selectedGroupCallMemberIds = emptySet()
-                        groupCallMemberSearch = ""
-                    }
-                ) {
-                    Text(stringResource(R.string.call_start_selected_members))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showGroupCallMemberDialog = false
-                    pendingGroupCallType = null
-                    selectedGroupCallMemberIds = emptySet()
-                    groupCallMemberSearch = ""
-                }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            }
+        ChatDetailGroupCallMemberDialog(
+            chat = state.chat,
+            currentUserId = state.currentUserId,
+            pendingCallType = pendingGroupCallType,
+            selectedMemberIds = selectedGroupCallMemberIds,
+            memberQuery = groupCallMemberSearch,
+            onDismiss = { showGroupCallMemberDialog = false },
+            onPendingCallTypeChange = { pendingGroupCallType = it },
+            onSelectedMemberIdsChange = { selectedGroupCallMemberIds = it },
+            onMemberQueryChange = { groupCallMemberSearch = it },
+            onStartGroupCall = { type, ids -> viewModel.startGroupCallFromChat(type, ids) },
         )
     }
 
@@ -2468,7 +1838,14 @@ if (showGroupCallTypeDialog) {
                                 ChatHeaderStatus.Online -> Text(stringResource(R.string.chat_online), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 is ChatHeaderStatus.LastSeen -> Text(stringResource(R.string.user_last_seen_prefix) + " " + android.text.format.DateUtils.getRelativeTimeSpanString(status.timestamp, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS), style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 ChatHeaderStatus.Offline -> Text(stringResource(R.string.chat_offline), style = MaterialTheme.typography.labelMedium, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                is ChatHeaderStatus.Custom -> Text(status.text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                is ChatHeaderStatus.Custom -> Text(
+                                    // 预设状态 wire 值为中文原文，展示前先本地化（自定义文本原样透传）
+                                    com.maodouchat.ui.component.localizedCustomStatusLabel(status.text),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                                 ChatHeaderStatus.None -> Unit
                             }
                         }
@@ -2807,83 +2184,41 @@ if (showGroupCallTypeDialog) {
                     }
                 )
             }
+            // G84：多选工具条（79 行）抽到 ChatDetailSelectionToolbar.kt，六项派生状态随之内聚。
             AnimatedVisibility(
                 visible = messageSelectionMode,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                val forwardableMessages = selectedMessages.filter { isMessageForwardable(it.type, isSecretChat = state.isSecretChat == true, forwardBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK)) }
-                val shouldStar = selectedMessages.any { !it.starred }
-                // 1.10：选中的消息里只要存在未置顶的即可点「置顶」，全部已置顶则显示「取消置顶」
-                val pinnedIds = remember(state.pinnedMessages) { state.pinnedMessages.map { it.messageId }.toSet() }
-                val shouldPin = selectedMessages.any { it.id !in pinnedIds }
-                // 1.20：与单条置顶一致——群聊非群主/管理员不显示批量置顶入口
-                val canBatchPin = selectedMessages.any {
-                    MessagePinPolicy.canPin(state.chatIsGroup, state.myMemberRole, it.type)
-                }
-                val selectableIds = remember(state.messages) {
-                    state.messages
-                        .filter { it.type != MessageType.SYSTEM && it.type != MessageType.SK_DIST }
-                        // 8.53：排除在途消息（SENDING）与附件仍在上传准备中的消息——
-                        // 删了会与服务端 404 竞态，outbox flusher 仍可能把消息发出去
-                        .filter {
-                            it.status != MessageStatus.SENDING &&
-                                it.id !in state.preparingAttachmentMessageIds
-                        }
-                        .map { it.id }
-                        .toSet()
-                }
-                ChatSelectionToolbar(
-                    selectedCount = selectedMessageIds.size,
-                    canForward = forwardableMessages.isNotEmpty(),
-                    shouldStar = shouldStar,
-                    canSelectAll = selectableIds.isNotEmpty() && !selectedMessageIds.containsAll(selectableIds),
-                    onSelectAll = { selectedMessageIds = selectableIds },
+                ChatDetailSelectionToolbar(
+                    visible = messageSelectionMode,
+                    selectedMessages = selectedMessages,
+                    allMessages = state.messages,
+                    selectedIds = selectedMessageIds,
+                    chatIsGroup = state.chatIsGroup,
+                    myMemberRole = state.myMemberRole,
+                    pinnedMessageIds = remember(state.pinnedMessages) { state.pinnedMessages.map { it.messageId }.toSet() },
+                    isSecretChat = state.isSecretChat == true,
+                    preparingAttachmentMessageIds = state.preparingAttachmentMessageIds,
+                    onSelectAll = { selectedMessageIds = it },
                     onClearSelection = { selectedMessageIds = emptySet() },
-                    onCancel = { selectedMessageIds = emptySet() },
-                    onForward = {
-                        messagesToForward = forwardableMessages
+                    onForward = { msgs ->
+                        messagesToForward = msgs
                         viewModel.loadForwardTargets()
                     },
-                    onToggleStar = {
-                        // 9.227：改串行批量，避免逐条并发触发 toggleStarMessage 扇出 N 个 REST
-                        viewModel.toggleStarMessagesBatch(selectedMessages.map { it.id }, shouldStar)
-                        selectedMessageIds = emptySet()
-                    },
+                    onToggleStar = { ids, shouldStar -> viewModel.toggleStarMessagesBatch(ids, shouldStar) },
                     onDelete = { showBatchDeleteConfirm = true },
-                    onCopy = if (state.isSecretChat == true) null else {
-                        {
-                            val copyable = selectedMessages
-                                .filter {
-                                    isMessageCopyable(
-                                        it.type,
-                                        isSecretChat = state.isSecretChat == true,
-                                        copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK)
-                                    )
-                                }
-                                .map { it.parsedContent() }
-                                .filter { it.isNotBlank() }
-                            if (copyable.isNotEmpty()) {
-                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, copyable.joinToString("\n")))
-                                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-                                selectedMessageIds = emptySet()
-                            } else {
-                                Toast.makeText(context, context.getString(R.string.chat_copy_no_text), Toast.LENGTH_SHORT).show()
-                            }
-                        }
+                    onTogglePin = { ids, shouldPin ->
+                        viewModel.togglePinMessages(messageIds = ids, shouldPin = shouldPin)
                     },
-                    // 1.10：批量置顶/取消置顶选中消息（1.20：无权限时不显示入口）
-                    shouldPin = shouldPin,
-                    onTogglePin = if (canBatchPin) {
-                        {
-                            viewModel.togglePinMessages(
-                                messageIds = selectedMessages.map { it.id },
-                                shouldPin = shouldPin
-                            )
-                            selectedMessageIds = emptySet()
-                        }
-                    } else null
+                    onCopied = { text ->
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, text))
+                        Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
+                    },
+                    onCopyFailed = {
+                        Toast.makeText(context, context.getString(R.string.chat_copy_no_text), Toast.LENGTH_SHORT).show()
+                    },
                 )
             }
 
@@ -2906,227 +2241,45 @@ if (showGroupCallTypeDialog) {
                         is ChatItem.UnreadSeparator -> "unread_separator"
                     } }
                 ) { index, item ->
-                    val itemPlacementSpec = motion.listItemPlacementSpec()
-                    when (item) {
-                        is ChatItem.DateSeparator -> {
-                            Box(modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .then(
-                                    if (itemPlacementSpec != null) Modifier.animateItem(placementSpec = itemPlacementSpec)
-                                    else Modifier
-                                ),
-                                contentAlignment = Alignment.Center) {
-                                // 9.270：TG 式日期胶囊——全胶囊形 + 加深半透明（悬浮在壁纸上的磨砂感，
-                                // 原 12dp 圆角矩形 + 淡半透明），字号收紧更精致
-                                Text(
-                                    item.label,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                    color = MaterialTheme.colorScheme.inverseOnSurface,
-                                    modifier = Modifier
-                                        .background(
-                                            LocalChatPalette.current.systemMessageBackground.copy(alpha = 0.32f),
-                                            RoundedCornerShape(percent = 50)
-                                        )
-                                        .padding(horizontal = 12.dp, vertical = 5.dp)
-                                )
-                            }
-                        }
-                        is ChatItem.UnreadSeparator -> {
-                            // 1.03：「以下为未读消息」分隔线；1.74：点击跳转到第一条未读消息
-                            // 9.271：TG 式未读分隔条——全宽胶囊条 + 白字（TG 观感，原红线夹文字微信式）
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp)
-                                    .then(if (itemPlacementSpec != null) Modifier.animateItem(placementSpec = itemPlacementSpec) else Modifier)
-                                    .clip(RoundedCornerShape(percent = 50))
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.82f))
-                                    .clickable { viewModel.jumpToMessage(item.messageId) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    stringResource(R.string.chat_unread_divider),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                    color = Color.White,
-                                    modifier = Modifier.padding(vertical = 5.dp)
-                                )
-                            }
-                        }
-                        is ChatItem.Msg -> {
-                            val message = item.message
-                            DisposableEffect(message.id) {
-                                onDispose { bubbleBounds.remove(message.id) }
-                            }
-                            val isOwn = message.senderId == state.currentUserId
-                            val isSearchHit = searchResults.getOrNull(searchIndex)?.id == message.id ||
-                                navigationHighlightMessageId == message.id
-                            val meta = remember(message.id, message.content) { message.parsedMeta() }
-                            val displayContent = remember(message.id, message.content) { message.parsedContent() }
-                            val displayMessage = remember(message, displayContent, meta) {
-                                message.copy(content = displayContent, meta = meta)
-                            }
-                            val canShowSafety = (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) &&
-                                !isOwn &&
-                                message.id !in dismissedSafetyMessageIds
-                            val groupReadCount = if (
-                                ReadReceiptPolicy.shouldShowGroupReadCount(
-                                    isGroup = state.chatIsGroup,
-                                    isOwnMessage = isOwn,
-                                    viewerRole = state.myMemberRole,
-                                )
-                            ) {
-                                state.groupReadCounts[message.id]
-                            } else null
-                            // 9.264：TG 式分组密度——同一发送者 6 分钟内的连续消息紧凑成组（3dp），
-                            // 换人/超时/跨分隔符额外补 5dp（总 8dp）；reverseLayout 下时间上更早的
-                            // 消息在 index+1，本项 top padding 即与它的间隙
-                            val prevItem = reversedChatItems.getOrNull(index + 1)
-                            val groupedWithPrev = prevItem is ChatItem.Msg &&
-                                prevItem.message.senderId == message.senderId &&
-                                kotlin.math.abs(message.timestamp - prevItem.message.timestamp) < 6L * 60L * 1000L
-                            Column(Modifier.fillMaxWidth().padding(top = if (groupedWithPrev) 0.dp else 5.dp)) {
-                            ChatMessageRow(
-                                state = ChatMessageRowState(
-                                    message = displayMessage,
-                                    isOwn = isOwn,
-                                    showAvatar = item.showAvatar,
-                                    showSenderName = item.showSenderName,
-                                    isGroupEdge = item.isGroupEdge,
-                                    senderName = resolveSenderName(message, isOwn),
-                                    replyToPreview = meta.replyToId?.let(messagesById::get)?.let {
-                                        ReplyPreview(
-                                            senderName = resolveSenderName(it, isOwn = false) ?: "",
-                                            preview = MessagePreviewText.replyOrQuote(
-                                                message = it,
-                                                mediaLabel = { type ->
-                                                    when (type) {
-                                                        MessageType.IMAGE -> context.getString(R.string.message_preview_image)
-                                                        MessageType.GIF -> context.getString(R.string.message_preview_gif)
-                                                        MessageType.STICKER -> context.getString(R.string.message_preview_sticker)
-                                                        MessageType.VOICE -> context.getString(R.string.message_preview_voice)
-                                                        MessageType.VIDEO -> context.getString(R.string.message_preview_video)
-                                                        MessageType.FILE -> context.getString(R.string.message_preview_file)
-                                                        MessageType.LOCATION -> context.getString(R.string.message_preview_location)
-                                                        else -> context.getString(R.string.message_preview_encrypted)
-                                                    }
-                                                },
-                                                encryptedPlaceholder = context.getString(R.string.message_preview_encrypted),
-                                            ).take(60)
-                                        )
-                                    },
-                                    isSearchHit = isSearchHit,
-                                    animateEntry = index == 0,
-                                    isAnimatingRemoval = message.id == animatingMessageId,
-                                    isSelected = message.id in selectedMessageIds,
-                                    selectionMode = messageSelectionMode,
-                                    currentUserId = state.currentUserId,
-                                    isVoiceTranscribing = message.id in state.transcribingVoiceMessageIds,
-                                    isTranslating = message.id in state.translatingMessageIds,
-                                    fileTransferProgress = state.fileTransferProgress[message.id],
-                                    fileTransferState = state.fileTransferStates[message.id]
-                                        ?: AttachmentTransferState.PREPARING.takeIf { message.id in state.preparingAttachmentMessageIds },
-                                    fileTransferError = state.fileTransferErrors[message.id],
-                                    mediaDownloadFailed = message.id in state.mediaDownloadErrorMessageIds,
-                                    safetyWarning = if (canShowSafety) messageSafetyWarning(displayContent, localSafetyEnabled) else null,
-                                    isGroupChat = state.chat?.isGroup == true,
-                                    groupReadCount = groupReadCount,
-                                    // 0.65 新功能：发送者群内角色（群主/管理员徽章）
-                                    memberRole = if (state.chat?.isGroup == true) state.memberRoleByUser[message.senderId] else null,
-                                    secretChatId = if (state.isSecretChat == true) state.chat?.id else null,
-                                ),
-                                onImageClick = { fullScreenImage = it },
-                                onVideoClick = { fullScreenVideo = it },
-                                onReply = {
-                                    replyTarget = message
-                                    // 1.47：群聊回复时自动 @ 发送者（输入未包含时前置，对标微信/QQ）
-                                    if (state.chatIsGroup && message.senderId != state.currentUserId) {
-                                        val senderName = resolveSenderName(message, isOwn = false)
-                                        if (!senderName.isNullOrBlank()) {
-                                            val mentionToken = "@$senderName"
-                                            if (!state.inputText.contains(mentionToken)) {
-                                                val base = state.inputText.trimEnd()
-                                                viewModel.onInputChange(if (base.isEmpty()) "$mentionToken " else "$base $mentionToken ")
-                                            }
-                                        }
-                                    }
-                                },
-                                onReplyPreviewClick = { target ->
-                                    // 点击引用预览跳转到被回复的消息（id 在 meta 中，而非当前消息自身）
-                                    val replyTo = target.parsedMeta().replyToId
-                                    if (!replyTo.isNullOrBlank()) viewModel.jumpToMessage(replyTo)
-                                },
-                                onBoundsMeasured = { offset, size -> bubbleBounds[message.id] = BubbleBounds(offset, size) },
-                                onFileClick = { viewModel.requestOpenFile(it.id) },
-                                onPauseFileTransfer = viewModel::pauseFileTransfer,
-                                onResumeFileTransfer = viewModel::resumeFileTransfer,
-                                onCancelFileTransfer = viewModel::cancelFileTransfer,
-                                onRequestMediaAttachment = viewModel::requestMediaAttachment,
-                                onRequestVoiceTranscript = { id ->
-                                    viewModel.requestVoiceTranscription(id)
-                                },
-                                onCopyVoiceTranscript = { transcript ->
-                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                                        as android.content.ClipboardManager
-                                    clipboard.setPrimaryClip(
-                                        android.content.ClipData.newPlainText(chatClipboardTranscriptLabel, transcript)
-                                    )
-                                    Toast.makeText(context, context.getString(R.string.chat_transcript_copied), Toast.LENGTH_SHORT).show()
-                                },
-                                onDismissSafety = if (canShowSafety) {
-                                    { dismissSafetyForMessage(message.id) }
-                                } else null,
-                                onQuickReaction = { viewModel.setMessageReaction(it.id, DEFAULT_QUICK_REACTION) },
-                                onReactionClick = { msg, emoji -> viewModel.setMessageReaction(msg.id, emoji) },
-                                onPollVote = { pollId, idx -> viewModel.votePoll(pollId, idx) },
-                                onRevealSpoiler = { viewModel.revealSpoilerMedia(it) },
-                                onViewOnceOpened = { id -> viewModel.markViewOnceOpened(id) },
-                                onInlineKeyboardClick = { msgId, data ->
-                                    val botId = messagesById[msgId]?.senderId
-                                        ?: state.messages.firstOrNull { it.id == msgId }?.senderId
-                                    if (!botId.isNullOrBlank()) viewModel.sendBotCallback(msgId, botId, data)
-                                },
-                                onToggleSelection = {
-                                    selectedMessageIds = toggleMessageSelection(selectedMessageIds, it.id)
-                                },
-                                onLongPress = {
-                                    if (it.status == MessageStatus.FAILED && isOwn) messageToRetry = message
-                                    else messageToActions = message
-                                },
-                                // 1.17：点击消息内名片 → 打开对方资料（未接线时提示）
-                                onContactCardClick = { userId ->
-                                    if (onOpenProfile != null) {
-                                        onOpenProfile(userId)
-                                    } else {
-                                        Toast.makeText(context, context.getString(R.string.chat_contact_card_tap_hint), Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                // 1.44：点击消息发送者名称 → 打开其资料
-                                onSenderClick = { userId ->
-                                    if (onOpenProfile != null) {
-                                        onOpenProfile(userId)
-                                    } else {
-                                        Toast.makeText(context, context.getString(R.string.chat_contact_card_tap_hint), Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                // 1.51：点击已读状态图标 → 打开阅读详情（仅自己消息）
-                                onStatusClick = { msg ->
-                                    if (ReadReceiptPolicy.canViewReceipts(
-                                            viewerId = state.currentUserId,
-                                            senderId = msg.senderId,
-                                            isGroup = state.chatIsGroup,
-                                            viewerRole = state.myMemberRole,
-                                        )
-                                    ) {
-                                        messageForReadReceipts = msg
-                                        viewModel.loadReadReceipts(msg.id)
-                                    }
-                                },
-                                modifier = if (itemPlacementSpec != null) Modifier.animateItem(placementSpec = itemPlacementSpec) else Modifier
-                            )
-                            }
-                        }
-                    }
+                    // G85：单条 item 渲染（231 行）抽到 ChatDetailTimelineItems.kt。
+                    // 必须是 LazyItemScope 扩展——`Modifier.animateItem` 只在 itemsIndexed 内有效，
+                    // 降级成普通 Composable 会让重排时的位移动画静默消失。
+                    ChatDetailTimelineItem(
+                        index = index,
+                        item = item,
+                        state = state,
+                        listState = listState,
+                        motion = motion,
+                        allItems = reversedChatItems,
+                        selectedMessageIds = selectedMessageIds,
+                        messageSelectionMode = messageSelectionMode,
+                        animatingMessageId = animatingMessageId,
+                        searchResults = searchResults,
+                        searchIndex = searchIndex,
+                        showSearchBar = showSearchBar,
+                        localSafetyEnabled = localSafetyEnabled,
+                        navigationHighlightMessageId = navigationHighlightMessageId,
+                        dismissedSafetyMessageIds = dismissedSafetyMessageIds,
+                        messagesById = messagesById,
+                        resolveSenderName = { msg, isOwn -> resolveSenderName(msg, isOwn) },
+                        viewModel = viewModel,
+                        onBubblePlaced = { id, bounds -> bubbleBounds[id] = bounds },
+                        onBubbleRemoved = { id -> bubbleBounds.remove(id) },
+                        onShowFullscreenImage = { fullScreenImage = it },
+                        onShowFullscreenVideo = { fullScreenVideo = it },
+                        onCopyTranscript = { transcript ->
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardTranscriptLabel, transcript))
+                            Toast.makeText(context, context.getString(R.string.chat_transcript_copied), Toast.LENGTH_SHORT).show()
+                        },
+                        onReplyTo = { msg -> replyTarget = msg },
+                        onDismissSafetyForMessage = { id -> dismissSafetyForMessage(id) },
+                        onToggleSelection = { selectedMessageIds = it },
+                        onRetryMessage = { msg -> messageToRetry = msg },
+                        onMessageActions = { msg -> messageToActions = msg },
+                        onOpenProfile = { userId -> onOpenProfile?.invoke(userId) },
+                        onShowReadReceipts = { msg -> messageForReadReceipts = msg },
+                    )
                 }
                 if (state.isLoadingOlderMessages) {
                     item(key = "older_messages_loading", contentType = "loading") {
@@ -3557,54 +2710,14 @@ if (showGroupCallTypeDialog) {
         )
     }
 
+    // G86：批量删除确认对话框（50 行）抽到 ChatDetailBatchDeleteDialog.kt，纯搬移不改判断。
     if (showBatchDeleteConfirm) {
-        // 8.53：与单条删除语义一致——仅删除本人消息（服务端 403 只能删自己发送的消息）；
-        // 选中他人消息不参与删除，仅作转发/星标用途
-        val deletableBatch = remember(selectedMessages, state.currentUserId) {
-            selectedMessages.filter { it.senderId == state.currentUserId }
-        }
-        // 8.55：服务端 mutation 限流 60/min——批量封顶 60 条，超出提示分批，避免 429「删一半剩一半」
-        val batchCap = 60
-        val cappedBatch = deletableBatch.take(batchCap)
-        val cappedOut = deletableBatch.size - cappedBatch.size
-        val skippedCount = selectedMessages.size - deletableBatch.size
-        AlertDialog(
-            onDismissRequest = { showBatchDeleteConfirm = false },
-            title = { Text(stringResource(R.string.chat_delete_selected_title)) },
-            text = {
-                Column {
-                    Text(stringResource(R.string.chat_delete_selected_message, cappedBatch.size))
-                    if (skippedCount > 0) {
-                        Text(
-                            stringResource(R.string.chat_batch_delete_skipped_others, skippedCount),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LocalChatPalette.current.textSecondary,
-                            modifier = Modifier.padding(top = 6.dp)
-                        )
-                    }
-                    if (cappedOut > 0) {
-                        Text(
-                            stringResource(R.string.chat_batch_delete_capped, cappedOut),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = LocalChatPalette.current.textSecondary,
-                            modifier = Modifier.padding(top = 6.dp)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(enabled = cappedBatch.isNotEmpty(), onClick = {
-                    // 9.229：串行批量删除，避免逐条并发打满服务端 mutation 限流
-                    viewModel.deleteMessagesBatch(cappedBatch.map { it.id })
-                    selectedMessageIds = emptySet()
-                    showBatchDeleteConfirm = false
-                    // 1.50：删除完成提示
-                    Toast.makeText(context, context.resources.getQuantityString(R.plurals.chat_batch_delete_done, cappedBatch.size, cappedBatch.size), Toast.LENGTH_SHORT).show()
-                }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBatchDeleteConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
-            }
+        ChatDetailBatchDeleteDialog(
+            selectedMessages = selectedMessages,
+            currentUserId = state.currentUserId,
+            onDelete = { ids -> viewModel.deleteMessagesBatch(ids) },
+            onDismiss = { showBatchDeleteConfirm = false },
+            onSelectionCleared = { selectedMessageIds = emptySet() },
         )
     }
 
@@ -4080,89 +3193,40 @@ if (showGroupCallTypeDialog) {
         )
     }
 
-    // 8.43：图片发送前预览确认
+    // G79：图片发送前预览（47 行）抽到 ChatDetailSendPreviews.kt，纯搬移不改判断。
     pendingImageConfirm?.let { pending ->
-        AlertDialog(
-            onDismissRequest = { pendingImageConfirm = null },
-            title = { Text(stringResource(R.string.chat_image_send_preview), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-            text = {
-                Column {
-                    coil.compose.AsyncImage(
-                        model = pending.uri,
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 360.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    )
-                    // 0.71：预览后可选「重新选择」（误选不用取消再进一次相册）
-                    TextButton(
-                        onClick = {
-                            pendingImageConfirm = null
-                            pendingViewOnce = pending.viewOnce
-                            pendingSpoiler = pending.spoiler
-                            listScrollScope.launch {
-                                kotlinx.coroutines.yield()
-                                runCatching { imagePickerLauncher.launch("image/*") }
-                                    .onFailure {
-                                        Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
-                                    }
-                            }
-                        },
-                        modifier = Modifier.align(Alignment.End)
-                    ) { Text(stringResource(R.string.chat_rechoose), color = MaterialTheme.colorScheme.primary) }
+        ImageSendPreviewDialog(
+            pending = pending,
+            onDismiss = { pendingImageConfirm = null },
+            onRechoose = { viewOnce, spoiler ->
+                pendingViewOnce = viewOnce
+                pendingSpoiler = spoiler
+                listScrollScope.launch {
+                    kotlinx.coroutines.yield()
+                    runCatching { imagePickerLauncher.launch("image/*") }
+                        .onFailure {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.chat_image_picker_unavailable),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                 }
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingImageConfirm = null
-                    if (pending.viewOnce) viewModel.sendViewOnceImage(pending.uri)
-                    else if (pending.spoiler) viewModel.sendSpoilerImage(pending.uri)
-                    else viewModel.sendImage(pending.uri)
-                }) { Text(stringResource(R.string.chat_send), color = MaterialTheme.colorScheme.primary) }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingImageConfirm = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
-            }
+            onSendImage = { p -> viewModel.sendImage(p.uri) },
+            onSendSpoilerImage = { p -> viewModel.sendSpoilerImage(p.uri) },
+            onSendViewOnceImage = { p -> viewModel.sendViewOnceImage(p.uri) },
         )
     }
 
-    // 0.69：视频发送前预览确认（文件信息 + 发送/取消，与图片流程一致）
+    // G79：视频发送前预览（37 行）抽到 ChatDetailSendPreviews.kt，纯搬移不改判断。
     pendingVideoConfirm?.let { pending ->
-        AlertDialog(
-            onDismissRequest = { pendingVideoConfirm = null },
-            title = { Text(stringResource(R.string.chat_video_send_preview), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Icon(
-                        Icons.Outlined.Videocam,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(48.dp).padding(bottom = 8.dp)
-                    )
-                    val fileName = pending.uri.lastPathSegment?.substringAfterLast('/')
-                        ?: stringResource(R.string.message_preview_video)
-                    Text(
-                        text = fileName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingVideoConfirm = null
-                    if (pending.viewOnce) viewModel.sendViewOnceVideo(pending.uri)
-                    else if (pending.spoiler) viewModel.sendSpoilerVideo(pending.uri)
-                    else viewModel.sendVideo(pending.uri)
-                }) { Text(stringResource(R.string.chat_send), color = MaterialTheme.colorScheme.primary) }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingVideoConfirm = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
-            }
+        VideoSendPreviewDialog(
+            pending = pending,
+            onDismiss = { pendingVideoConfirm = null },
+            onSendVideo = { p -> viewModel.sendVideo(p.uri) },
+            onSendSpoilerVideo = { p -> viewModel.sendSpoilerVideo(p.uri) },
+            onSendViewOnceVideo = { p -> viewModel.sendViewOnceVideo(p.uri) },
         )
     }
 
@@ -4464,63 +3528,28 @@ if (showGroupCallTypeDialog) {
         )
     }
 
-    // 复制文本弹窗
+    // G80：消息操作弹窗（58 行）抽到 ChatDetailMessageActionsDialog.kt，纯搬移不改判断。
     messageToCopy?.let { msg ->
-        val isOwn = msg.senderId == state.currentUserId
-        val withinEditWindow = System.currentTimeMillis() - msg.timestamp < 300_000
-        AlertDialog(
-            onDismissRequest = { messageToCopy = null },
-            title = { Text(stringResource(R.string.chat_message_actions)) },
-            text = { Text(msg.parsedContent()) },
-            confirmButton = {
-                Row {
-                    if (isMessageCopyable(msg.type, isSecretChat = state.isSecretChat == true, copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK))) {
-                        TextButton(onClick = {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, msg.parsedContent()))
-                            Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-                            messageToCopy = null
-                        }) { Text(stringResource(R.string.chat_copy)) }
-                    } else {
-                        TextButton(onClick = {
-                            Toast.makeText(context, context.getString(R.string.secret_chat_copy_blocked), Toast.LENGTH_SHORT).show()
-                            messageToCopy = null
-                        }) { Text(stringResource(R.string.chat_copy)) }
-                    }
-                    if (isMessageForwardable(msg.type, isSecretChat = state.isSecretChat == true, forwardBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK))) {
-                        TextButton(onClick = {
-                            messagesToForward = listOf(msg)
-                            viewModel.loadForwardTargets()
-                            messageToCopy = null
-                        }) { Text(stringResource(R.string.chat_forward)) }
-                    }
-                    if (isOwn && withinEditWindow && (msg.type == MessageType.TEXT || msg.type == MessageType.MARKDOWN)) {
-                        TextButton(onClick = {
-                            editDraft = msg.parsedContent()
-                            messageToEdit = msg
-                            messageToCopy = null
-                        }) { Text(stringResource(R.string.chat_edit)) }
-                    }
-                }
+        ChatDetailMessageActionsDialog(
+            msg = msg,
+            currentUserId = state.currentUserId,
+            isSecretChat = state.isSecretChat == true,
+            onDismiss = { messageToCopy = null },
+            onCopy = {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, msg.parsedContent()))
+                Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
             },
-            dismissButton = {
-                if (isOwn) {
-                    Row {
-                        if (withinEditWindow && msg.type != MessageType.REVOKED) {
-                            TextButton(onClick = {
-                                messageToRevoke = msg
-                                messageToCopy = null
-                            }) { Text(stringResource(R.string.chat_revoke), color = LocalChatPalette.current.unreadRed) }
-                        }
-                        TextButton(onClick = {
-                            startParticleEffect(msg, ParticleAction.DELETE)
-                            messageToCopy = null
-                        }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
-                    }
-                } else {
-                    TextButton(onClick = { messageToCopy = null }) { Text(stringResource(R.string.common_cancel)) }
-                }
-            }
+            onForward = {
+                messagesToForward = listOf(msg)
+                viewModel.loadForwardTargets()
+            },
+            onEdit = {
+                editDraft = msg.parsedContent()
+                messageToEdit = msg
+            },
+            onRevoke = { messageToRevoke = msg },
+            onDelete = { startParticleEffect(msg, ParticleAction.DELETE) },
         )
     }
 
@@ -4560,239 +3589,20 @@ if (showGroupCallTypeDialog) {
     }
 
     // 转发目标选择弹窗
-    messagesToForward.takeIf { it.isNotEmpty() }?.let { forwardMessages ->
-        val forwardMeLabel = stringResource(R.string.chat_sender_me)
-        var forwardQuery by remember(forwardMessages.map { it.id }.joinToString()) { mutableStateOf("") }
-        var forwardNote by remember(forwardMessages.map { it.id }.joinToString()) { mutableStateOf("") }
-        var forwardExpanded by remember(forwardMessages.map { it.id }.joinToString()) { mutableStateOf(false) }
-        // 1.34：多选转发目标（勾选多个会话后一次转发）
-        var selectedForwardChatIds by remember(forwardMessages.map { it.id }.joinToString()) { mutableStateOf<Set<String>>(emptySet()) }
-        // 1.149：合并转发（多条文本消息合并为一条发送）
-        val forwardMergeable = forwardMessages.size > 1 && forwardMessages.all {
-            it.type == MessageType.TEXT || it.type == MessageType.MARKDOWN
-        }
-        var forwardMerged by remember(forwardMessages.map { it.id }.joinToString()) { mutableStateOf(false) }
-        val filteredForwardTargets = remember(state.forwardTargets, forwardQuery) {
-            val q = forwardQuery.trim()
-            if (q.isEmpty()) state.forwardTargets
-            else state.forwardTargets.filter { chat ->
-                forwardTargetName(context, chat, state.currentUserId).contains(q, ignoreCase = true)
-            }
-        }
-        val forwardPageSize = 64
-        val visibleForwardTargets = if (forwardExpanded) {
-            filteredForwardTargets
-        } else {
-            filteredForwardTargets.take(forwardPageSize)
-        }
-        AlertDialog(
-            onDismissRequest = { messagesToForward = emptyList() },
-            title = { Text(if (forwardMessages.size == 1) stringResource(R.string.chat_forward_to) else stringResource(R.string.chat_forward_selected, forwardMessages.size)) },
-            text = {
-                if (state.forwardTargets.isEmpty()) {
-                    Text(stringResource(R.string.chat_no_forward_targets), color = MaterialTheme.colorScheme.secondary)
-                } else {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())
-                    ) {
-                        // 1.164：转发内容预览（最多显示 3 条，其余折叠为数量提示）
-                        forwardMessages.take(3).forEach { fm ->
-                            val previewText = when (fm.type) {
-                                MessageType.IMAGE -> stringResource(R.string.message_preview_image)
-                                MessageType.GIF -> stringResource(R.string.message_preview_gif)
-                                MessageType.STICKER -> stringResource(R.string.message_preview_sticker)
-                                MessageType.VOICE -> stringResource(R.string.message_preview_voice)
-                                MessageType.VIDEO -> stringResource(R.string.message_preview_video)
-                                MessageType.FILE -> stringResource(R.string.message_preview_file)
-                                MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-                                else -> com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
-                                    fm.parsedContent(),
-                                    context.getString(R.string.chat_decrypt_failed)
-                                ).replace('\n', ' ').take(40)
-                            }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                                    .background(LocalChatPalette.current.systemMessageBackground.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    previewText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                        if (forwardMessages.size > 3) {
-                            Text(
-                                pluralStringResource(R.plurals.chat_forward_more_previews, forwardMessages.size - 3, forwardMessages.size - 3),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LocalChatPalette.current.textHint
-                            )
-                        }
-                        OutlinedTextField(
-                            value = forwardQuery,
-                            onValueChange = {
-                                forwardQuery = it
-                                forwardExpanded = false
-                            },
-                            singleLine = true,
-                            placeholder = { Text(stringResource(R.string.chat_forward_search_hint)) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = forwardNote,
-                            onValueChange = { forwardNote = it.take(500) },
-                            singleLine = true,
-                            placeholder = { Text(stringResource(R.string.chat_forward_note_hint)) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        // 1.149：合并转发开关（仅多条文本消息时可用）
-                        if (forwardMergeable) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(stringResource(R.string.chat_forward_merge_title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                                    Text(stringResource(R.string.chat_forward_merge_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                                }
-                                Switch(checked = forwardMerged, onCheckedChange = { forwardMerged = it })
-                            }
-                        }
-                        if (filteredForwardTargets.isEmpty()) {
-                            Text(
-                                stringResource(R.string.chat_forward_search_empty),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = LocalChatPalette.current.textHint
-                            )
-                        } else {
-                            // 1.159：最近会话快捷选择（顶部 6 个，点击勾选/取消）
-                            Row(
-                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                filteredForwardTargets.take(6).forEach { recentChat ->
-                                    val recentSelected = selectedForwardChatIds.contains(recentChat.id)
-                                    FilterChip(
-                                        selected = recentSelected,
-                                        onClick = {
-                                            if (recentSelected) {
-                                                selectedForwardChatIds = selectedForwardChatIds - recentChat.id
-                                            } else {
-                                                selectedForwardChatIds = selectedForwardChatIds + recentChat.id
-                                            }
-                                        },
-                                        label = { Text(forwardTargetName(context, recentChat, state.currentUserId), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                                    )
-                                }
-                            }
-                            // B2 转发白名单（fwlz）：源为密聊且白名单开启时，非白名单目标需先加入白名单
-                            val secretSource = secretActive
-                            val fwlEnabled = com.maodouchat.util.SecretForwardWhitelistPrefs.isEnabled(context)
-                            visibleForwardTargets.forEach { chat ->
-                                val whitelisted = !fwlEnabled || com.maodouchat.util.SecretForwardWhitelistPrefs.isForwardAllowed(context, chat.id)
-                                TextButton(
-                                    onClick = {
-                                        // 1.34：点击勾选/取消目标会话（白名单目标可勾选）
-                                        if (whitelisted) {
-                                            selectedForwardChatIds =
-                                                if (selectedForwardChatIds.contains(chat.id)) selectedForwardChatIds - chat.id
-                                                else selectedForwardChatIds + chat.id
-                                        }
-                                    },
-                                    enabled = !secretSource || whitelisted,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                        if (selectedForwardChatIds.contains(chat.id)) {
-                                            Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                        }
-                                        Text(forwardTargetName(context, chat, state.currentUserId), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
-                                        if (secretSource && fwlEnabled && !whitelisted) {
-                                            TextButton(onClick = {
-                                                val whitelist = com.maodouchat.util.SecretForwardWhitelistPrefs.whitelist(context) + chat.id
-                                                com.maodouchat.util.SecretForwardWhitelistPrefs.setWhitelist(context, whitelist)
-                                                Toast.makeText(context, context.getString(R.string.secret_forward_whitelist_added, forwardTargetName(context, chat, state.currentUserId)), Toast.LENGTH_SHORT).show()
-                                            }) {
-                                                Text(stringResource(R.string.secret_forward_whitelist_add), color = MaterialTheme.colorScheme.primary)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if (!forwardExpanded && filteredForwardTargets.size > forwardPageSize) {
-                                TextButton(onClick = { forwardExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                    Text(
-                                        stringResource(
-                                            R.string.chat_forward_targets_more,
-                                            filteredForwardTargets.size - forwardPageSize
-                                        ),
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            } else if (forwardExpanded && filteredForwardTargets.size > forwardPageSize) {
-                                Text(
-                                    stringResource(R.string.chat_forward_targets_showing_all, filteredForwardTargets.size),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = LocalChatPalette.current.textHint
-                                )
-                            }
-                        }
-                    }
-                }
+    // G75：转发目标选择弹窗（235 行）抽到 ChatDetailForwardPicker.kt，纯搬移不改判断。
+    if (messagesToForward.isNotEmpty()) {
+        ChatDetailForwardPicker(
+            messages = messagesToForward,
+            forwardTargets = state.forwardTargets,
+            currentUserId = state.currentUserId,
+            onCancel = { messagesToForward = emptyList() },
+            onForwardBatch = { msgs, targets, note ->
+                viewModel.forwardMessagesBatch(msgs, targets, note)
             },
-            confirmButton = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { viewModel.loadForwardTargets() }) { Text(stringResource(R.string.common_refresh)) }
-                    // 1.34：确认转发到所选会话（可多选）
-                    TextButton(
-                        enabled = selectedForwardChatIds.isNotEmpty(),
-                        onClick = {
-                            // 1.149：合并转发——多条文本合并为一条（带发送者标签）
-                            val mergedText = if (forwardMerged && forwardMergeable) {
-                                forwardMessages.joinToString("\n") { msg ->
-                                    val senderLabel = when {
-                                        msg.senderId == state.currentUserId -> forwardMeLabel
-                                        else -> state.chat?.participants?.firstOrNull { it.id == msg.senderId }?.displayName?.takeIf { it.isNotBlank() }
-                                    }
-                                    val content = msg.parsedContent().take(4_000)
-                                    (senderLabel?.let { "$it：$content" } ?: content)
-                                }.take(4_000)
-                            } else null
-                            if (mergedText != null) {
-                                selectedForwardChatIds.forEach { chatId ->
-                                    // 1.157：合并转发时附带留言并入合并文本首行（不单独发第二条）
-                                    val finalMerged = if (forwardNote.isNotBlank()) "$forwardNote\n$mergedText" else mergedText
-                                    viewModel.sendTextToChat(chatId, finalMerged)
-                                }
-                            } else {
-                                // 9.227：批量串行转发——旧实现逐条并发触发 forwardMessage，
-                                // 留言也抢在附件转发前发出；现改为单协程内按顺序串行转发+最后补发留言
-                                viewModel.forwardMessagesBatch(forwardMessages, selectedForwardChatIds.toList(), forwardNote)
-                            }
-                            messagesToForward = emptyList()
-                            selectedMessageIds = emptySet()
-                        }
-                    ) {
-                        Text(
-                            if (selectedForwardChatIds.size > 1) {
-                                stringResource(R.string.chat_forward_to_selected, selectedForwardChatIds.size)
-                            } else {
-                                stringResource(R.string.chat_forward_confirm)
-                            },
-                            color = if (selectedForwardChatIds.isNotEmpty()) Primary else TextSecondary
-                        )
-                    }
-                }
-            },
-            dismissButton = { TextButton(onClick = { messagesToForward = emptyList() }) { Text(stringResource(R.string.common_cancel)) } }
+            onSendTextToChat = { chatId, body -> viewModel.sendTextToChat(chatId, body) },
+            onSelectionCleared = { selectedMessageIds = emptySet() },
+            onLoadForwardTargets = { viewModel.loadForwardTargets() },
+            secretSource = secretActive,
         )
     }
 
@@ -4817,212 +3627,21 @@ if (showGroupCallTypeDialog) {
         )
     }
 
-    // 全屏图片查看器（缩放 + 保存/分享）
+    // G76：全屏图片/视频查看器（207 行）抽到 ChatDetailFullscreenMedia.kt，纯搬移不改判断。
     fullScreenImage?.let { msg ->
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { fullScreenImage = null },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            val meta = remember(msg.id, msg.content) { msg.parsedMeta() }
-            val mime = com.maodouchat.util.MediaViewerPolicy.defaultMime(msg.type.name, meta.fileMimeType)
-            val displayName = com.maodouchat.util.MediaViewerPolicy.defaultFileName(
-                msg.type.name,
-                meta.fileName,
-                mime
-            )
-            val localOk = remember(msg.content) {
-                com.maodouchat.util.MediaCache.isReadableLocalUri(context, msg.parsedContent())
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                com.maodouchat.ui.component.ZoomableAsyncImage(
-                    model = msg.parsedContent(),
-                    contentDescription = stringResource(R.string.chat_fullscreen_image),
-                    onSingleTap = { fullScreenImage = null }
-                )
-                IconButton(
-                    onClick = { fullScreenImage = null },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
-                ) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_close), tint = Color.White, modifier = Modifier.size(32.dp))
-                }
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        stringResource(R.string.media_viewer_hint),
-                        color = Color.White.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = {
-                                if (state.isSecretChat == true) {
-                                    Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
-                                    return@TextButton
-                                }
-                                if (!localOk || !com.maodouchat.util.MediaViewerPolicy.canExportLocal(
-                                        localOk,
-                                        secretChat = state.isSecretChat == true,
-                                        exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
-                                    )) {
-                                    Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()
-                                    return@TextButton
-                                }
-                                listScrollScope.launch {
-                                    val ok = withContext(Dispatchers.IO) {
-                                        com.maodouchat.util.MediaExport.saveToGallery(
-                                            context = context,
-                                            rawUri = msg.parsedContent(),
-                                            mimeType = mime,
-                                            displayName = displayName
-                                        )
-                                    }
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(if (ok) R.string.media_export_saved else R.string.media_export_save_failed),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        ) {
-                            Text(stringResource(R.string.common_save), color = Color.White)
-                        }
-                        TextButton(
-                            onClick = {
-                                if (state.isSecretChat == true) {
-                                    Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
-                                    return@TextButton
-                                }
-                                if (!localOk || !com.maodouchat.util.MediaViewerPolicy.canShareLocal(
-                                        localOk,
-                                        secretChat = state.isSecretChat == true,
-                                        exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
-                                    )) {
-                                    Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()
-                                    return@TextButton
-                                }
-                                val ok = com.maodouchat.util.MediaExport.share(
-                                    context = context,
-                                    rawUri = msg.parsedContent(),
-                                    mimeType = mime,
-                                    chooserTitle = context.getString(R.string.common_share)
-                                )
-                                if (!ok) {
-                                    Toast.makeText(context, context.getString(R.string.media_export_share_failed), Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        ) {
-                            Text(stringResource(R.string.common_share), color = Color.White)
-                        }
-                    }
-                }
-            }
-        }
+        FullscreenImageDialog(
+            msg = msg,
+            isSecretChat = state.isSecretChat == true,
+            onDismiss = { fullScreenImage = null },
+        )
     }
 
-    // 全屏视频播放器
     fullScreenVideo?.let { msg ->
-        val videoContent = msg.content
-        // 内容为空/非法时直接关闭弹窗，避免 Uri.parse 失败或 VideoView 加载异常
-        if (videoContent.isNullOrBlank()) { fullScreenVideo = null; return@let }
-        // 0.82：视频保存到相册所需 meta
-        val videoMeta = remember(msg.id, msg.content) { msg.parsedMeta() }
-        val videoMime = com.maodouchat.util.MediaViewerPolicy.defaultMime("VIDEO", videoMeta.fileMimeType)
-        val videoName = com.maodouchat.util.MediaViewerPolicy.defaultFileName("VIDEO", videoMeta.fileName, videoMime)
-        val videoLocalOk = remember(msg.content) {
-            com.maodouchat.util.MediaCache.isReadableLocalUri(context, videoContent)
-        }
-        // 9.150：引用放入 remember 状态，避免内容重组时被重置为 null 导致 onDispose 跳过 stopPlayback
-        val videoViewRef = remember { mutableStateOf<android.widget.VideoView?>(null) }
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { fullScreenVideo = null },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                AndroidView(
-                    factory = {
-                        android.widget.VideoView(it).apply {
-                            videoViewRef.value = this
-                            setVideoURI(android.net.Uri.parse(videoContent))
-                            setOnCompletionListener { fullScreenVideo = null }
-                            setOnErrorListener { _, _, _ -> fullScreenVideo = null; true }
-                            start()
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-                androidx.compose.runtime.DisposableEffect(Unit) {
-                    onDispose {
-                        // 用户关闭/系统退出时，确保 MediaPlayer 释放，避免原生资源泄漏与后台继续出声
-                        videoViewRef.value?.stopPlayback()
-                        videoViewRef.value = null
-                        fullScreenVideo = null
-                    }
-                }
-                IconButton(
-                    onClick = { fullScreenVideo = null },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
-                ) {
-                    Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_close), tint = Color.White, modifier = Modifier.size(32.dp))
-                }
-                // 0.82：视频保存到相册
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .padding(vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    TextButton(onClick = {
-                        if (state.isSecretChat == true) {
-                            Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
-                            return@TextButton
-                        }
-                        if (!videoLocalOk || !com.maodouchat.util.MediaViewerPolicy.canExportLocal(
-                                videoLocalOk,
-                                secretChat = state.isSecretChat == true,
-                                exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
-                            )) {
-                            Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()
-                            return@TextButton
-                        }
-                        val saved = com.maodouchat.util.MediaExport.saveToGallery(
-                            context = context,
-                            rawUri = videoContent,
-                            mimeType = videoMime,
-                            displayName = videoName
-                        )
-                        Toast.makeText(
-                            context,
-                            context.getString(if (saved) R.string.media_saved else R.string.media_save_failed),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }) {
-                        Text(stringResource(R.string.media_save), color = Color.White)
-                    }
-                }
-            }
-        }
+        FullscreenVideoDialog(
+            msg = msg,
+            isSecretChat = state.isSecretChat == true,
+            onDismiss = { fullScreenVideo = null },
+        )
     }
 
     // 粒子删除动效：消息泡碎裂为彩色粒子消散（Telegram 风格）

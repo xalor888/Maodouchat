@@ -84,14 +84,21 @@ class AndroidConversationScheduleBackend(
 ) : ConversationScheduleBackend {
     private val appContext = context.applicationContext
 
+    // 该 backend 是唯一 DB 汇聚点，调用方（UI 回调 / loadChat）常在主线程。
+    // Room 禁止主线程阻塞查询（曾导致打开聊天页直接 crash），这里统一把
+    // 阻塞 DAO 调度到 IO 线程执行，调用方签名保持同步不变。
+    private fun <T> onDb(block: () -> T): T = kotlinx.coroutines.runBlocking {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { block() }
+    }
+
     override fun listAllScheduled(ownerUserId: String): List<ScheduledMessage> =
-        scheduledMessageDao.listForUserBlocking(ownerUserId.trim()).map { it.toModel() }
+        onDb { scheduledMessageDao.listForUserBlocking(ownerUserId.trim()).map { it.toModel() } }
 
     override fun listScheduled(ownerUserId: String, chatId: String): List<ScheduledMessage> =
-        scheduledMessageDao.listForChatBlocking(ownerUserId.trim(), chatId.trim()).map { it.toModel() }
+        onDb { scheduledMessageDao.listForChatBlocking(ownerUserId.trim(), chatId.trim()).map { it.toModel() } }
 
     override fun getScheduled(ownerUserId: String, id: String): ScheduledMessage? =
-        scheduledMessageDao.getByIdBlocking(id.trim(), ownerUserId.trim())?.toModel()
+        onDb { scheduledMessageDao.getByIdBlocking(id.trim(), ownerUserId.trim())?.toModel() }
 
     override fun addScheduled(
         ownerUserId: String,
@@ -103,7 +110,7 @@ class AndroidConversationScheduleBackend(
         if (!ScheduledMessagePolicy.isValidText(normalized)) return null
         val now = System.currentTimeMillis()
         val sendAt = ScheduledMessagePolicy.clampSendAt(request.sendAtMillis, now)
-        val pending = scheduledMessageDao.listForChatBlocking(userId, request.chatId)
+        val pending = onDb { scheduledMessageDao.listForChatBlocking(userId, request.chatId) }
         if (!ScheduledMessagePolicy.canAddMore(pending.size)) return null
         val item = ScheduledMessage(
             id = "sch_${UUID.randomUUID().toString().take(12)}",
@@ -135,33 +142,37 @@ class AndroidConversationScheduleBackend(
     ): ScheduledMessage? {
         val userId = ownerUserId.trim()
         if (userId.isBlank() || id.isBlank()) return null
-        val existing = scheduledMessageDao.getByIdBlocking(id, userId) ?: return null
+        val existing = onDb { scheduledMessageDao.getByIdBlocking(id, userId) } ?: return null
         val nextText = text?.let { ScheduledMessagePolicy.normalizeText(it) } ?: existing.text
         if (!ScheduledMessagePolicy.isValidText(nextText)) return null
         val now = System.currentTimeMillis()
         val nextSendAt = sendAtMillis?.let { ScheduledMessagePolicy.clampSendAt(it, now) } ?: existing.sendAtMillis
         val timeZoneId = existing.timeZoneId.ifBlank { java.time.ZoneId.systemDefault().id }
-        scheduledMessageDao.updateTextAndTimeBlocking(
-            id = id,
-            ownerUserId = userId,
-            text = nextText,
-            sendAtMillis = nextSendAt,
-            timeZoneId = timeZoneId,
-        )
+        onDb {
+            scheduledMessageDao.updateTextAndTimeBlocking(
+                id = id,
+                ownerUserId = userId,
+                text = nextText,
+                sendAtMillis = nextSendAt,
+                timeZoneId = timeZoneId,
+            )
+        }
         return existing.copy(text = nextText, sendAtMillis = nextSendAt, timeZoneId = timeZoneId).toModel()
     }
 
     override fun removeScheduled(ownerUserId: String, id: String): Boolean =
-        scheduledMessageDao.deleteByIdBlocking(id.trim(), ownerUserId.trim()) > 0
+        onDb { scheduledMessageDao.deleteByIdBlocking(id.trim(), ownerUserId.trim()) > 0 }
 
     override fun clearScheduled(ownerUserId: String, chatId: String): List<String> {
         val userId = ownerUserId.trim()
         val cId = chatId.trim()
         if (userId.isBlank() || cId.isBlank()) return emptyList()
-        val items = scheduledMessageDao.listForChatBlocking(userId, cId)
-        val ids = items.map { it.id }
-        scheduledMessageDao.deleteForChatBlocking(userId, cId)
-        return ids
+        return onDb {
+            val items = scheduledMessageDao.listForChatBlocking(userId, cId)
+            val ids = items.map { it.id }
+            scheduledMessageDao.deleteForChatBlocking(userId, cId)
+            ids
+        }
     }
 
     override fun scheduleJob(item: ScheduledMessage) =
@@ -173,22 +184,22 @@ class AndroidConversationScheduleBackend(
         ScheduledMessageScheduler.reschedule(appContext, item)
 
     override fun listReminders(ownerUserId: String): List<MessageReminderStore.MessageReminder> =
-        messageReminderDao.listForUserBlocking(ownerUserId.trim()).map { it.toModel() }
+        onDb { messageReminderDao.listForUserBlocking(ownerUserId.trim()).map { it.toModel() } }
 
     override fun upsertReminder(reminder: MessageReminderStore.MessageReminder) {
         val owner = reminder.ownerUserId.trim()
         if (owner.isBlank() || reminder.id.isBlank()) return
-        messageReminderDao.upsertBlocking(reminder.copy(ownerUserId = owner).toEntity())
+        onDb { messageReminderDao.upsertBlocking(reminder.copy(ownerUserId = owner).toEntity()) }
     }
 
     override fun removeReminder(ownerUserId: String, id: String) {
         if (ownerUserId.isBlank() || id.isBlank()) return
-        messageReminderDao.deleteByIdBlocking(id.trim(), ownerUserId.trim())
+        onDb { messageReminderDao.deleteByIdBlocking(id.trim(), ownerUserId.trim()) }
     }
 
     override fun clearReminders(ownerUserId: String, chatId: String) {
         if (ownerUserId.isBlank() || chatId.isBlank()) return
-        messageReminderDao.deleteForChatBlocking(ownerUserId.trim(), chatId.trim())
+        onDb { messageReminderDao.deleteForChatBlocking(ownerUserId.trim(), chatId.trim()) }
     }
 
     override fun scheduleReminderJob(reminder: MessageReminderStore.MessageReminder) =

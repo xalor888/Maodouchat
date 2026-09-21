@@ -96,7 +96,11 @@ class MessagingV2InboxSynchronizer(
         }
     }
 
-    private companion object {
+    /**
+     * 分页与兜底常量。刻意用 `internal` 而非 `private`：多页拉取循环的契约
+     * （每页大小、页数上限）必须能被测试**直接引用**，否则常量一改测试就成了复述旧数字的摆设。
+     */
+    internal companion object {
         const val PULL_LIMIT = 200
         const val ACK_LIMIT = 200
         const val MAX_PULL_PAGES = 20

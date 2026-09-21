@@ -164,7 +164,7 @@ private fun ChatSearchDocument.score(query: String, tokens: List<String>, scope:
     } ?: 0
 }
 
-private fun searchWindowStart(window: ChatSearchWindow, now: Long): Long? = when (window) {
+internal fun searchWindowStart(window: ChatSearchWindow, now: Long): Long? = when (window) {
     ChatSearchWindow.ALL -> null
     ChatSearchWindow.TODAY -> Calendar.getInstance().apply {
         timeInMillis = now

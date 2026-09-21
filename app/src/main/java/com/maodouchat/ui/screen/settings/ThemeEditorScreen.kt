@@ -379,6 +379,19 @@ private fun defaultSlotColor(slot: String, variant: String): Color {
         com.maodouchat.ui.theme.ThemeFamily.normalize(com.maodouchat.util.ThemePreferences.family.value),
         dark
     )
+    return slotDefaultColor(paint, slot)
+}
+
+/**
+ * 槽位 → 主题绘制参数的映射（G160 从 `defaultSlotColor` 抽出）。
+ *
+ * 原先这段映射和「读全局 ThemePreferences 解析 paint」耦在一个函数里，
+ * 导致它无法被单测覆盖。拆开后映射本身是纯函数，用任意 ThemePaint 都能验。
+ *
+ * 注意 `chat_outBubble` / `chat_outText` 有兜底：发送气泡规格缺失时
+ * 分别回落到 `colorScheme.primary` 与 `Color.White`——不兜底会 NPE。
+ */
+internal fun slotDefaultColor(paint: com.maodouchat.ui.theme.ThemePaint, slot: String): Color {
     return when (slot) {
         "accent" -> paint.colorScheme.primary
         "chat_background" -> paint.chatPalette.chatBackground
@@ -527,7 +540,7 @@ private fun ColorPickerDialog(
  * 屏幕层解析：先吃 [CustomThemeStore.parseAtTheme] 的 TG 键，再补原生槽位名
  * （`parseAtTheme` 只认 TG_KEY_MAP，导出/手写 native slot 会被丢掉）。
  */
-private fun parseThemeFile(text: String): Map<String, Color> {
+internal fun parseThemeFile(text: String): Map<String, Color> {
     val out = LinkedHashMap(CustomThemeStore.parseAtTheme(text))
     val known = CustomThemeStore.SLOTS.toSet()
     text.lineSequence().forEach { line ->
@@ -544,7 +557,7 @@ private fun parseThemeFile(text: String): Map<String, Color> {
     return out
 }
 
-private fun parseHexColor(raw: String): Color? {
+internal fun parseHexColor(raw: String): Color? {
     val hex = raw.trim().removePrefix("#").filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
     return runCatching {
         when (hex.length) {

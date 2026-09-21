@@ -57,10 +57,11 @@ internal fun snapNavigationIndex(value: Float, tabsCount: Int): Int =
     glassSnapNavigationIndex(value, tabsCount)
 
 internal fun liquidGlassContainerColor(isLightTheme: Boolean): Color {
+    // 与 LiquidNavigation 的胶囊底色保持一致（0.62/0.55），压掉玻璃折射残影
     return if (isLightTheme) {
-        Color(0xFFFAFAFA).copy(alpha = 0.28f)
+        Color(0xFFFAFAFA).copy(alpha = 0.62f)
     } else {
-        Color(0xFF121212).copy(alpha = 0.32f)
+        Color(0xFF121212).copy(alpha = 0.55f)
     }
 }
 

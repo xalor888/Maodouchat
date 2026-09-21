@@ -46,7 +46,7 @@ internal fun mergeMessageForPersistence(existing: Message, incoming: Message): M
     return preserveLocalMediaFlags(existing, incoming, withStatus)
 }
 
-private fun preserveLocalMediaFlags(existing: Message, incoming: Message, merged: Message): Message {
+internal fun preserveLocalMediaFlags(existing: Message, incoming: Message, merged: Message): Message {
     val existingMeta = existing.parsedMeta()
     val incomingMeta = incoming.parsedMeta()
     val mergedMeta = merged.parsedMeta()

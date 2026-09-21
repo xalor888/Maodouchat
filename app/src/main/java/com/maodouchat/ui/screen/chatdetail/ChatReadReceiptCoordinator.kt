@@ -1,6 +1,5 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import kotlinx.coroutines.CancellationException
@@ -13,7 +12,7 @@ import kotlinx.coroutines.withContext
 
 internal class ChatReadReceiptCoordinator(
     private val scope: CoroutineScope,
-    private val dao: MessagingV2Dao,
+    private val dao: ReadReceiptSource,
     private val currentUserId: () -> String,
     private val currentState: () -> ChatDetailUiState,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,

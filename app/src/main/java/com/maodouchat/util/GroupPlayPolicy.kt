@@ -1646,19 +1646,6 @@ object GroupPlayPolicy {
     const val MARK_SPRINT_PREFIX = "MARKSPRINT:"
     const val FADE_TIMER_PREFIX = "FADETIMER:"
     const val STAMP_RELAY_PREFIX = "STAMPRELAY:"
-    const val LINK_LOCK_PREFIX = "LINKLOCK:"
-    const val PREVIEW_MUTE_PREFIX = "PREVIEWMUTE:"
-    const val URL_FENCE_PREFIX = "URLFENCE:"
-    const val NOTIF_MASK_PREFIX = "NOTIFMASK:"
-    const val LIST_BLUR_PREFIX = "LISTBLUR:"
-    const val TRAY_SEAL_PREFIX = "TRAYSEAL:"
-    const val REACT_LOCK_PREFIX = "REACTLOCK:"
-    const val STAR_SEAL_PREFIX = "STARSEAL:"
-    const val META_FENCE_PREFIX = "METAFENCE:"
-    const val TYPING_SEAL_PREFIX = "TYPINGSEAL:"
-    const val READ_SEAL_PREFIX = "READSEAL:"
-    const val PRESENCE_SEAL_PREFIX = "PRESENCESEAL:"
-    const val LASTSEEN_SEAL_PREFIX = "LASTSEENSEAL:"
 
     fun randomPhotoRace(): String = photoRaces.random()
     fun randomClipDash(): String = clipDashes.random()
@@ -2191,108 +2178,32 @@ fun formatInsightSprint(mode: String, hostLabel: String): String {
         if (!content.startsWith(STAMP_RELAY_PREFIX)) return null
         return unesc(content.removePrefix(STAMP_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
     }
-    fun formatLinkLock(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${LINK_LOCK_PREFIX}${esc(m)}|${hostLabel} link lock"
-    }
-    fun parseLinkLock(content: String): String? {
-        if (!content.startsWith(LINK_LOCK_PREFIX)) return null
-        return unesc(content.removePrefix(LINK_LOCK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatPreviewMute(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PREVIEW_MUTE_PREFIX}${esc(m)}|${hostLabel} preview mute"
-    }
-    fun parsePreviewMute(content: String): String? {
-        if (!content.startsWith(PREVIEW_MUTE_PREFIX)) return null
-        return unesc(content.removePrefix(PREVIEW_MUTE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatUrlFence(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${URL_FENCE_PREFIX}${esc(m)}|${hostLabel} url fence"
-    }
-    fun parseUrlFence(content: String): String? {
-        if (!content.startsWith(URL_FENCE_PREFIX)) return null
-        return unesc(content.removePrefix(URL_FENCE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatNotifMask(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${NOTIF_MASK_PREFIX}${esc(m)}|${hostLabel} notif mask"
-    }
-    fun parseNotifMask(content: String): String? {
-        if (!content.startsWith(NOTIF_MASK_PREFIX)) return null
-        return unesc(content.removePrefix(NOTIF_MASK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatListBlur(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${LIST_BLUR_PREFIX}${esc(m)}|${hostLabel} list blur"
-    }
-    fun parseListBlur(content: String): String? {
-        if (!content.startsWith(LIST_BLUR_PREFIX)) return null
-        return unesc(content.removePrefix(LIST_BLUR_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatTraySeal(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${TRAY_SEAL_PREFIX}${esc(m)}|${hostLabel} tray seal"
-    }
-    fun parseTraySeal(content: String): String? {
-        if (!content.startsWith(TRAY_SEAL_PREFIX)) return null
-        return unesc(content.removePrefix(TRAY_SEAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatReactLock(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${REACT_LOCK_PREFIX}${esc(m)}|${hostLabel} react lock"
-    }
-    fun parseReactLock(content: String): String? {
-        if (!content.startsWith(REACT_LOCK_PREFIX)) return null
-        return unesc(content.removePrefix(REACT_LOCK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatStarSeal(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${STAR_SEAL_PREFIX}${esc(m)}|${hostLabel} star seal"
-    }
-    fun parseStarSeal(content: String): String? {
-        if (!content.startsWith(STAR_SEAL_PREFIX)) return null
-        return unesc(content.removePrefix(STAR_SEAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatMetaFence(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${META_FENCE_PREFIX}${esc(m)}|${hostLabel} meta fence"
-    }
-    fun parseMetaFence(content: String): String? {
-        if (!content.startsWith(META_FENCE_PREFIX)) return null
-        return unesc(content.removePrefix(META_FENCE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatTypingSeal(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${TYPING_SEAL_PREFIX}${esc(m)}|${hostLabel} typing seal"
-    }
-    fun parseTypingSeal(content: String): String? {
-        if (!content.startsWith(TYPING_SEAL_PREFIX)) return null
-        return unesc(content.removePrefix(TYPING_SEAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatReadSeal(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${READ_SEAL_PREFIX}${esc(m)}|${hostLabel} read seal"
-    }
-    fun parseReadSeal(content: String): String? {
-        if (!content.startsWith(READ_SEAL_PREFIX)) return null
-        return unesc(content.removePrefix(READ_SEAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatPresenceSeal(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PRESENCE_SEAL_PREFIX}${esc(m)}|${hostLabel} presence seal"
-    }
-    fun parsePresenceSeal(content: String): String? {
-        if (!content.startsWith(PRESENCE_SEAL_PREFIX)) return null
-        return unesc(content.removePrefix(PRESENCE_SEAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatLastSeenSeal(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${LASTSEEN_SEAL_PREFIX}${esc(m)}|${hostLabel} last seen seal"
-    }
-    fun parseLastSeenSeal(content: String): String? {
-        if (!content.startsWith(LASTSEEN_SEAL_PREFIX)) return null
-        return unesc(content.removePrefix(LASTSEEN_SEAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+
+    // ─── 隐私开关一族（G88 拆至 GroupPlaySealPolicy，此处仅保留同名委托，调用方零改动） ───
+    fun formatLinkLock(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatLinkLock(mode, hostLabel)
+    fun parseLinkLock(content: String): String? = GroupPlaySealPolicy.parseLinkLock(content)
+    fun formatPreviewMute(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatPreviewMute(mode, hostLabel)
+    fun parsePreviewMute(content: String): String? = GroupPlaySealPolicy.parsePreviewMute(content)
+    fun formatUrlFence(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatUrlFence(mode, hostLabel)
+    fun parseUrlFence(content: String): String? = GroupPlaySealPolicy.parseUrlFence(content)
+    fun formatNotifMask(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatNotifMask(mode, hostLabel)
+    fun parseNotifMask(content: String): String? = GroupPlaySealPolicy.parseNotifMask(content)
+    fun formatListBlur(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatListBlur(mode, hostLabel)
+    fun parseListBlur(content: String): String? = GroupPlaySealPolicy.parseListBlur(content)
+    fun formatTraySeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatTraySeal(mode, hostLabel)
+    fun parseTraySeal(content: String): String? = GroupPlaySealPolicy.parseTraySeal(content)
+    fun formatReactLock(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatReactLock(mode, hostLabel)
+    fun parseReactLock(content: String): String? = GroupPlaySealPolicy.parseReactLock(content)
+    fun formatStarSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatStarSeal(mode, hostLabel)
+    fun parseStarSeal(content: String): String? = GroupPlaySealPolicy.parseStarSeal(content)
+    fun formatMetaFence(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatMetaFence(mode, hostLabel)
+    fun parseMetaFence(content: String): String? = GroupPlaySealPolicy.parseMetaFence(content)
+    fun formatTypingSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatTypingSeal(mode, hostLabel)
+    fun parseTypingSeal(content: String): String? = GroupPlaySealPolicy.parseTypingSeal(content)
+    fun formatReadSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatReadSeal(mode, hostLabel)
+    fun parseReadSeal(content: String): String? = GroupPlaySealPolicy.parseReadSeal(content)
+    fun formatPresenceSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatPresenceSeal(mode, hostLabel)
+    fun parsePresenceSeal(content: String): String? = GroupPlaySealPolicy.parsePresenceSeal(content)
+    fun formatLastSeenSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatLastSeenSeal(mode, hostLabel)
+    fun parseLastSeenSeal(content: String): String? = GroupPlaySealPolicy.parseLastSeenSeal(content)
 }

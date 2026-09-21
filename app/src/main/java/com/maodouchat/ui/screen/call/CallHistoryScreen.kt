@@ -37,6 +37,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import com.maodouchat.ui.component.SearchHighlightSurface
+import com.maodouchat.ui.component.SearchHighlightAccent
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -324,25 +327,9 @@ private fun formatCallHistoryDuration(durationMs: Long): String {
     return "%d:%02d".format(m, s)
 }
 
-/** 1.323：通话记录搜索关键词高亮（复用 GlobalSearchTextHighlight，与 Explore/收藏/通知中心一致）。 */
+// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
 @Composable
-private fun highlightedText(text: String, query: String): androidx.compose.ui.text.AnnotatedString {
-    val snippet = remember(text, query) {
-        com.maodouchat.ui.screen.chatlist.GlobalSearchTextHighlight.buildSnippet(text, query)
-    }
-    return androidx.compose.ui.text.buildAnnotatedString {
-        if (snippet.highlights.isEmpty()) {
-            append(snippet.text)
-            return@buildAnnotatedString
-        }
-        var cursor = 0
-        snippet.highlights.forEach { span ->
-            if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-            pushStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primaryContainer))
-            append(snippet.text.substring(span.start, span.end))
-            pop()
-            cursor = span.end
-        }
-        if (cursor < snippet.text.length) append(snippet.text.substring(cursor))
-    }
+private fun highlightedText(text: String, query: String): AnnotatedString {
+    val (c, bg) = SearchHighlightSurface
+    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }

@@ -84,6 +84,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import com.maodouchat.ui.component.SearchHighlightSurface
+import com.maodouchat.ui.component.SearchHighlightAccent
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -692,7 +695,7 @@ private fun relativeTime(ts: Long): String {
     ).toString()
 }
 
-private fun formatChatTime(ts: Long): String {
+internal fun formatChatTime(ts: Long): String {
     if (ts <= 0L) return ""
     val cal = Calendar.getInstance()
     val msg = Calendar.getInstance().apply { timeInMillis = ts }
@@ -710,7 +713,7 @@ private fun formatChatTime(ts: Long): String {
 }
 
 /** 两个日历之间的自然日差（按零点对齐）。 */
-private fun daysBetween(earlier: Calendar, later: Calendar): Int {
+internal fun daysBetween(earlier: Calendar, later: Calendar): Int {
     val e = Calendar.getInstance().apply { timeInMillis = earlier.timeInMillis; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
     val l = Calendar.getInstance().apply { timeInMillis = later.timeInMillis; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
     return ((l.timeInMillis - e.timeInMillis) / 86400000L).toInt()
@@ -791,23 +794,9 @@ private fun chatNameForSuggestion(chat: Chat?): String? {
         ?: chat.participants.firstOrNull()?.name
 }
 
-// 1.148：会话列表搜索关键词高亮（与全局搜索一致）
-@androidx.compose.runtime.Composable
-private fun highlightedText(text: String, query: String) = buildAnnotatedString {
-    val snippet = remember(text, query) {
-        GlobalSearchTextHighlight.buildSnippet(text, query)
-    }
-    if (snippet.highlights.isEmpty()) {
-        append(snippet.text)
-        return@buildAnnotatedString
-    }
-    var cursor = 0
-    snippet.highlights.forEach { span ->
-        if (span.start > cursor) append(snippet.text.substring(cursor, span.start))
-        pushStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, background = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)))
-        append(snippet.text.substring(span.start, span.end))
-        pop()
-        cursor = span.end
-    }
-    if (cursor < snippet.text.length) append(snippet.text.substring(cursor))
+// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
+@Composable
+private fun highlightedText(text: String, query: String): AnnotatedString {
+    val (c, bg) = SearchHighlightAccent
+    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }
