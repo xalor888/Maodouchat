@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G177 审计 42 条「名字带强断言」的测试**：落实 G176 的自我建议。扫出 42 条含「不溢出/不会丢失/exactly once/never」的用例，分两类：修辞式 never（分支不可达，普通输入即充分）占绝大多数；定量承诺（下界/幂等）必须用边界值。对后者抽 2 条跑负控制——`unlike never goes below zero` 去掉 coerceAtLeast(0) 后红、`markOpened flips flag exactly once` 去掉幂等守卫后红，两条都真的兜底。未发现第二宗名不副实。app JVM 单测 1877 例不变。
   - **G176 抽出 WebRTCStatsMath 两个纯函数（+10 例）**：WebRTCManager 是成员式大类、整体拆分风险高（G171），改从「不碰实例状态的纯函数」切入——抽出 readStatNumber 与 packetLossPercent。一次测试名不副实：`large counts do not overflow` 用 1e11 当大数，负控制改成 Long 运算后**没红**（溢出需 >9.2e16），名字在说谎；拆成「精度」与「真溢出」两条后立刻红。app JVM 单测 **1867 → 1877 例**，0 失败。
   - **G175 收敛 explore 包 3 处 relativeTime + 2 处 visibilityOptionLabel**：新建 ExploreRelativeTime.kt 提供两共享实现，删 5 处私有副本（69 行）。**没有**统一包内两种不同语义的 relativeTime（手写分档 vs RelativeTimePolicy+DateUtils，文案不同），只收敛逐字相同的，并在 KDoc 写明区别。保留的那个改名 relativeTimeLocalized 避开撞车。app JVM 单测 1867 例不变。
   - **G174 收敛 8 处完全同体的 currentUserId**：新建 util/CurrentUserId.kt 提供共享实现，删掉 8 个 Store/Preferences 里的私有三行副本。G173 暴露了先前扫描的 200 字符门槛会漏一行式样板，本轮换成「同名 + 函数体完全一致」口径，`currentUserId` ×8 是最大一组。纯收敛、无新增测试（TokenManager 本机测不了，不凑数）。app JVM 单测 1867 例不变。
