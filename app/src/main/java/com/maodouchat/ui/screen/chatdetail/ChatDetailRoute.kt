@@ -1575,26 +1575,14 @@ if (showGroupCallTypeDialog) {
             onUnlock = { pin, onResult -> viewModel.unlockChatWithPin(pin, onResult) },
             onForgotPin = { showForgotChatLockConfirm = true }
         )
-        if (showForgotChatLockConfirm) {
-            AlertDialog(
-                onDismissRequest = { showForgotChatLockConfirm = false },
-                title = { Text(stringResource(R.string.chat_lock_forgot_confirm_title)) },
-                text = { Text(stringResource(R.string.chat_lock_forgot_confirm_body)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showForgotChatLockConfirm = false
-                        viewModel.forgotChatLockAndClearLocal()
-                    }) {
-                        Text(stringResource(R.string.common_clear), color = LocalChatPalette.current.unreadRed)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showForgotChatLockConfirm = false }) {
-                        Text(stringResource(R.string.common_cancel))
-                    }
-                }
-            )
-        }
+        ForgotChatLockConfirmDialog(
+            visible = showForgotChatLockConfirm,
+            onDismiss = { showForgotChatLockConfirm = false },
+            onConfirm = {
+                showForgotChatLockConfirm = false
+                viewModel.forgotChatLockAndClearLocal()
+            },
+        )
     } else CompositionLocalProvider(LocalDensity provides scaledDensity) {
     Box(
         modifier = Modifier

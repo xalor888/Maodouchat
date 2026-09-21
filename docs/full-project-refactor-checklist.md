@@ -6481,6 +6481,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明 + SecretNewDeviceRiskLocked（3667→3622）**：先搬 4 个顶层声明到 ChatDetailLocalizedLabels.kt（3667→3637）；B2 风控块抓块失败——收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平行内归零；改用**替换分支体**（16 行删掉、换成一行调用、两条 `} else if` 行原样保留）抽出到 ChatDetailSecretGates.kt（3637→3622）。无 Compose 测试基建，负控制用「参数出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G184 从 ChatDetailRoute.kt 抽出 4 个顶层声明（3667→3637）**：displayedTranslation + 三个 localizedLabel 重载搬到 ChatDetailLocalizedLabels.kt，调用点零改动。一次抓块失败：`} else if (x) {` 链式分支的收尾 `}` 与下一支起始 `{` 同行，括号配平行内归零——为 20 行去拆这种行不划算，改抽边界干净的顶层声明。app JVM 单测 1906 例不变。
+  - **G185 抽出 ForgotChatLockConfirmDialog（3622→3610）**：chatLockBlocking 分支里 20 行内联 AlertDialog 换成 8 行调用，新文件 ChatDetailChatLockDialogs.kt。这个块边界干净（首行完整、收尾单独一行），不像 G184 那块需要绕。目标文本里「出现 2 次」实测是 4 次——自检靠结构不变量没被带偏。app JVM 单测 1906 例不变。
   - **G184（续）用「替换分支体」抽出 SecretNewDeviceRiskLocked（3637→3622）**：块的收尾 `}` 与下一支 `else if` 的 `{` 同行，括号配平无法定界；改为删 16 行、换成一行调用、两条 `} else if` 行原样保留——搬整块需精确边界，换内容只需知道删哪些行。自检断言先写成 17 行（实际 16），改对后一次过。负控制在无 Compose 基建下用「onRegisterClick 出现次数 2→1」做代理。app JVM 单测 1906 例不变。
   - **G183 收敛 mediaDecryptFailed* 重复 when + 抽出 isDecryptable（+3 例）**：两处 8 分支 when 逐字相同（只收 Message / MessageType），让前者委托后者；并把纯集合判定的 isDecryptable 从类成员抽成顶层纯函数才能单测。两次负控制一红一绿——NC2「给一处加分支不同步另一处」变**绿**正是收敛成功的证明（没有第二处可漏改）。一次 KDoc 写长被行数门禁抓到，压回 3102。app JVM 单测 **1903 → 1906 例**，0 失败。
   - **G182 第二次全量复跑（四套 2410 例全绿）**：G171 之后又做了 9 轮只跑 app JVM 的改动，按 G171 的教训复跑四套——app 1903、server 461、PG 19、E2E 27。一次差点被 Gradle 缓存蒙过：server 首跑 `3s / 6 up-to-date` 是零执行，加 `--rerun-tasks` 后 `9m / 6 executed` 才是真测。沉淀出「BUILD SUCCESSFUL ≠ 测过了，看到 up-to-date 就是零执行信号」。app JVM 1903 例不变。
@@ -7345,3 +7346,30 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      不要试图配平出边界——改成**替换内容**就行。
      搬走整块需要精确边界，替换内容只需要知道「删哪些行、换成什么」，
      后者对边界的鲁棒性高一个量级。**
+
+### G185 — 用「替换分支体」抽出 ForgotChatLockConfirmDialog（3622 → 3610）
+- **做了什么**：把 `chatLockBlocking` 分支里内联的 `AlertDialog`（20 行）
+  抽成 `@Composable internal fun ForgotChatLockConfirmDialog(visible, onDismiss, onConfirm)`
+  （新文件 `ChatDetailChatLockDialogs.kt`）；原位置换成 8 行调用。
+  冻结上限 **3622 → 3610**（两处 mapOf）。
+- **为什么这个块比 G184 那个好抽**：它的首行 `if (showForgotChatLockConfirm) {`
+  是**完整的行**，收尾 `}` 也**单独一行**——不存在「收尾与下一块开头同行」的问题，
+  括号配平直接给出正确边界。（G184 那块不行，正是因为它的 `}` 和下一支的 `{` 同行。）
+- **自检（硬断言，全过才落盘）**：体恰好 20 行、首行是 `if (showForgotChatLockConfirm) {`、
+  末行是 8 空格缩进的 `}`、括号差为 0。
+- **目标文本里的一处数字错误，实测更正**：我写目标时说是「showForgotChatLockConfirm
+  出现 2 次」，实测是 **4 次**（`if` 条件 + `onDismissRequest` + 确认按钮 + 取消按钮）。
+  自检用的是行数/首末行/括号平衡这些**结构量**，没有依赖那个猜错的次数，
+  所以没被带偏。
+  **教训（第三十九次沉淀）：自检要依赖结构不变量（行数、首末行、括号平衡），
+     而不是依赖我对内容的主观计数——后者在写目标时就会错。**
+- **负控制（无 Compose 基建，用参数使用做代理）**：
+  把 `TextButton(onClick = onConfirm)` 改成 `onClick = { }` →
+  `onConfirm` 在文件里出现次数 **2 → 1**（只剩声明，参数不再被使用）。
+  恢复后回到 2。编译两种状态都通过——所以**只能靠这个静态信号**。
+- **实测结果**：`ChatDetailRoute.kt` 3622 → **3610** 行；新文件 47 行；
+  app JVM 单测 **1906 例不变**（纯搬移）。
+- **实跑验证**：`git diff` 显示 **20 删 8 增**；调用点参数齐全（`visible` / `onDismiss` /
+  `onConfirm` 三个都有）；无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    342 个套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。
