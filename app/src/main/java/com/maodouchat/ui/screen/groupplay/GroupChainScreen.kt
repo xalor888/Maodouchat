@@ -97,8 +97,6 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-
-    private fun token(): String = TokenManager.getInstance(getApplication()).getToken().orEmpty()
     // 1.314：i18n —— 用资源字符串替代硬编码中文错误文案
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
@@ -120,7 +118,7 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
         if (chatId.isBlank()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
-            val resp = GroupPlayHttp.get(token(), "/api/chats/$chatId/chains")
+            val resp = GroupPlayHttp.get(authToken(), "/api/chats/$chatId/chains")
             if (!resp.ok) {
                 _uiState.value = _uiState.value.copy(
                     loading = false,
@@ -161,7 +159,7 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
                 put("topic", topic)
                 put("maxEntries", 200)
             }.toString()
-            val resp = GroupPlayHttp.post(token(), "/api/chats/$chatId/chains", body)
+            val resp = GroupPlayHttp.post(authToken(), "/api/chats/$chatId/chains", body)
             if (!resp.ok) {
                 _uiState.value = _uiState.value.copy(
                     creating = false,
@@ -176,7 +174,7 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
 
     fun openChain(chainId: String) {
         viewModelScope.launch {
-            val resp = GroupPlayHttp.get(token(), "/api/chains/$chainId")
+            val resp = GroupPlayHttp.get(authToken(), "/api/chains/$chainId")
             if (!resp.ok) {
                 _uiState.value = _uiState.value.copy(error = resp.errorText ?: text(R.string.group_play_chain_not_found))
                 return@launch
@@ -224,7 +222,7 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
         _uiState.value = _uiState.value.copy(detail = detail.copy(submitting = true), error = null)
         viewModelScope.launch {
             val body = JSONObject().put("content", content).toString()
-            val resp = GroupPlayHttp.post(token(), "/api/chains/${detail.chainId}/entries", body)
+            val resp = GroupPlayHttp.post(authToken(), "/api/chains/${detail.chainId}/entries", body)
             if (resp.ok) {
                 _uiState.value = _uiState.value.copy(
                     entryInput = "",

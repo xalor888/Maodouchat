@@ -90,10 +90,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-
-    private fun token(): String = TokenManager.getInstance(getApplication()).getToken().orEmpty()
     // 1.314：i18n —— 用资源字符串替代硬编码中文错误文案
-    private fun str(id: Int): String = getApplication<Application>().getString(id)
 
     init {
         if (chatId.isNotBlank()) {
@@ -115,17 +112,17 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
             _uiState.value = _uiState.value.copy(loading = true, error = null)
             // 9.4xx：/polls/sync 的 PollSnapshot 不含 myVotes（已投状态永远不显示），
             // 改用 /polls 端点（PollDto 含 myVotes）
-            val resp = GroupPlayHttp.get(token(), "/api/chats/$chatId/polls")
+            val resp = GroupPlayHttp.get(authToken(), "/api/chats/$chatId/polls")
             if (!resp.ok) {
                 _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = resp.errorText ?: str(R.string.group_play_load_failed)
+                    error = resp.errorText ?: localizedString(R.string.group_play_load_failed)
                 )
                 return@launch
             }
             val polls = runCatching { parsePolls(resp.body) }.getOrNull()
             if (polls == null) {
-                _uiState.value = _uiState.value.copy(loading = false, error = str(R.string.group_play_load_failed))
+                _uiState.value = _uiState.value.copy(loading = false, error = localizedString(R.string.group_play_load_failed))
                 return@launch
             }
             _uiState.value = _uiState.value.copy(loading = false, polls = polls)
@@ -167,13 +164,13 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         val question = s.question.trim()
         val options = GroupPollPolicy.sanitizePollOptions(s.options)
         if (!GroupPollPolicy.isValidPollQuestion(question) || !GroupPollPolicy.isValidPollOptions(options)) {
-            _uiState.value = s.copy(error = str(R.string.group_play_poll_invalid), notice = null)
+            _uiState.value = s.copy(error = localizedString(R.string.group_play_poll_invalid), notice = null)
             return
         }
         if (s.creating) return
         _uiState.value = s.copy(creating = true, error = null, notice = null)
         viewModelScope.launch {
-            val result = ApiService.createGroupPoll(token(), chatId, question, options, s.multi, s.anonymous)
+            val result = ApiService.createGroupPoll(authToken(), chatId, question, options, s.multi, s.anonymous)
             // 9.4xx：接口返回整段 PollDto JSON（executeForText 原始 body），
             // 此前把整段 JSON 当 pollId 塞进分享快捷符 → 群友无法投票
             val pollId = result.getOrNull()?.let { text ->
@@ -185,7 +182,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
                 val serverError = GroupPlayJson.errorMessage(fail.substringAfter(':', missingDelimiterValue = fail))
                 _uiState.value = _uiState.value.copy(
                     creating = false,
-                    error = serverError ?: str(R.string.group_play_create_failed)
+                    error = serverError ?: localizedString(R.string.group_play_create_failed)
                 )
             } else {
                 val share = GroupPollPolicy.formatPollShare(pollId, question, options, s.multi)
@@ -208,15 +205,15 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         if (_uiState.value.votingPollId != null) return
         _uiState.value = _uiState.value.copy(votingPollId = pollId, error = null, notice = null)
         viewModelScope.launch {
-            val result = ApiService.voteGroupPoll(token(), pollId, indexes)
+            val result = ApiService.voteGroupPoll(authToken(), pollId, indexes)
             _uiState.value = _uiState.value.copy(votingPollId = null)
             if (result.isSuccess) {
-                _uiState.value = _uiState.value.copy(notice = str(R.string.group_play_vote_ok), error = null)
+                _uiState.value = _uiState.value.copy(notice = localizedString(R.string.group_play_vote_ok), error = null)
                 refresh()
             } else {
                 val fail = result.exceptionOrNull()?.message.orEmpty()
                 val serverError = GroupPlayJson.errorMessage(fail.substringAfter(':', missingDelimiterValue = fail))
-                _uiState.value = _uiState.value.copy(error = serverError ?: str(R.string.group_play_vote_failed))
+                _uiState.value = _uiState.value.copy(error = serverError ?: localizedString(R.string.group_play_vote_failed))
             }
         }
     }

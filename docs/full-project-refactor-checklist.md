@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G173 收敛四个群玩 ViewModel 的重复样板**：新建 GroupPlayViewModelSupport.kt 提供 authToken()/localizedString(id)/groupPlayChatId(handle)，删掉四个文件里的私有副本（动手时发现扫出来的 3 个之外还有 GroupChainScreen 第四份——先前扫描有 200 字符门槛，漏掉了一行式样板）。`authToken()` 本机无法单测（无 Robolectric），明确记下未覆盖而非凑数。app JVM 单测 **1864 → 1867 例**，0 失败。
   - **G172 把「1100+ 行全部在监」变成可执行断言**：新增 `every app source file above 1100 lines is under a frozen cap`，并给 vendored 的 ExtendedOutlinedIcons.kt（2671 行）补上冻结上限 2678 + 文件头说明。第一版误用 `File.length()`（字节）当行数，把三个 238/72/652 行的图标文件误判超限，改成 `readLines().size`。app JVM 单测 **1863 → 1864 例**，0 失败。
   - **G171 全量验证扫描（2369 例全绿）**：四套全部本轮实测——app JVM 1863、server 461、PG 集成 19、E2E 27，0 失败。确认 server 是独立 Gradle 构建（`:server:test` 不存在，须 `cd server && ../gradlew`）；本机 5432 有活 PG 且 `maodouchat_pg_test` 已存在；模拟器在跑。`CallViewModel.kt` 是单 class 成员式结构，抽成员风险高收益低，决定不动。
   - **G170 把群 AI 助手与语义搜索抽出（557→340）**：69–285 行五个声明抽到 ChatDetailGroupAi.kt，上限同步收紧。KDoc 写明「密聊禁止群 AI 助手」。`ChatDetailAiGeneration.kt` 五轮累计 1975→340。app JVM 单测 1863 例不变。
@@ -6910,3 +6911,34 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   `every app source file above 1100 lines is under a frozen cap` **红**；
   恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     334 个套件 / 1864 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G173 — 收敛四个群玩 ViewModel 的重复样板 token()/str()
+- **做了什么**：新建 `GroupPlayViewModelSupport.kt`，提供两个 `AndroidViewModel` 扩展
+  `authToken()` / `localizedString(id)` 与一个 `groupPlayChatId(handle)`；
+  把四个文件里的私有副本删掉、调用点改用扩展。
+- **收敛范围比原计划大**：原计划只处理扫出来的 3 个（Checkin / Poll / Pk），
+  动手时发现 **`GroupChainScreen.kt` 还有第四份** `token()`——
+  我先前那次重复扫描有**最小长度门槛（200 字符）**，把这种一行式的样板漏掉了。
+  收敛后 `grep 'fun token(): String = TokenManager'` 全 app **归零**。
+- **`GroupChainScreen` 的第二个助手叫 `text(id)` 而不是 `str(id)`**，名字不同、
+  不在收敛范围——只在台账记下，没有擅自统一（改名会扩大改动面）。
+- **新增测试 3 条**（`GroupPlayViewModelSupportTest`）：
+  `localizedString` 经 Application 资源解析、`groupPlayChatId` 读到 chatId、
+  缺失时回落空串。
+- ⚠️ **`authToken()` 本机无法单测**：它内部走 `TokenManager.getInstance`，
+  构造函数读 SharedPreferences 并打 `android.util.Log`，而本机**没有 Robolectric**
+  （`app/build.gradle.kts` 里那两行依赖是注释掉的，G161 已确认）。
+  试过 `mockkStatic(TokenManager.Companion::class)` 仍会被真实构造函数里的 Log 绊倒。
+  **决定：不为它编造覆盖**——测试文件里留了注释说明，台账也记下。
+  **教训（第三十一次沉淀）：收敛出来的共享实现，如果有分支在本机测不了，
+     就明确记下「未覆盖」，不要用「看起来能测」的用例凑数。
+     凑数的用例会在别人改动时给出虚假的安全感。**
+- **负控制（在可测的两个函数上做）**：
+  1. `localizedString` 改成返回 `""` → `localizedString resolves through the application resources` **红**；
+  2. `groupPlayChatId` 回落值 `""`→`"unknown"` → `groupPlayChatId is empty when chatId is missing` **红**。
+  两次均已定点恢复并复跑转绿。
+- **实测结果**：四个文件共删 6 个私有成员声明；app JVM 单测 **1864 → 1867 例**（+3）。
+- **实跑验证**：`grep` 确认全 app 无私有 `token()` 残留；无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    335 个套件 / 1867 tests / 0 failures / 0 errors / 0 skipped**；
+  两次负控制均按预期红。

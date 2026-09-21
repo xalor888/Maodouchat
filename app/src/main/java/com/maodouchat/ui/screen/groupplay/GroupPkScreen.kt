@@ -80,10 +80,7 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-
-    private fun token(): String = TokenManager.getInstance(getApplication()).getToken().orEmpty()
     // 1.314：i18n —— 用资源字符串替代硬编码中文错误文案
-    private fun str(id: Int): String = getApplication<Application>().getString(id)
 
     init {
         if (chatId.isNotBlank()) {
@@ -103,17 +100,17 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
         if (chatId.isBlank()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
-            val resp = GroupPlayHttp.get(token(), "/api/chats/$chatId/pk")
+            val resp = GroupPlayHttp.get(authToken(), "/api/chats/$chatId/pk")
             if (!resp.ok) {
                 _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = resp.errorText ?: str(R.string.group_play_load_failed)
+                    error = resp.errorText ?: localizedString(R.string.group_play_load_failed)
                 )
                 return@launch
             }
             val pks = runCatching { parseList(resp.body) }.getOrNull()
             if (pks == null) {
-                _uiState.value = _uiState.value.copy(loading = false, error = str(R.string.group_play_load_failed))
+                _uiState.value = _uiState.value.copy(loading = false, error = localizedString(R.string.group_play_load_failed))
                 return@launch
             }
             _uiState.value = _uiState.value.copy(loading = false, pks = pks)
@@ -134,7 +131,7 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
         val left = s.leftTitle.trim()
         val right = s.rightTitle.trim()
         if (left.isBlank() || right.isBlank() || left.length > 120 || right.length > 120) {
-            _uiState.value = s.copy(error = str(R.string.group_play_pk_titles_invalid), notice = null)
+            _uiState.value = s.copy(error = localizedString(R.string.group_play_pk_titles_invalid), notice = null)
             return
         }
         _uiState.value = s.copy(creating = true, error = null, notice = null)
@@ -143,11 +140,11 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
                 put("leftTitle", left)
                 put("rightTitle", right)
             }.toString()
-            val resp = GroupPlayHttp.post(token(), "/api/chats/$chatId/pk", body)
+            val resp = GroupPlayHttp.post(authToken(), "/api/chats/$chatId/pk", body)
             if (!resp.ok) {
                 _uiState.value = _uiState.value.copy(
                     creating = false,
-                    error = resp.errorText ?: str(R.string.group_play_create_failed)
+                    error = resp.errorText ?: localizedString(R.string.group_play_create_failed)
                 )
             } else {
                 _uiState.value = _uiState.value.copy(creating = false, leftTitle = "", rightTitle = "")
@@ -161,14 +158,14 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
         _uiState.value = _uiState.value.copy(votingPkId = pkId, error = null, notice = null)
         viewModelScope.launch {
             val body = JSONObject().put("choice", choice).toString()
-            val resp = GroupPlayHttp.post(token(), "/api/pk/$pkId/vote", body)
+            val resp = GroupPlayHttp.post(authToken(), "/api/pk/$pkId/vote", body)
             _uiState.value = _uiState.value.copy(votingPkId = null)
             if (resp.ok) {
-                _uiState.value = _uiState.value.copy(notice = str(R.string.group_play_vote_ok), error = null)
+                _uiState.value = _uiState.value.copy(notice = localizedString(R.string.group_play_vote_ok), error = null)
                 refresh()
             } else {
                 _uiState.value = _uiState.value.copy(
-                    error = resp.errorText ?: str(R.string.group_play_vote_failed)
+                    error = resp.errorText ?: localizedString(R.string.group_play_vote_failed)
                 )
             }
         }

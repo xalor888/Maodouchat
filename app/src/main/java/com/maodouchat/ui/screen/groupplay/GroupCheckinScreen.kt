@@ -75,10 +75,7 @@ class GroupCheckinViewModel(application: Application, savedStateHandle: SavedSta
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
-
-    private fun token(): String = TokenManager.getInstance(getApplication()).getToken().orEmpty()
     // 1.314：i18n —— 用资源字符串替代硬编码中文错误文案
-    private fun str(id: Int): String = getApplication<Application>().getString(id)
 
     init {
         if (chatId.isNotBlank()) {
@@ -98,19 +95,19 @@ class GroupCheckinViewModel(application: Application, savedStateHandle: SavedSta
         if (chatId.isBlank()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
-            val meResp = GroupPlayHttp.get(token(), "/api/chats/$chatId/checkins/me")
-            val rankResp = GroupPlayHttp.get(token(), "/api/chats/$chatId/checkins/rank")
+            val meResp = GroupPlayHttp.get(authToken(), "/api/chats/$chatId/checkins/me")
+            val rankResp = GroupPlayHttp.get(authToken(), "/api/chats/$chatId/checkins/rank")
             if (!meResp.ok || !rankResp.ok) {
                 _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = meResp.errorText ?: rankResp.errorText ?: str(R.string.group_play_load_failed)
+                    error = meResp.errorText ?: rankResp.errorText ?: localizedString(R.string.group_play_load_failed)
                 )
                 return@launch
             }
             val me = runCatching { JSONObject(meResp.body) }.getOrNull()
             val ranking = runCatching { parseRanking(rankResp.body) }.getOrNull()
             if (me == null || ranking == null) {
-                _uiState.value = _uiState.value.copy(loading = false, error = str(R.string.group_play_load_failed))
+                _uiState.value = _uiState.value.copy(loading = false, error = localizedString(R.string.group_play_load_failed))
                 return@launch
             }
             _uiState.value = _uiState.value.copy(
@@ -129,11 +126,11 @@ class GroupCheckinViewModel(application: Application, savedStateHandle: SavedSta
         if (_uiState.value.checking || _uiState.value.checkedIn) return
         _uiState.value = _uiState.value.copy(checking = true, error = null)
         viewModelScope.launch {
-            val resp = GroupPlayHttp.post(token(), "/api/chats/$chatId/checkins", "{}")
+            val resp = GroupPlayHttp.post(authToken(), "/api/chats/$chatId/checkins", "{}")
             if (!resp.ok) {
                 _uiState.value = _uiState.value.copy(
                     checking = false,
-                    error = resp.errorText ?: str(R.string.group_play_checkin_failed)
+                    error = resp.errorText ?: localizedString(R.string.group_play_checkin_failed)
                 )
             } else {
                 _uiState.value = _uiState.value.copy(checking = false)
