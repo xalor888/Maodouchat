@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G167 把 AI 媒体分析抽出（1300→884）**：630–1045 行五个声明抽到 ChatDetailAiMediaAnalysis.kt，上限同步收紧。抓块三处修正：单行 data class 无函数体导致假配平、`PreparedAiFile` 交错而非连续（G142 教训重演）、两段式抓取行号重叠——最终按首尾定位取整段。新文件 KDoc 写明两条安全约束。app JVM 单测 1863 例不变。
   - **G166 拆掉 ChatDetailAiGeneration.kt 最大的自包含块**：372–1046 行（generateAiSuggestions + buildOfflineAiSuggestions + offlineHas，675 行）抽到 ChatDetailOfflineSuggestions.kt，原文件 1975→1300，上限同步收紧。抓块五项自检（括号配平 / 恰好 3 声明 / 缩进 >=4 / 括号差 0 / 无缩进 0 行）。一次负控制被 Gradle 缓存蒙过，加 `--rerun-tasks` 后才红——沉淀出「门禁读外部状态时必须强制重跑」。app JVM 单测 1863 例不变。
   - **G165 落库 + 用 git HEAD 基线修好反向棘轮**：125 个未跟踪文件按主题分成 4 个提交落库（工作区变干净）；`hotspot line caps may not shrink` 的基线从「同文件第二份 mapOf」改成 git HEAD 解析结果，任何跨提交的放宽都会红，git 不可用/文件未跟踪/新纳入监管时降级为跳过。负控制：上限 432→567 两处同步，G164 全绿、G165 立刻红。app JVM 单测 **1862 → 1863 例**，0 失败。
   - **G164 收紧 ChatListScreen.kt 的棘轮上限（567→432）**：该文件早已拆到 432 行但上限停在 567，等于留了 135 行免费增长额度。同时复核全部 12 个上限与实测一致。负控制发现**反向棘轮有漏洞**——`currentCaps` 与 `frozenHotspotLineCaps` 同源（同一文件硬编码），故意放宽抓不到，只能防手误；已记录待单独修。app JVM 单测 1862 例不变。
@@ -6754,3 +6755,34 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   **教训（第二十七次沉淀）：改的是「测试自己读的外部状态」（这里是 git HEAD）时，
      Gradle 可能认为输入没变而复用旧结果。验证这类门禁必须 `--rerun-tasks`，
      否则「绿」是缓存里的绿，不是这一轮的绿。**
+
+### G167 — 把 AI 媒体分析从 ChatDetailAiGeneration.kt 抽出（1300 → 884）
+- **做了什么**：把 630–1045 行（`transcribeVoiceMessage` + `analyzeImageMessage` +
+  `analyzeFileMessage` + `PreparedAiFile` + `resolveAiFileInput`，416 行）
+  抽到新文件 `ChatDetailAiMediaAnalysis.kt`；冻结上限 **1300 → 884**（两处 mapOf）。
+- **安全约束已在新文件 KDoc 里写明**（防止后来者改丢）：
+  密聊会话禁止 AI 转写（解密明文不得送服务端 AI）；
+  纯文本附件超过 120k 或含 NUL / U+FFFD 时拒绝上传。
+- **抓块过程比 G166 曲折，三处修正**：
+  1. **单行 `data class` 没有函数体**：我的花括号配平循环找不到 `{` 就扫描到文件尾，
+     在后一个函数里撞到假配平点，把 `resolveAiFileInput` 一起吞掉。
+     修法：无函数体时改用**圆括号配平**判定结束。
+  2. **`PreparedAiFile` 是交错而非连续**（G142 的教训重演）：它在
+     `analyzeFileMessage` 与 `resolveAiFileInput` **之间**，所以我按「逐个声明抓取」
+     的写法永远凑不齐一段连续块。改成**先定位首尾声明、再取整段连续范围**
+     （630–1045 恰好包含全部 5 个声明）。
+  3. **两段式抓取让行号重叠**：分成 A/B 两块抓时，两者共享一个空行，
+     删除顺序导致内容错位。放弃分块，改回单段连续范围。
+  **教训（第二十八次沉淀）：抓块前先确认「同形状的声明是否真的连续」——
+     用 `decl_name` 把整份文件的顶层声明按顺序打出来，一眼就能看出有没有交错；
+     交错时不要逐个抓，要按首尾定位取整段。**
+- **两次编译错误都是漏 import**（`R`、`kotlinx.coroutines.flow.update`、`RuntimeFlags`），
+  补上即过；无未用 import。
+- **实测结果**：`ChatDetailAiGeneration.kt` 1300 → **884** 行；新文件 443 行；
+  `git diff --stat` 显示原文件 **416 deletions**。
+- **实跑验证**：抓块五项自检通过（括号配平 / 恰好 5 个声明 / 每行缩进 >=4 /
+  括号差 0 / 无缩进 0 行），并确认块后第一个声明是 `translateTextMessage`；
+  `:app:compileDebugKotlin` 通过、无未用 import；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    334 个套件 / 1863 tests / 0 failures / 0 errors / 0 skipped**；
+  负控制（上限 884→950，须 `--rerun-tasks`）→ `hotspot line caps may not grow across commits` **红**。
