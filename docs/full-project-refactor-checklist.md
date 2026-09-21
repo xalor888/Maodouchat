@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G182 第二次全量复跑（四套 2410 例全绿）**：G171 之后又做了 9 轮只跑 app JVM 的改动，按 G171 的教训复跑四套——app 1903、server 461、PG 19、E2E 27。一次差点被 Gradle 缓存蒙过：server 首跑 `3s / 6 up-to-date` 是零执行，加 `--rerun-tasks` 后 `9m / 6 executed` 才是真测。沉淀出「BUILD SUCCESSFUL ≠ 测过了，看到 up-to-date 就是零执行信号」。app JVM 1903 例不变。
   - **G181 收敛 7 处 toHex 到共享实现（+6 例）**：新建 HexBytes.kt，删 7 处逐字相同的私有 toHex()。`%02x` 的补零是硬要求（不补零会让指纹长度漂移、产生歧义），散落 7 处风险高。一次正则写错：负回顾 `(?<![.\w])` 把唯一的调用形式 `.toHex()` 全排除了。app JVM 单测 **1897 → 1903 例**，0 失败。
   - **G180 收敛 6 个 Store 的 prefs()/key() 样板（+6 例）**：新建 UserScopedPrefs.kt，删 6 个 Store 的私有副本——比原计划多两个（ChatFolderPreferences / ChatAppearancePreferences），因为「同名且同体唯一」的口径把 `key` 整个名字漏了：它有 15 个实现、5 种分隔符约定，同体不唯一就被判非重复组。沉淀出「要按 (名字, 体哈希) 分组」。冒号版那 6 个是另一套约定，是否统一留作产品决策。app JVM 单测 **1891 → 1897 例**，0 失败。
   - **G179 收敛两处 normalizeVisibility（+6 例）**：同一服务端字段在两处归一化而回落方向相反（设置页→PUBLIC、发布器→PRIVATE），服务端新增未知值时会「图与行为不一致」。**未擅自统一**（属产品/安全决策），改为让调用方显式传回落值，并用注释/KDoc/测试三重固化。过程中被自己的行数门禁抓到一次（1317>1315），压回 1314 并收紧上限。app JVM 单测 **1885 → 1891 例**，0 失败。
@@ -7220,3 +7221,24 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   6 条用例名逐条从 XML 读出确认在执行；两次负控制均红；
   恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     341 个套件 / 1903 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G182 — G171 之后第二次全量复跑：四套 2410 例全绿
+- **动机**：G171 沉淀了一条教训——「周期性全量复跑本身就是需要排进日程的工作」。
+  G171 之后又做了 **9 轮**只跑 app JVM 的改动（G173–G181），所以本轮按那条教训复跑。
+- **四套结果（全部本轮新鲜产出，非引用历史）**：
+  | 套件 | 命令 | 结果 |
+  |---|---|---|
+  | app JVM | `./gradlew :app:testDebugUnitTest --rerun-tasks` | **1903 / 0 / 0 / 0**（341 套件） |
+  | server | `cd server && ../gradlew test --no-daemon --rerun-tasks` | **461 / 0 / 0 / 0**（150 XML） |
+  | PG 集成 | `POSTGRES_TEST_DATABASE_URL=jdbc:postgresql://localhost:5432/maodouchat_pg_test ../gradlew postgresIntegrationTest --rerun-tasks` | **19 / 0 / 0 / 0**（7 套件） |
+  | E2E | `bash scripts/two-device-http-e2e.sh` | **27 / 0 / 0** |
+  | **合计** | | **2410 例，0 失败 0 错误 0 跳过** |
+  （G171 时是 2369 例；本轮多出 41 例，来自 G173–G181 新增的用例。）
+- **一次差点又被缓存蒙过**：server 第一次跑显示 `BUILD SUCCESSFUL in 3s / 6 up-to-date`
+  ——Gradle 直接复用了缓存结果，**一个测试都没跑**。
+  加 `--rerun-tasks` 后变成 `9m 6s / 6 executed`，才是真测。
+  **教训（第三十五次沉淀）："BUILD SUCCESSFUL" 不等于"测过了"。
+     看到 `up-to-date` 就是零执行的信号；全量复跑必须逐套确认
+     任务真的 executed，否则你只是在读一份旧报告。**
+- **同时确认**：G181 之后工作区**干净**，无未提交改动。
+- **实测结果**：无代码改动（纯复跑）；app JVM 1903 例不变。
