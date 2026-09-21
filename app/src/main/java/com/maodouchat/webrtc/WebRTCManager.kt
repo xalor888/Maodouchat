@@ -107,12 +107,11 @@ class WebRTCManager(
     // 8.35：ICE 服务器可在通话中热替换（TURN 短期凭据 1h 到期后，新 PeerConnection
     // 与重连时使用新凭据；由 CallViewModel 定期 fetchIceServers 刷新）
     @Volatile
-    private var configuredIceServers: List<CallIceServer> =
-        initialIceServers.ifEmpty { CallIceServer.defaultStun() }
+    private var configuredIceServers: List<CallIceServer> = resolveIceServers(initialIceServers)
 
     /** 通话中替换 ICE 服务器列表（TURN 凭据刷新）。空列表回退公共 STUN。 */
     fun refreshIceServers(servers: List<CallIceServer>) {
-        configuredIceServers = servers.ifEmpty { CallIceServer.defaultStun() }
+        configuredIceServers = resolveIceServers(servers)
         val freshConfig = PeerConnection.RTCConfiguration(buildIceServers()).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
@@ -1087,12 +1086,7 @@ class WebRTCManager(
     }
 
     private fun buildIceServers(): List<PeerConnection.IceServer> =
-        configuredIceServers.ifEmpty { CallIceServer.defaultStun() }.map { server ->
-            PeerConnection.IceServer.builder(server.urls).apply {
-                if (server.username.isNotBlank()) setUsername(server.username)
-                if (server.credential.isNotBlank()) setPassword(server.credential)
-            }.createIceServer()
-        }
+        buildWebRtcIceServers(resolveIceServers(configuredIceServers))
 
     private fun addVideoTrack(): Boolean {
         val track = createLocalVideoTrack("localVideo") ?: return false
@@ -1284,9 +1278,9 @@ class WebRTCManager(
 
     /** 标准音频约束：回声消除 + 自动增益 + 噪声抑制（使用标准名称，非已废弃的 goog* 前缀）。 */
     private fun createAudioConstraints(): MediaConstraints = MediaConstraints().apply {
-        mandatory.add(MediaConstraints.KeyValuePair("echoCancellation", "true"))
-        mandatory.add(MediaConstraints.KeyValuePair("autoGainControl", "true"))
-        mandatory.add(MediaConstraints.KeyValuePair("noiseSuppression", "true"))
+        standardAudioConstraints().forEach { (key, value) ->
+            mandatory.add(MediaConstraints.KeyValuePair(key, value))
+        }
     }
 
     private fun createCameraCapturer(): VideoCapturer? {

@@ -116,7 +116,7 @@ class ClientArchitectureTest {
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
         // 1100+ 行源文件全部在监。
-        "com/maodouchat/webrtc/WebRTCManager.kt" to 1422,
+        "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1315,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
@@ -155,7 +155,7 @@ class ClientArchitectureTest {
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
             // 1100+ 行源文件全部在监。
-            "com/maodouchat/webrtc/WebRTCManager.kt" to 1422,
+            "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
             "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1315,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
