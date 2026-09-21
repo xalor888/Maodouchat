@@ -112,9 +112,8 @@ class SettingsViewModel @JvmOverloads constructor(
         loadPrivacy()
     }
 
-    private fun normalizeVisibility(value: String): String {
-        return if (value in visibilityOptions.map { it.first }) value else "PUBLIC"
-    }
+    // G179：回落 PUBLIC（ExploreDraftPolicy 回落 PRIVATE，分歧待决策，详见 SettingsVisibilityPolicy.kt）
+    private fun normalizeVisibility(value: String): String = normalizeVisibility(value, "PUBLIC")
 
     /**
      * 隐私开关公共骨架：保存中直接忽略；与已加载值比对决定脏位增减；

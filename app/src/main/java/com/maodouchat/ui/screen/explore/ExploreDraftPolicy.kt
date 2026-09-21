@@ -7,13 +7,16 @@ package com.maodouchat.ui.screen.explore
 object ExploreDraftPolicy {
     const val KEY_COMPOSER_TEXT = "composer_text"
     const val KEY_VISIBILITY = "selected_visibility"
-    val VISIBILITIES = setOf("PUBLIC", "CONTACTS", "PRIVATE")
 
     fun scopedKey(base: String, userId: String): String? {
         if (userId.isBlank()) return null
         return "$base:$userId"
     }
 
+    /**
+     * 回落 "PRIVATE"——G179：与设置页的回落方向相反（那里回落 "PUBLIC"）。
+     * 这处分歧待决策，见 G179 台账条目。
+     */
     fun normalizeVisibility(value: String): String =
-        value.takeIf { it in VISIBILITIES } ?: "PRIVATE"
+        com.maodouchat.ui.screen.settings.normalizeVisibility(value, "PRIVATE")
 }
