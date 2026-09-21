@@ -6479,6 +6479,7 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      时区类逻辑的准绳必须是「用户在哪看」，不是「数据从哪来」。
      把特性当隐患修，比不修更糟——它会制造一个真 bug。
 - **实测结果**：app JVM 单测 **1828 → 1829 例**，`daysBetween` 零改动。
+  - **G172 把「1100+ 行全部在监」变成可执行断言**：新增 `every app source file above 1100 lines is under a frozen cap`，并给 vendored 的 ExtendedOutlinedIcons.kt（2671 行）补上冻结上限 2678 + 文件头说明。第一版误用 `File.length()`（字节）当行数，把三个 238/72/652 行的图标文件误判超限，改成 `readLines().size`。app JVM 单测 **1863 → 1864 例**，0 失败。
   - **G171 全量验证扫描（2369 例全绿）**：四套全部本轮实测——app JVM 1863、server 461、PG 集成 19、E2E 27，0 失败。确认 server 是独立 Gradle 构建（`:server:test` 不存在，须 `cd server && ../gradlew`）；本机 5432 有活 PG 且 `maodouchat_pg_test` 已存在；模拟器在跑。`CallViewModel.kt` 是单 class 成员式结构，抽成员风险高收益低，决定不动。
   - **G170 把群 AI 助手与语义搜索抽出（557→340）**：69–285 行五个声明抽到 ChatDetailGroupAi.kt，上限同步收紧。KDoc 写明「密聊禁止群 AI 助手」。`ChatDetailAiGeneration.kt` 五轮累计 1975→340。app JVM 单测 1863 例不变。
   - **G169 把未读总结与 AI 上下文抽出（711→557）**：558–711 行四个声明抽到 ChatDetailAiContext.kt，上限同步收紧。块恰在文件尾部，一次取中。app JVM 单测 1863 例不变。
@@ -6881,3 +6882,31 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      历史记忆而不是事实。本轮四套全跑才发现： server 的调用方式、PG 的库、
      模拟器的可用性**全都和记忆一致**，但这是**重新测出来的**一致。
      周期性全量复跑本身就是一种需要排进日程的工作。**
+
+### G172 — 补上「1100+ 行源文件全部在监」的唯一缺口，并把这句话变成可执行断言
+- **做了什么**：
+  1. 给 vendored 的 `androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt`
+     （2671 行）加冻结上限 **2678**（加完文件头注释后的真实行数）；
+  2. 新增测试 `every app source file above 1100 lines is under a frozen cap`：
+     扫 `app/src/main/java` 下所有 `.kt`，凡行数 >1100 却不在
+     `frozenHotspotLineCaps` 里的就报出来；
+  3. 在 vendored 文件头加注释，说明它是 vendored、为何只受行数门禁管
+     （其余门禁扫的是 `com/maodouchat/**`），以及「改动它只应是追加新图标」。
+- **为什么值得做**：`ClientArchitectureTest` 里那句「纳入后 app 内 1100+ 行源文件
+  全部在监」此前**只是一条注释**。注释不会被执行——新增一个大文件时没人会想起来
+  把它加进上限表，于是它既不受行数门禁管，也不会在任何地方报出来。
+  这条测试把那句话变成可执行断言。
+- **一次自己的 bug：`File.length()` 是字节数不是行数**：
+  第一版写成 `.filter { it.length() > 1100 }`，立刻把三个只有 238 / 72 / 652 行的
+  vendored 图标文件误判成超限（图标路径数据很密，字节数轻易过 1100）。
+  改成 `readLines().size`，与文件里其他门禁用同一套口径。
+  **教训（第三十次沉淀）：「行数」在 Kotlin 里是 `readLines().size`，
+     `File.length()` 是字节。两者在密集数据文件上能差一个数量级——
+     同一个文件里混用两种口径，会让门禁在部分文件上完全失效。**
+- **实测结果**：app 内 >1100 行的文件共 **7 个，全部在监**（含新纳入的 vendored 文件）；
+  app JVM 单测 **1863 → 1864 例**（+1 覆盖性测试）。
+- **实跑验证**：10 个 `ClientArchitectureTest` 用例全绿，新用例名从 XML 读出确认在执行；
+  负控制（把 vendored 文件从两处 caps 里删掉）→
+  `every app source file above 1100 lines is under a frozen cap` **红**；
+  恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    334 个套件 / 1864 tests / 0 failures / 0 errors / 0 skipped**。

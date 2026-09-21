@@ -1,3 +1,10 @@
+// G172：本文件是 **vendored**（从 compose-material-icons 复制并裁剪而来），
+// 不是本项目写的代码。放进 androidx 包是为了用 materialIcon / materialPath
+// 这两个 internal API 扩展官方图标集。
+//
+// 因此它**只受行数门禁管理**（见 ClientArchitectureTest.frozenHotspotLineCaps），
+// 其余架构门禁（如「ui/ 不得直连 DAO」）扫的是 com/maodouchat/**，扫不到这里。
+// 改动它只应是「追加新图标」；若要重构，回到上游而不是在这里动结构。
 package androidx.compose.material.icons.outlined
 
 import androidx.compose.material.icons.Icons

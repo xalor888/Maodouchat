@@ -121,6 +121,11 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1315,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
         "com/maodouchat/ui/component/MarkdownMessage.kt" to 289,
+        // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
+        // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
+        "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
+        // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
+        // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
     )
 
     @Test
@@ -155,8 +160,34 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1315,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
             "com/maodouchat/ui/component/MarkdownMessage.kt" to 289,
+        // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
+        // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
+        "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
+        // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
+        // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
+    }
+
+    /**
+     * G172：**覆盖性**检查——app 内任何超过 1100 行的源文件都必须已被纳入
+     * `frozenHotspotLineCaps`。
+     *
+     * 在这条测试存在之前，「1100+ 行全部在监」只是一句注释：
+     * 新增一个大文件时没人会想起来把它加进上限表，于是它既不受行数门禁管，
+     * 也不会在任何地方报出来。这条测试把那句话变成可执行断言。
+     */
+    @Test
+    fun `every app source file above 1100 lines is under a frozen cap`() {
+        val unmonitored = ktFilesUnder(appMain)
+            .filter { it.readLines().size > 1100 }
+            .map { it.relativeTo(appMain).path.replace('\\', '/') }
+            .filterNot { it in frozenHotspotLineCaps }
+        assertEquals(
+            emptyList<String>(),
+            unmonitored,
+            "这些源文件超过 1100 行却没有纳管——先拆，或至少加进行数上限表",
+        )
     }
 
     /**
