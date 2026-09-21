@@ -17,11 +17,13 @@ class LiquidBottomTabsTest {
     }
 
     @Test
-    fun `glass container is translucent light or dark`() {
+    fun `glass container is semi-opaque to suppress content ghosting`() {
+        // 提高底舱不透明度（0.62/0.55）以抑制玻璃折射导致的列表文字鬼影，
+        // 同时保留 <1f 的 alpha 让玻璃质感不被完全关闭。
         val light = liquidGlassContainerColor(isLightTheme = true)
         val dark = liquidGlassContainerColor(isLightTheme = false)
-        assertEquals(Color(0xFFFAFAFA).copy(alpha = 0.28f), light)
-        assertEquals(Color(0xFF121212).copy(alpha = 0.32f), dark)
+        assertEquals(Color(0xFFFAFAFA).copy(alpha = 0.62f), light)
+        assertEquals(Color(0xFF121212).copy(alpha = 0.55f), dark)
         assertTrue(light.alpha < 1f)
         assertTrue(dark.alpha < 1f)
     }
