@@ -21,6 +21,7 @@ import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 import com.maodouchat.network.api.ApiEndpointClients
+import com.maodouchat.util.toHexString
 import com.maodouchat.network.api.ApiSurface
 import com.maodouchat.network.api.AuthApi
 import com.maodouchat.network.api.AuthApiClient
@@ -579,7 +580,6 @@ object ApiService :
         }
     }
 
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
     private fun jsonBody(value: String) = value.toRequestBody(JSON_MEDIA)
 

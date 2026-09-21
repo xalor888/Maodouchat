@@ -116,8 +116,8 @@ object EncryptedAttachmentCrypto {
                 file = target,
                 keyBase64 = Base64.getEncoder().encodeToString(key),
                 ivBase64 = Base64.getEncoder().encodeToString(iv),
-                cipherSha256 = digest.digest().toHex(),
-                plainSha256 = plainDigest.digest().toHex(),
+                cipherSha256 = digest.digest().toHexString(),
+                plainSha256 = plainDigest.digest().toHexString(),
                 cipherSize = cipherSize,
                 plainSize = copied
             )
@@ -184,9 +184,9 @@ object EncryptedAttachmentCrypto {
                 }
             }
             if (
-                digest.digest().toHex() != reference.cipherSha256 ||
+                digest.digest().toHexString() != reference.cipherSha256 ||
                 targetFile.length() != reference.plainSize ||
-                plainDigest.digest().toHex() != reference.plainSha256
+                plainDigest.digest().toHexString() != reference.plainSha256
             ) {
                 throw AttachmentCryptoException(AttachmentCryptoFailure.INTEGRITY_FAILED)
             }
@@ -213,9 +213,8 @@ object EncryptedAttachmentCrypto {
                     digest.update(buffer, 0, read)
                 }
             }
-            digest.digest().toHex() == reference.plainSha256
+            digest.digest().toHexString() == reference.plainSha256
         }.getOrDefault(false)
     }
 
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 }

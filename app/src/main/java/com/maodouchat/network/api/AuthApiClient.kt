@@ -1,6 +1,7 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.BuildConfig
+import com.maodouchat.util.toHexString
 import com.maodouchat.network.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +34,6 @@ private suspend fun sendUnit(request: Request): Result<Unit> = ApiService.sendUn
 private suspend fun executeForText(request: Request, errorPrefix: String): Result<String> = ApiService.executeForText(request, errorPrefix)
 private suspend fun executeStreamingWithRefresh(request: Request): Response = ApiService.executeStreamingWithRefresh(request)
 private fun parseError(body: String): String? = ApiService.parseError(body)
-private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
 
 override suspend fun getTotpStatus(token: String): Result<String> = executeForText(
