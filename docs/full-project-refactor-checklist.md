@@ -8287,3 +8287,26 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实跑验证**：两套门禁均单跑通过；负控制红并恢复；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1918 例）**；
   **全量 `server test --no-daemon --rerun-tasks` → BUILD SUCCESSFUL，9m 11s / 6 executed（150 套件 / 462 例）**。
+
+### G170b — 第四次全量复跑：四套 2426 例全绿（G191 之后 16 轮门禁加固）
+
+- **动机**：G191 之后又做了 16 轮（G153b–G169b），**全部只动测试与门禁、没碰一行生产代码**
+  （最后一行生产代码改动是 G162b 的 `GroupCallTypeDialog`）。期间新增约 15 条门禁用例：
+  死成员棘轮、Top-20 排名门禁、`stripComments` 自检、两份一致性门禁、注释盲区修正……
+  按 G171/G182/G191 的教训，四套必须重新全量跑一遍，而不是「我每轮都跑过 app」。
+- **四套结果（全部本轮新鲜产出）**：
+  | 套件 | 命令 | 结果 |
+  |---|---|---|
+  | app JVM | `./gradlew :app:testDebugUnitTest --rerun-tasks` | **1918 / 0 / 0 / 0**（343 套件） |
+  | server | `../gradlew test --no-daemon --rerun-tasks` | **462 / 0 / 0 / 0**（150 套件，9m 7s / **6 executed**） |
+  | PG 集成 | `postgresIntegrationTest --rerun-tasks` | **19 / 0 / 0 / 0**（7 套件） |
+  | E2E | `bash scripts/two-device-http-e2e.sh` | **27 / 0** |
+  | **合计** | | **2426 例，0 失败 0 错误 0 跳过** |
+- **与上一次（G191 的 2410）对比**：**+16 例**，全部来自新增门禁用例——
+  app +15（1916→1918 是最后两轮的各 +1/+1，中间几轮增量见各条）、server +1。
+  **生产代码一行未动而测试全绿**，说明这 16 轮门禁加固没有碰坏任何行为。
+- **G182 的坑没再踩**：server 首次跑就带 `--no-daemon --rerun-tasks`，
+  实测 `6 actionable tasks: 6 executed`、耗时 9m 7s——**确认真的执行了**，不是 up-to-date。
+- **实测结果**：无代码改动（纯复跑）；工作区干净。
+- **实跑验证**：四套命令均在本轮执行，日志与 XML 汇总如上；
+  E2E 的 `用例状态=0 gradle 状态=0`。
