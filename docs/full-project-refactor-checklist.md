@@ -8349,3 +8349,43 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      代码过期了会编译失败，文档过期了只会**安静地误导每一个读它的人**。
      解法不是「多想起来更新」，而是像本轮这样：**定期拿文档里的每个数字跑一遍命令**，
      把偏差当成缺陷而不是当成「文档嘛难免的」。**
+
+### G172b — 把 DIRECTION.md §0 从「可复现」升级成「会失败」（+11 例，1918 → 1929）
+
+- **动机**：G171b 的教训原话是「必读文档比代码更容易腐烂，因为它没有编译器替你校验」。
+  我当时只做到「每个数字都带命令」，**但那仍要人记得去跑**——腐烂依旧会安静地误导每个读它的人。
+  按 DIRECTION.md 自己的判据（「任何一条架构断言，要么有会失败的测试，要么不许写进文档当已完成」），
+  §0 那张表就是一堆架构断言，它该有测试。
+- **做了什么**：新建 `app/src/test/java/com/maodouchat/DirectionDocFreshnessTest.kt`，
+  解析 §0 表格，对每一行的「实测值」用**当初实测的同一条命令**重算并逐条断言：
+  | 表格行 | 重算方式 |
+  |---|---|
+  | 已跟踪文件 | `git ls-files \| wc -l` |
+  | 服务端测试文件 | `walkTopDown` 数 `.kt` |
+  | 客户端 JVM 测试文件 | 同上 |
+  | instrumented | 同上 |
+  | 自审清单体量 | `File.length()` |
+  | plugins `transaction {` | `grep -rho ... \| wc -l` |
+  | 最差单文件 | `walkTopDown` + `maxOf { readLines().size }` |
+  | plugins import Exposed | `grep -rl ... \| wc -l` |
+  | repository→plugins | `grep -rn ... \| grep -c import` |
+  | repository `*Service.kt` | `list().count` |
+  外加一条 `the direction table has exactly the rows we verify`（断言解析到 **10 行**），
+  拦住「悄悄少检几行」。
+- **门禁一上线就抓到两个过期数字**（这正是它的价值）：
+  1. 客户端 JVM 测试文件 **340 → 341**——因为这个测试文件自己就是新增的；
+  2. 自审清单 **760,136 → 763,116** 字节——因为 G171b 之后又往台账写了条目。
+  两个都已同步进 DIRECTION.md。
+- **两次负控制**：
+  1. 把「已跟踪文件 1768」改成 1700 → `tracked file count matches the table` **红**；
+  2. 往 §0 加一行没有对应断言的新事实 → `the direction table has exactly the rows we verify` **红**。
+  两次均恢复。
+- **实测结果**：`DirectionDocFreshnessTest` **+12 条用例**；
+  app JVM 单测 **1918 → 1929 例**（344 套件 / 0 失败 / 0 错误 / 0 跳过）；
+  `DIRECTION.md` 2 增 2 删（只有那两个被抓出来的数字）。
+- **实跑验证**：门禁单跑 BUILD SUCCESSFUL（12 条）；两次负控制均按预期红并恢复；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（344 套件 / 1929 例）**。
+- **这条门禁的边界（写下来备查）**：它只覆盖 §0 那张表。
+  DIRECTION.md 其余章节（§1 判断、§2 三轨道、§3 里程碑）是**论证**不是断言，没有可执行判据，
+  不适合也不应该被这样钉死。§0 之后任何人改表格，测试会告诉他「去同步」——
+  这就是把「记得更新」变成「忘了会红」。
