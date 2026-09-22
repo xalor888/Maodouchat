@@ -3,6 +3,7 @@ package com.maodouchat.util
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -38,11 +39,18 @@ class SecretNewDeviceRiskPrefsTest {
     @Before
     fun reset() {
         ctx.getSharedPreferences("secret_new_device_risk", Context.MODE_PRIVATE).edit().clear().apply()
-        SecretNewDeviceRiskPrefs.switchOverrideForTest = AccountFeatureSwitch(
-            prefsName = "secret_new_device_risk",
-            defaultEnabled = true,
-            userIdProvider = { userId },
-        )
+        // G187b：改用 AccountFeatureSwitch 的全局覆盖（G185b 加的），
+        // 不再需要每个 Secret*Prefs 自己带测试缝。
+        AccountFeatureSwitch.userIdOverrideForTest = { userId }
+    }
+
+    /**
+     * 必须复位全局覆盖：Robolectric 的多个测试类共用同一个 JVM，
+     * 不复位会让后面运行的测试拿到一个假 userId（它们本应有 null = 未登录）。
+     */
+    @After
+    fun tearDown() {
+        AccountFeatureSwitch.userIdOverrideForTest = null
     }
 
     @Test

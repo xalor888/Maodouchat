@@ -8895,3 +8895,25 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **至此**：`Secret*Prefs` 家族 10 个文件里**所有带判定逻辑的函数都有覆盖了**
   （isDeviceTrusted / isFingerprintVerified / isForwardAllowed / isGateOpen /
   gateTimeoutMs / ttlSeconds / shouldShowPeerNotice / 账号隔离 / 各 set-get 往返）。
+
+### G187b — 撤掉多余的测试缝，并修掉一个我自己引入的测试污染（app 1959 不变）
+
+- **背景**：G183b 给 `SecretNewDeviceRiskPrefs` 单独加了 `switchOverrideForTest` 缝；
+  G185b 又在 `AccountFeatureSwitch` 上加了**全局** `userIdOverrideForTest`，
+  一个改动解锁整个家族。**前者从此冗余**——生产文件里白留一段测试专用代码。
+- **做了什么**：
+  1. 删掉 `SecretNewDeviceRiskPrefs.switchOverrideForTest` / `activeSwitch`，
+     11 处 `activeSwitch.` 全部换回 `switch.`（grep 归零）；
+  2. `SecretNewDeviceRiskPrefsTest` 改用全局覆盖。**四个测试文件现在只有一种缝。**
+- **顺带查出并修掉一个我自己引入的 bug**：`SecretNewDeviceRiskPrefsTest`
+  **没有 `@After` 复位全局覆盖**（另两个文件都有）。
+  Robolectric 多测试类共用同一 JVM，不复位会让**后面运行的测试拿到一个假 userId**——
+  而它们本应有 null（未登录）。已补 `@After { userIdOverrideForTest = null }`。
+  **这个 bug 是 G185b 引入的，隔了一轮才在「检查隔离」时发现。**
+  **教训（第七十五次沉淀）：引入**全局可变测试状态**时，必须同时写复位。
+     局部缝（每文件一个）不会有这问题，全局缝会——这是它唯一的代价，
+     换来的是「一个改动解锁 10 个文件」。**
+- **顺带核对**：10 个 `Secret*Prefs` 的键**全部**走 `switch.key(KEY, userId)`，
+  没有一个漏掉 userId。这条不立测试（无从构造失败场景），记录在案。
+- **实测结果**：app JVM 单测 **1959 例不变**（纯清理）；
+  `SecretNewDeviceRiskPrefsTest` 4 例复跑通过。
