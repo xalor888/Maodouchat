@@ -9027,3 +9027,26 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   （§0 的测量项不含 DIRECTION.md 自身）→ 跑全量刷新 XML → 用
   `finish-round.sh --skip-tests` 收尾，6 步全通过。
 - **实测结果**：`DIRECTION.md` +23 行；app JVM 单测 **1959 例不变**；工作区干净。
+
+### G192b — 给被 83 个文件引用的 RuntimeFlags 补上覆盖（app 1959 → 1964）
+
+- **动机**：`RuntimeFlags` 被 **83 个源文件**引用，却**一条测试都没有**。
+  按「被引用数 × 未覆盖度」排，它是全仓最值得补的工具类。
+- **身上有两个不经测试就会悄悄漂掉的性质**：
+  1. **`NEARBY` 与 `CHAT_EXPORT` 是硬编码强制关闭的**（`isEnabled` 开头
+     `if (flag == NEARBY || flag == CHAT_EXPORT) return false`，`setEnabled` 里
+     也被压成 `false`）。这是产品 kill switch；没有测试的话，
+     重构时那两行很容易被当成冗余删掉，于是一个已下线的功能悄无声息地复活。
+  2. **开关要能真的存进去、读出来**。否则「用户在设置里关了某功能却没生效」
+     这类问题无从定位。
+- **5 条用例**：两个下线开关显式 setEnabled(true) 也必须读回 false；
+  **底层 prefs 被直接写成 true 时 isEnabled 仍要压回 false**（这才是 kill switch
+  的意义——防的是被绕过而不只是防误开）；普通开关 set/get 往返；
+  未设置时回落到 Flag 声明的 default；**所有 Flag key 不得重复**
+  （该类合并自 98 个 *Prefs 文件，键重复会让两个开关互相顶掉）。
+- **负控制**：只删掉 `isEnabled` 开头的强制关闭判断 →
+  `retiredFlagsCannotBeReEnabledByTheirStoredValue` **FAILED**。
+  另一条 `retiredFlagsStayDisabledNoMatterWhat` **照旧绿**——因为
+  `setEnabled` 自己那道 `when` 还在挡着。**这不是漏网，而是防御分层的正常表现：
+     两道闸各管一条路径（误开 vs 绕过），NC 精确地只打中被拆的那道。**
+- **实测结果**：app JVM 单测 **1959 → 1964 例**（本类 `tests=5 failures=0`）。

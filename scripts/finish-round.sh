@@ -62,8 +62,7 @@ else
     fi
 fi
 
-# 允许跳过测试（调用方刚跑完全量时用）——否则每轮收尾要重跑 12 分钟。
-log "3/6 追加台账条目（同步之前）"
+log "3/6 追加台账条目"
 cat "$ENTRY" >> docs/full-project-refactor-checklist.md
 echo "台账现有 $(wc -l < docs/full-project-refactor-checklist.md) 行"
 
@@ -73,7 +72,7 @@ python3 scripts/sync-direction-numbers.py --write || {
     exit 1
 }
 
-log "5/6 复核新鲜度门禁"
+log "4.5/6 提交前复核门禁"
 if ! ./gradlew :app:testDebugUnitTest \
         --tests 'com.maodouchat.DirectionDocFreshnessTest' \
         --rerun-tasks --console=plain; then
@@ -81,7 +80,7 @@ if ! ./gradlew :app:testDebugUnitTest \
     exit 1
 fi
 
-log "6/6 提交"
+log "5/6 提交"
 git add -A
 if [[ -z "$(git status --porcelain)" ]]; then
     echo "没有可提交的改动（可能条目为空且数字已同步）——跳过提交"
@@ -91,6 +90,24 @@ if [[ $# -gt 0 ]]; then
     git commit -q -m "$*"
 else
     git commit -q -m "docs: 本轮记录与 DIRECTION.md 数字同步"
+fi
+git log --oneline -1
+
+log "6/6 提交后再同步（新文件刚变成已跟踪）+ 复核 + amend"
+# 第二次同步若被合理性守卫拒绝，说明数字没变（XML 未刷新但无需刷新），可放过。
+python3 scripts/sync-direction-numbers.py --write ||     echo "（第二次同步被守卫放过——数字未变则无碍）"
+
+if ! ./gradlew :app:testDebugUnitTest \
+        --tests 'com.maodouchat.DirectionDocFreshnessTest' \
+        --rerun-tasks --console=plain; then
+    echo "提交后门禁仍红——请检查上面输出的差异" >&2
+    exit 1
+fi
+
+git add -A
+if [[ -n "$(git status --porcelain)" ]]; then
+    git commit -q --amend --no-edit
+    echo "已把同步后的 DIRECTION.md amend 进同一个提交"
 fi
 git log --oneline -1
 printf '\n\033[1m收尾完成。\033[0m 剩余未推送提交: %s\n' "$(git rev-list --count @{u}..HEAD 2>/dev/null || echo '?')"
