@@ -170,7 +170,9 @@ object ImagePicker {
     private const val MAX_IMAGE_PIXELS = 4_000_000
     private const val MAX_COMPRESSED_IMAGE_BYTES = 1_200_000
 
-    private fun calculateInSampleSize(width: Int, height: Int, maxWidth: Int, maxPixels: Int): Int {
+    // G207b：private -> internal，只为让纯函数可被 JVM 单测直接覆盖
+    // （不引入任何仅测试用的状态/开关，改一个可见性修饰符即可）。
+    internal fun calculateInSampleSize(width: Int, height: Int, maxWidth: Int, maxPixels: Int): Int {
         var sampleSize = 1
         val safeMaxWidth = maxWidth.coerceAtLeast(1)
         val safeMaxPixels = maxPixels.coerceAtLeast(1).toLong()

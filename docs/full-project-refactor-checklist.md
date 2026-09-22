@@ -9439,3 +9439,31 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   BoundedRateLimiter…），**没接，直接删掉那三条用例**，没有留「恒真」的占位。
 - **实测结果**：server **462 → 465 例**（152 套件，0 失败）；
   app JVM 1978 例不变；负控制（去掉 repo 的 userId 过滤）两条同时红并还原复跑转绿。
+
+### G207b — 给图片降采样计算补覆盖：守住「解压炸弹」防线（app 1978 → 1984）
+
+- **动机**：`ImagePicker` 被 12 个文件引用，零测试。其中
+  `calculateInSampleSize` 是 `BitmapFactory` 风格的纯函数，直接决定**解码时占多少内存**。
+  上游有 `MAX_IMAGE_PIXELS = 4_000_000` 这道**解压炸弹**防线——
+  一张 40000×40000（16 亿像素）的图，不先按 sampleSize 降采样就解码，光位图就是数 GB。
+- **最小改动的可测化**：只把 `private fun` 改成 `internal fun`（一行注释说明原因），
+  **没有引入任何仅供测试用的状态/开关**——比 G183b 那种 seam 干净得多，
+  也不需要 G187b 再去清理。
+- **6 条用例**，核心是三条性质而不是几个例子：
+  1. **返回值必须同时满足两个约束**（最长边 ≤ maxWidth **且** 像素数 ≤ maxPixels）——
+     这是防线的本体，写成 `satisfies()` 辅助函数到处复用；
+  2. **必须是 2 的幂**或 `Int.MAX_VALUE`（`BitmapFactory.Options.inSampleSize` 的硬要求）；
+  3. **必须终止**——退化输入（0、负数、`Int.MAX_VALUE` 尺寸）不能挂死。
+  外加：小图不降采样（含正好等于 maxWidth 的边界）、宽度驱动的降采样、
+  像素预算驱动的额外降采样、40000×40000 巨图 terminating，
+  以及一条**横扫** 6×4×3=72 种尺寸/宽度/像素组合的用例。
+- **负控制**：把像素约束从判断条件里删掉（只按宽度降采样）→
+  `resultAlwaysSatisfiesBothConstraintsAcrossARange` **FAILED**。
+  值得记的是**只有这一条红**：对 40000×40000 这种图，宽度约束本身已把像素压到线内，
+  所以专用用例 `hugeImagesTerminateInsteadOfHanging` 没红——
+  真正能抓到它的是 `12000×9000` + `maxWidth=4000` + `maxPixels=10000`
+  这种「宽度不 binding 但像素 binding」的组合。
+  **教训（第九十一次沉淀）：守卫多个约束时，负控制要能分别打破每一个。
+     否则你以为验全了，其实只验了「最容易满足的那个约束」。**
+- **实测结果**：app JVM 单测 **1978 → 1984 例**（本类 `tests=6 failures=0`）；
+  生产代码仅一个可见性修饰符变更。
