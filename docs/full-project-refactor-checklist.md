@@ -9255,3 +9255,42 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      若照那个结论动手清理，会误删。**
 - **实测结果**：新增 `scripts/README.md`（37/37 分类）；app JVM **1978 例不变**；
   无脚本删除、无行为变更。
+
+### G202b — 给 MediaCache 的附件引用校验与文件名消毒补上覆盖（app 1978 → 1987）
+
+- **动机**：`MediaCache` 被 40 个文件引用（RuntimeFlags 之后的次高杠杆），零测试。
+  其中两个函数是**安全边界**：
+  1. `EncryptedAttachmentReference` 校验——决定一个**从消息里读回来的附件引用**
+     能不能被拿去解密。松一点就是把不可信输入喂给解密路径；
+  2. `sanitizeFileName`——把 `\/:*?"<>|` 与控制字符换成 `_`。这是**路径穿越防御**。
+- **9 条用例**（`MediaCacheAttachmentReferenceTest`，纯 JVM 无需 Robolectric）：
+  合法引用往返；attachmentId 五种畸形（太短/太长/前缀错/含非法字符/路径穿越企图）全部被拒；
+  sha256 非十六进制、大写、长度错、key/iv 越界全部被拒；
+  plainSize=0/负、cipherSize<17、durationMs=499/超 1 小时全部被拒；
+  kind 错、fileName/mimeType 空白或超长被拒；解码侧拒非 JSON、拒 >2048 字节载荷；
+  **路径穿越**、mimeType 小写、附件 URI 往返。
+  两个函数都是 private，经 `encodeEncryptedAttachmentReference`（抛异常）与
+  `decodeEncryptedAttachmentReference`（返回 null）间接断言。
+- **本轮一次「断言写得比实现更强」，值得记**：
+  我原本断言消毒后「不得残留 `..`」，**失败了**——实际产出 `_.._etc_passwd`。
+  查证：`sanitizeFileName` 的替换表是 `[\\/:*?"<>|\p{Cntrl}]`，**不含 `.`**，
+  所以点号留着、分隔符没了。**没有分隔符的 `..` 只是文件名里的两个字符，
+  `File(dir, name)` 仍被关在 dir 内，防御是够的。**
+  改成断言真正的性质：不得残留 `/` 与 `\`，且
+  `File("/tmp/cache-root", name).normalize().path` 必须仍以该目录开头。
+  **教训（第八十七次沉淀）：安全断言要问「这个防御到底防的是什么」，
+     而不是「什么字符串看起来危险」。我按直觉断言了 `..`，
+     而真正的性质是可拼接性。写更强的断言不等于更安全。**
+- **两次负控制（各打一个边界）**：
+  1. 放宽 attachmentId 校验（`matches(...)` → `true`）→
+     `encodeRejectsMalformedAttachmentIds` 与 `encodeRejectsWrongKindAndBlankFields` **FAILED**；
+  2. 从 `sanitizeFileName` 字符类里删掉 `\` 与 `/` →
+     `fileNameIsSanitizedAgainstPathTraversal` **FAILED**。
+  两次均已还原（`diff` 确认逐字节一致）并复跑转绿。
+- **顺带一次自己的操作失误**：做 NC2 时前两次替换都没命中正确位置——
+  第一次正则抓到的是别的 `.replace(Regex(...))`（文件里有 5 处同形调用），
+  第二次字符串匹配没跑通。最后按**行号**定位才改对。
+  **教训（第八十八次沉淀）：文件里有多个同形调用时，用行号/上下文定位，
+     别用会匹配到第一处的模式。**
+- **实测结果**：app JVM 单测 **1978 → 1987 例**（本类 `tests=9 failures=0`）；
+  两个安全边界各有一个会失败的 NC。
