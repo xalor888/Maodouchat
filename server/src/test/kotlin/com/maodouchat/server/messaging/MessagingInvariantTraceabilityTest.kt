@@ -40,6 +40,49 @@ class MessagingInvariantTraceabilityTest {
             .flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList() }
     }
 
+    /**
+     * 剥掉行注释与块注释后的源码（G155b）。
+     *
+     * 门禁原先用「文件全文里有没有这行字符串」来判断引用是否有效，
+     * 于是**被注释掉的测试也算存在**——把 `fun \`foo\`` 注释掉，文档引用照样解析成功、
+     * 门禁全绿，而 `foo` 其实根本不执行。这与本文件 KDoc 里写的目标
+     * （「文档写着而证据早没了」要拦住）直接矛盾。
+     */
+    private val codeOnlySources: Map<File, String> by lazy {
+        testSources.associateWith { stripComments(it.readText()) }
+    }
+
+    private fun stripComments(text: String): String {
+        val out = StringBuilder(text.length)
+        var i = 0
+        var state = 0 // 0=代码 1=行注释 2=块注释 3=字符串 4=字符
+        while (i < text.length) {
+            val c = text[i]
+            val n = if (i + 1 < text.length) text[i + 1] else ' '
+            when (state) {
+                0 -> when {
+                    c == '/' && n == '/' -> { state = 1; i++ }
+                    c == '/' && n == '*' -> { state = 2; i++ }
+                    c == '"' -> { state = 3; out.append(c) }
+                    c == '\'' -> { state = 4; out.append(c) }
+                    else -> out.append(c)
+                }
+                1 -> if (c == '\n') { state = 0; out.append(c) }
+                2 -> if (c == '*' && n == '/') { state = 0; i++ }
+                3 -> {
+                    out.append(c)
+                    if (c == '\\') { out.append(n); i++ } else if (c == '"') state = 0
+                }
+                4 -> {
+                    out.append(c)
+                    if (c == '\\') { out.append(n); i++ } else if (c == '\'') state = 0
+                }
+            }
+            i++
+        }
+        return out.toString()
+    }
+
     /** 一条不变量的审计结果。 */
     private data class Audit(val number: Int, val verified: List<String>, val gaps: List<String>) {
         val pending: Boolean get() = gaps.isNotEmpty()
@@ -109,7 +152,7 @@ class MessagingInvariantTraceabilityTest {
         // camelCase（`fun realX3dhSessionCarries...`）。此前这条规则只认反引号形式，
         // 等于把整个 androidTest 排除在可引用范围之外；而 `app/src/androidTest/java`
         // 明明在扫描列表里——正是这种「扫了却引用不了」的缝，让模拟器门禁静默失效了很久。
-        val sources = testSources.associateWith { it.readText() }
+        val sources = codeOnlySources
         val missing = mutableListOf<String>()
         audit().flatMap { it.verified }.distinct().forEach { ref ->
             val className = ref.substringBefore('#')

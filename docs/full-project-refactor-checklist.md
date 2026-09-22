@@ -7698,3 +7698,47 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：2 个文件改动共 6 增 2 删；编译通过、无未用 import；
   两次负控制均红；恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
     343 套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。
+
+### G155b — 门禁早已存在；补掉它唯一的洞（被注释掉的测试也算存在）
+- **本轮目标原本是**：新建 `MessagingInvariantDocAuditTest`，把「E2EE 不变量 harness 无缺口」固化成会失败的测试。
+- **实际发现：这个测试早就存在，而且比我打算写的更强。**
+  `server/src/test/kotlin/com/maodouchat/server/messaging/MessagingInvariantTraceabilityTest.kt`
+  已做四件事：
+  1. 每条不变量必须有 `→ 验证：` 或 `→ 缺口：`，否则红；
+  2. 每个 `Class#用例名` 引用必须在测试源码里真实存在，否则红；
+  3. 缺口集合按**棘轮**冻结为空，新增缺口即红；
+  4. 不变量条数冻结为 26，编号必须连续。
+  它还显式处理了我这次自己踩的两个坑：
+  - 不接受「文件名 == 类名」假设（一个 .kt 可有多个测试类）；
+  - 同时接受反引号用例名与 camelCase——KDoc 里写明 **instrumented 测试不能用反引号**
+    （DEX version < 040 不允许 SimpleName 含空格），所以 `app/src/androidTest` 只能用
+    camelCase。此前规则只认反引号，等于把整个 androidTest 排除在可引用范围外，
+    「扫了却引用不了」让模拟器门禁静默失效了很久。
+- **我的人工审计数字是错的，两处**：
+  我先报「25 条不变量 / 77 条引用」，实际是 **26 条 / 82 条引用**（46 行 `→ 验证：`、
+  **0 条 `→ 缺口：`**）。错因就是我自己的临时脚本——先漏了 `app/src/androidTest` 整棵树，
+  后又被反引号用例名里的空格截断。**同一个坑，门禁的 KDoc 里早就写着了。**
+  **教训（第四十九次沉淀）：动手写新工具之前，先 `grep` 有没有人已经做过。
+     我这次是凭印象认定「没有门禁」，而没有先搜——结果绕一圈发现的不仅是重复劳动，
+     还发现自己踩的正是既有代码注释里警告过的坑。**
+- **本轮真正做的事：补掉这个门禁唯一的洞。**
+  它用 `text.contains("fun \`$testName\`")` 判断引用是否有效——**纯子串匹配**。
+  于是把某个测试的 `fun` 行注释掉，引用照样解析成功、门禁全绿，而那个用例其实不执行。
+  这与该文件 KDoc 自述的目标（「文档写着而证据早没了，正是这个门禁要拦的情况」）直接矛盾。
+  修法：加 `codeOnlySources`（用 `stripComments` 剥掉行注释/块注释后的源码），
+  引用解析改成只在剥注释后的源码里找。`stripComments` 是一个四态小状态机
+  （代码/行注释/块注释/字符串），**字符串内的 `//` 和 `/*` 不误剥**。
+- **负控制（按目标要求）**：把 `SignalE2eeRoundTripTest.kt` 里被文档引用的
+  `fun realX3dhSessionCarriesExactPlaintextBothDirections()` 注释掉 →
+  `every referenced test actually exists in the test sources` **红**。
+  恢复后转绿。
+- **实测结果**：`git status` 显示只有 `MessagingInvariantTraceabilityTest.kt` 一个文件改动；
+  加固前该门禁 3 条用例全绿、加固后仍然全绿（**今天没有注释掉的测试，所以是 no-op**——
+  这正是加固应有的性质：不改变现状，只堵未来的口）。
+- **实跑验证**：
+  - 门禁单跑 `--rerun-tasks` → BUILD SUCCESSFUL；
+  - 负控制红 → 恢复 → 转绿；
+  - **全量 `server test --rerun-tasks` → BUILD SUCCESSFUL，7m 40s / 6 executed
+    （461 用例基线，非 up-to-date）**；
+  - **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1906 例）**；
+  - 工作区仅一个文件改动。
