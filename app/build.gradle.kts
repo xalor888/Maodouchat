@@ -361,6 +361,11 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("io.mockk:mockk:1.13.8")
     testImplementation("org.json:json:20240303")
+    // G173b：Compose UI 测试——12 个抽出的 dialog 此前零 UI 覆盖（只有编译 + JVM + 协议层 E2E）。
+    // debugImplementation 里本来就有 ui-test-manifest，缺的就是这条。
+    val composeBomAndroidTest = platform("androidx.compose:compose-bom:2026.05.00")
+    androidTestImplementation(composeBomAndroidTest)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     // 9.291：显式声明 runner——testInstrumentationRunner 指向 AndroidJUnitRunner，但 ext:junit 1.2.1
     // 不再传递引入 androidx.test:runner，导致仪器测试启动即 ClassNotFoundException 崩溃（0 tests）

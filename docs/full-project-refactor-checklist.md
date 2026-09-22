@@ -8394,3 +8394,55 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   DIRECTION.md 其余章节（§1 判断、§2 三轨道、§3 里程碑）是**论证**不是断言，没有可执行判据，
   不适合也不应该被这样钉死。§0 之后任何人改表格，测试会告诉他「去同步」——
   这就是把「记得更新」变成「忘了会红」。
+
+### G173b — 补上「12 个抽出的 dialog 零 UI 覆盖」：第一批 Compose UI 测试（模拟器实跑 2/2 通过）
+
+- **缺口（G193 就发现、一直没补）**：G184–G162b 一共抽出 12 个 composable，
+  此前全部只靠**编译 + app JVM 单测 + 协议层 E2E** 验证。实测确认：
+  **10 个 dialog 的字符串资源在 `app/src/androidTest` 里 0 次引用**。
+  根因是结构性的——app JVM 没有 Robolectric（依赖被注释掉，注释说明是受限网络无法下载 SDK 镜像），
+  而 E2E 驱动的是服务端往返、**不渲染 Compose**。
+  于是「确认按钮到底还在不在」「`visible=false` 时是不是真的不渲染」这类问题
+  **没有任何自动化手段能回答**；G192 的负控制只能证明「回调参数还被使用」，
+  证不了「节点真的在屏幕上」。
+- **做了什么**：
+  1. `app/build.gradle.kts` 加 `androidTestImplementation` 的
+     `androidx.compose.ui:ui-test-junit4`（走同一个 `compose-bom:2026.05.00`）——
+     `debugImplementation` 里本来就有 `ui-test-manifest`，缺的就是这一条；
+  2. 新建 `app/src/androidTest/java/com/maodouchat/ui/screen/chatdetail/ChatDetailDialogsUiTest.kt`，
+     用 `createComposeRule` 真正渲染 dialog，第一批 2 条用例：
+     - `secretChatConfirmShowsItsCopyAndFiresOnlyTheConfirmCallback`：
+       标题与正文必须渲染出来；点「完成」只触发 `onConfirm`、不触发 `onDismiss`；
+     - `secretChatConfirmRendersNothingWhenNotVisible`：
+       `visible=false` 时**一个节点都不该有**。
+- **模拟器实跑（本轮真的跑了）**：
+  `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=...ChatDetailDialogsUiTest`
+  → `Finished 2 tests on maodou_test(AVD) - 16` + **BUILD SUCCESSFUL**，
+  设备 XML 确认两条均 `ok`。
+- **三次自己的错，都当场修**：
+  1. **硬编码文案硬错了**：第一版把标题写成「开启密聊？」，实际资源是「**发起密聊？**」。
+     改成一律 `InstrumentationRegistry...getString(R.string.…)` 取，
+     并在 KDoc 里写明「不硬编码中文——那种测试会在模拟器上假红，且文案微调就要改测试」；
+  2. **`--tests` 不是 Android 测试的参数**：`connectedDebugAndroidTest --tests X` 报
+     `Unknown command-line option '--tests'`；正确写法是
+     `-Pandroid.testInstrumentationRunnerArguments.class=X`（E2E 脚本本来就这么用）；
+  3. **同步调用嵌进了 `runOnIdle {}`**：`onAllNodes(...).fetchSemanticsNodes()` 是同步调用，
+     嵌在 `runOnIdle` 里报
+     `Functions that involve synchronization ... cannot be run from the main thread`。
+     移到 `runOnIdle` 之外即过。
+     **教训（第七十次沉淀）：Compose 测试里 `runOnIdle {}` 只用来读测试自己的变量；
+        任何 `onNodeWithText` / `onAllNodes` / `fetchSemanticsNodes` / `performClick`
+        都要在它**外面**调。**
+- **负控制（在模拟器上跑）**：把「点完成」换成「断言完成按钮**不存在**」→
+  `secretChatConfirmShowsItsCopyAndFiresOnlyTheConfirmCallback` **FAILED**。恢复后转绿。
+- **`DirectionDocFreshnessTest` 当场抓到 3 个过期数字**（这正是 G172b 那个门禁的价值）：
+  `git ls-files` 1768→**1769**（G172b 提交了新增文件）、instrumented 11→**12**（本文件）、
+  自审清单 763,116→**766,471**。三处都已同步。
+  **注意顺序**：先追加本台账条目、**再**测字节数、再改 DIRECTION.md——
+  否则改完文档字节数又变，门禁会再红一次。
+- **实测结果**：app androidTest **+2 条用例**（模拟器实跑通过）；
+  `app/build.gradle.kts` +4 行；`DIRECTION.md` 3 个数字同步；
+  app JVM 单测 **1929 例不变**（UI 测试不在 JVM 套件里跑）。
+- **实跑验证**：模拟器 2/2 通过（上面贴过设备 XML 摘录）；
+  负控制红并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1929 例）**
+  （在同步完 DIRECTION.md 之后）。

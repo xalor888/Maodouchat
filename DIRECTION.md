@@ -14,11 +14,11 @@
 
 | 事实 | 实测值 | 来源 |
 |------|--------|------|
-| 已跟踪文件 | 1768 | `git ls-files \| wc -l` |
+| 已跟踪文件 | 1769 | `git ls-files \| wc -l` |
 | 服务端测试文件 / 用例 | 117 个 / **462 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总 |
 | 客户端 JVM 测试文件 / 用例 | 341 个 / **1918 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总 |
-| instrumented 测试（androidTest） | **11 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 763,116 字节 | `wc -c docs/full-project-refactor-checklist.md` |
+| instrumented 测试（androidTest） | **12 个文件** | `find app/src/androidTest -name '*.kt'` |
+| 自审清单体量 | 770,599 字节 | `wc -c docs/full-project-refactor-checklist.md` |
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件** | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | 18 | `grep -rl org.jetbrains.exposed plugins/` |
