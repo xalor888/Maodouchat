@@ -41,6 +41,10 @@ class ChatDetailDialogsUiTest {
     private fun str(id: Int): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
+    /** 带格式参数的字符串（如「撤回（剩余 %1$d 分钟）」）。 */
+    private fun str(id: Int, vararg args: Any): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id, *args)
+
     @Test
     fun secretChatConfirmShowsItsCopyAndFiresOnlyTheConfirmCallback() {
         var confirm = 0
@@ -279,6 +283,78 @@ class ChatDetailDialogsUiTest {
         // 删掉它会让用户提交一条空编辑。
         compose.onNodeWithText(str(R.string.common_save)).assertIsNotEnabled()
         check(saved == 0) { "空白草稿不该触发 onSave" }
+    }
+
+    // ---- RetryMessageDialog：dismissButton 就是「删除」，没有纯取消 ----
+
+    @Test
+    fun retryDialogRoutesRetryAndDeleteToDifferentCallbacks() {
+        var retry = 0; var delete = 0; var dismiss = 0
+        compose.setContent {
+            RetryMessageDialog(
+                visible = true,
+                onRetry = { retry++ },
+                onDelete = { delete++ },
+                onDismiss = { dismiss++ },
+            )
+        }
+
+        compose.onNodeWithText(str(R.string.chat_send_failed)).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.chat_send_failed_retry)).assertIsDisplayed()
+
+        // 「重发」只走 onRetry
+        compose.onNodeWithText(str(R.string.chat_retry)).performClick()
+        compose.runOnIdle { check(retry == 1) { "点重发应触发 onRetry，实际 $retry" } }
+        check(delete == 0 && dismiss == 0) { "点重发不应触发 onDelete/onDismiss（d=$delete dis=$dismiss）" }
+
+        // 「删除」只走 onDelete——注意这个 dialog 的 dismissButton 就是删除，
+        // **没有**纯取消按钮（G161b 抽取时刻意没加）。这条钉住那个设计。
+        compose.onNodeWithText(str(R.string.chat_delete)).performClick()
+        compose.runOnIdle { check(delete == 1) { "点删除应触发 onDelete，实际 $delete" } }
+        check(retry == 1 && dismiss == 0) { "点删除不应再触发 onRetry/onDismiss" }
+    }
+
+    // ---- RevokeMessageConfirmDialog：剩余分钟是算出来的 ----
+
+    @Test
+    fun revokeDialogShowsRemainingMinutesAndRoutesTheCallbacks() {
+        var revoke = 0; var dismiss = 0
+        compose.setContent {
+            RevokeMessageConfirmDialog(
+                visible = true,
+                sentAtMillis = System.currentTimeMillis() - 30_000L,  // 30 秒前：远离 elapsed=0 与 60s 两个边界
+                onRevoke = { revoke++ },
+                onDismiss = { dismiss++ },
+            )
+        }
+
+        // 30 秒前 → floor((300_000-30_000)/60_000) + 1 = 4 + 1 = 5。
+        // 为什么不用「刚发出」：elapsed 恰好为 0 时整数除法 300_000/60_000 = 5 整，
+        // +1 得 6；只要过了 1 毫秒就变成 4+1=5——**0 也是一个边界**。
+        compose.onNodeWithText(str(R.string.chat_revoke_with_limit, 5)).assertExists()
+
+        compose.onNodeWithText(str(R.string.chat_revoke_with_limit, 5)).performClick()
+        compose.runOnIdle { check(revoke == 1) { "点撤回应触发 onRevoke，实际 $revoke" } }
+        check(dismiss == 0) { "点撤回不应触发 onDismiss" }
+
+        // 「取消」走 onDismiss
+        compose.onNodeWithText(str(R.string.common_cancel)).performClick()
+        compose.runOnIdle { check(dismiss == 1) { "点取消应触发 onDismiss，实际 $dismiss" } }
+    }
+
+    @Test
+    fun revokeDialogCountsDownAsTheMessageAges() {
+        // 4 分钟前发出 → (300_000-240_000)/60_000 + 1 = 2 分钟。
+        // 用户就以为已经不能撤了——那是纯粹的展示错误，但会改变用户行为。
+        compose.setContent {
+            RevokeMessageConfirmDialog(
+                visible = true,
+                sentAtMillis = System.currentTimeMillis() - 270_000L,  // 4.5 分钟，避开分钟边界
+                onRevoke = {},
+                onDismiss = {},
+            )
+        }
+        compose.onNodeWithText(str(R.string.chat_revoke_with_limit, 1)).assertExists()
     }
 
     @Test

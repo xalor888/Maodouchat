@@ -8545,3 +8545,45 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **剩余**：还有 **7 个 dialog** 无 UI 覆盖（`ForgotChatLock` / `ClearChatHistory` /
   `GroupAnnouncement` / `RevokeMessage` / `RetryMessage` / `SecretNewDeviceRiskLocked` /
   `NewDeviceRiskPrompt`）。
+
+### G177b — Retry + Revoke 两组用例（androidTest 15 例，模拟器 15/15；连跑 3 次全绿）
+
+- **一次补两个**：
+  1. **`RetryMessageDialog`**——它的 `dismissButton` **就是「删除」**（红色），
+     **没有纯取消按钮**（G161b 抽取时刻意没加，KDoc 用 ⚠️ 写明）。用例钉住这个设计：
+     点「重发」只触发 `onRetry`；点「删除」只触发 `onDelete`。
+  2. **`RevokeMessageConfirmDialog`**——确认按钮文案是「撤回（剩余 N 分钟）」，
+     `N = ((300_000 - (now - sentAt)) / 60_000).toInt() + 1`。
+     两条用例分别钉住「30 秒前 → 5」和「4.5 分钟前 → 1」，并验证两个回调的分流。
+- **本轮大部分时间花在一个抖动 bug 上，值得完整记**：
+  - 第一版我按「刚发出 → 5、4 分钟前 → 1」写，**跑出一绿一红**；
+  - 我一度以为公式末尾 `+1` 让它们变成 6 和 2，改完还是抖；
+  - 最后才想清楚：`(300_000 - elapsed) / 60_000` 是 **Long 整数除法**，
+    而我把两个测试输入都**正好放在了边界上**：
+    - 「刚发出」`elapsed ≈ 0`：`elapsed = 0`（同一毫秒）时 `300_000/60_000 = 5` 整，`+1 = 6`；
+      只要过了 1 毫秒就变成 `4 + 1 = 5`。**0 本身就是一个边界**；
+    - 「整 4 分钟」`elapsed = 240_000`：`(300_000-240_000)/60_000 = 1` 整；
+      测试创建与真正组合之间差几毫秒就变成 `0`，`+1` 后 N 在 1/2 之间抖。
+  - 修法：把输入挪到**桶中间**——30 秒前（elapsed 落在 (30s,31s)，远离 0 与 60s）、
+    4.5 分钟前（elapsed 落在 (4.5min, 4.5min+δ)，远离 4min 与 5min）。
+    改完**连跑 3 次全绿**（`Finished 15 tests` + BUILD SUCCESSFUL ×3）。
+- **另外两次小坑**：
+  1. `str(id)` 没有格式参数重载，`chat_revoke_with_limit` 是 `%1$d` 串——
+     加了 `str(id, vararg)` 重载；
+  2. `assertExists` **不是顶层 import**（是 `SemanticsNodeInteraction` 的成员函数），
+     我加了 `import androidx.compose.ui.test.assertExists` 直接编译失败。
+     另外一开始用 `assertIsDisplayed()` 也不对——长按钮文案在 AlertDialog 的按钮行里
+     会被裁到不可见，但节点确实渲染了；这里要断言的是「显示了正确的 N」，
+     所以用 `assertExists()`。
+- **两次负控制（都精确命中）**：
+  1. 把期望 N 从 5 改成 3 → `revokeDialogShowsRemainingMinutesAndRoutesTheCallbacks` **FAILED**；
+  2. 把「点删除应触发 `onDelete`」改成「触发 `onRetry`」→
+     `retryDialogRoutesRetryAndDeleteToDifferentCallbacks` **FAILED**。
+  两次均已恢复并复跑转绿。
+- **实测结果**：androidTest **+3 条用例**（12 → 15，模拟器 15/15，连跑 3 次稳定）；
+  无生产代码改动；app JVM 单测 **1929 例不变**。
+- **实跑验证**：模拟器 15/15 ×3；两次负控制均红并恢复。
+- **教训（第七十一次沉淀）：给「带除法的展示逻辑」写测试时，输入要落在**桶中间**。
+     整数除法让每个 `60000` 的倍数都成为边界，而 `elapsed = 0` 也是边界。
+     踩边界的结果是**一绿一红的抖动**——它比稳定失败更难查，
+     因为它会让你怀疑测试框架而不是怀疑自己的输入。**
