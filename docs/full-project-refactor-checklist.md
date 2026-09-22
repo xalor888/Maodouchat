@@ -9368,3 +9368,40 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   两次均已还原（`diff` 逐字节一致）并复跑转绿。
 - **实测结果**：app JVM 单测 **1994 → 2009 例**（本类 `tests=15 failures=0`）；
   两个安全性质各有一个会失败的 NC。
+
+### G205b — 给数据库的「账号隔离」立闸门：263 条 @Query 逐条查谓词（app 2009 → 2011）
+
+- **动机**：`AccountFeatureSwitch` 的账号隔离我立过闸门（G184b），**数据库这边没有**。
+  `data/local/dao/` 下 **263 条 `@Query`**，其中触及「有 `ownerUserId` 列的表」的约 130 条
+  （本次实测 checked 数由测试自己断言 `>= 80` 兜底）。
+  这仓是本地多账号的，**漏一条谓词就等于账号 A 能读到/删掉账号 B 的定时消息、
+  附件传输、草稿、AI 结果**。
+- **怎么做**：源码文本判据（按 DIRECTION.md §3.5 **先剥注释再比**）——
+  先扫 entity 的 `tableName` + 是否声明 `val ownerUserId:`，得出**有 owner 列的表**集合；
+  再逐条 `@Query` 看它触及哪些表，触到 owner 表就必须含 `ownerUserId = :ownerUserId`；
+  例外放进一张**显式豁免表**（每条附理由），宁可显式豁免也不静默放过。
+- **豁免表 11 条，全部有据**（本轮现场甄别过，不是照抄）：
+  - 登出/全局清理 5 条（`DELETE FROM ...` 整表或全账号，由 Worker/账号迁移触发）；
+  - **owner 解析** 4 条：`getByIdWithoutOwner` 系列只用来**取出 ownerUserId 本身**，
+    敏感读取随后仍是 owner 作用域（`ScheduledMessageWorker` 先解析出
+    `expectedOwnerUserId` 再走 `getById(id, owner)`）；
+  - `getAllAccounts()` 1 条——这条最值得记：附件缓存目录是**所有保留账号共享**的，
+    清理某账号孤儿文件前必须先知道全部账号的在用路径，否则会删掉别人休眠中的文件。
+    **只取 `encryptedPath`/`sourceUri` 拼 protect-set，不读内容。**
+- **第二条用例守豁免表本身**：`exemptionListHasNoStaleEntries`——每条豁免都必须
+  仍能对得上真实 SQL。否则查询被删了而豁免还挂着，**会把未来的真违规一起放过去**。
+  本轮就靠它抓到我自己写错的一条（把 `sender_key_retry_queue` 写成了 `scheduled_messages`）。
+- **三次负控制，第三次才成功，前两次的失败方式本身是信息**：
+  1. 删掉已有查询的 `ownerUserId` 谓词 → **KSP 先炸**（`Unused parameter: ownerUserId`）——
+     说明 Room 自己就挡住了「改坏现有查询」，我的闸门够不着；
+  2. 新增一条无谓词查询 → KSP 也炸，但原因是**我把方法插到了一对重复 `@Query`
+     与方法之间**（该文件里 `listForUser`/`listForUserBlocking` 共用同一条 SQL），
+     注解与方法失配。**这是 G202b「多个同形调用按行号定位」那条教训的复发**，
+     改成插到接口末尾后通过；
+  3. 插到接口末尾再跑 → `everyQueryOnAnOwnerScopedFiltersByOwner` **FAILED**，正是要的；
+  4. 再把一条豁免改成对不上 → `exemptionListHasNoStaleEntries` **FAILED**。
+  全部还原（`diff` 逐字节一致）后转绿。
+- **实测结果**：app JVM 单测 **2009 → 2011 例**（本类 `tests=2 failures=0`）；
+  四条负控制各打到对应用例。
+- **顺带确认**：`messages` 表**没有** `ownerUserId` 列（它经 chatId → chats → owner 隔离），
+  所以闸门是**有条件**的（只对声明了 owner 列的表生效），不是无脑要求每条 SQL 都带。
