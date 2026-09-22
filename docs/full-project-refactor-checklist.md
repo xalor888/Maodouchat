@@ -9136,3 +9136,36 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   让失败看起来无害。已改成继续做完门禁复核，让它自己说话。
 - **实测结果**：`scripts/finish-round.sh` 删一步；app JVM **1978 例不变**；
   DIRECTION.md 与 `git ls-files` 一致；门禁绿；工作区干净。
+
+### G198b — 项目主门禁一直是「假闸门」：改 server 文件它不重跑（app 1978）
+
+- **G196b 修的是我自己新写的闸门，这一轮发现同一个病**早就生在项目主门禁上。
+- **实测确认（先造现象再修）**：往 `server/src/test` 里丢一个空 `.kt`
+  （文件数 117 → 118），然后**不加 `--rerun-tasks`** 跑
+  `:app:testDebugUnitTest --tests '*DirectionDocFreshnessTest'`：
+  `73 actionable tasks: 73 up-to-date`，`BUILD SUCCESSFUL in 827ms`——
+  **测试根本没跑，拿上一次的旧结果当通过**。
+- **受影响的不止一个**：按 grep 实测，有三个 JVM 测试读 `app/` 之外的路径——
+  | 测试 | 读什么 |
+  |---|---|
+  | `DisappearingMessagePolicyParityTest`（G195b 新增） | `server/.../DisappearingMessagePolicy.kt` 代码文本 |
+  | `DirectionDocFreshnessTest` | `countFiles("server/src/test")` |
+  | `GroupPlayPolicyTest` | 遍历 `server/src` 找 `spinWheel` 引用 |
+  `server/` 是独立 Gradle 构建，改它不会让 `:app:testDebugUnitTest` 失效。
+- **修法**：在 `app/build.gradle.kts` 用 `tasks.withType<Test>` 声明三组输入——
+  `inputs.dir(server/src)`（连带覆盖 `server/src/test`）、
+  `inputs.files(DIRECTION.md, docs/full-project-refactor-checklist.md)`
+  （新鲜度门禁逐字节读它们，改文档也不该让它失效）。
+  路径敏感度用 `RELATIVE`，这样内容变了才算变、移动目录不算。
+- **双向验证**：修完对每个门禁各做一次 NC——
+  加 server 测试文件 → `DirectionDocFreshnessTest` **FAILED**（2 executed）；
+  加 server 主源文件 → `GroupPlayPolicyTest` 重跑（1 executed）。
+  两个 dummy 都删除后门禁转绿。
+- **这条为什么比 G196b 更值得记**：G196b 那个闸门是我上轮刚写的，
+  坏了我能立刻发现；而这个**已经存在了很久**，
+  而且它守的是「DIRECTION.md 数字有没有过期」这件我反复栽的事。
+  它在过去很多次 server 变更里**一次都没真正跑过**。
+  **教训（第八十三次沉淀）：门禁的「依赖声明」和它的「断言」一样重要。
+     断言错了是漏报，依赖声明错了是**完全不报**——而且后者看起来一切正常。**
+- **实测结果**：`app/build.gradle.kts` +声明；app JVM **1978 例不变**；
+  三个门禁在对应文件变更后均能真实重跑并报红。

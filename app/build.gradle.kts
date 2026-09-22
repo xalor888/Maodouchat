@@ -231,14 +231,22 @@ val sizeGuardRuntime: Configuration by configurations.creating {
     description = "SizeGuard（纯 JVM）运行所需的 Kotlin 运行时"
 }
 
-// G195b：一致性闸门 DisappearingMessagePolicyParityTest 会**读 server/ 的源码**
-// （跨 Gradle 模块比较两份实现）。默认的增量检查看不到这个依赖——
-// 实测改 server 源码后 :app:testDebugUnitTest 直接 up-to-date、
-// 拿上一次的旧结果当「通过」。显式声明成 task 输入，server 一变就重跑。
+// G195b / G198b：多个 JVM 测试会**读 server/ 的源码**（跨 Gradle 模块）：
+//   - DisappearingMessagePolicyParityTest   比较两份实现的代码文本
+//   - DirectionDocFreshnessTest             数 server/src/test 的 .kt 文件数
+//   - GroupPlayPolicyTest                   遍历 server/src 找引用
+// 默认的增量检查看不到这些依赖——**实测把 server/src/test 加一个文件后，
+// :app:testDebugUnitTest 直接 "73 up-to-date"、拿旧结果当通过**。
+// 声明成 task 输入，server 一变就重跑。
 tasks.withType<Test>().configureEach {
-    inputs.file(
-        rootProject.file("server/src/main/kotlin/com/maodouchat/server/service/DisappearingMessagePolicy.kt")
-    ).withPropertyName("serverDisappearingMessagePolicySource")
+    inputs.dir(rootProject.file("server/src"))
+        .withPropertyName("serverSources")
+        .withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+    // DIRECTION.md / docs/ 也是源码型输入（新鲜度门禁逐字节读它们）
+    inputs.files(
+        rootProject.file("DIRECTION.md"),
+        rootProject.file("docs/full-project-refactor-checklist.md"),
+    ).withPropertyName("directionDocs")
         .withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
 }
 
