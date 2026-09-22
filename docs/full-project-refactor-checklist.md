@@ -9577,3 +9577,28 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   **同时 FAILED**。还原（`diff` 一致）后转绿。
 - **实测结果**：app JVM 单测 **2011 → 2020 例**（本类 `tests=9 failures=0`）；
   无生产代码改动。
+
+### G212b — 「写着便于单测」的波形环形缓冲，零测试（app 2020 → 2031）
+
+- **动机**：`VoiceRecordingWaveform` 的类 KDoc 自己写着
+  「纯逻辑，无 Android 依赖，**便于 JVM 单测**」——**却零测试**。
+  这是本轮会话第三次撞见「KDoc 说可单测但没有单测」（G208b `nextSpeed`、G210b 两个 Policy）。
+- **为什么环形缓冲值得专门测**：它是 off-by-one 的经典产地，而**坏法很隐蔽**——
+  波形会错位/抖动但完全不崩，肉眼在 UI 上还可能看不出规律。
+- **11 条用例**，钉三件事：
+  1. **`snapshot()` 永远最旧→最新**（不管写指针绕到哪）——含「正好填满」
+     「绕回一轮」「连续绕回三轮」三档；
+  2. **未填满时前面补 0、长度恒等于 capacity**（否则 Compose 侧越界或画出半截）；
+  3. **`push` 把振幅夹到 [0,1]**（上游 dB 值可能越界）。
+  另加：`clear` 后回到全 0 且从最旧位重新开始；`capacity` 被夹到至少 1
+  （传 0 不崩）；默认容量 56；`canEnterPreview` 与 `canSendPreview`
+  阈值**必须一致**（KDoc 说「与 ViewModel 校验一致」，分叉就会出现
+  「能试听但不能发」的怪状态）；500ms 边界的开闭；`holdHint` 的两态。
+- **负控制**：把 `snapshot()` 的起始索引算错一位
+  （`(start + i)` → `(start + i + 1)`）→ `afterWraparoundSnapshotIsStillOldestFirst`
+  与 `clearResetsToEmpty` **同时 FAILED**。
+  **注意第二条也跟着红是对的**：`clear` 用例里最后一步正是「清空后重新推入」，
+  走的也是同一条旋转路径——这正是环形缓冲 bug 的典型特征：**一处算错，多处表现异常**。
+  还原（`diff` 一致）后转绿。
+- **实测结果**：app JVM 单测 **2020 → 2031 例**（本类 `tests=11 failures=0`）；
+  无生产代码改动。
