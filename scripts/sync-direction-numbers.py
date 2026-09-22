@@ -174,10 +174,17 @@ def sync(write: bool) -> int:
                 if write:
                     lines[idx] = "| " + " | ".join([cells[0], new_cell] + cells[2:])
             break
-    if write and changed:
-        open(DIRECTION, "w", encoding="utf-8").write("\n".join(lines))
-        print(f"已改写 DIRECTION.md（{changed} 处）")
-    elif not changed:
+    if write:
+        # ⚠️ --write 模式下「有改动」是**成功**，必须返回 0。
+        # 第一版无论哪个模式都 return 1 if changed，于是同步成功后
+        # 调用方（finish-round.sh）看到非零，误报「同步被拒绝」并中止。
+        if changed:
+            open(DIRECTION, "w", encoding="utf-8").write("\n".join(lines))
+            print(f"已改写 DIRECTION.md（{changed} 处）")
+        else:
+            print("§0 表格与实测一致，无需改动")
+        return 0
+    if not changed:
         print("§0 表格与实测一致，无需改动")
     return 1 if changed else 0
 
