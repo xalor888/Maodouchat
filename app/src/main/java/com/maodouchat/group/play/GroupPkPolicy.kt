@@ -1,5 +1,6 @@
 package com.maodouchat.group.play
 
+import com.maodouchat.util.rpsChoices
 import kotlin.random.Random
 
 /**
@@ -14,7 +15,8 @@ object GroupPkPolicy {
     private fun esc(s: String): String = s.replace("|", "\u0001").replace("^", "\u0002")
     private fun unesc(s: String): String = s.replace("\u0001", "|").replace("\u0002", "^")
 
-    val rpsChoices = listOf("rock", "paper", "scissors")
+    // G154c：猜拳选项原先在这里有一份成员副本，与 GroupPlayData.rpsChoices 重复；
+    // 改一处忘了另一处，客户端显示和编解码判定就会不一致。
     fun rollRps(): String = rpsChoices.random()
 
     fun formatRps(choice: String, userLabel: String): String {

@@ -740,7 +740,9 @@ object AgentToolHost {
         val body = text.trim().take(2_000)
         if (body.isBlank()) return "Error: text required"
         val token = token(app) ?: return "Error: not signed in"
-        val vis = visibility?.trim()?.uppercase()?.takeIf { it in setOf("PUBLIC", "CONTACTS", "PRIVATE") }
+        // G154c：可见性白名单与隐私设置页共用一份
+        val vis = visibility?.trim()?.uppercase()
+            ?.takeIf { com.maodouchat.ui.screen.settings.VISIBILITY_VALUES.contains(it) }
         val post = ApiService.createPost(token, body, emptyList(), vis).getOrElse { return fail(it) }
         return "Created post ${post.id}"
     }
