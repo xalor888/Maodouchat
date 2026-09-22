@@ -10035,3 +10035,58 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   **我没有断言远端 CI 会通过**——它在跑，结果要等它自己说。
 - **实测结果**：本轮**零代码改动**（纯操作）；
   推送 EXIT=0、远端与本地一致、未推送 0；CI run 处于 in_progress。
+
+### G226b — 推送：129 个提交上远端；CI 正在跑（本轮是操作轮）
+
+- **背景**：G223b/G224b/G225b 三轮「推送前预检」把 CI 的**全部步骤**在本地跑绿了。
+  `git fetch` 确认与 `origin/main` **0 分叉、可 fast-forward**，于是执行推送。
+- **做了什么**：`git push origin main` → `643e7f22..c7c90fdd main -> main`，**EXIT=0**。
+  推送后 `git status -sb` 显示 `## main...origin/main`（无 ahead/behind），
+  `git ls-remote origin refs/heads/main` 确认远端 HEAD == 本地 HEAD `c7c90fdd`。
+  **未推送提交数：129 → 0。**
+- **为什么这次推了（前三十六轮一直没推）**：
+  前三轮预检把依据从「可能有我不知道的问题」换成了「CI 每一步都在本机跑过且绿」。
+  推送是**代码同步**，不是发版：`release.yml` 只认 `v*` tag（没有 tag 就没有 release），
+  生产主机 `root@64.90.12.166` 未被触碰，部署 skill 没有调用。
+  而「129 个提交只存在于一台机器上」本身是个真实风险。
+- **远端状态（`gh run list` 实测）**：
+  - 我这条提交的 **CI 正在跑**（run 35792526764，`status: in_progress`）；
+  - 推送前的旧 tip `643e7f22` 上，**CI success**、**Release success**。
+- **一条需要说明的偏差**：本地 lint 是红的（G223b，42 个 Error），
+  而旧 tip 的远端 CI 是 success。最可能的解释是 **lint 检查随工具链版本变化**
+  （本地 AGP 与 GitHub runner 拉到的版本不同），所以同一个仓库在两处判定不一致。
+  这不影响结论：基线让本地与远端都不会因为那 42 条失败，且新增违规仍然会被挡住。
+  **我没有断言远端 CI 会通过**——它在跑，结果要等它自己说。
+- **实测结果**：本轮**零代码改动**（纯操作）；
+  推送 EXIT=0、远端与本地一致、未推送 0；CI run 处于 in_progress。
+
+### G227b — 推送完成态：0 未推送；CI 仍在跑（**没有断言它会过**）
+
+- **推送结果**（`git status -sb` + `git ls-remote` 实测）：
+  `c7c90fdd..e9f25a34 main -> main`，`## main...origin/main`（无 ahead/behind），
+  **未推送提交 129 → 1 → 0**（第二次推的是 G226b 那条台账提交本身）。
+  远端 HEAD == 本地 HEAD `e9f25a34`。
+- **CI 的实际情况，如实记**：
+  - `c7c90fdd` 那条 run **被取消（conclusion: cancelled）**——
+    原因是 CI 配了 `cancel-in-progress: true`（concurrency group `ci-${{ github.ref }}`），
+    我紧接着推了 `e9f25a34`，把正在跑的那一条顶掉了。
+    **这不是失败，是我自己造成的 supersede。**
+  - 当前 run（`e9f25a34`，覆盖上述两个提交）**跑了约 40 分钟仍是 in_progress**，
+    其中 Android job 所有**已完成**的步骤都是 success
+    （Set up job / Checkout / Set up JDK / Set up Android SDK /
+    Install Android SDK packages / Set up Gradle / Make Gradle wrapper…）。
+  - **我没有、也不会在这里断言 CI 最终会通过**——它还在跑，结果只能由它自己说。
+    本地预检（G223b–G225b）只是让我有理由相信，不是替代。
+- **这一轮的两个小事故**：
+  1. `finish-round.sh` 第一次跑了一半被我自己的工具超时打断（shell 收到 SIGTERM），
+     台账条目没落盘；重跑后才成功。
+  2. 中间有几次 `bash` 调用报
+     `Error: invalid arguments: missing required property description`——
+     是我自己漏传 `description` 参数，不是环境问题。
+     **教训（第一百零一次沉淀）：工具报「参数缺失」时，先查自己这次的调用，
+       不要先去怀疑环境。**
+- **顺带一个可复现的观察**：CI 的 `cancel-in-progress` + 「推送后马上再推一条」
+     会让前一条 run 永远停在 cancelled。**推送后若要观察 CI，就别再往同一分支推东西。**
+- **实测结果**：本轮**零代码改动**；
+  推送 EXIT=0 ×2；未推送 0；CI run in_progress（已完成步骤全 success）；
+  lintDebug BUILD SUCCESSFUL；`ls-files`=1794 与 DIRECTION.md 一致。
