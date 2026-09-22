@@ -9806,3 +9806,32 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      门禁是文本匹配，文档也是文本——把禁用词写进「说明我在测禁用词」的句子里，
      一样会中招。这和「不要在注释里写会被 grep 到的标识符」是同一个坑，
      只是这次坑在中文术语上。**
+
+### G220b — 第四道 py 闸门也有同一个空扫描洞（app 2059）
+
+- **动机**：G219b 查完 CI 四道 py 闸门，结论是「只有 check-brand-terminology.py 有洞」。
+  但我当时**漏查了第五道**——`check-string-parity.py` 是 G199b 才接进 CI 的，
+  脑子里没把它算进「四道」。补查，**同一个洞，一字不差**。
+- **洞**：`zh, en = names(ZH), names(EN)` 之后直接算差集。
+  两个文件都在、但**一条 string 都解析不出来**时，`only_zh = only_en = 空集`
+  → 打印 `string name parity OK` → 返回 **0**。
+  实测把 `names()` 打成空集，`main()` 真的返回 0。
+- **什么情况会走到这**：`<string name=` 的写法被改（XML 格式化、属性顺序变动）、
+  或 `values/` 被拆成多个文件而本脚本仍只看 `strings.xml`。
+  这些都需要人 consciously 更新门禁，而不是静默放行。
+- **做了什么**：加 `MIN_STRING_COUNT = 1000`（实测两侧各约 **2843** 条，
+  余量极大），任一侧低于下限即拒绝通过。
+- **三次负控制**：
+  1. 正常 → `zh=2843 en=2843`、**exit 0**；
+  2. `names()` 空集 → **exit 1** +「check is vacuous: zh=0 en=0」；
+  3. 从 `values-en` 删掉一条真字符串 → **exit 1** 且点名 `chat_send_failed`
+     （证明不是只加了个下限、真分歧照样抓）。
+  还原（`diff` 一致）后 exit 0。
+- **这条线的总成果**：至此 CI 的**全部五道** py/jvm 源码文本闸门
+  （nav-registration / app-update-gates / brand-terminology / string-parity /
+  ServerArchitectureTest）**都有「拒绝空扫描」的守卫了**。
+  G219b 时我只查到四道、漏了第五道——**「我查过了」这句话本身就是最大的风险**。
+  **教训（第九十九次沉淀）：说「全部查过了」之前，先列出你以为的那个「全部」。
+     我以为 CI 有 4 道 py 门禁，实际有 5 道——漏掉的那道正好也有洞。**
+- **实测结果**：`scripts/check-string-parity.py` +守卫；
+  三种情形 exit 分别为 0/1/1。app JVM 2058 → 2059 例。
