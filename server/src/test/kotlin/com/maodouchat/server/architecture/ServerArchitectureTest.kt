@@ -96,13 +96,63 @@ class ServerArchitectureTest {
     )
 
     // ------------------------------------------------------------------
+    // 源码文本判决的公共前置：剥注释（G168b）
+    // ------------------------------------------------------------------
+
+    /**
+     * 剥掉行注释与块注释后的源码（字符串字面量里的双斜线 与 斜线星 不误剥）。
+     *
+     * 本文件此前**六处判决全是裸 `readText()`**——注释掉的 `transaction {`、注释掉的
+     * `import ...plugins` 都被当成真实违规计入棘轮。方向是「虚高」，于是会逼人去
+     * 「修」一个不存在的问题；临时注释掉代码也会让门禁红。
+     *
+     * 这是同一个坑的第四次（G155b / G156b / G157b / G168b），
+     * DIRECTION.md 3.5 已把它写成工程约定。`server/` 是独立 Gradle 构建，
+     * 暂时不复用 `MessagingInvariantTraceabilityTest` 里那份实现，
+     * 但两份语义必须保持一致。
+     */
+    private fun stripComments(text: String): String {
+        val out = StringBuilder(text.length)
+        var state = 0 // 0=代码 1=行注释 2=块注释 3=字符串 4=字符
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            val n = if (i + 1 < text.length) text[i + 1] else ' '
+            when (state) {
+                0 -> when {
+                    c == '/' && n == '/' -> { state = 1; i++ }
+                    c == '/' && n == '*' -> { state = 2; i++ }
+                    c == '"' -> { state = 3; out.append(c) }
+                    c == '\'' -> { state = 4; out.append(c) }
+                    else -> out.append(c)
+                }
+                1 -> if (c == '\n') { state = 0; out.append(c) }
+                2 -> if (c == '*' && n == '/') { state = 0; i++ }
+                3 -> {
+                    out.append(c)
+                    if (c == '\\') { out.append(n); i++ } else if (c == '"') state = 0
+                }
+                4 -> {
+                    out.append(c)
+                    if (c == '\\') { out.append(n); i++ } else if (c == '\'') state = 0
+                }
+            }
+            i++
+        }
+        return out.toString()
+    }
+
+    /** 读源文件并剥注释——本文件所有源码文本判决都应走这里。 */
+    private fun File.codeText(): String = stripComments(readText())
+
+    // ------------------------------------------------------------------
     // 绝对不变量
     // ------------------------------------------------------------------
 
     @Test
     fun `messaging must not depend on route layer plugins`() {
         val offenders = filesUnder("messaging")
-            .filter { it.readText().contains("com.maodouchat.server.plugins") }
+            .filter { it.codeText().contains("com.maodouchat.server.plugins") }
             .map { it.name }
         assertEquals(
             emptyList(),
@@ -122,7 +172,7 @@ class ServerArchitectureTest {
         )
         val offenders = mutableListOf<String>()
         filesUnder("model").forEach { file ->
-            val text = file.readText()
+            val text = file.codeText()
             forbidden.forEach { (needle, label) ->
                 if (text.contains(needle)) offenders += "${file.name} -> $label"
             }
@@ -142,7 +192,7 @@ class ServerArchitectureTest {
     @Test
     fun `plugins must not own more transaction blocks than the frozen baseline`() {
         val actual = filesUnder("plugins")
-            .map { it.name to TRANSACTION_BLOCK.findAll(it.readText()).count() }
+            .map { it.name to TRANSACTION_BLOCK.findAll(it.codeText()).count() }
             .filter { it.second > 0 }
             .toMap()
 
@@ -159,7 +209,7 @@ class ServerArchitectureTest {
     @Test
     fun `plugins must not gain new files that touch Exposed`() {
         val actual = filesUnder("plugins")
-            .filter { it.readText().contains("org.jetbrains.exposed") }
+            .filter { it.codeText().contains("org.jetbrains.exposed") }
             .map { it.name }
             .toSet()
 
@@ -176,7 +226,7 @@ class ServerArchitectureTest {
     @Test
     fun `repository must not depend on plugins`() {
         val actual = filesUnder("repository")
-            .map { it.name to PLUGINS_PACKAGE_REFERENCE.findAll(it.readText()).count() }
+            .map { it.name to PLUGINS_PACKAGE_REFERENCE.findAll(it.codeText()).count() }
             .filter { it.second > 0 }
             .toMap()
 
@@ -191,7 +241,7 @@ class ServerArchitectureTest {
     @Test
     fun `service must not depend on plugins`() {
         val actual = filesUnder("service")
-            .map { it.name to PLUGINS_PACKAGE_REFERENCE.findAll(it.readText()).count() }
+            .map { it.name to PLUGINS_PACKAGE_REFERENCE.findAll(it.codeText()).count() }
             .filter { it.second > 0 }
             .toMap()
 

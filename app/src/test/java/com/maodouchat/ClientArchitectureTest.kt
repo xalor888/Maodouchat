@@ -74,6 +74,8 @@ class ClientArchitectureTest {
     fun `ui must not import data-local daos and the list may only shrink`() {
         val offenders = ktFilesUnder(File(appMain, "com/maodouchat/ui"))
             .filter { file ->
+                // G168b：这条**故意不剥注释**也安全——它用 startsWith("import ...")，
+                // 而注释行以 // 开头，天然匹配不上。若哪天改成 contains() 就必须先剥注释。
                 file.readText().lines().any {
                     it.startsWith("import com.maodouchat.data.local.dao")
                 }
@@ -327,7 +329,9 @@ class ClientArchitectureTest {
         val grabbers = ktFilesUnder(File(appMain, "com/maodouchat/ui"))
             .filter { file ->
                 // 两种写法都算：直接 `.database` 抓单例，或 `MaodouchatApp` 转型后取 database
-                val text = file.readText()
+                // G168b：必须剥注释——否则「我们不抓单例」这类 KDoc 会把文件计成违规
+                // （G156b 就这样虚增了 48 个文件）。
+                val text = stripComments(file.readText())
                 text.contains("as com.maodouchat.MaodouchatApp).database") ||
                     text.contains("MaodouchatApp.database")
             }
@@ -411,7 +415,8 @@ class ClientArchitectureTest {
     fun `the gate sees the route hotspot so the loop rule is not vacuous`() {
         val route = File(appMain, "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt")
         assertTrue("ChatDetailRoute.kt 必须存在") { route.isFile }
-        val text = route.readText()
+        // G168b：剥注释——否则注释掉的 `while (true)` 会让这条自检「假通过」
+        val text = stripComments(route.readText())
         assertTrue("该文件应当含 LaunchedEffect（否则上面的循环契约是空转）") {
             text.contains("LaunchedEffect")
         }

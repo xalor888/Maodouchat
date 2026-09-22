@@ -8204,3 +8204,48 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   app JVM 单测 **1916 → 1917 例**（343 套件 / 0 失败 / 0 错误 / 0 跳过）。
 - **实跑验证**：用例全绿；两次负控制均按预期红并恢复；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1917 例）**。
+
+### G168b — 落实「先剥注释」约定：把剩下两套门禁的注释盲区也修掉（app 1917 / server 461 不变）
+
+- **动机**：G167b 是同一个坑的第四次。DIRECTION.md 3.5 写了约定，但我只改了
+  `ClientArchitectureTest` 的两处和 `MessagingInvariantTraceabilityTest`。
+  本轮审计其余判决点，发现**`ServerArchitectureTest` 一处都没剥**。
+- **实测的盲区清单**：
+  | 门禁 | 源码文本判决处 | 已剥注释 |
+  |---|---|---|
+  | `ClientArchitectureTest` | 4 处 | 2 处已剥（G156b）；另 2 处裸 `readText()`（第 330 行数据库单例 grep、第 414 行 `while (true)` 自检） |
+  | `ServerArchitectureTest` | **6 处** | **0 处** |
+  | `MessagingInvariantTraceabilityTest` | 引用解析 | 已剥（G155b） |
+  | `GroupPlayPolicyTest` | 引用计数 | 已剥（G167b） |
+- **`ServerArchitectureTest` 那 6 处的具体危害**（方向是「虚高」，比前三次更烦人）：
+  - 第 145 行 `TRANSACTION_BLOCK.findAll(...).count()`：注释掉的 `transaction {`
+    也被计成违规 → 棘轮虚高 → **逼人去「修」一个不存在的问题**；
+  - 第 105 行 `contains("com.maodouchat.server.plugins")`：注释掉的 import
+    也被计成反向依赖；
+  - 第 125/162/179/194 行同理。
+  - 附带效应：**临时注释掉一段代码会让门禁红**——这会逼人不敢注释。
+- **做了什么**：
+  1. `ServerArchitectureTest` 加 `stripComments` + `File.codeText()`，6 处判决全切过去；
+     KDoc 注明这是同一个坑的第四次、以及「server 是独立构建所以暂时不复用那份实现」；
+  2. `ClientArchitectureTest` 第 330 / 414 行改用 `stripComments`；
+  3. 第 77 行（DAO import）**刻意不改**：它用 `startsWith("import ...")`，
+     而注释行以 `//` 开头，天然匹配不上。已在那行加注释说明「为什么它安全」，
+     以及「若哪天改成 `contains()` 就必须先剥注释」——把安全条件写下来，
+     否则下一个人改成 `contains` 时不会想起这件事。
+- **负控制做了两侧（这是本轮最扎实的一点）**：
+  在一个 `messaging/` 源文件里加一行**注释掉的** `com.maodouchat.server.plugins` 引用：
+  - **不修（裸 `readText()`）** → `messaging must not depend on route layer plugins` **红**；
+  - **修了（`codeText()`）** → 同一行 canary **通过**。
+  两侧都实测过，所以这个 canary 既证明「修有用」也证明「修对了」。
+  **教训（第六十七次沉淀）：修「误报」类 bug 时，负控制要跑**两个方向**——
+     只跑「修了不红」是不够的（那也可能是因为测试压根没执行）。
+     必须再故意改回旧实现，确认同一个 canary 能把它打红。**
+- **实测结果**：无行为改动（纯门禁自身加固）；
+  app JVM 单测 **1917 例不变**；server **461 例不变**。
+- **实跑验证**：
+  - `ServerArchitectureTest` 单跑 BUILD SUCCESSFUL；`ClientArchitectureTest` 单跑 BUILD SUCCESSFUL；
+  - 负控制两侧均按预期；
+  - **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1917 例）**；
+  - **全量 `server test --no-daemon --rerun-tasks` → BUILD SUCCESSFUL，9m 9s / 6 executed（461 例）**。
+- **约定的落地情况**：至此四套门禁的源码文本判决**全部**先剥注释，
+  唯一例外是第 77 行那条（已注明为何天然安全）。
