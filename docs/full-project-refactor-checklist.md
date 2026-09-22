@@ -7636,3 +7636,30 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
      如果只看内联字面量，会发现 2 处重复；把 `private val` 也算进来，
      才发现是 4 处、其中一处还是已有常量的副本。
      扫描口径的宽度决定你能看到几成真相。**
+
+### G153b — 目标不可达，已还原；得到一个更准的结构判断
+- **目标**：把 `ChatDetailViewModel.kt` 的「暂停/恢复/取消传输」五连（1834–1925）
+  抽到新文件。
+- **实际结果**：**抽取失败并完整还原**，`git diff HEAD` 为空、工作区干净。
+  新文件 `ChatDetailAttachmentTransfers.kt` 已删除，`ChatDetailViewModel.kt` 还原到 3102 行。
+- **失败原因（结构性）**：`ChatDetailViewModel.kt` 在**第 133 行有 `class ChatDetailViewModel(`**，
+  那 133 个声明全是**类成员**（缩进 4 在类体内），不是顶层扩展函数。
+  类成员搬到文件外后，`_uiState` / `viewModelScope` / `attachmentIntentController`
+  全部无法解析（编译报 5 个 `Unresolved reference`）。
+- **我此前的扫描口径有错**：我一直用 `缩进 <= 4` 当「顶层声明」，
+  于是把**类成员**也数成了顶层。`ChatDetailAiGeneration.kt` 当初能抽成功，
+  是因为那个文件**根本没有 class**（全是顶层扩展）——我错误地把这个成功经验
+  推广到了所有同形态文件。
+  **教训（第四十七次沉淀）：判断「能否把声明搬出文件」的唯一依据是
+     **它是不是某个 class/object 的成员**，而判据是**文件里有没有 class/object**，
+     不是缩进。缩进 0 和 4 都可能是顶层（ formatting 差异），
+     但 class 体内的缩进 4 一定是成员。搬之前先 `grep -n '^class ' 文件`。**
+- **顺带做的检查**：对类内成员跑了「同体」扫描（>=120 字符），**0 组重复**——
+  这个类的成员没有可收敛的重复实现。
+- **实跑验证**：`git diff HEAD` 无输出；`git status` 干净；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL**，
+  343 套件 / 1910 tests / 0 failures / 0 errors / 0 skipped（与 G154b 一致，确认无损还原）。
+- **结论**：`ChatDetailViewModel.kt`(3102) 与 `CallViewModel.kt`(1651)、
+  `WebRTCManager.kt`(1431) 一样，是**成员式大类**。对它们，
+  「抽声明到新文件」这条路走不通；要做只能走「抽成员到新 class 再委托」的大改
+  （`attachmentIntentController` 已经是这个模式的成功先例）。
