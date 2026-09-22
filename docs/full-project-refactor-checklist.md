@@ -8060,3 +8060,35 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **没做的事**：`MarkdownParser.kt`(971) 与 `WebSocketClient.kt`(974) 差一点到 1000，
   按阈值定义不纳入。它们离门槛只差 26–29 行，下一轮该考虑把阈值再降到 950，
   或者等它们自然长过 1000 时自动被抓住（后者就是当前设计）。
+
+### G164b — 把行数门禁的「阈值」换成「排名前 N」，消掉那个无限回归的旋钮（+8 条上限）
+
+- **动机**：G163b 收尾时我说「`MarkdownParser.kt`(971) 与 `WebSocketClient.kt`(974)
+  差一点到 1000，下一轮可以考虑把阈值再降到 950」。说完就意识到这是**无限回归**：
+  G172 定 1100 → G163b 降到 1000 → 再降 950 → 再降 900……
+  每次下调都有一批新文件落进新的盲带，而**阈值本身没有天然停点**。
+- **改法：把判据从「超过 N 行」换成「行数排名前 [MONITORED_TOP_N]」**（N 冻结为 20）。
+  语义变成「最大的那些文件必须全部有上限」：
+  - 某文件被拆小、掉出前 20 → 它的上限**仍在表里**（依然只许降），门禁不用动；
+  - 某文件长大、挤进前 20 → **自动**要求纳管，不需要任何人想起「该调阈值了」。
+  这把一个要人盯着的手工旋钮，换成了随代码库自适应的判据。
+- **同步纳入 8 个文件**（它们原本在 1000 以下、现在进了前 20）：
+  `WebSocketClient`(974)、`MarkdownParser`(971)、`ChatDetailComposerExtras`(945)、
+  `Motion`(939)、`SettingsScreen`(936)、`ApiEndpointClients`(923)、
+  `ContactSubScreens`(900)、`SettingsAccountSecurityScreen`(888)。
+  上限 `frozenHotspotLineCaps` **18 → 26 条**。
+- **一次编译错误**：`private const val MONITORED_TOP_N = 20` 写在 class 体内，
+  Kotlin 只允许 `const val` 出现在顶层/object/companion。改 `private val` 即过。
+  **教训（第六十二次沉淀）：class 体内想放编译期常量只有两条路——
+     挪进 `companion object`，或者老实写 `private val`。别写 `private const val`。**
+- **两次负控制，一条管新上限、一条管门禁本身**：
+  1. 往 `WebSocketClient.kt` 加 3 行注释 → `client hotspot files may not grow` **红**
+     （证明新纳入的 8 个文件真的在管，不是只写进表里）；
+  2. 把 `WebSocketClient` 那行从**两份表里都删掉**（模拟「它长大了进前 20 却没人管」）
+     → `the largest app source files are all under a frozen cap` **红**
+     （证明排名门禁本身是活的，不是装饰）。
+  两次均恢复。
+- **实测结果**：门禁覆盖文件 **18 → 26**；监控判据由固定行数改为**排名前 20**；
+  app JVM 单测 **1916 例不变**。
+- **实跑验证**：两条负控制均按预期红并恢复；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1916 例）**。

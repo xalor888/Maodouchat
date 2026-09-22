@@ -104,6 +104,9 @@ class ClientArchitectureTest {
      * 语义是「不得再增长」而不是「必须小于某个数」：重构拆小 → 上限自动有余量；
      * 但任何人往这些文件里堆代码 → 立刻红。要收紧上限，改小这里的数字即可。
      */
+    /** G164b：按行数排名监控前多少个文件。改大 = 管得更宽，但要同步补上限。 */
+    private val MONITORED_TOP_N = 20
+
     private val frozenHotspotLineCaps: Map<String, Int> = mapOf(
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3433,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3103,
@@ -133,6 +136,16 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1039,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 1032,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 1010,
+        // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
+        // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
+        "com/maodouchat/network/WebSocketClient.kt" to 974,
+        "com/maodouchat/ui/component/MarkdownParser.kt" to 971,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 945,
+        "com/maodouchat/ui/theme/Motion.kt" to 939,
+        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
+        "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
+        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 900,
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 888,
     )
 
     @Test
@@ -176,28 +189,41 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1039,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 1032,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 1010,
+        // G164b：Top-20 排名门禁纳入的 8 个
+        "com/maodouchat/network/WebSocketClient.kt" to 974,
+        "com/maodouchat/ui/component/MarkdownParser.kt" to 971,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 945,
+        "com/maodouchat/ui/theme/Motion.kt" to 939,
+        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
+        "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
+        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 900,
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 888,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
 
     /**
-     * G172/G163b：**覆盖性**检查——app 内任何超过 1000 行的源文件都必须已被纳入
-     * `frozenHotspotLineCaps`。
+     * G164b：**覆盖性**检查——按行数排名前 [MONITORED_TOP_N] 的源文件必须全部已有上限。
      *
-     * 在这条测试存在之前，「大文件全部在监」只是一句注释（G172 定 1100，G163b 下探到 1000）：
-     * 新增一个大文件时没人会想起来把它加进上限表，于是它既不受行数门禁管，
-     * 也不会在任何地方报出来。这条测试把那句话变成可执行断言。
+     * 这里的判据从「超过 N 行」换成了「排名前 N」，**换掉了那个要人工反复调的阈值**：
+     * G172 定 1100、G163b 下探到 1000，每次下调都有一批新文件落进盲带——
+     * 那是无限回归，因为阈值本身没有天然停点。
+     *
+     * 换成排名后语义变成「最大的那些文件必须全部有上限」：
+     * - 某文件被拆小、掉出前 20 → 它的上限仍在表里（依然只许降），不需要动门禁；
+     * - 某文件长大、挤进前 20 → **自动**要求纳管，不需要任何人想起「调阈值」这件事。
      */
     @Test
-    fun `every app source file above 1000 lines is under a frozen cap`() {
-        val unmonitored = ktFilesUnder(appMain)
-            .filter { it.readLines().size > 1000 }
-            .map { it.relativeTo(appMain).path.replace('\\', '/') }
-            .filterNot { it in frozenHotspotLineCaps }
+    fun `the largest app source files are all under a frozen cap`() {
+        val bySize = ktFilesUnder(appMain)
+            .map { it.relativeTo(appMain).path.replace('\\', '/') to it.readLines().size }
+            .sortedByDescending { it.second }
+            .take(MONITORED_TOP_N)
+        val unmonitored = bySize.map { it.first }.filterNot { it in frozenHotspotLineCaps }
         assertEquals(
             emptyList<String>(),
             unmonitored,
-            "这些源文件超过 1000 行却没有纳管——先拆，或至少加进行数上限表",
+            "这些文件已进行数前 $MONITORED_TOP_N 名却没有纳管——先拆，或至少加进行数上限表",
         )
     }
 
