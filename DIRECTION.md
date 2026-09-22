@@ -1,40 +1,58 @@
 # DIRECTION — Maodouchat 该往哪走
 
 > 本文由 keepgoal 链的自主 Agent 撰写，基于对工作区的实际读取与命令验证，不基于 README 的自述。
-> 撰写时间：本轮 bootstrap。所有数字均为本轮 `grep`/`ls`/`git` 实测，可复现。
+> 初版撰写于 bootstrap 轮；**§0 的数字已由 G171b 全量重测刷新**（此前每个数都过期了）。
+> 本文所有数字都应可由一条 `grep`/`ls`/`git`/`wc` 复现——不可复现的就是该被质疑的。
 
 ---
 
 ## 0. 我实测到的现状
 
+> 本节数字由 **G171b 全量重测**（每一条都有对应命令，可复现）。此前版本停在 bootstrap 轮，
+> 表里每个数都过期了——最刺眼的两条：`plugins/` 的 `transaction {` 从 75 处变成 **0**，
+> 「GroupPlayPolicy 有同名重复文件」已经只剩 **1 个**。
+
 | 事实 | 实测值 | 来源 |
 |------|--------|------|
-| 已跟踪文件 | 1576 | `git ls-files \| wc -l` |
-| 服务端测试文件 / 用例基线 | 98 个文件 / 348 绿 | `find server/src/test -name '*.kt'`；README 声明的基线 |
-| 客户端 JVM 测试文件 / 用例基线 | 294 个文件 / 1117 绿 | `find app/src/test -name '*.kt'` |
-| 仪器测试（androidTest） | **4 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 94,829 字节 | `docs/full-project-refactor-checklist.md` |
-| 服务端 `plugins/` 内 `transaction {` | **75 处 / 18 个文件** | `grep -rn "transaction\s*{" plugins/` |
-| 最差单文件 | `AdminExportsRouting.kt` 26 处（1110 行） | 同上 |
-| `plugins/` 中 import Exposed 的文件 | 36 | `grep -rln org.jetbrains.exposed plugins/` |
-| `repository/` → `plugins/` 反向依赖 | **3 处 / 2 个文件** | `BotRepository.kt:18`、`RateLimitStatsRepository.kt:4-5` |
-| `repository/` 目录下的 `*Service.kt` | **16 个**（共 72 文件） | `ls repository/ \| grep -c Service.kt` |
+| 已跟踪文件 | 1768 | `git ls-files \| wc -l` |
+| 服务端测试文件 / 用例 | 117 个 / **462 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总 |
+| 客户端 JVM 测试文件 / 用例 | 340 个 / **1918 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总 |
+| instrumented 测试（androidTest） | **11 个文件** | `find app/src/androidTest -name '*.kt'` |
+| 自审清单体量 | 760,136 字节 | `wc -c docs/full-project-refactor-checklist.md` |
+| `plugins/` 内 `transaction {` | **0 处 / 0 个文件** | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
+| 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
+| `plugins/` 中 import Exposed 的文件 | 18 | `grep -rl org.jetbrains.exposed plugins/` |
+| `repository/` → `plugins/` 反向依赖 | **0 处** | `grep -rn 'com.maodouchat.server.plugins' repository/ \| grep -c import` |
+| `repository/` 目录下的 `*Service.kt` | **16 个**（共 78 文件） | `ls repository/` |
+
+**四套测试合计 2426 例全绿**（app JVM 1918 + server 462 + PG 集成 19 + 双设备 E2E 27），
+最近一次全量复跑是 G170b。
+
+### G63 至今的成果（客户端热点线）
+
+- **6 个热点文件已彻底还清并删除**：`ChatDetailComponents.kt`(5337→0)、
+  `SettingsSubScreens.kt`(4588→0)、`ExploreSubScreens.kt`(1588→0)、
+  `SettingsSubViewModels.kt`(1860→0)、`MediaMessageBubbles.kt`(1312→0)、
+  `ChatDetailMiscDialogs.kt`(1133→0)；
+- **26 个源文件在监行数上限**（只许降不许升），判据是「行数排名前 20」而非固定阈值
+  （G164b：阈值是个要人工反复调的旋钮，1100→1000→950… 是无限回归）；
+- `ChatDetailRoute.kt` 5061 → **3433**、内联 `AlertDialog` 5 → **0**（12 个弹窗全部抽出）；
+- **四套门禁的源码文本判决全部先剥注释**（`stripComments`）——这个坑踩过四次
+  （G155b/G156b/G157b/G167b），约定写在本文 3.5 节。
 
 关键补充事实：
 
-1. **在途改动未提交**：`git status` 有 8 个文件的改动（B03 signal device backfill，migration v5 + 新测试
-   `SignalDeviceBackfillMigrationTest.kt`）。本轮已实测：`../gradlew test --tests "*SignalDeviceBackfillMigrationTest*"
-   --tests "*MigrationRunnerTest*"` → BUILD SUCCESSFUL，新测试**真实执行**（非 UP-TO-DATE）。
-2. **自审清单刚刚自我下调**：同一份 diff 把 U01/U02/GroupPlay/B13 四项从 `[x]` 改成 `[~]`，理由是实测出来的
-   行数与直连 DAO 数。这说明**此前的 `[x]` 曾是乐观叙述**，清单本身正在变诚实——这是好事，也是信号。
-3. **Q01–Q06 六节硬门槛几乎全空**：无 PG 为真源的并发矩阵、无迁移版本矩阵、无双账号双设备离线 E2E、
-   无 Compose/截图/无障碍回归、无性能基准。`app/src/androidTest` 只有 4 个文件。
-4. **已有的静态门禁只在客户端一侧**：`core/testing/ArchitectureTest.kt`（ArchUnit，2 条规则）+
-   根 `build.gradle.kts` 的 `checkArchitecture`（模块依赖单向）。**服务端没有任何架构门禁**。
-5. **CI 已经能跑 `server:test` + `postgresIntegrationTest` + 三个浏览器 E2E**——加一个服务端架构
-   JUnit 测试即可自动进门禁，**无需改 CI**。
-
----
+1. **剩下三个大文件，用「抽声明」已经拆不动了**（G153b/G166b 实测）：
+   `ChatDetailViewModel.kt`(3102) 是 `class`、`ExtendedOutlinedIcons.kt`(2678) 是 vendored 图标
+   （57 个图标**全部有引用**，无死代码可删）、`GroupPlayPolicy.kt`(2209) 是 542 个小函数的 `object`
+   （最大的函数也只有 12 行，没有肥块可抽）。要再降行数只能走「抽 class 再委托」的大改。
+2. **`GroupPlayPolicy` 有 297 / 542 个成员在全仓库零引用**（G167b 已固化成棘轮，
+   只许降不许升）。删不删是产品决策——它们看起来像内容路线图（转盘/宾果/抛硬币/记忆配对……）。
+3. **已有的门禁都在 CI 会跑的地方**：`core/testing/ArchitectureTest.kt`（ArchUnit）+
+   `app/src/test/.../ClientArchitectureTest.kt`（17 条）+
+   `server/src/test/.../ServerArchitectureTest.kt` + `MessagingInvariantTraceabilityTest`。
+   ⚠️ G156b 曾发现 `:core:testing` 是个**孤儿模块**（没人依赖、CI 不调用），
+   那里有过一个 3 用例全红的死门禁——已删除。
 
 ## 1. 我的判断
 
@@ -47,6 +65,10 @@
 一个端到端加密 IM，最不能承受的失败模式恰恰是**「宣称 E2EE 而某条路径其实没有」**。而这种失败
 无法靠再多写一个功能来避免，只能靠证据。同理，「route→service→repository」这条中心契约如果只写在
 文档里、而 `plugins/` 里躺着 75 个 `transaction {`，那它就不是契约，是愿望。
+（**G171b 注**：这句话在 G171b 已经过时了——`plugins/` 的 `transaction {` 现在是 **0 处**，
+M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实：
+`ServerArchitectureTest` 7 条 + `MessagingInvariantTraceabilityTest` 4 条。
+保留原文是为了让「曾经只是愿望」这件事可追溯。）
 
 所以方向不是「再做什么新功能」，也不是「把文件改小」——清单第 15 节自己已经写清楚了：
 
