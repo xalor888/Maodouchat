@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -185,6 +186,55 @@ internal fun GroupAnnouncementDialog(
         dismissButton = {
             TextButton(onClick = onCopy) {
                 Text(stringResource(R.string.group_announcement_copy), color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    )
+}
+
+/**
+ * 「删除消息」确认框（G159b 从 ChatDetailRoute 抽出，36 行）。
+ *
+ * 自己发和自己收的消息**按钮不一样**：
+ * - 自己的：红色「删除」（真正的破坏性操作，由调用方播粒子动画后删除）+ 可转发；
+ * - 别人的：只有「知道了」——你并不能删掉别人的消息，只是让红点消失。
+ *
+ * 所有动作都留在调用方的回调里（粒子动画、转发、取消都是路由的状态）。
+ */
+@Composable
+internal fun DeleteMessageConfirmDialog(
+    visible: Boolean,
+    isOwn: Boolean,
+    isForwardable: Boolean,
+    onDelete: () -> Unit,
+    onForward: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_delete_message_title)) },
+        text = {
+            Text(
+                stringResource(if (isOwn) R.string.chat_delete_own_message else R.string.chat_delete_other_message)
+            )
+        },
+        confirmButton = {
+            if (isOwn) {
+                TextButton(onClick = onDelete) {
+                    Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed)
+                }
+            } else {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_acknowledge)) }
+            }
+        },
+        dismissButton = {
+            if (isOwn) {
+                Row {
+                    if (isForwardable) {
+                        TextButton(onClick = onForward) { Text(stringResource(R.string.chat_forward)) }
+                    }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+                }
             }
         }
     )

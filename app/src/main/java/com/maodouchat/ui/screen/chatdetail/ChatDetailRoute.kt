@@ -3362,42 +3362,29 @@ if (showGroupCallTypeDialog) {
     }
 
     // 长按删除消息确认弹窗
-    messageToDelete?.let { msg ->
-        val isOwn = msg.senderId == state.currentUserId
-        AlertDialog(
-            onDismissRequest = { messageToDelete = null },
-            title = { Text(stringResource(R.string.chat_delete_message_title)) },
-            text = {
-                Text(
-                    stringResource(if (isOwn) R.string.chat_delete_own_message else R.string.chat_delete_other_message)
-                )
-            },
-            confirmButton = {
-                if (isOwn) {
-                    TextButton(onClick = {
-                        startParticleEffect(msg, ParticleAction.DELETE)
-                        messageToDelete = null
-                    }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
-                } else {
-                    TextButton(onClick = { messageToDelete = null }) { Text(stringResource(R.string.chat_acknowledge)) }
-                }
-            },
-            dismissButton = {
-                if (isOwn) {
-                    Row {
-                        if (isMessageForwardable(msg.type, isSecretChat = state.isSecretChat == true, forwardBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK))) {
-                            TextButton(onClick = {
-                                messagesToForward = listOf(msg)
-                                viewModel.loadForwardTargets()
-                                messageToDelete = null
-                            }) { Text(stringResource(R.string.chat_forward)) }
-                        }
-                        TextButton(onClick = { messageToDelete = null }) { Text(stringResource(R.string.common_cancel)) }
-                    }
-                }
+    // messageToDelete 是 by remember 委托属性，不能智能转换——先取局部值（G159b）
+    val pendingDelete = messageToDelete
+    DeleteMessageConfirmDialog(
+        visible = pendingDelete != null,
+        isOwn = pendingDelete?.senderId == state.currentUserId,
+        isForwardable = pendingDelete != null && isMessageForwardable(
+            pendingDelete.type,
+            isSecretChat = state.isSecretChat == true,
+            forwardBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK)
+        ),
+        onDelete = {
+            pendingDelete?.let { startParticleEffect(it, ParticleAction.DELETE) }
+            messageToDelete = null
+        },
+        onForward = {
+            pendingDelete?.let {
+                messagesToForward = listOf(it)
+                viewModel.loadForwardTargets()
             }
-        )
-    }
+            messageToDelete = null
+        },
+        onDismiss = { messageToDelete = null },
+    )
 
     // G80：消息操作弹窗（58 行）抽到 ChatDetailMessageActionsDialog.kt，纯搬移不改判断。
     messageToCopy?.let { msg ->

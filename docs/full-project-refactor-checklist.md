@@ -7874,3 +7874,36 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   app JVM 单测 **1915 → 1916 例**（343 套件 / 0 失败 / 0 错误 / 0 跳过）。
 - **实跑验证**：自检全绿；负控制两条红并恢复；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1916 例）**。
+
+### G159b — 抽出 DeleteMessageConfirmDialog（3538 → 3525）
+- **做了什么**：把内联的「长按删除消息确认」弹窗（36 行）抽成
+  `@Composable internal fun DeleteMessageConfirmDialog(visible, isOwn, isForwardable, onDelete, onForward, onDismiss)`
+  （追加到 `ChatDetailConfirmDialogs.kt`）；原位置换成 22 行调用。
+  冻结上限 **3538 → 3525**（两处 mapOf）。
+- **为什么这个弹窗的按钮比别人多**：自己发/收的消息按钮不一样——自己的有红色「删除」
+  （真的破坏，由调用方播粒子动画后删）+ 可转发；别人的只有「知道了」
+  （你并不能删别人的消息，只是让红点消失）。这个分支被原样搬进 composable。
+- **一次编译错误：委托属性不能智能转换**。调用点想写
+  `messageToDelete != null && isMessageForwardable(messageToDelete.type, ...)`，
+  但 `messageToDelete` 是 `by remember { mutableStateOf(...) }` **委托属性**，
+  Kotlin 拒绝智能转换（`Smart cast to 'Message' is impossible`）。
+  原先的 `messageToDelete?.let { msg -> ... }` 靠 lambda 参数天然拿到了局部值，
+  换成显式调用后就暴露了。修法：先 `val pendingDelete = messageToDelete`，后续全用它。
+  **教训（第五十六次沉淀）：把 `x?.let { ... }` 改写成显式调用时，
+     if `x` 是 `by remember` 委托属性，`x != null` 之后的 `x.foo` **编译不过**。
+     先落一个局部 `val` 再传，和 `?.let` 等价但不依赖 lambda。**
+- **一次自检脚本的边界判错**：我用「括号配平到 0」定位调用点结束，结果停在某个回调的
+  `},` 上而不是整个调用的 `    )`。第二次改成**直接找 `    )` 这一行**才切对。
+- **一次 cap 替换漏了一处**：`ClientArchitectureTest` 里行数上限出现在**两个 mapOf**，
+  我按「只此一处」断言 `count == 1` 直接失败。改成 `count == 2` 两处同步。
+  **教训（第五十七次沉淀）：这个文件的行数上限从 G183 起就是**两处 mapOf**
+     （`frozenHotspotLineCaps` 与另一处基线），改一处必红。以后直接按 2 处处理。**
+- **按 G192 教训当轮跑了 E2E**：纯 UI 抽取、app JVM 对 Compose 零覆盖。
+  `scripts/two-device-http-e2e.sh` → **27 / 0 / 0**，真机行为未变。
+- **负控制（按函数体切片）**：把确认按钮的 `onClick = onDelete` 改成 `onClick = { }` →
+  `DeleteMessageConfirmDialog` 函数体内 `onDelete` 出现次数 **2 → 1**，恢复后回到 2。
+- **实测结果**：`ChatDetailRoute.kt` 3538 → **3525** 行；
+  `ChatDetailConfirmDialogs.kt` 185 → 226 行；app JVM 单测 **1916 例不变**；E2E **27 / 0**。
+- **实跑验证**：`git diff` 显示 **36 删 22 增**；无未用 import；硬自检通过；
+  负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1916 例）**；
+  E2E 27 / 0 / 0。
