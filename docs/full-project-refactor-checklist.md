@@ -8249,3 +8249,41 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   - **全量 `server test --no-daemon --rerun-tasks` → BUILD SUCCESSFUL，9m 9s / 6 executed（461 例）**。
 - **约定的落地情况**：至此四套门禁的源码文本判决**全部**先剥注释，
   唯一例外是第 77 行那条（已注明为何天然安全）。
+
+### G169b — stripComments 的 4 份拷贝漂成 3 变体；规范成 1 份并加一致性门禁（app 1918 / server 462）
+
+- **发现**：`stripComments` 这个为了消灭注释盲区而写的助手，自己变成了拷贝-粘贴的牺牲品。
+  实测哈希：
+  | 文件 | 哈希 |
+  |---|---|
+  | `ClientArchitectureTest.kt` | `6d4537…` |
+  | `GroupPlayPolicyTest.kt` | `2b6390…` |
+  | `ServerArchitectureTest.kt` | `2b6390…` |
+  | `MessagingInvariantTraceabilityTest.kt` | `7cea4e…` |
+  **4 份拷贝、3 个变体。** diff 后确认唯一差异是
+  `MessagingInvariantTraceabilityTest` 里 `var i = 0` 声明在 `var state = 0` **之前**
+  （功能等价，纯文本漂移）。
+- **为什么值得管**：漂移目前只是美观问题。真正的危险是将来有人「优化」其中一份——
+  比如动了字符串状态的处理——于是**四套门禁对同一段代码给出不同判决**，
+  而没有任何东西会报警。那比注释盲区本身更难发现：盲区至少还有 DIRECTION.md 3.5 盯着。
+- **做了什么**：
+  1. 把 4 份规范成**逐字相同**的一段文本（以既有任一变体为准，归一后 4 个哈希一致）；
+  2. app 侧加 `every copy of stripComments in this build is textually identical`
+     （扫 `app/src/test` 下所有含该函数的文件，切出函数体，断言 distinct 只有 1 个）；
+  3. server 侧加同义门禁（扫 `testSources`）；
+  4. 两侧 KDoc 都写明：**app 与 server 之间靠人工同步**，改任一份都要改另一份
+     （`server/` 是独立 Gradle 构建，跨构建无法共享实现）。
+- **一次编译错误**：kotlin.test 的 `assertTrue` 不接受尾随 lambda，
+  `assertTrue(start >= 0) { "..." }` 报「None of the following candidates is applicable」。
+  改用 `require(...) { ... }`。
+  **教训（第六十八次沉淀）：Kotlin 里「断言 + 自定义消息」有三种写法，
+     但 `assertTrue(条件) { 消息 }` **不在 kotlin.test 的重载集里**。
+     要条件就 `assertTrue(cond, "msg")`，要尾随 lambda 就用 `require`/`check`。**
+- **负控制**：把 server 侧一份的字符串状态处理改坏（`c == '"' -> { state = 3; out.append(c) }`
+  改成 `{ state = 3 }`，不再输出字符）→ 一致性门禁 **红**。恢复后转绿。
+  这个破坏同时也说明：如果它溜进真实代码，所有依赖该拷贝的门禁都会算错。
+- **实测结果**：4 份拷贝归一为 1 个哈希；
+  app JVM 单测 **1917 → 1918 例**；server **461 → 462 例**。
+- **实跑验证**：两套门禁均单跑通过；负控制红并恢复；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1918 例）**；
+  **全量 `server test --no-daemon --rerun-tasks` → BUILD SUCCESSFUL，9m 11s / 6 executed（150 套件 / 462 例）**。

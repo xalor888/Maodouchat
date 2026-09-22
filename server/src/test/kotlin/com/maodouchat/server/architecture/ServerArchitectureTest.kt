@@ -113,7 +113,7 @@ class ServerArchitectureTest {
      */
     private fun stripComments(text: String): String {
         val out = StringBuilder(text.length)
-        var state = 0 // 0=代码 1=行注释 2=块注释 3=字符串 4=字符
+        var state = 0
         var i = 0
         while (i < text.length) {
             val c = text[i]

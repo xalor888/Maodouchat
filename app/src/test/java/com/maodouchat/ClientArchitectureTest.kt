@@ -678,6 +678,45 @@ class ClientArchitectureTest {
         assertFalse(code.contains("/* val c"), "块注释残留")
     }
 
+    /**
+     * G169b：同一构建内 `stripComments` 的多份拷贝必须**文本一致**。
+     *
+     * 它是拷贝-粘贴出来的助手函数，已经有 4 份、漂成过 3 个变体
+     * （`MessagingInvariantTraceabilityTest` 里 `var i` 声明在 `var state` 之前）。
+     * 漂移目前只是美观问题，但真正危险的是将来有人「优化」其中一份
+     * ——比如动了字符串状态的处理——于是四套门禁对同一段代码给出**不同判决**，
+     * 而没有任何东西会报警。
+     *
+     * `server/` 是独立 Gradle 构建，跨构建无法共享实现，所以 server 侧有它自己
+     * 的一条等价门禁；**两侧之间靠人工同步**——改任一份都要改另一份。
+     */
+    @Test
+    fun `every copy of stripComments in this build is textually identical`() {
+        val copies = ktFilesUnder(File(repoRoot, "app/src/test"))
+            .filter { it.readText().contains("private fun stripComments(") }
+            .map { it.relativeTo(repoRoot).path.replace('\\', '/') to extractStripComments(it.readText()) }
+            .toMap()
+        assertTrue(copies.size >= 2, "app 侧应该至少有 2 份 stripComments，实际 ${copies.size} 份")
+        val distinct = copies.values.distinct()
+        assertEquals(
+            1,
+            distinct.size,
+            "stripComments 的拷贝漂移了——它们必须逐字相同：" +
+                copies.entries.joinToString("\n") { "${it.key}: ${if (it.value == distinct.first()) "相同" else "**不同**"}" },
+        )
+    }
+
+    /** 从源文件里切出 `stripComments` 函数体（用于比对多份拷贝是否一致）。 */
+    private fun extractStripComments(source: String): String {
+        val start = source.indexOf("private fun stripComments(")
+        assertTrue("文件里没有 stripComments") { start >= 0 }
+        // 从函数签名的行首开始，到第一个单独一行的 `    }` 结束
+        val lineStart = source.lastIndexOf('\n', start) + 1
+        val end = source.indexOf("\n    }\n", start)
+        assertTrue("找不到 stripComments 的结束") { end >= 0 }
+        return source.substring(lineStart, end + 6).trim()
+    }
+
     @Test
     fun `the release endpoint guard is still in the build file`() {
         val text = File(repoRoot, "app/build.gradle.kts").readText()

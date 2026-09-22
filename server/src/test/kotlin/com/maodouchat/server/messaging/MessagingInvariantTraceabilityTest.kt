@@ -54,8 +54,8 @@ class MessagingInvariantTraceabilityTest {
 
     private fun stripComments(text: String): String {
         val out = StringBuilder(text.length)
+        var state = 0
         var i = 0
-        var state = 0 // 0=代码 1=行注释 2=块注释 3=字符串 4=字符
         while (i < text.length) {
             val c = text[i]
             val n = if (i + 1 < text.length) text[i + 1] else ' '
@@ -139,6 +139,39 @@ class MessagingInvariantTraceabilityTest {
             unannotated,
             "这些不变量既没有 → 验证 也没有 → 缺口，等于又退回了「散文契约」：$unannotated",
         )
+    }
+
+    /**
+     * G169b：`server/` 是独立 Gradle 构建，跨构建无法共享 `stripComments` 的实现，
+     * 所以只能在本构建内断言「多份拷贝逐字相同」。
+     *
+     * 该函数已有 4 份（app 侧 2 份 + server 侧 2 份），漂成过 3 个变体。
+     * 真正危险的不是美观，而是将来有人只改其中一份——四套门禁会对同一段代码
+     * 给出不同判决而不报警。**app 侧与 server 侧之间靠人工同步。**
+     */
+    @Test
+    fun `every copy of stripComments in this build is textually identical`() {
+        val copies = testSources
+            .filter { it.readText().contains("private fun stripComments(") }
+            .map { it.toRelativeString(repoRoot) to extract(it.readText()) }
+            .toMap()
+        assertTrue(copies.size >= 2, "server 侧应该至少有 2 份 stripComments，实际 ${copies.size} 份")
+        val distinct = copies.values.distinct()
+        assertEquals(
+            1,
+            distinct.size,
+            "stripComments 的拷贝漂移了——它们必须逐字相同：" +
+                copies.entries.joinToString("\n") { "${it.key}: ${if (it.value == distinct.first()) "相同" else "**不同**"}" },
+        )
+    }
+
+    private fun extract(source: String): String {
+        val start = source.indexOf("private fun stripComments(")
+        require(start >= 0) { "文件里没有 stripComments" }
+        val lineStart = source.lastIndexOf('\n', start) + 1
+        val end = source.indexOf("\n    }\n", start)
+        require(end >= 0) { "找不到 stripComments 的结束" }
+        return source.substring(lineStart, end + 6).trim()
     }
 
     @Test
