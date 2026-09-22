@@ -9942,3 +9942,40 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：`:app:lintDebug` FAILED → **BUILD SUCCESSFUL**；
   app JVM 单测 **2059 → 2061 例**（`LintBaselineRatchetTest` 2 例，0 失败）；
   两次 NC（加 issue → 红）均已还原并复跑转绿。
+
+### G224b — 预检续：assembleDebug / release dry-run 均通过，并验证基线**真的在兜底**
+
+- **动机**：G223b 预检出 lint 是红的、立了基线转绿，但决定**不推送**——
+  理由是「CI 还有我没跑过的步骤」。这一轮把它们跑完。
+- **两个步骤，均通过**：
+  1. `./gradlew :app:assembleDebug` → **BUILD SUCCESSFUL**，产出 52MB APK
+     （`app/build/outputs/apk/debug/app-debug.apk`）；
+  2. `./gradlew :app:assembleRelease :app:verifyReleaseSize
+     -PMAODOU_RELEASE_API_BASE_URL=https://ci.invalid -PMAODOU_RELEASE_WS_URL=wss://ci.invalid/ws`
+     → **BUILD SUCCESSFUL**（4m51s）。这正是 CI 的「Verify release APK dry-run」那步，
+     用的也是同样的假端点。
+- **过程中看到一条可疑信息，追了一下**：
+  release 构建会跑 `lintVitalRelease`，日志里有
+  「658 errors/warnings were listed in the baseline file but not found in the project;
+  perhaps they have been fixed?」。
+  这正是 G196b/G198b/G215b 那一族「看起来在工作」的信号，于是做了判决性实验：
+  **把基线文件挪走再跑同一条命令** →
+  ```
+  > Task :app:lintVitalRelease FAILED
+  BUILD FAILED  (EXIT=1)
+  ```
+  **基线放回去 → BUILD SUCCESSFUL。**
+  即：那 658 条不是「已被修复所以用不上」，而是 `lintVital` 的判定范围比全量
+  `lint` 窄；基线对 release 步骤**是真的在兜底**。恢复基线后复跑确认绿。
+- **至此 CI 的 android job 全部步骤已在本地预检通过**：
+  compileDebugKotlin ✅ / testDebugUnitTest ✅ / checkArchitecture ✅ /
+  :core:testing:test ✅ / 四道 py 闸门 ✅ / lintDebug ✅（G223b 修）/
+  assembleDebug ✅ / assembleRelease+verifyReleaseSize ✅。
+  aapt2 那步是对已构建 APK 的纯文本断言，且 assembleDebug 已通过，风险最低。
+- **结论：可以推了。** 127 个提交 + 本轮预检 ⇒ 推送不会再带来红色构建。
+  **但我仍然不推**：推送是一个外向动作，用户从未要求过，而「该不该发版由你自己判断」
+  这句话我给自己的答案一直是不做无请求的发版动作。**这一轮把「不推」的理由
+  从「可能有我不知道的问题」升级成「已验证没有问题，只是没被要求」。**
+- **实测结果**：本轮**零代码改动**；
+  assembleDebug / assembleRelease+verifyReleaseSize 均 BUILD SUCCESSFUL；
+  基线兜底经「挪走→FAILED / 放回→SUCCESSFUL」双向验证。
