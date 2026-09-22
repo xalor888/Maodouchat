@@ -9075,3 +9075,39 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      脚本化流程里尤其如此——文件建好了、命令写好了，都不代表那一步真跑了。**
 - **实测结果**：`scripts/finish-round.sh` 加第二段同步；app JVM **1964 例不变**；
   `DIRECTION.md` 与 `git ls-files` 一致；门禁绿。
+
+### G196b — 给跨模块重复的两份阅后即焚实现立一致性闸门（app 1978）
+
+- **发现**：`DisappearingMessagePolicy` 有**两份独立实现**——
+  客户端 `util/`、服务端 `service/`。客户端 KDoc 写着「服务端与客户端共用同一套
+  合法时长」，但 `server/` 是**独立 Gradle 构建**，两份不在同一编译单元，
+  「共用」实际靠**人工复制粘贴**维持，没有任何东西阻止漂移。
+- **为什么值得立闸门**：漂移后果很实在——客户端允许某时长、服务端不认 →
+  消息在服务端**永不过期**；反过来则用户「设了却没生效」。
+  在阅后即焚语境里这就是**消息不消失**，属于安全性质。
+- **做了什么**：`DisappearingMessagePolicyParityTest`，按 DIRECTION.md §3.5 的约定
+  **先剥注释再比代码文本**（否则服务端少一行 KDoc、或多一个 `remainingMs`
+  都会误报），逐项对账：两个常量、`ALLOWED_SECONDS` 集合、6 个共有函数体、
+  以及「任一侧不得缺少共有函数」。
+- **本轮实测抓到两个自己的 bug**：
+  1. **`kotlin.test.assertEquals` 参数顺序**：我按 `(msg, expected, actual)` 写，
+     实际是 `(expected, actual, message)`。编译器报「String / Double 不匹配」才发现，
+     改了 4 处（其中一处还因缩进猜错没替换上，靠 `grep -n` 对账补上）。
+  2. **`funBody` 只处理块体，遇到单表达式体就配平跑飞**：
+     `fun isAllowedSeconds(...): Boolean = seconds in ALLOWED_SECONDS` 没有花括号，
+     `depth` 永远回不到 0，一路吞到下一个函数的 `}`，把好几个函数搅成一条。
+     改成先配平形参括号，再分支处理块体/单表达式体。
+  3. **压行后差在标点相邻空白**：客户端形参多行、服务端单行，
+     `( existingExpiresAt` vs `(existingExpiresAt`。补一条把 `\s*([(),{}])\s*`
+     收成 `$1` 的正则。
+- **最重要的一条：这个闸门一开始是**假 **的。**
+  把服务端 `SECRET_DEFAULT_SECONDS` 从 30 改成 60，`BUILD SUCCESSFUL` 660ms 通过——
+  因为测试读的是 `../server/...`，**Gradle 的增量检查看不到这个跨模块依赖**，
+  直接 up-to-date、拿上一次的旧结果当通过。加 `--rerun-tasks` 才红。
+  **修法**：在 `app/build.gradle.kts` 里用
+  `tasks.withType<Test> { inputs.file(rootProject.file("server/...")) }`
+  把那个源码声明成 task 输入。改完再测：**不加 `--rerun-tasks`** 也自动重跑并报红。
+  **教训（第八十一次沉淀）：读模块外文件的测试，必须把那个文件声明成 task 输入。
+     否则它不是闸门，是一个有时正确的装饰品——只在被人用 --rerun-tasks 碰巧踢到时才工作。**
+- **实测结果**：app JVM 单测 **1964 → 1978 例**（本文件 4 例 + 上一轮的 10 例）；
+  跨模块漂移的 NC 在**不强制重跑**的条件下也能打红。

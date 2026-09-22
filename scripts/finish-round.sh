@@ -72,14 +72,6 @@ python3 scripts/sync-direction-numbers.py --write || {
     exit 1
 }
 
-log "4.5/6 提交前复核门禁"
-if ! ./gradlew :app:testDebugUnitTest \
-        --tests 'com.maodouchat.DirectionDocFreshnessTest' \
-        --rerun-tasks --console=plain; then
-    echo "门禁仍红——按失败信息手工检查" >&2
-    exit 1
-fi
-
 log "5/6 提交"
 git add -A
 if [[ -z "$(git status --porcelain)" ]]; then

@@ -231,6 +231,17 @@ val sizeGuardRuntime: Configuration by configurations.creating {
     description = "SizeGuard（纯 JVM）运行所需的 Kotlin 运行时"
 }
 
+// G195b：一致性闸门 DisappearingMessagePolicyParityTest 会**读 server/ 的源码**
+// （跨 Gradle 模块比较两份实现）。默认的增量检查看不到这个依赖——
+// 实测改 server 源码后 :app:testDebugUnitTest 直接 up-to-date、
+// 拿上一次的旧结果当「通过」。显式声明成 task 输入，server 一变就重跑。
+tasks.withType<Test>().configureEach {
+    inputs.file(
+        rootProject.file("server/src/main/kotlin/com/maodouchat/server/service/DisappearingMessagePolicy.kt")
+    ).withPropertyName("serverDisappearingMessagePolicySource")
+        .withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+}
+
 dependencies {
     sizeGuardRuntime(kotlin("stdlib"))
 }
