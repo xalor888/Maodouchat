@@ -8736,3 +8736,37 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **教训（第七十三沉淀）：「网络受限所以 X 不可用」这类判断会过期，而且过期很久没人复查。
      它是 build 文件里的一条注释，没有测试盯着它。这次是一条 `curl -I` 就推翻的。
      下次再看到「因为环境所以不做」，先花两分钟验证那个「因为」还在不在。**
+
+### G182b — 最后两个 dialog 有了 UI 覆盖；但 isDeviceTrusted 只覆盖到 1/4 条分支（app 1933）
+
+- **达成**：`NewDeviceRiskPromptDialog` 与 `SecretNewDeviceRiskLocked`
+  ——G178b 判定「无法覆盖」的那一对——现在有 UI 覆盖了（靠 G181b 解锁的 Robolectric）：
+  1. `newDeviceRiskPromptRoutesConfirmAndCancel`：标题/正文在；「确定」只触发 `onRegister`、
+     「取消」只触发 `onKeepLocked`；
+  2. `newDeviceRiskLockedShowsCopyAndRoutesRegister`：锁定文案在；「登记当前设备」触发 `onRegisterClick`；
+  3. `blankDeviceIdIsNeverTrusted`：`isDeviceTrusted("")` 与 `("   ")` 必须为 false
+     （**安全相关**——空指纹若被判可信，未登记设备就绕过风控）。
+- **没达成的（重点，如实记）**：`isDeviceTrusted` 的另外三条分支
+  （开关关闭→true / 已登记→true / 未登记→false）**仍然没有覆盖**。
+  本轮实测确认了原因，不是「没试」：
+  - `isEnabled` / `setEnabled` / `setKnownDevices` 全都要经
+    `AccountFeatureSwitch.userId()` = `TokenManager.getUserId()`；
+  - `TokenManager` 用 **`EncryptedSharedPreferences`（Android Keystore）**；
+  - Robolectric 下 Keystore 不可用——探针实测
+    `saveAuthSession(...) = false` / `getUserId() = null` / `isLoggedIn() = false`；
+  - 于是 userId 永远 null，而 `AccountFeatureSwitch` 各处都是
+    `val userId = userId(context) ?: return`——**`setEnabled`/`setKnownDevices` 静默失效**。
+  第一版我按「Robolectric 下 SharedPreferences 可用」径直写了四条分支的用例，
+    跑出来两条红，才追到这一层。**这不是测试写错，是这条路径在 Robolectric 下真的跑不到。**
+- **顺带一个观察（未改）**：`setEnabled`/`setKnownDevices` 在无 userId 时**静默 return**，
+  不报错也不返回 false。调用方无法区分「存进去了」和「没存」。
+  当前唯一的调用方都在已登录路径上，所以不是 bug；但若将来有人在未登录态调用，
+  会得到「设置成功」的错觉。已在 KDoc 里写明，不在本轮改行为。
+- **负控制**：把 `blankDeviceIdIsNeverTrusted` 的断言反过来
+  → 该用例 **FAILED**。恢复后转绿。
+- **实测结果**：app JVM 单测 **1930 → 1933 例**（345 套件），
+  `tests=3 failures=0`（本类）；全量 suite 0 失败。
+- **UI 覆盖总账**：12 个抽出的 dialog **全部 12 个都有 UI 覆盖**了
+  （11 个在模拟器 18 例 + 新设备风控 2 个在 Robolectric 3 例），
+  但 `isDeviceTrusted` 只覆盖 4 条分支里的 1 条——**这一条缺口仍在**，
+  要补只能走 instrumented（真机已登录态）或给 `AccountFeatureSwitch` 注入 userId 来源。
