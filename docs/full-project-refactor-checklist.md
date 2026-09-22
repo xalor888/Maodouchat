@@ -8668,3 +8668,30 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   （96 = 69 通过 + 27 跳过）。123 与 96 的关系我没查清，**不猜**；
   本条约定的数字一律以 XML 为准。
 - **实测结果**：无代码改动（纯复跑）；app JVM 1929 例不变；androidTest 完整跑通。
+
+### G180b — 第五次全量复跑：四套 2437 例全绿（G170b 之后 9 轮）
+
+- **动机**：G170b 之后又做了 9 轮（G171b–G179b），其间**改了 `app/build.gradle.kts`**
+  （加了 androidTest 的 `ui-test-junit4`）、**新增 18 条 instrumented UI 用例**、
+  并第一次跑通完整 instrumented 套件。按 G171/G182/G191/G170b 的教训四套重跑。
+- **门禁当场抓到两个过期数字**（`DirectionDocFreshnessTest` 的价值再次兑现）：
+  `git ls-files` 1769→**1770**、自审清单 770,599→**787,269** 字节。
+  按 G172b/G173b 的教训**先追加本条、再测字节、再改 DIRECTION.md**——
+  否则改完文档字节又变、门禁再红一次。
+- **四套结果（全部本轮新鲜产出）**：
+  | 套件 | 命令 | 结果 |
+  |---|---|---|
+  | app JVM | `./gradlew :app:testDebugUnitTest --rerun-tasks` | **1929 / 0 / 0 / 0**（344 套件） |
+  | server | `../gradlew test --no-daemon --rerun-tasks` | **462 / 0 / 0 / 0**（150 套件，9m 21s / **6 executed**） |
+  | PG 集成 | `postgresIntegrationTest --rerun-tasks` | **19 / 0 / 0 / 0**（7 套件） |
+  | E2E | `bash scripts/two-device-http-e2e.sh` | **27 / 0** |
+  | **合计** | | **2437 例，0 失败 0 错误 0 跳过** |
+- **与 G170b（2426）对比**：**+11 例**——app JVM 从 1918 → 1929（G172b 的 +11 条
+  `DirectionDocFreshnessTest`），其余三套不变（G173b–G179b 新增的 18 条在
+  **instrumented** 里，不进 JVM 套件）。
+- **G182 的坑没再踩**：server 首次跑即带 `--no-daemon --rerun-tasks`，
+  实测 `6 actionable tasks: 6 executed`、9m 21s。
+- **实测结果**：`DirectionDocFreshnessTest` 抓到并同步 2 个数字；无其它代码改动。
+- **实跑验证**：四套命令均本轮执行；同步后 `DirectionDocFreshnessTest` 复跑转绿、
+  app JVM 全量 1929 例 0 失败。
+- **instrumented 侧**（不计入上表，另测于 G179b）：完整套件 96 例 / 69 过 / 27 跳 / 0 失败。
