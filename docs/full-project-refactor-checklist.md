@@ -9010,3 +9010,20 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      已写进用法注释：`--skip-tests` 只适用于紧接着全量跑过的场景。
 - **实测结果**：`bash -n` 通过；完整跑到第 6 步，门禁 BUILD SUCCESSFUL、
   提交成功、末行打印剩余未推送提交数。
+
+### G191b — 把两个工程工具写进 DIRECTION.md §4.5，免得重蹈 Robolectric 注释的覆辙（app 1959 不变）
+
+- **动机**：G181b 的教训是「写在没人看的地方的判断会过期/被忘掉」——
+  `build.gradle.kts` 里那条「Robolectric 不可用」的注释躺了很久没人复查，
+  一次 `curl -I` 就推翻，还顺带解锁了五轮工作。
+  我 G188b–G190b 做的三个脚本有同样的风险：**不被看见 = 不存在**。
+- **做了什么**：DIRECTION.md 新增 §4.5「工程工具」，
+  用一张表列清 `sync-direction-numbers.py --check/--write`
+  与 `finish-round.sh`（含 `--skip-tests`）的用法，
+  并写明「`--skip-tests` 只在紧接着全量跑过之后有效」的原因
+  （脚本读 `build/test-results`，过滤跑会让合理性守卫拒绝）。
+  位置选 §4.5 而不是附录，是因为**每个回合都会读 DIRECTION.md 前几节**。
+- **本轮也再次验证了工具链自身的一致性**：先手工改 DIRECTION.md → 门禁仍绿
+  （§0 的测量项不含 DIRECTION.md 自身）→ 跑全量刷新 XML → 用
+  `finish-round.sh --skip-tests` 收尾，6 步全通过。
+- **实测结果**：`DIRECTION.md` +23 行；app JVM 单测 **1959 例不变**；工作区干净。

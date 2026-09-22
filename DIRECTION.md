@@ -18,7 +18,7 @@
 | 服务端测试文件 / 用例 | 117 个 / **462 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总 |
 | 客户端 JVM 测试文件 / 用例 | 347 个 / **1959 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总 |
 | instrumented 测试（androidTest） | **12 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 814,889 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| 自审清单体量 | 816,162 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件** | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | 18 | `grep -rl org.jetbrains.exposed plugins/` |
@@ -172,6 +172,28 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 - **不动生产库**、不把任何密码写入仓库/记忆/文档。
 - **不跳过验证**：真机/headless 的差异已知（headless 整程约 2.2s 会与插件定时器赛跑，约 1/3 概率
   把没做的事报成做完了），所以端到端验证必须起长驻实例再轮询。
+
+---
+
+## 4.5 工程工具（每轮收尾用）
+
+两个脚本，**每轮改完代码后跑**（G188b / G189b / G190b 三次迭代出来，
+治的是我反复犯的「顺序靠记忆」和「推导而非实测」）：
+
+| 命令 | 干什么 |
+|---|---|
+| `python3 scripts/sync-direction-numbers.py --check` | 只比对 §0 数字与实测，不一致退出码 1（可当卡点） |
+| `python3 scripts/sync-direction-numbers.py --write` | 按实测改写 §0 表格（只换数字，不动 `**bold**`/括注） |
+| `bash scripts/finish-round.sh <条目文件> "提交信息..."` | **一条命令收尾一整轮**：全量 app → 全量 server → 追加台账 → 同步 §0 → 复核门禁 → 提交 |
+| `bash scripts/finish-round.sh <条目文件> "..." --skip-tests` | 刚跑完全量时用，省 12 分钟 |
+
+⚠️ **`--skip-tests` 只在紧接着全量跑过之后有效**：脚本从 `build/test-results`
+读用例数，若上一次是 `--tests '*某个类'` 的过滤跑，合理性守卫会拒绝同步
+（不拿不完整快照当真相）。
+
+**为什么值得写在这一节**：这三个工具本身就可能重蹈「Robolectric 不可用」
+那条注释的覆辙——写在没人看的地方，过期/被忘掉都没人发现（G181b 的教训）。
+放在每个回合都会读的 DIRECTION.md 里，它们才真的会被用。
 
 ---
 
