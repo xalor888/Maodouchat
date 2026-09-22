@@ -204,6 +204,49 @@ class GroupPlayPolicyTest {
         )
     }
 
+    /** G216b：零引用的 `val`/`var` 声明（口径与 fun 那条完全一致）。 */
+    private fun unreferencedVals(policyText: String, allSources: List<String>): List<String> {
+        val vals = Regex("""^    (?:internal |private )?(?:const )?(?:val|var) (\w+)""", RegexOption.MULTILINE)
+            .findAll(policyText).map { it.groupValues[1] }.toList()
+        return vals.filter { name ->
+            val total = allSources.sumOf { Regex("""${Regex.escape(name)}""").findAll(it).count() }
+            val definitions = Regex("""^    (?:internal |private )?(?:const )?(?:val|var) ${Regex.escape(name)}""",
+                RegexOption.MULTILINE).findAll(policyText).count()
+            total - definitions == 0
+        }
+    }
+
+    /**
+     * G216b：零引用 val/var 棘轮。
+     *
+     * 基线先填 0，**让门禁自己报出真实数**（G167b 的教训：基线不能手推）。
+     * 首次运行会红并打印实际零引用集合，把那个数填进常量即完成冻结。
+     */
+    @Test
+    fun `unreferenced vals only shrink`() {
+        val source = File(TEST_SOURCE_ROOT, "app/src/main/java/com/maodouchat/util/GroupPlayPolicy.kt")
+        assertTrue(source.isFile, "GroupPlayPolicy.kt 不存在：${source.path}")
+        val policyText = stripComments(source.readText())
+        val allSources = sequenceOf("app/src", "server/src", "core", "domain", "feature")
+            .map { File(TEST_SOURCE_ROOT, it) }
+            .filter { it.isDirectory }
+            .flatMap { it.walkTopDown().filter { f -> f.isFile && f.extension == "kt" }.asSequence() }
+            .map { stripComments(it.readText()) }
+            .toList()
+
+        val vals = Regex("""^    (?:internal |private )?(?:const )?(?:val|var) (\w+)""", RegexOption.MULTILINE)
+            .findAll(policyText).map { it.groupValues[1] }.toList()
+        assertTrue(vals.isNotEmpty(), "没扫到任何 val/var——扫描口径可能坏了")
+
+        val dead = unreferencedVals(policyText, allSources)
+        assertEquals(
+            UNREFERENCED_VAL_BASELINE,
+            dead.size,
+            "GroupPlayPolicy 的零引用 val/var 数变了。这是新监管面（原先只扫 fun），" +
+                "首次冻结请把实际数填进 UNREFERENCED_VAL_BASELINE。\n零引用：${dead.sorted()}"
+        )
+    }
+
     /** 剥掉行注释与块注释后的源码（字符串字面量里的双斜线 与 斜线星 不误剥）。 */
     private fun stripComments(text: String): String {
         val out = StringBuilder(text.length)
@@ -239,6 +282,15 @@ class GroupPlayPolicyTest {
     private companion object {
         /** G167b 冻结值：542 个成员里 297 个零引用。 */
         const val UNREFERENCED_BASELINE = 297
+
+    /**
+     * G216b：`val`/`var` 声明的零引用冻结值。
+     *
+     * 原棘轮只扫 `fun`——GroupPlayPolicy 里另有 173 个 val/var 声明，
+     * 它们完全不在监管范围内：新增一个没人用的常量不会让任何门禁变红。
+     * 这是同一类「门禁只覆盖了一半」的缝。
+     */
+    const val UNREFERENCED_VAL_BASELINE = 173
 
         /** 仓库根（测试的 user.dir 可能是模块目录，向上找到 settings.gradle.kts + app）。 */
         val TEST_SOURCE_ROOT: File = run {
