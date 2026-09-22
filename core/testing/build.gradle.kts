@@ -14,7 +14,17 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
 
-    // 架构测试需要扫描其它 core/domain 模块的已编译类
+    // 架构测试需要扫描其它 core/domain 模块的已编译类。
+    //
+    // ⚠️ G222b 查实的覆盖面（**结构性限制，不是疏忽**）：
+    // 本模块是纯 JVM（org.jetbrains.kotlin.jvm），只能依赖同平台的模块。
+    // 而 core/crypto、core/network、core/realtime、core/session 是
+    // **Android library**（com.android.library，platform-type = androidJvm）——
+    // 往这里加依赖会直接「No matching variant」编译失败。
+    // 所以 A01 的 ArchUnit 规则对那 4 个 Android core 模块**结构上照不到**，
+    // 只能靠 :app 侧的 ClientArchitectureTest 补（它扫 app/src/main，而 app 依赖这些模块）。
+    // `core/util` 是 JVM 且此前漏在表外，G222b 已补。
+    testImplementation(project(":core:util"))
     testImplementation(project(":core:serialization"))
     testImplementation(project(":domain:messaging"))
     testImplementation(project(":domain:conversation"))

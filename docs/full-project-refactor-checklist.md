@@ -9859,3 +9859,46 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：新增 `docs/group-play-inventory.md`（82 行）；
   `GroupPlayPolicyTest` 与 `GroupPlayPolicy.kt` **零改动**（基线临时改错已还原）；
   品牌/字符串 parity 两道闸门 exit 0。
+
+### G222b — A01 架构门禁有个**结构性盲区**，此前没人说过（core:testing 2 → 3 例）
+
+- **起点**：G220b 的教训是「说全部查过了之前，先列出那个全部」。
+  于是列出 CI 全部步骤，发现第 204 行
+  `Client architecture gate and hotspot ratchet` 跑的是
+  `./gradlew :core:testing:test` ——而我改了一路的 `ClientArchitectureTest`
+  其实在 `:app:testDebugUnitTest` 里。**这两个不是一回事**，我此前从没查过前者跑什么。
+- **查下去三层，每层都是「看起来在工作」**：
+  1. `:core:testing` 只有一个 `ArchitectureTest`，是 **ArchUnit**（`@ArchTest` 不是 `@Test`），
+     两条规则：core/domain 不得依赖 Android、不得碰 app 层单例。
+  2. 往 `core/crypto` 里植入 `import android.os.Build` → **门禁不红**。
+     第一反应是 Gradle 缓存，加 `--rerun-tasks` 仍不红。
+  3. 写了个一次性探针让 ArchUnit 自己报导入了多少类：
+     **99 个类 / 只有 3 个包**（core.model 5、core.serialization 1、domain.messaging 93）。
+     而 `core/crypto` 有 5 个源文件、`core/util` 2 个、`core/network` 1 个、
+     `core/realtime` 2 个、`core/session` 4 个——**全不在那 3 个包里**。
+- **根因，而且是我「修不了」的那种**：`core/testing` 是**纯 JVM** 模块
+  （`org.jetbrains.kotlin.jvm`），而那 4 个是 **Android library**
+  （`com.android.library`，platform-type = androidJvm）。
+  往 `core/testing` 加它们的依赖会直接 `No matching variant` 编译失败——
+  **我第一版就是这么干的，当场红给你看**。所以 A01 对它们结构上照不到。
+- **做了什么（只修能修的，并把不能修的钉住）**：
+  1. 补 `core:util`——它是 JVM 模块、有源码、却漏在依赖表外（**这个是真疏漏**）。
+     探针从 99 → **103** 个类；
+  2. 新增 `the A01 gate's coverage envelope is pinned`：断言
+     (a) 可扫描类数 ≥ 100（掉了任何 JVM 模块就红）
+     (b) 盲区集合**正好**是那 4 个 Android 包（哪天它们改 JVM，这里提醒补依赖表）；
+  3. 在 `core/testing/build.gradle.kts` 里写清「为什么这 4 个进不来」，
+     以及对它们的约束由 `:app` 侧 `ClientArchitectureTest` 补
+     （它扫 `app/src/main`，而 app 依赖这些模块）。
+  4. 删掉一次性探针。
+- **三次负控制**：
+  1. 下限改成 99999 → 守卫 FAILED；
+  2. **从依赖表里删掉 `core:util`** → 守卫 FAILED（这正是它要防的真场景）；
+  3. 还原后 BUILD SUCCESSFUL。
+- **实测结果**：`core:testing` **2 → 3 例**（0 失败）；
+  ArchUnit 覆盖面 99 → 103 个类 / 4 个包；
+  app JVM 2059 例不变；`core/util` 的 4 个类**新进入监管**。
+- **这条线和前九站不同**：前九站是「门禁漏了一半」，这一站是
+  **「门禁有一部分它结构上就到不了」**——那种你再加断言也补不上、只能承认并写明的缺口。
+  **教训（第一百次沉淀）：不是所有覆盖缺口都能补。补不上的那些，
+     正确的做法是把它变成一条会失败的断言，而不是一段注释。**
