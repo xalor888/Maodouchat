@@ -542,4 +542,75 @@ class ClientArchitectureTest {
                 "变少是好消息，请把 frozenUiDirectPersistence 改小。",
         )
     }
+
+    // ─── 5. 全仓库测试态势（G157b） ───
+
+    /**
+     * 当前**有测试源文件**的模块（G157b 实测：21 个模块里只有这 5 个）。
+     *
+     * 冻结它有两个作用：
+     * - 新建模块却没写测试 → 逼人确认「这个模块该不该有测试」是个决定，不是默认没有；
+     * - 删掉某个模块的测试 → 必须同步改这里，让「测试在消失」至少有一次显式确认。
+     */
+    private val modulesWithTests: Set<String> = setOf(
+        "core/crypto",
+        "core/realtime",
+        "core/session",
+        "core/testing",
+        "domain/messaging",
+    )
+
+    @Test
+    fun `the set of modules that own tests only changes deliberately`() {
+        val actual = listOf("core", "domain", "feature")
+            .map { File(repoRoot, it) }
+            .filter { it.isDirectory }
+            .flatMap { root ->
+                root.walkTopDown()
+                    .filter { it.isDirectory && it.name == "test" }
+                    .filter { testDir -> testDir.walkTopDown().any { it.isFile && it.extension == "kt" } }
+                    // src/test 的上级是 src，再上一级才是模块目录
+                    .map { testDir ->
+                        testDir.parentFile.parentFile.toRelativeString(repoRoot).replace('\\', '/')
+                    }
+                    .toList()
+            }
+            .toSortedSet()
+        assertEquals(
+            modulesWithTests.sorted(),
+            actual.toList(),
+            "有测试源文件的模块集合变了。新增模块若没有测试，请确认这是有意的；" +
+                "删掉测试则同步改小 modulesWithTests。",
+        )
+    }
+
+    @Test
+    fun `the orphan gate module still owns a real test`() {
+        val coreTesting = File(repoRoot, "core/testing/src/test")
+        assertTrue(coreTesting.isDirectory, "core/testing/src/test 不存在")
+        // 必须剥注释：否则把 `// @ArchTest` 注释掉也算「还有测试」——
+        // 这正是 G156b（持久化计数）、G155b（文档追溯门禁）踩过的同一个坑的第三次。
+        val texts = ktFilesUnder(coreTesting).map { stripComments(it.readText()) }
+        assertTrue(texts.isNotEmpty(), "core/testing/src/test 下没有任何 .kt——孤儿模块的测试被删光了")
+        // 注意：ArchUnit 规则用的是 @ArchTest（挂在 val 上），不是 @Test。
+        // 只认 @Test 会把这个模块唯一的测试误判成空壳。
+        assertTrue(
+            texts.any { it.contains("@Test") || it.contains("@ArchTest") },
+            "core/testing/src/test 下没有任何 @Test/@ArchTest——又一个不会被 CI 调用的空壳门禁",
+        )
+    }
+
+    @Test
+    fun `the release endpoint guard is still in the build file`() {
+        val text = File(repoRoot, "app/build.gradle.kts").readText()
+        assertTrue(
+            text.contains("MAODOU_RELEASE_API_BASE_URL"),
+            "app/build.gradle.kts 里没有 MAODOU_RELEASE_API_BASE_URL——" +
+                "发布端点护栏被删了，Release 会静默回落到 https://invalid.maodouchat.local",
+        )
+        assertTrue(
+            text.contains("Release API_BASE_URL must be set"),
+            "发布端点护栏的 require 消息不见了——护栏可能被改成「留空也放行」",
+        )
+    }
 }

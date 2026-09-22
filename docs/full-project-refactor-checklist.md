@@ -7799,3 +7799,41 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   - 负控制红 → 恢复 → 转绿；
   - **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1908 例）**；
   - `:core:testing:test --rerun-tasks` → BUILD SUCCESSFUL。
+
+### G157b — 把「全仓库测试态势」固化成门禁（+3 例，1912 → 1915）
+- **动机（G156b 教训的直接复用）**：G156b 发现我从不跑 `:core:testing`，
+  于是本轮跑了 `./gradlew test --rerun-tasks --continue` 清点**全部 21 个模块**：
+  - **21 个模块里只有 5 个有测试源文件**（core/crypto、core/realtime、core/session、
+    core/testing、domain/messaging），其余 14 个 NO-SOURCE；
+  - 跑完 18 个 test 任务，**0 个 test 失败**；
+  - 唯一 FAILED 是 `:app:compileReleaseKotlin`——读 `app/build.gradle.kts:112-130`
+    确认那是**故意护栏**（`require(!releaseApiBaseUrl.isNullOrBlank())`，
+    防止把本地 Debug LAN 端点当成 Release 端点），不是 bug。
+- **做了什么**：在 `ClientArchitectureTest`（在 CI 里）加 3 条用例：
+  1. `the set of modules that own tests only changes deliberately`——冻结当前 5 个模块集合；
+  2. `the orphan gate module still owns a real test`——`core/testing/src/test` 至少一个类、
+     且至少一个 `@Test`/`@ArchTest`，防「孤儿空壳门禁」死灰复燃；
+  3. `the release endpoint guard is still in the build file`——钉住
+     `MAODOU_RELEASE_API_BASE_URL` 与 require 消息还在，防止有人顺手删护栏、
+     让 Release 静默回落到 `https://invalid.maodouchat.local`。
+- **两次自己的断言写错（都是小错，都当场修）**：
+  1. 模块路径推导写成 `testDir.parentFile`——`src/test` 的上级是 `src`，
+     得到 `core/crypto/src` 而不是 `core/crypto`。改 `parentFile.parentFile` 后过；
+  2. 孤儿模块断言只认 `@Test`，而 `ArchitectureTest` 用的是 ArchUnit 的 `@ArchTest`
+     （挂在 `val` 上）。补上 `@ArchTest` 后过。
+- **负控制抓出第三次同类 bug（本轮最有价值的发现）**：
+  NC2 原本**没红**——我把 `@ArchTest` 注释掉，断言却仍然通过，因为它
+  `text.contains("@ArchTest")` 匹配到了**注释里**的那个字符串。
+  这正是 G155b（文档追溯门禁匹配注释掉的测试）和 G156b（持久化计数把
+  「不 import MaodouchatApp」这句 KDoc 算成违规）踩过的**同一个坑**。
+  修法：改用本文件已有的 `stripComments`——剥注释后再判断。
+  改完重跑 NC2，**红了**。
+  **教训（第五十三次沉淀）：「源码里有没有这个字符串」这个问题，
+     我已经在三个不同门禁里用同一种错法回答了三次。
+     正确答案永远是先剥注释。这个坑值得写进项目约定：
+     **凡是用源码文本做判决的门禁，第一步都该是剥注释。****
+- **实测结果**：`ClientArchitectureTest` **+3 条用例**；
+  app JVM 单测 **1912 → 1915 例**（343 套件 / 0 失败 / 0 错误 / 0 跳过）。
+- **实跑验证**：三条新用例全绿；两次负控制（NC1 改护栏文案、NC2 注释掉 @ArchTest）
+  **在修正注释盲区后均按预期红**并恢复；
+  **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL**。
