@@ -8868,3 +8868,30 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **负控制（补强后）**：`return last > 0L && System.currentTimeMillis() - last < gateTimeoutMs(context)`
   → `return last > 0L`，`gateClosesOnceTheVerificationAgesOut` **FAILED**。恢复后转绿。
 - **实测结果**：app JVM 单测 **1943 → 1951 例**（本类 `tests=8 failures=0`）。
+
+### G186b — 最后两个安全决策；空白名单的两个方向都有人守（app 1959）
+
+- **为什么单独立项**：这两个函数和已覆盖的 `SecretNewDeviceRiskPrefs.isDeviceTrusted`
+  **fail 方向不一样**，而这正是容易被「统一重构」抹掉的东西：
+  | 函数 | 开关关闭时 | 状态集合为空时 |
+  |---|---|---|
+  | `isDeviceTrusted` / `isFingerprintVerified` | 放行（不做风控） | 不可信 |
+  | `isForwardAllowed` | 放行（不做限制） | **一律禁止**（空白名单 = deny all） |
+  第三个格子是重点：转发白名单是**允许列表**语义，空集合必须解释为
+  「谁都不许转发」。写反的后果是密聊内容可转发到未授信目标。
+- **8 条用例**（`SecretWhitelistAndFingerprintPolicyTest`）：
+  - 设备指纹：空/空白指纹不可信、未核验不可信、核验后可信、
+    开关关闭放行（但空指纹仍不可信）、trim/剔空白、set 后原样读回；
+  - 转发白名单：**空白名单一律禁止**、命中放行未命中禁止、空 id 即使非空也禁止、
+    trim/剔空白、开关关闭放行；
+  - 一条专门的 `emptySetMeansOppositeThingsForVerifyAndForward` 把上表钉成断言。
+- **负控制（双向都验了）**：把 `allow.isNotEmpty() && targetId in allow`
+  改成 `allow.isEmpty() || targetId in allow`（deny-all → allow-all）
+  → **2 条用例同时红**：`emptyWhitelistDeniesEveryone` 与
+  `emptySetMeansOppositeThingsForVerifyAndForward`。
+  **两条都红是对的**：那条「不对称」专用用例之所以存在，
+    就是为了在普通守卫被人删掉时还有第二道。
+- **实测结果**：app JVM 单测 **1951 → 1959 例**（本类 `tests=8 failures=0`）。
+- **至此**：`Secret*Prefs` 家族 10 个文件里**所有带判定逻辑的函数都有覆盖了**
+  （isDeviceTrusted / isFingerprintVerified / isForwardAllowed / isGateOpen /
+  gateTimeoutMs / ttlSeconds / shouldShowPeerNotice / 账号隔离 / 各 set-get 往返）。
