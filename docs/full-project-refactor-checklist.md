@@ -9332,3 +9332,39 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      验证它的正确方式是把上一层拿掉，看它是否接得住——而不是断言它「存在」。**
 - **实测结果**：app JVM 单测 **1987 → 1994 例**（本类 `tests=7 failures=0`）；
   三层负控制（去第二层→不红；去第一层→第二层接住并抛异常）均还原并复跑转绿。
+
+### G204b — JsonFormat 的 meta 标签编解码覆盖；两个安全性质都有会失败的 NC（app 1994 → 2009）
+
+- **动机**：`JsonFormat` 被 12 个文件引用，零测试。它身上有**两个安全性质**：
+  1. **`composeContentWithMeta` 会先剥掉用户文本里的 meta 标签字面量**。
+     不剥的话，攻击者能在消息正文里塞一个假 `<meta>{"replyToId":"evil"}</meta>`，
+     让收件方解析出**伪造的** replyToId / 转发来源 / 附件密钥——
+     而 `MessageMeta` 里确实有 `attachmentKeyBase64`，这不是理论问题。
+  2. **单字段损坏不得丢掉整段 meta**（8.49 修复）。
+     源码注释写得很清楚：整段回退为空会让「含附件解密密钥」的 meta 一起没，
+     **媒体永久无法解密**。正确行为是只丢坏的那一个字段。
+- **15 条用例**（纯 JVM）：全默认值不产 meta 标签；非默认值才附加且正文在前；
+  用户文本里的 `<meta>` 字面量必须被剥掉（且只应剩一个真标签）；
+  `messageMetaMap → encode → fromJsonString` 三十个字段全配对往返
+  （写了一条「逐字段 assertNotNull」的配对闸门，防将来漏配）；
+  空白 JSON 回默认；**单字段类型混淆后附件密钥仍在**；
+  `translations`/`aiImageAnalyses`/`aiFileAnalyses` 三个容器字段混淆不抛；
+  布尔/长整字段喂对象不抛；`inlineKeyboard` 的 `callback_data` 兼容与长度截断；
+  `toJsonElement` 的 type dispatch。
+- **其中一条测试我自己先写错了**：`inlineKeyboardTruncatesAndDropsMalformedRows`
+  里的 JSON 是我手写的，**不合法**（数组/对象括号混了），
+  `parseToJsonElement` 直接抛 `JsonDecodingException`。改成用 `buildString` 拼，
+  并**先自证 payload 合法**再断言——否则测的是自己的笔误而不是产品。
+  **教训（第九十次沉淀）：手写大 JSON/XML 测试夹具前，先让它过一遍解析器。
+     否则你会花半小时调一个根本不存在的 bug。**
+- **两次负控制（各打一个安全性质）**：
+  1. 把 `stripMetaTagLiterals` 改成恒等函数（不再剥用户文本里的 meta 标签）
+     → `metaTagLiteralsInUserTextAreStripped`、`metaTagLiteralsAreStrippedEvenWhenNoMetaIsAttached`
+     **FAILED**（这正是注入面）；
+  2. 把 `mentions` 的安全转型 `as?` 改回严格 `as`（**8.49 之前的写法**）
+     → **4 条用例 FAILED**（全带 `ClassCastException`），其中包含
+     `oneCorruptFieldDoesNotDropTheDecryptionKey`。
+     即：改回旧写法后，**任何缺 mentions 或 mentions 类型不对的 meta 都会整段炸掉**。
+  两次均已还原（`diff` 逐字节一致）并复跑转绿。
+- **实测结果**：app JVM 单测 **1994 → 2009 例**（本类 `tests=15 failures=0`）；
+  两个安全性质各有一个会失败的 NC。
