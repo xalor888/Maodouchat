@@ -1463,77 +1463,23 @@ internal fun ChatDetailRoute(
         )
     }
 
-if (showGroupCallTypeDialog) {
-        val groupCallCandidates = state.chat?.participants.orEmpty().filter { it.id != state.currentUserId }
-        val needsMemberPick =
-            groupCallCandidates.size > com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1
-        AlertDialog(
-            onDismissRequest = { showGroupCallTypeDialog = false },
-            title = { Text(stringResource(R.string.chat_group_call)) },
-            text = {
-                Column {
-                    Text(
-                        stringResource(
-                            R.string.call_group_mesh_limit,
-                            com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalChatPalette.current.textSecondary
-                    )
-                    if (needsMemberPick) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.call_select_members_needed_hint),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = LocalChatPalette.current.textHint
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    TextButton(
-                        onClick = {
-                            showGroupCallTypeDialog = false
-                            if (!needsMemberPick) {
-                                viewModel.startGroupCallFromChat(com.maodouchat.webrtc.CallType.AUDIO)
-                            } else {
-                                pendingGroupCallType = com.maodouchat.webrtc.CallType.AUDIO
-                                selectedGroupCallMemberIds = emptySet()
-                                groupCallMemberSearch = ""
-                                showGroupCallMemberDialog = true
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Outlined.Call, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Text(stringResource(R.string.chat_voice_call), modifier = Modifier.weight(1f))
-                    }
-                    TextButton(
-                        onClick = {
-                            showGroupCallTypeDialog = false
-                            if (!needsMemberPick) {
-                                viewModel.startGroupCallFromChat(com.maodouchat.webrtc.CallType.VIDEO)
-                            } else {
-                                pendingGroupCallType = com.maodouchat.webrtc.CallType.VIDEO
-                                selectedGroupCallMemberIds = emptySet()
-                                groupCallMemberSearch = ""
-                                showGroupCallMemberDialog = true
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Outlined.Videocam, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Text(stringResource(R.string.chat_video_call), modifier = Modifier.weight(1f))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showGroupCallTypeDialog = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
+    GroupCallTypeDialog(
+        visible = showGroupCallTypeDialog,
+        candidateCount = state.chat?.participants.orEmpty().count { it.id != state.currentUserId },
+        onPick = { type ->
+            showGroupCallTypeDialog = false
+            val candidates = state.chat?.participants.orEmpty().filter { it.id != state.currentUserId }
+            if (candidates.size <= com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1) {
+                viewModel.startGroupCallFromChat(type)
+            } else {
+                pendingGroupCallType = type
+                selectedGroupCallMemberIds = emptySet()
+                groupCallMemberSearch = ""
+                showGroupCallMemberDialog = true
             }
-        )
-    }
+        },
+        onDismiss = { showGroupCallTypeDialog = false },
+    )
 
     // G78：群通话成员选择对话框（123 行）抽到 ChatDetailGroupCallMemberDialog.kt，纯搬移不改判断。
     // 三个 rememberSaveable 开关的所有权留在 Route（打开入口也在这里），以「值 + setter」传入。

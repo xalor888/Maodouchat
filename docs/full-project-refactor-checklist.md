@@ -7968,3 +7968,54 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：`git diff --stat` + 两条硬自检；编译通过、无未用 import；
   两次负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1916 例）**；
   E2E 27 / 0 / 0。
+
+### G162b — 抽出最后一个内联弹窗 GroupCallTypeDialog（3487 → 3433）；内联 AlertDialog 归零
+- **做了什么**：把「群通话类型选择」弹窗（71 行）抽成
+  `@Composable internal fun GroupCallTypeDialog(visible, candidateCount, onPick, onDismiss)`
+  （追加到 `ChatDetailConfirmDialogs.kt`）；原位置换成 16 行调用。
+  冻结上限 **3487 → 3433**（两处 mapOf）。
+- **里程碑**：`ChatDetailRoute.kt` 的**内联 `AlertDialog(` 归零**（本轮之前是 1 个，
+  G184 开工时是 5 个）。全部 12 个弹窗都有了名字和归属文件。
+- **`needsMemberPick` 搬进了 composable**：它本来就是
+  `candidateCount > GroupCallPolicy.MAX_MESH_MEMBERS - 1` 的纯比较，
+  参数用 `candidateCount` 而不是把 participants 传进去——composable 不需要认识 `Message`。
+- **「起通话 or 打开选人」留在调用点**：`onPick(type)` 由路由决定是直接
+  `startGroupCallFromChat(type)` 还是置 `pendingGroupCallType` + 打开成员选择弹窗。
+  后者要摸四个路由状态，搬进 dialog 只会把耦合藏起来。
+- **一次自检断言写错（原文件的格式异常）**：我断言末行是 `}`（缩进 0），
+  实际是 `    }`（缩进 4）——**首行缩进 0、末行缩进 4，这个块本身首尾缩进就不一致**。
+  改成 `body[-1].strip() == "}"` 并把实际缩进打进日志才对上。
+  **教训（第六十次沉淀）：抓块自检要允许「原文件自身的格式不一致」——
+     断言 `.strip()` 后的形状，别断言精确缩进，否则你会把自己文件里的历史格式问题
+     当成「抓错了」而反复返工。**
+- **按 G192 教训当轮跑 E2E**：`scripts/two-device-http-e2e.sh` → **27 / 0 / 0**。
+- **负控制（按函数体作用域，直接复用 G161b 的教训）**：
+  把语音按钮的 `onClick = { onPick(...) }` 改成 `onClick = { }` →
+  `GroupCallTypeDialog` 函数体内 `onPick` 出现次数 **3 → 2**
+  （3 是因为语音/视频两个按钮都调它）。恢复后回到 3。
+- **实测结果**：`ChatDetailRoute.kt` 3487 → **3433** 行；
+  内联 `AlertDialog(` **5 → 0**；`ChatDetailConfirmDialogs.kt` 331 → 410 行；
+  app JVM 单测 **1916 例不变**；E2E **27 / 0**。
+- **实跑验证**：`git diff --stat`；硬自检通过；编译无未用 import；
+  负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1916 例）**；
+  E2E 27 / 0 / 0。
+
+#### G184–G162b 小结：`ChatDetailRoute.kt` 弹窗抽取专题（14 轮）
+
+| 指标 | G184 前 | 现在 |
+|---|---|---|
+| 文件行数 | 3667 | **3433** |
+| 内联 `AlertDialog(` | 5 | **0** |
+| 抽出的 composable | 0 | **12** |
+| 冻结行数上限 | 3667 | 3433 |
+
+12 个 composable 及归属：`ChatDetailLocalizedLabels.kt`（4 个顶层声明）、
+`ChatDetailSecretGates.kt`（`SecretNewDeviceRiskLocked` / `NewDeviceRiskPromptDialog`）、
+`ChatDetailConfirmDialogs.kt`（`ForgotChatLockConfirmDialog` / `ClearChatHistoryConfirmDialog` /
+`LiveLocationDurationDialog` / `SecretChatConfirmDialog` / `GroupAnnouncementDialog` /
+`DeleteMessageConfirmDialog` / `EditMessageDialog` / `RevokeMessageConfirmDialog` /
+`RetryMessageDialog` / `GroupCallTypeDialog`）。
+
+**期间确认的三条通用教训**：(1) 块的收尾与下一块开头同行时，用「替换内容」而非「搬走整块」；
+(2) 纯 UI 抽取必须当轮跑 E2E，app JVM 对 Compose 零覆盖；(3) 同名成员多处存在时，
+批量替换与负控制都要先把作用域切到单个函数体。

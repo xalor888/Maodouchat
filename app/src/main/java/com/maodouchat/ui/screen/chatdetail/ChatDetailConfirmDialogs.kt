@@ -1,6 +1,14 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -348,6 +356,71 @@ internal fun RetryMessageDialog(
         dismissButton = {
             TextButton(onClick = onDelete) {
                 Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed)
+            }
+        }
+    )
+}
+
+/**
+ * 「群通话类型选择」弹窗（G162b 从 ChatDetailRoute 抽出，71 行）。
+ *
+ * 群通话有 mesh 人数上限：候选人数超出上限时**不能直接起通话**，必须先选人
+ * （见 `ChatDetailGroupCallMemberDialog`）。所以这里根据 [candidateCount] 算出
+ * [needsMemberPick]，并在两种模式下给同一个按钮挂不同的动作——
+ * 动作本身（起通话 or 打开选人）留在调用方的 [onPick] 里。
+ */
+@Composable
+internal fun GroupCallTypeDialog(
+    visible: Boolean,
+    candidateCount: Int,
+    onPick: (com.maodouchat.webrtc.CallType) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    val needsMemberPick = candidateCount > com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_group_call)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(
+                        R.string.call_group_mesh_limit,
+                        com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalChatPalette.current.textSecondary
+                )
+                if (needsMemberPick) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.call_select_members_needed_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LocalChatPalette.current.textHint
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = { onPick(com.maodouchat.webrtc.CallType.AUDIO) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Outlined.Call, contentDescription = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(R.string.chat_voice_call), modifier = Modifier.weight(1f))
+                }
+                TextButton(
+                    onClick = { onPick(com.maodouchat.webrtc.CallType.VIDEO) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Outlined.Videocam, contentDescription = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(R.string.chat_video_call), modifier = Modifier.weight(1f))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )
