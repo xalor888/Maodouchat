@@ -8092,3 +8092,31 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   app JVM 单测 **1916 例不变**。
 - **实跑验证**：两条负控制均按预期红并恢复；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1916 例）**。
+
+### G165b — ChatDetailConfirmDialogs.kt 改名 ChatDetailDialogs.kt（我又把 G188 修掉的 味道重新造出来了）
+- **做了什么**：`git mv` 改名 + 重写文件头 KDoc，把**两次改名的沿革**都写进去。
+  引用点全在 `ChatDetailRoute.kt` 且同包，**无 import 需改**——成本近零。
+- **病的复发过程（值得完整记下来）**：
+  - G185 建文件时叫 `ChatDetailChatLockDialogs`——只涵盖「聊天锁」一类；
+  - G187 发现名不副实，G188 改名 `ChatDetailConfirmDialogs`，
+    理由是当时三个框的共性是「破坏性操作前的二次确认」，**当时确实名副其实**；
+  - 但之后 G186/G187/G189/G190/G159b/G160b/G161b/G162b 八轮又往里放了
+    `LiveLocationDurationDialog`（时长选择器）、`GroupAnnouncementDialog`（公告信息展示）、
+    `EditMessageDialog`（表单）、`RetryMessageDialog`（重发/删除动作）、
+    `GroupCallTypeDialog`（类型选择）——现在 **10 个 composable 里只有 5 个是 Confirm**；
+  - G165b 改成不带主题的 `ChatDetailDialogs`。
+- **为什么这次不按「共性」再命名**：前两次都是按当时成员的共性取名，
+  而**共性会随成员增加而失效**。这次改成「目录下的其余对话框收纳处」，
+  与 `ChatDetailAiDialogs` / `ChatDetailTextInputDialogs` / `ChatDetailChatSettingsDialogs`
+  这些**按专题分开**的文件并列——专题文件各管一类，杂项文件不承诺任何主题。
+  将来某个专题长大到值得独立，把它迁走即可，不需要再改杂项文件的名字。
+  **教训（第六十三沉淀）：按「当前成员的共性」给集合命名，等于给名字设了保质期。
+     要么按**结构位置**命名（如「其余」），要么接受它迟早要再改一次。
+     我在同一个文件上连做两次改名，都是同一个原因。**
+- **验证（改名类任务，沿用 G188 的做法）**：
+  - `git diff --cached -M --summary` → `rename ... (94%)`，改动只有 KDoc 的 12 增 4 删；
+  - `git log --oneline --follow` 从本次改名一路追溯到 G185 至今每一次改动，**历史没断**；
+  - 编译通过、无未用 import；
+  - **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1916 例，用例数不变）**。
+- **没有逻辑负控制**：改名不动逻辑，没有「会红的东西」。能证明的是
+  「除了名字和 KDoc，别的一个字节没动」——用 rename 相似度 + diff 行数证明（同 G188）。
