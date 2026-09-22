@@ -8695,3 +8695,44 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实跑验证**：四套命令均本轮执行；同步后 `DirectionDocFreshnessTest` 复跑转绿、
   app JVM 全量 1929 例 0 失败。
 - **instrumented 侧**（不计入上表，另测于 G179b）：完整套件 96 例 / 69 过 / 27 跳 / 0 失败。
+
+### G181b — Robolectric 其实可用：那条「受限网络」的判断已经过期（+1 例）
+
+- **背景**：`app/build.gradle.kts` 里原本写着
+  「Robolectric 需要从互联网下载 Android SDK 镜像；在受限网络环境下无法运行」，
+  于是本项目**所有 Compose UI 覆盖都只能走 instrumented**（G173b–G178b 的 18 条全在模拟器上跑），
+  而 G178b 更据此断言「新设备风控那一对 dialog 无法覆盖，除非上 Robolectric 或建 UI 级 E2E」。
+- **本轮实测推翻了这个前提**：
+  `repo1.maven.org` 上 `robolectric-4.11.1.pom` 与
+  `android-all-15-robolectric-12650502.jar` **都是 HTTP 200**；
+  而且 G173b 刚从同一个仓库拉过 `compose ui-test-junit4`——网络一直是通的。
+- **做了什么**：
+  1. 取消注释那两行依赖，并补 JVM 侧的 `compose-bom` / `ui-test-junit4` / `androidx.test.ext:junit`
+     （此前这三件只有 `androidTest` 有，所以 JVM 源码集编不过）；
+  2. `testOptions { unitTests.isIncludeAndroidResources = true }`（Robolectric 要读资源）——
+     第一次误放进了 `dependencies {}`，报 `Unresolved reference: testOptions`，
+     移进 `android {}` 才对；
+  3. 新建 `RobolectricSmokeTest`：`createComposeRule` + 渲染 `SecretChatConfirmDialog`
+     + 断言标题在（文案经 `InstrumentationRegistry.getInstrumentation().targetContext` 取）。
+- **实跑结果**：`./gradlew :app:testDebugUnitTest --tests '*RobolectricSmokeTest'`
+  → BUILD SUCCESSFUL；设备 XML `tests="1" skipped="0" failures="0" errors="0"`，
+  `time="26.397"`——**26 秒正是 Robolectric 启动 Android 环境的时间**（纯 JVM 用例是毫秒级），
+  所以它确实跑在 Robolectric 上，不是被静默跳过。
+- **负控制**：把标题断言改成「标题 + NC-canary」→ `secretChatConfirmRendersUnderRobolectric`
+  **FAILED**。恢复后转绿。
+- **最重要的验证：开 Robolectric 没有碰坏现有 1929 例**。
+  全量 `:app:testDebugUnitTest --rerun-tasks` → `1930 tests completed, 1 failed`，
+  唯一失败是 `DirectionDocFreshnessTest > client test file count matches the table`
+  （我新增了一个测试文件，门禁按设计报警）；同步 DIRECTION.md 后该条转绿。
+  **即：1929 条既有用例全部照过。**
+- **两次自己的小错**：`testOptions` 放错块；`compose.activity` 不存在
+  （`ComposeTestRule` 没这个属性，改用 `InstrumentationRegistry` 的 targetContext）。
+- **实测结果**：app JVM 单测 **1929 → 1930 例**（+1 条 Robolectric 冒烟）；
+  `app/build.gradle.kts` +6 行。
+- **意义**：**「Compose UI 也能在 JVM 上跑」这条能力成立了**。
+  G178b 记的「新设备风控那一对 dialog 无法覆盖」现在有第二条路——不必等模拟器，
+  也不必先建 UI 级 E2E harness。另外 18 条 instrumented UI 用例将来也可以考虑搬到 JVM
+  （跑得快得多），但那是另一件事，本轮不动。
+- **教训（第七十三沉淀）：「网络受限所以 X 不可用」这类判断会过期，而且过期很久没人复查。
+     它是 build 文件里的一条注释，没有测试盯着它。这次是一条 `curl -I` 就推翻的。
+     下次再看到「因为环境所以不做」，先花两分钟验证那个「因为」还在不在。**

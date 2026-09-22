@@ -94,6 +94,9 @@ android {
         }
     }
 
+    // G181b：Robolectric 需要访问资源（stringResource 等），否则起不来
+    testOptions { unitTests.isIncludeAndroidResources = true }
+
     buildTypes {
         debug {
             // 调试变体放开 x86_64：CI 的 Linux runner 是 x86_64，跑 connectedDebugAndroidTest
@@ -374,8 +377,14 @@ dependencies {
     androidTestImplementation("androidx.room:room-testing:2.8.4")
     // G33：用 TestListenableWorkerBuilder 驱动**生产** ScheduledMessageWorker（定时路径的终态守卫）
     androidTestImplementation("androidx.work:work-testing:2.9.1")
-    // Robolectric 需要从互联网下载 Android SDK 镜像；在受限网络环境下无法运行。
-    // 需要接入内网 mirror 后取消注释以下两行即可启用：
-    // testImplementation("org.robolectric:robolectric:4.11.1")
-    // testImplementation("androidx.test:core-ktx:1.5.0")
+    // G181b：原注释说「受限网络下 Robolectric 无法运行」。本轮实测
+    // repo1.maven.org 上 robolectric-4.11.1.pom 与 android-all-15-*.jar 都是 HTTP 200，
+    // 且 G173b 刚从同一仓库拉过 compose ui-test-junit4——所以重新启用并验证。
+    // 若日后真的遇到网络问题，把这两行连同 testOptions 一起注掉即可恢复原状。
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    testImplementation("androidx.test:core-ktx:1.5.0")
+    // G181b：Compose UI 测试跑在 JVM 上需要的两件（此前只有 androidTest 有）
+    testImplementation(platform("androidx.compose:compose-bom:2026.05.00"))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.test.ext:junit:1.2.1")
 }
