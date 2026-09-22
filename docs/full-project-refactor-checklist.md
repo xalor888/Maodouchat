@@ -8990,3 +8990,23 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实跑结果**：第一次跑到第 4 步因上述 bug 中止（前 3 步都真跑了：
   app JVM 2m13s BUILD SUCCESSFUL、server 9m36s BUILD SUCCESSFUL、台账已追加）。
   修完退出码后 `--write` 返回 0、`--check` 返回 0，DIRECTION.md 字节数 811,100 → 812,562。
+
+### G190b — 给 finish-round.sh 补 --skip-test 与空提交保护，并端到端验证（app 1959 不变）
+
+- **背景**：G189b 的脚本第一次实跑卡在第 4 步（退出码 bug），
+  所以第 5、6 步（复核门禁 + 提交）**从未真正执行过**——工具没跑完，不能算验证过。
+- **做了什么**：
+  1. `--skip-tests`：调用方刚跑完全量时不必再等 12 分钟；
+  2. 空提交保护：`git status --porcelain` 为空时跳过提交而非报错；
+  3. 本轮用它收尾——第一次完整走到第 6 步并提交成功。
+- **四次自己的错，都在验证时抓到**：
+  1. 插入 `--skip-tests` 时代码块被后续一次替换吃掉，`SKIP_TESTS` 未定义，
+     `set -u` 直接 `unbound variable`；
+  2. 修的时候又留了一份重复定义（两个 `SKIP_TESTS=0`）；
+  3. `set -- "${@/--skip-tests}"` 把提交信息里的 flag 一起删了
+     （提交信息变成「加  与空提交保护」）——只该从信息里剔除，不该动信息本身；
+  4. `--skip-tests` 在 XML 是**上一次过滤跑**的残留时会被合理性守卫拒绝——
+     这是**正确行为**（不拿不完整快照当真相，G188b 的教训），
+     已写进用法注释：`--skip-tests` 只适用于紧接着全量跑过的场景。
+- **实测结果**：`bash -n` 通过；完整跑到第 6 步，门禁 BUILD SUCCESSFUL、
+  提交成功、末行打印剩余未推送提交数。

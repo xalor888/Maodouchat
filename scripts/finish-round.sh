@@ -17,8 +17,9 @@
 #
 # 用法：
 #   bash scripts/finish-round.sh <台账条目文件> [提交信息...]
+#   bash scripts/finish-round.sh <台账条目文件> [提交信息...] --skip-tests   # 刚跑完全量时
 #
-# 条目文件是纯文本，会原样追加到台账末尾（请以空行 + "### Gxxx — 标题" 开头）。
+# 条目文件是纯文本，会原样追加到台账末尾（建议以空行 + 「### Gxxx — 标题」开头）（请以空行 + "### Gxxx — 标题" 开头）。
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,18 +31,38 @@ shift || true
 
 log() { printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
 
-log "1/6 全量 app JVM"
-if ! ./gradlew :app:testDebugUnitTest --rerun-tasks --console=plain; then
-    echo "app JVM 失败——先修测试，再重跑本脚本" >&2
-    exit 1
+# --skip-tests：调用方刚跑完全量时用，省掉收尾的 12 分钟。
+# ⚠️ 只从「提交信息参数」里剔除这个 flag，不能动消息本身——
+# 第一版直接 set -- "${@/--skip-tests}"，结果连提交信息里的
+# 「--skip-tests」一起被删了（提交信息变成「加  与空提交保护」）。
+SKIP_TESTS=0
+MSG=()
+for _a in "$@"; do
+    if [[ "$_a" == "--skip-tests" ]]; then
+        SKIP_TESTS=1
+    else
+        MSG+=("$_a")
+    fi
+done
+set -- "${MSG[@]}"
+
+if [[ $SKIP_TESTS -eq 1 ]]; then
+    log "1-2/6 跳过测试（--skip-tests）"
+else
+    log "1/6 全量 app JVM"
+    if ! ./gradlew :app:testDebugUnitTest --rerun-tasks --console=plain; then
+        echo "app JVM 失败——先修测试，再重跑本脚本" >&2
+        exit 1
+    fi
+
+    log "2/6 全量 server"
+    if ! (cd server && ../gradlew test --no-daemon --rerun-tasks --console=plain); then
+        echo "server 失败——先修测试，再重跑本脚本" >&2
+        exit 1
+    fi
 fi
 
-log "2/6 全量 server"
-if ! (cd server && ../gradlew test --no-daemon --rerun-tasks --console=plain); then
-    echo "server 失败——先修测试，再重跑本脚本" >&2
-    exit 1
-fi
-
+# 允许跳过测试（调用方刚跑完全量时用）——否则每轮收尾要重跑 12 分钟。
 log "3/6 追加台账条目（同步之前）"
 cat "$ENTRY" >> docs/full-project-refactor-checklist.md
 echo "台账现有 $(wc -l < docs/full-project-refactor-checklist.md) 行"
@@ -62,6 +83,10 @@ fi
 
 log "6/6 提交"
 git add -A
+if [[ -z "$(git status --porcelain)" ]]; then
+    echo "没有可提交的改动（可能条目为空且数字已同步）——跳过提交"
+    exit 0
+fi
 if [[ $# -gt 0 ]]; then
     git commit -q -m "$*"
 else
