@@ -62,7 +62,8 @@ class ServerArchitectureTest {
         "BotPresentationWidgetsRouting.kt",
         "BotReactionRouting.kt",
         "Routing.kt",
-        "StatusPages.kt",
+        // G218b：StatusPages.kt 移出基线——它只是在 catch 里用了全限定名做错误映射，
+        // 没有 import Exposed，不该算「写 SQL 的 route 文件」。
     )
 
     /**
@@ -212,7 +213,13 @@ class ServerArchitectureTest {
     @Test
     fun `plugins must not gain new files that touch Exposed`() {
         val actual = filesUnder("plugins")
-            .filter { it.codeText().contains("org.jetbrains.exposed") }
+            // G218b：判据从「代码文本里出现过 org.jetbrains.exposed」收紧成
+            // 「真的有 import 行」。原判据把 StatusPages.kt 也算进来了——
+            // 它只是在 catch 里写了个全限定名 `org.jetbrains.exposed.exceptions.ExposedSQLException`
+            // 做错误映射，那不算「自己写 SQL」。
+            // 原判据的害处是双向的：既让基线多一项（虚高），
+            // 又让「往 StatusPages.kt 里加一条真 import」不被发现（余量）。
+            .filter { EXPOSED_IMPORT.containsMatchIn(it.codeText()) }
             .map { it.name }
             .toSet()
 
@@ -412,7 +419,7 @@ class ServerArchitectureTest {
         /** G217b：与 `grep -o 'com\.maodouchat\.server\.db'` 等价（按引用处计数）。 */
         val DB_PACKAGE_REFERENCE = Regex("""com\.maodouchat\.server\.db""")
 
-        /** G217b：Exposed 的 import 行（`import org.jetbrains.exposed...`）。 */
+        /** G217b：Exposed 的 import 行（`import org.jetbrains.exposed...`）。G218b 起也用于 plugins 判据。 */
         val EXPOSED_IMPORT = Regex("""^import\s+org\.jetbrains\.exposed""", RegexOption.MULTILINE)
 
         /**

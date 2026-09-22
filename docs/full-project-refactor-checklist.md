@@ -9738,3 +9738,27 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      而后者看起来像个好消息。**
 - **实测结果**：server **466 → 467 例**（`ServerArchitectureTest` 8 例，0 失败）；
   app JVM 2042 例不变；生产代码无净改动（仅 NC 临时新增、已还原）。
+
+### G218b — plugins 的 Exposed 判据用「文本出现过」而非「真 import」，制造了余量（server 467 → 468）
+
+- **发现**：这条线上每一站都是「门禁只覆盖一半」，这一站的形态反过来——
+  **判据太宽，于是有了余量**。
+  `plugins must not gain new files that touch Exposed` 用的是
+  `.contains("org.jetbrains.exposed")`（对剥注释后的全文）。
+  实测 plugins/ 下 18 个文件命中，但其中 **`StatusPages.kt` 根本没有 import Exposed**——
+  它只是在 `catch` 里写了个全限定名 `org.jetbrains.exposed.exceptions.ExposedSQLException`
+  做错误映射。那不算「自己写 SQL」。
+- **这个过宽判据的害处是双向的**：
+  1. **基线虚高**（18 项，实际只有 17 个真写 SQL 的文件）；
+  2. **有 1 项余量**——往 `StatusPages.kt` 里加一条真 `import org.jetbrains.exposed.sql...`
+     集合不变化 → **门禁不红**。也就是说这条规则恰好对它最该防的那个文件失明。
+- **做了什么**：判据收紧成 **import 行**（复用 G217b 加的 `EXPOSED_IMPORT` 正则），
+  基线同步去掉 `StatusPages.kt`（18 → 17），并在代码注释里写明它为什么被移出。
+- **负控制**：往 `StatusPages.kt` 加一条真 Exposed import → 该用例 **FAILED**。
+  **这条正是旧判据抓不到的情形**（它本来就在集合里）。还原（`diff` 一致）后转绿。
+- **实测结果**：server **467 → 468 例**（`ServerArchitectureTest` 仍 8 例——本轮是
+  收紧判据、不加用例；新增的承载在既有用例里）。0 失败。
+  app JVM 2042 例不变；生产代码无净改动（NC 临时新增已还原）。
+- **为什么值得单独一轮**：G214b 是「上限有 1 行余量」，G216b 是「只扫一半声明」，
+  这一站是「判据把非违规算成违规，于是真违规有了藏身处」。
+  **三种余量形态不同，但后果一样：门禁看起来在工作，实际上有一块地方它看不见。**
