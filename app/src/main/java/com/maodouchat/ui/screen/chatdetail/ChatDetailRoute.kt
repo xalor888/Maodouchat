@@ -3411,40 +3411,16 @@ if (showGroupCallTypeDialog) {
         )
     }
 
-    messageToEdit?.let { msg ->
-        AlertDialog(
-            onDismissRequest = { messageToEdit = null },
-            title = { Text(stringResource(R.string.chat_edit_message)) },
-            text = {
-                TextField(
-                    value = editDraft,
-                    onValueChange = { editDraft = it.take(2000) },
-                    minLines = 2,
-                    maxLines = 5,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        focusedIndicatorColor = Primary,
-                        unfocusedIndicatorColor = Outline,
-                        cursorColor = Primary,
-                        focusedTextColor = OnSurface,
-                        unfocusedTextColor = OnSurface
-                    )
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = editDraft.trim().isNotBlank(),
-                    onClick = {
-                        viewModel.editTextMessage(msg.id, editDraft)
-                        messageToEdit = null
-                    }
-                ) { Text(stringResource(R.string.common_save)) }
-            },
-            dismissButton = { TextButton(onClick = { messageToEdit = null }) { Text(stringResource(R.string.common_cancel)) } }
-        )
-    }
+    EditMessageDialog(
+        visible = messageToEdit != null,
+        draft = editDraft,
+        onDraftChange = { editDraft = it.take(2000) },
+        onSave = {
+            messageToEdit?.let { viewModel.editTextMessage(it.id, editDraft) }
+            messageToEdit = null
+        },
+        onDismiss = { messageToEdit = null },
+    )
 
     // 转发目标选择弹窗
     // G75：转发目标选择弹窗（235 行）抽到 ChatDetailForwardPicker.kt，纯搬移不改判断。

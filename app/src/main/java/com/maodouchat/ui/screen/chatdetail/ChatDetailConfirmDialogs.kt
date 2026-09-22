@@ -10,6 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import com.maodouchat.ui.theme.OnSurface
+import com.maodouchat.ui.theme.Outline
+import com.maodouchat.ui.theme.Primary
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
@@ -237,5 +242,53 @@ internal fun DeleteMessageConfirmDialog(
                 }
             }
         }
+    )
+}
+
+/**
+ * 「编辑消息」弹窗（G160b 从 ChatDetailRoute 抽出，34 行）。
+ *
+ * 草稿状态（[draft] / [onDraftChange]）**由调用方持有**——`editDraft` 是
+ * `by remember` 的委托状态，TextField 的 value/onValueChange 留在路由更自然
+ * （编辑入口在长按菜单里，`messageToCopy` 的 onEdit 就是写它的地方）。
+ * 上限 2000 字符的截断也在调用方，这里只管渲染与「空草稿不能保存」。
+ */
+@Composable
+internal fun EditMessageDialog(
+    visible: Boolean,
+    draft: String,
+    onDraftChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_edit_message)) },
+        text = {
+            TextField(
+                value = draft,
+                onValueChange = onDraftChange,
+                minLines = 2,
+                maxLines = 5,
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = LocalChatPalette.current.chatInputBackground,
+                    unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
+                    focusedIndicatorColor = Primary,
+                    unfocusedIndicatorColor = Outline,
+                    cursorColor = Primary,
+                    focusedTextColor = OnSurface,
+                    unfocusedTextColor = OnSurface
+                )
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = draft.trim().isNotBlank(),
+                onClick = onSave
+            ) { Text(stringResource(R.string.common_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } }
     )
 }

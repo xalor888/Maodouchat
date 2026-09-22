@@ -7907,3 +7907,30 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：`git diff` 显示 **36 删 22 增**；无未用 import；硬自检通过；
   负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1916 例）**；
   E2E 27 / 0 / 0。
+
+### G160b — 抽出 EditMessageDialog（3525 → 3501）
+- **做了什么**：把内联的「编辑消息」弹窗（34 行）抽成
+  `@Composable internal fun EditMessageDialog(visible, draft, onDraftChange, onSave, onDismiss)`
+  （追加到 `ChatDetailConfirmDialogs.kt`）；原位置换成 10 行调用。
+  冻结上限 **3525 → 3501**（两处 mapOf）。
+- **刻意的设计**：草稿状态（`draft` / `onDraftChange`）**由调用方持有**，
+  不抽成 composable 内部的 `remember`。理由：`editDraft` 是路由的 `by remember` 状态，
+  而**写它的入口在别处**——`messageToCopy` 弹窗的 `onEdit` 回调就是
+  `editDraft = msg.parsedContent()`。若把状态关进 dialog，长按菜单那条路径就摸不到它了。
+  2000 字符截断也留在调用方（`editDraft = it.take(2000)`），dialog 只管渲染与
+  「空草稿不能保存」。
+  **教训（第五十八次沉淀）：抽 composable 时不只要问「这段 UI 自不自足」，
+     还要问「**这段 UI 依赖的状态，还有没有别的写入方**」。有的话状态必须留在外层，
+     否则你只是把耦合从「看得见」搬到「看不见」。**
+- **硬自检**：体恰好 34 行、首行 `    messageToEdit?.let { msg ->`、末行 `    }`、括号差 0。
+- **按 G192 教训当轮跑 E2E**：纯 UI 抽取。`scripts/two-device-http-e2e.sh` → **27 / 0 / 0**。
+- **负控制（按函数体切片）**：把 TextField 的 `onValueChange = onDraftChange` 改成
+  `onValueChange = { }` → `EditMessageDialog` 函数体内 `onDraftChange` 出现次数
+  **2 → 1**，恢复后回到 2。
+  **这个 NC 特殊在有价值**：`onDraftChange` 失控意味着**用户改不了草稿**，
+  而编译照样过、app JVM 照样绿——只有它能证明那条线还通着。
+- **实测结果**：`ChatDetailRoute.kt` 3525 → **3501** 行；
+  `ChatDetailConfirmDialogs.kt` 226 → 270 行；app JVM 单测 **1916 例不变**；E2E **27 / 0**。
+- **实跑验证**：`git diff` 显示 **34 删 10 增**；无未用 import；硬自检通过；
+  负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1916 例）**；
+  E2E 27 / 0 / 0。
