@@ -8019,3 +8019,44 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 **期间确认的三条通用教训**：(1) 块的收尾与下一块开头同行时，用「替换内容」而非「搬走整块」；
 (2) 纯 UI 抽取必须当轮跑 E2E，app JVM 对 Compose 零覆盖；(3) 同名成员多处存在时，
 批量替换与负控制都要先把作用域切到单个函数体。
+
+### G163b — 补掉行数门禁的 1000–1100 盲带（+5 条上限，阈值降到 1000）
+- **动机（G162b 的收尾观察）**：G162b 之后我说「`ChatDetailConfirmDialogs.kt` 已 410 行、
+  逼近 1100 在监线，该有人盯着它别长成新热点」。顺着这句话一查，发现**问题比那严重**：
+  G172 的覆盖性门禁阈值是「**超过 1100 行**」，而实测有 **5 个文件卡在 1000–1100 之间、
+  完全不在监管名单里**：
+  | 行数 | 文件 |
+  |---|---|
+  | 1088 | `ui/component/TextMessageBubble.kt` |
+  | 1067 | `ui/screen/chatdetail/MediaCenterScreen.kt` |
+  | 1039 | `ui/screen/explore/ExploreOrchestrator.kt` |
+  | 1032 | `ui/screen/chatdetail/GroupDetailViewModel.kt` |
+  | 1010 | `ui/screen/chatlist/GlobalSearchScreen.kt` |
+  它们可以在无人知晓的情况下从 1000 长到 1100——**只有越过 1100 才会被 G172 抓住**，
+  那已经太晚（届时文件已经烂了）。
+  这正是 G126 那条教训的翻版：「拆完不纳管，等于给新热点留了门」。
+- **做了什么**：
+  1. 把 `frozenHotspotLineCaps` 的 5 个新文件按**当前实测值**冻结（只许降不许升）；
+  2. 把覆盖性门禁的阈值从 `> 1100` 改成 `> 1000`（测试名也随之从
+     `every app source file above 1100 lines...` 改成 `above 1000`）；
+  3. 同步两份 mapOf（见下）。
+- **又一次撞上「两份 mapOf」，而且第二份藏得更深**：
+  `hotspot line caps only ever shrink` 里有一份**内联在测试方法里的**
+  `val currentCaps = mapOf(...)`。它既不是 `private val` 也不在文件头，
+  我先前几次都是按 `private val X: Map<String, Int> = mapOf(` 去找的——
+  所以这次只改了 `frozenHotspotLineCaps`，一跑就红。
+  **教训（第六十一次沉淀）：这个文件里 ligger 有**三份**行数相关的 mapOf：
+     `frozenHotspotLineCaps`（私有属性）、`currentCaps`（内联在测试方法里）、
+     以及 G156b 加的两份持久化基线。改任何一份都要 `grep -c` 确认总数。
+     再下次先 `grep -n 'mapOf(' 文件` 看清楚有几份、各叫什么。**
+- **负控制**：往 `TextMessageBubble.kt` 加 5 行注释 → `client hotspot files may not grow`
+  **红**。恢复后转绿。
+  **这条 NC 同时证明了新纳入的 5 个文件是真的在管**——不是只写进了表里没人看。
+- **实测结果**：门禁覆盖文件数 **13 → 18**；监控阈值 **1100 → 1000**；
+  app JVM 单测 **1916 例不变**；`ClientArchitectureTest` 16 → 17 条用例
+  （其中 1 条是改名，净增 0；实际用例数不变是因为把 1100 那条改了名而不是新增）。
+- **实跑验证**：`ClientArchitectureTest` 单跑 BUILD SUCCESSFUL（17 条）；
+  负控制红并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1916 例）**。
+- **没做的事**：`MarkdownParser.kt`(971) 与 `WebSocketClient.kt`(974) 差一点到 1000，
+  按阈值定义不纳入。它们离门槛只差 26–29 行，下一轮该考虑把阈值再降到 950，
+  或者等它们自然长过 1000 时自动被抓住（后者就是当前设计）。

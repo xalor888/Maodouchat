@@ -125,8 +125,14 @@ class ClientArchitectureTest {
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
         // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
-        // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
-        // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
+        // G163b：监控阈值从 1100 降到 1000。这 5 个文件此前卡在 1000–1100 的
+        // **盲带**里——可以在无人知晓的情况下从 1000 长到 1100，只有越过 1100
+        // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
+        "com/maodouchat/ui/component/TextMessageBubble.kt" to 1088,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1067,
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1039,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 1032,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 1010,
     )
 
     @Test
@@ -164,30 +170,34 @@ class ClientArchitectureTest {
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
         // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
-        // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
-        // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
+        // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
+        "com/maodouchat/ui/component/TextMessageBubble.kt" to 1088,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1067,
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1039,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 1032,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 1010,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
 
     /**
-     * G172：**覆盖性**检查——app 内任何超过 1100 行的源文件都必须已被纳入
+     * G172/G163b：**覆盖性**检查——app 内任何超过 1000 行的源文件都必须已被纳入
      * `frozenHotspotLineCaps`。
      *
-     * 在这条测试存在之前，「1100+ 行全部在监」只是一句注释：
+     * 在这条测试存在之前，「大文件全部在监」只是一句注释（G172 定 1100，G163b 下探到 1000）：
      * 新增一个大文件时没人会想起来把它加进上限表，于是它既不受行数门禁管，
      * 也不会在任何地方报出来。这条测试把那句话变成可执行断言。
      */
     @Test
-    fun `every app source file above 1100 lines is under a frozen cap`() {
+    fun `every app source file above 1000 lines is under a frozen cap`() {
         val unmonitored = ktFilesUnder(appMain)
-            .filter { it.readLines().size > 1100 }
+            .filter { it.readLines().size > 1000 }
             .map { it.relativeTo(appMain).path.replace('\\', '/') }
             .filterNot { it in frozenHotspotLineCaps }
         assertEquals(
             emptyList<String>(),
             unmonitored,
-            "这些源文件超过 1100 行却没有纳管——先拆，或至少加进行数上限表",
+            "这些源文件超过 1000 行却没有纳管——先拆，或至少加进行数上限表",
         )
     }
 
