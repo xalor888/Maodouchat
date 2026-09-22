@@ -7663,3 +7663,36 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   `WebRTCManager.kt`(1431) 一样，是**成员式大类**。对它们，
   「抽声明到新文件」这条路走不通；要做只能走「抽成员到新 class 再委托」的大改
   （`attachmentIntentController` 已经是这个模式的成功先例）。
+
+### G154c — 收敛 rpsChoices 与可见性白名单两处重复（1906 例不变）
+- **动机**：G153b 后按自己倾向的「先做便宜的」继续扫字面量集合重复，
+  本轮扫出两组：
+  1. `listOf("rock", "paper", "scissors")` ×2——
+     `util/GroupPlayData.kt:7` 的顶层 `internal val rpsChoices`
+     与 `group/play/GroupPkPolicy.kt:17` 的**成员** `val rpsChoices`
+     （后者还用它做 `rollRps` / `formatRps` 的合法性判定）；
+  2. `setOf("PUBLIC","CONTACTS","PRIVATE")` ×2——
+     `SettingsVisibilityPolicy.VISIBILITY_VALUES`（G179 建的 canonical）
+     与 `AgentToolHost.kt:743` 的内联校验集合。
+- **做了什么**：
+  1. 删掉 `GroupPkPolicy` 的成员副本，改为 `import com.maodouchat.util.rpsChoices`；
+  2. `AgentToolHost` 的可见性校验改为 `VISIBILITY_VALUES.contains(it)`；
+  3. **刻意不动** `AgentToolPolicy.kt:403` 的 `enumValues = listOf("PUBLIC","CONTACTS","PRIVATE")`——
+     那是给 LLM 的工具 schema 声明、**顺序有语义**（描述文本与之对应），
+     把它换成 Set 引用会改变 LLM 看到的顺序。
+- **一次路径猜错**：我先按 `ui/screen/chatdetail/group/GroupPkPolicy.kt` 找文件，
+  实际在 `group/play/GroupPkPolicy.kt`；`open().read()` 直接抛异常，
+  **两处改动一处都没落盘**（git status 干净）。用 `find` 查到真实路径后重做。
+  **教训（第四十八次沉淀）：编辑前先 `find -name` 确认路径，别靠印象——
+     好在 `open()` 抛异常让脚本整体中止，没有造成「改了一半」的中间态。**
+- **一次漏 import**：删掉成员副本后类内 `rpsChoices` 引用失效（2 个
+  `Unresolved reference`），补 `import com.maodouchat.util.rpsChoices` 后通过。
+- **两次负控制，都按预期红**：
+  1. 给 `VISIBILITY_VALUES` 加 `"FRIENDS"` → `the recognised set is exactly the three protocol values` 红；
+  2. 从 `GroupPlayData.rpsChoices` 去掉 `"scissors"` → `GroupPlayPolicyTest.rps round trips choice` 红。
+  两次均已恢复并复跑转绿。
+- **实测结果**：`grep` 确认两处重复集合**归零**（只剩 canonical 定义）；
+  app JVM 单测 **1906 例不变**（纯收敛）。
+- **实跑验证**：2 个文件改动共 6 增 2 删；编译通过、无未用 import；
+  两次负控制均红；恢复后**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL，
+    343 套件 / 1906 tests / 0 failures / 0 errors / 0 skipped**。
