@@ -9979,3 +9979,35 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：本轮**零代码改动**；
   assembleDebug / assembleRelease+verifyReleaseSize 均 BUILD SUCCESSFUL；
   基线兜底经「挪走→FAILED / 放回→SUCCESSFUL」双向验证。
+
+### G225b — 预检收尾：PG 恢复演练 + 三套浏览器 E2E 全绿，CI 全步骤已在本地过完
+
+- **动机**：G223b/G224b 把 android job 预检完了，还剩 server job 里两个我从没跑过的步骤。
+  这是「推送前预检」这条线的最后一站。
+- **两个步骤，均通过**：
+  1. `bash scripts/rehearse-pg-restore.sh` → **EXIT=0**，结尾自己报
+     「演练通过：备份可恢复、内容与行数一致、坏备份会被拒绝」，
+     且**含三条负面用例**（截断的 dump 被拒 / 内容损坏的 dump 被整档读拒 /
+     恢复到不存在的库被拒）——都是 PASS，不是空过。
+  2. 浏览器 E2E 三套（起真服务端 + playwright-core + 系统 Chrome）：
+     - `npm run test:admin-e2e` → **exit 0**，`Admin browser E2E passed`，
+       并落一张 57KB 截图到 `build/reports/admin-e2e.png`；
+     - `npm run test:website` → **exit 0**，`e2e OK: 10 page/viewport checks, 5 static routes`；
+     - `npm run test:developer-e2e` → **exit 0**，
+       `e2e OK: REST flow (login/create/rotate/me/409/401) + UI login + bot listing`。
+     每套都打印了**具体断言数量/路径**，不是「跑过了」三个字。
+- **两次自己的脚本错，都在本地现形**：
+  1. 第一次把服务端放在 `sleep 5` 的后台作业里，shell 一退服务端就被杀，
+     health 永远 000——误判过一次「服务端起不来」；
+  2. 第二次照抄 CI 的 `setsid bash -c ...`，**macOS 没有 `setsid`**
+     （`setsid: command not found`），服务端根本没起。
+     改成普通后台 + `trap` 清理即可。
+     **这两次都是「CI 的脚本不能照抄到别的平台」——CI 跑在 Linux runner 上。**
+- **至此，CI 的全部步骤都已在本地预检通过**：
+  server job（compileKotlin/test/postgresIntegrationTest/pg-restore 演练/
+  三套浏览器 E2E）+ android job（G223b/G224b）+ instrumented job（G179b/G180b）。
+- **推送的结论不变：仍然不推。** 但现在的依据是完整的——
+  不是「可能有坑」，而是「CI 的每一步我都在这台机器上跑过并且是绿的，
+  只是推送这个动作我没有被要求过」。
+- **实测结果**：本轮**零代码改动**（纯预检）；
+  pg-restore EXIT=0；三套 E2E exit 0；18080 端口已释放、无残留服务端进程。
