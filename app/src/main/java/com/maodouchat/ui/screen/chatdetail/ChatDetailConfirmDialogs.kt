@@ -292,3 +292,63 @@ internal fun EditMessageDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } }
     )
 }
+
+/**
+ * 「撤回消息」确认框（G161b 从 ChatDetailRoute 抽出，16 行）。
+ *
+ * 只有发出 **5 分钟内**的消息能撤回，所以确认按钮上带剩余分钟数。
+ * 剩余分钟由 [sentAtMillis] 现算（向上取整，防显示 0 分钟）——原代码就在组合作用域里
+ * 调 `System.currentTimeMillis()`，搬进来行为不变。
+ */
+@Composable
+internal fun RevokeMessageConfirmDialog(
+    visible: Boolean,
+    sentAtMillis: Long,
+    onRevoke: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    // 1.152：撤回剩余分钟（向上取整，防显示 0 分钟）
+    val remainingMin = ((300_000L - (System.currentTimeMillis() - sentAtMillis)) / 60_000L).toInt() + 1
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_revoke_title)) },
+        text = { Text(stringResource(R.string.chat_revoke_message)) },
+        confirmButton = {
+            TextButton(onClick = onRevoke) {
+                Text(stringResource(R.string.chat_revoke_with_limit, remainingMin), color = LocalChatPalette.current.unreadRed)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } }
+    )
+}
+
+/**
+ * 「发送失败」弹窗（G161b 从 ChatDetailRoute 抽出，19 行）。
+ *
+ * ⚠️ 这个弹窗**没有「取消」按钮**：`dismissButton` 就是「删除」（红色，走粒子动画）。
+ * 原设计如此——用户看到发送失败时，除了重试就是删掉，留着没有意义。
+ * 抽取时**不要**自作聪明补一个取消按钮。
+ */
+@Composable
+internal fun RetryMessageDialog(
+    visible: Boolean,
+    onRetry: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.chat_send_failed)) },
+        text = { Text(stringResource(R.string.chat_send_failed_retry)) },
+        confirmButton = {
+            TextButton(onClick = onRetry) { Text(stringResource(R.string.chat_retry)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDelete) {
+                Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed)
+            }
+        }
+    )
+}

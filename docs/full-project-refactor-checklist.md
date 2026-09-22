@@ -7934,3 +7934,37 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
 - **实跑验证**：`git diff` 显示 **34 删 10 增**；无未用 import；硬自检通过；
   负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1916 例）**；
   E2E 27 / 0 / 0。
+
+### G161b — 抽出最后两个消息弹窗：RevokeMessageConfirmDialog + RetryMessageDialog（3501 → 3487）
+- **做了什么**（一次性抽两个，都是干净的 `messageToX?.let` 块、边界互不相干）：
+  1. `messageToRevoke`（16 行）→ `RevokeMessageConfirmDialog(visible, sentAtMillis, onRevoke, onDismiss)`；
+  2. `messageToRetry`（19 行）→ `RetryMessageDialog(visible, onRetry, onDelete, onDismiss)`。
+  均追加到 `ChatDetailConfirmDialogs.kt`。冻结上限 **3501 → 3487**（两处 mapOf）。
+- **「撤回剩余分钟」搬进了 composable**：那行
+  `((300_000L - (System.currentTimeMillis() - msg.timestamp)) / 60_000L).toInt() + 1`
+  是纯展示计算，且**原代码本来就在组合作用域里调 `System.currentTimeMillis()`**，
+  搬进去行为逐字不变。参数用 `sentAtMillis` 而不是 `messageId`——后者对这个对话框毫无用处。
+- **`RetryMessageDialog` 没有「取消」按钮**：它的 `dismissButton` **就是「删除」**
+  （红色，走粒子动画）。这是原设计——看到发送失败，除了重试就是删掉。
+  抽取时**没有**自作聪明补一个取消按钮，并在 KDoc 里用 ⚠️ 显式写明，
+  以防后来人「顺手修好」它。
+- **NC2 第一次没红，原因值得记**：`onDelete` 这个参数名在**同一个文件的两个 composable 里**
+  都存在（`DeleteMessageConfirmDialog` 与 `RetryMessageDialog`）。
+  我用整文件字符串替换去破坏，结果改到的是 `DeleteMessageConfirmDialog` 那一处——
+  `RetryMessageDialog` 的计数当然不变。
+  改成**先切出目标函数体、只在函数体内替换**后，计数 2 → 1，NC2 正常触发。
+  **教训（第五十九次沉淀）：当同一文件里有多个同名成员时，
+     「整文件 replace」会静默改错对象——和 G156b/G157b 的注释盲区是同一类病：
+     **作用域不明确**。做负控制（以及任何批量替换）都要先把作用域切到单个声明。**
+- **两条硬自检均通过**：(1) 16 行 / 首行 `    messageToRevoke?.let { msg ->` / 末行 `    }`；
+  (2) 19 行 / 首行 `    messageToRetry?.let { msg ->` / 末行 `    }`；括号差均 0。
+- **按 G192 教训当轮跑 E2E**：`scripts/two-device-http-e2e.sh` → **27 / 0 / 0**。
+- **两次负控制（均按函数体切片）**：NC1 把 `onRevoke` 从确认按钮拿掉 →
+  `RevokeMessageConfirmDialog` 内 **2 → 1**；NC2 把 `onDelete` 从 dismissButton 拿掉 →
+  `RetryMessageDialog` 内 **2 → 1**。均恢复。
+- **实测结果**：`ChatDetailRoute.kt` 3501 → **3487** 行；
+  **文件内联 `AlertDialog(` 从 5 个降到 1 个**（只剩 `showGroupCallTypeDialog` 那个）；
+  `ChatDetailConfirmDialogs.kt` 270 → 331 行；app JVM 单测 **1916 例不变**；E2E **27 / 0**。
+- **实跑验证**：`git diff --stat` + 两条硬自检；编译通过、无未用 import；
+  两次负控制触发并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1916 例）**；
+  E2E 27 / 0 / 0。

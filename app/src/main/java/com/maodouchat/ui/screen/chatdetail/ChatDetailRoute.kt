@@ -3344,22 +3344,15 @@ if (showGroupCallTypeDialog) {
     }
 
     // 长按撤回消息确认弹窗（带粒子动效）
-    messageToRevoke?.let { msg ->
-        // 1.152：撤回剩余分钟（向上取整，防显示 0 分钟）
-        val revokeConfirmRemainingMin = ((300_000L - (System.currentTimeMillis() - msg.timestamp)) / 60_000L).toInt() + 1
-        AlertDialog(
-            onDismissRequest = { messageToRevoke = null },
-            title = { Text(stringResource(R.string.chat_revoke_title)) },
-            text = { Text(stringResource(R.string.chat_revoke_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    startParticleEffect(msg, ParticleAction.REVOKE)
-                    messageToRevoke = null
-                }) { Text(stringResource(R.string.chat_revoke_with_limit, revokeConfirmRemainingMin), color = LocalChatPalette.current.unreadRed) }
-            },
-            dismissButton = { TextButton(onClick = { messageToRevoke = null }) { Text(stringResource(R.string.common_cancel)) } }
-        )
-    }
+    RevokeMessageConfirmDialog(
+        visible = messageToRevoke != null,
+        sentAtMillis = messageToRevoke?.timestamp ?: 0L,
+        onRevoke = {
+            messageToRevoke?.let { startParticleEffect(it, ParticleAction.REVOKE) }
+            messageToRevoke = null
+        },
+        onDismiss = { messageToRevoke = null },
+    )
 
     // 长按删除消息确认弹窗
     // messageToDelete 是 by remember 委托属性，不能智能转换——先取局部值（G159b）
@@ -3441,25 +3434,18 @@ if (showGroupCallTypeDialog) {
     }
 
     // 重发失败消息弹窗
-    messageToRetry?.let { msg ->
-        AlertDialog(
-            onDismissRequest = { messageToRetry = null },
-            title = { Text(stringResource(R.string.chat_send_failed)) },
-            text = { Text(stringResource(R.string.chat_send_failed_retry)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.retrySendMessage(msg.id)
-                    messageToRetry = null
-                }) { Text(stringResource(R.string.chat_retry)) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    startParticleEffect(msg, ParticleAction.DELETE)
-                    messageToRetry = null
-                }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
-            }
-        )
-    }
+    RetryMessageDialog(
+        visible = messageToRetry != null,
+        onRetry = {
+            messageToRetry?.let { viewModel.retrySendMessage(it.id) }
+            messageToRetry = null
+        },
+        onDelete = {
+            messageToRetry?.let { startParticleEffect(it, ParticleAction.DELETE) }
+            messageToRetry = null
+        },
+        onDismiss = { messageToRetry = null },
+    )
 
     // G76：全屏图片/视频查看器（207 行）抽到 ChatDetailFullscreenMedia.kt，纯搬移不改判断。
     fullScreenImage?.let { msg ->
