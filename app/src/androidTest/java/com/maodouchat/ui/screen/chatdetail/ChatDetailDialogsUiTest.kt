@@ -60,6 +60,85 @@ class ChatDetailDialogsUiTest {
         check(dismiss == 0) { "点完成不应触发 dismiss，实际 $dismiss" }
     }
 
+    // ---- DeleteMessageConfirmDialog：12 个里分叉最多的一个 ----
+
+    private fun setDeleteDialog(
+        isOwn: Boolean,
+        isForwardable: Boolean,
+        onDelete: () -> Unit = {},
+        onForward: () -> Unit = {},
+        onDismiss: () -> Unit = {},
+    ) {
+        compose.setContent {
+            DeleteMessageConfirmDialog(
+                visible = true,
+                isOwn = isOwn,
+                isForwardable = isForwardable,
+                onDelete = onDelete,
+                onForward = onForward,
+                onDismiss = onDismiss,
+            )
+        }
+    }
+
+    private fun hasNode(text: String): Boolean =
+        compose.onAllNodes(androidx.compose.ui.test.hasText(text))
+            .fetchSemanticsNodes().isNotEmpty()
+
+    @Test
+    fun deleteOwnMessageOffersDeleteAndForwardAndOnlyDeleteFires() {
+        var delete = 0; var forward = 0; var dismiss = 0
+        setDeleteDialog(isOwn = true, isForwardable = true, onDelete = { delete++ }, onForward = { forward++ }, onDismiss = { dismiss++ })
+
+        // 自己的消息：自己的文案 + 红色删除 + 可转发
+        compose.onNodeWithText(str(R.string.chat_delete_own_message)).assertIsDisplayed()
+        check(hasNode(str(R.string.chat_forward))) { "isForwardable=true 时应有转发按钮" }
+        compose.onNodeWithText(str(R.string.chat_delete)).performClick()
+        compose.runOnIdle { check(delete == 1) { "点删除应触发 1 次 onDelete，实际 $delete" } }
+        check(forward == 0 && dismiss == 0) { "点删除不应触发 onForward/onDismiss（f=$forward d=$dismiss）" }
+    }
+
+    @Test
+    fun deleteOwnMessageWithoutForwardPermissionHidesTheForwardButton() {
+        var delete = 0; var forward = 0
+        setDeleteDialog(isOwn = true, isForwardable = false, onDelete = { delete++ }, onForward = { forward++ })
+
+        check(hasNode(str(R.string.chat_delete))) { "删除按钮应在" }
+        check(!hasNode(str(R.string.chat_forward))) { "isForwardable=false 时不该有转发按钮" }
+        compose.onNodeWithText(str(R.string.chat_delete)).performClick()
+        compose.runOnIdle { check(delete == 1) { "点删除应触发 onDelete" } }
+        check(forward == 0) { "没有转发按钮就不该触发 onForward" }
+    }
+
+    @Test
+    fun deleteSomeoneElsesMessageOnlyAcknowledges() {
+        var delete = 0; var dismiss = 0
+        setDeleteDialog(isOwn = false, isForwardable = true, onDelete = { delete++ }, onDismiss = { dismiss++ })
+
+        // 别人的消息：文案换成「只能删除自己发送的消息」
+        compose.onNodeWithText(str(R.string.chat_delete_other_message)).assertIsDisplayed()
+        // 确认位是「知道了」，点它走 onDismiss 而不是 onDelete
+        compose.onNodeWithText(str(R.string.chat_acknowledge)).performClick()
+        compose.runOnIdle { check(dismiss == 1) { "点「知道了」应触发 onDismiss，实际 $dismiss" } }
+        check(delete == 0) { "别人的消息不该能删（onDelete 被触发 $delete 次）" }
+        // 别人的消息没有删除/转发/取消
+        check(!hasNode(str(R.string.chat_delete))) { "别人的消息不该出现删除按钮" }
+        check(!hasNode(str(R.string.chat_forward))) { "别人的消息不该出现转发按钮" }
+    }
+
+    @Test
+    fun deleteDialogRendersNothingWhenNotVisible() {
+        compose.setContent {
+            DeleteMessageConfirmDialog(
+                visible = false,
+                isOwn = true,
+                isForwardable = true,
+                onDelete = {}, onForward = {}, onDismiss = {},
+            )
+        }
+        check(!hasNode(str(R.string.chat_delete_message_title))) { "visible=false 时不该渲染标题" }
+    }
+
     @Test
     fun secretChatConfirmRendersNothingWhenNotVisible() {
         var confirm = 0

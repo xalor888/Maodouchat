@@ -8446,3 +8446,37 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实跑验证**：模拟器 2/2 通过（上面贴过设备 XML 摘录）；
   负控制红并恢复；**全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1929 例）**
   （在同步完 DIRECTION.md 之后）。
+
+### G174b — DeleteMessageConfirmDialog 的 4 条分叉用例（androidTest 6 例，模拟器 6/6 通过）
+
+- **为什么先测这个**：12 个抽出的 dialog 里它的分叉最多——
+  `isOwn` × `isForwardable` 两个布尔，四种组合下**按钮集合完全不同**：
+  | isOwn | isForwardable | 确认按钮 | dismissButton 区域 |
+  |---|---|---|---|
+  | true | true | 红色「删除」 | 「转发」+「取消」 |
+  | true | false | 红色「删除」 | 只有「取消」 |
+  | false | 任意 | 「知道了」（走 onDismiss） | **空** |
+  这种结构在重构中最容易被改坏，而编译器和 app JVM 都抓不到。
+- **新增 4 条**（`ChatDetailDialogsUiTest` 从 2 例变 6 例）：
+  1. `deleteOwnMessageOffersDeleteAndForwardAndOnlyDeleteFires`：
+     自己的文案 + 转发按钮在 + 点删除只触发 `onDelete`（不触发 `onForward`/`onDismiss`）；
+  2. `deleteOwnMessageWithoutForwardPermissionHidesTheForwardButton`：
+     `isForwardable=false` 时**转发按钮不在**、删除在；
+  3. `deleteSomeoneElsesMessageOnlyAcknowledges`：
+     文案换成「只能删除自己发送的消息」、确认位是「知道了」且点它走 `onDismiss` 而非 `onDelete`、
+     **删除/转发按钮都不出现**（别人的消息删不掉也转不了）；
+  4. `deleteDialogRendersNothingWhenNotVisible`：`visible=false` 时无标题节点。
+- **模拟器实跑**：`connectedDebugAndroidTest -P...RunnerArguments.class=...ChatDetailDialogsUiTest`
+  → `Finished 6 tests on maodou_test(AVD) - 16` + BUILD SUCCESSFUL；
+  设备 XML：`tests=6 failures=0 errors=0`，6 条全部 `ok`。
+- **负控制**：把「`isForwardable=false` 时不该有转发按钮」改坏成「应该有」
+  → `deleteOwnMessageWithoutForwardPermissionHidesTheForwardButton` **FAILED**。恢复后转绿。
+- **一个顺手的小封装**：抽了 `setDeleteDialog(...)` 与 `hasNode(text)` 两个私有helper，
+  否则 4 条用例要重复写 6 个参数的 lambda。`hasNode` 用
+  `onAllNodes(hasText(...)).fetchSemanticsNodes().isNotEmpty()`——
+  **注意它必须在 `runOnIdle {}` 之外调**（G173b 的教训直接复用，没再踩）。
+- **实测结果**：androidTest **+4 条用例**（模拟器 6/6 通过）；无生产代码改动；
+  app JVM 单测 **1929 例不变**。
+- **实跑验证**：编译通过；模拟器 6/6；负控制红并恢复。
+- **剩余**：还有 9 个 dialog 没有 UI 覆盖（`GroupCallTypeDialog` 的双按钮 +
+  `needsMemberPick` 分支是下一个最值得测的）。
