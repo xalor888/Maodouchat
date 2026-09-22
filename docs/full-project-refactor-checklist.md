@@ -8802,3 +8802,32 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：app JVM 单测 **1933 → 1937 例**（347 套件，本类 `tests=4 failures=0`）；
   全量 suite 0 失败（`DirectionDocFreshnessTest` 抓到新增测试文件后已同步）。
 - **至此**：`isDeviceTrusted` 的**四条分支全部覆盖**，G182b 记的最后一个已知测试缺口关闭。
+
+### G184b — 给 Secret*Prefs 家族补上「账号隔离」覆盖（app 1943）
+
+- **动机**：`AccountFeatureSwitch` 是 10 个 `Secret*Prefs` 文件的公共地基，
+  KDoc 明写「账号隔离，默认开；仅本机生效」，key 格式 `"$base:$userId"`。
+  **但本测试出现前，全仓库没有任何一处验证过隔离性**——已实测 `app/src/test` 里只有
+  `SecretNewDeviceRiskPrefsTest` / `NewDeviceRiskDialogsTest` 碰到过这些类，且都不测隔离。
+- **风险很直接**：哪天有人「简化」key（去掉 `:$userId`），账号 A 的开关、设备指纹、
+  转发白名单就会**泄漏到账号 B**。在 E2EE 项目里这是安全性质而非普通 bug，
+  而它**编译通过、肉眼审 diff 也极易漏看**——正是「必须有会失败的测试」的典型场景。
+- **6 条用例**（`AccountFeatureSwitchIsolationTest`，直接测 `AccountFeatureSwitch` 本身）：
+  1. `enablingForOneAccountDoesNotAffectAnother`：A 关掉不影响 B（B 仍是默认开）；
+  2. `isUserSetOnlyReflectsTheCurrentAccount`：A 设过不污染 B 的「未设置」态；
+  3. `serverDefaultOnlyAppliesWhenTheUserNeverSetItAndDoesNotCrossAccounts`：
+     用户显式设过时服务端默认不得覆盖；未设过的账号接受默认；且互不串；
+  4. `keysArePerAccount`：两个 userId 的 key 必须不同、且都必须含 userId；
+  5. `missingUserFailsOpenAndWritesNothing`：无账号时 `isEnabled` fail-open 返回 true、
+     `isUserSet` 为 false，且 `setEnabled`/`applyServerDefault` **一个键都不写**
+     （这条顺带钉住「静默 return」的既有语义：不写、但也不报错）；
+  6. `injectedUserIdProviderIsActuallyUsed`：provider 换账号立即生效（证明没缓存）。
+- **负控制**：把 `key()` 从 `"$base:$userId"` 改成 `base`
+  → `isUserSetOnlyReflectsTheCurrentAccount` **FAILED**。恢复后转绿。
+- **一次自己的测试写错（删了一条，没改成等价物）**：
+  我原本还想断言「空串 userId 应视为无账号」，但 `takeIf { it.isNotBlank() }`
+  这层过滤写在**默认** provider（TokenManager 那条）里，而本测试把 provider 换掉了——
+  换掉之后不再有过滤，那条断言测的已不是生产行为。**没有硬凑一个等价断言**，
+  直接删掉，并把「为什么测不到」写进 KDoc：那层保护在生产代码里有，
+  但要测它得用默认 provider，而默认 provider 依赖 Keystore（Robolectric 下不可用）。
+- **实测结果**：app JVM 单测 **1937 → 1943 例**（本类 `tests=6 failures=0`）。
