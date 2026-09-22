@@ -164,6 +164,15 @@ android {
     }
 
     lint {
+        // G223b：遗留违规的基线。CI 的 lintDebug 此前是**红的**（42 个 Error：
+        // 41 个 LocalContextGetResourceValueCall + 1 个 SuspiciousIndentation），
+        // 而这个检查是 Compose lint 版本升级带来的新规则，不是本项目新写的代码。
+        //
+        // 基线把「已存在的」显式列出来，让 CI 能绿；**新增**的违规仍然会让 lint 失败。
+        // 但基线本身是个会腐烂的文件——所以 app/src/test 下有一条
+        // `lint baseline can only shrink` 的棘轮守着它：任何一条被修掉、
+        // 就必须同步从基线里删掉，否则测试红。
+        baseline = file("lint-baseline.xml")
         disable += setOf(
             "ObsoleteLintCustomCheck", // Compose runtime lint bundled with current toolchain is API-incompatible.
             "ObsoleteSdkInt" // Adaptive launcher icons must remain in mipmap-anydpi-v26 for AAPT compatibility.

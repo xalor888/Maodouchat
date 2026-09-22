@@ -9902,3 +9902,43 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   **「门禁有一部分它结构上就到不了」**——那种你再加断言也补不上、只能承认并写明的缺口。
   **教训（第一百次沉淀）：不是所有覆盖缺口都能补。补不上的那些，
      正确的做法是把它变成一条会失败的断言，而不是一段注释。**
+
+### G223b — 发版前预检发现 CI 的 lint 是**红的**；用「只缩不涨」的基线修（app 2061）
+
+- **起点**：126 个未推送提交，`git ls-remote` 证明网络与凭据都通。
+  发版前先预检 CI 里那些**我没在本地跑过**的步骤——第一个
+  `./gradlew :app:lintDebug` 就 **FAILED**。
+  也就是说：**这个仓库的 CI 现在是红的**（42 个 Error），只是没人推所以没人看见。
+- **42 个 Error 的构成**：
+  - **41 × `LocalContextGetResourceValueCall`**（Compose lint 新规则）——
+    全是 `LocalContext.current.getString(R.string.x)`。但**不能机械换成
+    `stringResource()`**：抽样看到它们在 `onClick {}` / `onCopyProfile {}` 这类
+    **非 @Composable 回调**里，而 `stringResource` 是 @Composable，调不了。
+    正解是把读取**提升**到 composable 作用域——那是 11 个文件 / 41 处的行为改动，
+    一轮做完风险太大。
+  - **1 × `SuspiciousIndentation`**（`ChatListScaffoldChrome.kt:80`，
+    `TopAppBar(` 多缩进了 4 空格）。看着是个 5 分钟修复，
+    但它的代码块是 **143 行**，要整块反缩进，diff 全是空白噪音——本轮不做。
+- **做了什么**：`app/lint-baseline.xml`（**658** 条 issue，`updateLintBaseline` 自报），
+  并在 `app/build.gradle.kts` 里写明「这是遗留违规、新增仍然会失败」。
+  lintDebug 由 FAILED → **BUILD SUCCESSFUL**。
+- **但基线是会腐烂的**——所以又加
+  `LintBaselineRatchetTest`（2 例）：总条数只许降、按规则分布也冻住
+  （光冻总数不够：把 41 条 A 换成 41 条 B，总数不变性质变了）。
+  **变多必红，变少必须同步删，否则也红。**
+- **本轮 NC 抓到我自己的两个错，都是「门禁写坏了」那一族**：
+  1. **正则空转**：`Regex("""<issue\s+id="([^"]+)"""")` ——Kotlin raw string
+     收尾引号歧义，一条都没匹配上；而「只许缩」用例因为 `0 <= 659`
+     **恒真通过了**。改成普通字符串 + 转义，并补一条
+     `assertTrue(actual.isNotEmpty(), "正则坏了，这条门禁正在空转")`。
+  2. **冻结值 off-by-one**：我用 `grep -c '<issue'` 数出 **659**，
+     但那个数**把根元素 `<issues ...>` 也数进去了**——真实 issue 数是 **658**。
+     于是棘轮有 1 条余量：往基线里加 1 条，658→659 仍 `<= 659`，**NC 不红**。
+     改成 658 后 NC 立刻打红。
+     **这是「棘轮不许有余量」那条教训（G214b）在我自己新写的棘轮上复发了一次。**
+- **决定：本轮**不推送**。不是因为不想，是因为预检查出 CI 是红的——
+  推上去只会得到一个红色构建，把 126 个提交和「CI 挂」混在一起。
+  lint 绿了之后，下一轮可以正经推。
+- **实测结果**：`:app:lintDebug` FAILED → **BUILD SUCCESSFUL**；
+  app JVM 单测 **2059 → 2061 例**（`LintBaselineRatchetTest` 2 例，0 失败）；
+  两次 NC（加 issue → 红）均已还原并复跑转绿。
