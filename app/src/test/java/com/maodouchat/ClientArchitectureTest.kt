@@ -3,6 +3,7 @@ package com.maodouchat
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -598,6 +599,42 @@ class ClientArchitectureTest {
             texts.any { it.contains("@Test") || it.contains("@ArchTest") },
             "core/testing/src/test 下没有任何 @Test/@ArchTest——又一个不会被 CI 调用的空壳门禁",
         )
+    }
+
+    /**
+     * G158b：[stripComments] 的自检——DIRECTION.md 3.5 节约定的「可执行」部分。
+     *
+     * 为什么要单测它：本项目四套源码文本门禁里有三套都因为「不剥注释」而误判过
+     * （G155b/G156b/G157b）。`stripComments` 现在是这些门禁的共同地基，
+     * 它一旦被改坏，**所有依赖它的门禁会一起静默通过**——那比没有门禁更糟。
+     */
+    @Test
+    fun `stripComments really strips comments and never eats string literals`() {
+        val fixture = """
+            val a = "MaodouchatApp"      // 字符串字面量里的符号必须保留
+            // val b = MaodouchatApp     ← 行注释里的必须消失
+            /* val c = MaodouchatApp */  ← 块注释里的必须消失
+            val d = MaodouchatApp        ← 真实代码里的必须保留
+            val e = "http://x/*.y"       ← 字符串里的双斜线不是注释
+        """.trimIndent()
+
+        val code = stripComments(fixture)
+
+        // 真实代码与字符串字面量各保留一处
+        assertEquals(2, Regex("MaodouchatApp").findAll(code).count(), "字符串字面量与真实代码里的符号都应保留")
+        // 注释里的两处必须消失
+        assertFalse(code.contains("val b ="), "行注释没被剥掉")
+        assertFalse(code.contains("val c ="), "块注释没被剥掉")
+        // 字符串字面量里的双斜线 / 星 不能触发注释
+        assertTrue(code.contains("http://x/*.y"), "字符串字面量被误剥")
+        // 注释本体必须消失。注意不能 blanket 断言「不含 斜线星」——
+        // fixture 的字符串字面量里故意放了 `http://x/*.y`，那是**代码**，必须保留。
+        // （第一版就在这里写错： blanket 断言把自己 fixture 里的合法内容判成残留。）
+        // 上面两条已足以证明注释被剥掉。不要在加第三条「注释正文也消失」——
+        // fixture 第三行 `*/ ← 块注释里的必须消失` 里，`*/` 之后的部分**是代码**，
+        // 解析器保留它是正确的（我第一版就这么误判了一次）。
+        assertFalse(code.contains("// val b"), "行注释残留")
+        assertFalse(code.contains("/* val c"), "块注释残留")
     }
 
     @Test

@@ -109,6 +109,39 @@
 
 ---
 
+## 3.5 工程约定：用源码文本做判决的门禁，**第一步必须剥注释**
+
+> 这一节是 G155b / G156b / G157b 三轮各踩一次同一个坑之后补上的。三艘船撞的是同一座礁。
+
+本项目有四套「读源码文本下结论」的门禁：`ClientArchitectureTest`（app）、
+`ServerArchitectureTest`（server）、`MessagingInvariantTraceabilityTest`（server）、
+`ArchitectureTest`（core/testing，ArchUnit）。
+
+**规则：判定「源码里有没有某个符号/标注/声明」之前，先剥掉行注释与块注释。**
+
+三次真实的撞礁记录：
+
+| 轮次 | 门禁 | 撞礁方式 |
+|---|---|---|
+| G155b | `MessagingInvariantTraceabilityTest` | `text.contains("fun \`testName\`")` 纯子串匹配。把某个测试的 `fun` 行注释掉 → 文档引用照样解析成功、门禁全绿，而那个用例根本不执行 |
+| G156b | `ClientHotspotRatchetTest` | 数原始文本里的 `MaodouchatApp`。G184–G192 抽 dialog 时给每个新文件写「**拆解约束**：不 import `MaodouchatApp`」——这句 KDoc 本身含该符号，于是 **48 个文件因声明自己不碰单例而被计成违规**（虚增 55%） |
+| G157b | `ClientArchitectureTest` 新增用例 | `text.contains("@ArchTest")`。把 `@ArchTest` 注释掉 → 断言仍通过 |
+
+三条共同点：**注释不是代码，但 `contains` 分不清**。而门禁的职责恰恰是「文档/注释说了不算，
+证据要真实存在」——用会误信注释的手段去检查「有没有真实证据」，是自相矛盾的。
+
+落地要求（新增或修改第四套时逐条对照）：
+
+1. 先剥注释再匹配。`app` 侧用 `ClientArchitectureTest.stripComments`，
+   `server` 侧用 `MessagingInvariantTraceabilityTest.stripComments`（两份实现，
+   因为 `server/` 是独立 Gradle 构建，目前不复用；改任一份时同步另一份的语义）。
+2. **剥注释本身要过负控制**：把目标符号注释掉，门禁必须变红。G157b 就是这么发现
+   自己第 3 次踩坑的——第一版 NC 没红，才回去修。
+3. KDoc 里**不要贴** `/*`、`*/`、`//` 这些注释定界符的实例——它们会真的结束注释
+   （G156b 编译报 Unclosed comment）。要写就写「斜线星」或转义。
+
+---
+
 ## 4. 边界与不做的事
 
 - **不改产品边界**：仍不做 iOS/桌面/网页、支付红包、小程序、大群 SFU。
