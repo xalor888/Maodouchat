@@ -29,11 +29,19 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
- * 会话详情的「确认类」对话框集合（G188 由 ChatDetailChatLockDialogs.kt 改名而来）。
+ * 会话详情的「杂项对话框」集合。
  *
- * 改名前名字只涵盖「聊天锁」一类，但文件里已经有三个不同主题的确认框：
- * 忘记聊天锁密码（G185）、清空本地历史（G186）、实时位置分享时长（G187）。
- * 它们共同点是「破坏性/不可逆操作前的二次确认」，所以按这个共性命名。
+ * 名字沿革（两次改名，都是同一个病）：
+ * - 原名 `ChatDetailChatLockDialogs`（G185）——只涵盖「聊天锁」一类；
+ * - G188 改名 `ChatDetailConfirmDialogs`，理由是三者的共性是「破坏性操作前的二次确认」，
+ *   当时**名副其实**；
+ * - 但之后 G186/G187/G189/G190/G159b–G162b 又往里放了时长选择器、公告信息展示、
+ *   编辑表单、重发/删除动作、通话类型选择——现在 10 个 composable 里只有 5 个是
+ *   「Confirm」，**名字又一次名不副实**（G165b）。
+ *
+ * 所以改成不带主题的 `ChatDetailDialogs`：它就是这个目录下的「其余对话框」收纳处，
+ * 与 `ChatDetailAiDialogs` / `ChatDetailTextInputDialogs` / `ChatDetailChatSettingsDialogs`
+ * 这些**按专题分开**的文件并列。将来某个专题长大到值得独立成文件时，把它迁走即可。
  */
 
 /**
