@@ -9762,3 +9762,38 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **为什么值得单独一轮**：G214b 是「上限有 1 行余量」，G216b 是「只扫一半声明」，
   这一站是「判据把非违规算成违规，于是真违规有了藏身处」。
   **三种余量形态不同，但后果一样：门禁看起来在工作，实际上有一块地方它看不见。**
+
+### G219b — 品牌术语门禁会「扫个空目录然后通过」（CI 四道 py 闸门里唯一一个）
+
+- **动机**：把这轮「门禁只覆盖一半」的线推到 CI 的 Python 闸门上。
+  server 侧 `ServerArchitectureTest` 早就为这件事专门加了守卫
+  （`filesUnder` 断言 `files.isNotEmpty()`、`serverSourceRoot` 找不到就 `fail()`），
+  注释写的是「源码扫描型门禁最危险的失败模式是『扫了个空目录所以通过』」。
+  四道 py 闸门里有没有同样的洞？
+- **逐道查完，只有一道有洞**：
+  - `check-nav-registration.py`：`open(NavRoutes.kt)` 缺文件直接抛异常；
+     glob 空则每个 const 都报 NOWHERE → exit 1。**安全**。
+  - `check-app-update-gates.py`：`REQUIRED_SNIPPETS` 循环里有个
+     `if not os.path.isfile(path): continue`，看着像洞；但实测**所有 snippet 文件
+     都在 `REQUIRED_PATHS` 里**（11/11），缺文件会先在上一轮被报出来。**安全**。
+  - `check-brand-terminology.py`：`checked` 只打印、**从不断言**。
+     实测把 `ROOT` 指到不存在的路径 → `brand terminology OK (0 text files checked)`、
+     `main()` 返回 **0**。**真洞。**
+- **做了什么**：加 `MIN_CHECKED_FILES = 1000`（实测全仓约 **36367** 个文本文件，
+  余量极大，又远高于任何空扫描），低于下限直接拒绝通过。
+  守卫放在违规检查**之前**——空扫描时「没有违规」这个结论本身没有意义。
+- **三次负控制**：
+  1. ROOT 指错 → `返回: 1` + 「check is vacuous: only 0 text files checked」；
+  2. 往仓库根放一个含「猫豆」的文件 → `exit=1` 且点名文件行号
+     （证明不是只加了个下限、真的违规照样抓）；
+  3. 正常状态 → `exit=0`、`36367 text files checked`。
+- **一次自己的 NC 设计错**：第一次测违规时把文件放进 `tmp/`——
+  **`tmp` 就在 `EXCLUDED_DIRS` 里**，所以门禁正确地放过了它。
+  我差点把那记成「门禁漏报」。改成放仓库根，立即抓到。
+  **教训（第九十七次沉淀）：做违规 NC 时，先确认你投放的位置**不在排除清单里。
+     否则你会得到一个假阴性，然后去修一个不存在的 bug。**
+- **顺带一个管道小坑**：`python3 x.py | tail` 之后 `$?` 是 `tail` 的退出码，
+  第一次据此误判「违规没抓到」。改成重定向到 /dev/null 再取 `$?`。
+- **实测结果**：`scripts/check-brand-terminology.py` +空扫描守卫；
+  正常 36367 文件 exit 0、空扫描 exit 1、真违规 exit 1。
+  app JVM / server 均 0 失败（纯脚本改动，不进单测）。

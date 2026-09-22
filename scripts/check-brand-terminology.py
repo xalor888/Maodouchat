@@ -23,6 +23,10 @@ EXCLUDED_DIRS = {
     "node_modules",
     "tmp",
 }
+# G219b：扫描文件数下限。实测全仓约 3.6 万个文本文件，取 1000 留有大量余量，
+# 同时又远高于任何「配置错成空扫描」的情形。
+MIN_CHECKED_FILES = 1000
+
 WRONG_TERMS = (
     re.compile(r"猫\s*豆"),
     re.compile(r"貓\s*豆"),
@@ -57,6 +61,21 @@ def main() -> int:
         for line_number, line in enumerate(text.splitlines(), start=1):
             if any(pattern.search(line) for pattern in WRONG_TERMS):
                 violations.append((path.relative_to(ROOT), line_number, line.strip()))
+
+    # G219b：**空扫描不得通过**。
+    # 这个门禁原来是「没有违规就 OK」——那么如果 ROOT 指错、或 EXCLUDED_DIRS
+    # 把整棵树排掉，它会扫到 0 个文件、然后打印「OK (0 files checked)」并返回 0。
+    # 实测把 ROOT 改成不存在的路径，main() 真的返回 0。
+    # 源码型门禁最危险的失败模式不是误报，是「扫了个空目录所以通过」。
+    # （server 侧 ServerArchitectureTest 的 filesUnder 早就断言了 files.isNotEmpty()，
+    #  这边当时漏了。）
+    if checked < MIN_CHECKED_FILES:
+        print(
+            f"brand terminology check is vacuous: only {checked} text files checked, "
+            f"expected >= {MIN_CHECKED_FILES}. Refusing to pass.",
+            file=sys.stderr,
+        )
+        return 1
 
     if violations:
         print("Use the product name '毛豆聊天'; forbidden misspellings found:", file=sys.stderr)
