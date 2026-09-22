@@ -9405,3 +9405,37 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   四条负控制各打到对应用例。
 - **顺带确认**：`messages` 表**没有** `ownerUserId` 列（它经 chatId → chats → owner 隔离），
   所以闸门是**有条件**的（只对声明了 owner 列的表生效），不是无脑要求每条 SQL 都带。
+
+### G206b — 给服务端补跨账号隔离的**行为**测试（server 462 → 465）
+
+- **动机**：G205b 给客户端账号隔离立了源码闸门，顺手去服务端找同类，
+  **结论是不能照搬**：实测 server 414 个 Exposed 查询点里 314 个的调用片段不含
+  `userId`，绝大多数合法（登出清理、`selectAll` 后另行过滤）。
+  裸 SQL `exec` 只有 11 处且全在 SchemaMigration（DDL）。
+  所以服务端只能靠**行为测试**——这也解释了为什么路由层早就有一个
+  `AdminChatIsolationRouteTest`，而 repository 层没有。
+- **做了什么**：`PerUserStateIsolationRouteTest` + `PerUserStateRepoIsolationTest`，
+  共 3 条：
+  1. **路由层**：u1/u2 各自星标自己的消息，再分别用各自 token 读
+     `/api/messages/starred`——**双方自己的都要读得到，对方的都读不到**。
+     后半句是关键：只断言「读不到」会因「谁都读不到」而假绿；
+  2. **repo 层**：`StarMessageRepository.toggleStar`/`getStarredMessages` 直接打两个 userId，
+     u1 只看到 m1、u2 只看到 m2、u3 看到空集、u2 撤销不影响 u1；
+  3. **repo 层**：`ChatUserSettings` 给 u1 写的置顶/静音，u2 查不到——不继承。
+- **一次真实的失败→发现，值得记**：`getStarredMessages` 的 `where { userId }`
+  被我拿掉后，**路由层与 repo 层两条同时红**。也就是说这两条测试不是装饰，
+  是真的在守账号隔离。
+- **五次编译错误，全是「没读代码就动手」**：
+  1. `login(...)` 缺 `client` 接收者（`testApplication` 里 `client` 才是 HttpClient）；
+  2. `IsolationFakeAiGateway` 是 `private in file`，跨文件不可见——自己写了一个同形 fake；
+  3. `Database.connect() before using this code`：`application { }` **只是配置**，
+     app 要到第一个请求才启动，所以**必须先登录再造数据**（我把 seed 放在登录前了）；
+  4. `SqlExpressionBuilder.and` 不存在，`and` 在 `org.jetbrains.exposed.sql`；
+  5. **漏 import `StarMessageRepository`**（测试包与服务端包不同）。
+     以及 `assertEquals(Set, Set, String)` 被解析成 Double 重载（G196b 那个坑又来一次）。
+- **两个诚实的收缩**：原计划还测 `/api/chats` 与 `/api/chats/{id}/participants`
+  两条路由的越权，但它们收在 `configureConversationRoutes` 里，要额外接 7 个依赖
+  （ConversationCommandService / BlobStore / FcmPushService / FileStorageService /
+  BoundedRateLimiter…），**没接，直接删掉那三条用例**，没有留「恒真」的占位。
+- **实测结果**：server **462 → 465 例**（152 套件，0 失败）；
+  app JVM 1978 例不变；负控制（去掉 repo 的 userId 过滤）两条同时红并还原复跑转绿。
