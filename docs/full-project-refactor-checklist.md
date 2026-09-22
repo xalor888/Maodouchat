@@ -9169,3 +9169,27 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      断言错了是漏报，依赖声明错了是**完全不报**——而且后者看起来一切正常。**
 - **实测结果**：`app/build.gradle.kts` +声明；app JVM **1978 例不变**；
   三个门禁在对应文件变更后均能真实重跑并报红。
+
+### G199b — 救回一个从没被调用过的闸门，它当场就是红的（app 1978）
+
+- **发现**：`scripts/check-string-parity.py`（职责：`values/` 与 `values-en/`
+  的字符串名不得 divergvé）**从没有任何地方调用它**——CI、其它脚本、
+  Makefile 全都没有。只有一份 `__pycache__/check-string-parity.cpython-314.pyc`
+  证明它被**手工跑过一次**，然后再没人碰。
+- **跑一次，当场就是红的**：
+  `zh=2843 en=2841 only_zh=2`，缺英文的是
+  `chat_send_empty`（"说点什么再发送"）与 `chat_send_in_flight`（"正在发送，请稍候"）。
+  即这两个错误提示在英文环境下会**直接掉回中文**（Android 找不到对应 locale 资源时
+  回落到默认 values）。这是个真实缺陷，因为没人跑闸门所以一直没被发现。
+- **做了什么**：
+  1. 补两条英文翻译（按字典序插在 `chat_send_failed` 前）；
+  2. 把闸门接进 `.github/workflows/ci.yml`（放在 app-update-gates 之后），
+     并在注释里写清"它曾经从没被调用过"这件事——免得将来有人以为是冗余步骤又删掉。
+- **验证**：`python3 scripts/check-string-parity.py` → `zh=2843 en=2843`、exit 0；
+  YAML 可解析、步骤数 29、parity 步骤在内；
+  **负控制**：从英文里删掉 `chat_send_empty` → `only_zh=1`、**exit 1**，恢复后 exit 0。
+- **这与 G181b 是同一类病**：一个资产（脚本 / 注释 / 判断）写在没人看的地方，
+  就等于不存在。区别是这次更糟——**它甚至已经是错的，而错本身也被一起藏住了。**
+  **教训（第八十四次沉淀）：定期盘一下「有哪些资产没有任何调用方」。
+     源码有测试盯着，脚本有 CI 盯着，而**没人盯的东西**不会自己报错。**
+- **实测结果**：+2 条英文翻译；CI +1 步；app JVM **1978 例不变**。

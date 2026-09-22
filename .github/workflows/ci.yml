@@ -209,6 +209,14 @@ jobs:
       - name: App update release gates check (P09)
         run: python3 scripts/check-app-update-gates.py
 
+      # G199b：这个闸门脚本一直都存在，但**从没有任何地方调用它**——
+      # CI、其它脚本、Makefile 全都没有（只有一份 .pyc 证明它被手工跑过一次）。
+      # 跑一次发现它是**当场红**的：两条 UI 字符串只有中文没有英文
+      # （chat_send_empty / chat_send_in_flight）。补上翻译后接进 CI，
+      # 免得再被忘掉。
+      - name: String resource parity (values vs values-en)
+        run: python3 scripts/check-string-parity.py
+
       - name: Lint check (catch common bugs)
         run: ./gradlew :app:lintDebug --no-daemon --console=plain
 

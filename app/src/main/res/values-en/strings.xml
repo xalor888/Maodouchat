@@ -644,6 +644,8 @@
         <item quantity="other">%1$d more messages</item>
     </plurals>
     <string name="chat_forward_search_empty">No matching chats</string>
+    <string name="chat_send_empty">Type something before sending</string>
+    <string name="chat_send_in_flight">Sending, please wait</string>
     <string name="chat_send_failed">Send failed</string>
     <string name="chat_send_failed_no_devices">This person has no encryption device yet (they have never signed in). Ask them to sign in, then try again.</string>
     <string name="chat_send_failed_retry">This message failed to send. Try again?</string>
