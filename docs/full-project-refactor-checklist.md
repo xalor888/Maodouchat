@@ -9602,3 +9602,38 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   还原（`diff` 一致）后转绿。
 - **实测结果**：app JVM 单测 **2020 → 2031 例**（本类 `tests=11 failures=0`）；
   无生产代码改动。
+
+### G213b — 安全码二维码的载荷编解码；如实记下一个「编得出解不动」的不对称（app 2031 → 2040）
+
+- **动机**：`QrCodeGenerator` 被 5 个文件引用，零测试。其中 **safety QR**
+  是「当面扫码核对身份」的安全功能，载荷形如
+  `maodouchat:safety:<b64>:<deviceId>:<b64>:<deviceId>:<b64>`——**用 `:` 连起来**，
+  而 userId / safetyCode / fingerprint 都是字符串，**里面完全可能含 `:`**。
+  若不转义，载荷就会歧义：接收方可能把 `a:b` 解析成两段，
+  「核对指纹」就变成了拿一个被篡改的指纹通过校验。
+- **转义机制**：`encodePart` 用 **Base64 URL 安全字母表**（`A-Za-z0-9-_`，无 padding），
+  该字母表里根本没有 `:`，所以任何输入编码后都不会制造分隔符。
+- **9 条用例**：三个简单前缀；invite token 被 trim；
+  **编码结果只含 6 个结构冒号且无 `=` padding**（横扫 9 种含冒号/空白/中文/超长输入）；
+  safety v1 / v2 往返；`safetyCode` 带冒号时**五个字段都不得被挤位**（这是转义真正的用处）；
+  四种 payload 都能被认出；垃圾输入返回 null 而不是抛异常。
+- **本轮最重要的收获是一个如实记录的发现，而不是又一条通过的测试**：
+  `encodePart` 会把 userId 里的 `:` 转义掉，**但解析侧随后又用
+  `ID_REGEX = ^[a-zA-Z0-9_-]{1,64}$` 拒绝含 `:` 的 userId**。
+  于是「userId 含冒号」的安全码**编得出来、解不动**（`parsePayload` 返回 null）。
+  实践上无害（userId 由本机生成、必在该字符集内），但这说明
+  `encodePart` 的转义对 userId 字段是**冗余**的，真正靠它保护的只有
+  safetyCode / fingerprint（那两个字段原样返回、无 ID_REGEX）。
+  写成一条 `aUserIdWithColonsIsRejectedByTheParserNotSilentlyMisparsed`
+  把「解码侧会拒绝为 null」钉住，**避免后人误以为它能往返**。
+- **三次自己的测试写错**（都当场红出来）：
+  1. 结构冒号数算成 5，实际 6（`maodouchat:safety:` 占 2 + 5 段之间 4）；
+  2. invite token 用 `"tok9"`，但解析侧要求 **≥32 字符**（`MIN_CHAT_INVITE_TOKEN_LENGTH`）——
+     改成 40 字符；
+  3. 把「userId 带冒号」断言成能往返（见上，实际是编得出解不动）。
+  三条都不是产品 bug，全部是我的预期写错。
+- **负控制**：把 `encodePart` 改成恒等（不转义）→ **5 条用例同时红**
+  （含 `safetyCodeWithColonsRoundTripsAndNeverShiftsTheFields`）。
+  还原（`diff` 一致）后转绿。
+- **实测结果**：app JVM 单测 **2031 → 2040 例**（本类 `tests=9 failures=0`）；
+  无生产代码改动。
