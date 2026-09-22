@@ -9493,3 +9493,27 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   （选这个改法是因为「顺序」是最容易被「顺手整理一下」破坏、又完全编译通过的东西。）
 - **实测结果**：app JVM 单测 **1984 → 1993 例**（本类 `tests=9 failures=0`）；
   无生产代码改动（纯补测试）。
+
+### G209b — 给 AppLocaleManager 的语言模式归一化补覆盖（app 1993 → 1999）
+
+- **动机**：被 6 个文件引用，零测试。它是**唯一**决定「界面用中文还是英文」的值，
+  而这个值来自 SharedPreferences——一个能被旧版本写脏 / 手工 adb 注入的持久化字段。
+- **纵深防御是两道，各有一个负控制**：
+  1. `setMode` **写入前**归一化（`mode.takeIf { it in supportedModes } ?: MODE_SYSTEM`）
+     ——绝不把 `"fr"`/`"ZH"`/`""`/`"zh-CN"` 存进去；
+  2. `getMode` **读出时**再校验一次（同样的 `takeIf`）——防 prefs 被外部写脏。
+  任何一道失效，另一道仍把界面拉回「跟随系统」，而不是卡在一个不存在的语言上。
+- **6 条用例**：未设置回落 system；三个合法模式各自往返；**写入前归一化**
+  （逐个别名断言存储值必须是 system）；**读出时再校验**（手工把 prefs 写成
+  6 种脏值，读取必须回落）；`languageTag` 的映射（经 SDK 33+ 的
+  `LocaleManager.applicationLocales` 间接观察——Robolectric 下这条**真的能看到**
+  `zh-CN` / `en` / 空集，不是摆设）；`wrap` 在跟随系统时原样返回 context。
+- **两次负控制，分别打两道防线**（这才是「纵深」的正确验法）：
+  1. 去掉 `setMode` 的写入前归一化 → `setModeNormalizesUnsupportedValuesBeforeWriting` FAILED；
+  2. 去掉 `getMode` 的读出校验 → `getModeRevalidatesADirtyStoredValue` FAILED。
+  **只验其中一道是不够的**——那正是 G207b 那条教训（多约束要分别打破）的复发场景。
+- **一个愉快的确认**：`languageTag` 是 private，本来打算只能间接覆盖；
+  实测 Robolectric 的 `LocaleManager.applicationLocales` **确实反映 setMode 写入的 tag**，
+  于是三个映射值（`zh-CN` / `en` / 空集）都成了真实断言。
+- **实测结果**：app JVM 单测 **1993 → 1999 例**（本类 `tests=6 failures=0`）；
+  两次负控制各打中一道防线，均已还原（`diff` 逐字节一致）并复跑转绿。
