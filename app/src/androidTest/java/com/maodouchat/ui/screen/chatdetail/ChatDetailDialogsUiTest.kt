@@ -139,6 +139,70 @@ class ChatDetailDialogsUiTest {
         check(!hasNode(str(R.string.chat_delete_message_title))) { "visible=false 时不该渲染标题" }
     }
 
+    // ---- GroupCallTypeDialog：双按钮 + needsMemberPick 分支 ----
+
+    private fun setGroupCallDialog(
+        candidateCount: Int,
+        visible: Boolean = true,
+        onPick: (com.maodouchat.webrtc.CallType) -> Unit = {},
+        onDismiss: () -> Unit = {},
+    ) {
+        compose.setContent {
+            GroupCallTypeDialog(
+                visible = visible,
+                candidateCount = candidateCount,
+                onPick = onPick,
+                onDismiss = onDismiss,
+            )
+        }
+    }
+
+    @Test
+    fun groupCallUnderMeshLimitOmitsTheMemberPickerHint() {
+        var dismiss = 0
+        val picked = mutableListOf<com.maodouchat.webrtc.CallType>()
+        val under = com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1
+        setGroupCallDialog(candidateCount = under, onPick = { picked += it }, onDismiss = { dismiss++ })
+
+        // 未超限：只显示上限说明，**不**显示「需要选人」
+        compose.onNodeWithText(
+            InstrumentationRegistry.getInstrumentation().targetContext
+                .getString(R.string.call_group_mesh_limit, com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS)
+        ).assertIsDisplayed()
+        check(!hasNode(str(R.string.call_select_members_needed_hint))) { "未超限时不该出现选人提示" }
+
+        // 点「语音通话」→ 只传 AUDIO 出来，不触发 onDismiss
+        compose.onNodeWithText(str(R.string.chat_voice_call)).performClick()
+        compose.runOnIdle {
+            check(picked == listOf(com.maodouchat.webrtc.CallType.AUDIO)) { "应只收到 AUDIO，实际 $picked" }
+        }
+        check(dismiss == 0) { "点语音通话不应触发 onDismiss" }
+    }
+
+    @Test
+    fun groupCallOverMeshLimitShowsTheHintAndStillOnlyReportsTheType() {
+        val picked = mutableListOf<com.maodouchat.webrtc.CallType>()
+        val over = com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS + 1
+        setGroupCallDialog(candidateCount = over, onPick = { picked += it })
+
+        // 超限：出现选人提示
+        compose.onNodeWithText(str(R.string.call_select_members_needed_hint)).assertIsDisplayed()
+
+        // 关键边界：composable 只负责把**类型**传出来；「直接起通话还是打开选人弹窗」
+        // 是调用方的决定（它要摸 pendingGroupCallType / showGroupCallMemberDialog 等路由状态）。
+        // 所以即便超限，点按钮也仍然只是 onPick(VIDEO)——不多做一件事。
+        compose.onNodeWithText(str(R.string.chat_video_call)).performClick()
+        compose.runOnIdle {
+            check(picked == listOf(com.maodouchat.webrtc.CallType.VIDEO)) { "应只收到 VIDEO，实际 $picked" }
+        }
+    }
+
+    @Test
+    fun groupCallDialogRendersNothingWhenNotVisible() {
+        setGroupCallDialog(candidateCount = 0, visible = false)
+        check(!hasNode(str(R.string.chat_group_call))) { "visible=false 时不该渲染标题" }
+    }
+
     @Test
     fun secretChatConfirmRendersNothingWhenNotVisible() {
         var confirm = 0

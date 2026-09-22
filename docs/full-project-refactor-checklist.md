@@ -8480,3 +8480,38 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实跑验证**：编译通过；模拟器 6/6；负控制红并恢复。
 - **剩余**：还有 9 个 dialog 没有 UI 覆盖（`GroupCallTypeDialog` 的双按钮 +
   `needsMemberPick` 分支是下一个最值得测的）。
+
+### G175b — GroupCallTypeDialog 的 3 条用例（androidTest 9 例，模拟器 9/9 通过）
+
+- **测什么**：`GroupCallTypeDialog` 是 G162b 抽出的最后一个内联弹窗，
+  两条分支由 `candidateCount > GroupCallPolicy.MAX_MESH_MEMBERS - 1` 决定：
+  - 未超限：只显示 mesh 上限说明；
+  - 超限：多一条「本群人数超过 mesh 上限，下一步将选择参与成员。」
+- **3 条用例**：
+  1. `groupCallUnderMeshLimitOmitsTheMemberPickerHint`：未超限时**不出现**选人提示；
+     点「语音通话」只收到 `CallType.AUDIO`、不触发 `onDismiss`；
+  2. `groupCallOverMeshLimitShowsTheHintAndStillOnlyReportsTheType`：超限时出现提示；
+     点「视频通话」仍然只收到 `CallType.VIDEO`——**这条钉住一个边界**：
+     composable 只负责把类型传出来，「直接起通话还是打开选人弹窗」是调用方的决定
+     （那边要摸 `pendingGroupCallType` / `showGroupCallMemberDialog` 等四个路由状态）。
+     即便超限也不许多做一件事；
+  3. `groupCallDialogRendersNothingWhenNotVisible`。
+- **本轮的用例先红了一次——红的正是用例自己的 bug**：
+  `setGroupCallDialog(...)` 这个 helper 把 `visible = true` **写死了**，
+  于是第 3 条「visible=false」必然失败。给 helper 补了 `visible` 参数（默认 true）才对。
+  **这算个小小的正面证据：`visible=false` 这条用例是真在判可见性，
+     不是永远绿——否则 helper 写死 true 时它会照样通过。**
+- **上限值没有硬编码**：`MAX_MESH_MEMBERS` 从 `GroupCallPolicy.MAX_MESH_MEMBERS` 取，
+  文案从 `R.string` 取（`call_group_mesh_limit` 是 `%1$d` 格式化串，用
+  `getString(id, MAX_MESH_MEMBERS)` 取）。
+- **模拟器实跑**：`connectedDebugAndroidTest -P...RunnerArguments.class=...ChatDetailDialogsUiTest`
+  → `Finished 9 tests on maodou_test(AVD) - 16` + BUILD SUCCESSFUL；
+  设备 XML `tests=9 failures=0 errors=0`，9 条全 `ok`。
+- **负控制**：把「未超限时不该出现选人提示」改成「应出现」
+  → `groupCallUnderMeshLimitOmitsTheMemberPickerHint` **FAILED**。恢复后转绿。
+- **实测结果**：androidTest **+3 条用例**（6 → 9，模拟器 9/9）；无生产代码改动；
+  app JVM 单测 **1929 例不变**。
+- **实跑验证**：编译通过；模拟器 9/9；负控制红并恢复。
+- **剩余**：还有 **8 个 dialog** 无 UI 覆盖（`ForgotChatLock` / `ClearChatHistory` /
+  `LiveLocationDuration` / `GroupAnnouncement` / `EditMessage` / `RevokeMessage` /
+  `RetryMessage` / `SecretNewDeviceRiskLocked` / `NewDeviceRiskPrompt`）。
