@@ -357,6 +357,65 @@ class ChatDetailDialogsUiTest {
         compose.onNodeWithText(str(R.string.chat_revoke_with_limit, 1)).assertExists()
     }
 
+    // ---- 三个破坏性/信息类确认框 ----
+
+    @Test
+    fun forgotChatLockConfirmRoutesClearAndCancel() {
+        var confirm = 0; var dismiss = 0
+        compose.setContent {
+            ForgotChatLockConfirmDialog(visible = true, onDismiss = { dismiss++ }, onConfirm = { confirm++ })
+        }
+        // 删的是「本机已解密消息 + PIN」，不可撤销——文案必须真的显示出来
+        compose.onNodeWithText(str(R.string.chat_lock_forgot_confirm_title)).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.chat_lock_forgot_confirm_body)).assertIsDisplayed()
+
+        compose.onNodeWithText(str(R.string.common_clear)).performClick()
+        compose.runOnIdle { check(confirm == 1) { "点清除应触发 onConfirm，实际 $confirm" } }
+        check(dismiss == 0) { "点清除不应触发 onDismiss" }
+
+        compose.onNodeWithText(str(R.string.common_cancel)).performClick()
+        compose.runOnIdle { check(dismiss == 1) { "点取消应触发 onDismiss，实际 $dismiss" } }
+    }
+
+    @Test
+    fun clearChatHistoryConfirmRoutesClearAndCancel() {
+        var confirm = 0; var dismiss = 0
+        compose.setContent {
+            ClearChatHistoryConfirmDialog(visible = true, onDismiss = { dismiss++ }, onConfirm = { confirm++ })
+        }
+        compose.onNodeWithText(str(R.string.chat_clear_local_history)).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.chat_clear_history_body)).assertIsDisplayed()
+
+        compose.onNodeWithText(str(R.string.common_clear)).performClick()
+        compose.runOnIdle { check(confirm == 1) { "点清除应触发 onConfirm，实际 $confirm" } }
+        check(dismiss == 0) { "点清除不应触发 onDismiss" }
+    }
+
+    @Test
+    fun groupAnnouncementShowsTheBodyAndRoutesCopyAndClose() {
+        val announcement = "本周五下午三点全员例会，请提前十分钟到场。"
+        var copy = 0; var dismiss = 0
+        compose.setContent {
+            GroupAnnouncementDialog(
+                visible = true,
+                announcement = announcement,
+                onCopy = { copy++ },
+                onDismiss = { dismiss++ },
+            )
+        }
+        // 公告正文来自参数（不是资源）——用固定测试串
+        compose.onNodeWithText(str(R.string.group_announcement_dialog_title)).assertIsDisplayed()
+        compose.onNodeWithText(announcement).assertExists()
+
+        // 「复制」走 onCopy（真正的剪贴板 I/O 在调用方）
+        compose.onNodeWithText(str(R.string.group_announcement_copy)).performClick()
+        compose.runOnIdle { check(copy == 1) { "点复制应触发 onCopy，实际 $copy" } }
+
+        // 「关闭」走 onDismiss
+        compose.onNodeWithText(str(R.string.common_close)).performClick()
+        compose.runOnIdle { check(dismiss == 1) { "点关闭应触发 onDismiss，实际 $dismiss" } }
+    }
+
     @Test
     fun secretChatConfirmRendersNothingWhenNotVisible() {
         var confirm = 0

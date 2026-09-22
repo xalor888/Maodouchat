@@ -8587,3 +8587,38 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      整数除法让每个 `60000` 的倍数都成为边界，而 `elapsed = 0` 也是边界。
      踩边界的结果是**一绿一红的抖动**——它比稳定失败更难查，
      因为它会让你怀疑测试框架而不是怀疑自己的输入。**
+
+### G178b — 收尾 dialog UI 覆盖系列：最后三个（androidTest 18 例，模拟器 18/18 通过）
+
+- **一次补三个**，两个破坏性确认框 + 一个信息框：
+  1. `ForgotChatLockConfirmDialog`——删的是「本机已解密消息 + PIN」，不可撤销。
+     测标题/正文真的显示、点「清除」触发 `onConfirm` 不触发 `onDismiss`、点「取消」走 `onDismiss`；
+  2. `ClearChatHistoryConfirmDialog`——同样是破坏性，测文案 + 两个回调分流；
+  3. `GroupAnnouncementDialog`——**公告正文来自参数而不是资源**（调用方从
+     `state.chat?.groupAnnouncement` 取），所以用固定测试串；测标题在、正文在、
+     「复制」触发 `onCopy`（真正的剪贴板 I/O 在调用方）、「关闭」触发 `onDismiss`。
+- **模拟器实跑**：`connectedDebugAndroidTest -P...RunnerArguments.class=...ChatDetailDialogsUiTest`
+  → `Finished 18 tests on maodou_test(AVD) - 16` + BUILD SUCCESSFUL；
+  设备 XML `tests=18 failures=0 errors=0`，18 条全 `ok`。
+- **负控制**：把「点清除应触发 `onConfirm`」改成「触发 `onDismiss`」
+  → `forgotChatLockConfirmRoutesClearAndCancel` **FAILED**。恢复后复跑 18/18 转绿。
+- **实测结果**：androidTest **+3 条用例**（15 → 18，模拟器 18/18）；无生产代码改动；
+  app JVM 单测 **1929 例不变**。
+- **实跑验证**：编译通过；模拟器 18/18；负控制红并恢复；恢复后再跑 18/18。
+
+#### UI 覆盖专题小结（G173b–G178b，6 轮）
+
+| 轮次 | 新增 | 累计 | 覆盖 dialog |
+|---|---|---|---|
+| G173b | 2 | 2 | SecretChatConfirm |
+| G174b | 4 | 6 | + DeleteMessageConfirm |
+| G175b | 3 | 9 | + GroupCallType |
+| G176b | 3 | 12 | + LiveLocation、EditMessage |
+| G177b | 3 | 15 | + RetryMessage、RevokeMessage |
+| **G178b** | **3** | **18** | + ForgotChatLock、ClearChatHistory、GroupAnnouncement |
+
+**12 个抽出的 dialog 里 11 个已有 UI 覆盖**，唯一没覆盖的是
+`SecretNewDeviceRiskLocked` 与 `NewDeviceRiskPromptDialog` 这一对「新设备风控」——
+它们只在**真机未登记设备**的场景才会出现，`createComposeRule` 渲染不出那个前提
+（要伪造 `SecretNewDeviceRiskPrefs` + 服务端下发 hint），得走 E2E 那条路，
+已记在台账待办里。
