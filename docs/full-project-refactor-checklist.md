@@ -9294,3 +9294,41 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      别用会匹配到第一处的模式。**
 - **实测结果**：app JVM 单测 **1978 → 1987 例**（本类 `tests=9 failures=0`）；
   两个安全边界各有一个会失败的 NC。
+
+### G203b — 缓存路径构造的路径穿越覆盖；负控制反向验证出「纵深防御真的存在」（app 1987 → 1994）
+
+- **动机**：G202b 覆盖了 `sanitizeFileName`，但同文件里还有**另外 5 处同形消毒**
+  （`messageId` / `attachmentId` / `discriminator` → 缓存文件名），同样零覆盖。
+  这些把不可信的消息 id 变成**磁盘路径**，是同一类攻击面。
+- **这里有个我没想周全的点，值得完整记**：缓存路径构造是**两层防御**——
+  1. 白名单消毒 `replace(Regex("[^A-Za-z0-9_-]"), "_")`；
+  2. canonical 兜底 `require(target.canonicalPath.startsWith(dir.canonicalPath + "/"))`。
+- **7 条用例**（Robolectric，因为要 `context.cacheDir`）：
+  messageId / attachmentId / discriminator 各带 `..`、`/`、`\`、空字节、空格的输入
+  都必须落在 `maodouchat_media`（注意：**不是** `media-cache`）内；
+  `createPreparedAttachmentSource` 的**扩展名白名单**（`.jpg` 过、`jpg`/`.JPG`/
+  `.j pe`/`.`/`..`/`.jpg/../../x`/超长 全拒）；
+  `preparedAttachmentSourceFile` 拒目录外路径与非 file scheme；
+  密聊 chatId 穿越必须抛 `IllegalArgumentException`、干净 chatId 落在
+  `maodouchat_media_secret` 内；以及「返回路径 canonical 上必在目录内」。
+- **三次自己的测试写错，都是「凭印象」而非「读代码」**：
+  1. 缓存目录名写成 `media-cache` / `secret-media-cache`，实际是
+     `maodouchat_media` / `maodouchat_media_secret`（grep 常量才对上）；
+  2. 把 `secretChatId = ""` 列进「必须抛异常」——实际 `!isNullOrBlank()` 会把
+     空串当「非密聊」走共享目录，是 has-参数的正常语义，不是漏洞；
+  3. 断言消毒后确切字符串 `m______1`，实际 `.` 也被换成 `_`，个数数错。
+     改成断言真正的性质（名字只剩 `[A-Za-z0-9_-]`）。
+- **最重要的发现，来自一次「没打红」的负控制**：
+  我先去掉**第二层** canonical 兜底 → 测试**全绿**（G185b 那条教训立刻生效：
+  NC 不红先怀疑用例）。想清楚原因：第一层白名单已经把 `/`、`\`、`.` 全灭掉，
+  根本没有能逃逸的输入，第二层在当前实现下**不可达**。
+  于是反向验证——去掉**第一层**白名单消毒：第二层当场
+  **抛 `IllegalArgumentException`**（`MediaCachePathEscapeTest` 两条 FAILED），
+  路径没有逃出去。
+  **即：纵深防御是真的，而且方向是「第一层挡住日常、第二层兜住第一层失守」。**
+  这个契约今天**无法用测试直接断言**（不绕过第一层就够不到第二层），
+  所以只在台账记录本次实测结论，**没有写一条恒真的 Vacuous 用例**。
+  **教训（第八十九次沉淀）：纵深防御的下一层，往往在当前实现下不可达。
+     验证它的正确方式是把上一层拿掉，看它是否接得住——而不是断言它「存在」。**
+- **实测结果**：app JVM 单测 **1987 → 1994 例**（本类 `tests=7 failures=0`）；
+  三层负控制（去第二层→不红；去第一层→第二层接住并抛异常）均还原并复跑转绿。
