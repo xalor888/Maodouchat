@@ -7785,9 +7785,15 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
   `val ncCanary = com.maodouchat.MaodouchatApp.activeChatOpenedAtMs` →
   `composable files do not reach into the database directly` **红**（同时行数门禁也红，符合预期）。
   恢复后转绿。
-- **实测结果**：`ClientArchitectureTest` 9 → **11 条用例**；
-  app JVM 单测 **1906 → 1908 例**；`:core:testing:test` 由 FAILED 转 BUILD SUCCESSFUL；
-  删掉 1 个文件（187 行）。
+- **实测结果**：`ClientArchitectureTest` **10 → 12 条 @Test**；
+  app JVM 单测 **1910 → 1912 例**（343 套件 / 0 失败 / 0 错误 / 0 跳过）；
+  `:core:testing:test` 由 FAILED 转 BUILD SUCCESSFUL；删掉 1 个文件（187 行）。
+  **更正**：本条最初写成「9 → 11 条」和「1906 → 1908 例」，两个数都是错的——
+  真实是 **10 → 12 条 @Test**、**1910 → 1912 例**。
+  **教训（第五十二次沉淀）：提交信息里的数字要和 XML 汇总对得上。
+     我这次是凭「加了 2 条用例」倒推出总数，而没重新聚合 XML——
+     倒推在基线本身就记错时必然错（我此前把基线记成 1906，实际是 1910）。
+     数字要么现测，要么不写。**
 - **实跑验证**：
   - 移植后 `ClientArchitectureTest` 单跑 BUILD SUCCESSFUL；
   - 负控制红 → 恢复 → 转绿；
