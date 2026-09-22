@@ -9706,3 +9706,35 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   往路线图里加一个死 val 是零成本的。
 - **实测结果**：app JVM 单测 **2041 → 2042 例**（本文件 19 例，0 失败）；
   生产代码仅一次 NC 的临时新增、已还原。
+
+### G217b — 给 messaging 的分层债立棘轮；顺带补 model 禁止表漏掉的 db/（server 466 → 467）
+
+- **发现 1（债，没被记过）**：`messaging must not depend on route layer plugins`
+  那条的 KDoc 把 messaging/ 称作「消息领域层」，但它实际上**直接用 Exposed DSL、
+  直接 import db/ 表对象**。门禁只覆盖了两个越界依赖里的一个，另一个从来没被记。
+- **发现 2（禁止表漏项）**：`model must not depend on db repository service or plugins`
+  的禁止表里有 Exposed / repository / service / plugins，**独独漏了 `db/`**——
+  而 db/ 是 model/ 的最近邻居（表对象就是按 wire model 长的）。实测当前 **0 处**，
+  所以这是零风险收紧。
+- **做了什么**：
+  1. 新增 `messaging db and exposed coupling only ever shrinks`——两条按文件计数的棘轮
+     （→db/ 引用数、Exposed import 数），沿用既有 `assertRatchet`（精确等基线、
+     变多变少都红，变少提示「这是好事请下调基线」）。
+     基线**由门禁自报后填入**（先留空、跑一次看它报什么），不手推。
+     自报：**6 个文件**碰 db/（`ConversationDeviceSnapshotStore`/`EnvelopeMailboxStore`/
+     `MailboxRetentionService`/`MessageAdmissionPolicy`/`MessageMetadataStore`/
+     `ServiceMessagePublisher`），引用数 2~8 不等；Exposed import 7~11 不等。
+  2. `model` 禁止表补上 `com.maodouchat.server.db`，并在失败信息里注明「G217b 补的，
+     实测当前 0 处」。
+  **为什么债要冻结而不是禁止**：直接改成绝对禁止会立刻红在 6 个文件上，
+  那是一次大重构，本轮做不动。冻结让债**可见**——可见才有可能被还。
+- **负控制**：给 `MessageMetadataStore.kt` 加一条 `com.maodouchat.server.db` 引用
+  → 新棘轮 **FAILED**。还原（`diff` 一致）后转绿。
+- **一次自己的测量口径错误**：算基线时我用 `glob('messaging/*.kt')`，得到**空**；
+  门禁的 `filesUnder` 用的是 `walkTopDown()`（**递归**）。
+  改成递归 glob 才拿到 6 个文件的真实分布。
+  **教训（第九十五次沉淀）：复算一个门禁的基线时，要先复现它的**遍历方式**。
+     递归 vs 非递归这种差别，会让基线从「6 个文件」变成「0 个文件」，
+     而后者看起来像个好消息。**
+- **实测结果**：server **466 → 467 例**（`ServerArchitectureTest` 8 例，0 失败）；
+  app JVM 2042 例不变；生产代码无净改动（仅 NC 临时新增、已还原）。

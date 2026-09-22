@@ -166,6 +166,7 @@ class ServerArchitectureTest {
     fun `model must not depend on db repository service or plugins`() {
         val forbidden = listOf(
             "org.jetbrains.exposed" to "Exposed DSL",
+            "com.maodouchat.server.db" to "db",
             "com.maodouchat.server.repository" to "repository",
             "com.maodouchat.server.service" to "service",
             "com.maodouchat.server.plugins" to "plugins",
@@ -181,7 +182,9 @@ class ServerArchitectureTest {
             emptyList(),
             offenders,
             "model/ 必须是纯 wire/DTO 层（今天只 import kotlinx.serialization），" +
-                "不得依赖数据库、仓储、服务或路由层。",
+                "不得依赖数据库、仓储、服务或路由层。" +
+                "（G217b：db/ 此前不在禁止表里——它是 model/ 的最近邻居，" +
+                "漏掉它等于把最容易发生的那类耦合留在了门外。实测当前 0 处。）",
         )
     }
 
@@ -250,6 +253,44 @@ class ServerArchitectureTest {
             actual = actual.mapValues { (_, v) -> v.toString() },
             baseline = frozenServicesDependingOnPlugins.mapValues { (_, v) -> v.toString() },
             direction = "service 不得依赖 route 层；把被依赖的常量/工具下沉到中立包。",
+        )
+    }
+
+    /**
+     * G217b：`messaging/` 的**分层债**棘轮。
+     *
+     * `messaging must not depend on route layer plugins` 那条的 KDoc 把 messaging/
+     * 称作「消息领域层」，但它实际上**直接用 Exposed DSL、直接 import db/ 表对象**
+     * （实测 27 处 db 引用 + 大量 org.jetbrains.exposed import）。
+     * 也就是说：那条门禁只覆盖了两个越界依赖里的一个，另一个从来没被记过。
+     *
+     * 这里不改成绝对禁止（那会立刻红，是一次大重构），而是**按现有棘轮模式冻结**：
+     * 每文件的 db 引用数与 Exposed import 数都记成基线，只能降不能升。
+     * 债要可见，才可能被还。
+     */
+    @Test
+    fun `messaging db and exposed coupling only ever shrinks`() {
+        val dbRefs = mutableMapOf<String, String>()
+        val exposedRefs = mutableMapOf<String, String>()
+        filesUnder("messaging").forEach { file ->
+            val code = file.codeText()
+            val db = DB_PACKAGE_REFERENCE.findAll(code).count()
+            if (db > 0) dbRefs[file.name] = db.toString()
+            val ex = EXPOSED_IMPORT.findAll(code).count()
+            if (ex > 0) exposedRefs[file.name] = ex.toString()
+        }
+        assertRatchet(
+            what = "messaging/ → db/ 表对象引用",
+            actual = dbRefs,
+            baseline = frozenMessagingDbRefs,
+            direction = "把 SQL 下沉到 repository/，messaging/ 只依赖领域接口。" +
+                "债先冻结可见，还一处就把基线下调一处。",
+        )
+        assertRatchet(
+            what = "messaging/ 里的 Exposed import",
+            actual = exposedRefs,
+            baseline = frozenMessagingExposedImports,
+            direction = "同上：Exposed DSL 属于 db/ 边界，不应出现在领域层。",
         )
     }
 
@@ -367,5 +408,34 @@ class ServerArchitectureTest {
 
         /** 与 `grep -o 'com\.maodouchat\.server\.plugins'` 等价的文本口径（按引用处计数）。 */
         val PLUGINS_PACKAGE_REFERENCE = Regex("""com\.maodouchat\.server\.plugins""")
+
+        /** G217b：与 `grep -o 'com\.maodouchat\.server\.db'` 等价（按引用处计数）。 */
+        val DB_PACKAGE_REFERENCE = Regex("""com\.maodouchat\.server\.db""")
+
+        /** G217b：Exposed 的 import 行（`import org.jetbrains.exposed...`）。 */
+        val EXPOSED_IMPORT = Regex("""^import\s+org\.jetbrains\.exposed""", RegexOption.MULTILINE)
+
+        /**
+         * G217b 冻结值：messaging/ → db/ 的按文件引用数。
+         * 由门禁首次运行自报后填入（不手推——G167b 的教训）。
+         */
+        val frozenMessagingDbRefs: Map<String, String> = mapOf(
+            "ConversationDeviceSnapshotStore.kt" to "4",
+            "EnvelopeMailboxStore.kt" to "2",
+            "MailboxRetentionService.kt" to "2",
+            "MessageAdmissionPolicy.kt" to "6",
+            "MessageMetadataStore.kt" to "8",
+            "ServiceMessagePublisher.kt" to "5",
+        )
+
+        /** G217b 冻结值：messaging/ 里每文件的 Exposed import 数。 */
+        val frozenMessagingExposedImports: Map<String, String> = mapOf(
+            "ConversationDeviceSnapshotStore.kt" to "7",
+            "EnvelopeMailboxStore.kt" to "9",
+            "MailboxRetentionService.kt" to "11",
+            "MessageAdmissionPolicy.kt" to "7",
+            "MessageMetadataStore.kt" to "7",
+            "ServiceMessagePublisher.kt" to "7",
+        )
     }
 }
