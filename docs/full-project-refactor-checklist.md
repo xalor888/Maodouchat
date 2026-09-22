@@ -9784,7 +9784,7 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   守卫放在违规检查**之前**——空扫描时「没有违规」这个结论本身没有意义。
 - **三次负控制**：
   1. ROOT 指错 → `返回: 1` + 「check is vacuous: only 0 text files checked」；
-  2. 往仓库根放一个含「猫豆」的文件 → `exit=1` 且点名文件行号
+  2. 往仓库根放一个含禁用错别字（把「毛」写成「猫」）的文件 → `exit=1` 且点名文件行号
      （证明不是只加了个下限、真的违规照样抓）；
   3. 正常状态 → `exit=0`、`36367 text files checked`。
 - **一次自己的 NC 设计错**：第一次测违规时把文件放进 `tmp/`——
@@ -9797,3 +9797,12 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：`scripts/check-brand-terminology.py` +空扫描守卫；
   正常 36367 文件 exit 0、空扫描 exit 1、真违规 exit 1。
   app JVM / server 均 0 失败（纯脚本改动，不进单测）。
+- **追加记录（同一轮内）**：上面这条台账条目**自己触发了这道门禁**——我在描述
+  负控制时把禁用错别字原文写进了 markdown，`python3 scripts/check-brand-terminology.py`
+  当场报 `docs/full-project-refactor-checklist.md:9787` 并 exit 1。
+  也就是说：**我这轮修的守卫，第一次实战就抓到了我的文档。**
+  已把原文换成文字描述（「把『毛』写成『猫』」），复跑 exit 0。
+  **教训（第九十八次沉淀）：描述一个违规时，不要原样复述它。
+     门禁是文本匹配，文档也是文本——把禁用词写进「说明我在测禁用词」的句子里，
+     一样会中招。这和「不要在注释里写会被 grep 到的标识符」是同一个坑，
+     只是这次坑在中文术语上。**
