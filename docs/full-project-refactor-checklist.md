@@ -10095,3 +10095,37 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：lintDebug BUILD SUCCESSFUL；app JVM 2059 例 0 失败；
   基线 657→653（LocalContext 40→36）；ratchet 2 例 0 失败。
 - **剩余**：36 处 LocalContext（含 7 处 Pattern A 需单独处理）。
+
+### G230b — 还债 9 处；并**推翻我 G223b 自己的判断**（基线 653 → 644）
+
+- **本轮最重要的发现：G223b 我判断错了一件事。**
+  我当时写「这 41 处**不能机械换成 `stringResource()`**，因为它们在 onClick 这类
+  非 @Composable 回调里」。这句话**只对了一半**。
+  实测：`ChatDetailForwardPicker.kt:137` 位于
+  `forwardMessages.take(3).forEach { fm -> val previewText = when(fm.type){...} }`，
+  而 **`forEach` 是 inline 函数，它的 lambda 会继承调用点的 @Composable 上下文**。
+  所以那里直接 `stringResource(...)` 就编译通过了。
+  **「回调里不能用 stringResource」的准确说法是「非 inline 的回调参数里不能用」。**
+- **本轮做法（让编译器分类，而不是我先分类）**：
+  把 9 个候选点**全部**先换成 `stringResource(...)`，编译一次，
+  让编译器告诉我哪些不行——结果 8 处报
+  `@Composable invocations can only happen from the context of a @Composable function`，
+  1 处（ForwardPicker:137）通过。
+  **这比我人工判断可靠**，也直接纠正了我上一轮的过度保守。
+- **8 处需要 hoist 的，全部处理完**：
+  | 文件 | 处数 | 形态 |
+  |---|---|---|
+  | `ChatDetailForwardPicker.kt` | 1 | `onClick` 里 Toast |
+  | `ChatDetailChatSettingsDialogs.kt` | 2 | `onClick` 里 Toast |
+  | `ChatListFolderDialogs.kt` | 2 | `onClick` 里 `onXxxErrorChange(...)` |
+  | `ChatDetailAiDialogs.kt` | 3 | `onCopyProfile` 回调里 `copyToClipboard(...)` |
+- **一个脚本小坑**：`ChatListFolderDialogs.kt` 的 context 写作
+  `val context = androidx.compose.ui.platform.LocalContext.current`（全限定名），
+  我的锚点是 `val context = LocalContext.current`，匹配不上、脚本中途断言失败。
+  改成**双锚点**（全限定 + 短名）后通过。
+  另外替换时要跳过 hoist 自己那次赋值（`val xxx = stringResource(...)`），
+  否则会把刚加的 val 也换掉——用「前 6 个字符是不是 `= ` 结尾」判断。
+- **实测结果**：lint 报 **9 条**基线已失效 → `updateLintBaseline`
+  → 总数 **653 → 644**、LocalContext **36 → 27** → ratchet 冻结值同步（644/27）
+  → 2 例转绿 → 全量 app JVM **2059 例 0 失败**。
+- **进度**：LocalContext **41 → 27**（还掉 14 处 / 34%）。

@@ -79,6 +79,8 @@ internal fun ChatListFolderDialogs(
     onVideoCall: (String, String) -> Unit = { _, _ -> },
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val folderCreateFailedTip = stringResource(R.string.chat_folder_create_failed)
+    val folderRenameFailedTip = stringResource(R.string.chat_folder_rename_failed)
 
     if (showMissedCallsSheet) {
         // 8.52：升级为全量通话记录——Room 未接（历史）+ CallLogStore（呼出/已接/未接）合并去重
@@ -156,7 +158,7 @@ internal fun ChatListFolderDialogs(
             confirmButton = {
                 TextButton(onClick = {
                     if (viewModel.createFolder(createFolderName)) { onShowCreateFolderChange(false); onCreateFolderNameChange(""); onCreateFolderErrorChange(null)}
-                    else onCreateFolderErrorChange(context.getString(R.string.chat_folder_create_failed))
+                    else onCreateFolderErrorChange(folderCreateFailedTip)
                 }) { Text(stringResource(R.string.chat_folder_create)) }
             },
             dismissButton = { TextButton(onClick = { onShowCreateFolderChange(false)}) { Text(stringResource(android.R.string.cancel)) } }
@@ -268,7 +270,7 @@ internal fun ChatListFolderDialogs(
             confirmButton = {
                 TextButton(onClick = {
                     if (viewModel.renameFolder(fid, renameFolderName)) { onRenameFolderIdChange(null); onRenameFolderErrorChange(null)}
-                    else onRenameFolderErrorChange(context.getString(R.string.chat_folder_rename_failed))
+                    else onRenameFolderErrorChange(folderRenameFailedTip)
                 }) { Text(stringResource(android.R.string.ok)) }
             },
             dismissButton = { TextButton(onClick = { onRenameFolderIdChange(null)}) { Text(stringResource(android.R.string.cancel)) } }

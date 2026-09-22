@@ -493,83 +493,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                copyToClipboard(context.getString(R.string.chat_ai_conversation_profile_title), profileText)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs.kt"
-            line="123"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                copyToClipboard(context.getString(R.string.chat_ai_weekly_report_title), reportText)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs.kt"
-            line="137"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                copyToClipboard(context.getString(R.string.ai_enhance_classify_title), classifyText)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs.kt"
-            line="151"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Toast.makeText(context, context.getString(R.string.chat_silent_until_set), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailChatSettingsDialogs.kt"
-            line="74"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                            Toast.makeText(context, context.getString(R.string.chat_silent_until_cleared), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailChatSettingsDialogs.kt"
-            line="85"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                context.getString(R.string.chat_decrypt_failed)"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailForwardPicker.kt"
-            line="137"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                            Toast.makeText(context, context.getString(R.string.secret_forward_whitelist_added, forwardTargetName(context, chat, state.currentUserId)), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailForwardPicker.kt"
-            line="248"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()"
         errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -807,28 +730,6 @@
             file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailTimelineItems.kt"
             line="321"
             column="45"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    else onCreateFolderErrorChange(context.getString(R.string.chat_folder_create_failed))"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListFolderDialogs.kt"
-            line="159"
-            column="52"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    else onRenameFolderErrorChange(context.getString(R.string.chat_folder_rename_failed))"
-        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListFolderDialogs.kt"
-            line="271"
-            column="52"/>
     </issue>
 
     <issue
@@ -1397,7 +1298,7 @@
         errorLine2="                                     ~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListFolderDialogs.kt"
-            line="170"
+            line="172"
             column="38"/>
     </issue>
 

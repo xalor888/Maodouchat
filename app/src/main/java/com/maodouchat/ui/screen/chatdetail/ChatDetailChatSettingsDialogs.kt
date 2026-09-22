@@ -50,6 +50,8 @@ internal fun ChatSilentUntilDialog(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val silentUntilSetTip = stringResource(R.string.chat_silent_until_set)
+    val silentUntilClearedTip = stringResource(R.string.chat_silent_until_cleared)
     // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
     val chatIdForSilent = chatId
     val hasActiveSilent = com.maodouchat.notification.ChatQuietHoursStore.silentUntil(context, chatIdForSilent) > System.currentTimeMillis()
@@ -71,7 +73,7 @@ internal fun ChatSilentUntilDialog(
                                 System.currentTimeMillis() + hours * 3600_000L
                             )
                             onDismiss()
-                            Toast.makeText(context, context.getString(R.string.chat_silent_until_set), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, silentUntilSetTip, Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(stringResource(labelRes), color = MaterialTheme.colorScheme.onSurface) }
@@ -82,7 +84,7 @@ internal fun ChatSilentUntilDialog(
                         onClick = {
                             com.maodouchat.notification.ChatQuietHoursStore.setSilentUntil(context, chatIdForSilent, 0L)
                             onDismiss()
-                            Toast.makeText(context, context.getString(R.string.chat_silent_until_cleared), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, silentUntilClearedTip, Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(stringResource(R.string.chat_silent_until_clear), color = LocalChatPalette.current.unreadRed) }

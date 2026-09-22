@@ -86,6 +86,7 @@ internal fun ChatDetailForwardPicker(
     val forwardMessages = messages
     val state = ChatDetailUiState(forwardTargets = forwardTargets, currentUserId = currentUserId)
     val context = LocalContext.current
+    val secretWhitelistAddedTip = stringResource(R.string.secret_forward_whitelist_added)
 
     val forwardMeLabel = stringResource(R.string.chat_sender_me)
     var forwardQuery by remember(forwardMessages.map { it.id }.joinToString()) { mutableStateOf("") }
@@ -134,7 +135,7 @@ internal fun ChatDetailForwardPicker(
                             MessageType.LOCATION -> stringResource(R.string.message_preview_location)
                             else -> com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
                                 fm.parsedContent(),
-                                context.getString(R.string.chat_decrypt_failed)
+                                stringResource(R.string.chat_decrypt_failed)
                             ).replace('\n', ' ').take(40)
                         }
                         Row(
@@ -245,7 +246,7 @@ internal fun ChatDetailForwardPicker(
                                         TextButton(onClick = {
                                             val whitelist = com.maodouchat.util.SecretForwardWhitelistPrefs.whitelist(context) + chat.id
                                             com.maodouchat.util.SecretForwardWhitelistPrefs.setWhitelist(context, whitelist)
-                                            Toast.makeText(context, context.getString(R.string.secret_forward_whitelist_added, forwardTargetName(context, chat, state.currentUserId)), Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, secretWhitelistAddedTip, Toast.LENGTH_SHORT).show()
                                         }) {
                                             Text(stringResource(R.string.secret_forward_whitelist_add), color = MaterialTheme.colorScheme.primary)
                                         }

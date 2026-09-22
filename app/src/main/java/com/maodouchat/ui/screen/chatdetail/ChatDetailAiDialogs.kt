@@ -57,6 +57,9 @@ internal fun ChatDetailAiDialogs(
     classifyFailed: Boolean,
 ) {
     val context = LocalContext.current
+    val profileCopyTitle = stringResource(R.string.chat_ai_conversation_profile_title)
+    val reportCopyTitle = stringResource(R.string.chat_ai_weekly_report_title)
+    val classifyCopyTitle = stringResource(R.string.ai_enhance_classify_title)
     val chatCopiedMsg = stringResource(R.string.chat_copied)
     val chatGroupAiTitle = stringResource(R.string.chat_group_ai_title)
     val chatGroupAiCopiedMsg = stringResource(R.string.chat_group_ai_copied)
@@ -120,7 +123,7 @@ internal fun ChatDetailAiDialogs(
             onDismiss = onDismissConversationProfile,
             // 1.317：复制会话画像
             onCopyProfile = { profileText ->
-                copyToClipboard(context.getString(R.string.chat_ai_conversation_profile_title), profileText)
+                copyToClipboard(profileCopyTitle, profileText)
             }
         )
     }
@@ -134,7 +137,7 @@ internal fun ChatDetailAiDialogs(
             onDismiss = onDismissWeeklyReport,
             // 1.310：复制周报全文
             onCopyReport = { reportText ->
-                copyToClipboard(context.getString(R.string.chat_ai_weekly_report_title), reportText)
+                copyToClipboard(reportCopyTitle, reportText)
             }
         )
     }
@@ -148,7 +151,7 @@ internal fun ChatDetailAiDialogs(
             onDismiss = onDismissMessageClassify,
             // 1.349：复制分类结果（与周报/画像复制一致）
             onCopyClassify = { classifyText ->
-                copyToClipboard(context.getString(R.string.ai_enhance_classify_title), classifyText)
+                copyToClipboard(classifyCopyTitle, classifyText)
             }
         )
     }
