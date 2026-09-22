@@ -62,6 +62,9 @@ import org.json.JSONObject
 internal fun SettingsTotpSection(userId: String) {
     val context = LocalContext.current
     val tokenManager = com.maodouchat.network.TokenManager.getInstance(context)
+    // G228b：资源读取提升到 composable 作用域——onClick 等非 @Composable 回调里
+    // 不能用 stringResource()，只能在组合时取好值再用。
+    val disableTotpTitle = stringResource(R.string.settings_totp_disable)
     var totpEnabled by remember(userId) { mutableStateOf(false) }
     var totpBusy by remember(userId) { mutableStateOf(false) }
     var totpSecret by remember(userId) { mutableStateOf<String?>(null) }
@@ -303,7 +306,7 @@ internal fun SettingsTotpSection(userId: String) {
                                 com.maodouchat.security.SensitiveActionGate.confirm(
                                     context = context,
                                     action = com.maodouchat.security.SensitiveAction.DISABLE_TOTP,
-                                    title = context.getString(R.string.settings_totp_disable),
+                                    title = disableTotpTitle,
                                     onSuccess = {
                                         totpBusy = true
                                         totpScope.launch {

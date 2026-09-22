@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 658
+    private val frozenIssueCount = 657
 
     @Test
     fun `lint baseline can only shrink`() {
@@ -71,7 +71,7 @@ class LintBaselineRatchetTest {
             "UnusedResources" to 298,
             "UseKtx" to 209,
             // 上面两条是 warning 级的大头；真正卡 CI 的是它：
-            "LocalContextGetResourceValueCall" to 41,
+            "LocalContextGetResourceValueCall" to 40,
             "GradleDependency" to 22,
             "NewerVersionAvailable" to 14,
             "HardwareIds" to 10,
