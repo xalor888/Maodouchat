@@ -49,6 +49,8 @@ internal fun ChatDetailSetChatLockDialog(
     onSaved: (String) -> Unit,
 ) {
     val context = LocalContext.current
+    val chatLockPinLengthTip = stringResource(R.string.chat_lock_pin_length)
+    val chatLockPinMismatchTip = stringResource(R.string.chat_lock_pin_mismatch)
 
     AlertDialog(
         onDismissRequest = {
@@ -95,9 +97,9 @@ internal fun ChatDetailSetChatLockDialog(
             TextButton(onClick = {
                 when {
                     pinDraft.length !in 4..8 ->
-                        onErrorMessageChange(context.getString(R.string.chat_lock_pin_length))
+                        onErrorMessageChange(chatLockPinLengthTip)
                     pinDraft != pinConfirmDraft ->
-                        onErrorMessageChange(context.getString(R.string.chat_lock_pin_mismatch))
+                        onErrorMessageChange(chatLockPinMismatchTip)
                     else -> {
                         onSaved(pinDraft)
                         onDismiss()

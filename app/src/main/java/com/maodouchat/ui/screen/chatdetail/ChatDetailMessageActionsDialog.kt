@@ -50,6 +50,7 @@ internal fun ChatDetailMessageActionsDialog(
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
+    val secretCopyBlockedTip = stringResource(R.string.secret_chat_copy_blocked)
     val chatCopiedMsg = stringResource(R.string.chat_copied)
     val chatClipboardMessageLabel = stringResource(R.string.chat_clipboard_message)
     val state = ChatDetailUiState(currentUserId = currentUserId, isSecretChat = isSecretChat)
@@ -69,7 +70,7 @@ internal fun ChatDetailMessageActionsDialog(
                     }) { Text(stringResource(R.string.chat_copy)) }
                 } else {
                     TextButton(onClick = {
-                        Toast.makeText(context, context.getString(R.string.secret_chat_copy_blocked), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, secretCopyBlockedTip, Toast.LENGTH_SHORT).show()
                         onDismiss()
                     }) { Text(stringResource(R.string.chat_copy)) }
                 }

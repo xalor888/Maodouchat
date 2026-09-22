@@ -10066,3 +10066,32 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：本轮**零代码改动**；
   推送 EXIT=0 ×2；未推送 0；CI run in_progress（已完成步骤全 success）；
   lintDebug BUILD SUCCESSFUL；`ls-files`=1794 与 DIRECTION.md 一致。
+
+### G229b — 还债 4 处：单文件单函数内的「Toast/回调读资源」（基线 657 → 653）
+
+- **背景**：G228b 验证了做法并还了第 1 处，剩 40 处。本轮把**最规矩的一类**一次做掉。
+- **分类后再动手**（G218b 的教训：先分清形态）：
+  40 处里 **36 处是「Pattern B」**——`Toast.makeText(context, context.getString(...))`
+  或 `onXxxChange(context.getString(...))`，全在非 @Composable 回调里。
+  只有 `ChatDetailTimelineItems.kt:218-228` 那 7 处是 **Pattern A**
+  （`mediaLabel: (MessageType) -> String` 的 lambda 参数），要先 hoist 7 个 val，另做。
+- **本轮修掉 4 处 / 3 个文件**（都是 Pattern B）：
+  | 文件 | 处数 | 资源 |
+  |---|---|---|
+  | `ChatDetailMessageActionsDialog.kt` | 1 | `secret_chat_copy_blocked` |
+  | `ChatDetailAttachMenu.kt` | 1 | `schedule_need_text` |
+  | `ChatDetailSetChatLockDialog.kt` | 2 | `chat_lock_pin_length` / `chat_lock_pin_mismatch` |
+  做法与 G228b 完全一致：在 composable 作用域 `val x = stringResource(...)`，回调里换成 `x`。
+- **为什么这 4 处能一次做完**：它们的回调都在**同一个 composable 函数**里，
+  hoist 位置唯一（就在 `val context = LocalContext.current` 后面），
+  不需要跨函数搬值。Pattern A 那种 lambda 参数要 hoist 7 个 val，另说。
+- **整条流程再次走通，且这次是「批量」版**：
+  `lintDebug` 报 `4 errors/warnings were listed in the baseline ...
+  but not found in the project` → `updateLintBaseline`
+  → 总数 **657 → 653**、LocalContext **40 → 36** →
+  ratchet 冻结值同步改（653 / 36）→ 2 例转绿 →
+  全量 app JVM **2059 例 0 失败**。
+- **diff 规模**：5 文件 +10/-50 行——其中 43 行是基线和 ratchet 冻结值的机械变动。
+- **实测结果**：lintDebug BUILD SUCCESSFUL；app JVM 2059 例 0 失败；
+  基线 657→653（LocalContext 40→36）；ratchet 2 例 0 失败。
+- **剩余**：36 处 LocalContext（含 7 处 Pattern A 需单独处理）。

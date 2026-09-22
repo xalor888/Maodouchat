@@ -95,6 +95,7 @@ internal fun ChatDetailAttachMenu(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scheduleNeedTextTip = stringResource(R.string.schedule_need_text)
     val attachmentDisabledText = disabledMessage
 
 AnimatedVisibility(
@@ -195,7 +196,7 @@ AnimatedVisibility(
                     onDisabledClick = {
                         Toast.makeText(
                             context,
-                            if (value.isBlank()) context.getString(R.string.schedule_need_text) else attachmentDisabledText,
+                            if (value.isBlank()) scheduleNeedTextTip else attachmentDisabledText,
                             Toast.LENGTH_SHORT
                         ).show()
                     }
