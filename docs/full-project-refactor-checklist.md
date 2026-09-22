@@ -8622,3 +8622,49 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 它们只在**真机未登记设备**的场景才会出现，`createComposeRule` 渲染不出那个前提
 （要伪造 `SecretNewDeviceRiskPrefs` + 服务端下发 hint），得走 E2E 那条路，
 已记在台账待办里。
+
+### G179b — 第一次跑**完整** instrumented 套件：96 例，69 过 / 27 跳 / 0 失败；E2E 27/0
+
+- **缺口**：`app/src/androidTest` 有 **12 个测试文件**，但
+  `scripts/two-device-http-e2e.sh` 只跑其中 **2 个**
+  （`TwoAccountHttpRoundTripTest` + `ClientDataLifecycleTest`）。
+  另外 10 个**从来没有在脚本/CI 里跑过**——包括我 G173b–G178b 新写的
+  `ChatDetailDialogsUiTest`（此前只用「按类名过滤」单独跑过）。
+- **本轮实跑**（模拟器，不带 class 过滤）：
+  `./gradlew :app:connectedDebugAndroidTest` → `Finished 123 tests` + BUILD SUCCESSFUL；
+  设备 XML：`tests=96 failures=0 errors=0 skipped=27`。
+  | 测试类 | 用例 | 通过 | 跳过 |
+  |---|---|---|---|
+  | `crypto/PersistentSignalStoreRoundTripTest` | 6 | 6 | 0 |
+  | `crypto/SignalDecryptInputMatrixTest` | 3 | 3 | 0 |
+  | `crypto/SignalE2eeRoundTripTest` | 5 | 5 | 0 |
+  | `crypto/SignalGroupSenderKeyRoundTripTest` | 7 | 7 | 0 |
+  | `data/local/AppDatabaseMigrationTest` | 12 | 12 | 0 |
+  | `data/local/ParentUpsertCascadeTest` | 2 | 2 | 0 |
+  | `data/repository/AiMessageResultStoreTest` | 3 | 3 | 0 |
+  | `e2e/ClientDataLifecycleTest` | 3 | 0 | **3** |
+  | `e2e/TwoAccountHttpRoundTripTest` | 24 | 0 | **24** |
+  | `messaging/v2/MessageTerminalRaceTest` | 5 | 5 | 0 |
+  | `messaging/v2/SignalMessagingV2EnvelopeProcessorAssemblyTest` | 8 | 8 | 0 |
+  | **`ui/screen/chatdetail/ChatDetailDialogsUiTest`** | **18** | **18** | **0** |
+  | 合计 | 96 | 69 | 27 |
+- **两个关键结论**：
+  1. **我的 18 条 UI 用例在完整套件里 18/18 通过**——和其余 11 个文件共存，
+     没有共享状态冲突（此前只单独跑过，这是第一次合跑）；
+  2. **9 个从未跑过的文件全部通过**（合计 51 例）。它们确实能跑，只是没人跑。
+- **27 个跳过是**设计如此**，不是失败**：两个 E2E 类开头的
+  `InstrumentationRegistry.getArguments().getString("e2eHttp")` 为 null 时就 skip
+  （消息写的是「需要真服务端：请用 scripts/two-device-http-e2e.sh 运行」），
+  而该 arg 只有 E2E 脚本会注入（`-Pandroid.testInstrumentationRunnerArguments.e2eHttp=1`）。
+  本轮也复跑了 E2E 脚本确认那条路仍然通：**tests=27 failures=0**。
+- **一次自己的统计错误（当场发现并改正）**：我第一版按
+  「`<testcase>` 后 600 字符里有没有 `<skipped`」判状态，把 `AiMessageResultStoreTest`
+  的 3 例误判成 skipped——因为它们写成**自闭合标签** `<testcase ... />`
+  （JUnit XML 里自闭合=通过），而我那 600 字符窗口扫到了下一个用例的 `<skipped/>`。
+  改成严格按元素子节点判断后才对得上 `testsuite` 声明的 `skipped=27`。
+  **教训（第七十二次沉淀）：解析 JUnit XML 时，「通过」是自闭合标签、没有任何子元素。
+     用「向后看 N 字符」判断状态一定会串到下一个用例——必须按元素边界切。**
+- **一个没解释清楚的小数**：Gradle 日志说 `Finished 123 tests`，XML 里是 96
+  （96 = 69 通过 + 27 跳过）。123 与 96 的关系我没查清，**不猜**；
+  本条约定的数字一律以 XML 为准。
+- **实测结果**：无代码改动（纯复跑）；app JVM 1929 例不变；androidTest 完整跑通。
