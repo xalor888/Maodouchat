@@ -8385,6 +8385,11 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   `DIRECTION.md` 2 增 2 删（只有那两个被抓出来的数字）。
 - **实跑验证**：门禁单跑 BUILD SUCCESSFUL（12 条）；两次负控制均按预期红并恢复；
   **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（344 套件 / 1929 例）**。
+- **又一次数字靠推导而非实测（第 N 次）**：我按「1918 + 12 条新用例 = 1930」写进台账和
+  提交信息，实际聚合 XML 是 **1929**（`DirectionDocFreshnessTest` 只有 **11** 个 `@Test`，
+  我多数了一个）。已用 `git commit --amend` 改提交信息、并回改台账。
+  **这和 G156b 是同一个病：数字要么现测，要么不写。** 这次连「新加了几个 @Test」
+  都应该先 `grep -c` 数一遍。
 - **这条门禁的边界（写下来备查）**：它只覆盖 §0 那张表。
   DIRECTION.md 其余章节（§1 判断、§2 三轨道、§3 里程碑）是**论证**不是断言，没有可执行判据，
   不适合也不应该被这样钉死。§0 之后任何人改表格，测试会告诉他「去同步」——
