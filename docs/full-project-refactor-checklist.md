@@ -8515,3 +8515,33 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **剩余**：还有 **8 个 dialog** 无 UI 覆盖（`ForgotChatLock` / `ClearChatHistory` /
   `LiveLocationDuration` / `GroupAnnouncement` / `EditMessage` / `RevokeMessage` /
   `RetryMessage` / `SecretNewDeviceRiskLocked` / `NewDeviceRiskPrompt`）。
+
+### G176b — LiveLocation + EditMessage 两组用例（androidTest 12 例，模拟器 12/12 通过）
+
+- **一次补两个**，都是「数值/状态易错、编译无感」的类型：
+  1. **`LiveLocationDurationDialog`**——三个时长选项的**毫秒值**：
+     `15m → 15*60_000`、`1h → 60*60_000`、`8h → 8*60*60_000`。
+     这三个数配错任何一个编译都通过、UI 也照常显示，只有「用户点了 1 小时
+     结果 15 分钟就结束」这种运行时才暴露。用例逐个点、逐个比对 `onPick` 收到的值。
+     另外验证「取消」走 `onDismiss` 且不再多报一个时长。
+  2. **`EditMessageDialog`**——两条：
+     - 草稿非空：标题与草稿值真的在输入框里、保存可点并只触发 `onSave`、
+       `performTextInput` 能把新文本经 `onDraftChange` 带出来（草稿状态在调用方）；
+     - 草稿为纯空白：**保存必须禁用**（`enabled = draft.trim().isNotBlank()` 是原实现的行为，
+       删掉它会让用户提交一条空编辑）。
+- **两次自己的编译错**：
+  1. 漏了 `assertIsEnabled` / `assertIsNotEnabled` / `performTextInput` 三个 import；
+  2. **编造了一个不存在的 API** `performTextInputing()`。改成 `performTextInput("X")`。
+- **两次负控制（都精确命中对应用例）**：
+  1. 把 15 分钟的期望值改成 20 分钟 → `liveLocationDurationsReportTheRightMilliseconds` **FAILED**；
+  2. 把「空白草稿保存不可点」改成「可点」 → `editMessageDisablesSaveForABlankDraft` **FAILED**。
+  两次均已恢复并复跑转绿。
+- **模拟器实跑**：`connectedDebugAndroidTest -P...RunnerArguments.class=...ChatDetailDialogsUiTest`
+  → `Finished 12 tests on maodou_test(AVD) - 16` + BUILD SUCCESSFUL；
+  设备 XML `tests=12 failures=0 errors=0`，12 条全 `ok`。
+- **实测结果**：androidTest **+3 条用例**（9 → 12，模拟器 12/12）；无生产代码改动；
+  app JVM 单测 **1929 例不变**。
+- **实跑验证**：编译通过；模拟器 12/12；两次负控制均红并恢复；恢复后再跑一次 12/12。
+- **剩余**：还有 **7 个 dialog** 无 UI 覆盖（`ForgotChatLock` / `ClearChatHistory` /
+  `GroupAnnouncement` / `RevokeMessage` / `RetryMessage` / `SecretNewDeviceRiskLocked` /
+  `NewDeviceRiskPrompt`）。

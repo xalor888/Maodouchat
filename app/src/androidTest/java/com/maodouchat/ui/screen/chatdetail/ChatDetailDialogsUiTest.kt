@@ -1,6 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -201,6 +204,81 @@ class ChatDetailDialogsUiTest {
     fun groupCallDialogRendersNothingWhenNotVisible() {
         setGroupCallDialog(candidateCount = 0, visible = false)
         check(!hasNode(str(R.string.chat_group_call))) { "visible=false 时不该渲染标题" }
+    }
+
+    // ---- LiveLocationDurationDialog：三个时长选项，最容易把毫秒值配错 ----
+
+    @Test
+    fun liveLocationDurationsReportTheRightMilliseconds() {
+        val picked = mutableListOf<Long>()
+        var dismiss = 0
+        compose.setContent {
+            LiveLocationDurationDialog(visible = true, onPick = { picked += it }, onDismiss = { dismiss++ })
+        }
+
+        // 每个选项的毫秒值：15m / 1h / 8h。配错任何一个编译都无感，只能这样钉住。
+        val expected = listOf(
+            R.string.live_location_duration_15m to 15L * 60_000L,
+            R.string.live_location_duration_1h to 60L * 60_000L,
+            R.string.live_location_duration_8h to 8L * 60L * 60_000L,
+        )
+        expected.forEach { (res, ms) ->
+            compose.onNodeWithText(str(res)).performClick()
+        }
+        compose.runOnIdle { check(picked == expected.map { it.second }) { "毫秒值不对：$picked" } }
+        check(dismiss == 0) { "点时长选项不该触发 onDismiss" }
+
+        // 「取消」走 onDismiss，不再多报一个时长
+        compose.onNodeWithText(str(R.string.common_cancel)).performClick()
+        compose.runOnIdle { check(dismiss == 1) { "点取消应触发 onDismiss" } }
+    }
+
+    // ---- EditMessageDialog：草稿受控 + 空白草稿禁保存 ----
+
+    @Test
+    fun editMessageSavesANonBlankDraftAndReportsDraftChanges() {
+        var saved = 0
+        val drafts = mutableListOf<String>()
+        compose.setContent {
+            EditMessageDialog(
+                visible = true,
+                draft = "原始草稿",
+                onDraftChange = { drafts += it },
+                onSave = { saved++ },
+                onDismiss = {},
+            )
+        }
+
+        // 标题与草稿值必须真的在输入框里
+        compose.onNodeWithText(str(R.string.chat_edit_message)).assertIsDisplayed()
+        compose.onNodeWithText("原始草稿").assertIsDisplayed()
+
+        // 非空草稿 → 保存可点，点它只触发 onSave
+        compose.onNodeWithText(str(R.string.common_save)).assertIsEnabled().performClick()
+        compose.runOnIdle { check(saved == 1) { "点保存应触发 onSave，实际 $saved" } }
+
+        // 输入新文本必须经 onDraftChange 带出来（草稿状态在调用方）
+        // 输入新文本必须经 onDraftChange 带出来（草稿状态在调用方，composable 不持有它）
+        compose.onNodeWithText("原始草稿").performTextInput("X")
+        compose.runOnIdle { check(drafts.isNotEmpty()) { "输入文本应触发 onDraftChange，实际 $drafts" } }
+    }
+
+    @Test
+    fun editMessageDisablesSaveForABlankDraft() {
+        var saved = 0
+        compose.setContent {
+            EditMessageDialog(
+                visible = true,
+                draft = "   ",
+                onDraftChange = {},
+                onSave = { saved++ },
+                onDismiss = {},
+            )
+        }
+        // 纯空白草稿 → 保存禁用。这是原实现的行为（enabled = draft.trim().isNotBlank()），
+        // 删掉它会让用户提交一条空编辑。
+        compose.onNodeWithText(str(R.string.common_save)).assertIsNotEnabled()
+        check(saved == 0) { "空白草稿不该触发 onSave" }
     }
 
     @Test
