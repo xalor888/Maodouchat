@@ -15,6 +15,19 @@ import com.maodouchat.network.TokenManager
 class AccountFeatureSwitch(
     private val prefsName: String,
     private val defaultEnabled: Boolean = true,
+    /**
+     * 账号 id 来源（G183b 抽成可注入）。
+     *
+     * 默认仍是 [TokenManager]——但 `TokenManager` 用 `EncryptedSharedPreferences`
+     * （Android Keystore），在 Robolectric 下**不可用**（实测 `getUserId()` 返回 null），
+     * 于是本类所有方法都因「userId 为空」而静默失效，账号维度的安全决策
+     * （如 `SecretNewDeviceRiskPrefs.isDeviceTrusted`）在 JVM 上一条分支都测不到。
+     *
+     * 生产代码不需要传这个参数；只有测试为了造出「已登录 userX」状态才注入假来源。
+     */
+    private val userIdProvider: (Context) -> String? = { ctx ->
+        TokenManager.getInstance(ctx).getUserId()?.takeIf { it.isNotBlank() }
+    },
 ) {
     fun isEnabled(context: Context): Boolean {
         // 原语义：无账号时 fail-open 返回 true（八文件逐字一致，含默认关的 2fa）。
@@ -43,8 +56,7 @@ class AccountFeatureSwitch(
         prefs(context).edit().putBoolean(key(KEY_ENABLED, userId), enabled).apply()
     }
 
-    fun userId(context: Context): String? =
-        TokenManager.getInstance(context).getUserId()?.takeIf { it.isNotBlank() }
+    fun userId(context: Context): String? = userIdProvider(context)
 
     fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE)

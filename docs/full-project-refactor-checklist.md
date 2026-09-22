@@ -8770,3 +8770,35 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   （11 个在模拟器 18 例 + 新设备风控 2 个在 Robolectric 3 例），
   但 `isDeviceTrusted` 只覆盖 4 条分支里的 1 条——**这一条缺口仍在**，
   要补只能走 instrumented（真机已登录态）或给 `AccountFeatureSwitch` 注入 userId 来源。
+
+### G183b — 补上最后一个已知缺口：isDeviceTrusted 四条分支全覆盖（app 1937）
+
+- **缺口**：G182b 给「新设备风控」的两个 dialog 补了 UI 覆盖，但
+  `SecretNewDeviceRiskPrefs.isDeviceTrusted`——B2 风控的**核心安全决策**——
+  四条分支只覆盖到 1 条（空 deviceId）。
+- **根因（G182b 已实测确认）**：`AccountFeatureSwitch.userId()` 硬编码走
+  `TokenManager.getUserId()`，而 TokenManager 用 `EncryptedSharedPreferences`
+  （Android Keystore），Robolectric 下 `getUserId()=null`
+  → userId 永远为 null → `setEnabled`/`setKnownDevices` 静默失效
+  （`AccountFeatureSwitch` 各处 `val userId = userId(context) ?: return`）。
+- **做了什么（两处小改动，都不动生产语义）**：
+  1. `AccountFeatureSwitch` 加**可选**构造参数
+     `userIdProvider: (Context) -> String?`，默认值保持原 TokenManager 路径——
+     **10 个构造点一行都不用改**（实测编译通过、无未用 import）；
+  2. `SecretNewDeviceRiskPrefs` 加一个仅供测试的 `internal var switchOverrideForTest`，
+     所有方法改走 `activeSwitch`（有 override 用它，否则用默认）。
+     ⚠️ 第一次替换漏了 `setKnownDevices` 里那处（8 空格缩进，我的匹配串没对上），
+     编译过后靠 `grep -c 'switch\.'` 才发现残留 1 处，补掉后归零。
+- **4 条用例**（`SecretNewDeviceRiskPrefsTest`）：
+  1. `switchOffTrustsEveryDevice`：开关关闭 → 信任任意设备（但空串仍不可信）；
+  2. `blankDeviceIdIsNeverTrusted`：空/纯空白 deviceId → false；
+  3. `registeredDeviceIsTrusted`：开启且已登记 → true，
+     **并回读 `knownDevices()` 验证真的落盘了两台**（防止 set 了却没存）；
+  4. `unregisteredDeviceIsNotTrusted`：开启但未登记 → **false（= 密聊锁定）**。
+- **没有 mock**：`SecretNewDeviceRiskPrefs` 用的是 Robolectric 里真实的
+  SharedPreferences，只有 userId 来源是注入的假值。
+- **负控制**：把「未登记也放行」（`return deviceId in knownDevices(context)` → `return true`）
+  → `unregisteredDeviceIsNotTrusted` **FAILED**。恢复后转绿。
+- **实测结果**：app JVM 单测 **1933 → 1937 例**（347 套件，本类 `tests=4 failures=0`）；
+  全量 suite 0 失败（`DirectionDocFreshnessTest` 抓到新增测试文件后已同步）。
+- **至此**：`isDeviceTrusted` 的**四条分支全部覆盖**，G182b 记的最后一个已知测试缺口关闭。
