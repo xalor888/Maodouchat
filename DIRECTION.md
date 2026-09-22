@@ -18,7 +18,7 @@
 | 服务端测试文件 / 用例 | 117 个 / **462 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总 |
 | 客户端 JVM 测试文件 / 用例 | 349 个 / **1972 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **12 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 829,121 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| 自审清单体量 | 831,618 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件** | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | 18 | `grep -rl org.jetbrains.exposed plugins/` |
@@ -190,6 +190,25 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 ⚠️ **`--skip-tests` 只在紧接着全量跑过之后有效**：脚本从 `build/test-results`
 读用例数，若上一次是 `--tests '*某个类'` 的过滤跑，合理性守卫会拒绝同步
 （不拿不完整快照当真相）。
+
+### 真机 UI 辅助工具（本地开发用，非 CI 门禁）
+
+`scripts/qa-ui.py`——adb 驱动的轻量真机检查，**盘「无人调用资产」时救回来的**
+（G199b/G200b：它有 `__pycache__` 说明被跑过，但全仓没有任何地方引用它，
+连 docstring 里写的用法都是崩的）：
+
+```bash
+python3 scripts/qa-ui.py dump            # 打印当前界面可交互节点（文本 + content-desc + 坐标）
+python3 scripts/qa-ui.py shot NAME       # 截图到 .qa-live/NAME.png（该目录已 gitignore）
+python3 scripts/qa-ui.py tap X Y
+python3 scripts/qa-ui.py text STR        # 输入文本
+python3 scripts/qa-ui.py log -n 200      # 打印最近崩溃/异常日志
+python3 scripts/qa-ui.py start           # 冷启动 app
+```
+
+⚠️ 实测踩过：`log` 只认位置参数（`log 50`），照 docstring 敲 `log -n 50`
+会把 `"-n"` 丢给 `int()` 直接崩。G200b 已改成两种写法都接受。
+真机设备 serial 可用环境变量 `QA_SERIAL` 指定（默认用唯一在线设备）。
 
 **为什么值得写在这一节**：这三个工具本身就可能重蹈「Robolectric 不可用」
 那条注释的覆辙——写在没人看的地方，过期/被忘掉都没人发现（G181b 的教训）。

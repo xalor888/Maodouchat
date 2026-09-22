@@ -72,7 +72,16 @@ def main():
         esc = sys.argv[2].replace(" ", "%s").replace("'", "")
         print(adb("shell", "input", "text", esc).stdout)
     elif cmd == "log":
-        log(sys.argv[2] if len(sys.argv) > 2 else 200)
+        # 同时接受 `log 50`（位置参数，老用法）和 `log -n 50`（docstring 里写的用法）。
+        # 原来只认位置参数，于是照 docstring 敲 `-n 50` 会把 "-n" 丢给 int() 直接崩。
+        rest = sys.argv[2:]
+        count = 200
+        if rest:
+            if rest[0] == "-n" and len(rest) > 1:
+                count = int(rest[1])
+            else:
+                count = int(rest[0])
+        log(count)
     elif cmd == "start":
         print(adb("shell", "monkey", "-p", PKG, "-c", "android.intent.category.LAUNCHER", "1").stdout)
     else:

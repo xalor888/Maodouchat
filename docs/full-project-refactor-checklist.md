@@ -9193,3 +9193,34 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   **教训（第八十四次沉淀）：定期盘一下「有哪些资产没有任何调用方」。
      源码有测试盯着，脚本有 CI 盯着，而**没人盯的东西**不会自己报错。**
 - **实测结果**：+2 条英文翻译；CI +1 步；app JVM **1978 例不变**。
+
+### G200b — 盘「无人调用资产」：救回真机 UI 工具，并修掉它 docstring 里的假用法（app 1978）
+
+- **G199b 之后顺着同一条线继续盘**：枚举 `scripts/` 下 35 个可执行文件，
+  反向查引用方，**15 个没有任何地方引用**。
+  分类后只有一个是真资产：`qa-ui.py`（adb 驱动的真机 UI 检查工具）。
+  其余 14 个是一次性重构产物（`fix_*.py` / `final_cdvm.py` / `write_chatdetail.py` /
+  `split_api_models.py` / `_gp_esc.py` 等），其中 `_gp_esc.py` 还写着
+  `D:\Maodouchat\...` 这种硬编码 Windows 路径——**是死代码，留着只是噪音**。
+  本轮不动它们（删除历史脚本有风险且无收益），只在台账里分类记账。
+- **`qa-ui.py` 的实况**：有 `__pycache__/*.pyc` 说明被手工跑过，
+  但全仓 CI / 其它脚本 / Makefile **没有任何一处引用它**，
+  而且——**它 docstring 里写的用法是崩的**：
+  `log(sys.argv[2] if ...)` 只认位置参数，照 docstring 敲 `python3 qa-ui.py log -n 50`
+  会把 `"-n"` 丢给 `int()`，`ValueError: invalid literal for int() with base 10: '-n'`。
+- **做了什么**：
+  1. `log` 改成**两种写法都接受**：`log 50`（老用法）与 `log -n 50`（docstring 写法）；
+  2. 六个子命令逐个实测（设备 emulator-5556 在线）：
+     `dump` 打出可交互节点、`shot` 落盘 `.qa-live/g200b.png`、
+     `log -n 3` 与 `log 3` 都出日志、用法说明可打印；
+  3. 把它写进 `DIRECTION.md` §4.5 的「真机 UI 辅助工具」小节，
+     连「`QA_SERIAL` 指定设备」「`.qa-live/ 已 gitignore」「`-n` 曾是崩的」一并写清。
+- **验证**：修前 `log -n 3` 抛 `ValueError`；修后两种写法都 exit 0 并打出日志；
+  `dump` / `shot` 实测有真实输出与落盘文件；`.qa-live/` 已被 `.gitignore:90` 忽略，
+  不会污染仓库（`git status` 只有 `scripts/qa-ui.py` 一处改动）。
+- **这与 G199b 是同一轮审计的下半场**：G199b 找到的「闸门没人跑」，
+  这次找到「工具没人知道，且知道的那半（docstring）是错的」。
+  **教训（第八十五次沉淀）：「有 docstring」不等于「docstring 是对的」。
+     docstring 是契约，没人调用就没有人验证它——和没人调用的闸门一样，
+     它只会在你需要它的那一刻才崩。**
+- **实测结果**：`scripts/qa-ui.py` +兼容；`DIRECTION.md` +18 行；app JVM **1978 例不变**。
