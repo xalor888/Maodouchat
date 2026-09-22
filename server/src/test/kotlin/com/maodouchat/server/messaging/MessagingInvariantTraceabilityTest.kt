@@ -174,6 +174,49 @@ class MessagingInvariantTraceabilityTest {
         return source.substring(lineStart, end + 6).trim()
     }
 
+    private val assertionCall = Regex("""\bassert[A-Za-z]*\s*[({]|\bcheck\s*\(|\bassertFailsWith\b""")
+
+    /** G215b：引用的每个用例必须真的有断言，否则就是恒真的证据。 */
+    @Test
+    fun `every referenced test actually asserts something`() {
+        val sources = codeOnlySources
+        val vacuous = mutableListOf<String>()
+        audit().flatMap { it.verified }.distinct().forEach { ref ->
+            val className = ref.substringBefore('#')
+            val testName = ref.substringAfter('#')
+            val classDecl = Regex("""\b(class|object)\s+""" + Regex.escape(className) + """\b""")
+            val owners = sources.filterValues { classDecl.containsMatchIn(it) }
+            if (owners.isEmpty()) return@forEach
+            val body = owners.values.firstNotNullOfOrNull { text -> bodyOf(text, testName) }
+            if (body == null) return@forEach
+            if (!assertionCall.containsMatchIn(body)) {
+                vacuous += "$ref（方法体里没有任何 assert 或 check 调用，是恒真的证据）"
+            }
+        }
+        assertEquals(emptyList(), vacuous,
+            "文档把契约的证据指到了没有断言的用例上——那是恒真的，不是验证：")
+    }
+
+    private fun bodyOf(text: String, testName: String): String? {
+        val m = Regex("""fun\s+`""" + Regex.escape(testName) + """`\s*\([^)]*\)\s*\{""").find(text)
+            ?: Regex("""fun\s+""" + Regex.escape(testName) + """\s*\(""").find(text)
+            ?: return null
+        if (m.value.endsWith("(")) return null
+        // ⚠️ 必须从**开括号之后**开始配平：若从开括号本身开始，第一轮就把它
+        // 又数一次（depth 变 2），配平会跑到下一个方法的右括号——
+        // 那样任何方法体都「有断言」，这条门禁就恒真了。
+        var i = m.range.last + 1
+        var depth = 1
+        while (i < text.length && depth > 0) {
+            when (text[i]) {
+                '{' -> depth++
+                '}' -> depth--
+            }
+            i++
+        }
+        return text.substring(m.range.first, i)
+    }
+
     @Test
     fun `every referenced test actually exists in the test sources`() {
         // 规则刻意**不**假设「文件名 == 类名」：一个 .kt 里可以有多个测试类

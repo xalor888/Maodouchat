@@ -9658,3 +9658,26 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   而正常拆文件本来就要改这张表；不拆就永远相等。今日 26/26 全等就是证明。
 - **实测结果**：`ClientArchitectureTest` **17 → 18 例**（本类 0 失败）；
   app JVM 单测 **2040 → 2041 例**；无生产代码改动（只改测试与一张表）。
+
+### G215b — 给可追溯性门禁补「必须有断言」；NC 当场抓住我自己门禁里的 off-by-one（server 465 → 466）
+
+- **动机**：`MessagingInvariantTraceabilityTest` 验的是「文档引用的测试**存在**」。
+  但「存在」不等于「在守」——一个空方法体、或只 print 不 assert 的用例，
+  同样满足存在性，却是**恒真的证据**。文档写着
+  `→ 验证：XxxTest#foo`，评审时没人会真的点进去看 foo 有没有断言。
+- **做了什么**：新增 `every referenced test actually asserts something`——
+  引用的每个用例至少要含一个 assert*/check 调用。复用该文件已有的
+  `codeOnlySources` / `audit()` / 剥注释实现，不另起炉灶。
+- **负控制抓到我自己的 off-by-one，这是本轮最大的收获**：
+  我把一个被引用的用例（`MailboxRetentionServiceTest#purge batch...`，
+  23 行体）整段清空 → 门禁**没红**。
+  加 debug 打印发现 `bodyLen=4353`——`bodyOf` 返回的体是 4353 字符，不是空的。
+  根因：花括号配平从**开括号本身**开始，第一轮就把它又数一次（depth 变 2），
+  配平于是跑到**下一个方法**的右括号。改成从开括号**之后**开始，立即变红。
+  **也就是说：这条门禁的第一版是恒真的——它对我故意制造的「空用例」完全无感。
+     如果没有做这次负控制，它会以「看起来更严了」的姿态合并进去。**
+- **两次自己的 KDoc 语法错，同一个原因**：在注释里写
+  `` 至少要含一个 assert*/check(。 `` ——其中的 `*/` **提前关闭了块注释**，
+  后面内容被当成代码，编译直接语法错。改成中文描述绕开。
+- **实测结果**：server **465 → 466 例**（152 套件，0 失败，9m22s）；
+  app JVM 2041 例不变；off-by-one 已修，`git checkout` 还原被清空的用例后复跑转绿。
