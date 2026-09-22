@@ -26,7 +26,9 @@ class AccountFeatureSwitch(
      * 生产代码不需要传这个参数；只有测试为了造出「已登录 userX」状态才注入假来源。
      */
     private val userIdProvider: (Context) -> String? = { ctx ->
-        TokenManager.getInstance(ctx).getUserId()?.takeIf { it.isNotBlank() }
+        // 测试优先：G185b 加的全局覆盖，让 10 个 Secret*Prefs 无需逐个加缝就能测。
+        userIdOverrideForTest?.invoke()
+            ?: TokenManager.getInstance(ctx).getUserId()?.takeIf { it.isNotBlank() }
     },
 ) {
     fun isEnabled(context: Context): Boolean {
@@ -63,8 +65,24 @@ class AccountFeatureSwitch(
 
     fun key(base: String, userId: String): String = "$base:$userId"
 
-    private companion object {
+    /**
+     * 改成非 private 只为了让测试能碰到 [userIdOverrideForTest]
+     * （ 的成员对外部不可见，哪怕它是 internal）。
+     * 常量仍是 private 的可见性——由 companion 自身的 internal 修饰控制。
+     */
+    internal companion object {
         const val KEY_ENABLED = "enabled"
         const val KEY_USER_SET = "user_set"
+
+        /**
+         * 仅供测试覆盖 userId 来源（G185b）。
+         *
+         * 为什么不给每个 `Secret*Prefs` 单独加缝：那要改 10 个文件、且每处都要把
+         * `switch.` 全替换成 `activeSwitch.`（G183b 已经这么干过一次，还漏了一处）。
+         * 放在这里，**一个改动解锁整个家族**。
+         *
+         * ⚠️ 只允许在测试里赋值；生产路径必须保持 null。
+         */
+        internal var userIdOverrideForTest: (() -> String?)? = null
     }
 }

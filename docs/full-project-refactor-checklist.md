@@ -8831,3 +8831,40 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   直接删掉，并把「为什么测不到」写进 KDoc：那层保护在生产代码里有，
   但要测它得用默认 provider，而默认 provider 依赖 Keystore（Robolectric 下不可用）。
 - **实测结果**：app JVM 单测 **1937 → 1943 例**（本类 `tests=6 failures=0`）。
+
+### G185b — 三个 Secret*Prefs 的判定/边界覆盖；负控制第一次没打红，逼出真缺口（app 1951）
+
+- **动机**：三个 `Secret*Prefs` 的开关四件套一直委托给 `AccountFeatureSwitch`，
+  但**它们自己的状态逻辑**此前没有一条直接断言：2FA 门时间窗、自动销毁 TTL 钳制、对端徽标三重与。
+  写错的后果都很实在：门永不关 / 消息永不过期 / 徽标在对方没开密聊时也亮。
+- **一次基建取舍**：G183b 是给单个文件加 `switchOverrideForTest`，
+  那要改 10 个文件、每处把 `switch.` 换成 `activeSwitch.`（还漏过一处）。
+  本轮改成在 `AccountFeatureSwitch` 加**全局** `userIdOverrideForTest`
+  （放在 companion 里，默认 provider 先问它）——**一个改动解锁整个家族**。
+  为此把 `private companion object` 改成 `internal companion object`
+  （`private companion` 的成员对外不可见，哪怕标了 internal），
+  两个常量仍显式 `private const val`。三个测试用文件**一行都没改**。
+- **8 条用例**（`SecretGateAndTtlPolicyTest`）：
+  - 2FA 门：超时钳制（<10s / >24h / 区间内）、刚验证完开、超时关、未验证关、
+    `clearGate` 后关、开关关闭时 fail-open 开、无账号时关；
+  - 自动销毁：TTL 钳制（<300s / >30d / 区间内）+ **MIN<DEFAULT<MAX 自洽**；
+  - 对端徽标：三重与的四种组合，任一为 false 结果必须 false。
+- **本轮最重要的发现：负控制第一次没打红，说明我的用例比我以为的弱。**
+  目标要求「把 isGateOpen 的超时判断改成常开，用例应变红」——第一版**没红**。
+  追查发现：我那条用例只走到 `last > 0L`，**从没让时钟走过超时点**，
+  所以「去掉时间窗」它照样绿。也就是说我以为覆盖了「超时→关」，其实没有。
+  补了 `gateClosesOnceTheVerificationAgesOut`：把「上次验证时间」直接写到 2 分钟前
+  （再写回当下验证能恢复），重跑 NC **这次红了**。
+  **教训（第七十四次沉淀）：负控制没红，先别怀疑控制方法，先怀疑用例强度。
+     尤其当「我以为我测了这个分支」的时候——那通常正是没被测到的分支。
+     本例里 NC 没红不是坏消息，它替我抓出了一个我自己都没意识到的覆盖空洞。**
+- **中途一次失败也是信息**：新用例第一版用 `ShadowSystemClock.advanceBy` 拨时钟，
+  但 Robolectric 的它 shadow 的是 `android.os.SystemClock`，而本类读
+  `System.currentTimeMillis()`——拨了不动。改成直接写时间戳（按
+  `"$base:$userId"` 键约定构造同一个键），确定且无时钟魔法。
+- **又一次忘记开开关**：2FA 门的用例第一版红，因为 `Secret2faGatePrefs`
+  的 `defaultEnabled = false`——开关关着时 `isGateOpen` 直接 fail-open 返回 true，
+  压根走不到时间窗。补 `setEnabled(true)` 后过。已把这条写进注释。
+- **负控制（补强后）**：`return last > 0L && System.currentTimeMillis() - last < gateTimeoutMs(context)`
+  → `return last > 0L`，`gateClosesOnceTheVerificationAgesOut` **FAILED**。恢复后转绿。
+- **实测结果**：app JVM 单测 **1943 → 1951 例**（本类 `tests=8 failures=0`）。
