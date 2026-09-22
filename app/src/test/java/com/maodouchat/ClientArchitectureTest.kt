@@ -382,4 +382,164 @@ class ClientArchitectureTest {
             text.contains("while (true)")
         }
     }
+
+    // ─── 4. UI 直连持久层的逐文件命中棘轮（G156b 从死门禁移植） ───
+
+    /**
+     * 直接摸持久层/全局单例的符号（G156b 从 `ClientHotspotRatchetTest` 移植）。
+     *
+     * **移植的原因**：那个门禁 3 条用例**全是红的**（基线冻结在 G63 的 5048/3131/2298，
+     * 而热点早被拆到 3538/3102/2209；两个持久化基线还引用着已删除的
+     * `SettingsSubScreens.kt` / `SettingsSubViewModels.kt`），而且它自己的 KDoc 承认
+     * **CI 从不调用 `:core:testing:test`**——即这个门禁从来没有任何一次真正拦住过什么。
+     *
+     * **修掉的一处度量错误**：原门禁直接 `text.contains(symbol)` 数原始文本。
+     * G184–G192 抽 dialog 时我给每个新文件写了同一条 KDoc「**拆解约束**：不抓任何全局单例、
+     * 不读数据库、不 import `MaodouchatApp`」——**这句话本身含有 `MaodouchatApp`**。
+     * 于是_raw_ 计数从「17 文件 / 84 处」虚增到「65 文件 / 129 处」：
+     * 48 个文件纯粹因为「声明自己不碰单例」而被计成违规。
+     * 现在改成在 [stripComments] 之后的源码上计数——真实值是
+     * **20 文件 / 83 处**（`@Composable` 口径），与原门禁开工时基本持平。
+     */
+    private val directPersistenceSymbols = listOf("database.", "secretChatDao", "MaodouchatApp")
+
+    /**
+     * 剥掉行注释、块注释后的源码（字符串字面量里的双斜线 与 斜线星 不误剥）。
+     *
+     * 四态：0=代码 1=行注释 2=块注释 3=字符串 4=字符。
+     */
+    private fun stripComments(text: String): String {
+        val out = StringBuilder(text.length)
+        var state = 0
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            val n = if (i + 1 < text.length) text[i + 1] else ' '
+            when (state) {
+                0 -> when {
+                    c == '/' && n == '/' -> { state = 1; i++ }
+                    c == '/' && n == '*' -> { state = 2; i++ }
+                    c == '"' -> { state = 3; out.append(c) }
+                    c == '\'' -> { state = 4; out.append(c) }
+                    else -> out.append(c)
+                }
+                1 -> if (c == '\n') { state = 0; out.append(c) }
+                2 -> if (c == '*' && n == '/') { state = 0; i++ }
+                3 -> {
+                    out.append(c)
+                    if (c == '\\') { out.append(n); i++ } else if (c == '"') state = 0
+                }
+                4 -> {
+                    out.append(c)
+                    if (c == '\\') { out.append(n); i++ } else if (c == '\'') state = 0
+                }
+            }
+            i++
+        }
+        return out.toString()
+    }
+
+    /** 逐文件统计直连持久层命中数；[onlyComposableFiles] 为真时只数含 `@Composable` 的文件。 */
+    private fun directPersistenceHits(onlyComposableFiles: Boolean): Map<String, Int> {
+        val uiRoot = File(appMain, "com/maodouchat/ui")
+        return uiRoot.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .map { it.relativeTo(uiRoot).path.replace('\\', '/') to stripComments(it.readText()) }
+            .filter { (_, text) -> !onlyComposableFiles || text.contains("@Composable") }
+            .map { (path, text) ->
+                path to directPersistenceSymbols.sumOf { Regex(Regex.escape(it)).findAll(text).count() }
+            }
+            .filter { (_, hits) -> hits > 0 }
+            .toMap()
+            .toSortedMap()
+    }
+
+    /** U02 主口径：含 `@Composable` 的文件。只许下降，变多即红。 */
+    private val frozenComposableDirectPersistence: Map<String, Int> = mapOf(
+        "navigation/CallNavigation.kt" to 9,
+        "navigation/MainContainerRoute.kt" to 6,
+        "navigation/NavGraph.kt" to 4,
+        "screen/call/CallHistoryScreen.kt" to 4,
+        "screen/chatdetail/AiTasksScreen.kt" to 9,
+        "screen/chatdetail/ChatDetailRoute.kt" to 2,
+        "screen/chatdetail/MediaCenterScreen.kt" to 6,
+        "screen/chatdetail/StarredMessagesScreen.kt" to 6,
+        "screen/chatlist/GlobalSearchScreen.kt" to 8,
+        "screen/chatlist/NotificationCenterScreen.kt" to 2,
+        "screen/contacts/ContactSubScreens.kt" to 4,
+        "screen/groupplay/GroupChainScreen.kt" to 2,
+        "screen/groupplay/GroupCheckinScreen.kt" to 2,
+        "screen/groupplay/GroupPkScreen.kt" to 2,
+        "screen/groupplay/GroupPollScreen.kt" to 2,
+        "screen/settings/SettingsAccountSecurity.kt" to 1,
+        "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
+        "screen/settings/SettingsAiPrivacy.kt" to 5,
+        "screen/settings/SettingsServer.kt" to 5,
+        "theme/Motion.kt" to 1,
+    )
+
+    /** 次口径：整个 `ui/`（含 ViewModel / Ports）。同样只许下降。 */
+    private val frozenUiDirectPersistence: Map<String, Int> = mapOf(
+        "navigation/AuthDestinations.kt" to 2,
+        "navigation/CallNavigation.kt" to 9,
+        "navigation/MainContainerRoute.kt" to 6,
+        "navigation/NavGraph.kt" to 4,
+        "navigation/SearchCenterDestinations.kt" to 5,
+        "screen/call/CallHistoryScreen.kt" to 4,
+        "screen/call/CallViewModel.kt" to 3,
+        "screen/chatdetail/AiTasksScreen.kt" to 9,
+        "screen/chatdetail/ChatDetailAiIntents.kt" to 2,
+        "screen/chatdetail/ChatDetailAiResults.kt" to 1,
+        "screen/chatdetail/ChatDetailDisappearing.kt" to 3,
+        "screen/chatdetail/ChatDetailLiveLocation.kt" to 2,
+        "screen/chatdetail/ChatDetailMedia.kt" to 1,
+        "screen/chatdetail/ChatDetailRoute.kt" to 2,
+        "screen/chatdetail/ChatDetailViewModel.kt" to 36,
+        "screen/chatdetail/ChatExportController.kt" to 2,
+        "screen/chatdetail/GroupDetailViewModel.kt" to 2,
+        "screen/chatdetail/MediaCenterScreen.kt" to 6,
+        "screen/chatdetail/StarredMessagesScreen.kt" to 6,
+        "screen/chatlist/ChatListPorts.kt" to 25,
+        "screen/chatlist/ChatListRealtimeCoordinator.kt" to 3,
+        "screen/chatlist/ChatListUiState.kt" to 1,
+        "screen/chatlist/GlobalSearchScreen.kt" to 8,
+        "screen/chatlist/NotificationCenterScreen.kt" to 2,
+        "screen/contacts/ContactSubScreens.kt" to 4,
+        "screen/contacts/ContactsRepository.kt" to 3,
+        "screen/contacts/ContactsViewModel.kt" to 10,
+        "screen/explore/ExploreViewModel.kt" to 1,
+        "screen/groupplay/GroupChainScreen.kt" to 2,
+        "screen/groupplay/GroupCheckinScreen.kt" to 2,
+        "screen/groupplay/GroupPkScreen.kt" to 2,
+        "screen/groupplay/GroupPollScreen.kt" to 2,
+        "screen/login/LoginViewModel.kt" to 2,
+        "screen/settings/SettingsAccountSecurity.kt" to 1,
+        "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
+        "screen/settings/SettingsAiPrivacy.kt" to 5,
+        "screen/settings/SettingsGeneralSettingsViewModel.kt" to 1,
+        "screen/settings/SettingsNotificationViewModel.kt" to 3,
+        "screen/settings/SettingsServer.kt" to 5,
+        "screen/settings/SettingsViewModel.kt" to 2,
+        "theme/Motion.kt" to 1,
+    )
+
+    @Test
+    fun `composable files do not reach into the database directly`() {
+        assertEquals(
+            frozenComposableDirectPersistence,
+            directPersistenceHits(onlyComposableFiles = true),
+            "Composable 直连持久层/全局单例的命中数变了。变多说明又绕过了 effect handler（U02 未达标）；" +
+                "变少是好消息，请把 frozenComposableDirectPersistence 改小。",
+        )
+    }
+
+    @Test
+    fun `the whole ui layer keeps its direct persistence budget`() {
+        assertEquals(
+            frozenUiDirectPersistence,
+            directPersistenceHits(onlyComposableFiles = false),
+            "ui/ 直连持久层/全局单例的总命中数变了。变多请先问是不是又绕过了 ports/effect handler；" +
+                "变少是好消息，请把 frozenUiDirectPersistence 改小。",
+        )
+    }
 }

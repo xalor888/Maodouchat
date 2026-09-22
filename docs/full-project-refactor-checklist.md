@@ -7742,3 +7742,54 @@ API 37 `android.jar` 里根本不存在**（`javap` 确认）。改成**运行�
     （461 用例基线，非 up-to-date）**；
   - **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（1906 例）**；
   - 工作区仅一个文件改动。
+
+### G156b — 修掉一个**红色的死门禁**（`:core:testing:test` 3 用例全红）
+- **发现**：跑 `./gradlew :core:testing:test --rerun-tasks` 时发现 **BUILD FAILED**，
+  `ClientHotspotRatchetTest` 3 条用例全红。而它自己的 KDoc 写着：
+  > `:core:testing` 被 include 进 settings，但**没有任何模块依赖它、CI 也从不调用它的 test 任务**
+  > ……所以那两条规则**从未在 CI 上执行过**。
+  也就是说：**这个门禁从建出来到现在，一次也没有真正拦过任何东西。**
+- **红的三个原因**：
+  1. 三个热点基线冻结在 G63 的 5048 / 3131 / 2298，而实际早被我 G184–G192 拆到
+     **3538 / 3102 / 2209**（1510 行的差距全来自我自己的拆分）；
+  2. 两个「直连持久层」基线引用着**我早已删除**的 `SettingsSubScreens.kt` 与
+     `SettingsSubViewModels.kt`；
+  3. 命中数整体过时（基线说 17 文件 / 84 处）。
+- **为什么我现在才知道**：我这几轮只跑 `:app:testDebugUnitTest`，
+  而 `ClientArchitectureTest`（app 侧、13 条行数上限）是同一意图的**更强版本且在 CI 里**。
+  我维护着其中一个，另一个在角落里红着。
+  **教训（第五十次沉淀）：「我只跑我会跑的那条命令」会漏掉整个构建变体的红色。
+     至少每几轮要跑一次**其它模块**的 test 任务——尤其是那些 settings include 了、
+     却没人依赖的模块（`:core:testing` 正是如此：它是个孤儿模块）。**
+- **顺带揪出一个度量 bug（本次最有价值的发现）**：
+  死门禁用 `text.contains(symbol)` 数**原始文本**。而我 G184–G192 抽 dialog 时，
+  给每个新文件写了同一条 KDoc「**拆解约束**：不抓任何全局单例、不读数据库、
+  不 import `MaodouchatApp`」——**这句话本身含有 `MaodouchatApp`**。
+  于是原始终计从「17 文件 / 84 处」虚增到「65 文件 / 129 处」：
+  **48 个文件纯粹因为「声明自己不碰单例」而被计成违规。**
+  剥掉注释后真实值是 **20 文件 / 83 处**——与原门禁开工时基本持平，
+  即**我这十轮抽取既没有制造新债、也没有还掉旧债**（这是事实，不是我猜的）。
+- **做了什么（按「职责只有一个 owner」）**：
+  1. 把死门禁**独有**的价值——`@Composable` 文件与整个 `ui/` 的逐文件直连持久层命中棘轮——
+     移植进 `ClientArchitectureTest`（**修正为先在 `stripComments` 之后的源码上计数**）；
+  2. 基线按**实测值**冻结：`@Composable` 口径 20 文件 / 83 处；`ui/` 口径 41 文件 / 193 处
+     （移植时先照抄旧基线，一跑就红 4 处差异——`ChatListPorts` 26→25 真实减少、
+     `MyQrCodeViewModel` 已消失、`SettingsGeneralSettingsViewModel` +1、
+     `SettingsNotificationViewModel` +3，全部按实测改正）；
+  3. **删掉** `ClientHotspotRatchetTest.kt`，`:core:testing:test` 恢复绿。
+- **一次自己的编译错误**：移植时 KDoc 里写了「`/*` 不误剥」——**`/*` 出现在块注释里会提前
+  把注释结束掉**，编译报 Unclosed comment。改写成中文描述后过。
+  **教训（第五十一次沉淀）：在 KDoc/块注释里举例 `/*`、`//`、`*/` 这类注释定界符时，
+     它们**真的会结束注释**。要举例就写字（「斜线星」）或转义，别贴符号。**
+- **负控制**：在 `ChatDetailRoute` 的 composable 体内加一行真实引用
+  `val ncCanary = com.maodouchat.MaodouchatApp.activeChatOpenedAtMs` →
+  `composable files do not reach into the database directly` **红**（同时行数门禁也红，符合预期）。
+  恢复后转绿。
+- **实测结果**：`ClientArchitectureTest` 9 → **11 条用例**；
+  app JVM 单测 **1906 → 1908 例**；`:core:testing:test` 由 FAILED 转 BUILD SUCCESSFUL；
+  删掉 1 个文件（187 行）。
+- **实跑验证**：
+  - 移植后 `ClientArchitectureTest` 单跑 BUILD SUCCESSFUL；
+  - 负控制红 → 恢复 → 转绿；
+  - **全量 `:app:testDebugUnitTest --rerun-tasks` → BUILD SUCCESSFUL（343 套件 / 1908 例）**；
+  - `:core:testing:test --rerun-tasks` → BUILD SUCCESSFUL。
