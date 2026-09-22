@@ -111,7 +111,7 @@ class ClientArchitectureTest {
 
     private val frozenHotspotLineCaps: Map<String, Int> = mapOf(
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3433,
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3103,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3102,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 2209,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
@@ -168,7 +168,7 @@ class ClientArchitectureTest {
         // 上限只能往下调（收紧），往上调必须是真的先删了代码。
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3433,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3103,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3102,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 2209,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 672,
@@ -202,6 +202,33 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 888,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
+    }
+
+    /**
+     * G214b：**余量必须为零**——棘轮只防「长大」，不防「悄悄松动」。
+     *
+     * 原判据是 `lines > cap` 就红。于是**把文件拆小之后上限不会自动收紧**：
+     * 拆掉 40 行、上限仍是旧值，测试照样绿，而那 40 行余量从此可以被人
+     * 无声地加回来——「只许降不许升」在现实里退化成了「不许升，但可以偷偷回到原点」。
+     *
+     * 这条断言把语义补成「上限必须恒等于实测行数」：
+     * 任何收缩都必须**在同一个提交里**同步收紧上限，否则这里红。
+     */
+    @Test
+    fun `hotspot caps have zero slack`() {
+        val slack = mutableListOf<String>()
+        frozenHotspotLineCaps.forEach { (relativePath, cap) ->
+            val file = File(appMain, relativePath)
+            assertTrue("热点文件必须存在：$relativePath") { file.isFile }
+            val lines = file.readLines().size
+            if (lines != cap) {
+                slack += "$relativePath: 实测 $lines 行 ≠ 上限 $cap 行（余量 ${cap - lines}）"
+            }
+        }
+        assertEquals(
+            emptyList(), slack,
+            "热点文件的上限与实测不一致——拆小了就顺手把上限收紧，别留余量",
+        )
     }
 
     /**
