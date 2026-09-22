@@ -9549,3 +9549,31 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      写 Literal。任何需要心算的期望值都会算错。**
 - **实测结果**：app JVM 单测 **1999 → 2011 例**（本两文件 `tests=6+12`，均 0 失败）；
   无生产代码改动（纯补测试）。
+
+### G211b — 定时发送策略：把「夹完必须仍合法」做成往返不变式（app 2011 → 2020）
+
+- **动机**：`ScheduledMessagePolicy` KDoc 写着「纯函数」，被 7 个文件引用，零测试。
+- **最值钱的一条不是例子，是往返不变式**：`clampSendAt` 的输出对**任何**输入
+  都必须让 `isValidSendAt` 成立。用一组畸形/边界输入验证：
+  `Long.MIN_VALUE`、`-1`、`0`、十天前、刚刚过去、正好现在、
+  **差 1ms 太早/太晚**、正好下界/上界、100 天后、`Long.MAX_VALUE`。
+  为什么重要：`clampSendAt` 是写入前最后一道关，漏放一种畸形输入，
+  就留下一条 `isValidSendAt` 判否的脏行——Worker 到点可能立刻发、或永远不发。
+- **9 条用例**：三个上限常量；往返不变式；夹取边界**含闭区间语义**
+  （正好 `now+60s` 与 `now+7d` 都不得被推动）；延迟窗判定（差 1ms 判否）；
+  14 个快捷档位**全部合法且升序**、首尾正好等于 MIN/MAX
+  （用户点一下不该得到会被判否的 sendAt）；文本 trim/截断；
+  `canAddMore` 在 56 处收口；`delayFromNow` 对过去时间给 0 不给负数。
+- **一次自己的期望值写错，测试当场纠了我**：
+  我把 `isValidText("   ")` 写成 `assertTrue`，还顺手标了「见下方说明」——
+  跑出来红的。查代码：`"   "` 归一化成 `""` → `isNotEmpty()` 为 false → **判否，
+  实现是对的，我写错了**。
+- **顺带记一个死条件（不写恒真断言）**：`isValidText` 里的
+  `t.length <= MAX_TEXT_LENGTH` 永远不会为假——`t` 已被 `normalizeText` 截到 4000。
+  这不是 bug（语义等价于「归一化后非空」），但它**读起来像在防超长，实际不防**。
+  改用「超长文本判有效」把真实语义钉住，免得后人误以为它会拒绝超长。
+- **负控制**：`coerceIn(min, max)` → `coerceAtMost(max)`（只上限不下限）
+  → `clampedSendAtIsAlwaysValid` 与 `clampBoundsAreInclusiveAndExclusiveCorrectly`
+  **同时 FAILED**。还原（`diff` 一致）后转绿。
+- **实测结果**：app JVM 单测 **2011 → 2020 例**（本类 `tests=9 failures=0`）；
+  无生产代码改动。
