@@ -18,7 +18,7 @@
 | 服务端测试文件 / 用例 | 118 个 / **469 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
 | 客户端 JVM 测试文件 / 用例 | 362 个 / **2071 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **12 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 928,561 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| 自审清单体量 | 931,932 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件** | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | 18 | `grep -rl org.jetbrains.exposed plugins/` |
@@ -37,8 +37,10 @@
 - **26 个源文件在监行数上限**（只许降不许升），判据是「行数排名前 20」而非固定阈值
   （G164b：阈值是个要人工反复调的旋钮，1100→1000→950… 是无限回归）；
 - `ChatDetailRoute.kt` 5061 → **3433**、内联 `AlertDialog` 5 → **0**（12 个弹窗全部抽出）；
-- **四套门禁的源码文本判决全部先剥注释**（`stripComments`）——这个坑踩过四次
+- **三套源码文本门禁的判决全部先剥注释**（`stripComments`）——这个坑踩过四次
   （G155b/G156b/G157b/G167b），约定写在本文 3.5 节。
+  （G182g 实测：`core/testing` 的 `ArchitectureTest` 读的是字节码不是源码，
+  不算在内；此前这里和 3.5 节都写成「四套」，是同一错误的两处复现。）
 
 关键补充事实：
 
