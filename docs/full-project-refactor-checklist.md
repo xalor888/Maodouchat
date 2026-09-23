@@ -10339,3 +10339,12 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
      防的是什么。**
 - **修复**：补跑一次全量（2068 例）+ `sync --write` → 1797，
   `DirectionDocFreshnessTest` 转绿（复跑 BUILD SUCCESSFUL）。
+
+### G182c（前半）：家族补齐收尾——`Secret*Prefs` 10/10 覆盖
+
+- 上一个世代（G182c 前半）：`SecretSimChangePrefs`(5) + `SecretScreenshotBurnPrefs`(2) +
+  `UnreadPriorityPreferences`(2)，app JVM 2059 → 2068 例。
+- 家族引用数扫描结果：10 个文件里 3 个为 0 → 已全部补齐。
+- 关键语义钉死：`setLastSimId` 里 `if (prev != null && prev != simId.trim())` 才写
+  `lastChangeAt`。写反 = 「同一张卡重复上报」被当成「换了卡」触发不必要的安全告警。
+- 负控制已跑：把判断改成 `prev != null` → `sameSimIdRepeatedDoesNotRefreshTheStamp` FAILED。
