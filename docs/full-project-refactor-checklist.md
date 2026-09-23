@@ -10977,3 +10977,34 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   chats(5) / auditExportRows(19列) / deviceSequences(5) / deviceAnomalyCount /
   deviceAnomalies(10)。**这 14 个都是纯 selectAll 同形态**——覆盖它们的边际价值
   确实低于前三个（那三个有真过滤）。
+
+### G186g — sessionsSummary 与其底层批量活跃会话统计有测试了（server 512 → 518）
+
+- **挑它的理由（不再凭感觉）**：上一轮我说「剩余 14 个都是纯 selectAll 同形态」，
+  但 `sessionsSummary` 是例外——它内部有 `try/catch (Exception) { emptyList() }`
+  且依赖一个 8.48 修 M7 的批量统计方法，形态不同、且有真实过滤链。
+- **发现一处注释与代码不符（值得记，但没改）**：`sessionsSummary` 的注释写
+  "Fall back to listing users with online flag only when refresh table schema is private"，
+  **但 catch 块里只有 `emptyList()`，根本没有 fallback**。
+  一旦 `countActiveRefreshSessionsBatch` 抛任何异常，管理员导出会**静默返回空列表**
+  而不报错。我没有改生产代码（不知道原始意图是删注释还是补 fallback），
+  但把正常路径钉住了：5 列、0 活跃会话导出成 `"0"` 不是 null。
+- **`countActiveRefreshSessionsBatch` 的四层过滤逐一验证**（这是最有价值的部分）：
+  1. `AuthSessions.userId inList userIds`；
+  2. `AuthSessions.revokedAt.isNull()`——**已 revoked 的 session 不算**；
+  3. `RefreshTokens.sessionId inList sessionIdToUser.keys`——**refresh token 必须挂在
+     未 revoked 的 session 上**（最易写错的一层：少了它，revoked session 的 refresh
+     token 仍会被计数）；
+  4. `RefreshTokens.expiresAt greater now`——过期 token 不算。
+  另测 `userIds.isEmpty()` 走 `return@transaction emptyMap()` 不查库。
+- **目标指定的负控制单杀**：删掉 `RefreshTokens.sessionId inList sessionIdToUser.keys` →
+  `batch active session count counts only live refresh tokens on live sessions`
+  **FAILED**（那个挂在已 revoked session 上的 refresh token 被错误计入）。
+  证明「refresh token 必须挂在未 revoked session 上」真的被管辖。
+- **实测结果**：`AdminExportRepositoryTest` **43 → 49 例**，0 失败；
+  server 全量 **512 → 518 例**，0 失败（9m19s）；一次单杀负控制；
+  生产文件 `git diff` 为空（`AuthTokenRepository` 的过滤已还原）。
+- **覆盖进度：30 个 fun 已覆盖 17 个**（新增 sessionsSummary）。
+  **剩余 13 个**：pushTokens / bots / botCommandStats / friendships / reports /
+  reportsMeta / chatSettings / chats / auditExportRows(19列) / deviceSequences /
+  deviceAnomalyCount / deviceAnomalies / messageStats。

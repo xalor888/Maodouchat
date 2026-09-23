@@ -8,6 +8,8 @@ import com.maodouchat.server.db.GroupPolls
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.PinnedMessages
+import com.maodouchat.server.db.AuthSessions
+import com.maodouchat.server.db.RefreshTokens
 import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.Users
@@ -660,5 +662,106 @@ class AdminExportRepositoryTest {
     @Test
     fun `risk events export is empty without events`() {
         assertTrue(repo.riskEvents(10).isEmpty())
+    }
+
+    // ---- G186g：sessionsSummary + 底层批量活跃会话统计 ----
+
+    private val authTokenRepo = AuthTokenRepository()
+
+    private fun seedSession(id: String, userId: String, revokedAt: Long? = null) {
+        transaction {
+            AuthSessions.insert {
+                it[AuthSessions.id] = id
+                it[AuthSessions.userId] = userId
+                it[AuthSessions.createdAt] = 1_000L
+                it[AuthSessions.updatedAt] = 1_000L
+                it[AuthSessions.revokedAt] = revokedAt
+            }
+        }
+    }
+
+    private fun seedRefreshToken(
+        hash: String,
+        userId: String,
+        sessionId: String,
+        expiresAt: Long,
+        revokedAt: Long? = null,
+    ) {
+        transaction {
+            RefreshTokens.insert {
+                it[RefreshTokens.tokenHash] = hash
+                it[RefreshTokens.userId] = userId
+                it[RefreshTokens.sessionId] = sessionId
+                it[RefreshTokens.createdAt] = 1_000L
+                it[RefreshTokens.expiresAt] = expiresAt
+                it[RefreshTokens.revokedAt] = revokedAt
+            }
+        }
+    }
+
+    @Test
+    fun `batch active session count ignores empty input without querying`() {
+        assertEquals(emptyMap(), authTokenRepo.countActiveRefreshSessionsBatch(emptyList()))
+    }
+
+    @Test
+    fun `batch active session count counts only live refresh tokens on live sessions`() {
+        val now = System.currentTimeMillis()
+        val far = now + 7_200_000
+        seedUser("u1", 1_000L)
+        seedSession("s_live", "u1")
+        seedSession("s_revoked", "u1", revokedAt = now - 1_000L)
+        // 挂在活 session 上、未过期 → 算
+        seedRefreshToken("t_ok", "u1", "s_live", far)
+        // 挂在已 revoked session 上 → 不算（sessionId inList 未 revoked session 这层）
+        seedRefreshToken("t_orphan", "u1", "s_revoked", far)
+        // 活 session 但 refresh 已过期 → 不算（expiresAt > now 这层）
+        seedRefreshToken("t_expired", "u1", "s_live", now - 1_000L)
+        // 活 session 但 refresh 自己被 revoke → 不算（RefreshTokens.revokedAt.isNull 这层）
+        seedRefreshToken("t_revoked", "u1", "s_live", far, revokedAt = now - 1_000L)
+        val counts = authTokenRepo.countActiveRefreshSessionsBatch(listOf("u1"))
+        assertEquals(1, counts["u1"], "四层过滤后只剩 1 个活跃 refresh token")
+    }
+
+    @Test
+    fun `batch active session count reports zero for a user with no live tokens`() {
+        val now = System.currentTimeMillis()
+        seedUser("u1", 1_000L)
+        seedUser("u2", 1_000L)
+        seedSession("s1", "u1")
+        seedRefreshToken("t1", "u1", "s1", now + 7_200_000)
+        val counts = authTokenRepo.countActiveRefreshSessionsBatch(listOf("u1", "u2"))
+        assertEquals(1, counts["u1"], "有活跃 token 的用户必须数对")
+        assertEquals(0, counts["u2"], "没有活跃 token 的用户必须是 0 而不是缺键")
+    }
+
+    @Test
+    fun `sessions summary export lists each user with a stable column count`() {
+        seedUser("u1", 1_000L)
+        val rows = repo.sessionsSummary(10)
+        assertEquals(1, rows.size, "每个用户一行")
+        assertEquals(5, rows.single().size, "列数必须稳定（uid/name/isOnline/activeSessions/lastSeen）")
+        assertEquals("u1", rows.single()[0], "首列是用户 id")
+        assertEquals("0", rows.single()[3], "0 活跃会话必须导出成 0 而不是 null")
+    }
+
+    @Test
+    fun `sessions summary export reports the batched active session count`() {
+        val now = System.currentTimeMillis()
+        seedUser("u1", 1_000L)
+        seedSession("s1", "u1")
+        seedRefreshToken("t1", "u1", "s1", now + 7_200_000)
+        seedRefreshToken("t2", "u1", "s1", now + 7_200_000)
+        val rows = repo.sessionsSummary(10)
+        assertEquals("2", rows.single()[3], "批量统计必须数出 2 个活跃会话")
+    }
+
+    @Test
+    fun `sessions summary export honours the limit and orders by last seen`() {
+        seedUser("u_old", 1_000L)
+        seedUser("u_new", 9_000L)
+        val rows = repo.sessionsSummary(10)
+        assertEquals(listOf("u_new", "u_old"), rows.map { it.first().toString() }, "必须按 lastSeen 倒序")
+        assertEquals(1, repo.sessionsSummary(1).size, "limit=1 必须只返回 1 行")
     }
 }
