@@ -26,7 +26,7 @@
 | 服务端测试文件 / 用例 | 121 个 / **564 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
 | 客户端 JVM 测试文件 / 用例 | 365 个 / **2116 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **16 个文件** | `find app/src/androidTest -name '*.kt'`
-| 自审清单体量 | 1,131,972 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| 自审清单体量 | 1,135,694 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件**（G258b：连同其余 Exposed import 一并删净，plugins/ 层已无任何 Exposed import） | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | **1**（G258b：37 行死 import 已删净；import 现为 0，该 1 处是 `StatusPages.kt` 的 `exception<ExposedSQLException>`，属引用而非 import） | `grep -rl org.jetbrains.exposed plugins/` |
@@ -113,8 +113,11 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 1. **服务端中心契约**：`AdminExportsRouting.kt`（1110 行 / 26 事务 / 内联 Exposed SQL + CSV 映射）
    → `AdminExportService` + `AdminExportRepository`。这是全项目最大的单点架构缺口。
 2. **反向依赖归零**：`repository/` 里的 service 搬到 `service/`，`plugins` 的常量/工具下沉到中立包。
-3. **E2EE 不变量harness**：把 `docs/messaging-v2-architecture.md` 里的 23 条不变量，逐条变成服务端
+3. **E2EE 不变量harness**：把 `docs/messaging-v2-architecture.md` 里的 26 条不变量，逐条变成服务端
    可执行断言（设备覆盖、密文落库、ACK 幂等、无明文入服务端、群 epoch 失效）。这是产品命门。
+   （G311c：此数原写 23，实测该文档现有 **26 条**；条数由
+   `MessagingInvariantTraceabilityTest` 的 `assertEquals(26, audits.size)` 冻结，
+   增删会被它抓住。G7 时 24 条、G11 增至 25、G12 增至 26。）
 4. **迁移矩阵**：空库 / 最后生产版本 / 重复 / 中断 / 回滚，在 PostgreSQL 上跑通，H2 只做快测。
 5. **双账号双设备离线 E2E**：真机/模拟器矩阵，覆盖杀进程、网络切换、新设备、Sender Key repair。
 

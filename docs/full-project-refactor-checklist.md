@@ -864,7 +864,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 ### Q01 单元与架构测试
 
 - [ ] 每个 domain command/query 有成功、失败、取消、重复和账号切换测试。
-- [~] messaging-v2 的 24 条不变量逐条有可执行追溯（**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证）；第 4 轮更正了两条**假缺口**（21/24 其实早有 `ConversationLocalStateCoordinatorTest` 覆盖，是我第一轮按文件名收集候选用例时漏了 `conversation/**`），缺口降为 2 条）；第 6 轮补掉最后一条真测试缺口——不变量 3（新增 `/api/v2/messages` 的第一个 HTTP 级测试 + 真实 WebSocket 收帧 + 注入反证），缺口降为 **1 条**（只剩 17 的后半句，属契约决策）。
+- [~] messaging-v2 的 26 条不变量逐条有可执行追溯（**G311c 更正条数**：此行原写「24 条」，实测该文档现有 **26 条**；G7 时 24 条、G11 增至 25、G12 增至 26。门禁自己是对的——`MessagingInvariantTraceabilityTest` 里 `assertEquals(26, audits.size, "不变量条数变了：文档改了就必须同步审计，不能悄悄增删")` 与 `(1..26).toList()`，**它一直冻结着正确值，是人的文档没跟上**。**G7 第一步**：`docs/messaging-v2-architecture.md` 每条不变量现在都标了 `→ 验证：<Class>#<用例名>` 或 `→ 缺口：<原因>`；新增 `MessagingInvariantTraceabilityTest` 做门禁——引用的测试必须真实存在、缺口集合按棘轮冻结。**审计结论：24 条里 15 条已被现有测试真正验证，9 条是明确缺口**（2/3/5/6/7/9/17/21/24），其中最高价值的是第 9 条「出站明文只在本机 SQLCipher、网络请求只含每设备密文」——`SignalMessagingV2EnvelopePreparer` 至今没有测试。**G7 续已补掉第 9 条**（`MessagingV2OutboxPlaintextBoundaryTest`，2 例 + 双向反证）、第 5/6/7 条（`MessagingV2InboxSynchronizerTest`，3 例 + 三向反证）与第 2 条（`MessagingV2RepositoryTest` 的原子性回滚用例 + 提前提交反证）；第 4 轮更正了两条**假缺口**（21/24 其实早有 `ConversationLocalStateCoordinatorTest` 覆盖，是我第一轮按文件名收集候选用例时漏了 `conversation/**`），缺口降为 2 条）；第 6 轮补掉最后一条真测试缺口——不变量 3（新增 `/api/v2/messages` 的第一个 HTTP 级测试 + 真实 WebSocket 收帧 + 注入反证），缺口降为 **1 条**（只剩 17 的后半句，属契约决策）。**G311c 现状更正**：这最后 1 条后来也已补齐——门禁的判据是 `assertEquals(emptyList(), pending, "缺口集合变了。补上一条就把这里的编号删掉…")`，而 server 全量 **564 tests / 0 failures** 实测通过，即**当前缺口为 0**。至此 26 条不变量全部有可执行追溯，本行仍维持 `[~]` 而非 `[x]`，是因为「有追溯」只证明引用存在，不等于每条都真正约束了实现（`ServerPlaintextSweepTest` 那三处反证是少见的实证，见下一行）。
 - [ ] reducer/state machine 使用 fake clock 和确定性 dispatcher。
 - [~] 架构测试禁止 UI -> infrastructure、domain -> Android/Ktor 依赖（客户端：`core/testing/ArchitectureTest.kt` ArchUnit 2 条 + 根 `checkArchitecture` 模块依赖；**服务端已补 `server/src/test/.../architecture/ServerArchitectureTest.kt`**，随 `server:test` 自动进 CI：2 条绝对不变量 + 5 条精确相等棘轮，实测注入违规会红、基线过期也会红，见 M1 记录）；**G8** 补：客户端 `:core:testing` 的 A01 规则此前从未在 CI 执行（已接进 CI），并新增可证伪的热点棘轮 `ClientHotspotRatchetTest`（热点行数 5061/3131/2298、UI 直连持久层 38 文件/200 处，精确相等）。
 - [~] E2EE 命门有可执行证据：**G11** 新增第 25 条不变量（原表述「服务端全库不含人类消息明文」已在 **G33** 审计中**收窄**为「人类 V2 提交的载荷只落在自己的每设备信封里」——原用例扫的是一个**从未进入发送/加密路径**的随机明文哨兵，那种「扫不到」是自证）。现在 `ServerPlaintextSweepTest` 用独立 JDBC 连接枚举全部表/列，扫描**真正提交进 `SendMessageV2Command` 的载荷**，要求命中恰好只有 `MESSAGING_V2_ENVELOPES.CIPHERTEXT`，并同时断言 metadata 落库、**已有** `chats.last_message` 预览未被改写、同 messageId 无 `service_messages` 正文；仍带 **正对照**（证明扫描器确能发现服务端确实保存的 `SERVICE_MESSAGES.CONTENT` / `CHATS.LAST_MESSAGE`）。三处反证已实测：把载荷写进 `Chats.lastMessage` → 预览断言红；写进**没有任何显式断言**的 `Chats.groupAnnouncement` → 扫描器报出额外列 `[PUBLIC.CHATS.GROUP_ANNOUNCEMENT, PUBLIC.MESSAGING_V2_ENVELOPES.CIPHERTEXT]` 而红；扫描器恒空 → 正对照与新断言同时红。**证据边界**：只覆盖进程内 H2 与该 repository 路径；真实客户端 Signal 加密、日志/导出/备份、真实双设备仍无证据。
@@ -13045,3 +13045,34 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   以后凡是「更正某结论」，必须显式找到**承载现状的那一行**改掉，
   并在核验时用「结论的关键词是否仍在现状行里出现」来验证（如本条用的
   `grep -c '需先做依赖注入改造'` 是否归零）。
+
+
+### G311c — **messing-v2 不变量条数在人的文档里对齐到 26**；并区分「历史事件数字」与「现状声明数字」
+
+- **怎么发现的**：上一轮（G309c 续二）我刚因为「§11 现状行比我的更正声明老」而修过一次 Q03 行。
+  本轮按同一条纪律继续扫，第一个查的就是「文档里出现的不变量条数」——结果**四位数互相矛盾**：
+  ① `DIRECTION.md` §2 轨道 B 第 3 项写「**23** 条」；② `§11` 第 867 行写「**24** 条」；
+  ③ `§11` 第 870 行写「G11 新增第 **25** 条」；④ 门禁自己写 `assertEquals(26, ...)`。
+- **实测事实**：`docs/messaging-v2-architecture.md` 的 Invariants 节实有 **26 条**
+  （编号 1..26 连续、无跳号重号；逐条解析确认）。第 24/25/26 条都是真不变量，
+  且都带 `→ 验证:` 引用。演进路径：G7 时 24 条 → G11 增至 25 → G12 增至 26。
+- **门禁是对的，人的文档没跟上**：`MessagingInvariantTraceabilityTest` 里
+  `assertEquals(26, audits.size, "不变量条数变了：文档改了就必须同步审计，不能悄悄增删")`
+  与 `(1..26).toList()`——**它一直冻结着正确值**，server 全量 564/0 也通过。
+  这是一个好设计的反例证明：**可执行的冻结值不会腐烂，腐烂的是人随手抄的数字。**
+- **本轮确立并执行的判据——两类数字不能一起改**：
+  - **历史事件数字**（「G7 时 24 条」「G11 新增第 25 条」「### G7 — 给 24 条建立追溯」）
+    是**对当时事实的准确描述**，**不改**——改了反而破坏可追溯性；
+  - **现状声明数字**（`DIRECTION.md:116` 的「23 条」、`§11:867` 行首的「24 条」）
+    **必须改成 26**。
+- **改动（仅两处现状声明）**：
+  1. `DIRECTION.md` §2：23 → 26，并加注条数由门禁 `assertEquals(26, ...)` 冻结；
+  2. `§11` 第 867 行：行首 24 → 26，并保留其后整段 G7 时代的审计记录
+     （「24 条里 15 条…9 条缺口」等历史数字**原样保留**），只在**末尾补现状**。
+- **顺带修掉第二处陈旧**：867 行正文原以「缺口降为 **1 条**（只剩 17 的后半句）」结尾，
+  但门禁判据是 `assertEquals(emptyList(), pending)` 且 server 全量 564/0 实测通过——
+  即**当前缺口为 0**。已在行末补明，并说明本行为何仍维持 `[~]` 而非 `[x]`：
+  「有追溯」只证明引用存在，不等于每条都真正约束了实现。
+- **核验**：`grep -c '23 条不变量' DIRECTION.md` → **0**；`26 条不变量` → **1**；
+  867 行行首 → `messaging-v2 的 26 条不变量`；历史表述仍在；
+  `git diff --stat docs/messaging-v2-architecture.md` → **空**（未改事实源）。
