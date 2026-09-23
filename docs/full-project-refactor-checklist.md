@@ -887,7 +887,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q03 Compose 与系统集成
 
-- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G301c：Contacts 与 ChatDetail 有了第一批，其余未做**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；本轮新增 `ui/screen/contacts/ContactsRowsUiTest`——**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable，每例同时断言可见性与行为（点击/长按后回调计数变化），文案一律取 `R.string`。**已在本地 AVD `maodou_test` 实跑**：10 tests / 0 failures / 0 skipped（JUnit XML 逐条核对）；负控制两轮——第一轮把 `if (onAccept != null && onReject != null)` 改成 `if (true)`，**编译期即红**（`onReject` 可空，`TextButton(onClick=...)` 类型不匹配，证明该空检查承重但不是行为证据）；第二轮把 `else if (request.outgoing)` 改成 `else if (request.outgoing && false)`，**精确只有 `outgoingRequestShowsPendingHintAndCancelInsteadOfAccept` 一条红**，还原后复绿。全量 instrumented 106 tests / 0 failures（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，乃真机用例、预先存在）。**仍未做**：Chats / Explore / Call / Settings 四个主屏幕——其中 `ContactsScreen`/`ExploreFeedScreen` 本体带 `viewModel()` 默认参数，需先做依赖注入改造才能测，卡点已记录；故本项保持 `[~]` 不标 `[x]`）。
+- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G301c：三个入口有了第一批，屏幕本体仍未做**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`），每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**：两批分别 10、7 tests，0 failures 0 skipped（JUnit XML 逐条核对）；负控制各一轮——Contacts 侧把按钮条件改恒真（**编译期即红**，`onReject` 可空导致类型不匹配）再改为 outgoing 永假（**精确只有 `outgoingRequestShowsPendingHintAndCancelInsteadOfAccept` 红**）；Explore 侧把 `isLoading` 分支移到 `likers.isEmpty()` 之后（**实际红的是 `emptyAndNotLoadingShowsTheEmptyHint`，与预判不同但同样证明断言承重**）。全量 instrumented **113 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats / Explore 的**屏幕本体**与 Call / Settings——`ContactsScreen`/`ExploreScreen` 均带 `viewModel()` 默认参数，需先做依赖注入改造才能 `setContent`，卡点已记录；故本项保持 `[~]` 不标 `[x]`）。
 - [ ] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文。
 - [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
 
@@ -12824,3 +12824,40 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   故 §11 Q03 第 1 项只从 `[ ]` 改到 `[~]`，**没有标 `[x]`**。
   其中 `ContactsScreen`/`ExploreFeedScreen` 本体带 `viewModel()` 默认参数，
   要进一步覆盖需先做依赖注入改造——这是下一轮的候选，也是本轮记录的卡点。
+
+
+### G301c（续）— Explore 侧补齐：`LikersDialog` 7 例，负控制的**预判错但结论对**
+
+- **动机补足**：G301c 原文定的是「Contacts 与 Explore 两个主屏幕」。Contacts 那半
+  （`ContactsRowsUiTest` 10 例）先完成；本轮补 Explore。
+- **为什么 Explore 也只能测 dialog 而不能测屏幕本体**：
+  `ExploreScreen(viewModel: ExploreViewModel = viewModel())` 同样带 ViewModel 默认参数
+  （`ExploreFeedScreen.kt:141`），在 `createComposeRule` 里 `setContent` 会构造真实
+  ViewModel。文件里 3 个 `@Composable` 只有 `LikersDialog` 是无状态的
+  （另一个是 `ExploreScreenPreview`，私有 Preview）。
+  所以选 `LikersDialog`——它还是 **Explore 与 PostDetail 共用**，测一处覆盖两个调用方。
+- **7 例覆盖什么**（`app/src/androidTest/.../ui/screen/explore/ExploreLikersDialogUiTest.kt`）：
+  标题渲染、每个点赞者名字渲染、**点点赞者回传那一行的 id**（不是第一行也不是 null）、
+  在线者带 `R.string.chat_online` 标记、离线者**不出现**该标记、
+  空且非 loading 显示「还没有人点赞」、**loading 时不得出现空文案**（互斥分支反向断言）、
+  关闭按钮触发 `onDismiss`。
+- **本轮一次编译通过**（上一轮学到的「用编译循环验 API」直接生效）：
+   API 用的是 `onAllNodesWithText(...).assertCountEquals(0)` 与既有导入集，
+   没有再去猜 `assertDoesNotExist` / `performLongClick`。7 tests / 0 failures / 0 skipped（XML 逐条核对）。
+- **负控制：我预判错了哪条会红，但结论仍成立**。
+  手法是把 `when` 里 `isLoading` 那一支**移到 `likers.isEmpty()` 之后**。
+  我预期红的是 `loadingStateHidesTheEmptyHint`；**实际红的是
+  `emptyAndNotLoadingShowsTheEmptyHint`**。回看代码才明白我造成的真实破坏是：
+  第一分支被换成了「空列表 → 渲染进度圈」（`CircularProgressIndicator` 被接到了空分支上），
+  于是「空列表应显示空文案」这一条先坏掉。
+  **教训**：NC 之前应当**先读一遍改动后的代码、说清它到底坏了什么行为**，
+  再预测哪条测试会红。我这次只凭「分支顺序改了」就下判断，
+  没有核对替换文本本身把哪个 UI 挂到了哪个条件上。
+  但 NC 的核心目的达到了：**一个真实的行为回归，被一个特定的测试精准抓住**，
+  还原后复绿，`diff` 确认与 HEAD 逐字节相同。
+- **最终实测**：全量 instrumented **113 tests / 0 failures**（较上轮 +7），
+  27 skipped 全部仍落在 `PersistentSignalStoreRoundTripTest`（真机用例，预先存在）。
+- **§11 Q03 第 1 项状态不变**：仍为 `[~]`——Chats / Explore 的**屏幕本体**
+  与 Call / Settings 仍无覆盖（`ExploreScreen`/`ContactsScreen` 带 `viewModel()`，
+  需先做依赖注入改造）。本轮只是把 dialog/行这一层从「只有 ChatDetail」
+  扩展到「ChatDetail + Contacts 行 + Explore 弹窗」三处。
