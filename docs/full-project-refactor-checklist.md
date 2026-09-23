@@ -10129,3 +10129,35 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   → 总数 **653 → 644**、LocalContext **36 → 27** → ratchet 冻结值同步（644/27）
   → 2 例转绿 → 全量 app JVM **2059 例 0 失败**。
 - **进度**：LocalContext **41 → 27**（还掉 14 处 / 34%）。
+
+### G231b — 还债 15 处；**lint 当场抓到我引入的一个真回归**（基线 644 → 629）
+
+- **本轮修掉 15 处 / 2 个文件**（都是非 inline 回调，需 hoist）：
+  | 文件 | 处数 | 说明 |
+  |---|---|---|
+  | `ChatDetailFullscreenMedia.kt` | 10 | 2 个 composable（Image/Video）各 hoist 7 个 val |
+  | `ChatListScreenDialogs.kt` | 5 | 同样是 2 个 composable 各 hoist 4 个 val |
+- **这两个文件各有两个 composable**，所以 hoist 必须**分别进各自的函数作用域**——
+  我第一版只进了第一个，第二个 composable 里的调用点全部 `Unresolved reference`。
+  改成「进**每一个** `val context = LocalContext.current` 锚点」。
+- **本轮最重要的：lint 抓到我引入了一个真回归。**
+  `updateLintBaseline` 后 diff 基线，出现一条**新增**的
+  `UnusedResources strings.xml:1568`——那是 `media_save_failed`（"保存失败"）。
+  追下去：我用一条统一的替换规则处理
+  `context.getString(if (saved) R.string.media_saved else R.string.media_save_failed)`，
+  把它换成了 `if (saved) mediaSavedTip else mediaSaveFailedTip`，
+  但 `mediaSaveFailedTip` 这个 val 是我给 **`media_export_save_failed`**（导出失败）起的名字。
+  结果：视频保存失败的提示会显示「导出失败」。
+  **一个文案错误——编译通过、测试全绿、肉眼看 diff 也不容易发现，
+     是 lint 的 UnusedResources 通过「这个字符串突然没人用了」间接暴露的。**
+  修法：给视频 composable 单独 hoist `mediaSaveFailedVideoTip = stringResource(R.string.media_save_failed)`
+  并改回正确的分支。
+- **第三次「lint 挣回它的工钱」**：G223b 它在我发 CI 前拦下 42 个红；
+  G228b+ 它提示「基线有 N 条已失效」引导还债；**这一次它直接抓出一个产品级文案 bug**。
+- **另外 diff 里那条 `UseKtx`「新增」是虚的**：对应源码行与 HEAD 逐字节相同，
+  只是我往文件里插了 7 行 hoist，行号从 233 漂到 247。
+  基线按 file:line 记账，行号一动就像新增——**这是基线这类工具的固有噪声**。
+- **实测结果**：lint 报 15 条基线失效 → `updateLintBaseline`
+  → 总数 **644 → 629**、LocalContext **27 → 12** → ratchet 冻结值同步（629/12）
+  → 2 例转绿 → 全量 app JVM **2059 例 0 失败**。
+- **进度**：LocalContext **41 → 12**（还掉 29 处 / 71%）。

@@ -493,116 +493,6 @@
     <issue
         id="LocalContextGetResourceValueCall"
         message="Querying resource values using LocalContext.current"
-        errorLine1="                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="135"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="143"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                    context.getString(if (ok) R.string.media_export_saved else R.string.media_export_save_failed),"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="157"
-            column="37"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="168"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="176"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                chooserTitle = context.getString(R.string.common_share)"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="183"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                Toast.makeText(context, context.getString(R.string.media_export_share_failed), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="186"
-            column="57"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="266"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="274"
-            column="49"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        context.getString(if (saved) R.string.media_saved else R.string.media_save_failed),"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="285"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
         errorLine1="                                    MessageType.IMAGE -> context.getString(R.string.message_preview_image)"
         errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -730,61 +620,6 @@
             file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailTimelineItems.kt"
             line="321"
             column="45"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_copy_chat_name), name))"
-        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListScreenDialogs.kt"
-            line="127"
-            column="88"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                        android.widget.Toast.makeText(context, context.getString(R.string.chat_copied), android.widget.Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListScreenDialogs.kt"
-            line="128"
-            column="64"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_copy_chat_id), chat.id))"
-        errorLine2="                                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListScreenDialogs.kt"
-            line="138"
-            column="84"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                    android.widget.Toast.makeText(context, context.getString(R.string.chat_copied), android.widget.Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListScreenDialogs.kt"
-            line="139"
-            column="60"/>
-    </issue>
-
-    <issue
-        id="LocalContextGetResourceValueCall"
-        message="Querying resource values using LocalContext.current"
-        errorLine1="                                android.widget.Toast.makeText(context, context.getString(R.string.chat_silent_until_set), android.widget.Toast.LENGTH_SHORT).show()"
-        errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListScreenDialogs.kt"
-            line="282"
-            column="72"/>
     </issue>
 
     <issue
@@ -5217,7 +5052,7 @@
         errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="233"
+            line="248"
             column="37"/>
     </issue>
 

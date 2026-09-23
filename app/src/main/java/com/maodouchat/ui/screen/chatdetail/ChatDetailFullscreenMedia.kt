@@ -79,6 +79,13 @@ internal fun FullscreenImageDialog(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val mediaExportBlockedTip = stringResource(R.string.secret_chat_media_export_blocked)
+    val mediaExportNeedCacheTip = stringResource(R.string.media_export_need_cache)
+    val mediaExportSavedTip = stringResource(R.string.media_export_saved)
+    val mediaSaveFailedTip = stringResource(R.string.media_export_save_failed)
+    val commonShareTitle = stringResource(R.string.common_share)
+    val mediaShareFailedTip = stringResource(R.string.media_export_share_failed)
+    val mediaSavedTip = stringResource(R.string.media_saved)
     val scope = rememberCoroutineScope()
     androidx.compose.ui.window.Dialog(
         onDismissRequest = { onDismiss() },
@@ -132,7 +139,7 @@ internal fun FullscreenImageDialog(
                     TextButton(
                         onClick = {
                             if (isSecretChat == true) {
-                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, mediaExportBlockedTip, Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
                             if (!localOk || !com.maodouchat.util.MediaViewerPolicy.canExportLocal(
@@ -140,7 +147,7 @@ internal fun FullscreenImageDialog(
                                     secretChat = isSecretChat == true,
                                     exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
                                 )) {
-                                Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, mediaExportNeedCacheTip, Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
                             scope.launch {
@@ -154,7 +161,7 @@ internal fun FullscreenImageDialog(
                                 }
                                 Toast.makeText(
                                     context,
-                                    context.getString(if (ok) R.string.media_export_saved else R.string.media_export_save_failed),
+                                    if (ok) mediaExportSavedTip else mediaSaveFailedTip,
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -165,7 +172,7 @@ internal fun FullscreenImageDialog(
                     TextButton(
                         onClick = {
                             if (isSecretChat == true) {
-                                Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, mediaExportBlockedTip, Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
                             if (!localOk || !com.maodouchat.util.MediaViewerPolicy.canShareLocal(
@@ -173,17 +180,17 @@ internal fun FullscreenImageDialog(
                                     secretChat = isSecretChat == true,
                                     exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
                                 )) {
-                                Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, mediaExportNeedCacheTip, Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
                             val ok = com.maodouchat.util.MediaExport.share(
                                 context = context,
                                 rawUri = msg.parsedContent(),
                                 mimeType = mime,
-                                chooserTitle = context.getString(R.string.common_share)
+                                chooserTitle = commonShareTitle
                             )
                             if (!ok) {
-                                Toast.makeText(context, context.getString(R.string.media_export_share_failed), Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, mediaShareFailedTip, Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {
@@ -204,6 +211,14 @@ internal fun FullscreenVideoDialog(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val mediaExportBlockedTip = stringResource(R.string.secret_chat_media_export_blocked)
+    val mediaExportNeedCacheTip = stringResource(R.string.media_export_need_cache)
+    val mediaExportSavedTip = stringResource(R.string.media_export_saved)
+    val mediaSaveFailedTip = stringResource(R.string.media_export_save_failed)
+    val commonShareTitle = stringResource(R.string.common_share)
+    val mediaShareFailedTip = stringResource(R.string.media_export_share_failed)
+    val mediaSavedTip = stringResource(R.string.media_saved)
+    val mediaSaveFailedVideoTip = stringResource(R.string.media_save_failed)
     val videoContent = msg.content
     // 内容为空/非法时直接关闭弹窗，避免 Uri.parse 失败或 VideoView 加载异常
     if (videoContent.isNullOrBlank()) { onDismiss(); return }
@@ -263,7 +278,7 @@ internal fun FullscreenVideoDialog(
             ) {
                 TextButton(onClick = {
                     if (isSecretChat == true) {
-                        Toast.makeText(context, context.getString(R.string.secret_chat_media_export_blocked), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, mediaExportBlockedTip, Toast.LENGTH_SHORT).show()
                         return@TextButton
                     }
                     if (!videoLocalOk || !com.maodouchat.util.MediaViewerPolicy.canExportLocal(
@@ -271,7 +286,7 @@ internal fun FullscreenVideoDialog(
                             secretChat = isSecretChat == true,
                             exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
                         )) {
-                        Toast.makeText(context, context.getString(R.string.media_export_need_cache), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, mediaExportNeedCacheTip, Toast.LENGTH_SHORT).show()
                         return@TextButton
                     }
                     val saved = com.maodouchat.util.MediaExport.saveToGallery(
@@ -282,7 +297,7 @@ internal fun FullscreenVideoDialog(
                     )
                     Toast.makeText(
                         context,
-                        context.getString(if (saved) R.string.media_saved else R.string.media_save_failed),
+                        if (saved) mediaSavedTip else mediaSaveFailedVideoTip,
                         Toast.LENGTH_SHORT
                     ).show()
                 }) {

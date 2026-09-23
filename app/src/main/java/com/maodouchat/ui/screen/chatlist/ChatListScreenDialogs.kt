@@ -57,6 +57,10 @@ internal fun ChatListScreenDialogs(
     onOpenGroupDetail: (String) -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val copyChatNameLabel = stringResource(R.string.chat_copy_chat_name)
+    val copiedTip = stringResource(R.string.chat_copied)
+    val copyChatIdLabel = stringResource(R.string.chat_copy_chat_id)
+    val silentUntilSetTip = stringResource(R.string.chat_silent_until_set)
 
     menuChat?.let { menuSnapshot ->
         // 9.150：菜单文案与动作均以 state.chats 最新快照为准，避免长按瞬间的 Chat 快照在 WS 刷新后陈旧
@@ -124,8 +128,8 @@ internal fun ChatListScreenDialogs(
                     }
                     if (name.isNotBlank()) {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_copy_chat_name), name))
-                        android.widget.Toast.makeText(context, context.getString(R.string.chat_copied), android.widget.Toast.LENGTH_SHORT).show()
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(copyChatNameLabel, name))
+                        android.widget.Toast.makeText(context, copiedTip, android.widget.Toast.LENGTH_SHORT).show()
                     }
                     onMenuChatChange(null)
                 }
@@ -135,8 +139,8 @@ internal fun ChatListScreenDialogs(
                 text = { Text(stringResource(R.string.chat_copy_chat_id)) },
                 onClick = {
                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_copy_chat_id), chat.id))
-                    android.widget.Toast.makeText(context, context.getString(R.string.chat_copied), android.widget.Toast.LENGTH_SHORT).show()
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(copyChatIdLabel, chat.id))
+                    android.widget.Toast.makeText(context, copiedTip, android.widget.Toast.LENGTH_SHORT).show()
                     onMenuChatChange(null)
                 }
             )
@@ -259,6 +263,10 @@ internal fun ChatListMiscDialogs(
     onOpenScan: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val copyChatNameLabel = stringResource(R.string.chat_copy_chat_name)
+    val copiedTip = stringResource(R.string.chat_copied)
+    val copyChatIdLabel = stringResource(R.string.chat_copy_chat_id)
+    val silentUntilSetTip = stringResource(R.string.chat_silent_until_set)
 
     // 1.31：会话列表「临时静音至」对话框（1/8/24 小时，本地 per-chat）
     silentUntilChat?.let { chat ->
@@ -279,7 +287,7 @@ internal fun ChatListMiscDialogs(
                                     chat.id,
                                     System.currentTimeMillis() + ms
                                 )
-                                android.widget.Toast.makeText(context, context.getString(R.string.chat_silent_until_set), android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, silentUntilSetTip, android.widget.Toast.LENGTH_SHORT).show()
                                 onSilentUntilChatChange(null)
                             },
                             modifier = Modifier.fillMaxWidth()
