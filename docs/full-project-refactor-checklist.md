@@ -10544,3 +10544,39 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   server **469 例 0 失败**；`:app:compileDebugKotlin` 通过。
 - **结论：这个缺口不会变成真问题了**——4 个模块已纳入监管，且守卫保证将来
   若再出现结构性盲区会被立刻发现。
+
+### G223c — GroupPlayPolicy 的 84 对 format/parse 首次有往返测试（app 2071 → 2072）
+
+- **动机**：G221b 的死代码清单里有 470 个零引用声明，其中一大类 `format*`/`parse*`
+  是**文本序列化协议**（182 format + 183 parse）。作者已引入 `esc`/`unesc`
+  （只转义 `|` 与 `^`），说明预见了注入/分隔符冲突，但**从无任何往返测试**。
+- **实现前实测（决定了测试形状）**：
+  1. 按 `formatX ↔ parseX` 名称机械配对得 **181 对**；其中参数形状为
+     `(mode: String, hostLabel: String)` 的、且 parse 只回 `mode` 的共 **84 对**
+     （最初按 parseX 匹配多数了 4 个，实测纠正为 84）；
+  2. 这 84 对**全部**做截断：**81 对 `take(40)`、3 对 `take(30)`**。
+     语义统一为 `parseX(formatX(mode, h)) == mode.trim().take(N)`；
+  3. **13 对是委托**：`GroupPlayPolicy.formatLinkLock` 等是单行表达式，
+     转发给 `GroupPlaySealPolicy`。**只扫主文件会把它们误判成「不截断」**——
+     我第一版就这么误判了，直接后果是负控制打不红（见下）。
+- **做了什么**：写 `mode and host label pairs round trip exactly`，
+  用反射按名单逐个调用（84 对 × 8 个输入面），断言**精确等于** `trim().take(N)`。
+  输入面覆盖：普通串、含 `|`、含 `^`、纯空白（trim 后空 → 归一 null）、
+  超长串（触发截断）、emoji、换行、tab。
+- **两次负控制失败，第三次才打红——过程比结果有价值**：
+  1. 第一版断言写成「往返结果是 trim 后输入的**前缀**」→ 把 `take(80)` 改成 `take(4)`
+     **没打红**（"hell" 仍是 "hello" 的前缀）。**这是同义反复的宽松断言。**
+  2. 第二版改成精确断言，但 NC 选的目标 `formatToast` **参数名是 `line` 不是 `mode`**，
+     根本不在 84 对名单里 → 还是没红。**NC 选错目标等于没做。**
+  3. 第三选名单内的 `formatWallPick`（`take(40)` → `take(4)`）→ **FAILED**，
+     报错 `expected:<hell[o]> but was:<hell[]>`，一眼定位。
+- **副作用：死引用棘轮的基线从 297 降到 226。**
+  原因：测试名单里那 84 个函数名是字符串字面量，棘轮的 `\bname\b` 口径认它们为
+  「已被引用」。**这不是数字游戏**——那 71 个（84 里净减 71）现在真有测试覆盖，
+  从「死代码」变成「有测试但无产品入口」。已在基线注释里写明原因。
+- **未做的事**：其余约 100 对（`(seed, hostLabel)` / `(prompt, hostLabel)` /
+  `(pair, hostLabel)` 等形状）本轮未覆盖。它们的 parse 返回值形状不同
+  （有的回 Pair<String,String>、有的回 Int），需要逐形状写语义，不是机械套用。
+  **这是明确的下一步，不是因为难而停。**
+- **实测结果**：app JVM **2071 → 2072 例**（0 失败）；NC 第三次精确打红；
+  生产文件 `git diff` 为空（无残留）。

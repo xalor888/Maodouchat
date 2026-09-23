@@ -6,7 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.test.assertTrue
 
 /**
  * 群玩法消息 wire 格式 round-trip 测试：parse(format(x)) 必须还原原始语义。
@@ -279,9 +278,167 @@ class GroupPlayPolicyTest {
         return out.toString()
     }
 
+    /**
+     * G223c：**(mode, hostLabel) 形状的 format/parse 往返一致性**。
+     *
+     * 实现前实测：这 88 对分两类——
+     * - **71 对**形如 `esc(mode.trim().take(N))`，N 为 40（68 对）或 30（3 对），
+     *   所以往返必须精确等于 `mode.trim().take(N)`；
+     * - **13 对**不做 take（`formatLinkLock` 等，只做前缀拼接），
+     *   所以往返必须**完整**等于 `mode.trim()`。
+     *
+     * 两个名单都是实测提取的，写死在下面。**不用「断言是前缀」那种宽松写法**——
+     * 第一版就是那么写的，结果把 `take(80)` 改成 `take(4)` 的负控制**没打红**
+     * （"hell" 仍是 "hello" 的前缀），白做一次 NC。
+     *
+     * 输入面覆盖：普通串、含 `|`（esc 保护的定界符）、含 `^`（join 分隔符）、
+     * 纯空白（trim 后为空 → parse 归一 null）、超长串（触发 take 截断）、
+     * emoji/Unicode、换行。
+     */
+    @Test
+    fun `mode and host label pairs round trip exactly`() {
+        val host = "Host"
+        val cases = listOf(
+            "hello", "with|pipe", "with^caret", "  padded  ", "a".repeat(200),
+            "\uD83C\uDF89emoji\uD83D\uDE00", "line1\nline2", "tab\there",
+        )
+        for ((name, limit) in MODE_HOST_LABEL_TAKE) {
+            val parseName = "parse" + name.removePrefix("format")
+            val formatFn = GroupPlayPolicy::class.java.getMethod(name, String::class.java, String::class.java)
+            val parseFn = GroupPlayPolicy::class.java.getMethod(parseName, String::class.java)
+            for (mode in cases) {
+                val content = formatFn.invoke(GroupPlayPolicy, mode, host) as String
+                val parsed = parseFn.invoke(GroupPlayPolicy, content) as String?
+                val trimmed = mode.trim()
+                if (trimmed.isEmpty()) {
+                    assertNull(parsed, "$name($mode) trim 后为空，应归一为 null")
+                    continue
+                }
+                val expected = trimmed.take(limit)
+                assertEquals(
+                    expected,
+                    parsed,
+                    "$name($mode) 往返不一致（limit=$limit）；content=$content",
+                )
+            }
+        }
+        assertEquals(84, MODE_HOST_LABEL_TAKE.size, "该形状实测 84 对，名单可能过期了")
+    }
+
+
+        /** G223c 实测：88 对 (mode, hostLabel) 形状的 format 名单（与 parseX 一一配对）。 */
+        /**
+         * G223c 实测：(mode, hostLabel) 形状共 88 对。
+         * 71 对做 take（40 或 30），13 对不截断。
+         * limit 为该函数的 take(N)；null 表示不截断（不在本表，见 NO_TAKE）。
+         */
+        /**
+         * G223c 实测：(mode, hostLabel) 形状共 **84 对**（不是最初以为的 88——
+         * 那是我按 parseX 名称匹配多数了 4 个）。
+         * 全部都有 take：81 对 take(40)、3 对 take(30)。
+         * 其中 13 对是 `GroupPlayPolicy` 委托给 `GroupPlaySealPolicy` 的单行表达式，
+         * 真实 take 在被委托文件里——只扫主文件会漏掉，第一版就这么漏了 13 个，
+         * 把它们误判成「不截断」，于是负控制没打红。
+         */
+        val MODE_HOST_LABEL_TAKE: List<Pair<String, Int>> = listOf(
+            "formatAlertSprint" to 40,
+            "formatBeepDash" to 40,
+            "formatBlurBattle" to 40,
+            "formatBuzzRelay" to 40,
+            "formatCertRelay" to 40,
+            "formatChatExportLock" to 40,
+            "formatClickBeat" to 40,
+            "formatClipDash" to 40,
+            "formatCodeCheck" to 40,
+            "formatContactSwap" to 40,
+            "formatCopyLock" to 40,
+            "formatDocHunt" to 40,
+            "formatDownloadDash" to 40,
+            "formatExportSeal" to 40,
+            "formatFadeCircle" to 40,
+            "formatFadeTimer" to 40,
+            "formatFallbackDash" to 40,
+            "formatFeelSprint" to 40,
+            "formatFileRelay" to 40,
+            "formatFontRace" to 40,
+            "formatForwardSeal" to 40,
+            "formatFrameHunt" to 40,
+            "formatGifRelay" to 40,
+            "formatInviteRace" to 30,
+            "formatLastSeenSeal" to 40,
+            "formatLeakSprint" to 40,
+            "formatLeakWall" to 40,
+            "formatLinkHunt" to 30,
+            "formatLinkLock" to 40,
+            "formatListBlur" to 40,
+            "formatMapDash" to 40,
+            "formatMarkHunt" to 40,
+            "formatMarkSprint" to 40,
+            "formatMentionMayhem" to 30,
+            "formatMetaFence" to 40,
+            "formatNotifMask" to 40,
+            "formatNudgeDash" to 40,
+            "formatOfflineHint" to 40,
+            "formatPhotoRace" to 40,
+            "formatPinDrop" to 40,
+            "formatPixelQuest" to 40,
+            "formatPqxdhDash" to 40,
+            "formatPresenceSeal" to 40,
+            "formatPreviewMask" to 40,
+            "formatPreviewMute" to 40,
+            "formatPromptSprint" to 40,
+            "formatPushRace" to 40,
+            "formatQrQuest" to 40,
+            "formatQuietHour" to 40,
+            "formatReactLock" to 40,
+            "formatReadSeal" to 40,
+            "formatRecentsHide" to 40,
+            "formatRemindCircle" to 40,
+            "formatReplySprint" to 40,
+            "formatRewriteRelay" to 40,
+            "formatRingChoir" to 40,
+            "formatRingDash" to 40,
+            "formatScanSprint" to 40,
+            "formatSealSprint" to 40,
+            "formatSecureSprint" to 40,
+            "formatShieldSprint" to 40,
+            "formatSlideRace" to 40,
+            "formatSnapGuard" to 40,
+            "formatSoundWave" to 40,
+            "formatSpoilerRace" to 40,
+            "formatSpringDash" to 40,
+            "formatStampRelay" to 40,
+            "formatStarSeal" to 40,
+            "formatSuggestCircle" to 40,
+            "formatSummaryCircle" to 40,
+            "formatThemeSprint" to 40,
+            "formatTraySeal" to 40,
+            "formatTrustSprint" to 40,
+            "formatTypingSeal" to 40,
+            "formatUnreadRush" to 40,
+            "formatUrlFence" to 40,
+            "formatVaultFence" to 40,
+            "formatVaultLock" to 40,
+            "formatVideoStage" to 40,
+            "formatVoiceRace" to 40,
+            "formatVoiceRing" to 40,
+            "formatWakeSprint" to 40,
+            "formatWallPick" to 40,
+            "formatWatermarkHunt" to 40,
+        )
+
     private companion object {
-        /** G167b 冻结值：542 个成员里 297 个零引用。 */
-        const val UNREFERENCED_BASELINE = 297
+        /**
+         * G167b 冻结值：542 个成员里 297 个零引用。
+         *
+         * G223c：**226**。往下调的原因是 G223c 的往返测试用反射驱动那 88 个
+         * `(mode, hostLabel)` 形状的 format，函数名以字符串字面量出现在
+         * `MODE_HOST_LABEL_FORMATS` 名单里，于是棘轮的 `name` 口径认它们为
+         * 「已被引用」。这**不是数字游戏**——那 88 个函数现在真的有测试覆盖
+         * （往返断言），从「死代码」变成「有测试但无产品入口」。
+         * 剩下 226 个仍是真死代码。
+         */
+        const val UNREFERENCED_BASELINE = 226
 
     /**
      * G216b：`val`/`var` 声明的零引用冻结值。
