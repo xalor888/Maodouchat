@@ -427,7 +427,166 @@ class GroupPlayPolicyTest {
             "formatWatermarkHunt" to 40,
         )
 
+    /**
+     * G223d：**其余「单 String 参数 + hostLabel、parse 回 String?」的 68 对**。
+     *
+     * G223c 覆盖了 `(mode, hostLabel)` 那 84 对；本轮把同语义但参数名不同的
+     * 一批补齐（seed / prompt / topic / pair / line / token / board / window / …）。
+     * 语义与 G223c 完全一致：`parseX(formatX(x, h)) == x.trim().take(N)`，
+     * 只是 N 因函数而异（实测有 1/4/8/10/12/16/20/24/30/40/50/60/80/100/160 十五种）。
+     *
+     * **精确断言，不用「是前缀」**——G223c 第一版就是宽松断言，导致负控制打不红。
+     */
+    @Test
+    fun `single string param pairs round trip exactly with their own limit`() {
+        val host = "Host"
+        val cases = listOf(
+            "hello", "with|pipe", "with^caret", "  padded  ", "z".repeat(400),
+            "\uD83C\uDF89emoji\uD83D\uDE00", "line1\nline2",
+        )
+        for ((name, limit) in SINGLE_STRING_PARAM_TAKE) {
+            val formatFn = GroupPlayPolicy::class.java.getMethod(name, String::class.java, String::class.java)
+            val parseFn = GroupPlayPolicy::class.java.getMethod("parse" + name.removePrefix("format"), String::class.java)
+            for (value in cases) {
+                val content = formatFn.invoke(GroupPlayPolicy, value, host) as String
+                val parsed = parseFn.invoke(GroupPlayPolicy, content) as String?
+                val trimmed = value.trim()
+                if (trimmed.isEmpty()) {
+                    assertNull(parsed, "$name($value) trim 后为空，应归一为 null")
+                    continue
+                }
+                assertEquals(
+                    trimmed.take(limit),
+                    parsed,
+                    "$name($value) 往返不一致（limit=$limit）；content=$content",
+                )
+            }
+        }
+        assertEquals(65, SINGLE_STRING_PARAM_TAKE.size, "实测 65 对（另 3 对语义特殊，见下）")
+    }
+
+    /**
+     * G223d：**被跳过的那一对要留下记录**，否则将来看见手册短了一行没人知道为什么。
+     *
+     * `formatCoinFlip` 不做截断，而是**值归一化**：任意输入都被折成
+     * "HEADS" 或 "TAILS"。它的往返语义是「归一后的值」，不是「trim().take(N)」，
+     * 硬套进上面的精确断言会是错的。本轮明确跳过并记在这里。
+     */
+    @Test
+    fun `coin flip normalizes instead of truncating so it is excluded`() {
+        // 只有大小写不敏感的 "HEADS" 归一成 HEADS，其余一切（含空串、长串）都是 TAILS
+        assertEquals("HEADS", GroupPlayPolicy.parseCoinFlip(GroupPlayPolicy.formatCoinFlip("heads", "Host")))
+        assertEquals("HEADS", GroupPlayPolicy.parseCoinFlip(GroupPlayPolicy.formatCoinFlip("HeAdS", "Host")))
+        assertEquals("TAILS", GroupPlayPolicy.parseCoinFlip(GroupPlayPolicy.formatCoinFlip("totally not heads", "Host")))
+        assertEquals("TAILS", GroupPlayPolicy.parseCoinFlip(GroupPlayPolicy.formatCoinFlip("", "Host")))
+        // 关键：输入再长也不会被截断成问题——它根本不走 trim().take(N) 那条路
+        val longInput = "x".repeat(500)
+        assertEquals("TAILS", GroupPlayPolicy.parseCoinFlip(GroupPlayPolicy.formatCoinFlip(longInput, "Host")))
+    }
+
+
+    /**
+     * G223d：**2 对 take 前没有 trim——往返会带回首尾空白**（本轮实测抓到的真实不一致）。
+     *
+     * `formatSpin` / `formatSimon` 写的是 `esc(result.take(40))` /
+     * `val s = seq.take(16)`，而其余 65 对都是 `trim().take(N)`。
+     * 后果：`parse(format("  x  ", h))` 返回 `"  x  "` 而不是 `"x"`。
+     *
+     * **按目标第 (3) 条，本轮不改生产代码**——先钉住现状，是否统一由产品决策
+     * （这 68 对整体是 roadmap 死代码）。这条测试的价值是：将来谁「顺手」给这 2 对
+     * 补上 trim，这条会红，提醒他那是行为变更。
+     */
+    @Test
+    fun `two pairs take before trim so they round trip with padding`() {
+        assertEquals("  padded  ", GroupPlayPolicy.parseSpin(GroupPlayPolicy.formatSpin("  padded  ", "Host")))
+        assertEquals("  padded  ", GroupPlayPolicy.parseSimon(GroupPlayPolicy.formatSimon("  padded  ", "Host")))
+        // 对照组：同批次的 formatToast 是 trim 过的，行为不同
+        assertEquals("padded", GroupPlayPolicy.parseToast(GroupPlayPolicy.formatToast("  padded  ", "Host")))
+    }
+
+    /**
+     * G223d：`formatAlphabet` 是第三例语义特殊的——它**把首字母转成大写**，
+     * 且 trim+take(1) 后为空时回落 "A"。往返结果是「大写首字母」而非原样输入。
+     * 同样**不改生产代码**，只钉住现状。
+     */
+    @Test
+    fun `format alphabet upper cases its single letter so it is excluded`() {
+        assertEquals("H", GroupPlayPolicy.parseAlphabet(GroupPlayPolicy.formatAlphabet("hello", "Host")))
+        assertEquals("H", GroupPlayPolicy.parseAlphabet(GroupPlayPolicy.formatAlphabet("  h  ", "Host")))
+        assertEquals("A", GroupPlayPolicy.parseAlphabet(GroupPlayPolicy.formatAlphabet("   ", "Host")))
+        assertEquals("A", GroupPlayPolicy.parseAlphabet(GroupPlayPolicy.formatAlphabet("ab", "Host")))
+    }
+
     private companion object {
+        /** G223d 手册：单 String 参数 + hostLabel、parse 回 String? 的 65 对及其 take(N)。 */
+        val SINGLE_STRING_PARAM_TAKE: List<Pair<String, Int>> = listOf(
+            "formatStory" to 160,  // seed
+            "formatNeverHaveIEver" to 100,  // prompt
+            "formatIcebreaker" to 100,  // prompt
+            "formatMirror" to 100,  // line
+            "formatMinuteTalk" to 80,  // topic
+            "formatStorySwap" to 80,  // opener
+            "formatKaraoke" to 80,  // line
+            "formatBlindQ" to 80,  // q
+            "formatFortune" to 80,  // text
+            "formatDebate" to 80,  // topic
+            "formatToast" to 80,  // line
+            "formatTimeCapsule" to 80,  // note
+            "formatHotOrNot" to 60,  // topic
+            "formatDrawPrompt" to 60,  // prompt
+            "formatTaboo" to 60,  // card
+            "formatLightning" to 60,  // prompt
+            "formatWhisper" to 60,  // prompt
+            "formatQuickPoll" to 60,  // options
+            "formatFactOrFiction" to 60,  // item
+            "formatGeoGuess" to 50,  // clue
+            "formatStorySeed" to 50,  // seed
+            "formatEmojiOnly" to 50,  // prompt
+            "formatDebateFlash" to 50,  // topic
+            "formatMirrorEcho" to 50,  // line
+            "formatSillyLaw" to 50,  // law
+            "formatHotSeat" to 40,  // target
+            "formatCharades" to 40,  // prompt
+            "formatRapidFire" to 40,  // topic
+            "formatCaptionThis" to 40,  // seed
+            "formatSpyfall" to 40,  // location
+            "formatTwentyQuestions" to 40,  // subject
+            "formatPasswordGame" to 40,  // hint
+            "formatSilentMovie" to 40,  // prompt
+            "formatWordScramble" to 40,  // pair
+            "formatIdeaRelay" to 40,  // seed
+            "formatGratitudeRound" to 40,  // prompt
+            "formatCategories" to 30,  // cat
+            "formatColorWord" to 30,  // pair
+            "formatSecretSignal" to 30,  // signal
+            "formatMoodMeter" to 30,  // scale
+            "formatRedPacketJoke" to 24,  // amountLabel
+            "formatImpostor" to 24,  // word
+            "formatEmojiStory" to 24,  // seed
+            "formatMemoryMatch" to 24,  // board
+            "formatEmojiMemory" to 24,  // board
+            "formatAcrostic" to 20,  // seed
+            "formatRhyme" to 20,  // seed
+            "formatTwoWords" to 20,  // seed
+            "formatOneWord" to 20,  // word
+            "formatSpeedMath" to 20,  // q
+            "formatReactionDuel" to 20,  // pair
+            "formatEmojiMath" to 20,  // expr
+            "formatPinTheMood" to 20,  // mood
+            "formatTranslateRelay" to 20,  // pair
+            "formatEmojiDuel" to 16,  // pair
+            "formatTempoTap" to 12,  // beat
+            "formatRevokeRush" to 10,  // window
+            "formatFocusSprint" to 10,  // window
+            "formatChainReact" to 8,  // seed
+            "formatHideSeek" to 8,  // emoji
+            "formatBlindDraw" to 8,  // token
+            "formatImpulseDraw" to 8,  // token
+            "formatCodeBreaker" to 8,  // code
+            "formatAlphabetRace" to 4,  // start
+            "formatSyncClap" to 4,  // count
+        )
+
         /**
          * G167b 冻结值：542 个成员里 297 个零引用。
          *
@@ -438,7 +597,7 @@ class GroupPlayPolicyTest {
          * （往返断言），从「死代码」变成「有测试但无产品入口」。
          * 剩下 226 个仍是真死代码。
          */
-        const val UNREFERENCED_BASELINE = 226
+        const val UNREFERENCED_BASELINE = 181
 
     /**
      * G216b：`val`/`var` 声明的零引用冻结值。

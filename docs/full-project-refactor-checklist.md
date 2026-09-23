@@ -10580,3 +10580,37 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   **这是明确的下一步，不是因为难而停。**
 - **实测结果**：app JVM **2071 → 2072 例**（0 失败）；NC 第三次精确打红；
   生产文件 `git diff` 为空（无残留）。
+
+### G223d — 再覆盖 65 对；**测试抓到 3 对语义不一致**（app 2072 → 2076）
+
+- **背景**：G223c 覆盖 84 对 `(mode, hostLabel)`，实测还剩 93 对未覆盖。本轮把
+  「单 String 参数 + hostLabel、parse 回 String?」这一最大同质群做完。
+- **实测分群（68 对该形状）**：66 对 `trim().take(N)`、2 对 take 前无 trim、
+  1 对做大写变换、1 对做值归一（coin flip，参数形状不同但同群发现）。
+- **本轮测试抓到 3 处真实不一致**（**按目标第 (3) 条一律不改生产代码**）：
+  1. **`formatSpin` / `formatSimon`：take 前没有 trim**。
+     写的是 `esc(result.take(40))` / `val s = seq.take(16)`，其余 65 对都是
+     `trim().take(N)`。后果：`parse(format("  x  ", h))` 返回 `"  x  "` 而非 `"x"`。
+  2. **`formatAlphabet`：把首字母转成大写**，且空串回落 "A"。
+     `parse(format("hello",h))` 返回 "H"。往返语义是「大写首字母」而非原值。
+  3. `formatCoinFlip` 是值归一（任意输入 → HEADS/TAILS），本就不属于截断族。
+  三例各自单独写测试钉住现状，并注明「将来谁顺手补 trim/去掉大写，测试会红，
+  提醒他那是行为变更」。**是否统一由产品决策**（这 68 对整体是 roadmap 死代码）。
+- **做法与坑**：
+  - 手册 65 对 + 各自 take(N)（实测 N 有 1/4/8/10/12/16/20/24/30/40/50/60/80/100/160 十五种）；
+  - **插入测试时踩了两个自己的坑**：(a) `private companion object {` 被我的字符串替换吃掉，
+    导致 `const val` 跑到类体外；(b) manual 最后一行带 `// letter` 注释，把
+    listOf 的闭合 `)` 吞进注释里，报「Unresolved reference」。两次都靠编译器报错定位，
+    最终改为**按行插入**并保证 `)` 独立成行。
+- **棘轮联动**：`UNREFERENCED_BASELINE` 226 → **181**（新名单又让 65 个函数「被引用」，
+    其中净减 45）。已在注释里写明两轮（G223c/G223d）共覆盖 152 个函数。
+- **负控制**：选**本轮新名单内**的 `formatStory`（take(160) → take(3)）→
+  `single string param pairs round trip exactly...` **FAILED**，
+  报错 `expected:<see[d]> but was:<see[]>`。生产文件已还原（`git diff` 为空）。
+- **实测结果**：app JVM **2072 → 2076 例**（65 对精确往返 + 3 例特殊语义 + 1 例 coin flip）；
+  一次有效负控制； GroupPlayPolicyTest 24 例 0 失败。
+- **群外剩余**：约 25 对 parse 返回 `Pair`/`Triple`/`List`/`Int` 的未覆盖
+  （`(q, a, host)`→Pair、`(secret, max, host)`→Triple<Int,Int,String>、
+  `(a, b, host)`→Triple<String,String,String>、`(board: List<String>, host)`→List 等）。
+  **分批理由**：这些的「等价」定义各不相同（要逐对说明哪些字段参与往返），
+  不是换参数名就能套用。
