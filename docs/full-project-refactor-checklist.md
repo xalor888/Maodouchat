@@ -10681,3 +10681,45 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   有效负控制 1 次（报错可归因）；两个生产文件 `git diff` 均为空。
 - **M5 状态**：「附件 100 MiB 上界」这一项**可以划掉**；其余阻塞项
   （真·断网与网络抖动、日志/导出/备份、生产 PostgreSQL）仍在。
+
+### G184d — 零调用 API 的处理：`isRemoteAttachmentUri` 接到真实调用点；`copyFileToCache` 明确留下（app 2086 → 2092）
+
+- **起点**：G184c 尾声实测发现 `MediaCache` 有 2 个零调用 public API：
+  `copyFileToCache` 与 `isRemoteAttachmentUri`。前者正是 G184c 刚写了 4 条
+  边界测试的函数——「有测试但从无产品入口」。
+- **第 (1) 步：确认真的死**。搜了字符串字面量、`::class.java.getMethod`、
+  `app/proguard-rules.pro` 的 keep 规则——**全部为零**，不是反射/规则间接调用。
+- **`isRemoteAttachmentUri`：选 (b) 接入真实调用点**，不是硬接。
+  实测发现 `ChatListPreviewPolicy.looksLikeLocalMediaUri` 第 171 行
+  **内联写了同一句** `t.startsWith("maodou-attachment://")`——同一个事实写两遍，
+  其中一遍（MediaCache 那个）还是死代码。两处调用（`visiblePreviewText` :114、
+  `looksLikeLeftoverPreviewGarbage` :136）语义都是「这种 URI 不该当文本预览」，
+  所以替换**行为完全一致**。改用 `MediaCache.isRemoteAttachmentUri(t)`。
+- **为何不选另两条**：
+  - (a) 全删：会丢掉一个语义清晰、已有测试的正典判断，只为消一份死代码；
+  - (c) 标 `@Deprecated`：它并不废弃——它有明确的正确语义，只是没被用上。
+- **`copyFileToCache`：明确保留，不动**。理由写进台账：
+  1. 它守的是**真实边界防御**（metadata 上界 / 流式上界 / 大小一致），
+     G184c 的 4 条测试正踩在这条逻辑上；
+  2. media picker 是它的自然入口（选完文件 → 落缓存 → 拿 uri），
+     接过去是产品动作不是重构；
+  3. 删除会让 G184c 的产出随之归档——而那些断言本身仍有价值
+     （将来接入 picker 时第一件事就得靠它们验证没把边界写松）。
+  同文件的 `readLocalFileMetadata` 也是零调用，一并记录，同样不动。
+- **顺带补了一个零测试缺口**：`looksLikeLocalMediaUri` 实测**零测试**，
+  而它决定聊天列表每一行的预览文本（用户可见路径）。新增
+  `ChatListPreviewPolicyLocalMediaUriTest`（5 例：三种 URI 方案 / trim /
+  普通文本与 https 链接负例）+ `CanonicalRemoteUriCheckTest`（1 例：
+  正典实现与该谓词的一致性）。
+  **负例里专门钉住「普通 https 链接不是本地媒体 URI」**——
+  这一点关系到用户手打的链接会不会被误藏（`looksLikeLeftoverPreviewGarbage`
+  的注释明确说了要保留）。
+- **负控制**：把 `isRemoteAttachmentUri` 改成恒 `false` → **4 条同时红**：
+  `local media uri predicate accepts the three uri schemes` /
+  `trims before judging` / `visible preview text hides all three uri kinds` /
+  `the canonical remote uri check backs this predicate`。
+  这证明接入后那行判断**真的受正典实现管辖**，而不是又一个内联副本。
+- **实测结果**：app JVM **2086 → 2092 例**（+6，0 失败）；
+  一次有效负控制（4 条红）；生产文件 `git diff` 为空。
+- **遗留（记录在案，不动）**：`copyFileToCache`、`readLocalFileMetadata`
+  仍是零调用 public API；`looksLikeLocalMediaUri` 现已 6 例覆盖。

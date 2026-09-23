@@ -3,6 +3,7 @@ package com.maodouchat.data.repository
 import com.maodouchat.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
+import com.maodouchat.util.MediaCache
 
 /**
  * Pure helpers for chat-list last-message preview after send / delete / revoke / edit.
@@ -168,7 +169,10 @@ object ChatListPreviewPolicy {
         val t = content.trim()
         return t.startsWith("file:") ||
             t.startsWith("content:") ||
-            t.startsWith("maodou-attachment://")
+            // G184d：这里原本内联写着 startsWith("maodou-attachment://")，
+            // 而 MediaCache.isRemoteAttachmentUri 是同一句话的唯一正典实现却全仓零调用。
+            // 同一事实写两遍、其中一遍是死代码——接到正典上。
+            MediaCache.isRemoteAttachmentUri(t)
     }
 
     fun looksLikeWireEnvelope(content: String): Boolean {
