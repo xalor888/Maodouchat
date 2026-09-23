@@ -10249,3 +10249,31 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **结论：有些「不方便」是正确设计的副作用。** 那个守卫让我多等 12 分钟，
   但它保证我不会把「从没验证过的数字」写进 DIRECTION.md。
   为这点便利松开它，换来的是一个会静默通过的门禁——正是我这十几轮一直在修的东西。
+
+### G235b — 617 条 lint 债的最终定性：**全部归到「已决/误报/不影响发布物」三类**
+
+- **动机**：G233b 查了大类，本轮把 **617 条逐条定性**，确认没有漏网的「真问题」。
+- **最终构成（共 27 类，617 条）**：
+  | 条数 | 类别 | 定性 |
+  |---|---|---|
+  | 298 | `UnusedResources` | **不影响发布物**——release `isShrinkResources=true`，R8 自动剥。且其中 **244 条是 group_play 字符串**（即 G221b 那份清单里的路线图），产品决策后自然消失 |
+  | 209 | `UseKtx` | 纯风格，无行为影响 |
+  | 36 | `GradleDependency` + `NewerVersionAvailable` | 版本升级信息，非缺陷 |
+  | 10+9+9 | `HardwareIds`/`ModifierParameter`/`Aligned16KB` | 机型适配 |
+  | 8 | `Recycle` | API 21+ 上 Bitmap 由 GC 回收，该检查基本过时 |
+  | 10 | 图标类（LauncherShape/Duplicates） | 启动图标资源 |
+  | **2** | **`LocalContextResourcesRead`** | ⚠️ **見下** |
+  | 3 | `PluralsCandidate` | 中文假阳性（中文无单复数变化），其中 2 条在死代码区 |
+  | 2 | `Typos` | 都在 **group_play 死字符串**里（2761/2762 行），非用户可见 |
+  | 2 | `StaticFieldLeak` | 误报（两个单例都持 applicationContext，G233b 已查） |
+  | 1 | `SuspiciousIndentation` | G223b 提过的那个 143 行块，纯空白 |
+  | 1 | `UnsafeDynamicallyLoadedCode` | WebRTC .so 按需加载，设计如此 |
+  | 其余 ~10 条 | `Overdraw`/`ConfigurationScreenWidthHeight` 等 | 性能/兼容性提示 |
+- **唯一需要说明的：还剩 2 条 `LocalContextResourcesRead`。**
+  这是 Compose 后来新增的一个更细的检查（在 `LocalContextGetResourceValueCall` 归零之后出现的），
+  说明lint 对「读资源不用 stringResource」这件事**还有第二道检查**。
+  本轮**不急着还**（它不在错误级、不卡 CI），但它证明这条路没有「做完了」一说——
+  记在这里，下一轮若要继续就是它。
+- **状态**：lintDebug BUILD SUCCESSFUL；基线 617 条稳定；app JVM 2059 例 0 失败。
+- **小结：从「CI 是红的」到「617 条已知且不影响发布物、新增任意一条即红」，用了 8 轮。
+     这 617 条里没有一条是「必须修」的，但每一条都有归属。**
