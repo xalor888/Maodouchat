@@ -1,6 +1,8 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.initDatabase
+import com.maodouchat.server.db.BlockedUsers
+import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.Users
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
@@ -162,5 +164,71 @@ class AdminExportRepositoryTest {
         // messageStats() 无参，返回 MessageStats；空库不应抛
         val stats = repo.messageStats()
         assertTrue(stats.total >= 0L, "空库的总数应为 0 或非负，实际 ${stats.total}")
+    }
+
+    // ---- G186c 补：审计/风险类查询（目标第 (6) 条要求必须含一个）----
+
+    private fun seedAuditRow(id: String, action: String, detail: String, createdAt: Long) {
+        transaction {
+            ModerationAuditLog.insert {
+                it[ModerationAuditLog.id] = id
+                it[ModerationAuditLog.actorId] = "actor_$id"
+                it[ModerationAuditLog.userId] = "target_$id"
+                it[ModerationAuditLog.action] = action
+                it[ModerationAuditLog.detail] = detail
+                it[ModerationAuditLog.createdAt] = createdAt
+            }
+        }
+    }
+
+    @Test
+    fun `moderation audit export is empty on a fresh database`() {
+        assertTrue(repo.moderationAudit(10).isEmpty(), "空库必须返回空列表")
+    }
+
+    @Test
+    fun `moderation audit export returns one row per log entry with a stable column count`() {
+        seedAuditRow("a1", "ban", "spam", 1_000L)
+        seedAuditRow("a2", "unban", "appeal accepted", 2_000L)
+        val rows = repo.moderationAudit(10)
+        assertEquals(2, rows.size, "行数必须等于审计日志条数")
+        // 列数必须稳定：CSV 表头按列数对齐，少一列就整体错位
+        assertEquals(rows.first().size, rows.last().size, "同一导出的每行列数必须一致")
+        assertTrue(rows.first().size >= 5, "审计导出至少应有 id/actor/user/action/detail 五列，实际 ${rows.first().size}")
+    }
+
+    @Test
+    fun `moderation audit export is ordered newest first`() {
+        seedAuditRow("old", "ban", "x", 1_000L)
+        seedAuditRow("new", "ban", "x", 9_000L)
+        val ids = repo.moderationAudit(10).map { it.first() }
+        assertEquals(listOf("new", "old"), ids, "审计日志必须按 createdAt 倒序（最新在前）")
+    }
+
+    @Test
+    fun `moderation audit export honours the limit`() {
+        repeat(4) { seedAuditRow("a$it", "ban", "x", 1_000L + it) }
+        assertEquals(2, repo.moderationAudit(2).size, "limit=2 必须只返回 2 行")
+    }
+
+    @Test
+    fun `blocked users export lists blocker and blocked pairs`() {
+        // BlockedUsers 只有两列（blocker_id, blocked_id），且外键指向 users
+        seedUser("u_blocker", 1_000L)
+        seedUser("u_blocked", 1_000L)
+        transaction {
+            BlockedUsers.insert {
+                it[BlockedUsers.blockerId] = "u_blocker"
+                it[BlockedUsers.blockedId] = "u_blocked"
+            }
+        }
+        val rows = repo.blockedUsers(10)
+        assertEquals(1, rows.size, "一条拉黑记录应导出一行")
+        assertEquals(listOf("u_blocker", "u_blocked"), rows.single().map { it.toString() })
+    }
+
+    @Test
+    fun `blocked users export is empty when nobody is blocked`() {
+        assertTrue(repo.blockedUsers(10).isEmpty(), "没有拉黑记录时必须返回空列表")
     }
 }

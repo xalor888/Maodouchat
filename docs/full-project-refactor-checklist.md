@@ -10841,3 +10841,32 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   理由记在案：**本轮必须含 users + 至少一个审计类**——但实测那些审计表
   （moderationAudit / riskEvents）的 seed 需要先摸清各自 schema，
   成本超出单轮，留下一步。
+
+### G186c 补：审计/风险类查询补齐，目标第 (6) 条全部满足（server 479 → 485）
+
+- **上轮的缺口**：G186c 只测了 `users`，而目标第 (6) 条明确要求
+  「必须包含 users 与**至少一个审计/风险类查询**」。我在台账里记了「未做到」，
+  本轮补上。
+- **挑哪两个**（先实测 seed 成本）：读了 5 个审计/风险类函数的实现，
+  `blockedUsers` 只有 2 列且单表、`ModerationAuditLog` 字段全 nullable 且 id
+  有 `clientDefault`——这两个 seed 成本最低。`sessionsSummary` 内部有
+  `try/catch` 兜底（表可能不存在），`botCommandStats` 要 5 列，都更贵。
+- **新增 6 例**：
+  - `moderationAudit` ×4：空库空列表；行数与**列数一致性**（同一导出每行列数必须相同，
+    这是 CSV 错位的直接原因）；按 createdAt **倒序**；limit 截断；
+  - `blockedUsers` ×2：空库空列表；一条拉黑记录 → 一行两列（blocker, blocked）。
+- **列数一致性这个断言是新加的**（上轮 users 那条只测了「8 列」这个固定值）。
+  审计这条更进一步：断言**同一导出内每行列数相同**——因为 `detail` 等字段
+  可能因 null 处理不同而少一列，那种错位只靠「首行 8 列」发现不了。
+- **新负控制**：`moderationAudit` 的 `createdAt to SortOrder.DESC` → ASC →
+  `moderation audit export is ordered newest first` **FAILED**。
+  （上轮已对 users 排序做过一次 NC，这轮换审计排序，证明两个排序都被真实管辖。）
+- **实测结果**：`AdminExportRepositoryTest` **10 → 16 例**，0 失败；
+  server 全量 **479 → 485 例**，0 失败（9m22s）；一次有效负控制；
+  生产文件 `git diff` 为空。
+- **仍未覆盖的 17 个 fun**：bots / polls / friendships / reports / riskEvents /
+  sessionsSummary / chatSettings / disappearingChats / mutedChats 等。
+  **为何停在这里**：这些要么需要多表关联 seed（friendships 要两张用户表），
+  要么内部有 try/catch 兜底（sessionsSummary），要么列数多（botCommandStats 5 列）。
+  按目标允许的「写清为何停」，停在「已覆盖 users + 2 个审计/风险类 + 列数/排序/limit
+  三类不变量都有正面和负面验证」这个点上。
