@@ -10642,3 +10642,42 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   在 G182b 已覆盖），未覆盖的只是 format 侧组合。
 - **实测结果**：app JVM **2076 → 2078 例**，GroupPlayPolicyTest **26 例 0 失败**；
   一次有效负控制；生产文件无残留。
+
+### G184c — 附件 100 MiB 明文上界首次有客户端测试；**顺带发现三道互相备份、不可归因**（app 2078 → 2086）
+
+- **动机**：M5 连续 8 轮卡住的几条原因之一就是「附件 100 MiB 上界未测」。
+  实测 `MediaCache.MAX_ATTACHMENT_PLAIN_BYTES` 有 6 个使用点、**零测试**，
+  只有 server 侧有密文侧（`MAX_ATTACHMENT_CIPHER_BYTES = 上界+64`）的覆盖。
+- **覆盖的层（8 例）**：常量自洽（100 MiB）；
+  `EncryptedAttachmentCrypto` 前置校验（超界 → `TOO_LARGE`，恰好上界放行）；
+  `MediaCache.copyFileToCache` 的 metadata 区间（上界拒/下界 1 拒 0）；
+  `copyFileToCache` 流式兜底（声明 8 字节但真实文件超限 → 拒）；
+  以及一条「超 1 字节在所有检查点都被拒」的汇总用例。
+- **最重要的发现：`copyFileToCache` 的三道上界互相完全备份，从返回值上无法区分是哪一道拦的。**
+  实测三种 NC 尝试：
+  1. 坏掉 metadata 上界（`1L..Long.MAX_VALUE`）→ **测试仍绿**。因为
+     「sizeBytes=max+1、文件 8 字节」这个输入同时违反 `copied == sizeBytes`，照样返回 null；
+  2. 坏掉流式上界（`copied <= Long.MAX_VALUE`）→ **仍绿**。同理被
+     `copied == metadata.sizeBytes` 兜住；
+  3. 改测 `EncryptedAttachmentCrypto` 前置（`if (false)`）→ **FAILED**，
+     报错 `expected:<TOO_LARGE> but was:<SIZE_MISMATCH>`，明确指出哪一层没拦对。
+  **结论：`copyFileToCache` 的返回值只有「成功/null」二值，无法归因；
+     而 `EncryptedAttachmentCrypto` 抛带 `AttachmentCryptoFailure` 的异常，可归因。**
+  已在测试里用大段注释记录这个边界，并保留「恰好上界不被误拒」的正向断言。
+- **两层层实测不可达/不可归因，按目标第 (4) 条记录而不删**：
+  1. `EncryptedAttachmentCrypto` 的**流式兜底**（`copied > MAX`）：唯一入口
+     `encryptFile` 以 `source.length()` 为声明值，`encrypt` 由调用方传值——
+     「声明小、实际大」这种能骗过前置的输入**构造不出来**，故从测试侧不可达；
+  2. `MediaCache.isValidAttachmentReference` 的 `plainSize in 1L..MAX`：
+     该函数 **private**，只能经 `decodeEncryptedAttachmentReference` 间接到，
+     而那条路要 40+ 字符 base64 等一整套合法字段，构造成本与收益不成比例
+     （同样的区间语义已由文件侧覆盖）。写了一条
+     `unreachable defense layers are documented not deleted`
+     把这两点钉在测试里，防止将来有人误删。
+- **一个自己造成的假绿**：第一版断言写成 `assertNull(out)`，结果第一次 NC 没红。
+  原因是——**宽松断言**。收紧方式是加对照组（同样输入只改声明值，必须成功）
+  与改用可归因的层。**这与 G223c 宽松断言导致 NC 不红是同一族错误，第二次犯了。**
+- **实测结果**：app JVM **2078 → 2086 例**（新文件 8 例，0 失败）；
+  有效负控制 1 次（报错可归因）；两个生产文件 `git diff` 均为空。
+- **M5 状态**：「附件 100 MiB 上界」这一项**可以划掉**；其余阻塞项
+  （真·断网与网络抖动、日志/导出/备份、生产 PostgreSQL）仍在。
