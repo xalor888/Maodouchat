@@ -10384,3 +10384,37 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
         绝不能和长命令串在一起。**
 - **实测结果**：app JVM 单测 **2068 → 2069 例**；server 单测 **467 → 468 例**；
   两边 `BUILD SUCCESSFUL`；两次 NC 均已还原并 `diff` 验证干净。
+
+### G182d（续）：§3.5 第 3 条也固化了——但**实测发现它只能守住三分之一**
+
+- **做了什么**：新增 `ClientArchitectureTest.no test kdoc contains a literal comment delimiter`
+  （app 19 → 20 例）：扫描 `app/src/test` 下所有**紧邻 @Test 的 KDoc**，
+  禁止出现注释定界符的字面实例；协议分隔符 `://` 豁免（KDoc 写 URL 是正常需求）。
+  带防空转断言：抽不到 ≥20 个带 KDoc 的 @Test 就红（G215b 同族陷阱）。
+- **最重要的发现：这条规则只有三分之一是门禁能守的。**
+  Kotlin 的块注释**可嵌套**，所以：
+  - KDoc 里出现**斜线星** → 再开一层注释 → `Unclosed comment`，编译失败；
+  - KDoc 里出现**星斜线** → 提前结束注释 → 编译失败。
+  **两者都由编译器强制，测试门禁根本走不到那一步**（我实测了两次，
+  都是 `compileDebugUnitTestKotlin FAILED`）。
+  所以这条门禁真正能守的只有**双斜线**——它能编译通过，
+  却会污染任何「按出现次数判罚」的粗粒度门禁（G156b 正是这么虚增 55% 的）。
+  **§3.5 第 3 条把三者并列，实际只有一项需要测试守护。**
+- **过程中四次踩坑，其中三次是「门禁写坏了自己」**：
+  1. 用 `indexOf("/**")` 找 KDoc 开口 → 把**自己代码里的字符串字面量**当成 KDoc 起点，
+     门禁第一次跑就把自己判违规。改成「开口必须在行首」。
+  2. 用正则找开口，且开口写成「两个斜线星拼接」→ 真值是 `/*/*`（4 字符），
+     而 KDoc 开口是 `/**`（3 字符），正则一条都匹配不上 → 门禁空转，
+     **被我自己加的防空转断言抓住**。改回 indexOf + 行首判定。
+  3. 改完想把这个教训写进 KDoc，结果贴了那两个符号的字面实例——
+     `/*/*` 里既含斜线星又含星斜线，**真的把那段 KDoc 提前结束**，报 Unclosed comment。
+     这正是这条门禁要防的事，我在写门禁的时候当场犯了一次。
+  4. 负控制瞄错了目标：第一次贴在**类级** KDoc 上（后面跟的是 `class`，不是 `fun`），
+     门禁正确地忽略了它——是我 NC 选错位置，不是门禁漏判。
+- **负控制（最终版）**：在 `hotspot caps have zero slack` 的 KDoc 里贴一个干净的 `//` →
+  `no test kdoc contains a literal comment delimiter` **FAILED**，
+  报错精确到 `ClientArchitectureTest.kt:207 出现 双斜线`。还原后全量 2070 例 0 失败。
+- **实测结果**：app JVM 单测 **2069 → 2070 例**；`ClientArchitectureTest` 20 例 0 失败；
+  一次有效负控制；四个坑全部记录在案。
+- **留待下一轮**：server 侧还没有这条门禁（两边 stripComments 各一份的同构问题，
+  这里同样存在——下一轮补，并保持两边语义一致）。

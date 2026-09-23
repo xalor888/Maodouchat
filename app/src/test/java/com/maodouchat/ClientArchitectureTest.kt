@@ -554,6 +554,100 @@ class ClientArchitectureTest {
         assertTrue(stripComments("val c = '/'").contains("'/'"), "字符字面量不得被误判为注释")
     }
 
+    // G182d：三个定界符一律用拼接构造，源文本里不出现字面实例（这条门禁自己也受管辖）
+    private val slashStar = "/" + "*"
+    private val starSlash = "*" + "/"
+    private val slashSlash = "/" + "/"
+
+    /**
+     * 抽出「紧邻 @Test 函数的 KDoc」的 (行号, 正文)。正文不含首尾定界符。
+     *
+     * 开口必须**位于行首**（前面只有空白）才算 KDoc——写在代码字符串里的同名片段不算。
+     *
+     * G182d 踩过两次，都是字面量拼错的：
+     * (a) 一版把开口当成「两个斜线星拼接」，真值是四字符的斜线星加斜线星；
+     *     而 KDoc 开口是斜线星星（三字符）——indexOf 与正则自然都匹配不上，
+     *     门禁空转，被下面的防空转断言抓住；
+     * (b) 更讽刺的是，本想把 (a) 写进这段 KDoc 说明，结果写的时候贴了那两个符号的
+     *     字面实例，其中星斜线**真的把这段 KDoc 提前结束**，报 Unclosed comment。
+     *     这正是这条门禁要防的事——所以按 §3.5 的约定，这里只用文字。
+     */
+    private fun kdocBodiesOfTestFunctions(text: String): List<Pair<Int, String>> {
+        val out = mutableListOf<Pair<Int, String>>()
+        val docOpen = slashStar + "*"   // 斜线星星（三字符）；两个斜线星拼接会得到四字符，匹配不上
+        var from = 0
+        while (true) {
+            val start = text.indexOf(docOpen, from)
+            if (start < 0) break
+            from = start + 1
+            val lineStart = text.lastIndexOf('\n', if (start == 0) 0 else start - 1) + 1
+            val prefix = text.substring(lineStart, start)
+            if (prefix.isNotEmpty() && !prefix.all { it == ' ' || it == '\t' }) continue
+            val bodyStart = start + docOpen.length
+            val end = text.indexOf(starSlash, bodyStart)
+            if (end < 0) continue
+            val body = text.substring(bodyStart, end)
+            val after = text.substring(end + 2).take(600).trimStart()
+            val annotations = Regex("^(@\\w+(\\([^)]*\\))?[ \\t]*\n?[ \\t]*)*").find(after)?.value ?: ""
+            val rest = after.removePrefix(annotations).trimStart()
+            if (rest.startsWith("fun ") && after.contains("@Test")) {
+                out.add((text.substring(0, start).count { it == '\n' } + 1) to body)
+            }
+        }
+        return out
+    }
+
+    /**
+     * G182d：**任何 @Test 函数的 KDoc 里不得出现注释定界符的字面实例**。
+     *
+     * 这是 DIRECTION.md §3.5 第 3 条的固化。
+     *
+     * 实测（G182d）：Kotlin 的块注释是**可嵌套**的，所以 KDoc 里出现斜线星会**再开一层**
+     * 注释，出现星斜线会提前结束——两者都会**编译失败**，由编译器强制，
+     * 测试门禁抓不到（我试过，两次都是 compileDebugUnitTestKotlin FAILED）。
+     * 因此这条门禁真正能守的只有**双斜线**：它能编译通过，却会污染任何
+     * 「按出现次数判罚」的粗粒度门禁——G156b 正是这么虚增 55% 的。
+     *
+     * 按 §3.5 的约定，文中提这三个符号时用文字（斜线星 / 星斜线 / 双斜线）或拼接。
+     * **本文件自己也在这条规则管辖之内**：上面这段 KDoc 和下面的常量都靠字符串
+     * 拼接构造，源文本里没有任何字面实例——所以不需要给门禁自己开豁免口。
+     *
+     * 协议分隔符 `://` 不算违规（KDoc 里写 URL 是正常需求），其余一律算。
+     */
+    @Test
+    fun `no test kdoc contains a literal comment delimiter`() {
+        val testRoot = File(repoRoot, "app/src/test")
+        assertTrue(testRoot.isDirectory, "app/src/test 不存在——空目录会让这条门禁恒真")
+        var scanned = 0
+        val violations = mutableListOf<String>()
+        testRoot.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .sortedBy { it.path }
+            .forEach { f ->
+                kdocBodiesOfTestFunctions(f.readText()).forEach { (line, body) ->
+                    scanned++
+                    // 协议分隔符不算：先摘掉 ://，再查双斜线
+                    val withoutProtocol = body.replace("://", "")
+                    val found = mutableListOf<String>()
+                    if (body.contains(slashStar)) found.add("斜线星")
+                    if (body.contains(starSlash)) found.add("星斜线")
+                    if (withoutProtocol.contains(slashSlash)) found.add("双斜线")
+                    if (found.isNotEmpty()) {
+                        violations += "${f.relativeTo(repoRoot).path}:$line 出现 ${found.joinToString("、")}"
+                    }
+                }
+            }
+        assertTrue(
+            scanned >= 20,
+            "只抽到 $scanned 个带 KDoc 的 @Test——扫描逻辑可能坏了，这条门禁正在空转（G215b 同族陷阱）",
+        )
+        assertTrue(
+            violations.isEmpty(),
+            "下列 @Test 的 KDoc 含注释定界符字面实例。按 §3.5 改成文字（斜线星/星斜线/双斜线）或拼接：\n" +
+                violations.joinToString("\n"),
+        )
+    }
+
     /** 逐文件统计直连持久层命中数；[onlyComposableFiles] 为真时只数含 `@Composable` 的文件。 */
     private fun directPersistenceHits(onlyComposableFiles: Boolean): Map<String, Int> {
         val uiRoot = File(appMain, "com/maodouchat/ui")
