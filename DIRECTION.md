@@ -22,11 +22,11 @@
 
 | 事实 | 实测值 | 来源 |
 |------|--------|------|
-| 已跟踪文件 | 1809 | `git ls-files \| wc -l`
+| 已跟踪文件 | 1810 | `git ls-files \| wc -l`
 | 服务端测试文件 / 用例 | 121 个 / **564 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
 | 客户端 JVM 测试文件 / 用例 | 365 个 / **2116 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
-| instrumented 测试（androidTest） | **15 个文件** | `find app/src/androidTest -name '*.kt'`
-| 自审清单体量 | 1,125,560 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| instrumented 测试（androidTest） | **16 个文件** | `find app/src/androidTest -name '*.kt'`
+| 自审清单体量 | 1,129,745 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件**（G258b：连同其余 Exposed import 一并删净，plugins/ 层已无任何 Exposed import） | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | **1**（G258b：37 行死 import 已删净；import 现为 0，该 1 处是 `StatusPages.kt` 的 `exception<ExposedSQLException>`，属引用而非 import） | `grep -rl org.jetbrains.exposed plugins/` |

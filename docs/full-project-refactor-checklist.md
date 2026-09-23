@@ -12965,3 +12965,58 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   若 hook 用它，会把「跑完单测就推送」这种正常节奏误拒，
   结果只会是我再次绕过 hook（与手滑同结局）。`--check-fast` 完全不碰那两个位，
   同一场景下 exit 0。
+
+
+### G309c — **ExploreScreen 屏幕级测试落地；我上一轮记的「成本」又被自己夸大了**
+
+- **起点是更正我自己的一句错话**。G307c 结项时我写：「`ExploreScreen` 不可测——
+  orchestrator 默认值依赖 `MaodouchatApp.instance.applicationScope` 全局单例，
+  `FeedController`/`ExploreOrchestrator` 都是具体类，无现成 fake 可复刻」。
+  本轮开工前核实，**该结论只对了一半，且把成本夸大了**：
+  1. `ExploreScreen(..., viewModel: ExploreViewModel = viewModel())`（`ExploreFeedScreen.kt:137-142`）
+     **接受 VM 参数**——与 G305c 的 ContactsScreen 同一形状；
+  2. `ExploreViewModel(application, feedController, orchestrator)`（`ExploreViewModel.kt:12-20`）
+     **三个依赖全部可显式传入**，且第 18 行 `feedController = feedController`
+     证明 orchestrator 的默认值**引用 feedController 参数**；
+  3. `FeedRepository` 是**只有 5 个方法**的接口（`FeedRepository.kt:10-20`），
+     `FeedController` 只是它的薄包装——fake 成本极低；
+  4. `ExploreOrchestrator` 自己持有 `_uiState = MutableStateFlow(ExploreUiState(...))`
+     （第 66-70 行），**初始状态确定**；
+  5. 而 `MaodouchatApp.instance` **只在省略 `orchestrator` 时才会被求值**——
+     所以连 orchestrator 也显式传（配一个 `CoroutineScope(Dispatchers.Main)` 测试 scope）
+     即可完全绕开那个全局单例。
+- **真实成本** = fake 5 方法接口 + 显式传 2 个参数。**不是「需要改造」。**
+- **新增** `app/src/androidTest/.../ui/screen/explore/ExploreScreenUiTest.kt`，
+  **4 例屏幕级测试**（Q03 第 1 项的第四个入口）：
+  1. 顶栏标题 `nav_explore` 渲染（可行性探针，保留）；
+  2. 已登录 + 动态为空 → 空态三件套（`explore_empty_title`/`_subtitle`/`_action`）；
+  3. 已登录 + 有动态 → 渲染动态正文且**不出现**空态标题（与 2 合起来钉住 state → UI）；
+  4. **点动态触发屏幕的 `onOpenPost` 并回传那条动态的 id**（屏幕级接线，
+      行级 composable 测试碰不到）。
+- **两个实现细节值得记**：
+  - orchestrator 的 `init { refresh() }` 会**自动加载**：`currentSession()` 返回 null 时
+    它把 `errorMessage` 设成 `R.string.explore_login_required`（走 snackbar，不是内联文案），
+    所以「已登录」这个前提必须靠 fake 的 `currentSession()` 返回非 null 来造。
+  - 未登录那条路径（snackbar「请先登录」）本轮**没有**做用例——snackbar 涉及时序与动画，
+    断言比内联 EmptyState 脆；已记录为可选项而非遗漏。
+- **负控制：预判完全命中**（连续第二次）。手法是把 post card 的
+  `onOpenPost = { onOpenPost(post.id) }` 改成 `onOpenPost = {}`。
+  **动手前先读改动后的代码**：卡片仍渲染（正文照显），只是点击变空操作。
+  据此预测「只断言可见性的那条仍绿、断言行为的那条红」——实测一字不差：
+
+  | 用例 | 结果 |
+  |---|---|
+  | `clickingAPostFiresTheScreensOnOpenPostCallback` | **RED** |
+  | `loggedInWithPostsRendersThePostContentInsteadOfEmptyState` | 仍 **ok** |
+  | 另两条（空态 / 标题） | 仍 **ok** |
+
+  还原后 `diff` 确认与 HEAD 逐字节相同，复跑全绿。
+- **最终实测**：新测试 **4 tests / 0 failures / 0 skipped**（XML 逐条核对）；
+  全量 instrumented **122 tests / 0 failures**（27 skipped 仍只在
+  `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。
+- **对 G307c 记录的更正**：「ExploreScreen 需改造才能测」**作废**。
+  真实情况：不需要任何改造，显式传 `feedController` + `orchestrator` 即可。
+  连同 G305c 那次，这已是**第三次**我写下「某处不可测/需改造」后被自己证伪——
+  共同点都是**只看了构造器默认值、没试过显式传参**。
+  §11 Q03 第 1 项现已覆盖四处入口：ChatDetail dialog、Contacts 行、Explore 弹窗、
+  ContactsScreen 与 ExploreScreen 两个屏幕本体；仍未标 `[x]`（Chats 与 Call/Settings 未做）。
