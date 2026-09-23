@@ -10,9 +10,6 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.transaction
 
 /** Bot 卡片/提示展示（自 BotPresentationRouting.kt 拆分，B12）。 */
 internal fun Route.configureBotPresentationCardsRoutes(

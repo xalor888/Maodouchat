@@ -8,25 +8,36 @@
 
 ## 0. 我实测到的现状
 
-> 本节数字由 **G171b 全量重测**（每一条都有对应命令，可复现）。此前版本停在 bootstrap 轮，
+> 本节数字最初由 **G171b 全量重测**（每一条都有对应命令，可复现）。此前版本停在 bootstrap 轮，
 > 表里每个数都过期了——最刺眼的两条：`plugins/` 的 `transaction {` 从 75 处变成 **0**，
 > 「GroupPlayPolicy 有同名重复文件」已经只剩 **1 个**。
+>
+> **G171b 之后又有若干行被单独改过**（因为各行的腐烂速度不同）：
+> G242b 修正了下方四套测试汇总行（原写 2426、且「最近一次全量复跑是 G170b」会让人
+> 误以为是同轮跑出来的）；G244b 给 `transaction {` 那行补上「尚有五个文件带着
+> 未使用的 transaction import」（G245b/G246b 已查明那 5 个文件整文件零 Exposed 用量、
+> 是 plugins/ 层唯一一处 M2 边界残留）。
+> **未逐行重测的行请以「来源」列的命令复算为准**——尤其「自审清单体量」每轮都在变，
+> 表里的字节数几乎总是旧的，以 `DirectionDocFreshnessTest` 的判定为准。
 
 | 事实 | 实测值 | 来源 |
 |------|--------|------|
-| 已跟踪文件 | 1803 | `git ls-files \| wc -l`
+| 已跟踪文件 | 1805 | `git ls-files \| wc -l`
 | 服务端测试文件 / 用例 | 121 个 / **564 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
 | 客户端 JVM 测试文件 / 用例 | 365 个 / **2116 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **12 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 987,918 字节 | `wc -c docs/full-project-refactor-checklist.md`
-| `plugins/` 内 `transaction {` | **0 处 / 0 个文件** | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
+| 自审清单体量 | 1,091,449 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| `plugins/` 内 `transaction {` | **0 处 / 0 个文件**（G258b：连同其余 Exposed import 一并删净，plugins/ 层已无任何 Exposed import） | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
-| `plugins/` 中 import Exposed 的文件 | 18 | `grep -rl org.jetbrains.exposed plugins/` |
+| `plugins/` 中 import Exposed 的文件 | **1**（G258b：37 行死 import 已删净；import 现为 0，该 1 处是 `StatusPages.kt` 的 `exception<ExposedSQLException>`，属引用而非 import） | `grep -rl org.jetbrains.exposed plugins/` |
 | `repository/` → `plugins/` 反向依赖 | **0 处** | `grep -rn 'com.maodouchat.server.plugins' repository/ \| grep -c import` |
 | `repository/` 目录下的 `*Service.kt` | **16 个**（共 78 文件） | `ls repository/` |
 
-**四套测试合计 2426 例全绿**（app JVM 1918 + server 462 + PG 集成 19 + 双设备 E2E 27），
-最近一次全量复跑是 G170b。
+**四套测试合计 2726 例**（app JVM 2116 + server 564 + PG 集成 19 + 双设备 E2E 27）。
+四类的**最近一次当轮实测**分别是：app JVM 2116（G238b，全量 `--rerun-tasks`）、
+server 564（G187b，全量 `--rerun-tasks`）、PG 集成 19（G180b，套件数此后未变）、
+双设备 E2E 27（G237b，H2 与真 PG 各跑一遍）。**四套未曾在此后任何单轮里一起复跑过**——
+这是与 G170b/G180b「四套同轮全绿」的差别，别把上面四个数当成一次跑出来的。
 
 ### G63 至今的成果（客户端热点线）
 
@@ -125,7 +136,7 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 | M2 | 服务端中心边界闭环 | `plugins/` 事务数单调下降且 `AdminExportsRouting` 不再直写 Exposed；反向依赖 0 |
 | M3 | E2EE 不变量有证据 | messaging-v2 不变量中可服务端验证的部分 100% 有测试，且测试在改动实现时会红 |
 | M4 | 迁移与并发以 PG 为真源 | 迁移矩阵（空/旧/重复/中断/回滚）在 PG 上绿 |
-| M5 | 双账号双设备离线 E2E | 矩阵脚本可在本机复现，失败会给出可诊断输出（G188a 已用命令输出核对：H2 与真 PG 各 `tests=27 failures=0`；受控失败 exit 1、环境配置错 exit 4 均给出可诊断输出） |
+| M5 | 双账号双设备离线 E2E | 矩阵脚本可在本机复现，失败会给出可诊断输出（G237b 已用命令输出核对：H2 与真 PG 各 `tests=27 failures=0`；受控失败 exit 1、环境配置错 exit 4 均给出可诊断输出） |
 | M6 | 客户端热点收敛 | 门禁覆盖 `ChatDetail*`/`GroupPlayPolicy`，旧路径真正删除 |
 
 **反面判据（出现即视为未完成）**：只改文档不改代码；只加测试不改行为；把 `[x]` 写成叙述而没有命令
@@ -218,6 +229,47 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 ⚠️ **`--skip-tests` 只在紧接着全量跑过之后有效**：脚本从 `build/test-results`
 读用例数，若上一次是 `--tests '*某个类'` 的过滤跑，合理性守卫会拒绝同步
 （不拿不完整快照当真相）。
+
+#### 一次性收尾脚本（特定清理专用，不是每轮都用）
+
+`scripts/finish-exposed-cleanup.sh`——**专为「删净 `plugins/` 下 37 行死 Exposed import」
+这一次清理写的**（G263b 起，脚本本身又经 G269b–G277b 九轮自查修订）。
+它做的事 = 前置核查 → server 编译 → server 全量 → app 全量 →
+`sync-direction-numbers.py --write` → 复跑新鲜度门禁 → 提交推送，
+比 `finish-round.sh` 多了「核查清理是否生效」这一步。
+
+| 命令 | 干什么 |
+|---|---|
+| `bash scripts/finish-exposed-cleanup.sh --no-commit` | 只验证不提交（**第一次用先跑这条**） |
+| `bash scripts/finish-exposed-cleanup.sh` | 全绿后提交并推送 |
+
+两点与 `finish-round.sh` 不同，用时留意：
+- **它只 add 明列的 21 个路径**，不会 `git add -A` 乱卷别处改动；
+  提交前会把 `git status --porcelain` 打出来给人扫一眼——
+  **「看一眼」是这道防线的全部，没有自动拦截**（自动护栏在 G276b 被主动删掉）。
+- **它是一次性的**：该清理提交落地后内嵌提交信息即过期，重跑没有第二用途。
+
+> **G279b 的更正：接手时其实不必跑这个脚本。**
+> 读完 `finish-round.sh` 后发现，**它的第 3–6 步（全量 app → 全量 server → 同步 §0 →
+> 提交 → 复核门禁）与我的脚本完全重叠**，而且它多一道我没做的保险：
+> **提交后再同步一次**（因为提交会把新文件变成已跟踪，`git ls-files` 计数会变，
+> 不二次同步 §0 就又对不上）。
+> 我这个脚本真正独有的只有「前置核查剩余 import 为 0」和 `compileKotlin`
+> （而 `finish-round.sh` 跑 test 时本来就会编译）。
+> **结论：优先用 `bash scripts/finish-round.sh`**（它是被多轮实战过的脚本），
+> 本脚本留着只是因为它已经把「核查清理是否生效」那步写清楚了。
+
+> **⚠️ G291b（第 58 回合）对上面结论的重要补充：删掉台账重复副本之前，
+> 不要用 `finish-round.sh`。**
+> 刚读完 `finish-round.sh` 第 76 行——它是 **`git add -A`**，会把工作区**所有**
+> 未提交改动一起提交。而当前台账里有一段**待删的重复副本**（G287b 标记的，
+> grep「但通读抓出」+ 三个问题那句话可定位，约 11 行）。
+> **若先跑 finish-round.sh，那段垃圾会被一起提交进主干。**
+> 正确顺序是：
+> ① 先按上面的定位删掉副本；
+> ② 再跑 `bash scripts/finish-round.sh /dev/null "$(cat scripts/exposed-cleanup-commit-msg.txt)"`；
+> 或者绕过①：用 `bash scripts/finish-exposed-cleanup.sh`（它只 add 明列的 22 个路径，
+> 且提交前打印 `git status` 给人扫一眼，不会误提交副本）。
 
 ### 真机 UI 辅助工具（本地开发用，非 CI 门禁）
 

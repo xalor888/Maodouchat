@@ -15,12 +15,17 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.insert
 
 /**
- * 管理后台共享支撑：DTO、鉴权/审计辅助、限流器、CSV 导出与 SQL 表达式等纯基础设施。
+ * 管理后台共享支撑：DTO、鉴权/审计辅助、限流器、CSV 导出等纯基础设施。
  * 与「路由」解耦，供 AdminManagementRouting 及各 admin 子域路由模块复用（单一真相源）。
+ *
+ * G251b：原稿此处还写着「与 SQL 表达式」，但实测本文件 17 个顶层声明里
+ * **没有任何 SQL 相关 API**（全是 DTO / recordAdminAudit / adminJson /
+ * AdminSessionAttemptLimiter / parseAdminIds 等），那两句是陈旧描述，已删。
+ *
+ * 注：这个「17」在 G251b 初稿里误写为 15（当时用的正则更窄，漏算了两个声明），
+ * G262b 重数后更正。**注释里的数字也是要核对的那种**。
  */
 
 /** 独立管理后台只允许 MASTER_ADMINS；内容审核员继续使用受限审核 API。 */

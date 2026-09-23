@@ -10,7 +10,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
-import org.jetbrains.exposed.sql.*
 
 /** Bot 邀请链接/群头像/取消置顶（自 BotCoreRouting.kt 拆分，B12）。 */
 internal fun Route.configureBotChatInviteRoutes(

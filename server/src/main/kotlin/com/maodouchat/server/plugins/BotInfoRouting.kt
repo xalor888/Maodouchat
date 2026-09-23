@@ -5,8 +5,6 @@ import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 
 /** Bot API 身份与信息探针（getMe / webhookInfo / chats）。 */
 internal fun Route.configureBotInfoRoutes(

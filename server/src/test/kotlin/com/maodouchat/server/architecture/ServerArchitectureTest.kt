@@ -10,9 +10,11 @@ import kotlin.test.fail
  * M1：服务端架构棘轮门禁。
  *
  * 背景：`docs/full-project-refactor-checklist.md` 把「repository=SQL 边界、service=领域门面、
- * route→service→repository」写成中心契约，但实测 `plugins/` 里躺着 75 处 handler 内直写事务、
+ * route→service→repository」写成中心契约，但实测 `plugins/` 里曾躺着 75 处 handler 内直写事务、
  * 36 个 plugin 文件直接 import Exposed，另有 `repository/`→`plugins/` 反向依赖。
  * 只写在文档里的契约不是契约——这份测试把它变成**会失败的东西**。
+ * （G292b 更新：那 36 个 import 已随 G249b–G262b 的工作全部删净，
+ *  `plugins/` 下 import Exposed 的文件数现为 **0**，见 `frozenPluginsImportingExposed`。）
  *
  * 两类规则：
  *
@@ -43,28 +45,22 @@ class ServerArchitectureTest {
      */
     private val frozenRouteTransactions: Map<String, Int> = emptyMap()
 
-    /** `plugins/` 下直接引用 Exposed（`org.jetbrains.exposed`）的文件。当前 18 个（G46–G57 逐轮缩减；DeveloperRouting 已清零）。 */
-    private val frozenPluginsImportingExposed: Set<String> = setOf(
-        "AdminSupport.kt",
-        "BotChatInviteRouting.kt",
-        "BotChatMiscRouting.kt",
-        "BotCoreRouting.kt",
-        "BotFanout.kt",
-        "BotGeoRouting.kt",
-        "BotInfoRouting.kt",
-        "BotMediaRouting.kt",
-        "BotMessagingVariantsRouting.kt",
-        "BotPollEditRouting.kt",
-        "BotPollQuizRouting.kt",
-        "BotPresentationCardsRouting.kt",
-        "BotPresentationRouting.kt",
-        "BotPresentationStatusRouting.kt",
-        "BotPresentationWidgetsRouting.kt",
-        "BotReactionRouting.kt",
-        "Routing.kt",
-        // G218b：StatusPages.kt 移出基线——它只是在 catch 里用了全限定名做错误映射，
-        // 没有 import Exposed，不该算「写 SQL 的 route 文件」。
-    )
+    /**
+     * `plugins/` 下直接 import Exposed（`org.jetbrains.exposed`）的文件。
+     *
+     * G292b：**基线从 17 个文件下调为 0**。这 17 个文件各带 1-5 行 Exposed import，
+     * 经 G249b–G262b 十四个轮次证明**全部零使用**（结构证：枚举全部 60 个 Table 对象，
+     * plugins/ 内无任何 Table 接收者；具名证：eq/selectAll/andWhere/ResultRow/
+     * SqlExpressionBuilder/transaction 全层零引用；连带证：plugins/ 内无通配 import
+     * 依赖兄弟文件），已全部删净。
+     *
+     * 因此本棘轮的方向也随之反转：此前是「不许新增」，现在是「**必须保持为 0**」——
+     * 任何新增的 Exposed import 都会让 actual 非空而立刻报红。
+     *
+     * 注：`StatusPages.kt` 仍会有 `exception<...ExposedSQLException>` 的全限定名引用，
+     * 但那不是 import 行，不计入本判据（G218b 的口径）。
+     */
+    private val frozenPluginsImportingExposed: Set<String> = emptySet()
 
     /**
      * `repository/` 反向依赖 `plugins/` 的**引用处数**（非仅文件数）。已归零 (0 处 / 0 个文件)。

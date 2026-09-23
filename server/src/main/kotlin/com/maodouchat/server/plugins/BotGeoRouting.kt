@@ -10,7 +10,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
-import org.jetbrains.exposed.sql.*
 
 /** Bot 位置/联系人/位置类消息与取消置顶（自 BotCoreRouting.kt 拆分，B12）。 */
 internal fun Route.configureBotGeoRoutes(

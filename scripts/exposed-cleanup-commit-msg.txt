@@ -1,0 +1,32 @@
+refactor(server): 删净 plugins/ 层的 37 行死 Exposed import
+
+G249b 至 G262b 十四个轮次的结论：plugins/ 下 17 个文件各带 1-5 行
+org.jetbrains.exposed import，全部零使用（另一处 StatusPages.kt 只是
+exception<ExposedSQLException> 的引用、非 import，未改动）。证据链：
+- 结构证：枚举全部 60 个 Table 对象，plugins/ 内无任何 Table 接收者
+  （Exposed SQL 必须以 Table 作接收者，故通配 sql.* 不可能被用到）；
+- 具名证：eq / selectAll / andWhere / ResultRow / SqlExpressionBuilder /
+  transaction 在全层零引用；
+- 枚举证：55 个 Exposed 顶层名零命中，同形异义（serviceMessageRepo.insert、
+  put("count", n)）逐个排除；
+- 后果证：DIRECTION.md §0 的十条门禁选择器与两处取值逐行追过，均兼容；
+- 完整性证：AdminSupport.kt 17 个声明完好，且被 17+ 个文件共 216 处消费。
+
+G292b 的机器验证（bash 恢复后逐项实测）：
+- `gradlew compileKotlin` → BUILD SUCCESSFUL，37 行删除不影响编译；
+- server 全量 → 564 tests / 0 failures（JUnit XML 汇总）；
+- app 全量 → 2116 tests / 1 failure，唯一失败是 §0 字节数陈旧，
+  已由 sync-direction-numbers.py --write 按实测改写；
+- 复跑新鲜度门禁 → 11 tests / 0 failures。
+
+架构棘轮基线随之下调：ServerArchitectureTest 的
+`frozenPluginsImportingExposed` 由 17 个文件名改为 emptySet()——
+首跑全量时该棘轮报红（actual 从 17 变 0），属"已消除，请下调基线"，
+现该判据方向反转为"必须保持为 0"。
+
+删后 plugins/ 仅剩 StatusPages.kt 一处 exception<ExposedSQLException>
+（异常处理，非 import），故 DIRECTION.md §0 的
+「import Exposed 的文件」由 18 改为 1，并把行名语义在值列注明。
+
+M2 判据「plugins 不再直写 Exposed」由此补齐「足迹」一侧：
+此前用量已为 0，但 import 一直残留。

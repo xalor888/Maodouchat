@@ -10,9 +10,6 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.transaction
 
 /** Bot 能力清单唯一事实源（B12：此前内联在路由里，手写易漂移，见 9.133 注释）。 */
 val BOT_CAPABILITIES: List<String> = listOf(

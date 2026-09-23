@@ -14,11 +14,6 @@ import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.TurnCredentialService
 import com.maodouchat.server.service.CallInviteRateLimiter
 import com.maodouchat.server.service.WebRtcBinaryService
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.update
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*

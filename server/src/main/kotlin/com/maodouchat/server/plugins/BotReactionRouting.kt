@@ -10,7 +10,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
-import org.jetbrains.exposed.sql.*
 
 /** Bot 代码/回应/引用消息（自 BotCoreRouting.kt 拆分，B12）。 */
 internal fun Route.configureBotReactionRoutes(

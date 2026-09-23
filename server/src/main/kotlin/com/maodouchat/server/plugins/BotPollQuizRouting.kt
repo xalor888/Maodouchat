@@ -10,7 +10,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
-import org.jetbrains.exposed.sql.*
 
 /** Bot webhook 信息与投票测验/骰子（自 BotCoreRouting.kt 拆分，B12）。 */
 internal fun Route.configureBotPollQuizRoutes(
