@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# G307c：pre-push 闸门——§0 与实测不一致时拒绝推送。
+#
+# 为什么需要它：本会话已 **6 次** 犯同一顺序错——追加台账条目或新增文件后
+# 忘了同步 DIRECTION.md §0，直接推送，然后 CI 红一次、再花约 10 分钟重跑修。
+# 先后踩过三种行：台账字节数、instrumented 文件数、已跟踪文件数。
+# `scripts/finish-round.sh` 第 6 步本就是为治它而生（提交后再同步 + amend），
+# 而我连续几轮绕过它手写流程。所以把这个检查放到**推不出去的地方**，
+# 而不是依赖「我记得」。
+#
+# 为什么用 --check-fast 而不是 --check：
+# `--check` 会算两个「用例数」位，而它们只能来自上一次**全量**跑的 XML；
+# 刚单跑过一个测试类时它会以「低于合理下限 1900」拒绝（实测过），
+# 那会把「跑完单测就推送」这种正常节奏误拒，只会让人再次绕过 hook。
+# `--check-fast` 只校验不依赖 XML 的行（字节数、已跟踪文件数、各测试**文件**数、
+# plugins 各计数、最差单文件行数），1 秒内完成；用例数那两位的权威校验
+# 由 `DirectionDocFreshnessTest` 在 app 全量里做——分工明确。
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+
+if python3 scripts/sync-direction-numbers.py --check-fast; then
+  exit 0
+fi
+
+cat >&2 <<'MSG'
+
+✋ 推送被拒绝：DIRECTION.md §0 与实测不一致。
+
+这几乎总是「追加了台账条目 / 新增了文件，但没同步 §0」——
+本会话我已犯过 6 次，每次都以 CI 红一次收场。现在就修（约 1 秒）：
+
+    python3 scripts/sync-direction-numbers.py --write-fast
+    git add DIRECTION.md && git commit --amend --no-edit   # 或另开一个提交
+    git push
+
+（若上一次是**过滤跑**的测试，`--write` 会因用例数下限守卫一行都不写，
+所以这里给的是 `--write-fast`——它只同步不依赖 XML 的行。等跑过全量后，
+再用 `--write` 把用例数那两位一起对齐。）
+
+MSG
+exit 1

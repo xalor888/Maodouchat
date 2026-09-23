@@ -82,20 +82,32 @@ def worst_file() -> tuple[int, str]:
     return worst
 
 
-def measure() -> dict[str, list[tuple[int, str]]]:
-    """返回「行首特征 -> [(该行第几个数字, 新值), ...]」——只换数字，保留人类可读装饰。"""
+def measure(fast: bool = False) -> dict[str, list[tuple[int, str]]]:
+    """返回「行首特征 -> [(该行第几个数字, 新值), ...]」——只换数字，保留人类可读装饰。
+
+    `fast=True`（`--check-fast`，供 pre-push hook 用）：**完全不计算**依赖
+    XML 的两个用例数位，并相应省略它们。为什么必须「完全不计算」而不是
+    「算完再丢」：`_plausible` 在低于下限时是 `raise SystemExit`，
+    只要调用到它，过滤跑之后 hook 就会被误拒（实测：单跑一个类后
+    `--check` 返回「app JVM 用例数只有 11，低于合理下限 1900」exit 1）。
+    而那两个位本来就**不该**由 hook 管——它们只在测试增删时变化，
+    权威校验由 `DirectionDocFreshnessTest` 在 app 全量里做。
+    """
     worst_n, worst_p = worst_file()
     server_kt = count_kt("server/src/test")
     app_kt = count_kt("app/src/test")
     # ⚠️ 用例数只能来自**上一次全量跑**的 XML。若刚跑过 `--tests '*某个类'`
     # 过滤，目录里只剩那一个类的结果（实测过：11 而不是 1959）——
     # 照抄会把 DIRECTION.md 写坏。所以加下限守卫，宁可不动也不写错。
-    server_tests = _plausible(
-        count_tests("server/build/test-results/test/*.xml"), 400, "server"
-    )
-    app_tests = _plausible(
-        count_tests("app/build/test-results/testDebugUnitTest/*.xml"), 1900, "app JVM"
-    )
+    server_row: list[tuple[int, str]] = [(0, str(server_kt))]
+    app_row: list[tuple[int, str]] = [(0, str(app_kt))]
+    if not fast:
+        server_row.append((1, str(_plausible(
+            count_tests("server/build/test-results/test/*.xml"), 400, "server"
+        ))))
+        app_row.append((1, str(_plausible(
+            count_tests("app/build/test-results/testDebugUnitTest/*.xml"), 1900, "app JVM"
+        ))))
     txn = sh("grep -rho 'transaction {' %s | wc -l" % PLUGINS)
     exposed = sh("grep -rl org.jetbrains.exposed %s | wc -l" % PLUGINS)
     back = sh(
@@ -105,8 +117,8 @@ def measure() -> dict[str, list[tuple[int, str]]]:
     repo_total = sh("ls %s/*.kt | wc -l" % REPO)
     return {
         "已跟踪文件": [(0, str(len(sh("git ls-files").splitlines())))],
-        "服务端测试文件": [(0, str(server_kt)), (1, str(server_tests))],
-        "客户端 JVM 测试文件": [(0, str(app_kt)), (1, str(app_tests))],
+        "服务端测试文件": server_row,
+        "客户端 JVM 测试文件": app_row,
         "instrumented": [(0, str(count_kt("app/src/androidTest")))],
         "自审清单体量": [(0, f"{os.path.getsize(CHECKLIST):,}")],
         "transaction": [(0, txn), (1, txn)],
@@ -145,8 +157,8 @@ def _replace_nth_number(cell: str, nth: int, value: str) -> tuple[str, bool]:
     return new, new != cell
 
 
-def sync(write: bool) -> int:
-    vals = measure()
+def sync(write: bool, fast: bool = False) -> int:
+    vals = measure(fast=fast)
     lines = open(DIRECTION, encoding="utf-8").read().split("\n")
     changed = 0
     for idx, line in enumerate(lines):
@@ -194,5 +206,17 @@ if __name__ == "__main__":
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--check", action="store_true")
     g.add_argument("--write", action="store_true")
+    # G307c：--check-fast / --write-fast 只处理不依赖 XML 的 §0 行，供 pre-push
+    # hook 与其修复提示用（1 秒内完成，且过滤跑之后不会像 --check/--write 那样
+    # 被 _plausible 误拒）。语义更窄，不是 --check/--write 的别名——用例数那两位
+    # 的权威校验仍由 DirectionDocFreshnessTest 在全量里做。
+    #
+    # 为什么必须有 --write-fast（G307c 实测踩到）：`_plausible` 在低于下限时是
+    # `raise SystemExit`，**整个进程退出**，所以 `--write` 在「上一次是过滤跑」
+    # 时会**一行都不写**——连字节数、已跟踪文件数这些根本不看 XML 的行也修不了。
+    # 于是 pre-push hook 拒推之后，照它提示跑 `--write` 照样修不好，会卡死。
+    g.add_argument("--check-fast", action="store_true")
+    g.add_argument("--write-fast", action="store_true")
     a = ap.parse_args()
-    sys.exit(sync(write=a.write))
+    fast = a.check_fast or a.write_fast
+    sys.exit(sync(write=a.write or a.write_fast, fast=fast))
