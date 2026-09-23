@@ -25,6 +25,15 @@ dependencies {
     // 只能靠 :app 侧的 ClientArchitectureTest 补（它扫 app/src/main，而 app 依赖这些模块）。
     // `core/util` 是 JVM 且此前漏在表外，G222b 已补。
     testImplementation(project(":core:util"))
+    // G222c：core:crypto 原本是 Android library，纯 JVM 的 :core:testing 依赖不了。
+    // 实测它源码里零 import android / androidx，G222c 已把它的 build.gradle.kts
+    // 改成 org.jetbrains.kotlin.jvm，因此可以纳入 ArchUnit 的扫描范围。
+    testImplementation(project(":core:crypto"))
+    // G222c：同 core/crypto，这三个原本也是 Android library，实测源码零 android/androidx
+    // import，已改为 org.jetbrains.kotlin.jvm，因此纳入 ArchUnit 扫描范围。
+    testImplementation(project(":core:network"))
+    testImplementation(project(":core:realtime"))
+    testImplementation(project(":core:session"))
     testImplementation(project(":core:serialization"))
     testImplementation(project(":domain:messaging"))
     testImplementation(project(":domain:conversation"))

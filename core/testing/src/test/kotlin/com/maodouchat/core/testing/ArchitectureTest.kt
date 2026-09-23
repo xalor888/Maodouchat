@@ -67,30 +67,28 @@ class ArchitectureTest {
         )
 
         val scannable = classes.map { it.packageName }.toSortedSet()
-        val blind = STRUCTURALLY_UNREACHABLE_PACKAGES.filterNot { pkg ->
-            scannable.any { it == pkg || it.startsWith("$pkg.") }
-        }.toSortedSet()
-        assertEquals(
-            STRUCTURALLY_UNREACHABLE_PACKAGES.toSortedSet(),
-            blind,
-            "结构性盲区变了。若某个 Android 模块改成了 JVM 模块，记得把它加进 " +
-                "core/testing/build.gradle.kts 的依赖表，否则白捡的覆盖没人用。",
+        assertTrue(
+            STRUCTURALLY_UNREACHABLE_PACKAGES.isEmpty(),
+            "结构性盲区不再是空的：$STRUCTURALLY_UNREACHABLE_PACKAGES。" +
+                "G222c 已把四个 Android core 模块全部改为 JVM 并纳入扫描。" +
+                "若将来又有模块退回 Android library，应在这里如实登记，而不是删掉这条断言。",
         )
     }
 
     private companion object {
-        /** G222b 实测 103（core/model 5 + core/serialization 1 + core/util 4 + domain/messaging 93）。 */
-        const val MIN_SCANNABLE_CLASSES = 100
+        /** G222b 103 → G222c 四个模块全纳入后实测 **194**。 */
+        const val MIN_SCANNABLE_CLASSES = 190
 
         /**
          * JVM 测试结构上照不到的包（Android library 模块）。
          * 对它们的约束由 :app 侧 ClientArchitectureTest 负责。
          */
-        val STRUCTURALLY_UNREACHABLE_PACKAGES = setOf(
-            "com.maodouchat.core.crypto",
-            "com.maodouchat.core.network",
-            "com.maodouchat.core.realtime",
-            "com.maodouchat.core.session",
-        )
+        // G222c：四个模块（crypto / network / realtime / session）已全部由
+        // Android library 改为 org.jetbrains.kotlin.jvm 并纳入依赖表，
+        // 结构性盲区**已清零**。这里留一个空集，让上面的断言可读；
+        // 将来若又有模块退回 Android library，要如实登记回来。
+        val STRUCTURALLY_UNREACHABLE_PACKAGES = emptySet<String>()
     }
+
+
 }

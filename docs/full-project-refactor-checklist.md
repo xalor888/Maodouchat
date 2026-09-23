@@ -10504,3 +10504,43 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **教训（第一百零五次沉淀）：修正一个事实性错误时，先全文 grep 那个错误的关键词，
   不要只改你最初发现它的那一处。** 文档里的错误往往不止抄了一处。
 - 已同步修正为「三套」，并注明 `ArchitectureTest` 读字节码不算在内。
+
+### G222c — 把 4 个 Android core 模块改成 JVM，ArchUnit 覆盖面 **103 → 194**，盲区清零
+
+- **起点**：G222b 查出 `core/testing` 的 ArchUnit 对 4 个 Android core 模块
+  （crypto / network / realtime / session）**结构上照不到**，当时只能补 core:util
+  并立 coverage-envelope 守卫。守卫生效的方式正是它该有的样子：
+  我先把 core:crypto 改成 JVM 并加进依赖表，守卫**当场变红**并提示
+  「若某个 Android 模块改成了 JVM 模块，记得把它加进依赖表，否则白捡的覆盖没人用」。
+- **实测关键事实（决定了做法）**：这 4 个模块虽声明为 `com.android.library` +
+  `org.jetbrains.kotlin.android`，但**源码里零 `import android`、零 `androidx`**。
+  也就是说它们是「被声明成 Android library 的纯 Kotlin」——改回 JVM 没有真实代价。
+- **做了什么（对四个模块做同一件事）**：
+  去掉 `com.android.library` 与 `org.jetbrains.kotlin.android`，换
+  `org.jetbrains.kotlin.jvm` + `jvmToolchain(21)`，删掉整个 `android {}` 块
+  （namespace / compileSdk / minSdk / compileOptions）。
+  依赖形状照 `core/model`（它本来就是 JVM 兄弟）。
+- **解决了三个转换中的实际问题**：
+  1. 只改第一行插件不够——`kotlin.android` 还在，报 `Unresolved reference: minSdk`；
+  2. 去掉 `android{}` 后 JVM target 冲突（compileJava 21 vs compileKotlin 17），
+     用 toolchain 统一，而不是手工设 jvmTarget；
+  3. `:app` 依赖 `core:crypto` 与 `core:realtime`，Android→JVM 可能让 app 编译失败
+     （`No matching variant`）。**实测 `:app:compileDebugKotlin` BUILD SUCCESSFUL**，
+     下游没被带坏。
+- **覆盖面实测（用临时探针，测完删除）**：
+  `PROBE_TOTAL=194`，其中 core.crypto 26 / core.network 6 / core.realtime 52 /
+  core.session 7 —— 四个模块的类**真实出现在 importPackages 结果里**，不是只加了依赖。
+  G222b 的 103 → **194**（+91）。
+- **守卫同步升级**：`STRUCTURALLY_UNREACHABLE_PACKAGES` 清空，断言改为
+  「盲区必须为空；将来若又有模块退回 Android library，要如实登记而不是删掉断言」。
+  下限 100 → **190**。
+- **负控制（换了一种形式，原因记录）**：原本想往 core/network 塞
+  `androidx.annotation.Keep`，但转成 JVM 后该模块没有 androidx 依赖 → **编译失败**，
+  门禁走不到；改塞 `com.maodouchat.ui` 引用也因该类不在 core 的 classpath 上而无法解析。
+  **这两次失败本身是覆盖生效的间接证据**（core 的 classpath 上根本没有应用层类型）。
+  最终改用**探针直接证明可见性**（上面那组 PROBE 数字），这是更直接的证据：
+  91 个此前不可见的类现在被 importPackages 看见了。
+- **实测结果**：`:core:testing` 3 例 0 失败；app JVM **2071 例 0 失败**；
+  server **469 例 0 失败**；`:app:compileDebugKotlin` 通过。
+- **结论：这个缺口不会变成真问题了**——4 个模块已纳入监管，且守卫保证将来
+  若再出现结构性盲区会被立刻发现。
