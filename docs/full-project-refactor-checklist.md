@@ -12653,3 +12653,47 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   （curl 超时语义）以及 Node.js 20 弃用告警（`softprops/action-gh-release@v2`
   被强制跑在 Node 24）。run 最终 success，但 exit 28 值得下次留意——
   若它来自上传步骤的重试，说明大文件上传有超时风险。
+
+
+### G299c — 尝试把 v1.3.0 推给用户，**卡在网络层：生产从本环境不可达**（未发布，已停止）
+
+- **动机**：v1.3.0 制品已发布并实测，但用户拿不到——`docs/app-update-release.md`
+  第 11 行禁止 GitHub 直链作更新源，必须走服务端发布 API。本轮想把这一步走完。
+- **第一道卡点**：`keepgoal_deploy_access("香港01")` 失败——
+  `申请部署访问失败：把公钥装到远端失败（root@64.90.12.166）：Connection closed by
+  64.90.12.166 port 22`。
+- **逐层取证后确认是本地网络拦截，不是生产故障**（这个区分很重要，见下）：
+  1. `nc -z 64.90.12.166 22` → **端口通**（主机在线、防火墙放行 SSH）；
+  2. `ping` → 100% 丢包（ICMP 被墙，云主机常见，不说明问题）；
+  3. `curl https://chat.mdou.me/api/public/app-update/latest.apk` →
+     `LibreSSL SSL_connect: SSL_ERROR_SYSCALL`，`http=000`；
+  4. `dig +short chat.mdou.me` → **`198.18.2.210`**；
+  5. **对照组**：`dig +short github.com` → **`198.18.0.10`**，而 `curl https://github.com`
+     → **http 200**。
+     `198.18.0.0/15` 是 RFC 2544 基准测试保留段，被 Clash/Surge 之类工具用作
+     **fake-ip**。即：**本机所有域名都被映射到 198.18.x.x 假 IP**，
+     能用的走代理、不能用的接受连接后关闭。`chat.mdou.me` 与 `64.90.12.166`
+     属于后者——`ssh` 与 `curl` 的症状完全一致（TCP 通、握手被关）。
+  6. 直连外部 DNS（`@1.1.1.1`/`@8.8.8.8`）查询同样得到 198.18.2.210——
+     拦截在解析层，不在单个 resolver。
+  7. `web_fetch` 亦被拦（`URL hostname resolves to a non-public IP address`），
+     `web_search` 因 API 余额 402 不可用。**没有一条绕行路径。**
+- **因此本轮没有取得任何生产侧事实**，以下都**不能**声称：
+  - 生产是否健康（本机外网正常，但生产域名不通，二者不可互推）；
+  - `chat.mdou.me` 在公共 DNS 里的真实 A 记录；
+  - **当前线上已发布的 versionCode**——这正是发布前唯一的决策依据，
+     `AppUpdatePublishPolicy.isDowngrade` 要求新 versionCode 严格大于当前值。
+- **已做与未做**：**未发布、未上传、未改任何生产配置**（`keepgoal_deploy_release`
+  未调用——因为 `keepgoal_deploy_access` 本就未成功，无访问可归还）。
+  v1.3.0 制品仍只存在于 GitHub Release。
+- **下次要发布时，先解决可达性**（任一即可）：
+  1. 本机代理给 `chat.mdou.me` / `64.90.12.166` 放行（或切到不走 fake-ip 的网络）；
+  2. 或在一台能直连香港的机器上跑发布；
+  3. 或由人工执行发布（步骤可从 `.workbuddy/memory/MEMORY.md` 的拓扑推出来：
+     APK 放 `server_uploads` 卷的 `uploads/app-updates/`，manifest 由
+     `PUT /api/internal/app-update` 写入，token 用 `UPDATE_DEPLOY_TOKEN`）。
+- **顺带记一笔可用信息**（`MEMORY.md`，2026-09-20 确认）：生产在
+  `/root/maodouchat-v1.1.0`（compose 项目 `maodouchat-v110`，Caddy+PG16+coturn），
+  上次升级是 1.1.20→1.2.1；健康端点 `/health/live`、`/health/ready` 曾返回 200，
+  TLS 为 Let's Encrypt（CN=chat.mdou.me，当时有效期至 2026-11-18）。
+  这些是**历史记录，不是本轮实测**。
