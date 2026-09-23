@@ -11008,3 +11008,43 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   **剩余 13 个**：pushTokens / bots / botCommandStats / friendships / reports /
   reportsMeta / chatSettings / chats / auditExportRows(19列) / deviceSequences /
   deviceAnomalyCount / deviceAnomalies / messageStats。
+
+### G187a — 出站 webhook 安全闸门首次有专门测试；`2001::/23` 注释比代码窄（server 518 → 550）
+
+- **为什么换方向**：AdminExportRepository 已覆盖 17/30，剩余 13 个是纯
+  selectAll().orderBy().limit() 同形态，边际价值到底。转而去量
+  server 零测试引用的 main 文件，发现 WebhookSecurityUtils.kt（377 行）——
+  出站 webhook 的安全闸门，零专门测试。
+- **已覆盖部分（先量清，避免重复造）**：MinimalRouteTest.RoutingSecurityHelperTest
+  已测 isAllowedWebhookAddress 8 个地址、isAllowedWebhookUrl 14 个 URL、
+  postPinnedWebhookJson 端口 0、readPinnedWebhookResponse 两条。
+  这些没重写，只补剩下的——覆盖率从约 10% 到覆盖全部 when 分支。
+- **32 例覆盖**：
+  - isAllowedWebhookAddress IPv4：21 个必拒段（0.x / 10/8 / 127/8 / 224+ /
+    172.16-31 / 192.168/16 / 198.18-19 / 169.254/16 / 192.0.0 / 192.0.2 /
+    192.31.196 / 192.52.193 / 192.175.48 / 198.51.100 / 203.0.113）
+    + 10 个边界正例（100.63/100.128、172.15/172.32、198.17/198.20、192.1.0 等）
+  - IPv6：8 个必拒（fc00 ULA、2001:0、2001:1、2001:db8、2002 6to4、
+    2002:7f00:1、3fff:0、64:ff9b）+ 4 个边界正例
+  - allowLoopback 的反向语义：true 时 loopback 放行、公网拒（与 false 时完全相反）
+  - readPinnedWebhookResponse 的 body 策略（ByteArrayInputStream，无需网络）：
+    Content-Length 远大于 maxBodyBytes 时只读 maxByteBytes（DoS 防线）、
+    短 Content-Length 提前停、无 framing 读到 EOF、maxBodyBytes=0 空 body、
+    204/304 空 body、chunked 多 chunk 拼接、chunked 超限截断、chunk 扩展参数容忍、
+    非十六进制 chunk size 拒、缺 chunk 终止行拒
+  - 响应头防御：101 升级拒、5 个 informational 放行、第 6 个拒、
+    TE+CL 同时存在拒（HTTP 请求 smuggling 防线）、非 chunked TE 拒、
+    非法状态行、非法 header 名、控制字符、DEL、header 超 32KB、无空行结束 各拒、
+    tab 容忍、无 reason phrase 容忍、HTTP/1.0 容忍
+- **发现注释与代码不符**：2001::/23 这个注释比代码实际挡的范围窄。
+  代码判 octets[2] <= 0x01，而 octets[2] 是第二组的高字节，所以它挡的是
+  2001:0000-01ff 整片，比 /23 宽。第一版断言 2001:2::1 应放行，实测直接打脸
+  （它的第二组是 0002，高字节 0x00，被拒）。已按实测改正，并专门加一条
+  the two thousand one block is wider than its comment claims 把真实范围钉住。
+  这是 G186d 不要按字段名猜的教训第二次重演——这次是不要按注释猜范围，要算字节。
+- **目标指定的负控制单杀**：把 minOf(contentLength, maxBodyBytes.toLong()) 改成
+  contentLength.toInt()，a huge content length is truncated to the body budget FAILED。
+  证明 DoS 防线真的被管辖（否则对端一个巨大的 Content-Length 就能撑爆内存）。
+- **实测结果**：WebhookSecurityUtilsTest 32 例 0 失败（新文件）；
+  server 全量 518 至 550 例 0 失败（9m22s）；一次单杀负控制；
+  生产文件 git diff 为空。
