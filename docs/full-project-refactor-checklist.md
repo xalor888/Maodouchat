@@ -10161,3 +10161,37 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   → 总数 **644 → 629**、LocalContext **27 → 12** → ratchet 冻结值同步（629/12）
   → 2 例转绿 → 全量 app JVM **2059 例 0 失败**。
 - **进度**：LocalContext **41 → 12**（还掉 29 处 / 71%）。
+
+### G232b — **lint 债清零**：LocalContext 41 → 0（基线 629 → 617）
+
+- **本轮修掉最后 12 处**，全在 `ChatDetailTimelineItems.kt`（该文件只有一个 composable，
+  所以 hoist 一次就够——比前两轮的两个-composable 文件简单）。
+  其中 7 处是 `mediaLabel = { type -> when (type) { ... } }` 里那个 **Pattern A**
+  lambda：不是「非 @Composable」，而是**参数类型是 `(MessageType) -> String`**
+  （普通函数类型，不是 @Composable 函数类型），所以 lambda 体里也不能调 `stringResource`。
+  做法仍是 hoist 到外层 composable，lambda 里引用 hoisted val。
+  另外 5 处是 `chat_transcript_copied` / `chat_contact_card_tap_hint`（×2）/
+  `message_preview_encrypted`（×2 中的第 2 处，`encryptedPlaceholder` 参数）。
+- **lint 报 12 条基线失效 → `updateLintBaseline`**：
+  总数 **629 → 617**，**LocalContextGetResourceValueCall = 0**。
+  ratchet 冻结值同步（617 / LocalContext 0）→ 2 例转绿。
+- **「LocalContext = 0」这条断言值得留着**：它把这个类别**从此钉死**。
+  将来谁再写一个 `LocalContext.current.getString(...)`，lint 会报新错、
+  基线会长、ratchet 会红——三道一起拦。还债这条线到此**真正结束**，
+  而不是「暂时不出问题」。
+- **6 轮还债的总账**：
+  | 轮次 | 修掉 | LocalContext 剩余 |
+  |---|---|---|
+  | G223b | 0（立基线 658） | 41 |
+  | G228b | 1 | 40 |
+  | G229b | 4 | 36 |
+  | G230b | 9 | 27 |
+  | G231b | 15 | 12 |
+  | **G232b** | **12** | **0** |
+  基线总数 **658 → 617**。
+- **这条线最大的两个副产品**：
+  1. **G223b 我的判断是错的**（「不能机械换 stringResource」）——
+     inline lambda（`forEach`）里可以，G230b 推翻了自己；
+  2. **G231b lint 抓到我引入的一个真文案 bug**（视频保存失败显示「导出失败」）。
+- **实测结果**：lintDebug BUILD SUCCESSFUL；app JVM **2059 例 0 失败**；
+  ratchet 2 例 0 失败；基线 629 → 617（LocalContext 归零）。

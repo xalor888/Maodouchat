@@ -120,6 +120,16 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
     // 把 (index, item) 传进来——因为 `Modifier.animateItem` 是 LazyItemScope 的扩展，
     // 只有待在 itemsIndexed 的 lambda 里才能用，搬到普通 Composable 会丢 placement 动画。
     val context = androidx.compose.ui.platform.LocalContext.current
+    val previewImageLabel = stringResource(R.string.message_preview_image)
+    val previewGifLabel = stringResource(R.string.message_preview_gif)
+    val previewStickerLabel = stringResource(R.string.message_preview_sticker)
+    val previewVoiceLabel = stringResource(R.string.message_preview_voice)
+    val previewVideoLabel = stringResource(R.string.message_preview_video)
+    val previewFileLabel = stringResource(R.string.message_preview_file)
+    val previewLocationLabel = stringResource(R.string.message_preview_location)
+    val previewEncryptedLabel = stringResource(R.string.message_preview_encrypted)
+    val transcriptCopiedTip = stringResource(R.string.chat_transcript_copied)
+    val contactCardTapHint = stringResource(R.string.chat_contact_card_tap_hint)
     val itemPlacementSpec = motion.listItemPlacementSpec()
     when (item) {
     is ChatItem.DateSeparator -> {
@@ -215,17 +225,17 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
                             message = it,
                             mediaLabel = { type ->
                                 when (type) {
-                                    MessageType.IMAGE -> context.getString(R.string.message_preview_image)
-                                    MessageType.GIF -> context.getString(R.string.message_preview_gif)
-                                    MessageType.STICKER -> context.getString(R.string.message_preview_sticker)
-                                    MessageType.VOICE -> context.getString(R.string.message_preview_voice)
-                                    MessageType.VIDEO -> context.getString(R.string.message_preview_video)
-                                    MessageType.FILE -> context.getString(R.string.message_preview_file)
-                                    MessageType.LOCATION -> context.getString(R.string.message_preview_location)
-                                    else -> context.getString(R.string.message_preview_encrypted)
+                                    MessageType.IMAGE -> previewImageLabel
+                                    MessageType.GIF -> previewGifLabel
+                                    MessageType.STICKER -> previewStickerLabel
+                                    MessageType.VOICE -> previewVoiceLabel
+                                    MessageType.VIDEO -> previewVideoLabel
+                                    MessageType.FILE -> previewFileLabel
+                                    MessageType.LOCATION -> previewLocationLabel
+                                    else -> previewEncryptedLabel
                                 }
                             },
-                            encryptedPlaceholder = context.getString(R.string.message_preview_encrypted),
+                            encryptedPlaceholder = previewEncryptedLabel,
                         ).take(60)
                     )
                 },
@@ -283,7 +293,7 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                     as android.content.ClipboardManager
                 onCopyTranscript(transcript)
-                Toast.makeText(context, context.getString(R.string.chat_transcript_copied), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, transcriptCopiedTip, Toast.LENGTH_SHORT).show()
             },
             onDismissSafety = if (canShowSafety) {
                 { onDismissSafetyForMessage(message.id) }
@@ -310,7 +320,7 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
                 if (onOpenProfile != null) {
                     onOpenProfile(userId)
                 } else {
-                    Toast.makeText(context, context.getString(R.string.chat_contact_card_tap_hint), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, contactCardTapHint, Toast.LENGTH_SHORT).show()
                 }
             },
             // 1.44：点击消息发送者名称 → 打开其资料
@@ -318,7 +328,7 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
                 if (onOpenProfile != null) {
                     onOpenProfile(userId)
                 } else {
-                    Toast.makeText(context, context.getString(R.string.chat_contact_card_tap_hint), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, contactCardTapHint, Toast.LENGTH_SHORT).show()
                 }
             },
             // 1.51：点击已读状态图标 → 打开阅读详情（仅自己消息）
