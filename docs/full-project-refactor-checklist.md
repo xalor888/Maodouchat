@@ -10305,3 +10305,24 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   → 全量 app JVM **2059 例 0 失败**。
 - **「用 `LocalContext` 读资源」这件事到此**两道 lint 检查都是零**。
   剩下的只有 G235b 定性过的那些「不影响发布物」的警告。**
+
+### G182c — Secret*Prefs 家族最后三个无覆盖文件：9 例（app 2059 → 2068）
+
+- **扫描结论（G182c 实测引用数）**：家族 10 个文件里 3 个为 0——
+  `SecretSimChangePrefs`、`SecretScreenshotBurnPrefs`、`UnreadPriorityPreferences`。
+- **`SecretSimChangePrefs`（5 例）最值得测**：`setLastSimId` 里
+  `if (prev != null && prev != simId.trim())` 才写 `lastChangeAt`。
+  写反的后果是「同一张卡重复上报」被当成「换了卡」，触发不必要安全告警。
+  用例：首次设置不写时间戳 / **同一 id 重复 set 不刷新** / 真换卡必须刷新 /
+  空白 simId 被忽略 / 读出即 trim。
+- **`SecretScreenshotBurnPrefs`（2 例）**：`shouldPurgeMedia` 默认 true、可关可回、
+  无账号 fail-open 返回 true（宁可多清不可漏清）。
+- **`UnreadPriorityPreferences`（2 例）**：14 行薄封装，只验委托往返 + fail-open。
+- **全部用 Robolectric + `AccountFeatureSwitch.userIdOverrideForTest`（G183b 注入）
+  造「已登录」状态，真 SharedPreferences，无 mock。** 这也是 G188b 撤掉
+  `SecretNewDeviceRiskPrefs` 单独缝之后，家族测试统一走全局注入的延续。
+- **负控制**：把 `prev != null && prev != simId.trim()` 改成 `prev != null`
+  → `sameSimIdRepeatedDoesNotRefreshTheStamp` **FAILED**。还原后转绿。
+- **至此 `Secret*Prefs` 家族 10 个文件全部有测试覆盖。**
+- **实测结果**：app JVM 单测 **2059 → 2068 例**（新增 9 例）；
+  本三个类 `tests=5/2/2 failures=0`；全量仅新鲜度门禁因新增文件报错，同步后转绿。
