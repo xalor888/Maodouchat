@@ -10758,3 +10758,39 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：`data.MessagePersistencePolicyTest` **9 → 18 例**（0 失败）；
   app JVM **2092 → 2101 例**；一次有效负控制；生产文件 `git diff` 为空。
 - **M5 无关项**：本轮纯测试补盲，不动 M5 状态。
+
+### G185d — 聊天锁 PIN 的密码学实现首次有测试（app 2101 → 2116）
+
+- **动机**：`data/repository` 9 个零测试类里挑 `ChatLockRepository`（139 行 / 10 fun）。
+  理由是实测它有 **5 个纯密码学原语**（generateSalt/sha256/pbkdf2/constantTimeEquals/
+  lockoutRemainingMs）零 IO，唯一 IO 依赖是构造参数的 `ChatLockDao`（接口，可 fake）——
+  **比同批那些涉 Room/SharedPreferences 的仓储好测得多**，不值得因「它是仓储类」跳过。
+  而它是聊天锁隐私承诺的本体：PBKDF2 600k 迭代、16 字节随机 salt、恒定时间比较、
+  连续 5 次失败锁 30 秒、旧 SHA-256 格式自动升级。**整个类此前零测试。**
+- **性能实测先行**（目标第 (7) 条）：PBKDF2 600k 单次 **148ms** ——
+  一例 1–2 次调用 ≈ 300ms，**不需要测试专用降迭代入口**。这是先测再决定的典型：
+  若凭「600k 听起来很慢」就加后门，会白造一个只在测试存在的代码路径。
+- **15 例覆盖**：
+  - **setLock 入参校验**：PIN 长度 4..8 的边界（3 拒 / 4 收 / 8 收 / 9 拒）、空串拒；
+    重设锁清空失败与锁定状态；
+  - **verify 快乐路径**：正确 PIN 过、错误 PIN 拒；无锁聊天返回 true（既有语义，钉住）；
+    成功后失败计数清零；
+  - **旧格式升级（安全关键）**：手工算 `sha256(pin+salt)` 塞进去 → 正确 PIN 必须
+    (a) 返回 true (b) **触发升级**（用 fake 捕获 upsert，断言新 hash 以 `pbkdf2$` 开头、
+    迭代数是 600000、升级后同一 PIN 仍通过）；错误 PIN **不得**触发升级；
+  - **畸形新格式**：迭代数非数字拒、段数不足拒（且不抛异常）；
+  - **失败锁定状态机**：5 次失败 → 锁定且 `lockoutRemainingMs ∈ (0, 30000]`；
+    锁定期间正确 PIN 也拒；4 次失败不锁定；从未锁定返回 0；
+  - **密码学性质**：salt 是 32 字符 hex 且**两次设同一 PIN 得不同 salt**（随机性），
+    salt 不同则 hash 必须不同；不等长 hash 拒且不抛。
+- **踩了三个编译坑，都记一下**：
+  1. 自造的 `runBlockingTest` 写成 `suspend` → 非 suspend 用例调不了；
+  2. `"pbkdf2$notanumber$..."` 里的 `$n` 被 Kotlin 当字符串模板 → `Unresolved reference`，
+     必须写 `\$`；
+  3. `ChatLockDao` 有 **7 个**成员，我初版只实现了 5 个（漏 `observeLockedChatIds`
+     与 `deleteAll`）→ 编译报 not abstract。
+- **负控制**：`MAX_FAILURES` 5 → 500 → **2 条同时红**：
+  `five consecutive failures lock the chat for thirty seconds` +
+  `during lockout even the correct pin is refused`。两条都是锁定状态机的核心。
+- **实测结果**：`ChatLockRepositoryTest` **15 例 0 失败**；app JVM **2101 → 2116 例**；
+  一次有效负控制；生产文件 `git diff` 为空。
