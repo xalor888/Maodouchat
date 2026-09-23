@@ -12861,3 +12861,62 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   与 Call / Settings 仍无覆盖（`ExploreScreen`/`ContactsScreen` 带 `viewModel()`，
   需先做依赖注入改造）。本轮只是把 dialog/行这一层从「只有 ChatDetail」
   扩展到「ChatDetail + Contacts 行 + Explore 弹窗」三处。
+
+
+### G305c — **证伪了 G301c 记下的卡点**：屏幕级 Compose 测试根本不需要依赖注入改造
+
+- **起点是一个我自己写错的记录**。G301c 结项时我在台账与 §11 都写了：
+  「`ContactsScreen`/`ExploreScreen` 本体带 `viewModel()` 默认参数，
+  需先做依赖注入改造才能测，卡点已记录」。本轮开工前先核实这个卡点是否成立，
+  **结论是不成立**，依据三条（全部实测，不是推理）：
+  1. 项目**没有任何 DI 框架**（`grep hilt|koin|dagger` 在 `app/build.gradle.kts`
+     与根 `build.gradle.kts` 均零命中）；
+  2. `ContactsViewModel(application: Application, ...)`（`ContactsViewModel.kt:98`）
+     的**其余依赖全部有默认值**，而 JVM 测试 `ContactsViewModelTest.buildTestViewModel()`
+     （第 170–186 行）**早就在用 `mockApplication` + 一组 fake 工厂构造它**；
+  3. composable 签名是 `ContactsScreen(..., viewModel: ContactsViewModel = viewModel())`——
+     **默认参数只在调用方省略该参数时才求值**。所以测试只要
+     `ContactsScreen(viewModel = fakeVm)` 就**不会**触发真实 VM 构造。
+- **两个原本担心的问题也逐一排除**：
+  - *「`application` 在 VM 里被 `as MaodouchatApp` 硬转型，传真实 context 会不会崩」*：
+    实测 `application` 的全部用法（含那两处硬转型、`FriendCacheStore`、
+    `RuntimeFlags.isEnabled`）**都位于构造器的默认值表达式里**；把 5 个依赖
+    全部注入 fake 后，`application` 一次都不会被求值，传真实 context 安全。
+  - *「`viewModelScope` 协程在 Compose 测试里谁来驱动」*：`kotlinx-coroutines-test`
+    只有 `testImplementation`（JVM）没有 `androidTest`，JVM 测试靠
+    `Dispatchers.setMain(StandardTestDispatcher())` 解决。但 **instrumented
+    测试跑在真机上，`Dispatchers.Main` 是真实的**，`viewModelScope` 自然工作，
+    `compose.waitForIdle()` 即可——**不需要加任何依赖**。
+- **因此新增** `app/src/androidTest/.../ui/screen/contacts/ContactsScreenUiTest.kt`，
+  **5 例屏幕级测试**（这是本项目第一批**屏幕本体**的 UI 测试，此前只有 dialog/行/弹窗）：
+  1. 搜索框占位符渲染（可行性探针，保留）；
+  2. 好友为空 → 渲染空态四件套（标题/副标题/「搜索添加」/「扫一扫」）；
+  3. 好友非空 → 渲染好友名且**不出现**空态标题（与 2 合起来钉住 state.contacts → UI）；
+  4. 有在线好友 → 渲染「N 人在线」标签（`state.onlineCount > 0` 才渲染）；
+  5. **点空态「扫一扫」触发屏幕的 `onOpenScan` 回调**——这是**屏幕级行为**，
+      行级 composable 测试碰不到这层接线。
+- **代价（明确记录的取舍）**：VM 的 5 个 fake 工厂是 JVM 测试里的私有函数，
+  androidTest 看不到，因此本文件**复刻**了约 80 行 fake。
+  选项有三个——复制 / 抽共享 source set（要改 build.gradle）/ 改生产代码——选复制，
+  因为另两个都更大，且改生产代码正是本轮要避免的。
+- **负控制：预判完全命中**（上一轮 G301c 预判错，本轮先改）。
+  手法：把空态的 `onSecondaryAction = onOpenScan` 改成 `onSecondaryAction = {}`。
+  **动手前先读了改动后的代码**，据此断定：按钮**仍会渲染**（`secondaryActionText`
+  未动），但点击变成空操作。于是预测「只断言可见性的那条仍绿，断言行为的那条红」。
+  实测**一字不差**：
+
+  | 用例 | 结果 |
+  |---|---|
+  | `emptyStateScanActionFiresTheScreensOnOpenScanCallback` | **RED** |
+  | `emptyContactsListRendersTheEmptyStateWithBothActions` | 仍 **ok** |
+
+  这恰好直观证明了「每例必须同时断言可见性与行为」不是洁癖：
+  **只断言可见性的测试，对这次回归完全无感。** 两轮 NC 均还原，
+  `diff` 确认与 HEAD 逐字节相同。
+- **最终实测**：新测试 5 tests / 0 failures / 0 skipped（XML 逐条核对）；
+  全量 instrumented **118 tests / 0 failures**（27 skipped 仍在
+  `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。
+- **对既有记录的更正**：§11 Q03 第 1 项里「`ContactsScreen`/`ExploreScreen` 本体带
+  `viewModel()` 默认参数，需先做依赖注入改造才能测，卡点已记录」**此话作废**——
+  真实情况是「不需要改造，显式传 VM 即可；唯一代价是复刻约 80 行 fake」。
+  同类更正适用于 G301c 台账条目中的同一句。
