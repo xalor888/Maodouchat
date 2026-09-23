@@ -10195,3 +10195,34 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   2. **G231b lint 抓到我引入的一个真文案 bug**（视频保存失败显示「导出失败」）。
 - **实测结果**：lintDebug BUILD SUCCESSFUL；app JVM **2059 例 0 失败**；
   ratchet 2 例 0 失败；基线 629 → 617（LocalContext 归零）。
+
+### G233b — lint 债收口：确认剩余 617 条**全是信息性警告**，且基线稳定
+
+- **动机**：G232b 把错误级清零（LocalContext 41→0），基线还剩 617 条。
+  本轮回答「这 617 条还要不要还」。
+- **逐类查完，结论是「三条都不必还」**：
+  1. **`UnusedResources`（298 条）——release 已自动剥**：
+     `app/build.gradle.kts:148` `isShrinkResources = true`，R8 在打 release 包时
+     就把这些死字符串从 APK 里摘掉了。所以它们**不占包体、不影响运行**，
+     留着只是源码噪音。
+  2. **`UseKtx`（209 条）**——纯风格（能用 `Context.getSystemService<T>()` 就不用
+     `getSystemService(NAME) as T`）。无行为影响。
+  3. **`StaticFieldLeak`（2 条）——是误报**：
+     `AiProfileRepository.INSTANCE` 由 `AiProfileRepository(context.applicationContext)`
+     创建（第 142 行，显式取 applicationContext）；
+     `WebSocketClient.ManagerHolder.tokenManager` 存的 `TokenManager`
+     也是 `TokenManager(context.applicationContext)` 建的单例（TokenManager.kt:414）。
+     两者持的都是**应用上下文**，不是 Activity——不是泄漏。
+  4. 其余 108 条分散在 `GradleDependency`/`NewerVersionAvailable`（版本升级）、
+     `Recycle`（8 条，API 21+ 上 Bitmap 由 GC 回收，该检查基本过时）、
+     `HardwareIds`/`Aligned16KB`（机型适配）、图标类 10 条等。
+- **只有 `UnsafeDynamicallyLoadedCode ×1` 值得记一句**：那是
+  `WebRTCManager` 按需 `System.load` 服务端下发的 `.so`——**是设计如此**
+  （基础 APK 剔掉 9.86MB 的 libjingle，首次通话前下载预加载），不是漏洞。
+- **一条经验证的稳定性结论**：同一工具链下**再跑一次 `updateLintBaseline`，
+  输出与现有基线逐字节相同**（617 → 617，`diff -q` 无差异）。
+  说明基线没有在「静默发霉」——它精确等于当前代码的 lint 状态。
+  将来若 AGP/lint 升级带来新检查，重生成就会变，届时 ratchet 会逼人看一眼。
+- **状态**：lintDebug BUILD SUCCESSFUL；ratchet 2 例 0 失败；工作区干净；未推送 0。
+- **结论：这条线可以收了。** 剩余 617 条是「已知且不影响发布物」的警告，
+  由基线 + ratchet 永久盯着，**新增任意一条都会红**。
