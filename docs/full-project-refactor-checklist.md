@@ -10723,3 +10723,38 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   一次有效负控制（4 条红）；生产文件 `git diff` 为空。
 - **遗留（记录在案，不动）**：`copyFileToCache`、`readLocalFileMetadata`
   仍是零调用 public API；`looksLikeLocalMediaUri` 现已 6 例覆盖。
+
+### G185c — Room 写入合并规则的 REVOKED/FAILED 盲区补上；**差点重复造 9 例**（app 2092 → 2101）
+
+- **动机**：`data/repository` 19 个类里 9 个零测试引用。挑中
+  `MessagePersistencePolicy`（140 行 / 8 fun，纯逻辑零 IO）——它决定**消息内容
+  会不会在 Room 合并时被覆盖丢失**，且文件里三条注释都是踩过坑的经验。
+- **第一版写错了一个重要前提**：我以为它「只被间接引用 1 次，没有专门测试」。
+  写完 17 例才发现 `app/src/test/java/com/maodouchat/data/MessagePersistencePolicyTest.kt`
+  （**8 月 28 日就存在，9 例**）——**我的 17 例里 8 例语义重复**。
+  按目标第 (6) 条「不要重复造」，把独有 9 例追加进已有文件、删掉我造的文件。
+  教训：**下手前该先 `find app/src/test -name '<同名>.kt`**，我这次是靠
+  「有两个同名 XML」才发现的。
+- **真正补上的盲区（实测原 9 例完全没覆盖）**：
+  1. **REVOKED 单向吸收两条**——`existing` 是 REVOKED 不被非 REVOKED 顶掉；
+     `incoming` 是 REVOKED 一律生效（哪怕它更旧）；
+  2. **FAILED 状态阶梯六条**——FAILED 只替换 SENDING/FAILED、不抹 SENT/DELIVERED/READ；
+     existing=FAILED 时仅 SENDING/SENT 可救回，**DELIVERED/READ 不可顶掉 FAILED**
+     （否则待重试的本地失败被静默吞掉）；
+  3. `mergeLocalMediaMetaForPersistence` 只 OR 两方（vs `preserveLocalMediaFlags` 三方）；
+  4. 明文胜密文的**反方向**（原 9 例只测了一个方向）；
+  5. 密文胜占位符；同状态幂等。
+- **负控制命中已有那条用例**：把 `sealedSender = existing || incoming` 改成
+  `incoming.sealedSender` → **`sealed sender cannot be downgraded by stale snapshot`
+  FAILED**。这是原 9 例里的，证明**已有断言是真在守的**，不是摆着好看。
+- **踩了一个 import 歧义坑（值得记）**：已有文件 import 的是
+  `org.junit.Assert.assertEquals`（签名 `(message, expected, actual)`），
+  我追加段用的是 `kotlin.test.assertEquals`（`(expected, actual, message)`）。
+   直接加 `import kotlin.test.assertEquals` 会让两个重载同时可见，
+   **已有的 JUnit4 调用点被解析成 message/actual 互换**，两条用例报
+   `expected:<明天见> but was:<明文在左...>`。改成**全限定 `kotlin.test.assertEquals`**
+   只在我的追加段使用，不碰已有 import。
+- **夹具**：用已有文件的 `base(id)` + `.copy(...)` 风格，没有引入第二套工厂。
+- **实测结果**：`data.MessagePersistencePolicyTest` **9 → 18 例**（0 失败）；
+  app JVM **2092 → 2101 例**；一次有效负控制；生产文件 `git diff` 为空。
+- **M5 无关项**：本轮纯测试补盲，不动 M5 状态。
