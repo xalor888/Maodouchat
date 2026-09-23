@@ -4,7 +4,11 @@ import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.ChatUserSettings
+import com.maodouchat.server.db.GroupPolls
 import com.maodouchat.server.db.GroupPollVotes
+import com.maodouchat.server.db.MessagingV2Messages
+import com.maodouchat.server.db.PinnedMessages
+import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.Users
 import org.jetbrains.exposed.sql.Database
@@ -530,5 +534,131 @@ class AdminExportRepositoryTest {
         seedChat("c_new", chatType = "DIRECT", disappearingSeconds = 60, memberRevision = 9)
         val ids = repo.disappearingChats(10).map { it.first().toString() }
         assertEquals(listOf("c_new", "c_old"), ids, "必须按 memberRevision 倒序")
+    }
+
+    // ---- G186f：剩余里仅有的三个带过滤/关联逻辑的导出 ----
+
+    private fun seedPinnedMessage(chatId: String, messageId: String, pinnedBy: String, pinnedAt: Long) {
+        transaction {
+            MessagingV2Messages.insert {
+                it[MessagingV2Messages.id] = messageId
+                it[MessagingV2Messages.conversationId] = chatId
+                it[MessagingV2Messages.senderUserId] = pinnedBy
+                it[MessagingV2Messages.senderDeviceId] = 1
+                it[MessagingV2Messages.kind] = "TEXT"
+                // 这三列必填且无 default（G186f 实测踩到：CLIENT_TIMESTAMP not allowed NULL）
+                it[MessagingV2Messages.clientTimestamp] = pinnedAt
+                it[MessagingV2Messages.serverTimestamp] = pinnedAt
+                it[MessagingV2Messages.requestDigest] = "d".repeat(64)
+            }
+            PinnedMessages.insert {
+                it[PinnedMessages.chatId] = chatId
+                it[PinnedMessages.messageId] = messageId
+                it[PinnedMessages.pinnedBy] = pinnedBy
+                it[PinnedMessages.pinnedAt] = pinnedAt
+            }
+        }
+    }
+
+    @Test
+    fun `pinned messages export excludes pins belonging to secret chats`() {
+        // 与 mutedChats / chatSettings 同一套 SECRET 过滤，但那两个已测、这个没有
+        seedUser("u1", 1_000L)
+        seedChat("c_plain", chatType = "DIRECT")
+        seedChat("c_secret", chatType = "SECRET")
+        seedPinnedMessage("c_plain", "m_plain", "u1", 1_000L)
+        seedPinnedMessage("c_secret", "m_secret", "u1", 9_000L)
+        val rows = repo.pinnedMessages(10)
+        assertEquals(1, rows.size, "密聊的置顶消息必须被排除")
+        assertEquals("c_plain", rows.single()[0], "只剩普通聊天的置顶")
+        assertEquals(4, rows.single().size, "列数必须稳定（chatId/messageId/pinnedBy/pinnedAt）")
+    }
+
+    @Test
+    fun `pinned messages export is ordered newest pin first`() {
+        seedUser("u1", 1_000L)
+        seedChat("c1", chatType = "DIRECT")
+        seedChat("c2", chatType = "DIRECT")
+        seedPinnedMessage("c1", "m_old", "u1", 1_000L)
+        seedPinnedMessage("c2", "m_new", "u1", 9_000L)
+        val rows = repo.pinnedMessages(10)
+        assertEquals(listOf("c2", "c1"), rows.map { it.first().toString() }, "必须按 pinnedAt 倒序")
+    }
+
+    @Test
+    fun `pinned messages export is empty with no pins`() {
+        assertTrue(repo.pinnedMessages(10).isEmpty())
+    }
+
+    private fun seedPoll(id: String, chatId: String, creatorId: String, createdAt: Long) {
+        transaction {
+            GroupPolls.insert {
+                it[GroupPolls.id] = id
+                it[GroupPolls.chatId] = chatId
+                it[GroupPolls.creatorId] = creatorId
+                it[GroupPolls.question] = "q_$id"
+                it[GroupPolls.optionsJson] = "[\"a\",\"b\"]"
+                it[GroupPolls.createdAt] = createdAt
+            }
+        }
+    }
+
+    @Test
+    fun `polls export counts votes per poll and zero votes are not null`() {
+        // 8.48 的批量 count 优化最容易错的地方：0 票 poll 不能漏出也不能变 null
+        seedUser("u1", 1_000L)
+        seedPoll("p_voted", "c1", "u1", 2_000L)
+        seedPoll("p_empty", "c1", "u1", 1_000L)
+        repeat(3) { i ->
+            transaction {
+                GroupPollVotes.insert {
+                    it[GroupPollVotes.pollId] = "p_voted"
+                    it[GroupPollVotes.userId] = "voter$i"
+                    it[GroupPollVotes.optionIndex] = 0
+                    it[GroupPollVotes.votedAt] = 1_000L
+                }
+            }
+        }
+        val byId = repo.polls(10).associateBy { it.first().toString() }
+        assertEquals(2, byId.size, "两个 poll 都应导出（0 票的不能漏）")
+        assertEquals("3", byId["p_voted"]?.get(7), "有 3 票的 poll 必须数成 3")
+        assertEquals("0", byId["p_empty"]?.get(7), "0 票必须导出成 0 而不是 null")
+        assertEquals(10, byId.values.first().size, "列数必须稳定")
+    }
+
+    @Test
+    fun `polls export is empty with no polls and does not query votes`() {
+        assertTrue(repo.polls(10).isEmpty(), "空库必须返回空列表（且不能因 inList 空集合报错）")
+    }
+
+    @Test
+    fun `polls export is ordered newest poll first`() {
+        seedUser("u1", 1_000L)
+        seedPoll("p_old", "c1", "u1", 1_000L)
+        seedPoll("p_new", "c1", "u1", 9_000L)
+        assertEquals(listOf("p_new", "p_old"), repo.polls(10).map { it.first().toString() }, "必须按 createdAt 倒序")
+    }
+
+    @Test
+    fun `risk events export lists each event with its columns`() {
+        seedUser("u1", 1_000L)
+        transaction {
+            RiskEvents.insert {
+                it[RiskEvents.id] = "r1"
+                it[RiskEvents.userId] = "u1"
+                it[RiskEvents.sourceValue] = "message"
+                it[RiskEvents.action] = "flag"
+                it[RiskEvents.createdAt] = 1_000L
+            }
+        }
+        val rows = repo.riskEvents(10)
+        assertEquals(1, rows.size)
+        assertEquals("u1", rows.single()[1], "userId 列必须如实导出")
+        assertEquals("message", rows.single()[2], "source 列必须如实导出")
+    }
+
+    @Test
+    fun `risk events export is empty without events`() {
+        assertTrue(repo.riskEvents(10).isEmpty())
     }
 }

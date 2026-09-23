@@ -10943,3 +10943,37 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   reports(7) / riskEvents(7) / sessionsSummary(4,内部 try/catch) / polls(9) /
   reportsMeta(9) / chatSettings(7) / pinnedMessages(4) / chats(5) /
   auditExportRows(19列) / deviceSequences(5) / deviceAnomalyCount / deviceAnomalies(10)。
+
+### G186f — 剩余里仅有的三个带过滤/关联逻辑的导出有测试了（server 504 → 512）
+
+- **挑这三个不再凭感觉**：实测剩余 17 个 fun 里，只有这三个带 where/andWhere/子查询/联表 count——
+  其余的都是 `selectAll().orderBy().limit()`（排序与 limit 已被前几轮的用例覆盖同形态）。
+- **`pinnedMessages` 的 SECRET 排除（本目标最重要）**：
+  `chatId notInSubQuery (Chats.select(id).where { chatType eq SECRET })`
+  ——和 `mutedChats`/`chatSettings` 同一套 SECRET 过滤，但那两个已测、这个没有，
+  **漏一个就是密聊数据越权**。另测排序（pinnedAt DESC）与空库。
+- **`polls` 的 8.48 批量 count（H6 修复）**：此前逐投票查询 → limit 1 万次查询。
+  测了 3 票 poll 数成 3、**0 票 poll 必须导出成 `"0"` 而不是 null**
+  （`votesByPoll[id] ?: 0L` 那条兜底——批量优化最容易错的地方）、空库不因
+  `inList` 空集合报错、排序稳定、列数 10。
+- **`riskEvents`**：单表 + 多列排序 + limit，测列值与空库。
+- **踩了一个 seed 坑**：`MessagingV2Messages` 有 **3 个必填无 default 列**
+  （`clientTimestamp`/`serverTimestamp`/`requestDigest`），第一版没插 →
+  `NULL not allowed for column CLIENT_TIMESTAMP`。
+  而且这个失败**连带污染了同 class 里后续全部 35 条旧用例**
+  （H2 `DB_CLOSE_DELAY=-1` + `@AfterEach DROP ALL OBJECTS` 让库停留在半清空状态），
+  一度看起来像「我把旧测试全写坏了」。补全必填列后 43 例全绿。
+  **教训（第一百零七次沉淀）：往有外键/必填列的表 seed 前，先 `grep 'val ' | grep -v default(`。
+     另外，一个用例炸掉导致同 class 全红时，先修第一个，别急着怀疑自己改了一路的东西。**
+- **目标指定的负控制单杀**：删掉 `pinnedMessages` 的 SECRET 子查询过滤 →
+  `pinned messages export excludes pins belonging to secret chats` **FAILED**。
+  证明密聊排除真的被管辖。
+- **实测结果**：`AdminExportRepositoryTest` **35 → 43 例**，0 失败；
+  server 全量 **504 → 512 例**，0 失败（9m17s）；一次单杀负控制；
+  生产文件 `git diff` 为空（三处 `notInSubQuery` 都在）。
+- **覆盖进度：30 个 fun 已覆盖 16 个**（新增 pinnedMessages / polls / riskEvents）。
+  **剩余 14 个**：pushTokens(6) / bots(9) / botCommandStats(6) / friendships(3) /
+  reports(7) / sessionsSummary(4,内部 try/catch) / reportsMeta(9) / chatSettings(7) /
+  chats(5) / auditExportRows(19列) / deviceSequences(5) / deviceAnomalyCount /
+  deviceAnomalies(10)。**这 14 个都是纯 selectAll 同形态**——覆盖它们的边际价值
+  确实低于前三个（那三个有真过滤）。
