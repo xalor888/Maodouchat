@@ -10870,3 +10870,44 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   要么内部有 try/catch 兜底（sessionsSummary），要么列数多（botCommandStats 5 列）。
   按目标允许的「写清为何停」，停在「已覆盖 users + 2 个审计/风险类 + 列数/排序/limit
   三类不变量都有正面和负面验证」这个点上。
+
+### G186d — AdminExportRepository 覆盖 4 → 10 个 fun；**推翻我上轮「seed 成本高」的判断**（server 485 → 495）
+
+- **上轮的判断是错的**。我说「剩下 17 个都需要多表 seed、边际价值下降」，
+  本轮实测发现：剩余 25 个里**绝大多数 `join=0`、类引用 ≤2**，其中 4 个
+  （onlinePresence / privacyFlags / identityUsers / totpUsers）查的是**我已经会 seed 的 Users 表**，
+  列数 4–5。我又一次「先下结论、后看数据」——这次是数据打我脸。
+- **新增 10 例**（Users 系 7 + 非 Users 系 3）：
+  - `onlinePresence` / `privacyFlags` / `identityUsers` ×3：空库、种子、列数稳定、
+    各 flag 列如实导出；
+  - `totpUsers` ×2：**`where { totpEnabled eq true }` 过滤（只启用 2FA 的用户出现，
+    未启用的不出现）**、空库；
+  - **`email.take(3) + "***"` 脱敏 ×3**：正常邮箱（`user@example.com` → `use***`）、
+    短邮箱（`a@b.c` → `a@b***`、`ab@c.d` → `ab@***`）——钉住脱敏形状，
+    防将来有人「顺手」改成导出完整邮箱（PII 泄露）；
+  - `pollVotes` ×2：GroupPollVotes 单表；
+  - `groupInvites` ×1：Chats 单表 + `groupInviteToken.isNotNull()` 过滤。
+- **目标指定的负 control 双杀**：删掉 `where { totpEnabled eq true }` →
+  `totp users export only includes users who enabled two factor` **和**
+  `totp users export is empty when nobody enabled two factor` **同时 FAILED**。
+  证明 2FA 过滤真的被管辖（漏一个启用 2FA 的用户就是数据越权）。
+- **五处断言错在我自己，不在生产代码**（连续修了三轮）：
+  1. `onlinePresence` 的列序是 `id/isOnline/lastSeen/showOnline`，
+     我按自己想的顺序索引，`isOnline` 没 seed 却断言 `"true"`；
+  2. `privacyFlags` 列序是 `id/showOnline/showStatus/searchable`，同样索引错位；
+  3. token `take(12)` 得 12 字符 `tok_abcdef12`，我断言写成 11 个字符；
+  4. `showOnline=false` 没在 seed 调用里传（只传了 showStatus/searchable）；
+  5. `groupInviteExpiresAt = 9000` 我断言写成 `"9"`。
+  **教训（第一百零六次沉淀）：写「列序」断言前，先去读实现的 listOf 顺序，
+     不要按字段名猜。五处错全是这么来的。**
+- **实测结果**：`AdminExportRepositoryTest` **16 → 26 例**，0 失败；
+  server 全量 **485 → 495 例**，0 失败（9m16s）；一次双杀负控制；
+  生产文件 `git diff` 为空。
+- **覆盖进度**：30 个 fun 里**已覆盖 10 个**（users / moderationAudit /
+  blockedUsers / messageStats / onlinePresence / privacyFlags / identityUsers /
+  totpUsers / pollVotes / groupInvites）。
+  **剩余 20 个**：bots(9列) / botCommandStats(6) / friendships(3) / reports(7) /
+  riskEvents(7) / sessionsSummary(4,内部 try/catch) / polls(9) / reportsMeta(9) /
+  chatSettings(7) / disappearingChats(4) / mutedChats(5) / restrictedUsers(4) /
+  pinnedMessages(4) / chats(5) / pushTokens(6) / auditExportRows(19列!) /
+  deviceSequences(5) / deviceAnomalyCount / deviceAnomalies(10)。

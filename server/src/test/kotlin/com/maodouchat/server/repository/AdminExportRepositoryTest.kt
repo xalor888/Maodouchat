@@ -2,6 +2,8 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.db.BlockedUsers
+import com.maodouchat.server.db.Chats
+import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.Users
 import org.jetbrains.exposed.sql.Database
@@ -230,5 +232,151 @@ class AdminExportRepositoryTest {
     @Test
     fun `blocked users export is empty when nobody is blocked`() {
         assertTrue(repo.blockedUsers(10).isEmpty(), "没有拉黑记录时必须返回空列表")
+    }
+
+    // ---- G186d：再把覆盖从 4 个 fun 扩到 ~10 个 ----
+
+    private fun seedUser(
+        id: String,
+        lastSeen: Long,
+        totpEnabled: Boolean = false,
+        showOnline: Boolean = true,
+        showStatus: Boolean = true,
+        searchable: Boolean = true,
+        email: String = "$id@x.com",
+    ) {
+        transaction {
+            Users.insert {
+                it[Users.id] = id
+                it[Users.name] = "n_$id"
+                it[Users.email] = email
+                it[Users.passwordHash] = "h"
+                it[Users.lastSeen] = lastSeen
+                it[Users.totpEnabled] = totpEnabled
+                it[Users.showOnline] = showOnline
+                it[Users.showStatus] = showStatus
+                it[Users.searchable] = searchable
+            }
+        }
+    }
+
+    // ---- Users 系的四个导出 ----
+
+    @Test
+    fun `online presence export shows the presence flags per user`() {
+        seedUser("u_online", 1_000L, showOnline = true)
+        seedUser("u_hidden", 2_000L, showOnline = false)
+        val rows = repo.onlinePresence(10)
+        assertEquals(2, rows.size, "每个用户一行")
+        assertEquals(4, rows.first().size, "列数必须稳定（id/isOnline/lastSeen/showOnline）")
+        val byId = rows.associateBy { it.first().toString() }
+        // 列序实测为 id/isOnline/lastSeen/showOnline；isOnline 我没 seed（默认 false）
+        assertEquals("false", byId["u_online"]?.get(1), "未 seed isOnline 的用户该列为 false")
+        assertEquals("1000", byId["u_online"]?.get(2), "lastSeen 列必须是种子时间戳")
+        assertEquals("true", byId["u_online"]?.get(3), "showOnline=true 的用户该列必须是 true")
+        assertEquals("false", byId["u_hidden"]?.get(3), "showOnline=false 的用户该列必须是 false")
+    }
+
+    @Test
+    fun `privacy flags export shows the three privacy switches`() {
+        seedUser("u_open", 1_000L, showStatus = true, searchable = true)
+        seedUser("u_closed", 1_000L, showOnline = false, showStatus = false, searchable = false)
+        val rows = repo.privacyFlags(10)
+        val byId = rows.associateBy { it.first().toString() }
+        assertEquals(4, rows.first().size, "列数必须稳定（id/showOnline/showStatus/searchable）")
+        assertEquals("false", byId["u_closed"]?.get(1), "showOnline=false 必须如实导出")
+        assertEquals("false", byId["u_closed"]?.get(2), "showStatus=false 必须如实导出")
+        assertEquals("false", byId["u_closed"]?.get(3), "searchable=false 必须如实导出")
+        assertEquals("true", byId["u_open"]?.get(3))
+    }
+
+    @Test
+    fun `identity users export mixes identity flags with a masked email`() {
+        seedUser("u1", 1_000L, searchable = true, showOnline = true, totpEnabled = false, email = "user@example.com")
+        val rows = repo.identityUsers(10)
+        assertEquals(1, rows.size)
+        assertEquals(5, rows.single().size, "列数必须稳定")
+        assertEquals("use***", rows.single()[4], "邮箱必须脱敏成 前3字符+***")
+    }
+
+    @Test
+    fun `totp users export only includes users who enabled two factor`() {
+        // 本目标最重要的一条：2FA 过滤漏一个就是数据越权
+        seedUser("u_2fa_on", 1_000L, totpEnabled = true)
+        seedUser("u_2fa_off", 2_000L, totpEnabled = false)
+        val ids = repo.totpUsers(10).map { it.first().toString() }
+        assertEquals(listOf("u_2fa_on"), ids, "只应导出了启用 2FA 的用户")
+    }
+
+    @Test
+    fun `totp users export is empty when nobody enabled two factor`() {
+        repeat(3) { seedUser("u$it", 1_000L + it, totpEnabled = false) }
+        assertTrue(repo.totpUsers(10).isEmpty(), "无人启用 2FA 时必须导出空列表")
+    }
+
+    @Test
+    fun `totp users export masks short emails without crashing`() {
+        seedUser("u_short", 1_000L, totpEnabled = true, email = "a@b.c")
+        val rows = repo.totpUsers(10)
+        assertEquals(1, rows.size)
+        // take(3) 对短串是安全的（Kotlin 的 take 不会越界），钉住实际形状
+        assertEquals("a@b***", rows.single()[2], "短邮箱脱敏后应保持原样加 ***")
+    }
+
+    @Test
+    fun `identity users export also masks short emails`() {
+        seedUser("u_s", 1_000L, email = "ab@c.d")
+        assertEquals("ab@***", repo.identityUsers(10).single()[4], "2 字符邮箱脱敏形状")
+    }
+
+    // ---- 非 Users 系的单表查询 ----
+
+    @Test
+    fun `poll votes export lists each vote with its option index`() {
+        transaction {
+            GroupPollVotes.insert {
+                it[GroupPollVotes.pollId] = "p1"
+                it[GroupPollVotes.userId] = "u1"
+                it[GroupPollVotes.optionIndex] = 2
+                it[GroupPollVotes.votedAt] = 1_000L
+            }
+        }
+        val rows = repo.pollVotes(10)
+        assertEquals(1, rows.size, "一票一行")
+        assertEquals(4, rows.single().size, "列数必须稳定（pollId/userId/optionIndex/votedAt）")
+        assertEquals("2", rows.single()[2], "optionIndex 必须如实导出")
+    }
+
+    @Test
+    fun `poll votes export is empty without votes`() {
+        assertTrue(repo.pollVotes(10).isEmpty())
+    }
+
+    @Test
+    fun `group invites export only includes chats that have an invite token`() {
+        // 有 token 的群
+        transaction {
+            Chats.insert {
+                it[Chats.id] = "c_with_token"
+                it[Chats.isGroup] = true
+                it[Chats.groupInviteToken] = "tok_abcdef123456"
+                it[Chats.groupInviteExpiresAt] = 9_000L
+                it[Chats.groupInviteMaxUses] = 10
+                it[Chats.groupInviteUseCount] = 3
+            }
+        }
+        // 没有 token 的群
+        transaction {
+            Chats.insert {
+                it[Chats.id] = "c_no_token"
+                it[Chats.isGroup] = true
+                it[Chats.groupInviteToken] = null
+            }
+        }
+        val rows = repo.groupInvites(10)
+        assertEquals(1, rows.size, "只应导出有邀请 token 的会话")
+        assertEquals(5, rows.single().size, "列数必须稳定")
+        assertEquals("tok_abcdef12", rows.single()[1], "token 应截断到 12 字符")
+        assertEquals("9000", rows.single()[2], "过期时间戳必须如实导出")
     }
 }
