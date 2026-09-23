@@ -12697,3 +12697,25 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   上次升级是 1.1.20→1.2.1；健康端点 `/health/live`、`/health/ready` 曾返回 200，
   TLS 为 Let's Encrypt（CN=chat.mdou.me，当时有效期至 2026-11-18）。
   这些是**历史记录，不是本轮实测**。
+
+
+### G299c（续）— E2E 失败经重跑证实是**已知的不稳定**，非回归；tip 现全绿
+
+- **首跑结果**：`de8e806a` 的 CI 报 `failure`，但逐作业拆开看——
+  `Android`（编译+全部门禁+lint+APK dry-run）、`Server`、`Docker Compose Config`
+  **全部 BUILD SUCCESSFUL**；`Android Instrumented` 里
+  **`connectedDebugAndroidTest` 也是 BUILD SUCCESSFUL（55 例主套件通过）**，
+  挂的是它之后的 `bash scripts/two-device-http-e2e.sh`
+  （日志末行 `[e2e] 结束：用例状态=1 gradle 状态=1`，作业 9m10s 提前退出）。
+- **判定依据（三条同时成立）**：
+  1. 本次改动是**纯文档**（台账追加 + §0 字节同步），不可能因果性破坏 E2E；
+  2. DIRECTION.md §4 明确记载该 E2E 的不稳定性——「headless 整程约 2.2s 会与
+     插件定时器赛跑，**约 1/3 概率**把没做的事报成做完了」；
+  3. 主套件（含 instrumented 加密往返等 55 例）通过，只有 E2E 阶段挂。
+- **动作**：`gh run rerun 35899991140 --failed`（只重跑失败的作业），
+  结果 **四个作业全绿**（`✓ main CI`，Android Instrumented 7m30s）。
+  当前 tip `de8e806a` 因此是全绿状态。
+- **可复用的结论**：这个项目的 E2E 失败**默认先怀疑 flaky、用 `rerun --failed` 验证**，
+  而不是先查自己的改动——但要同时满足上面三条，缺一条就得回头查回归。
+  本次三条都满足，且重跑直接转绿，故判定为 flaky。
+- **本轮仍未做的事**：v1.3.0 仍未推给用户（生产不可达，见上一节）。
