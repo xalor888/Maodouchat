@@ -10418,3 +10418,26 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   一次有效负控制；四个坑全部记录在案。
 - **留待下一轮**：server 侧还没有这条门禁（两边 stripComments 各一份的同构问题，
   这里同样存在——下一轮补，并保持两边语义一致）。
+
+### G182e — KDoc 定界符门禁补到 server 侧，两侧同构（server 468 → 469）
+
+- **背景**：G182d 在 app 侧立了 `no test kdoc contains a literal comment delimiter`
+  并留了一条待办：server 侧还缺同构用例。本轮补上，§3.5 第 3 条至此两侧都有测试守护。
+- **做法与坑（移植时逐个核对，没有重犯）**：
+  1. KDoc 开口按**行首匹配**——不用 indexOf 全文找（否则把代码里的字符串字面量
+     当成 KDoc 起点，门禁自判违规）；
+  2. 开口是**斜线星星（三字符）**——不是两个斜线星拼接（那是四字符，
+     indexOf 与正则都匹配不上，门禁空转）；
+  3. 门禁自身 KDoc **只用文字**描述三个符号，绝不贴字面实例——
+     我在 G182d 写门禁时就 parceque 贴了实例把自己 KDoc 提前结束；
+  4. 防空转断言：抽不到 ≥10 个带 KDoc 的 @Test 就红（server 侧实测 11 个）。
+- **与 app 侧的关系：两份实现、语义一致，没有跨构建引用。**
+  `server/` 是独立 Gradle 构建（`cd server && ../gradlew test`），
+  与 stripComments 的同构问题同一处理原则——可以重复，不许耦合。
+- **负控制**：在 `messaging invariant numbering` 那个 @Test 的 KDoc 里贴一个干净的
+  双斜线 → `no test kdoc contains a literal comment delimiter` **FAILED**。
+  **还原单独一条命令执行并 `diff` 验证**（G182d 在这里吃过亏：还原和长命令串在
+  一起被 60s 超时一起杀掉，坏代码差点进主干），复跑转绿。
+- **实测结果**：server 全量 **468 → 469 例**（152 suites / 0 失败，9m19s）；
+  app 全量复查 **2070 例 0 失败**（未被带坏）。
+- **至此 §3.5 三条落地要求两侧全部有测试守护。**

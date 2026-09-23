@@ -282,6 +282,94 @@ class MessagingInvariantTraceabilityTest {
         )
     }
 
+    // G182e：三个定界符一律用拼接构造，源文本里不出现字面实例（这条门禁自己也受管辖）
+    private val slashStar = "/" + "*"
+    private val starSlash = "*" + "/"
+    private val slashSlash = "/" + "/"
+
+    /**
+     * 抽出「紧邻 @Test 函数的 KDoc」的 (行号, 正文)。正文不含首尾定界符。
+     *
+     * 开口必须**位于行首**（前面只有空白）才算 KDoc——写在代码字符串里的同名片段不算。
+     * G182e 移植自 app 侧，自带那边踩过的三个坑的修正：
+     * (a) 一版用 indexOf 找开口，把本文件里代码的字符串字面量当成了 KDoc 起点，
+     *     门禁第一次跑就把自己判违规；
+     * (b) 开口必须是斜线星星（三字符），不是两个斜线星拼接——那是四字符，
+     *     indexOf 与正则都匹配不上，门禁空转，被防空转断言抓住；
+     * (c) 想把这些教训写进 KDoc 时贴了符号的字面实例，真的把 KDoc 提前结束。
+     *     所以这里只按 §3.5 的约定用文字描述。
+     */
+    private fun kdocBodiesOfTestFunctions(text: String): List<Pair<Int, String>> {
+        val out = mutableListOf<Pair<Int, String>>()
+        val docOpen = slashStar + "*"   // 斜线星星（三字符）
+        var from = 0
+        while (true) {
+            val start = text.indexOf(docOpen, from)
+            if (start < 0) break
+            from = start + 1
+            val lineStart = text.lastIndexOf('\n', if (start == 0) 0 else start - 1) + 1
+            val prefix = text.substring(lineStart, start)
+            if (prefix.isNotEmpty() && !prefix.all { it == ' ' || it == '\t' }) continue
+            val bodyStart = start + docOpen.length
+            val end = text.indexOf(starSlash, bodyStart)
+            if (end < 0) continue
+            val body = text.substring(bodyStart, end)
+            val after = text.substring(end + 2).take(600).trimStart()
+            val annotations = Regex("^(@\\w+(\\([^)]*\\))?[ \\t]*\n?[ \\t]*)*").find(after)?.value ?: ""
+            val rest = after.removePrefix(annotations).trimStart()
+            if (rest.startsWith("fun ") && after.contains("@Test")) {
+                out.add((text.substring(0, start).count { it == '\n' } + 1) to body)
+            }
+        }
+        return out
+    }
+
+    /**
+     * G182e：**任何 @Test 函数的 KDoc 里不得出现注释定界符的字面实例**。
+     *
+     * 与 app 侧 `ClientArchitectureTest` 同名用例同构（DIRECTION.md §3.5 第 3 条）。
+     *
+     * 实测结论（app 侧 G182d 已确认，此处同样成立）：Kotlin 块注释可嵌套，
+     * 所以 KDoc 里出现斜线星会再开一层注释、出现星斜线会提前结束——两者都
+     * **编译失败**，由编译器强制，测试门禁走不到那一步。因此这条门禁真正能守的
+     * 只有**双斜线**：它能编译通过，却会污染任何「按出现次数判罚」的粗粒度门禁。
+     *
+     * 协议分隔符不算违规（KDoc 里写 URL 是正常需求），其余一律算。
+     */
+    @Test
+    fun `no test kdoc contains a literal comment delimiter`() {
+        val testRoot = File("src/test")
+        assertTrue(testRoot.isDirectory, "server/src/test 不存在——空目录会让这条门禁恒真")
+        var scanned = 0
+        val violations = mutableListOf<String>()
+        testRoot.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .sortedBy { it.path }
+            .forEach { f ->
+                kdocBodiesOfTestFunctions(f.readText()).forEach { (line, body) ->
+                    scanned++
+                    // 协议分隔符不算：先摘掉 ://，再查双斜线
+                    val withoutProtocol = body.replace("://", "")
+                    val found = mutableListOf<String>()
+                    if (body.contains(slashStar)) found.add("slash-star")
+                    if (body.contains(starSlash)) found.add("star-slash")
+                    if (withoutProtocol.contains(slashSlash)) found.add("slash-slash")
+                    if (found.isNotEmpty()) {
+                        violations += "${f.path}:$line contains ${found.joinToString("、")}"
+                    }
+                }
+            }
+        assertTrue(
+            scanned >= 10,
+            "只抽到 $scanned 个带 KDoc 的 @Test——扫描逻辑可能坏了，这条门禁正在空转",
+        )
+        assertTrue(
+            violations.isEmpty(),
+            "These @Test KDocs contain literal comment delimiters; " +
+                "rewrite them in words per DIRECTION.md 3.5:\n" + violations.joinToString("\n"),
+        )
+    }
+
     @Test
     fun `the number of declared gaps only goes down`() {
         val pending = audit().filter { it.pending }.map { it.number }
