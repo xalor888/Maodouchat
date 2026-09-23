@@ -14,11 +14,11 @@
 
 | 事实 | 实测值 | 来源 |
 |------|--------|------|
-| 已跟踪文件 | 1802 | `git ls-files \| wc -l`
+| 已跟踪文件 | 1803 | `git ls-files \| wc -l`
 | 服务端测试文件 / 用例 | 121 个 / **564 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
 | 客户端 JVM 测试文件 / 用例 | 365 个 / **2116 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **12 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 978,230 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| 自审清单体量 | 981,326 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件** | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | 18 | `grep -rl org.jetbrains.exposed plugins/` |
@@ -125,7 +125,7 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 | M2 | 服务端中心边界闭环 | `plugins/` 事务数单调下降且 `AdminExportsRouting` 不再直写 Exposed；反向依赖 0 |
 | M3 | E2EE 不变量有证据 | messaging-v2 不变量中可服务端验证的部分 100% 有测试，且测试在改动实现时会红 |
 | M4 | 迁移与并发以 PG 为真源 | 迁移矩阵（空/旧/重复/中断/回滚）在 PG 上绿 |
-| M5 | 双账号双设备离线 E2E | 矩阵脚本可在本机复现，失败会给出可诊断输出 |
+| M5 | 双账号双设备离线 E2E | 矩阵脚本可在本机复现，失败会给出可诊断输出（G188a 已用命令输出核对：H2 与真 PG 各 `tests=27 failures=0`；受控失败 exit 1、环境配置错 exit 4 均给出可诊断输出） |
 | M6 | 客户端热点收敛 | 门禁覆盖 `ChatDetail*`/`GroupPlayPolicy`，旧路径真正删除 |
 
 **反面判据（出现即视为未完成）**：只改文档不改代码；只加测试不改行为；把 `[x]` 写成叙述而没有命令

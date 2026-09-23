@@ -11079,3 +11079,45 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   server 全量 **550 → 564 例**，0 失败（9m15s）；一次四杀负控制；
   生产文件 `git diff` 为空（洗牌已还原）。
 - **像素构造是确定性的**（`(x*31+y*17)` 之类），不用随机——失败可复现。
+
+### G188a — **用可执行证据正式重判 M5**：判据三条全部满足（矩阵脚本本机 H2/PG 双跑通）
+
+- **动机（一个过时认知的纠正）**：我这五轮一直以为「M5 卡在生产 PostgreSQL」。
+  量了才发现这句认知**停在 G184c 时期**——G62 早已让 `two-device-http-e2e.sh`
+  通过 `E2E_DATABASE_URL` 真跑过 PG，G36/G37 覆盖导出明文落点与备份面，
+  G60 闭合真·断网与网络抖动。**但没有一轮正式重判过 M5**，
+  台账 3245 行那句「M5 仍不能标 [x]」的理由早被逐条解决，却一直挂着。
+- **环境实测（先确认能复现，不空跑）**：
+  `adb devices` → `emulator-5556 device`（Android 16）；
+  `psql --version` → PostgreSQL 16.15；`maodouchat_e2e` 库在位。
+- **判据逐条核对（三条全部有命令输出）**：
+  1. **「矩阵脚本可在本机复现」——H2 路径**：
+     `bash scripts/two-device-http-e2e.sh` → **`tests=27 failures=0 errors=0`**，
+     exit 0，27 个用例名逐一 `ok`（比 G62 时的 24 例多 3 例：
+     `clientPlaintextNeverLandsOnDiskAndBackupStaysDisabled` 等）。
+  2. **「失败会给出可诊断输出」——两次受控失败验证，不是读代码断言**：
+     - (a) `E2E_TEST_CLASS=...ThisClassDoesNotExistTest` → **exit 1**，
+       输出 `FAIL ...#initializationError`、`tests=1 failures=1`、
+       `服务端启动次数=1 登录尝试次数=0`，并有独立的
+       `---- 服务端日志尾部（诊断） ----` 分节；
+     - (b) `E2E_DATABASE_URL=jdbc:postgresql://127.0.0.1:59999/nope` → **exit 4**，
+       打印「这不是矩阵失败，是环境配置失败——修好再跑，不要当成用例红」。
+       G62 加的反假绿预检**仍然承重**。
+  3. **「可在本机复现」包括真 PG 路径**：
+     `psql` 预检通过 → 同一套矩阵在 PG 16 上
+     **`tests=27 failures=0 errors=0`**，exit 0；
+     PG 侧落库实测：**61 张表**、`messaging_v2_messages` **40 行**、
+     `messaging_v2_envelopes` **121 行**、`users` **14 行**、
+     `schema_migrations` 到 **v5**；
+     **关键隔离结论复现**：`chats.last_message` 非空的只有 **1 条**，
+     且正是 bot 公告 `NDV:RISK Secret chats lock on untrusted new devices`
+     ——人类消息在真 PG 上同样**不写预览列**，与 H2 结论一致。
+- **一次操作失误，如实记**：第一次跑 PG 时我只传了 `E2E_DATABASE_URL` 没传
+  `E2E_DATABASE_DRIVER`，脚本报
+  `Driver org.h2.Driver claims to not accept jdbcUrl, jdbc:postgresql:...`。
+  **这是我没读 86-91 行的说明，不是脚本缺陷**（脚本本就支持 driver 覆盖）。
+  教训：环境变量一族有四个（URL/DRIVER/USER/PASSWORD），只传一个就想通——
+  **先 grep 脚本自己声明的变量清单再调用**。
+- **判据是否全部满足：是**。DIRECTION.md §3 的 M5 行已标注完成。
+- **本轮未改产品代码**（矩阵脚本代码无需修改——三条判据都由现有代码满足）；
+  server 与 app 全量维持 0 失败。
