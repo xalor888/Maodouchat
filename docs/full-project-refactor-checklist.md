@@ -11048,3 +11048,34 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **实测结果**：WebhookSecurityUtilsTest 32 例 0 失败（新文件）；
   server 全量 518 至 550 例 0 失败（9m22s）；一次单杀负控制；
   生产文件 git diff 为空。
+
+### G187b — blind_watermark 移植首次有测试；往返一致性一次通过（server 550 → 564）
+
+- **挑它的理由（量过）**：剩余零测试文件里它最可测——`object` 单例 + 两个公开
+  纯函数 + 零 IO（只 import kotlin.math 与 java.util.Random），只需 IntArray 像素。
+  相比之下 `SchemaMigration.kt`（595 行）的现有测试全依赖真实 PostgreSQL（M5 卡点）。
+- **另一个候选被排除的理由**：`AdminWatermarkExtractorTest` 已覆盖
+  FrequencyWatermark/DCT-QIM 那条路径，与本文件测的 ReferenceBlindWatermark **无重叠**
+  （先量清再动手，没有重复造）。
+- **14 例覆盖**：
+  - **往返一致性（核心硬证据）×4**：128×128 / 256×256、1 字节 / 5 字节 /
+    16 字节、0x00..0xFF 全谱——全部逐字节相等。这是整个移植正确性的唯一硬证据；
+  - 入参校验 ×2：pixels.size != width*height 抛 IllegalArgumentException；
+    payloadBitCount 为 0/负数/非 8 倍数返回 null；
+  - 容量边界 ×2：图太小 → **原样返回且不改一个像素**，且 extract 返回 null；
+    extract 时 blockNum <= payloadBitCount → null；
+  - **原数组不变性 ×1**：注释声称「原数组不变」，实测确认；
+  - **密码隔离 ×1**：错 passwordWm / 错 passwordImg 都读不回原 payload，
+    而正确密码始终读得回（这是洗牌+分块置换双重密码的实际效果）；
+  - **无水印判定 ×1**：平滑渐变图 extract 返回 null（置信度门
+    centers[1]-centers[0] < 0.6 生效，不会对干净图提出假阳性）；
+  - 位流工具 ×3：bytesToBits/bitsToBytes 恒等、非 8 倍数抛错、
+    **MSB first 位序**（0x80 的首位为 1、0x01 的末位为 1）。
+- **目标指定的负控制四杀**：把 embed 的 `shuffleBits(wmBits, passwordWm)`
+  改成不洗牌 → **4 条往返测试同时 FAILED**。
+  证明洗牌/逆洗牌这对互逆操作真的被管辖（少了它，位流会以明文顺序落进 DCT 块，
+  提取侧按洗牌后的顺序解读 → 全线错位）。
+- **实测结果**：`ReferenceBlindWatermarkTest` **14 例 0 失败**（新文件，一次通过）；
+  server 全量 **550 → 564 例**，0 失败（9m15s）；一次四杀负控制；
+  生产文件 `git diff` 为空（洗牌已还原）。
+- **像素构造是确定性的**（`(x*31+y*17)` 之类），不用随机——失败可复现。
