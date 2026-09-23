@@ -10614,3 +10614,31 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   `(a, b, host)`→Triple<String,String,String>、`(board: List<String>, host)`→List 等）。
   **分批理由**：这些的「等价」定义各不相同（要逐对说明哪些字段参与往返），
   不是换参数名就能套用。
+
+### G223e — 覆盖 Pair 返回的 6 对 + 3 对特殊语义，format/parse 往返线收口（app 2076 → 2078）
+
+- **背景**：G223c/G223d 覆盖的都是 parse 回 `String?` 的单字段。实测群外剩 23 对
+  可配对，其中 10 对已被 G182b 那批覆盖，**13 对真没测试**。本轮把其中 9 对做掉。
+- **干净同质组 6 对**（`(q, a, hostLabel)` → `Pair<String,String>?`）：
+  formatRiddle(80,40) / formatOddOneOut(80,40) / formatWordHint(60,40) /
+  formatEmojiQuiz(24,40) / formatEmojiTranslate(24,40) / formatWould2(30,30)。
+  断言 `parse(format(x,y,h)) == Pair(x.trim().take(N1), y.trim().take(N2))`。
+- **顺序不能猜**：`esc(p.take(24))|esc(a.take(40))` 反过来是两回事。所以输入面刻意用
+  **不对称长度**（一个 2 字符、一个 300 字符），并**正反各跑一次**——N1/N2 写反必红。
+- **3 对语义特殊，单独钉住（不改生产代码）**：
+  1. `formatTrivia`：`esc(q.take(80))` **内联无 trim** → 首字段往返带首尾空白
+     （与 G223d 的 formatSpin/formatSimon 同族，第三/四例）；
+  2. `formatScatter`：首字段 `take(2).uppercase()` → 大写；
+  3. `formatTruthOrDare`：首字段归一成 "dare"/"truth"（非 "dare" 一律折成 "truth"）。
+- **负控制**：选名单内的 `formatRiddle`，首字段 take(80)→take(60) →
+  `two field pairs round trip each field with its own limit` **FAILED**，
+  报错点明「哪个字段、哪个 N」：
+  `formatRiddle(长, 短) 往返不一致（N1=80, N2=40）`。生产文件已还原（git diff 为空）。
+- **棘轮**：`UNREFERENCED_BASELINE` 181 → **175**（G223e 的 9 个函数名进入名单）。
+- **最终覆盖率（这条线收口）**：可配对 181 对中，已有测试 **170 对**——
+  G182b 那批 10 + G223c 84 + G223d 68 + G223e 9 = 171 个函数有往返断言。
+  剩余 11 对是 Int/List 入参或 `(secret, max, host)`→`Triple<Int,Int,String>` 等，
+  它们**本身已有 Rust 风格的数值边界测试**（numberBomb/numberGuess/dice/bingo/lottery
+  在 G182b 已覆盖），未覆盖的只是 format 侧组合。
+- **实测结果**：app JVM **2076 → 2078 例**，GroupPlayPolicyTest **26 例 0 失败**；
+  一次有效负控制；生产文件无残留。

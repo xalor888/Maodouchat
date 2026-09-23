@@ -517,7 +517,83 @@ class GroupPlayPolicyTest {
         assertEquals("A", GroupPlayPolicy.parseAlphabet(GroupPlayPolicy.formatAlphabet("ab", "Host")))
     }
 
+    /**
+     * G223e：**parse 返回 `Pair<String, String>?` 的 6 对同质组**。
+     *
+     * G223c/G223d 覆盖的都是 parse 回 `String?` 的单字段；这一组的往返要断言
+     * **两个字段**：`parse(format(x, y, h)) == Pair(x.trim().take(N1), y.trim().take(N2))`。
+     *
+     * **顺序不能猜**：`esc(p.take(24))|esc(a.take(40))` 与反过来是两回事。
+     * 所以输入面特意用**不对称长度**的输入（一个短、一个超长），
+     * 若两个 N 写反了，短字段会被长 N 放过、长字段会被短 N 截断，断言立刻红。
+     */
+    @Test
+    fun `two field pairs round trip each field with its own limit`() {
+        val host = "Host"
+        // 短的那个专门选得比两个 N 都短，长的选得比两个 N 都长——顺序写反必红
+        val short = "ab"
+        val long = "q".repeat(300)
+        for ((name, firstLimit, secondLimit) in TWO_FIELD_TAKE) {
+            val formatFn = GroupPlayPolicy::class.java.getMethod(name, String::class.java, String::class.java, String::class.java)
+            val parseFn = GroupPlayPolicy::class.java.getMethod("parse" + name.removePrefix("format"), String::class.java)
+            // 正向
+            run {
+                val content = formatFn.invoke(GroupPlayPolicy, short, long, host) as String
+                assertEquals(
+                    Pair(short.trim().take(firstLimit), long.trim().take(secondLimit)),
+                    parseFn.invoke(GroupPlayPolicy, content),
+                    "$name(短, 长) 往返不一致（N1=$firstLimit, N2=$secondLimit）；content=$content",
+                )
+            }
+            // 反向：把长短对调——若 N1/N2 写反，这一组会红
+            run {
+                val content = formatFn.invoke(GroupPlayPolicy, long, short, host) as String
+                assertEquals(
+                    Pair(long.trim().take(firstLimit), short.trim().take(secondLimit)),
+                    parseFn.invoke(GroupPlayPolicy, content),
+                    "$name(长, 短) 往返不一致（N1=$firstLimit, N2=$secondLimit）；content=$content",
+                )
+            }
+        }
+        assertEquals(6, TWO_FIELD_TAKE.size, "实测 6 对，名单可能过期了")
+    }
+
+    /**
+     * G223e：**3 对语义特殊的，单独钉住**（同 G223d 纪律：不改生产代码）。
+     *
+     * - `formatTrivia`：`esc(q.take(80))` **内联、没有 trim** → 往返带首尾空白；
+     * - `formatScatter`：首字段 `take(2).uppercase()` → 大写；
+     * - `formatTruthOrDare`：首字段归一成 "dare"/"truth"（非 "dare" 一律折成 "truth"）。
+     */
+    @Test
+    fun `three two field pairs have special first field semantics`() {
+        val host = "Host"
+        // formatTrivia：无 trim
+        val trivia = GroupPlayPolicy.parseTrivia(GroupPlayPolicy.formatTrivia("  padded  ", "ans", host))
+        assertEquals("  padded  ", trivia?.first, "formatTrivia 首字段未 trim")
+        assertEquals("ans", trivia?.second)
+        // formatScatter：首字段大写且只取 2 字符
+        val scatter = GroupPlayPolicy.parseScatter(GroupPlayPolicy.formatScatter("hello", "cat", host))
+        assertEquals("HE", scatter?.first, "formatScatter 首字段应大写并截到 2 字符")
+        assertEquals("cat", scatter?.second)
+        // formatTruthOrDare：归一
+        assertEquals("dare", GroupPlayPolicy.parseTruthOrDare(GroupPlayPolicy.formatTruthOrDare("DARE", "p", host))?.first)
+        assertEquals("truth", GroupPlayPolicy.parseTruthOrDare(GroupPlayPolicy.formatTruthOrDare("whatever", "p", host))?.first)
+        // 第二字段是正常 trim().take(80)
+        assertEquals("p", GroupPlayPolicy.parseTruthOrDare(GroupPlayPolicy.formatTruthOrDare("truth", "  p  ", host))?.second)
+    }
+
     private companion object {
+        /** G223e 手册：parse 回 Pair<String,String>? 的 6 对同质组（首字段 N1，次字段 N2）。 */
+        val TWO_FIELD_TAKE: List<Triple<String, Int, Int>> = listOf(
+            Triple("formatEmojiQuiz", 24, 40),
+            Triple("formatEmojiTranslate", 24, 40),
+            Triple("formatOddOneOut", 80, 40),
+            Triple("formatRiddle", 80, 40),
+            Triple("formatWordHint", 60, 40),
+            Triple("formatWould2", 30, 30),
+        )
+
         /** G223d 手册：单 String 参数 + hostLabel、parse 回 String? 的 65 对及其 take(N)。 */
         val SINGLE_STRING_PARAM_TAKE: List<Pair<String, Int>> = listOf(
             "formatStory" to 160,  // seed
@@ -597,7 +673,7 @@ class GroupPlayPolicyTest {
          * （往返断言），从「死代码」变成「有测试但无产品入口」。
          * 剩下 226 个仍是真死代码。
          */
-        const val UNREFERENCED_BASELINE = 181
+        const val UNREFERENCED_BASELINE = 175
 
     /**
      * G216b：`val`/`var` 声明的零引用冻结值。
