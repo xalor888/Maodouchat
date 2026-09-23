@@ -12608,3 +12608,48 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - 标注前最后复跑一次 `DirectionDocFreshnessTest` → **BUILD SUCCESSFUL**（§0 那行变长后
   仍与实测一致）。
 - **至此 DIRECTION.md §3 的 M1–M6 六个里程碑全部闭环。**
+
+
+### G297c — **v1.3.0 已发布**：173 个未发布提交的制品，M6 闭环后的第一个 release
+
+- **动机**：`v1.2.1` 指向 `643e7f22`，距当时已 **173 个提交**，其中包含本会话的
+  plugins/ Exposed import 清理（G249b–G292b）与 **M6 闭环**（G295c）——
+  DIRECTION.md §3 的六个里程碑至此全部完成，是自然的发布点。
+- **前置三项检查（缺一不打 tag）**：`git status --porcelain` 为空、
+  `git rev-list --count @{u}..HEAD` = 0、`gh run list --json conclusion` 显示
+  当前 tip `ddca9b2c` 为 **success**（四个作业：Android Instrumented 14m24s /
+  Server 17m11s / Android 14m5s / Docker Compose Config 8s）。
+  另外用 `git tag -l 'v1.3.0'` 确认为 0（**不用 `git rev-parse` 判断**——
+  它会把未识别参数回显到 stdout，容易误判成「已存在」）。
+- **动作**：`git tag -a v1.3.0`（附发布说明）→ `git push origin v1.3.0`
+  → `* [new tag] v1.3.0 -> v1.3.0`，触发 release workflow `35893451839`。
+- **工作流结果**：`✓ v1.3.0 Release`，两个作业全绿——
+  `Verify CI green for this commit`（2s）与 `Build & publish release`（14m19s）。
+  Release 已公开（`draft: false, prerelease: false`），4 个资产：
+  `maodouchat-1.3.0.apk`（13,308,137 B）、`maodouchat-server-1.3.0.tar.gz`
+  （62,042,778 B / 86 项）、`maodouchat-selfhost-1.3.0.tar.gz`（8,280 B）、
+  `SHA256SUMS.txt`。
+- **制品级实测（不是假设）**：
+  1. `sha256sum -c` → `maodouchat-1.3.0.apk: OK`；
+  2. `aapt2 dump badging` → `package: name='com.maodouchat' versionCode='1085'
+     versionName='1.3.0'`。**这一条是本次发布最该测的**：`app/build.gradle.kts`
+     里 `releaseVersionName` 缺省是 `"1.0"`，若工作流没把 tag 注入
+     `-PMAODOU_VERSION_NAME`，产出的就会是一个自称 1.0 的 APK。实测证明注入正确；
+  3. `apksigner verify --print-certs` 通过，`Signer #1 certificate DN:
+     CN=Maodouchat, OU=Mobile, O=Maodouchat`，SHA-256 `ab401c26…a763`。
+     仓库里查不到这个摘要——**这是设计如此**：keystore 是 secret
+     （`KEYSTORE_BASE64`），信任链是「服务端用同一把钥匙签名 → 客户端与已装应用的
+     signer 比对」，不依赖仓库里存一份摘要。
+  4. 服务端 tar.gz 解包结构正常（`maodouchat-server/lib/*.jar` 等 86 项）。
+- **本轮明确没有做的事（与「发版到生产」的边界）**：
+  - **未触碰生产主机** `root@64.90.12.166`：部署 skill 未调用，未申请部署访问；
+  - **未推送用户更新**：`docs/app-update-release.md` 第 11 行明确
+    「GitHub / 第三方商店直链**禁止**作为应用内更新源」，用户更新必须走服务端
+    发布 API + token。**打 tag 只是产出 GitHub Release 制品**，
+    与 G223b 记的「推送是代码同步，不是发版」是同一条边界的三段式：
+    推送 = 代码同步；打 tag = 制品发布；走发布 API = 用户可用的更新。
+- **一个观察到的告警（不影响结果）**：release run 有一条
+  `Build & publish release: .github#2` 的 `X Process completed with exit code 28`
+  （curl 超时语义）以及 Node.js 20 弃用告警（`softprops/action-gh-release@v2`
+  被强制跑在 Node 24）。run 最终 success，但 exit 28 值得下次留意——
+  若它来自上传步骤的重试，说明大文件上传有超时风险。
