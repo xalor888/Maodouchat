@@ -3,6 +3,7 @@ package com.maodouchat.server.repository
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.Chats
+import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.Users
@@ -378,5 +379,156 @@ class AdminExportRepositoryTest {
         assertEquals(5, rows.single().size, "列数必须稳定")
         assertEquals("tok_abcdef12", rows.single()[1], "token 应截断到 12 字符")
         assertEquals("9000", rows.single()[2], "过期时间戳必须如实导出")
+    }
+
+    // ---- G186e：三个带真实过滤的导出 ----
+
+    private fun seedChat(id: String, chatType: String = "DIRECT", disappearingSeconds: Int = 0, memberRevision: Long = 0) {
+        transaction {
+            Chats.insert {
+                it[Chats.id] = id
+                it[Chats.isGroup] = chatType == "GROUP"
+                it[Chats.chatType] = chatType
+                it[Chats.disappearingMessageSeconds] = disappearingSeconds
+                it[Chats.memberRevision] = memberRevision
+            }
+        }
+    }
+
+    private fun seedChatSettings(
+        chatId: String,
+        userId: String,
+        muted: Boolean = false,
+        archived: Boolean = false,
+        pinned: Boolean = false,
+        updatedAt: Long = 1_000L,
+    ) {
+        transaction {
+            ChatUserSettings.insert {
+                it[ChatUserSettings.chatId] = chatId
+                it[ChatUserSettings.userId] = userId
+                it[ChatUserSettings.notificationsMuted] = muted
+                it[ChatUserSettings.archived] = archived
+                it[ChatUserSettings.pinnedAt] = if (pinned) 5_000L else 0L
+                it[ChatUserSettings.updatedAt] = updatedAt
+            }
+        }
+    }
+
+    // ---- restrictedUsers：三重时间窗 OR 过滤 ----
+
+    @Test
+    fun `restricted users export catches each of the three time windows independently`() {
+        // 三个字段各自单独触发都应被导出——只测一个会漏掉另两个的过滤写错
+        seedUser("u_msg_restricted", 1_000L)
+        seedUser("u_post_restricted", 1_000L)
+        seedUser("u_suspended", 1_000L)
+        seedUser("u_free", 1_000L)
+        val far = System.currentTimeMillis() + 7_200_000   // 两小时后
+        transaction {
+            exec("UPDATE users SET message_restricted_until = $far WHERE id = 'u_msg_restricted'")
+            exec("UPDATE users SET post_restricted_until = $far WHERE id = 'u_post_restricted'")
+            exec("UPDATE users SET suspended_until = $far WHERE id = 'u_suspended'")
+        }
+        val ids = repo.restrictedUsers(10).map { it.first().toString() }.toSet()
+        assertTrue("u_msg_restricted" in ids, "messageRestrictedUntil 未来必须被导出")
+        assertTrue("u_post_restricted" in ids, "postRestrictedUntil 未来必须被导出")
+        assertTrue("u_suspended" in ids, "suspendedUntil 未来必须被导出")
+        assertTrue("u_free" !in ids, "三个时间窗都过期的用户不应被导出")
+    }
+
+    @Test
+    fun `restricted users export is empty when every restriction has expired`() {
+        seedUser("u_past", 1_000L)
+        transaction { exec("UPDATE users SET message_restricted_until = 1 WHERE id = 'u_past'") }
+        assertTrue(repo.restrictedUsers(10).isEmpty(), "限制已过期的用户不应被导出")
+    }
+
+    @Test
+    fun `restricted users export shows the three expiry columns`() {
+        seedUser("u1", 1_000L)
+        val far = System.currentTimeMillis() + 7_200_000
+        transaction { exec("UPDATE users SET suspended_until = $far WHERE id = 'u1'") }
+        val rows = repo.restrictedUsers(10)
+        assertEquals(1, rows.size)
+        assertTrue(rows.single().size >= 4, "应至少有 id + 三个到期时间列，实际 ${rows.single().size}")
+    }
+
+    // ---- mutedChats：notificationsMuted 过滤 + limit*2 ----
+
+    @Test
+    fun `muted chats export only includes chats whose notifications are muted`() {
+        seedUser("u1", 1_000L)
+        seedChat("c_muted", chatType = "DIRECT")
+        seedChat("c_loud", chatType = "DIRECT")
+        seedChatSettings("c_muted", "u1", muted = true)
+        seedChatSettings("c_loud", "u1", muted = false)
+        val rows = repo.mutedChats(10)
+        assertEquals(1, rows.size, "只应导出静音的会话")
+        assertEquals("c_muted", rows.single()[1], "第二列是 chatId")
+        assertEquals("true", rows.single()[2], "notificationsMuted 列必须是 true")
+    }
+
+    @Test
+    fun `muted chats export limit applies after the mute filter`() {
+        // G186e 实测：实现的 `.limit(limit * 2)` 在「全部记录都静音」时
+        // 以 SQL limit 为瓶颈，所以 limit=1 只返回 1 行（*2 的余量不会漏出来）。
+        // 这条钉子这个行为，防将来有人「修正」limit*2 时悄悄改变条数。
+        seedUser("u1", 1_000L)
+        repeat(3) { seedChat("c$it", chatType = "DIRECT") }
+        repeat(3) { seedChatSettings("c$it", "u1", muted = true, updatedAt = 1_000L + it) }
+        assertEquals(1, repo.mutedChats(1).size, "limit=1 必须只返回 1 行")
+        assertEquals(2, repo.mutedChats(2).size, "limit=2 必须只返回 2 行")
+        assertEquals(3, repo.mutedChats(3).size, "limit=3 时 3 条静音记录全返回")
+    }
+
+    @Test
+    fun `muted chats export limit is a sql row limit not a post filter quota`() {
+        // G186e 实测纠正：`limit(limit * 2)` 的 *2 **不是**为混合场景准备的余量。
+        // SQL 先按 updatedAt DESC 取前 2 行，再 mapNotNull 剔静音——
+        // 所以 limit=1 在「第 2 新的记录恰好未静音」时，过滤后只剩 1 条静音记录。
+        // 想要拿到第 3 新的那条静音记录，limit 必须自己变大。
+        //
+        // 这条钉住这个（有点反直觉的）语义：limit 是 SQL 行数上限，
+        // 不是「返回 N 条静音记录」的配额。
+        seedUser("u1", 1_000L)
+        seedChat("c_m1", chatType = "DIRECT")
+        seedChat("c_loud1", chatType = "DIRECT")
+        seedChat("c_m2", chatType = "DIRECT")
+        seedChatSettings("c_m1", "u1", muted = true, updatedAt = 3_000L)
+        seedChatSettings("c_loud1", "u1", muted = false, updatedAt = 2_000L)
+        seedChatSettings("c_m2", "u1", muted = true, updatedAt = 1_000L)
+
+        assertEquals(1, repo.mutedChats(1).size, "limit=1：SQL 取 2 行，剔掉未静音后剩 1 行")
+        assertEquals(2, repo.mutedChats(2).size, "limit=2：SQL 取 4 行（只有 3 行），剔掉 1 条剩 2 行")
+    }
+
+    // ---- disappearingChats：chatType + seconds 双重过滤 ----
+
+    @Test
+    fun `disappearing chats export excludes secret chats and zero second chats`() {
+        seedChat("c_secret", chatType = "SECRET", disappearingSeconds = 60)
+        seedChat("c_off", chatType = "DIRECT", disappearingSeconds = 0)
+        seedChat("c_on", chatType = "DIRECT", disappearingSeconds = 300)
+        val ids = repo.disappearingChats(10).map { it.first().toString() }
+        assertEquals(listOf("c_on"), ids, "只应导出开启了阅后即焚的非密聊会话")
+    }
+
+    @Test
+    fun `disappearing chats export shows group flag and seconds`() {
+        seedChat("c_grp", chatType = "GROUP", disappearingSeconds = 120)
+        val rows = repo.disappearingChats(10)
+        assertEquals(1, rows.size)
+        assertEquals(4, rows.single().size, "列数必须稳定（id/isGroup/groupName/seconds）")
+        assertEquals("true", rows.single()[1], "群聊的 isGroup 列必须是 true")
+        assertEquals("120", rows.single()[3], "秒数列必须如实导出")
+    }
+
+    @Test
+    fun `disappearing chats export is ordered by member revision descending`() {
+        seedChat("c_old", chatType = "DIRECT", disappearingSeconds = 60, memberRevision = 1)
+        seedChat("c_new", chatType = "DIRECT", disappearingSeconds = 60, memberRevision = 9)
+        val ids = repo.disappearingChats(10).map { it.first().toString() }
+        assertEquals(listOf("c_new", "c_old"), ids, "必须按 memberRevision 倒序")
     }
 }

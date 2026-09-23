@@ -10911,3 +10911,35 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   chatSettings(7) / disappearingChats(4) / mutedChats(5) / restrictedUsers(4) /
   pinnedMessages(4) / chats(5) / pushTokens(6) / auditExportRows(19列!) /
   deviceSequences(5) / deviceAnomalyCount / deviceAnomalies(10)。
+
+### G186e — 三个带真实过滤的导出有测试了；**`limit*2` 的语义被实测纠正**（server 495 → 504）
+
+- **挑这三个的理由**：它们都不是简单 `selectAll`，而是带真实业务过滤——
+  漏一个就是数据越权，比已做的 `blockedUsers`/`groupInvites` 更有测头。
+- **`restrictedUsers` 的三重时间窗 OR（本目标最重要）**：
+  `messageRestrictedUntil > now OR postRestrictedUntil > now OR suspendedUntil > now`
+  （`now` 在函数内取）。测了**三个字段各自单独触发**都应被导出
+  （只测一个会漏掉另两个的过滤写错）、三个都过期的不出现、列数稳定。
+- **`disappearingChats` 的双重过滤**：`chatType neq SECRET` + `disappearingMessageSeconds > 0`，
+  另测排序（按 `memberRevision` DESC）与列数。
+- **`mutedChats` ——本轮最有意思的发现**：实现里有个 `.limit(limit * 2)`，
+  我一开始判断「*2 是为混合场景留的余量，SQL 多取一倍再 mapNotNull 剔未静音的」，
+  并据此写了断言。**实测直接打我脸**：limit=1 在「第 2 新的记录恰好未静音」时只返回
+  **1 行**，不是我预期的 2 行。
+  真相：`limit(2)` 先按 `updatedAt DESC` 取前 2 行，其中一条未静音被剔掉，
+  剩下的就是 1 条——**`limit` 是 SQL 行数上限，不是「返回 N 条静音记录」的配额**。
+  已按实测改正断言，并把这条（有点反直觉的）语义写进注释钉住。
+  **没有改生产代码**——它不是 bug，只是容易被误解。
+- **目标指定的负控制双杀**：把三重 OR 过滤塌成只查 `messageRestrictedUntil` →
+  `restricted users export catches each of the three time windows independently`
+  和 `restricted users export shows the three expiry columns` **同时 FAILED**。
+  证明三重过滤真的被管辖。
+- **实测结果**：`AdminExportRepositoryTest` **26 → 35 例**，0 失败；
+  server 全量 **495 → 504 例**，0 失败（9m15s）；一次双杀负控制；
+  生产文件 `git diff` 为空。
+- **覆盖进度：30 个 fun 已覆盖 13 个**（新增 restrictedUsers / mutedChats /
+  disappearingChats）。
+  **剩余 17 个**：pushTokens(6列) / bots(9) / botCommandStats(6) / friendships(3) /
+  reports(7) / riskEvents(7) / sessionsSummary(4,内部 try/catch) / polls(9) /
+  reportsMeta(9) / chatSettings(7) / pinnedMessages(4) / chats(5) /
+  auditExportRows(19列) / deviceSequences(5) / deviceAnomalyCount / deviceAnomalies(10)。
