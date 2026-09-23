@@ -86,7 +86,6 @@ object GroupPlayPolicy {
         return "${ANON_PREFIX}***|$body"
     }
 
-
     const val BOMB_PREFIX = "BOMB:"
     const val WORD_PREFIX = "WORD:"
 
@@ -104,7 +103,6 @@ object GroupPlayPolicy {
     fun formatWordChain(seed: String, userLabel: String): String =
         com.maodouchat.group.play.GroupChainPolicy.formatWordChain(seed, userLabel)
 
-
     const val RACE_PREFIX = "RACE:"
 
     fun randomRaceToken(): String = com.maodouchat.group.play.GroupPkPolicy.randomRaceToken()
@@ -115,17 +113,8 @@ object GroupPlayPolicy {
     fun parseReactionRace(content: String): Pair<String, String>? =
         com.maodouchat.group.play.GroupPkPolicy.parseReactionRace(content)
 
-
-
     const val WOULD_PREFIX = "WOULD:"
     const val EMOJI_RAIN_PREFIX = "EMOJI_RAIN:"
-
-    fun randomWouldPair(): Pair<String, String> {
-        val p = wouldPrompts.random()
-        val a = p.substringBefore('|')
-        val b = p.substringAfter('|')
-        return a to b
-    }
 
     fun formatWouldYouRather(a: String, b: String, hostLabel: String): String {
         val left = a.trim().take(80)
@@ -158,8 +147,6 @@ object GroupPlayPolicy {
         return emoji to rest
     }
 
-
-
     const val TRUTHS_PREFIX = "TRUTHS:"
     const val QUIZ_PREFIX = "QUIZ:"
 
@@ -177,15 +164,6 @@ object GroupPlayPolicy {
         val parts = body.split('|').map { unesc(it) }
         if (parts.size < 4) return null
         return listOf(parts[1], parts[2], parts[3]).filter { it.isNotBlank() }
-    }
-
-    fun randomQuiz(): Triple<String, String, List<String>> {
-        val raw = quizBank.random()
-        val q = raw.substringBefore('|')
-        val parts = raw.split('|')
-        val answer = parts.getOrElse(1) { "" }
-        val options = parts.drop(1).shuffled()
-        return Triple(q, answer, options)
     }
 
     fun formatQuiz(question: String, answer: String, options: List<String>, hostLabel: String): String {
@@ -207,7 +185,6 @@ object GroupPlayPolicy {
         val opts = parts[2].split('^').filter { it.isNotBlank() }.map { unesc(it) }
         return Triple(q, ans, opts)
     }
-
 
     const val SPIN_PREFIX = "SPIN:"
     const val STORY_PREFIX = "STORY:"
@@ -244,12 +221,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(COUNTDOWN_PREFIX).substringBefore('|')).toIntOrNull()
     }
 
-
     const val BINGO_PREFIX = "BINGO:"
     const val LOTTERY_PREFIX = "LOTTERY:"
     const val HOTSEAT_PREFIX = "HOTSEAT:"
-
-    fun randomBingoBoard(): List<String> = bingoEmojis.shuffled().take(6)
 
     fun formatBingo(board: List<String>, hostLabel: String): String {
         // 9.224：同 quiz 修复——先逐项 esc 再 join，避免格内 ^ 与连接符混淆
@@ -290,7 +264,6 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(HOTSEAT_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val COINFLIP_PREFIX = "COINFLIP:"
     const val REDPACKET_PREFIX = "REDPACKET:"
 
@@ -318,8 +291,6 @@ object GroupPlayPolicy {
 
     const val CHARADES_PREFIX = "CHARADES:"
     const val NUMBERGUESS_PREFIX = "NUMGUESS:"
-
-    fun randomCharadesPrompt(): String = charadesPrompts.random()
 
     fun formatCharades(prompt: String, hostLabel: String): String {
         val p = prompt.trim().ifBlank { "mystery" }.take(40)
@@ -353,8 +324,6 @@ object GroupPlayPolicy {
     const val RIDDLE_PREFIX = "RIDDLE:"
     const val EMOJI_STORY_PREFIX = "EMOJISTORY:"
 
-    fun randomRiddle(): Pair<String, String> = riddles.random()
-
     fun formatRiddle(q: String, a: String, hostLabel: String): String {
         val qq = q.trim().take(80)
         val aa = a.trim().take(40)
@@ -383,8 +352,6 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(IMPOSTOR_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-    fun randomEmojiStorySeed(): String = emojiStorySeeds.random()
-
     fun formatEmojiStory(seed: String, hostLabel: String): String {
         val s = seed.trim().ifBlank { "✨" }.take(24)
         return "${EMOJI_STORY_PREFIX}${esc(s)}|${hostLabel} emoji story — continue in chat!"
@@ -398,9 +365,6 @@ object GroupPlayPolicy {
     const val SIMON_PREFIX = "SIMON:"
     const val HOTORNOT_PREFIX = "HOTORNOT:"
     const val ALPHABET_PREFIX = "ALPHABET:"
-
-    fun randomSimonSequence(len: Int = 4): String =
-        (1..len.coerceIn(3, 8)).joinToString("") { simonTokens.random() }
 
     fun formatSimon(seq: String, hostLabel: String): String {
         val s = seq.take(16)
@@ -432,12 +396,8 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(ALPHABET_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-    fun randomAlphabetLetter(): String = ('A'..'Z').random().toString()
-
     const val TRIVIA_PREFIX = "TRIVIA:"
     const val SPEED_PREFIX = "SPEED:"
-
-    fun randomTrivia(): Pair<String, String> = triviaQA.random()
 
     fun formatTrivia(q: String, a: String, hostLabel: String): String {
         return "${TRIVIA_PREFIX}${esc(q.take(80))}|${esc(a.take(40))}|${hostLabel} trivia"
@@ -469,9 +429,6 @@ object GroupPlayPolicy {
     const val MEMORY_MATCH_PREFIX = "MEMORY:"
     const val DRAW_PROMPT_PREFIX = "DRAWPROMPT:"
 
-    fun randomDare(): String = dares.random()
-    fun randomNeverHave(): String = neverHave.random()
-    fun randomDrawPrompt(): String = drawPrompts.random()
     fun randomMemoryBoard(): String = memoryEmojis.random()
 
     fun formatTruthOrDare(mode: String, prompt: String, hostLabel: String): String {
@@ -524,9 +481,7 @@ object GroupPlayPolicy {
     const val EMOJI_DUEL_PREFIX = "EMOJIDUEL:"
     const val RAPID_FIRE_PREFIX = "RAPIDFIRE:"
 
-    fun randomIcebreaker(): String = icebreakers.random()
     fun randomEmojiDuel(): String = duelEmojis.random()
-    fun randomRapidTopic(): String = rapidTopics.random()
 
     fun formatIcebreaker(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(100)
@@ -561,10 +516,6 @@ object GroupPlayPolicy {
     const val SCATTER_PREFIX = "SCATTER:"
     const val MINUTE_TALK_PREFIX = "MINUTETALK:"
     const val CAPTION_THIS_PREFIX = "CAPTION:"
-
-    fun randomScatter(): Pair<String, String> = scatterLetters.random() to scatterCats.random()
-    fun randomTalkTopic(): String = talkTopics.random()
-    fun randomCaptionSeed(): String = captionSeeds.random()
 
     fun formatScatter(letter: String, category: String, hostLabel: String): String {
         val l = letter.trim().take(2).uppercase()
@@ -605,10 +556,6 @@ object GroupPlayPolicy {
     const val KARAOKE_PREFIX = "KARAOKE:"
     const val BLIND_Q_PREFIX = "BLINDQ:"
 
-    fun randomStoryOpener(): String = storyOpeners.random()
-    fun randomKaraoke(): String = karaokeLines.random()
-    fun randomBlindQ(): String = blindQs.random()
-
     fun formatStorySwap(opener: String, hostLabel: String): String {
         val o = opener.trim().take(80)
         return "${STORY_SWAP_PREFIX}${esc(o)}|${hostLabel} story swap — continue!"
@@ -643,8 +590,6 @@ object GroupPlayPolicy {
     const val EMOJI_QUIZ_PREFIX = "EMOJIQUIZ:"
     const val CHAIN_REACT_PREFIX = "CHAINREACT:"
 
-    fun randomFortune(): String = fortunes.random()
-    fun randomEmojiQuiz(): Pair<String, String> = emojiQuiz.random()
     fun randomChainSeed(): String = chainSeeds.random()
 
     fun formatFortune(text: String, hostLabel: String): String {
@@ -683,16 +628,12 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(CHAIN_REACT_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val DEBATE_PREFIX = "DEBATE:"
     const val MIRROR_PREFIX = "MIRROR:"
     const val HIDESEEK_PREFIX = "HIDESEEK:"
     const val TOAST_PREFIX = "TOAST:"
 
-    fun randomDebateTopic(): String = debateTopics.random()
-    fun randomMirrorLine(): String = mirrorLines.random()
     fun randomHideEmoji(): String = hideEmojis.random()
-    fun randomToast(): String = roastLines.random()
 
     fun formatDebate(topic: String, hostLabel: String): String {
         val t = topic.trim().take(80)
@@ -737,9 +678,6 @@ object GroupPlayPolicy {
     const val HOTPOTATO_PREFIX = "HOTPOTATO:"
     const val WORDHINT_PREFIX = "WORDHINT:"
 
-    fun randomHotPotatoSeconds(): Int = potatoSeconds.random()
-    fun randomWordHint(): Pair<String, String> = wordHints.random()
-
     fun formatHotPotato(seconds: Int, hostLabel: String): String {
         val s = seconds.coerceIn(5, 30)
         return "${HOTPOTATO_PREFIX}$s|${hostLabel} hot potato — pass in ${s}s!"
@@ -768,10 +706,6 @@ object GroupPlayPolicy {
     const val SPYFALL_PREFIX = "SPYFALL:"
     const val ACROSTIC_PREFIX = "ACROSTIC:"
     const val EMOJI_TR_PREFIX = "EMOJITR:"
-
-    fun randomSpyLocation(): String = spyLocations.random()
-    fun randomAcrostic(): String = acrosticSeeds.random()
-    fun randomEmojiTr(): Pair<String, String> = emojiTr.random()
 
     fun formatSpyfall(location: String, hostLabel: String): String {
         val loc = location.trim().take(40)
@@ -812,10 +746,6 @@ object GroupPlayPolicy {
     const val RHYME_PREFIX = "RHYME:"
     const val ODDONE_PREFIX = "ODDONE:"
 
-    fun randomTwentySubject(): String = twentySubjects.random()
-    fun randomRhymeSeed(): String = rhymeSeeds.random()
-    fun randomOddOne(): Pair<String, String> = oddSets.random()
-
     fun formatTwentyQuestions(subject: String, hostLabel: String): String {
         val s = subject.trim().take(40)
         return "${TWENTYQ_PREFIX}${esc(s)}|${hostLabel} 20 questions — yes/no only!"
@@ -855,10 +785,6 @@ object GroupPlayPolicy {
     const val PASSWORD_PREFIX = "PASSWORD:"
     const val TIMECAPSULE_PREFIX = "TIMECAPSULE:"
 
-    fun randomCategory(): String = categories.random()
-    fun randomPasswordHint(): String = passwordHints.random()
-    fun randomCapsule(): String = capsules.random()
-
     fun formatCategories(cat: String, hostLabel: String): String {
         val c = cat.trim().take(30)
         return "${CATEGORIES_PREFIX}${esc(c)}|${hostLabel} categories — name things in '$c'"
@@ -892,10 +818,6 @@ object GroupPlayPolicy {
     const val TABOO_PREFIX = "TABOO:"
     const val LIGHTNING_PREFIX = "LIGHTNING:"
     const val TWO_WORDS_PREFIX = "TWOWORDS:"
-
-    fun randomTaboo(): String = tabooCards.random()
-    fun randomLightning(): String = lightningPrompts.random()
-    fun randomTwoWords(): String = twoWordSeeds.random()
 
     fun formatTaboo(card: String, hostLabel: String): String {
         val c = card.trim().take(60)
@@ -931,9 +853,6 @@ object GroupPlayPolicy {
     const val WHISPER_PREFIX = "WHISPER:"
     const val COUNTDOWN_RACE_PREFIX = "COUNTRACE:"
 
-    fun randomWhisper(): String = whisperPrompts.random()
-    fun randomCountdownRace(): Int = countdownRaceSeeds.random()
-
     fun formatWhisper(prompt: String, hostLabel: String): String {
         val p = prompt.trim().take(60)
         return "${WHISPER_PREFIX}${esc(p)}|${hostLabel} whisper challenge"
@@ -956,9 +875,6 @@ object GroupPlayPolicy {
 
     const val EMOJI_MEMORY_PREFIX = "EMOJIMEM:"
     const val GEO_GUESS_PREFIX = "GEOGUESS:"
-
-    fun randomEmojiMemory(): String = emojiMemoryBoards.random()
-    fun randomGeoClue(): String = geoClues.random()
 
     fun formatEmojiMemory(board: String, hostLabel: String): String {
         val b = board.trim().take(24)
@@ -983,10 +899,6 @@ object GroupPlayPolicy {
     const val ONE_WORD_PREFIX = "ONEWORD:"
     const val SPEED_MATH_PREFIX = "SPEEDMATH:"
     const val STORY_SEED_PREFIX = "STORYSEED:"
-
-    fun randomOneWord(): String = oneWords.random()
-    fun randomMathQ(): String = mathQs.random()
-    fun randomStorySeed(): String = storySeeds.random()
 
     fun formatOneWord(word: String, hostLabel: String): String {
         val w = word.trim().take(20)
@@ -1022,10 +934,6 @@ object GroupPlayPolicy {
     const val EMOJI_ONLY_PREFIX = "EMOJIONLY:"
     const val BLIND_DRAW_PREFIX = "BLINDDRAW:"
 
-    fun randomWould2(): Pair<String, String> = wouldPairs2.random()
-    fun randomEmojiOnly(): String = emojiOnlyPrompts.random()
-    fun randomBlindDraw(): String = blindDraws.random()
-
     fun formatWould2(a: String, b: String, hostLabel: String): String {
         return "${WOULD_YOU_PREFIX2}${esc(a.trim().take(30))}|${esc(b.trim().take(30))}|${hostLabel} would you rather"
     }
@@ -1059,14 +967,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(BLIND_DRAW_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val ALPHABET_RACE_PREFIX = "ALPHARACE:"
     const val SILENT_MOVIE_PREFIX = "SILENTMOVIE:"
     const val COLOR_WORD_PREFIX = "COLORWORD:"
-
-    fun randomAlphabetStart(): String = alphabetStarts.random()
-    fun randomSilentMovie(): String = silentMovies.random()
-    fun randomColorWord(): String = colorWords.random()
 
     fun formatAlphabetRace(start: String, hostLabel: String): String {
         val s = start.trim().take(4)
@@ -1098,13 +1001,8 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(COLOR_WORD_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val DEBATE_FLASH_PREFIX = "DEBATEFLASH:"
     const val QUICK_POLL_PREFIX = "QUICKPOLL:"
-
-    fun randomDebateFlash(): String = debateFlashTopics.random()
-    fun randomEmojiStory(): String = emojiStories.random()
-    fun randomQuickPoll(): String = quickPolls.random()
 
     fun formatDebateFlash(topic: String, hostLabel: String): String {
         val tp = topic.trim().take(50)
@@ -1126,14 +1024,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(QUICK_POLL_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val MIRROR_ECHO_PREFIX = "MIRRORECHO:"
     const val SYNC_CLAP_PREFIX = "SYNCCLAP:"
     const val FACT_OR_FICTION_PREFIX = "FACTORFICTION:"
-
-    fun randomMirrorEcho(): String = mirrorEchoLines.random()
-    fun randomSyncClap(): String = clapCounts.random()
-    fun randomFactOrFiction(): String = facts.random()
 
     fun formatMirrorEcho(line: String, hostLabel: String): String {
         val l = line.trim().take(50)
@@ -1165,14 +1058,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(FACT_OR_FICTION_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val IMPULSE_DRAW_PREFIX = "IMPULSEDRAW:"
     const val WORD_SCRAMBLE_PREFIX = "WORDSCRAMBLE:"
     const val REACTION_DUEL_PREFIX = "REACTDUEL:"
-
-    fun randomImpulseDraw(): String = impulseDraws.random()
-    fun randomWordScramble(): String = scrambles.random()
-    fun randomReactionDuel(): String = reactionDuels.random()
 
     fun formatImpulseDraw(token: String, hostLabel: String): String {
         val tk = token.trim().take(8)
@@ -1204,14 +1092,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(REACTION_DUEL_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val CODE_BREAKER_PREFIX = "CODEBREAKER:"
     const val SILLY_LAW_PREFIX = "SILLYLAW:"
     const val EMOJI_MATH_PREFIX = "EMOJIMATH:"
-
-    fun randomCodeBreaker(): String = codes.random()
-    fun randomSillyLaw(): String = sillyLaws.random()
-    fun randomEmojiMath(): String = emojiMaths.random()
 
     fun formatCodeBreaker(code: String, hostLabel: String): String {
         val c = code.trim().take(8)
@@ -1243,14 +1126,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(EMOJI_MATH_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val PIN_THE_MOOD_PREFIX = "PINTHEMOOD:"
     const val REVOKE_RUSH_PREFIX = "REVOKERUSH:"
     const val SECRET_SIGNAL_PREFIX = "SECRETSIGNAL:"
-
-    fun randomPinTheMood(): String = moods.random()
-    fun randomRevokeRush(): String = rushWindows.random()
-    fun randomSecretSignal(): String = secretSignals.random()
 
     fun formatPinTheMood(mood: String, hostLabel: String): String {
         val m = mood.trim().take(20)
@@ -1282,15 +1160,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(SECRET_SIGNAL_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
-
     const val IDEA_RELAY_PREFIX = "IDEARELAY:"
     const val TEMPO_TAP_PREFIX = "TEMPOTAP:"
     const val TRANSLATE_RELAY_PREFIX = "TRANSRELAY:"
-
-    fun randomIdeaRelay(): String = ideaSeeds.random()
-    fun randomTempoTap(): String = tempoBeats.random()
-    fun randomTranslateRelay(): String = translatePairs.random()
 
     fun formatIdeaRelay(seed: String, hostLabel: String): String {
         val s = seed.trim().take(40)
@@ -1322,15 +1194,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(TRANSLATE_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
-
     const val INVITE_RACE_PREFIX = "INVITERACE:"
     const val MENTION_MAYHEM_PREFIX = "MENTIONMAY:"
     const val LINK_HUNT_PREFIX = "LINKHUNT:"
-
-    fun randomInviteRace(): String = inviteRaces.random()
-    fun randomMentionMayhem(): String = mentionModes.random()
-    fun randomLinkHunt(): String = linkHunts.random()
 
     fun formatInviteRace(mode: String, hostLabel: String): String {
         val m = mode.trim().take(30)
@@ -1362,14 +1228,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(LINK_HUNT_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val NUDGE_DASH_PREFIX = "NUDGEDASH:"
     const val CODE_CHECK_PREFIX = "CODECHECK:"
     const val TRUST_SPRINT_PREFIX = "TRUSTSPRINT:"
-
-    fun randomNudgeDash(): String = nudgeDashes.random()
-    fun randomCodeCheck(): String = codeChecks.random()
-    fun randomTrustSprint(): String = trustSprints.random()
 
     fun formatNudgeDash(mode: String, hostLabel: String): String {
         val m = mode.trim().take(40)
@@ -1401,22 +1262,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(TRUST_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
-
-
-
-
-
-
-
-
     const val MOOD_METER_PREFIX = "MOODMETER:"
     const val FOCUS_SPRINT_PREFIX = "FOCUSPRINT:"
     const val GRATITUDE_ROUND_PREFIX = "GRATROUND:"
-
-    fun randomMoodMeter(): String = moodMeters.random()
-    fun randomFocusSprint(): String = focusSprints.random()
-    fun randomGratitudeRound(): String = gratitudePrompts.random()
 
     fun formatMoodMeter(scale: String, hostLabel: String): String {
         val s = scale.trim().take(30)
@@ -1448,14 +1296,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(GRATITUDE_ROUND_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
     const val QR_QUEST_PREFIX = "QRQUEST:"
     const val CONTACT_SWAP_PREFIX = "CONTACTSWAP:"
     const val SCAN_SPRINT_PREFIX = "SCANSPRINT:"
-
-    fun randomQrQuest(): String = qrQuests.random()
-    fun randomContactSwap(): String = contactSwaps.random()
-    fun randomScanSprint(): String = scanSprints.random()
 
     fun formatQrQuest(mode: String, hostLabel: String): String {
         val m = mode.trim().take(40)
@@ -1487,15 +1330,9 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(SCAN_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
-
     const val SPOILER_RACE_PREFIX = "SPOILERRACE:"
     const val BLUR_BATTLE_PREFIX = "BLURBATTLE:"
     const val DOWNLOAD_DASH_PREFIX = "DLDASH:"
-
-    fun randomSpoilerRace(): String = spoilerRaces.random()
-    fun randomBlurBattle(): String = blurBattles.random()
-    fun randomDownloadDash(): String = downloadDashes.random()
 
     fun formatSpoilerRace(mode: String, hostLabel: String): String {
         val m = mode.trim().take(40)
@@ -1522,21 +1359,12 @@ object GroupPlayPolicy {
         return unesc(content.removePrefix(DOWNLOAD_DASH_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-
-
     const val PIN_DROP_PREFIX = "PINDROP:"
     const val FILE_RELAY_PREFIX = "FILERELAY:"
     const val MAP_DASH_PREFIX = "MAPDASH:"
     const val VAULT_LOCK_PREFIX = "VAULTLOCK:"
     const val WATERMARK_HUNT_PREFIX = "WMHUNT:"
     const val SECURE_SPRINT_PREFIX = "SECURESPRINT:"
-
-    fun randomPinDrop(): String = pinDrops.random()
-    fun randomFileRelay(): String = fileRelays.random()
-    fun randomMapDash(): String = mapDashes.random()
-    fun randomVaultLock(): String = vaultLocks.random()
-    fun randomWatermarkHunt(): String = wmHunts.random()
-    fun randomSecureSprint(): String = secureSprints.random()
 
     fun formatPinDrop(mode: String, hostLabel: String): String {
         val m = mode.trim().take(40)
@@ -1586,8 +1414,6 @@ object GroupPlayPolicy {
         if (!content.startsWith(SECURE_SPRINT_PREFIX)) return null
         return unesc(content.removePrefix(SECURE_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
     }
-
-
 
     const val PHOTO_RACE_PREFIX = "PHOTORACE:"
     const val CLIP_DASH_PREFIX = "CLIPDASH:"
@@ -1647,77 +1473,6 @@ object GroupPlayPolicy {
     const val FADE_TIMER_PREFIX = "FADETIMER:"
     const val STAMP_RELAY_PREFIX = "STAMPRELAY:"
 
-    fun randomPhotoRace(): String = photoRaces.random()
-    fun randomClipDash(): String = clipDashes.random()
-    fun randomFrameHunt(): String = frameHunts.random()
-    fun randomSummaryCircle(): String = summaryCircles.random()
-    fun randomRewriteRelay(): String = rewriteRelays.random()
-    fun randomPromptSprint(): String = promptSprints.random()
-    fun randomSuggestCircle(): String = suggestCircles.random()
-    fun randomVoiceRace(): String = voiceRaces.random()
-    fun randomReplySprint(): String = replySprints.random()
-    fun randomPixelQuest(): String = pixelQuests.random()
-    fun randomAssistCircle(): String = assistCircles.random()
-    fun randomDecisionDash(): String = decisionDashes.random()
-    fun randomDocHunt(): String = docHunts.random()
-    fun randomMeaningRace(): String = meaningRaces.random()
-    fun randomInsightSprint(): String = insightSprints.random()
-    fun randomGifRelay(): String = gifRelays.random()
-    fun randomMarkHunt(): String = markHunts.random()
-    fun randomLeakSprint(): String = leakSprints.random()
-    fun randomVoiceRing(): String = voiceRings.random()
-    fun randomVideoStage(): String = videoStages.random()
-    fun randomRingDash(): String = ringDashes.random()
-    fun randomWallPick(): String = wallPicks.random()
-    fun randomFontRace(): String = fontRaces.random()
-    fun randomThemeSprint(): String = themeSprints.random()
-    fun randomUnreadRush(): String = unreadRushes.random()
-    fun randomRingChoir(): String = ringChoirs.random()
-    fun randomAlertSprint(): String = alertSprints.random()
-    fun randomSoundWave(): String = soundWaves.random()
-    fun randomPreviewMask(): String = previewMasks.random()
-    fun randomBeepDash(): String = beepDashes.random()
-    fun randomPushRace(): String = pushRaces.random()
-    fun randomRemindCircle(): String = remindCircles.random()
-    fun randomWakeSprint(): String = wakeSprints.random()
-    fun randomQuietHour(): String = quietHours.random()
-    fun randomOfflineHint(): String = offlineHints.random()
-    fun randomFallbackDash(): String = fallbackDashes.random()
-    fun randomClickBeat(): String = clickBeats.random()
-    fun randomBuzzRelay(): String = buzzRelays.random()
-    fun randomFeelSprint(): String = feelSprints.random()
-    fun randomSlideRace(): String = slideRaces.random()
-    fun randomFadeCircle(): String = fadeCircles.random()
-    fun randomSpringDash(): String = springDashes.random()
-    fun randomSnapGuard(): String = snapGuards.random()
-    fun randomRecentsHide(): String = recentsHides.random()
-    fun randomShieldSprint(): String = shieldSprints.random()
-    fun randomCopyLock(): String = copyLocks.random()
-    fun randomExportSeal(): String = exportSeals.random()
-    fun randomLeakWall(): String = leakWalls.random()
-    fun randomForwardSeal(): String = forwardSeals.random()
-    fun randomChatExportLock(): String = chatExportLocks.random()
-    fun randomVaultFence(): String = vaultFences.random()
-    fun randomSealSprint(): String = sealSprints.random()
-    fun randomPqxdhDash(): String = pqxdhDashes.random()
-    fun randomCertRelay(): String = certRelays.random()
-    fun randomMarkSprint(): String = markSprints.random()
-    fun randomFadeTimer(): String = fadeTimers.random()
-    fun randomStampRelay(): String = stampRelays.random()
-    fun randomLinkLock(): String = linkLocks.random()
-    fun randomPreviewMute(): String = previewMutes.random()
-    fun randomUrlFence(): String = urlFences.random()
-    fun randomNotifMask(): String = notifMasks.random()
-    fun randomListBlur(): String = listBlurs.random()
-    fun randomTraySeal(): String = traySeals.random()
-    fun randomReactLock(): String = reactLocks.random()
-    fun randomStarSeal(): String = starSeals.random()
-    fun randomMetaFence(): String = metaFences.random()
-    fun randomTypingSeal(): String = typingSeals.random()
-    fun randomReadSeal(): String = readSeals.random()
-    fun randomPresenceSeal(): String = presenceSeals.random()
-    fun randomLastSeenSeal(): String = lastSeenSeals.random()
-
     fun formatPhotoRace(mode: String, hostLabel: String): String {
         val m = mode.trim().take(40)
         return "${PHOTO_RACE_PREFIX}${esc(m)}|${hostLabel} photo race"
@@ -1766,7 +1521,6 @@ object GroupPlayPolicy {
         if (!content.startsWith(PROMPT_SPRINT_PREFIX)) return null
         return unesc(content.removePrefix(PROMPT_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
     }
-
 
     fun formatSuggestCircle(mode: String, hostLabel: String): String {
         val m = mode.trim().take(40)

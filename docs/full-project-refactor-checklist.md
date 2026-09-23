@@ -11121,3 +11121,43 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **判据是否全部满足：是**。DIRECTION.md §3 的 M5 行已标注完成。
 - **本轮未改产品代码**（矩阵脚本代码无需修改——三条判据都由现有代码满足）；
   server 与 app 全量维持 0 失败。
+
+### G188b — M6 旧路径真正删除首次有实质动作：删掉 161 个 random 死成员（app 2116 不变）
+
+- **为什么挑这个**：M6 判据是「门禁覆盖 ChatDetail*/GroupPlayPolicy，旧路径真正删除」。
+  棘轮门禁早在 G63 就位，但「旧路径真正删除」这一半至今零动作。
+  UNREFERENCED_BASELINE 那条棘轮的注释明确鼓励这个工作流。
+
+- **先三重验证才动手（本轮最关键）**：
+  1. 用与测试同一纪律复现名单（先剥注释再判决、跨五个目录全仓搜）：
+     542 个成员中精确算出 175 个零引用
+  2. 确认这 175 个在 GroupPlayPolicy.kt 自身内部也零引用
+  3. 发现一个会让蛮干出错的事实：GroupPlayPolicyTest 用 getMethod(name, ...)
+     按名字反射调用成员，且通过 parse 前缀派生 parse 名。我第一版把 175 个
+     全删，结果 parseMinuteTalk 被误删得到 NoSuchMethodException。
+     这正是「宁可少删，不可删错」。
+
+- **最终策略：只删 random 族（161 个）**。实测证明它与测试引用的
+  155 个 format/parse 名零重叠——random 是抽题器（一行式），
+  测试走 format/parse 配对往返，两条线不相交。
+
+- **连带清理**：零引用数 175 至 14。剩下 14 个是 flipCoin/spinWheel/
+  rollNumberGuess 加 4 个 format 加 7 个 parse，全部保留——
+  它们被测试的 TAKE 名单反射调用，属于有测试护航的规格而非死代码。
+
+- **三条棘轮同步收紧（都是它们要求的）**：
+  1. UNREFERENCED_BASELINE 175 至 14
+  2. ClientArchitectureTest 的热点 cap 2209 至 1963（两处，zero-slack 要精确值）
+  3. members.size 大于 400 这条 vacuity guard 改成大于等于 320——它写死了 400，
+     删后实测 381 撞上。它的本意是扫描口径坏了，不是拦删除。
+     改成与实测绑定：真删不再误红，口径真坏仍会红。
+
+- **两次有效负控制**：试删 3 个成员后 unreferenced members only shrink FAILED；
+  把 BASELINE 改成 13 错值，同一条 FAILED。
+
+- **实测结果**：GroupPlayPolicy.kt 2209 至 1963 行（-246 行）；
+  app JVM 2116 例 0 失败（用例数不降，删的是生产死代码未动测试）；
+  两次负控制；生产 diff 纯删除（246 deletions，0 insertions）。
+
+- **M6 状态**：旧路径真正删除这一半首次有实质动作。剩余 14 个是测试反射
+  调用的规格，不应删；若要继续压，方向是把它们接上真实产品入口（产品决策）。

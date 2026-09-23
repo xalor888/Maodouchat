@@ -175,7 +175,11 @@ class GroupPlayPolicyTest {
         val policyText = stripComments(source.readText())
         val members = Regex("""^    (?:internal |private )?(?:suspend )?fun (\w+)\(""", RegexOption.MULTILINE)
             .findAll(policyText).map { it.groupValues[1] }.toList()
-        assertTrue(members.size > 400, "成员数异常少（${members.size}）——扫描口径可能坏了")
+        // G188b：这条原本写死 > 400。删掉 161 个 random* 死成员后实测 381，撞在它上面——
+        // 它是「扫描口径可能坏了」的 vacuity guard，本意不是拦死代码删除。
+        // 改成与实测绑定的下限（当前实测 381，留 15% 余量）：真删死代码不再误红，
+        // 而口径真坏（正则失配、文件被清空）仍然会红。
+        assertTrue(members.size >= 320, "成员数异常少（${members.size}）——扫描口径可能坏了")
 
         // DIRECTION.md 3.5：源码文本判决第一步必须剥注释。
         // 第一版**没剥**，结果本用例自己的 KDoc 里举例提到的 `spinWheel` 被当成了
@@ -673,7 +677,7 @@ class GroupPlayPolicyTest {
          * （往返断言），从「死代码」变成「有测试但无产品入口」。
          * 剩下 226 个仍是真死代码。
          */
-        const val UNREFERENCED_BASELINE = 175
+        const val UNREFERENCED_BASELINE = 14
 
     /**
      * G216b：`val`/`var` 声明的零引用冻结值。
