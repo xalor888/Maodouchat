@@ -12719,3 +12719,52 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   而不是先查自己的改动——但要同时满足上面三条，缺一条就得回头查回归。
   本次三条都满足，且重跑直接转绿，故判定为 flaky。
 - **本轮仍未做的事**：v1.3.0 仍未推给用户（生产不可达，见上一节）。
+
+
+### G299c（续二）— **v1.3.0 的 APK 上传其实失败了**，但被 `continue-on-error` 藏成绿灯
+
+这是本轮最重要的发现，**推翻了我在 G299c 里的两个说法**。
+
+- **我此前的两个错误结论**：
+  1. 「用户还拿不到……仓库里没有任何发布脚本」——**错**。
+     `release.yml` 第 235 行就有「Upload APK to chat server」步骤，
+     用 `UPDATE_DEPLOY_TOKEN` 调 `PUT /api/internal/app-update`，**发布流程本来就会自动推送**。
+     我此前只 `grep gradlew` 漏看了它。
+  2. 「生产不可达只是我本地 fake-ip 拦截的问题」——**不充分**。
+     GitHub Actions 的 runner（Azure，与我本地网络无关）**同样连不上**。
+- **实测对比（两次 release 的上传步骤日志）**：
+
+  | 版本 | 日期 | 上传结果 | 证据 |
+  |---|---|---|---|
+  | v1.2.1 | 09-20 | **成功** | `{"ok":true,"versionCode":912,"versionName":"1.2.1","apkUrl":"…/api/public/app-update/latest.apk","bytes":13275173}` |
+  | v1.3.0 | 09-23 | **失败** | `curl: (28) Failed to connect to chat.mdou.me port 443 after 135126 ms: Couldn't connect to server` |
+
+  即：**生产 HTTPS 三天前可达、现在从两个独立网络均不可达**。
+  我无法从这里区分是「生产挂了」还是「生产把我这条网络路径封了」，
+  但**至少可以确定 v1.3.0 没有送达用户**。
+- **真正的问题：失败被藏了**。该步骤在工作流里是
+  `continue-on-error: true`（`release.yml` 第 237 行），
+  于是 curl 退出 28 → 步骤结论仍是 `success` → 整个 release run `success`
+  → Release 页面显示「发布成功」。**没有任何地方提示 APK 没送到用户手上。**
+  这正是 DIRECTION.md §1 警告的那类失败模式：
+  「最不能承受的恰恰是宣称成立而某条路径其实没有」——只不过这次不是 E2EE，是发布。
+- **一个讽刺的巧合**：release run 里那条 `X Process completed with exit code 28`
+  我在 G297c 里**看到过**，还写进台账说「若它来自上传步骤的重试，说明大文件上传有超时风险——
+  下次发版值得留意」。我当时**没有去查它屬於哪个步骤**，
+  于是把一次真实的「用户没收到更新」当成了上传超时风险。
+  **教训：看到 run 里的 error 注解就要定位到步骤，不要靠猜。**
+- **本轮动作**：
+  1. 把该步骤的失败改成**显式报错**（不静默跳过），并加一次重试——
+     具体见 `scripts/` 与 `.github/workflows/release.yml` 的改动；
+  2. 台账记录（本节）；
+  3. **未重试发布**：生产不通，重试无意义；v1.3.0 制品仍在 Release 里，
+     等生产恢复后重跑该步骤即可（不需要重新打 tag）。
+- **给用户的明确结论**：**v1.3.0 目前没有送达用户**，原因看起来是生产
+  `chat.mdou.me:443` 不可达（两个独立网络实测）。请检查生产服务
+  （`.workbuddy/memory/MEMORY.md` 记录：`/root/maodouchat-v1.1.0`，
+  compose 项目 `maodouchat-v110`，Caddy+PG16+coturn， health 端点
+  `/health/live`、`/health/ready`）。
+- **发布前决策依据（已从记忆取得，非实测）**：上一次成功发布是
+  `versionCode=912`（v1.2.1，2026-09-20，`.workbuddy/memory/2026-09-20.md`），
+  本版 `versionCode=1085 > 912`，**方向是升级，`isDowngrade` 会接受**。
+  但「线上当前值」仍未经实测（生产不可达），若有他人发布过更高版本则另论。

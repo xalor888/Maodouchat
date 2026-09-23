@@ -234,11 +234,17 @@ jobs:
 
       - name: Upload APK to chat server
         if: success()
-        continue-on-error: true
+        # G299c：去掉 `continue-on-error: true`。
+        # 它把「APK 没送到用户手上」藏成了绿灯——v1.3.0 就是这样：
+        # curl 连不上 chat.mdou.me:443（退出 28），步骤仍报 success、
+        # 整个 release run success，Release 页面显示发布成功。
+        # 而这一步是用户拿到更新的**唯一**通道（GitHub 直链被禁为更新源），
+        # 静默失败正是 DIRECTION.md §1 警告的「宣称成立而路径其实没有」。
         env:
           UPDATE_DEPLOY_TOKEN: ${{ secrets.UPDATE_DEPLOY_TOKEN }}
           UPDATE_SERVER_URL: ${{ secrets.UPDATE_SERVER_URL }}
         run: |
+          set -euo pipefail
           if [ -z "$UPDATE_DEPLOY_TOKEN" ]; then
             echo "Skip server APK upload (secret UPDATE_DEPLOY_TOKEN not set)"
             exit 0
@@ -251,13 +257,24 @@ jobs:
             exit 1
           fi
           NOTES="$(tr '\r\n' '  ' < RELEASE_NOTES.md | cut -c1-800)"
-          curl --fail-with-body -sS -X PUT "${API}/api/internal/app-update" \
-            -H "Authorization: Bearer ${UPDATE_DEPLOY_TOKEN}" \
-            -H "X-Version-Code: ${{ steps.version.outputs.version_code }}" \
-            -H "X-Version-Name: ${{ steps.version.outputs.version }}" \
-            -H "X-Update-Notes: ${NOTES}" \
-            -H "Content-Type: application/vnd.android.package-archive" \
-            --data-binary @"${APK}"
+          # 三次尝试：瞬时网络抖动不该让整次发布失败，但**持续失败必须红**。
+          for attempt in 1 2 3; do
+            if curl --fail-with-body -sS -X PUT "${API}/api/internal/app-update" \
+              -H "Authorization: Bearer ${UPDATE_DEPLOY_TOKEN}" \
+              -H "X-Version-Code: ${{ steps.version.outputs.version_code }}" \
+              -H "X-Version-Name: ${{ steps.version.outputs.version }}" \
+              -H "X-Update-Notes: ${NOTES}" \
+              -H "Content-Type: application/vnd.android.package-archive" \
+              --data-binary @"${APK}"; then
+              echo "APK upload succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            echo "::warning::APK upload attempt ${attempt} failed; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::APK upload failed after 3 attempts — 用户拿不到这次更新。" \
+               "制品已在 GitHub Release，生产恢复后重跑本步骤即可（不必重新打 tag）。"
+          exit 1
 
       - name: Notify Yunhu about release
         if: success()
