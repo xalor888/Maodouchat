@@ -508,6 +508,52 @@ class ClientArchitectureTest {
         return out.toString()
     }
 
+    /**
+     * G182d：**stripComments 自己的负控制，固化成常驻测试**。
+     *
+     * §3.5 第 2 条写着「剥注释本身要过负控制」，但此前它只是文档里的一句话——
+     * 没有测试守着。于是将来注释驱逐逻辑回归（比如忘了处理字符串内的 `//`），
+     * 没有人会知道，G215b 那种「门禁恒真」的陷阱会重演。
+     *
+     * 这里钉住两件事：
+     * 1. 行注释 `//` 与块注释 `/* */` 里的内容必须被剥掉；
+     * 2. **字符串字面量与字符字面量里的内容必须原样保留**（这是最容易写错的一处：
+     *    把 `"http://x"` 的 `//` 当注释起点，会连坐吃掉后面的真代码）。
+     */
+    @Test
+    fun `stripComments itself is under test`() {
+        // 1) 行注释整行吃掉，代码留下
+        val lineCommented = """
+            val a = database foo() // bar baz
+            val b = 2
+        """.trimIndent()
+        assertTrue(stripComments(lineCommented).contains("val a = database foo()"), "行注释内容必须被剥掉")
+        assertTrue(!stripComments(lineCommented).contains("bar baz"), "行注释内容必须被剥掉")
+        assertTrue(stripComments(lineCommented).contains("val b = 2"), "注释后的代码必须留下")
+
+        // 2) 块注释跨行吃掉
+        val blockCommented = """
+            val a = 1 /* hidden
+            still hidden */ val b = 2
+        """.trimIndent()
+        val strippedBlock = stripComments(blockCommented)
+        assertTrue(!strippedBlock.contains("hidden"), "块注释内容必须被剥掉")
+        assertTrue(strippedBlock.contains("val a = 1"), "块注释前的代码必须留下")
+        assertTrue(strippedBlock.contains("val b = 2"), "块注释后的代码必须留下")
+
+        // 3) 字符串字面量里的 // 和 /* 不是注释起点（剥完必须原样在）
+        val inString = """val url = "http://example.com/a/*b"; val n = 7"""
+        val strippedString = stripComments(inString)
+        assertTrue(
+            strippedString.contains("http://example.com/a/*b"),
+            "字符串里的 // 与 /* 不得被当注释起点——否则会连坐吃掉后面的真代码",
+        )
+        assertTrue(strippedString.contains("val n = 7"), "字符串之后的代码必须留下")
+
+        // 4) 字符字面量同样受保护
+        assertTrue(stripComments("val c = '/'").contains("'/'"), "字符字面量不得被误判为注释")
+    }
+
     /** 逐文件统计直连持久层命中数；[onlyComposableFiles] 为真时只数含 `@Composable` 的文件。 */
     private fun directPersistenceHits(onlyComposableFiles: Boolean): Map<String, Int> {
         val uiRoot = File(appMain, "com/maodouchat/ui")

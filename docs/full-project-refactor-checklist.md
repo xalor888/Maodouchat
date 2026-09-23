@@ -10348,3 +10348,39 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - 关键语义钉死：`setLastSimId` 里 `if (prev != null && prev != simId.trim())` 才写
   `lastChangeAt`。写反 = 「同一张卡重复上报」被当成「换了卡」触发不必要的安全告警。
 - 负控制已跑：把判断改成 `prev != null` → `sameSimIdRepeatedDoesNotRefreshTheStamp` FAILED。
+
+### G182d — 把 DIRECTION.md §3.5 的两条落地要求从文字变成**会失败的测试**（app 19 / server 6）
+
+- **起点**：§3.5 已经写清「剥注释本身要过负控制」「KDoc 里不要贴注释定界符实例」，
+  但**这两条此前没有任何测试守着**——将来新增第五套源码文本门禁，很可能重犯
+  G155b/G156b/G157b 同一族错误。
+- **本轮做了 1、2 两条要求**（(3)「不要贴注释定界符」留待下一轮）：
+  1. `ClientArchitectureTest.stripComments itself is under test`（app 18 → **19**）；
+  2. `MessagingInvariantTraceabilityTest.stripComments itself is under test`（server 5 → **6**）。
+  两边钉住同一组四条：行注释被剥 / 块注释跨行被剥 /
+  **字符串字面量里的 `//` 与 `/*` 不得被当注释起点**（最容易写错处——
+  把 `"http://x"` 当注释起点会连坐吃掉后面的真代码）/ 字符字面量不得被误判。
+- **两次负控制都红了，而且红在「对的那一条」**：
+  1. app 侧：把 `c == '/' && n == '/'` 改成恒假条件 →
+     `stripComments itself is under test` **FAILED**，
+     同时 `the whole ui layer keeps its direct persistence budget` 也 FAILED
+     （因为剥注释失效让真实违规冒出来——这正是「注释不是代码」的意义）；
+  2. server 侧：同样改法 → `stripComments itself is under test` **FAILED**，
+     且 `every copy of stripComments in this build is textually identical` 也 FAILED
+     （两份拷贝不一致 → copy-consistency 测试同时兜住，符合预期）。
+- **过程中两次自己的失误，都暴露了一个真实的工具缺陷**：
+  1. 我在 `cd server && ../gradlew test ...` 里跑，第一次没有 `--rerun-tasks`，
+     读到的是 **06:47 的旧 XML**（5 例）——**G182 的 Gradle 缓存陷阱在 server 侧又踩了一次**；
+  2. 更正后用 `--rerun-tasks` 仍看到旧 XML，原因是**我的 bash 工具调用 60s 超时把
+     gradle 客户端杀掉了**（日志只剩 61 行、停在 `> Task :test`），
+     于是我以为「跑了但没写 XML」。改成 `run_in_background` 后 9m20s 正常跑完，
+     XML 时间戳 09:58、6 例。
+     **教训（第一百零三次沉淀）：长命令一律 background；「看起来没结果」时
+        先怀疑自己的调用方式，再怀疑工具。**
+  3. 更险的一次：server 侧 NC 后**还原没执行**（同一次超时里 `cp` 在 gradle 之后），
+     下一次验证时 `diff` 才发现 `state = 1` 那行还留着 `// NC`。
+     若当时直接提交，就是把一个坏掉的 stripComments 推进主干。
+     **教训（第一百零四次沉淀）：负控制后的还原必须单独一条命令、单独验证 diff，
+        绝不能和长命令串在一起。**
+- **实测结果**：app JVM 单测 **2068 → 2069 例**；server 单测 **467 → 468 例**；
+  两边 `BUILD SUCCESSFUL`；两次 NC 均已还原并 `diff` 验证干净。

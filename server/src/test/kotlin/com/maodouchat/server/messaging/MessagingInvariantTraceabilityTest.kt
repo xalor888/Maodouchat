@@ -120,6 +120,37 @@ class MessagingInvariantTraceabilityTest {
         return results
     }
 
+
+    /**
+     * G182d：**stripComments 自己的负控制，固化成常驻测试**（与 app 侧
+     * `ClientArchitectureTest.stripComments itself is under test` 同一族）。
+     *
+     * §3.5 第 2 条写着「剥注释本身要过负控制」，此前只是文档里的一句话。
+     * 这里钉住：行注释/块注释被剥掉、而**字符串与字符字面量里的内容必须原样保留**。
+     */
+    @Test
+    fun `stripComments itself is under test`() {
+        val lineCommented = "val a = foo() // bar baz\nval b = 2"
+        assertTrue(stripComments(lineCommented).contains("val a = foo()"), "注释前的代码必须留下")
+        assertTrue(!stripComments(lineCommented).contains("bar baz"), "行注释内容必须被剥掉")
+
+        val blockCommented = "val a = 1 /* hidden\nstill hidden */ val b = 2"
+        val strippedBlock = stripComments(blockCommented)
+        assertTrue(!strippedBlock.contains("hidden"), "块注释内容必须被剥掉")
+        assertTrue(strippedBlock.contains("val a = 1"), "块注释前的代码必须留下")
+        assertTrue(strippedBlock.contains("val b = 2"), "块注释后的代码必须留下")
+
+        val inString = "val url = \"http://example.com/a/*b\"; val n = 7"
+        val strippedString = stripComments(inString)
+        assertTrue(
+            strippedString.contains("http://example.com/a/*b"),
+            "字符串里的 // 与 /* 不得被当注释起点——否则会连坐吃掉后面的真代码",
+        )
+        assertTrue(strippedString.contains("val n = 7"), "字符串之后的代码必须留下")
+
+        assertTrue(stripComments("val c = '/'").contains("'/'"), "字符字面量不得被误判为注释")
+    }
+
     @Test
     fun `every messaging invariant is either verified by a real test or explicitly declared a gap`() {
         val audits = audit()
