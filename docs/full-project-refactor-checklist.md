@@ -10461,3 +10461,38 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   把「文字要求」和「守护它的测试」在文档里对齐。
 - **实测结果**：app JVM **2070 例 0 失败**（本轮零代码改动，仅改文档）；
   `sync-direction-numbers.py --write` 回报「§0 表格与实测一致，无需改动」。
+
+### G182g — 实测推翻 §3.5 的前提：「四套门禁」其实是**三套**（app 20 → 21）
+
+- **目标本来的构想**：写一个测试枚举「读源码文本的门禁」，把「每套必须具备的三件事」
+  列成清单逐个断言，并冻结数量。**实现前的实测直接推翻了前提。**
+- **实测发现 1：`ArchitectureTest` 不读源码文本。**
+  它是 ArchUnit 的 `@AnalyzeClasses` + `ClassFileImporter`，**读编译后的字节码**
+  （`packages = ["com.maodouchat.core", "com.maodouchat.domain"]`）。
+  注释在字节码里不存在 → 它对 §3.5 三条规则**天然免疫**。
+  §3.5 开头却写「四套读源码文本下结论的门禁」把它列进去——**管辖范围写错了**，
+  照它做会白给第四套写检查。真正受管辖的是三套。
+- **实测发现 2：`stripComments` 有 5 份拷贝，不是 DIRECTION.md 说的 2 份。**
+  按论文口径「app 2 + server 2」漏了 `app/src/test/.../util/GroupPlayPolicyTest.kt`
+  里那份（G167b/G216b 的零引用棘轮复用它）。
+  **但 copy-consistency 测试其实已经覆盖它**——app 侧那条测试扫的是整个
+  `app/src/test`，不是只扫 `ClientArchitectureTest`。实测三份 app 拷贝逐字相同
+  （各 1158 字节）。所以这是**文档口径不全，不是监管漏洞**。
+- **做了什么**：
+  1. 新增 `the source-text gate inventory is pinned`（app 20 → 21 例）：
+     冻结「所有带 stripComments 的文件」= 4 个路径（3 套门禁 + GroupPlayPolicyTest），
+     并逐个断言它们真实存在且真的调 `readText()`。
+     **故意用枚举而非特征识别**：用「含 stripComments」自动发现新门禁听起来更美，
+     但不含 stripComments 的门禁恰是违反第 1 条的——特征识别会系统性漏掉最该抓的。
+  2. 修正 §3.5：四套 → 三套，并写清 `ArchitectureTest` 为什么不受管辖。
+- **负控制（双杀，正是预期）**：在 `SecretSimChangePrefsTest` 里塞第 5 份
+  `stripComments` → **两条**同时 FAILED：
+  `the source-text gate inventory is pinned`（集合变了）+
+  `every copy of stripComments ... textually identical`（新拷贝与既有不一致）。
+  还原单独一条命令 + `diff` 验证。
+- **实测结果**：app JVM 单测 **2070 → 2071 例**（21 例 0 失败）；
+  一次负控制双杀；`DirectionDocFreshnessTest` 同步后转绿。
+- **按目标允许的路径缩小了范围**：原构想是「把三件事列成清单逐套断言」，
+  实测后发现那会把测试写成三套门禁的内部审计、维护负担大而收益低
+  （三件事已各有常驻测试守着）。改为**只冻结管辖清单**这一件真正没人守的事，
+  理由如上，记录在案。

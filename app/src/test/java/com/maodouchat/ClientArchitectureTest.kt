@@ -857,6 +857,65 @@ class ClientArchitectureTest {
      * `server/` 是独立 Gradle 构建，跨构建无法共享实现，所以 server 侧有它自己
      * 的一条等价门禁；**两侧之间靠人工同步**——改任一份都要改另一份。
      */
+    /**
+     * G182g：**§3.5 的「哪套门禁受管辖」必须与事实一致**。
+     *
+     * §3.5 开头原本写「本项目有四套读源码文本下结论的门禁」，把
+     * `core/testing/ArchitectureTest` 也列进去了。**实测（G182g）它是 ArchUnit 的
+     * `@AnalyzeClasses`，读的是编译后的字节码，不是源码文本**——注释在字节码里
+     * 根本不存在，所以它对 §3.5 的三条规则天然免疫。
+     *
+     * 真正受管辖的是 **3 套**：
+     *   1. `app/src/test/.../ClientArchitectureTest.kt`
+     *   2. `server/src/test/.../architecture/ServerArchitectureTest.kt`
+     *   3. `server/src/test/.../messaging/MessagingInvariantTraceabilityTest.kt`
+     *
+     * 这条测试冻结这个集合：**将来新增第四套源码文本门禁时必须同步更新这个集合**，
+     * 否则这里红——避免「以为有四套、实际五套」那种文档与事实漂移。
+     *
+     * 注意：这是**枚举而非特征识别**。用特征（比如「含 stripComments」）自动发现
+     * 新门禁听起来更美，但不含 stripComments 的门禁恰是违反第 1 条的——
+     * 特征识别会系统性地漏掉最该抓的那些。宁可穷举 + 冻结。
+     */
+    @Test
+    fun `the source-text gate inventory is pinned`() {
+        val expected = setOf(
+            "app/src/test/java/com/maodouchat/ClientArchitectureTest.kt",
+            "server/src/test/kotlin/com/maodouchat/server/architecture/ServerArchitectureTest.kt",
+            "server/src/test/kotlin/com/maodouchat/server/messaging/MessagingInvariantTraceabilityTest.kt",
+            // 第五份拷贝，本身不是门禁（G167b/G216b 的零引用棘轮），但受 copy-consistency 管辖
+            "app/src/test/java/com/maodouchat/util/GroupPlayPolicyTest.kt",
+        )
+        val actual = mutableSetOf<String>()
+        // app 侧与 server 侧分两个根扫——server/ 是独立 Gradle 构建
+        for (root in listOf(File(repoRoot, "app/src/test"), File(repoRoot, "server/src/test"))) {
+            if (!root.isDirectory) continue
+            root.walkTopDown()
+                .filter { it.isFile && it.extension == "kt" && it.readText().contains("private fun stripComments(") }
+                .forEach { actual.add(it.relativeTo(repoRoot).path.replace('\\', '/')) }
+        }
+        // 冻结的是「所有带 stripComments 的文件」而不只是那三套门禁：
+        // GroupPlayPolicyTest 里也有第五份拷贝（G167b/G216b 的零引用棘轮复用它），
+        // 它自己不是门禁，但那份拷贝同样受 copy-consistency 管辖
+        // （app 侧的同一测试扫整个 app/src/test）。
+        // 所以这里冻住完整的 4 个文件——将来无论新增门禁还是新增复用方，
+        // 都必须同步更新 DIRECTION.md §3.5 与本清单。
+        assertEquals(
+            expected,
+            actual,
+            "带 stripComments 的文件集合变了。若新增了一套源码文本门禁或新的复用方，" +
+                "请同步更新 DIRECTION.md §3.5 的门禁清单与本测试的 expected。",
+        )
+        expected.forEach { path ->
+            val f = File(repoRoot, path)
+            assertTrue(f.isFile, "清单里的门禁不存在了：$path")
+            assertTrue(
+                f.readText().contains("readText()"),
+                "$path 不读源码文本——它不该在 §3.5 的管辖清单里",
+            )
+        }
+    }
+
     @Test
     fun `every copy of stripComments in this build is textually identical`() {
         val copies = ktFilesUnder(File(repoRoot, "app/src/test"))

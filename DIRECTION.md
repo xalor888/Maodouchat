@@ -16,9 +16,9 @@
 |------|--------|------|
 | 已跟踪文件 | 1797 | `git ls-files \| wc -l`
 | 服务端测试文件 / 用例 | 118 个 / **469 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
-| 客户端 JVM 测试文件 / 用例 | 362 个 / **2070 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
+| 客户端 JVM 测试文件 / 用例 | 362 个 / **2071 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **12 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 926,970 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| 自审清单体量 | 928,561 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件** | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | 18 | `grep -rl org.jetbrains.exposed plugins/` |
@@ -135,9 +135,16 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 
 > 这一节是 G155b / G156b / G157b 三轮各踩一次同一个坑之后补上的。三艘船撞的是同一座礁。
 
-本项目有四套「读源码文本下结论」的门禁：`ClientArchitectureTest`（app）、
-`ServerArchitectureTest`（server）、`MessagingInvariantTraceabilityTest`（server）、
-`ArchitectureTest`（core/testing，ArchUnit）。
+本项目有**三套「读源码文本下结论」的门禁**：`ClientArchitectureTest`（app）、
+`ServerArchitectureTest`（server）、`MessagingInvariantTraceabilityTest`（server）。
+
+> **G182g 实测修正**：这一节原先把 `ArchitectureTest`（core/testing，ArchUnit）
+> 也列进来，写成「四套」。但它是 `@AnalyzeClasses` + `ClassFileImporter`，
+> **读的是编译后的字节码，不是源码文本**——注释在字节码里不存在，
+> 所以它对下面三条规则天然免疫，列进来会让人误判管辖范围。
+> 真正受管辖的是上面三套。这个清单由
+> `ClientArchitectureTest.the source-text gate inventory is pinned` 冻结：
+> 新增第四套源码文本门禁时必须同步更新清单与本文。
 
 **规则：判定「源码里有没有某个符号/标注/声明」之前，先剥掉行注释与块注释。**
 
