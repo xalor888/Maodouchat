@@ -10326,3 +10326,16 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **至此 `Secret*Prefs` 家族 10 个文件全部有测试覆盖。**
 - **实测结果**：app JVM 单测 **2059 → 2068 例**（新增 9 例）；
   本三个类 `tests=5/2/2 failures=0`；全量仅新鲜度门禁因新增文件报错，同步后转绿。
+
+### G182c 收尾补记：**G182c 那次同步差了一个 step，DIRECTION.md 的「已跟踪文件」被推成了旧值**
+
+- **症状**：G182c 提交后验证时发现 `git ls-files | wc -l` = **1797**，
+  而 `DIRECTION.md` 写着 **1794**——正是我新加的 3 个测试文件。
+- **根因**：我在 `finish-round.sh` 之外手动跑流程，次序是
+  「追加台账 → 跑全量 → sync → commit」，但**跑全量与 sync 之间那三个新文件
+  还没 `git add`**，于是 `git ls-files` 数到的还是 1794。
+  `finish-round.sh` 里「先 commit 再 sync」的次序（G193b 定下来的）正是为了防这个。
+  **教训（第一百零二次沉淀）：绕开工具手工重排步骤时，先确认被绕过的那个次序
+     防的是什么。**
+- **修复**：补跑一次全量（2068 例）+ `sync --write` → 1797，
+  `DirectionDocFreshnessTest` 转绿（复跑 BUILD SUCCESSFUL）。
