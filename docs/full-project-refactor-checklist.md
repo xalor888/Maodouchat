@@ -887,7 +887,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q03 Compose 与系统集成
 
-- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G301c：三个入口有了第一批，屏幕本体仍未做**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`），每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**：两批分别 10、7 tests，0 failures 0 skipped（JUnit XML 逐条核对）；负控制各一轮——Contacts 侧把按钮条件改恒真（**编译期即红**，`onReject` 可空导致类型不匹配）再改为 outgoing 永假（**精确只有 `outgoingRequestShowsPendingHintAndCancelInsteadOfAccept` 红**）；Explore 侧把 `isLoading` 分支移到 `likers.isEmpty()` 之后（**实际红的是 `emptyAndNotLoadingShowsTheEmptyHint`，与预判不同但同样证明断言承重**）。全量 instrumented **113 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats / Explore 的**屏幕本体**与 Call / Settings——`ContactsScreen`/`ExploreScreen` 均带 `viewModel()` 默认参数，需先做依赖注入改造才能 `setContent`，卡点已记录；故本项保持 `[~]` 不标 `[x]`）。
+- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G309c：五个入口有了覆盖，含两个屏幕本体**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats 与 Call / Settings 的屏幕本体；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`）。
 - [ ] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文。
 - [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
 
@@ -13020,3 +13020,28 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   共同点都是**只看了构造器默认值、没试过显式传参**。
   §11 Q03 第 1 项现已覆盖四处入口：ChatDetail dialog、Contacts 行、Explore 弹窗、
   ContactsScreen 与 ExploreScreen 两个屏幕本体；仍未标 `[x]`（Chats 与 Call/Settings 未做）。
+
+
+### G309c（续二）— **我自己刚犯了第 6 种副本腐烂：§11 的 Q03 行整行停留在 G301c 状态**
+
+- **怎么发现的**：本轮收尾核验时，我按纪律去核对「台账里说更正了 §11」是否属实——
+  `grep -c ContactsScreenUiTest` 与 `grep -c ExploreScreenUiTest` **各只有 1 次**，
+  且都在 G305c/G309c 的**条目正文**里，**§11 的 Q03 行（第 890 行）从未更新**。
+  该行当时仍写着 G301c 的状态：「三个入口有了第一批」「全量 instrumented **113 tests**」
+  「仍未做：Chats / Explore 的**屏幕本体**……`ContactsScreen`/`ExploreScreen` 均带
+  `viewModel()` 默认参数，**需先做依赖注入改造才能 `setContent`**」。
+- **也就是说**：我在 G305c 与 G309c 的条目里都写了「已更正 G301c/G307c 的错误卡点」，
+  **但真正的权威状态行没改**——它比我更正的那两句话老了整整两轮，
+  而且仍在向读者断言一个我刚刚证伪的事情。
+  这正是我这一路标记过五次的副本腐烂，**这一次是我自己新犯的**，
+  且犯在我宣称「已更正」之后。
+- **已修**：把第 890 行整行改写为与现实一致——五个入口（含两个屏幕本体）、
+  **122 tests / 0 failures**、两个屏幕测试类名入列、
+  「不需要任何依赖注入改造」取代「需先做依赖注入改造」、
+  未做项收窄为「Chats 与 Call / Settings 的屏幕本体」+ 未登录 snackbar 路径（可选项）。
+- **可复用的教训（这是本条的价值）**：**「我在某条记录里写了更正」≠「状态已更新」。**
+  我前面几轮的纠正动作都是 `edit` 台账里的**历史条目**（那是该留的痕迹），
+  却漏了**当前状态行**。两者是不同的副本，前者是历史、后者是现状。
+  以后凡是「更正某结论」，必须显式找到**承载现状的那一行**改掉，
+  并在核验时用「结论的关键词是否仍在现状行里出现」来验证（如本条用的
+  `grep -c '需先做依赖注入改造'` 是否归零）。
