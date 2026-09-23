@@ -12929,3 +12929,39 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   所以把这个检查放进 git 推不出去的地方，而不是依赖记忆。
 - 双向负控制均用**真实 git push** 验证（不是只跑 hook 脚本）：
   §0 字节数改坏 → `git push` exit 1 被拒并打印修复步骤；还原后真实推送放行。
+
+
+### G307c（续）— **hook 第一次真实使用就抓住了我当场犯的错**；并因此发现 `--write-fast` 必须存在
+
+- **双向负控制全部用真实 `git push` 完成**（不是只跑 hook 脚本）：
+  1. 把 §0 字节数改坏 → `git push` → **exit 1 被拒**，且打印出可操作的
+     三步修复指引；
+  2. 按指引修复后 → `git push` → **exit 0 放行**（`17ab5a8c..64efc5c4`）。
+- **最有价值的插曲**：第 2 次推送前，我在**同一个命令里**先追加了台账条目、
+  再 `--write`、再 push——结果推送仍被拒。诊断为两行同时陈旧：
+  `已跟踪文件 1808 → 1809`（新增了 `.githooks/pre-push` 自身）与
+  `自审清单体量`（刚追加的台账条目）。
+  **也就是说，hook 在它生平第一次真实执行时，就抓住了我为治它而刚犯的那次错。**
+  这不是巧合：我为了写 hook 而追加台账，正好复现了那条 6 次依赖路径。
+- **由此发现一个真实的设计缺陷并修掉**：照 hook 第一版提示去跑 `--write`
+  **仍然修不好**——`_plausible` 在用例数低于下限时是 `raise SystemExit`，
+  **整个进程退出**，于是 `--write` 在「上一次是过滤跑」时**一行都不写**，
+  连字节数、已跟踪文件数这些根本不看 XML 的便宜行也修不了。
+  即：hook 拒推 → 照提示跑 `--write` → 照样被拒 → **卡死**。
+  修法：新增对称的 `--write-fast`（只写不依赖 XML 的行），hook 的提示也改成它，
+  并附注「等跑过全量再用 `--write` 对齐用例数那两位」。
+  **这一条是凭空设计不出来的**——只有真的被卡一次才发现。
+- **实现要点**：
+  - `measure(fast: bool)`：fast 时**完全不调用** `count_tests` / `_plausible`，
+    并省略两个用例数位。必须是「不调用」而非「算完再丢」，因为
+    `_plausible` 是 `SystemExit`。
+  - `--check-fast` / `--write-fast` 与 `--check` / `--write` 并列在互斥组里，
+    **后两者语义完全不变**（CI 不用这个脚本，实测 ci.yml/release.yml 零命中）。
+  - `.githooks/pre-push` 是薄封装，`git config core.hooksPath .githooks`
+    让本机立即生效；该配置是**本地**的，不随仓库传播，
+    所以 `scripts/README.md` §5 与 DIRECTION §4.5 都写了一次性启用命令。
+- **false-positive 排查（关键，否则 hook 会被人绕过）**：实测 `--check`
+  在「刚单跑过一个测试类」后会以「app JVM 用例数只有 11」exit 1——
+  若 hook 用它，会把「跑完单测就推送」这种正常节奏误拒，
+  结果只会是我再次绕过 hook（与手滑同结局）。`--check-fast` 完全不碰那两个位，
+  同一场景下 exit 0。

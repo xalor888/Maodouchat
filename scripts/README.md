@@ -30,6 +30,7 @@
 | 脚本 | 职责 |
 |---|---|
 | `sync-direction-numbers.py` | 按实测改写 `DIRECTION.md` §0 数字；`--check` / `--write` |
+| `sync-direction-numbers.py --check-fast` / `--write-fast` | **只处理不依赖 XML 的 §0 行**（G307c）。`--check`/`--write` 要读全量跑的 XML 算两个用例数位，上次若是过滤跑就被下限守卫**整体**拒绝（连便宜行也不写）；fast 模式完全不碰那两个位，1 秒完成。**`--check-fast` 即 pre-push hook 所用它**；`--write-fast` 是 hook 拒推后给你的修复路径。用例数的权威校验仍由 `DirectionDocFreshnessTest` 在全量里做 |
 | `finish-round.sh` | 一条命令收尾一整轮：全量测试 → 追加台账 → 同步 → 门禁 → 提交 |
 | `qa-ui.py` | 真机 UI 检查（`dump`/`shot`/`tap`/`text`/`log`/`start`），详见 `DIRECTION.md` §4.5 |
 | `use-jdk21.sh` | 把 `JAVA_HOME` 钉到 JDK 21（系统 JDK 25 会让 Kotlin DSL 崩）——`source` 使用 |
@@ -69,3 +70,21 @@
 
 > 上一节共 14 个。它们**没有任何 CI/构建/源码引用**（唯一提到它们的地方是
 > `docs/full-project-refactor-checklist.md` 的历史条目）。
+
+## 5. Git pre-push 闸门（每个新 clone 需一次性启用）
+
+`.githooks/pre-push` 在 `DIRECTION.md` §0 与实测不一致时**拒绝推送**，
+并打印修复步骤。它治的是「追加台账 / 新增文件后忘同步 §0」——
+本会话为此红过 6 次 CI。
+
+**新 clone 只需一次**（`core.hooksPath` 是本地 git 配置，不随仓库传播）：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+之后每次 `git push` 前它会自动跑（约 1 秒）。被拒时照它打印的做：
+`python3 scripts/sync-direction-numbers.py --write-fast` 然后 amend 再推。
+（用 `--write-fast` 而非 `--write`：上次若是过滤跑的测试，`--write` 会被
+用例数下限守卫整体拒绝，一行都写不了。）
+
