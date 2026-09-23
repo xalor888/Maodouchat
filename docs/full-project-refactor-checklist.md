@@ -11122,6 +11122,61 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **本轮未改产品代码**（矩阵脚本代码无需修改——三条判据都由现有代码满足）；
   server 与 app 全量维持 0 失败。
 
+### G188c — 热点「已无可拆」有了工具扫描证据；受控失败证明门禁真的承重（两条棘轮同时红）
+
+- **第 (1) 条：清单已产出，结论是「没有满足标准的块」**。
+  写了扫描器（`/tmp/scan_hotspots.py`）对三个热点逐函数取跨度，「零副作用」口径为
+  函数体内不出现 `_uiState.update`/`_uiState.value=`/`viewModelScope.launch`/
+  `ApiService.`/`repository.`/`getApplication(`/`.insert(`/`.update(`/
+  `sendSignalWithFallback`/`mediaBridge.`/`CallOrchestrator.`/`tokenManager.`。
+  **第一版漏判一类副作用**：`text(R.string.x)` 是 Android 资源查找（确实是 IO），
+  补进口径后重扫：
+  - `ChatDetailViewModel.kt`：`invalidateGroupSenderKey`(22)/`applyLoadEffects`(21)/
+    `withLocalNickname`(20)/`occupySessionCipher`(20)/`observeVoicePlayback`(15)。
+    逐个读过：`withLocalNickname` 含 `userRepo.getUserById`（IO）；
+    `occupySessionCipher`/`observeVoicePlayback` 是 native cipher 与播放器；
+    `applyLoadEffects` 是 effect 分发编排层（测它等于测 when 分支映射）；
+    `invalidateGroupSenderKey` 是 Signal 协议动作。**无一满足标准**。
+  - `ChatDetailRoute.kt`：扫出的 `dismissSafetyForMessage`(247)/`resolveSenderName`(165)
+    是**扫描器在 @Composable 里跨度误算**（实际前者 6 行、后者是委托
+    `senderDisplayName`/`resolveChatHeaderStatus` 的薄层）。该文件的函数边界
+    不能用 `^    fun` 正则可靠切分，已在结论注明。
+  - `CallViewModel.kt`：`failureReason`(56)/`writeCallLog`(39)/`flushPendingGroupOffers`(25)。
+    `failureReason` 依赖 `text(R.string.*)`（IO，需 Robolectric），后两者是 IO。
+  - 另确认上一轮量过的 `detailNudgePreview`/`listPreviewTextForMessage` 虽被扫出，
+    实为**薄委托层**（核心在 `NudgeDisplayPolicy` 与 `ChatListPreviewPolicy`，均有测试）。
+- **结论（第 (1) 条的正式回答）**：三大热点**已无可拆的纯决策块**。
+  G65–G68 已把易拆的（准入、加载计划、已读水印、待发意图、导出守卫、
+  通话信令准入、可靠性策略）全部下沉并配测。按目标第 (5) 条纪律，
+  **没有为了干活而硬造一个 Policy**。
+- **第 (3) 条改做「把门禁抓实」——已用受控失败证明，且比预期多红一条**：
+  先读 `hotspot caps have zero slack` 实现确认语义为 `lines != cap` 即红
+  （G214b 零余量设计，双向：不容余量也不容超限）。随后跑
+  `/tmp/nc188c.sh`（向 `GroupPlayPolicy.kt` 追加 5 行死注释 → 跑
+  `ClientArchitectureTest` → 自动还原），实跑输出：
+
+  ```
+  AFTER_ADD lines=    1969
+  ClientArchitectureTest > hotspot caps have zero slack FAILED
+  ClientArchitectureTest > client hotspot files may not grow FAILED
+  > Task :app:testDebugUnitTest FAILED
+  BUILD FAILED in 1m 10s
+  RESTORED lines=    1963
+  ```
+
+  **两条独立棘轮同时红**——`hotspot caps have zero slack`（零余量）与
+  `client hotspot files may not grow`（不许长大）。加 5 行同时违反两者，
+  说明这个门禁不是单点：任一条被绕过，另一条仍会拦。
+- **还原后复验绿**：`./gradlew :app:testDebugUnitTest --tests
+  'com.maodouchat.ClientArchitectureTest' --rerun-tasks` → **BUILD SUCCESSFUL
+  in 53s**。完整闭环：诚实时绿 → 加 5 行死代码两条红 → 还原 → 再绿。
+- **本轮未改任何产品代码**：`git status` 仅 `docs/full-project-refactor-checklist.md`
+  一处改动（本节目录自身）；`GroupPlayPolicy.kt` 保持 1963 行原样。
+- **过程备注（工具故障，已恢复）**：本轮上半段 bash 工具约二十次调用全部返回
+  `missing required property description`，导致受控失败一度未能执行、我在台账里
+  写下「未执行」并保留目标为 active。回合重新开始后同一命令即跑通，
+  因此本节标题与结论已按实跑结果更正——**没有留着那份「未执行」的旧记录**。
+
 ### G188b — M6 旧路径真正删除首次有实质动作：删掉 161 个 random 死成员（app 2116 不变）
 
 - **为什么挑这个**：M6 判据是「门禁覆盖 ChatDetail*/GroupPlayPolicy，旧路径真正删除」。
