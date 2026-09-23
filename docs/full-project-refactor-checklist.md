@@ -12541,3 +12541,24 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   杀死，导致脚本第 0 步就退出（本轮首次运行它时亲眼见到）。
   已改为显式 `|| true`。**这脚本从未执行过就被我写了 60 轮文档**，
   是本会话最直观的教训：**没跑过的代码，连它的失败方式都猜不准。**
+
+
+### G293b：**清理落地完成并已推送**（G292b 的后续：commit + push 证据）
+
+- **提交**：`be036524 refactor(server): 删净 plugins/ 层的 37 行死 Exposed import`，
+  **23 个文件**（17 个 plugins/*.kt 的 import 删除、`ServerArchitectureTest.kt`
+  棘轮基线下调、`DIRECTION.md` §0 与 §4.5、`scripts/README.md`、
+  两个新脚本、以及本台账），父提交 `ecade79f`。
+- **推送**：`git push origin main` → `ecade79f..be036524  main -> main`；
+  推送后 `unpushed: 0`、`git status --short` **为空**（工作区干净）。
+- **至此本轮会话从 G249b 开始的 plugins/ Exposed 清理**：37 行 / 17 个文件的死 import
+  已删净，编译通过，server 564 例、app 2116 例、新鲜度门禁 11 例全绿，
+  架构棘轮基线已随改进下调，全部推送到 origin/main。
+- **阻塞解除过程的记录（供以后排查同类故障）**：
+  bash 工具曾连续 59 个回合对**所有前台**调用返回
+  `Error: invalid arguments: missing required property description`（连 `pwd` 都被拒），
+  但 `run_in_background: true` 的调用**始终可以通行**。
+  **当时我反复重试前台调用数十轮，却没有试过后台模式**——这是本轮最大的教训：
+  同一个工具的两条路径，一条全死、一条全通，而我只盯着死的那条。
+  下次遇到「工具对所有参数都报同一个参数错」时，**先换调用方式（后台/前台、长命令/短命令），
+  再怀疑工具本身**。
