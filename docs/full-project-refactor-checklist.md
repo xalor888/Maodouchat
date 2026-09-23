@@ -10794,3 +10794,50 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   `during lockout even the correct pin is refused`。两条都是锁定状态机的核心。
 - **实测结果**：`ChatLockRepositoryTest` **15 例 0 失败**；app JVM **2101 → 2116 例**；
   一次有效负控制；生产文件 `git diff` 为空。
+
+### G186c — 管理员导出查询层首次有测试；**实测发现负 limit 契约**（server 468 → 479）
+
+- **动机**：`AdminExportRepository.kt`（**749 行 / 30 fun / 33 transaction 块 / 28 纯判断**）
+  是 M2「AdminExportsRouting 不再直写 Exposed」那轮重构的产物——原 1110 行内联 SQL
+  + CSV 映射被拆成 Repository + Service，但**新边界自身从无测试**（零测试引用）。
+  它承载 users / pushTokens / moderationAudit / riskEvents / sessionsSummary …
+  全是敏感数据，导出行数或字段错一项就是数据事故。
+- **为什么换方向**：上一轮我说「继续测 data/repository 剩余 8 个类」，
+  但实测它们**没有一个**像 ChatLockRepository 那样有大量零 IO 原语
+  （SecretChatRepository 只有 29 行且纯 IO）。**先量再决定**这次救了又一次白干。
+- **10 例覆盖**（按目标优先级）：
+  - 空库 → 空列表（不抛）；种子 2 用户 → 2 行、首列是 id；
+  - **列数稳定**：users 投影 8 列——CSV 表头按列数对齐，少一列就整体错位；
+  - **排序方向**：按 lastSeen DESC（old/mid/new → new/mid/old）；
+  - **limit 语义**：超行数返回全部 / **limit=0 返回 0 行** / limit=1 恰好 1 行 /
+    limit=2 截断 / **负 limit 抛 ExposedSQLException**（见下）；
+  - 无参 `messageStats()` 空库可查。
+- **最重要的发现：负 limit 会抛，但路由层已经挡住了**。
+  实测 `repo.users(-5)` → H2 抛 `Invalid value "-5" for parameter "result FETCH"`
+  （Exposed 生成 `FETCH -5`）。**这是否是真实风险？不是**——
+  `AdminExportsRouting.kt` 每一处都先
+  `(queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)`，
+  负值到不了 Repository。所以没有改生产代码，而是把**这个契约钉成测试**：
+  用例名就叫 `a negative limit throws and that is why the route clamps it`，
+  注释写清「将来谁加不经路由的调用方或去掉 coerceIn，这里会提醒他下界曾由路由层保证」。
+- **踩了三个坑，两个是我的、一个是操作失误**：
+  1. **JUnit4 vs JUnit5**：我用了 `org.junit.Test` + `@Before/@After`，
+     而该 server 构建是 `useJUnitPlatform()`（JUnit 5）→ `No tests found for given includes`。
+     改成 `org.junit.jupiter.api.Test` + `@BeforeEach/@AfterEach`。
+     **教训：换个构建先看它的 useJUnitPlatform。**
+  2. **H2 保留字**：裸 SQL `INSERT INTO users (name, ...)` 报 `Column "NAME" not found`
+     ——H2 把 `name` 当保留字。改用项目已有的 Exposed DSL（`Users.insert { it[Users.name] = … }`），
+     DSL 的列引用会被正确加引号。**裸 SQL 在这个项目里是条歧路。**
+  3. **我自己的 `./gradlew --stop` 杀掉了一个正在跑的全量测试**：当时误判它卡住
+     （XML 计数停在 156/181/59 不变），实际是测试在跑、XML 结束时才落盘。
+     强杀留下 59 个 `Could not complete execution for Gradle Test Executor` 残留 XML。
+     **教训：判「卡住」之前先看 `ps aux | grep java` 的 CPU 占用——141% 就是在跑。**
+     重跑后 11m38s 正常完成、0 失败。
+- **实测结果**：`AdminExportRepositoryTest` **10 例 0 失败**；
+  server 全量 **468 → 479 例 0 失败**（11m38s）；一次有效负控制
+  （users 排序 DESC→ASC → `users export is ordered by last seen descending` FAILED）；
+  生产文件 `git diff` 为空。
+- **未覆盖的 19 个 fun**：需要更复杂的关联 seed（bots/polls/friendships/reports 等）。
+  理由记在案：**本轮必须含 users + 至少一个审计类**——但实测那些审计表
+  （moderationAudit / riskEvents）的 seed 需要先摸清各自 schema，
+  成本超出单轮，留下一步。
