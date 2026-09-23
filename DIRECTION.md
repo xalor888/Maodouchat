@@ -22,7 +22,7 @@
 
 | 事实 | 实测值 | 来源 |
 |------|--------|------|
-| 已跟踪文件 | 1806 | `git ls-files \| wc -l`
+| 已跟踪文件 | 1807 | `git ls-files \| wc -l`
 | 服务端测试文件 / 用例 | 121 个 / **564 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
 | 客户端 JVM 测试文件 / 用例 | 365 个 / **2116 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **14 个文件** | `find app/src/androidTest -name '*.kt'`
