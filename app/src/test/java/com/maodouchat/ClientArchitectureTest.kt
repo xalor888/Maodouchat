@@ -112,7 +112,7 @@ class ClientArchitectureTest {
     private val frozenHotspotLineCaps: Map<String, Int> = mapOf(
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3433,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3102,
-        "com/maodouchat/util/GroupPlayPolicy.kt" to 1963,
+        "com/maodouchat/util/GroupPlayPolicy.kt" to 1945,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
@@ -169,7 +169,7 @@ class ClientArchitectureTest {
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3433,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3102,
-            "com/maodouchat/util/GroupPlayPolicy.kt" to 1963,
+            "com/maodouchat/util/GroupPlayPolicy.kt" to 1945,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 672,
             "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1651,

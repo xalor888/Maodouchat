@@ -677,7 +677,14 @@ class GroupPlayPolicyTest {
          * （往返断言），从「死代码」变成「有测试但无产品入口」。
          * 剩下 226 个仍是真死代码。
          */
-        const val UNREFERENCED_BASELINE = 14
+        // G295c：14 → 10。删掉 4 个确证死成员（flipCoin / rollNumberGuess /
+        // formatAnonBox / formatTruthPrompt，连带其唯一调用方 randomTruthPrompt）。
+        // 这些成员的「死」是在**文件内引用、跨文件引用、派生命名配对（parseX↔formatX）、
+        // 字符串字面量**四个维度都核实过之后才动手的——前三轮我依次漏掉后三者，
+        // 分别把 24 个、9 个误判成死成员（详见台账 G295c）。
+        // 保留 TRUTH_PREFIX / ANON_PREFIX：它们虽只被已删的 format* 使用，
+        // 但 TextMessageBubble.kt 的解析分支依赖它们，删了会直接编译失败。
+        const val UNREFERENCED_BASELINE = 10
 
     /**
      * G216b：`val`/`var` 声明的零引用冻结值。

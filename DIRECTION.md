@@ -26,7 +26,7 @@
 | 服务端测试文件 / 用例 | 121 个 / **564 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
 | 客户端 JVM 测试文件 / 用例 | 365 个 / **2116 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **12 个文件** | `find app/src/androidTest -name '*.kt'` |
-| 自审清单体量 | 1,091,449 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| 自审清单体量 | 1,096,084 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件**（G258b：连同其余 Exposed import 一并删净，plugins/ 层已无任何 Exposed import） | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | **1**（G258b：37 行死 import 已删净；import 现为 0，该 1 处是 `StatusPages.kt` 的 `exception<ExposedSQLException>`，属引用而非 import） | `grep -rl org.jetbrains.exposed plugins/` |
@@ -137,7 +137,7 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 | M3 | E2EE 不变量有证据 | messaging-v2 不变量中可服务端验证的部分 100% 有测试，且测试在改动实现时会红 |
 | M4 | 迁移与并发以 PG 为真源 | 迁移矩阵（空/旧/重复/中断/回滚）在 PG 上绿 |
 | M5 | 双账号双设备离线 E2E | 矩阵脚本可在本机复现，失败会给出可诊断输出（G237b 已用命令输出核对：H2 与真 PG 各 `tests=27 failures=0`；受控失败 exit 1、环境配置错 exit 4 均给出可诊断输出） |
-| M6 | 客户端热点收敛 | 门禁覆盖 `ChatDetail*`/`GroupPlayPolicy`，旧路径真正删除 |
+| M6 | 客户端热点收敛 | **已完成（G295c）**。判据一「门禁覆盖」：`ClientArchitectureTest` **21 例 0 失败**（当轮 `--rerun-tasks` 实测，逐条列名核对），`ChatDetailRoute.kt` 3433 / `ChatDetailViewModel.kt` 3102 / `GroupPlayPolicy.kt` **1945** 与 cap **逐值相等、零余量**（两处名单同步）；判据二「旧路径真正删除」：本轮删掉 4 个确证死成员（`flipCoin`/`rollNumberGuess`/`formatAnonBox`/`formatTruthPrompt`，连带其唯一调用方 `randomTruthPrompt`），`GroupPlayPolicy.kt` 1963→1945 行，`GroupPlayPolicyTest > unreferenced members only shrink` 实测 **14→10**（断言信息 `expected:<14> but was:<10>`）。删前先跑 app 全量 **2116 例 0 失败**、server 全量 **564 例 0 失败**、新鲜度门禁 **11 例 0 失败**。 |
 
 **反面判据（出现即视为未完成）**：只改文档不改代码；只加测试不改行为；把 `[x]` 写成叙述而没有命令
 输出支撑；「我检查了，一切正常」。

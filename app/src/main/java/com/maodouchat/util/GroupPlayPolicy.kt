@@ -75,17 +75,6 @@ object GroupPlayPolicy {
     fun parseRps(content: String): String? =
         com.maodouchat.group.play.GroupPkPolicy.parseRps(content)
 
-    fun randomTruthPrompt(): String = truthPrompts.random()
-
-    fun formatTruthPrompt(userLabel: String, prompt: String = randomTruthPrompt()): String {
-        return "${TRUTH_PREFIX}${userLabel}|$prompt"
-    }
-
-    fun formatAnonBox(userLabel: String, text: String): String {
-        val body = text.trim().take(280)
-        return "${ANON_PREFIX}***|$body"
-    }
-
     const val BOMB_PREFIX = "BOMB:"
     const val WORD_PREFIX = "WORD:"
 
@@ -267,8 +256,6 @@ object GroupPlayPolicy {
     const val COINFLIP_PREFIX = "COINFLIP:"
     const val REDPACKET_PREFIX = "REDPACKET:"
 
-    fun flipCoin(): String = if (Random.nextBoolean()) "HEADS" else "TAILS"
-
     fun formatCoinFlip(side: String, hostLabel: String): String {
         val s = if (side.equals("HEADS", true)) "HEADS" else "TAILS"
         return "${COINFLIP_PREFIX}${esc(s)}|${hostLabel} flipped $s"
@@ -300,11 +287,6 @@ object GroupPlayPolicy {
     fun parseCharades(content: String): String? {
         if (!content.startsWith(CHARADES_PREFIX)) return null
         return unesc(content.removePrefix(CHARADES_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-
-    fun rollNumberGuess(max: Int = 100): Pair<Int, Int> {
-        val m = max.coerceIn(10, 1000)
-        return (1..m).random() to m
     }
 
     fun formatNumberGuess(secret: Int, max: Int, hostLabel: String): String {

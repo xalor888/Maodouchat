@@ -12562,3 +12562,49 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   同一个工具的两条路径，一条全死、一条全通，而我只盯着死的那条。
   下次遇到「工具对所有参数都报同一个参数错」时，**先换调用方式（后台/前台、长命令/短命令），
   再怀疑工具本身**。
+
+
+### G295c — 补完 M6 判据二「旧路径真正删除」：删 4 个确证死成员，零引用成员 14→10
+
+- **为什么能补**：G284c 把 bash 打通后，本轮实测发现 M6 判据二并未完成——`GroupPlayPolicy.kt`
+  里仍有死成员，且其中 5 个 `random*` 正是 `d5ab568b`「删掉 161 个 random 死成员」的漏网者。
+- **三次测量错误，逐个记下来（这是本轮真正的教训）**：
+  1. **第一次（漏文件内引用）**：脚本只搜「其他文件」，得出 24 个死成员。
+     其中 `randomChainSeed`/`randomEmojiDuel`/`randomHideEmoji`/`randomMemoryBoard`/
+     `randomTruthPrompt` **被同文件其他成员调用**（第 80/461/497/622/659 行）。
+  2. **第二次（漏派生命名）**：补上文件内引用后得出 9 个；但 `parseMinuteTalk` 这类
+     `parseX` 的死判**必须配对 `formatX`**——测试（`GroupPlayPolicyTest.kt` 309–315 行）用
+     `parseName = "parse" + name.removePrefix("format")` 派生名字再 `getMethod` 反射调用，
+     所以「`parseMinuteTalk` 本身 0 引用」不代表死（测试第 607 行有 `"formatMinuteTalk"`）。
+     这个坑 G188b 踩过（`NoSuchMethodException: parseMinuteTalk`）。
+  3. **第三次（漏五个源码根）**：真正权威的口径是测试自己：`app/src`+`server/src`+
+     `core`+`domain`+`feature` 五个根全部 `.kt`、且用项目自己的 `stripComments`。
+     按这个口径实测 **10 个**（删前 14）。
+  **结论：判「某成员死了」之前，必须同时查 文件内引用 / 派生命名 / 五个源码根 / 字符串字面量。
+  我三轮各漏一项，每轮都把数字测大。**
+- **最终删除集（4 个成员 + 1 个连带）**：`flipCoin`、`rollNumberGuess`、`formatAnonBox`、
+  `formatTruthPrompt`，加上**连带**的 `randomTruthPrompt`——它的唯一调用方就是
+  `formatTruthPrompt` 的默认参数值，删前者后它即成孤儿。
+- **一次删错与纠正**：第一版把 `TRUTH_PREFIX`、`ANON_PREFIX` 两个常量也删了，
+  **编译立刻红**：`TextMessageBubble.kt:339-340` 的解析分支依赖它们
+  （`parsedBody.startsWith(...TRUTH_PREFIX)` → 渲染成 "Truth:"/"Anon:"）。
+  即「format 侧死了、parse 侧还活着」时，**共用的前缀常量必须留**。
+  已恢复两个常量，5 个成员删除保留。
+- **删除后的各项实测**：
+  - `GroupPlayPolicy.kt` **1963 → 1945 行**（纯删除，含连带与格式整理）；
+  - `ClientArchitectureTest` **21 条全绿**（`hotspot caps have zero slack` 一度报红，
+    因实际行数低于 cap 1963——按 G214b/G188c 的零余量惯例，把 cap 同步下调为 1945，
+    两处名单都改，这是预期动作）；
+  - `GroupPlayPolicyTest > unreferenced members only shrink` 由 14 变 10，
+    `UNREFERENCED_BASELINE` 按测试自己鼓励的工作流改为 10（断言信息给出
+    `expected:<14> but was:<10>`，与我的独立测算完全一致）；
+  - `UNREFERENCED_VAL_BASELINE = 173` 未受影响（删的两个常量有引用，不算零引用 val）。
+
+
+### G295c（续）— M6 已正式标注完成
+
+- `DIRECTION.md` §3 的 M6 行已按实测改写为「**已完成（G295c）**」，
+  判据两半各自附上当轮命令输出（21 例门禁全绿 + 零余量行数 + 删成员 + 2116/564/11 三套全绿）。
+- 标注前最后复跑一次 `DirectionDocFreshnessTest` → **BUILD SUCCESSFUL**（§0 那行变长后
+  仍与实测一致）。
+- **至此 DIRECTION.md §3 的 M1–M6 六个里程碑全部闭环。**
