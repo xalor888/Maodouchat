@@ -55,6 +55,7 @@ internal fun ChatDetailBatchDeleteDialog(
     // 8.55：服务端 mutation 限流 60/min——批量封顶 60 条，超出提示分批，避免 429「删一半剩一半」
     val batchCap = 60
     val cappedBatch = deletableBatch.take(batchCap)
+    val batchDeleteDoneTip = pluralStringResource(R.plurals.chat_batch_delete_done, cappedBatch.size)
     val cappedOut = deletableBatch.size - cappedBatch.size
     val skippedCount = selectedMessages.size - deletableBatch.size
     AlertDialog(
@@ -88,7 +89,7 @@ internal fun ChatDetailBatchDeleteDialog(
                 onSelectionCleared()
                 onDismiss()
                 // 1.50：删除完成提示
-                Toast.makeText(context, context.resources.getQuantityString(R.plurals.chat_batch_delete_done, cappedBatch.size, cappedBatch.size), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, batchDeleteDoneTip, Toast.LENGTH_SHORT).show()
             }) { Text(stringResource(R.string.chat_delete), color = LocalChatPalette.current.unreadRed) }
         },
         dismissButton = {

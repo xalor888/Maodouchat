@@ -419,8 +419,8 @@ internal fun ScheduleSendDialog(
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                if (count > 0) context.resources.getQuantityString(R.plurals.schedule_repeat_count, count, count)
-                                else context.getString(R.string.schedule_repeat_count_unlimited),
+                                if (count > 0) pluralStringResource(R.plurals.schedule_repeat_count, count, count)
+                                else stringResource(R.string.schedule_repeat_count_unlimited),
                                 color = if (repeatCountChoice == count) Primary else OnSurface,
                                 style = MaterialTheme.typography.labelMedium
                             )

@@ -491,28 +491,6 @@
     </issue>
 
     <issue
-        id="LocalContextResourcesRead"
-        message="Reading Resources using LocalContext.current.resources"
-        errorLine1="                Toast.makeText(context, context.resources.getQuantityString(R.plurals.chat_batch_delete_done, cappedBatch.size, cappedBatch.size), Toast.LENGTH_SHORT).show()"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailBatchDeleteDialog.kt"
-            line="91"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="LocalContextResourcesRead"
-        message="Reading Resources using LocalContext.current.resources"
-        errorLine1="                                if (count > 0) context.resources.getQuantityString(R.plurals.schedule_repeat_count, count, count)"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailScheduleComponents.kt"
-            line="422"
-            column="48"/>
-    </issue>
-
-    <issue
         id="ModifierParameter"
         message="Modifier parameter should be the first optional parameter"
         errorLine1="    modifier: Modifier = Modifier,"

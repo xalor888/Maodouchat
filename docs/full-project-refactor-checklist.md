@@ -10277,3 +10277,31 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **状态**：lintDebug BUILD SUCCESSFUL；基线 617 条稳定；app JVM 2059 例 0 失败。
 - **小结：从「CI 是红的」到「617 条已知且不影响发布物、新增任意一条即红」，用了 8 轮。
      这 617 条里没有一条是「必须修」的，但每一条都有归属。**
+
+### G236b — 把 Compose 的**第二道**资源读取检查也清零（基线 617 → 615）
+
+- **背景**：G235b 逐条定性时发现还剩 **2 条 `LocalContextResourcesRead`**，并注明
+  「这是 Compose 后来新增的第二道检查，不在错误级、不卡 CI，但证明这事没做完一说」。
+  本轮把它做掉。
+- **两处，修法不同**：
+  1. `ChatDetailScheduleComponents.kt:422`——**直接换就行**。
+     它位于 `listOf(3,7,30,0).forEach { count -> TextButton(onClick=...) { Text(...) } }`：
+     `TextButton` 的内容 lambda 是 `@Composable`，而 `forEach` 是 inline 函数、
+     lambda 会继承 `@Composable` 上下文——所以 `pluralStringResource` / `stringResource`
+     直接可用。这也是 G230b 那条「inline lambda 可以调 @Composable」的又一次印证。
+  2. `ChatDetailBatchDeleteDialog.kt:91`——**要 hoist，而且锚点有讲究**。
+     调用在 `AlertDialog` 的 confirmButton `onClick` 里（非 inline 回调），
+     且数量 `cappedBatch.size` 是动态的。
+     但 `cappedBatch` 本身在 composable 作用域里可见，所以可以
+     `val batchDeleteDoneTip = pluralStringResource(R.plurals.chat_batch_delete_done, cappedBatch.size)`。
+     ⚠️ **锚点必须放在 `cappedBatch` 定义之后**——我第一版放在
+     `val context = LocalContext.current` 后面，直接 `Unresolved reference 'cappedBatch'`。
+- **一个观察：带数量的复数串 `pluralStringResource` 比字符串重载好用得多。**
+  `getQuantityString(id, quantity, formatArgs...)` 的位置参数很容易搞混
+  （原代码就传了两遍 `cappedBatch.size`），`pluralStringResource(id, count)` 没这个问题。
+- **结果**：lint 报 2 条基线失效 → `updateLintBaseline`
+  → 总数 **617 → 615**、**`LocalContextGetResourceValueCall` 与
+  `LocalContextResourcesRead` 两类合计 0** → ratchet 冻结值同步（615）→ 2 例转绿
+  → 全量 app JVM **2059 例 0 失败**。
+- **「用 `LocalContext` 读资源」这件事到此**两道 lint 检查都是零**。
+  剩下的只有 G235b 定性过的那些「不影响发布物」的警告。**
