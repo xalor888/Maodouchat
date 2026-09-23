@@ -887,7 +887,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q03 Compose 与系统集成
 
-- [ ] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**仍未做**：`app/src/androidTest` 只有 4 个数据层测试文件（迁移/级联/终端竞态），没有任何 Compose UI 测试；G3 之后这 4 个至少会被 CI 真实执行）。
+- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G301c：Contacts 与 ChatDetail 有了第一批，其余未做**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；本轮新增 `ui/screen/contacts/ContactsRowsUiTest`——**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable，每例同时断言可见性与行为（点击/长按后回调计数变化），文案一律取 `R.string`。**已在本地 AVD `maodou_test` 实跑**：10 tests / 0 failures / 0 skipped（JUnit XML 逐条核对）；负控制两轮——第一轮把 `if (onAccept != null && onReject != null)` 改成 `if (true)`，**编译期即红**（`onReject` 可空，`TextButton(onClick=...)` 类型不匹配，证明该空检查承重但不是行为证据）；第二轮把 `else if (request.outgoing)` 改成 `else if (request.outgoing && false)`，**精确只有 `outgoingRequestShowsPendingHintAndCancelInsteadOfAccept` 一条红**，还原后复绿。全量 instrumented 106 tests / 0 failures（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，乃真机用例、预先存在）。**仍未做**：Chats / Explore / Call / Settings 四个主屏幕——其中 `ContactsScreen`/`ExploreFeedScreen` 本体带 `viewModel()` 默认参数，需先做依赖注入改造才能测，卡点已记录；故本项保持 `[~]` 不标 `[x]`）。
 - [ ] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文。
 - [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
 
@@ -12768,3 +12768,59 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   `versionCode=912`（v1.2.1，2026-09-20，`.workbuddy/memory/2026-09-20.md`），
   本版 `versionCode=1085 > 912`，**方向是升级，`isDowngrade` 会接受**。
   但「线上当前值」仍未经实测（生产不可达），若有他人发布过更高版本则另论。
+
+
+### G301c — **Contacts 主流程的第一批真 UI 测试**（Q03 从 0 到有，10 例 + 两轮负控制）
+
+- **动机**：`docs/progress-audit-2026-09-20.md` §5 把 **Q03「Compose 与系统集成」** 列为
+  完成数 0 的高价值缺口，其中第 1 项「主流程 Compose 测试」的实质是
+  「底部导航三个主屏幕 Chats / Contacts / Explore 零 UI 渲染测试」。
+  此前 `app/src/androidTest` 里唯一的 Compose UI 测试是 `ChatDetailDialogsUiTest`
+  （G173b，dialog 层 12 例）。JVM 层有 `ContactsViewModelTest` /
+  `ContactsUiStateFilterTest` 等策略测试，E2E 驱动服务端往返——
+  **都不渲染 UI**，于是「接受按钮到底渲染不渲染」「点拒绝到底触发没触发」
+  没有任何自动化手段能回答。
+- **可行性先验（不是先写再想）**：本地 `adb devices` 有 `emulator-5556`
+  （AVD `maodou_test`），先用现有 `ChatDetailDialogsUiTest` 跑通整条链
+  （18 tests / BUILD SUCCESSFUL in 43s）确认能跑，**才开始写**。
+  过程中实测到一个坑：`connectedDebugAndroidTest` **不支持 `--tests`**，
+  必须用 `-Pandroid.testInstrumentationRunnerArguments.class=<全类名>`。
+- **为什么测无状态 composable 而不是屏幕本体**：`ContactsScreen(viewModel:
+  ContactsViewModel = viewModel())` 带 ViewModel 默认参数，在 `createComposeRule`
+  里 `setContent` 会构造真实 ViewModel（要 Repository/数据库），那是集成测试。
+  改测 `ContactItem(user, onClick, onLongClick)` 与 `FriendRequestRow(request,
+  onAccept, onReject, onCancel, onBlock)`——纯数据 + 回调，
+  与 G173b 选 `SecretChatConfirmDialog` 同一思路。
+- **10 例覆盖什么**（`app/src/androidTest/.../ui/screen/contacts/ContactsRowsUiTest.kt`）：
+  `ContactItem` 5 例——displayName 渲染与点击回调、昵称优先于 name、
+  在线/离线副标题走 `R.string.contacts_online/offline`、长按回调；
+  `FriendRequestRow` 5 例——进出两个按钮各自只触发自己的回调、
+  申请留言渲染、outgoing 时显示「等待对方通过」+「撤回」且**不出现**「同意」、
+  **反向断言**（onReject 为 null 时两个按钮必须不存在）、长按拉黑。
+- **三轮踩坑与修正（都记下来，因为都是「猜 API」而不是「查 API」）**：
+  1. `import androidx.compose.ui.test.assertDoesNotExist` ** unresolved**——该名不在
+     这个包的 1.11.1 里。改用 `onAllNodesWithText(...).assertCountEquals(0)`（可用）。
+  2. `performLongClick()` 同样 unresolved。正解是 `performTouchInput { longClick() }`，
+     且 **`longClick` 本身还要单独 `import androidx.compose.ui.test.longClick`**
+     （它是 `TouchInjectionScope` 的顶层扩展函数）。
+  3. `val cancelClicks = 0` 后 `cancelClicks++`——`val` 不可重赋值，编译错。
+  我为此翻了一阵 Gradle 缓存里的 AAR 列类名，**那是考古**；后来改成「直接编译、
+  让编译器报名字」几次就定位了。**教训：API 名字用编译循环验证，不要翻 jar。**
+- **负控制两轮（目标明确要求，也确实各拿到一类证据）**：
+  - **第一轮（编译级）**：把 `if (onAccept != null && onReject != null)` 改成 `if (true)`
+    → **BUILD FAILED，13 秒死在编译期**。原因：`onReject` 是 `(() -> Unit)?`，
+    `TextButton(onClick = onReject)` 类型不匹配。**证据意义**：该空检查是承重的，
+    连编译器都在守。**但它不是行为证据**——测试根本没跑起来。
+    当时读到的 XML 是上一轮的旧文件（tests=10 failures=0），差点误判成「NC 没生效」。
+  - **第二轮（行为级）**：把 `else if (request.outgoing)` 改成
+    `else if (request.outgoing && false)` → 编译通过，跑出
+    **`outgoingRequestShowsPendingHintAndCancelInsteadOfAccept` 精确一条红**，
+    其余 9 条仍绿。**证据意义**：我的断言真的钉住了那个行为，且定位精准。
+  - 两轮都还原，并用 `diff <(git show HEAD:<file>) <file>` 确认**与 HEAD 逐字节相同**。
+- **最终实测**：新测试 10 tests / 0 failures / 0 skipped（JUnit XML 逐条列名核对）；
+  全量 instrumented **106 tests / 0 failures**，27 skipped 全部落在
+  `PersistentSignalStoreRoundTripTest`（真机用例，预先存在，非本轮引入）。
+- **没做的事**：Chats / Explore / Call / Settings 四个主屏幕仍未覆盖，
+  故 §11 Q03 第 1 项只从 `[ ]` 改到 `[~]`，**没有标 `[x]`**。
+  其中 `ContactsScreen`/`ExploreFeedScreen` 本体带 `viewModel()` 默认参数，
+  要进一步覆盖需先做依赖注入改造——这是下一轮的候选，也是本轮记录的卡点。
