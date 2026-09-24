@@ -13270,3 +13270,38 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   (b) 其它屏幕（Call 的音频路由与群参与者、Settings 子页交互等）同样有未覆盖分支。
   现在这七项证明的比 G319c 时多了一层——**多了一条「Room → VM → UI」的真实数据链**，
   但仍不是「主流程 UI 已验证」。
+
+
+### G323c — **ChatListScreen 长按菜单链路补齐**（长按 → 菜单 → 回调带 chatId）
+
+- **动机**：G321c 之后，ChatListScreen 最明确的剩余缺口就是长按菜单。
+  本轮把「长按 → DropdownMenu → 菜单项 → 屏幕回调带 chatId」这条**完整链路**钉住。
+- **两个 API 上的坑（都事先查证过，没有踩空）**：
+  1. `performLongClick` 在 Compose test **1.11.1 里不存在**（本会话早前实测过），
+     必须用 `performTouchInput { longClick() }`，且 `longClick` 要单独
+     `import androidx.compose.ui.test.longClick`。
+  2. `DropdownMenu` 是异步出现的，**菜单项不能 `waitForIdle()` 后就断言**，
+     必须 `waitUntil { 菜单项出现 }`——这与 G321c 那条「异步数据源要用 `waitUntil`
+     而非 `waitForIdle`」是同一条经验的第二次应用。
+- **新增两例**（加在 `ChatListScreenDataTest.kt` 末尾，复用 G321c 的播种与方法）：
+  1. `longPressOpensTheContextMenuWithItsItems`：长按播种的群聊 →
+     菜单真的弹出，无条件项 `chat_view_shared_media`（「查看共享媒体」）可见；
+  2. `menuItemFiresOnOpenMediaCenterWithTheChatId`：点该项触发
+     `onOpenMediaCenter` 且回传**长按的那条** chatId。
+- **负控制：预判完全命中（本会话第六次）**。手法是把菜单项的
+  `onClick = { onOpenMediaCenter(chat.id); onMenuChatChange(null) }` 改成
+  `onClick = { onMenuChatChange(null) }`。**动手前先读改动后的代码**：
+  菜单项仍渲染（`text` 未变），只是回调被摘掉。
+  据此预测「行为断言红、可见性断言仍绿」——实测一字不差。
+  还原后 `diff` 与 HEAD 逐字节相同。
+- **最终实测**：新测试 2 tests / 0 failures / 0 skipped；
+  全量 instrumented **143 tests / 0 failures**（27 skipped 仍只在
+  `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。
+- **§11 Q03 第 1 项深度说明**：ChatListScreen 现已覆盖
+  「chrome + 回调接线 + 真实库数据渲染/点击 + **长按菜单链路**」。
+  **仍维持 `[~]` 不标 `[x]`**，剩余缺口明确列出：
+  ChatListScreen 的未读角标/置顶/归档/文件夹筛选/清草稿等菜单项；
+  Call 的音频路由切换、群参与者、摄像头；Settings 的子页交互；
+  ContactsScreen/ExploreScreen 的状态分支数也有限。
+  这七项现在证明的已经是「渲染 + 接线 + 一条数据链 + 一条长按链」，
+  但**仍不是「主流程 UI 已验证」**——`[x]` 要等上述缺口补齐或明确判定为不必要。
