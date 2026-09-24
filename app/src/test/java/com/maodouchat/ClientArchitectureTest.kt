@@ -70,15 +70,51 @@ class ClientArchitectureTest {
 
     private val frozenUiDaoImporters: List<String> = emptyList()
 
+    /**
+     * G328c：判据从「import 行以 `com.maodouchat.data.local.dao` 开头」加强为
+     * 「剥掉注释与字符串内容后，源码里出现这个包名」。
+     *
+     * 旧判据的缺口是**全限定名直接调用**：`com.maodouchat.data.local.dao.ChatDao(db).all()`
+     * 完全不需要 import，一行 `startsWith("import ...")` 看不见它。
+     * 改成在「剥注释 + 剥字符串内容」后的源码上找包名本身，引用方式怎么变都躲不开；
+     * 顺带把 `import ... as X` 别名一并覆盖（旧判据其实已经能抓到，这里不再依赖那个巧合）。
+     * 必须剥字符串：包名出现在字符串里（日志、文档、SQL）不算引用。
+     */
+    private fun stripCommentsAndStringBodies(text: String): String {
+        val out = StringBuilder(text.length)
+        var state = 0
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            val n = if (i + 1 < text.length) text[i + 1] else ' '
+            when (state) {
+                0 -> when {
+                    c == '/' && n == '/' -> { state = 1; i++ }
+                    c == '/' && n == '*' -> { state = 2; i++ }
+                    c == '"' -> { state = 3; out.append(c) }
+                    c == '\'' -> { state = 4; out.append(c) }
+                    else -> out.append(c)
+                }
+                1 -> if (c == '\n') { state = 0; out.append(c) }
+                2 -> if (c == '*' && n == '/') { state = 0; i++ }
+                3 -> {
+                    // 保留引号本身，丢掉内容
+                    if (c == '\\') { i++ } else if (c == '"') { state = 0; out.append(c) }
+                }
+                4 -> {
+                    if (c == '\\') { i++ } else if (c == '\'') { state = 0; out.append(c) }
+                }
+            }
+            i++
+        }
+        return out.toString()
+    }
+
     @Test
     fun `ui must not import data-local daos and the list may only shrink`() {
         val offenders = ktFilesUnder(File(appMain, "com/maodouchat/ui"))
             .filter { file ->
-                // G168b：这条**故意不剥注释**也安全——它用 startsWith("import ...")，
-                // 而注释行以 // 开头，天然匹配不上。若哪天改成 contains() 就必须先剥注释。
-                file.readText().lines().any {
-                    it.startsWith("import com.maodouchat.data.local.dao")
-                }
+                stripCommentsAndStringBodies(file.readText()).contains("com.maodouchat.data.local.dao")
             }
             .map { it.relativeTo(appMain).path.replace('\\', '/') }
             .sorted()
@@ -346,21 +382,54 @@ class ClientArchitectureTest {
      * 各自端口化（`AiConversationProfileSource` 等，端口在 `ui/`、实现在 `data/local/Room*Source`），
      * 由 `ChatDetailViewModel` 装配后经参数传给 Route。
      *
-     * 因此这里是**空名单**：`ui/` 层从此不允许抓 `MaodouchatApp.database`。
-     * 历史值见 git；把这里改回非空等于放松棘轮，反向断言会抓住。
+     * G328c：这份名单**不再是空的**——因为判据修好了之后，实测发现它此前在说谎。
+     * 旧判据是两条字面量 `contains("as com.maodouchat.MaodouchatApp).database")` 与
+     * `contains("MaodouchatApp.database")`，当场就漏掉一个真实违规：
+     * `ContactsViewModel.kt` 写的是 `(application as MaodouchatApp).database.userDao()`——
+     * 非全限定转型 + 括号，两条字面量都不匹配。换成两条正则后，ui/ 下实测有 9 个文件
+     * 仍在从 app 容器取 `database` 造 DAO/Repository。
+     *
+     * 这 9 个是**真实的待还债**，不是豁免：它们要经 B02「依赖注入装配」改成构造器注入。
+     * 棘轮只许降（下面的反向断言会强制：修好一个就必须从名单里删掉）。
      */
-    private val frozenUiAppDatabaseGrabbers: List<String> = emptyList()
+    private val frozenUiAppDatabaseGrabbers: List<String> = listOf(
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt",
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt",
+        "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
+        "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt",
+        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt",
+        "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
+        "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
+    )
+
+    /**
+     * G328c：判据从两条**字面量**换成正则。
+     *
+     * 形态 1：静态/伴随对象取用 `MaodouchatApp.database`。
+     * 形态 2：两步形态——文件里既有 `as [com.maodouchat.]MaodouchatApp` 转型、又出现
+     * `.database` 成员访问（`val app = application as MaodouchatApp` 之后 `app.database`，
+     * 单看一行抓不到，而这正是那 9 个文件里的主要写法）。
+     *
+     * 形态 2 偏宽：理论上「为了别的原因转型 + 别处用到别的 .database」会误报。这是有意的取舍——
+     * 宁可让人来名单里写一句理由，也不要再留一个看不见的缺口：这个闸门的全部价值就在这里。
+     */
+    private val appDatabaseGrabPatterns: List<Regex> = listOf(
+        Regex("""\bMaodouchatApp\s*\.\s*database\b"""),
+        Regex("""\bas\s+(?:com\.maodouchat\.)?MaodouchatApp\b[\s\S]*?\.\s*database\b"""),
+    )
+
+    private fun grabsAppDatabase(text: String): Boolean =
+        appDatabaseGrabPatterns.any { it.containsMatchIn(text) }
 
     @Test
     fun `ui must not grab the app database singleton and the list may only shrink`() {
         val grabbers = ktFilesUnder(File(appMain, "com/maodouchat/ui"))
             .filter { file ->
-                // 两种写法都算：直接 `.database` 抓单例，或 `MaodouchatApp` 转型后取 database
                 // G168b：必须剥注释——否则「我们不抓单例」这类 KDoc 会把文件计成违规
                 // （G156b 就这样虚增了 48 个文件）。
-                val text = stripComments(file.readText())
-                text.contains("as com.maodouchat.MaodouchatApp).database") ||
-                    text.contains("MaodouchatApp.database")
+                grabsAppDatabase(stripComments(file.readText()))
             }
             .map { it.relativeTo(appMain).path.replace('\\', '/') }
             .sorted()

@@ -207,6 +207,26 @@ class MessagingInvariantTraceabilityTest {
 
     private val assertionCall = Regex("""\bassert[A-Za-z]*\s*[({]|\bcheck\s*\(|\bassertFailsWith\b""")
 
+    /**
+     * G328c：**恒真断言**的白名单。
+     *
+     * 「有断言」不等于「验证了东西」：`assertTrue(true)` / `assertEquals(1, 1)` /
+     * `assertNotNull(null)` 都满足 [assertionCall]，却什么也没验。
+     * 原来的判据到这里就停了（存在任一 assert 即通过），审计把这列为可绕过的一类。
+     * 实测当前 41 条引用里一个都没有，所以这条是**为将来**加的闸门：谁把真断言删掉换成
+     * 占位符，这里立刻红。（配套：`assertNotNull(someNonNullConst)` 那种「编译期就非空」
+     * 的仍然能过——那属于测试质量问题，不是恒真，见 docs 里的说明。）
+     */
+    private val triviallyTrueAssertion = Regex(
+        """assertTrue\s*[({]\s*true\s*[)}]""" + "|" +
+            """assertFalse\s*[({]\s*false\s*[)}]""" + "|" +
+            """assertNotNull\s*[({]\s*null\s*[)}]""" + "|" +
+            """assertNull\s*[({]\s*null\s*[)}]""" + "|" +
+            """assertEquals\s*[({]\s*(\d+)\s*,\s*\1\s*[)}]""" + "|" +
+            """assertTrue\s*[({]\s*1\s*==\s*1\s*[)}]""" + "|" +
+            """assertEquals\s*[({]\s*("([^"\\]|\\.)*")\s*,\s*\2\s*[)}]""",
+    )
+
     /** G215b：引用的每个用例必须真的有断言，否则就是恒真的证据。 */
     @Test
     fun `every referenced test actually asserts something`() {
@@ -222,10 +242,15 @@ class MessagingInvariantTraceabilityTest {
             if (body == null) return@forEach
             if (!assertionCall.containsMatchIn(body)) {
                 vacuous += "$ref（方法体里没有任何 assert 或 check 调用，是恒真的证据）"
+                return@forEach
+            }
+            val trivial = triviallyTrueAssertion.find(body)
+            if (trivial != null) {
+                vacuous += "$ref（含恒真断言 `${trivial.value}`，等于没验）"
             }
         }
         assertEquals(emptyList(), vacuous,
-            "文档把契约的证据指到了没有断言的用例上——那是恒真的，不是验证：")
+            "文档把契约的证据指到了没有断言（或只有恒真断言）的用例上——那是恒真的，不是验证：")
     }
 
     private fun bodyOf(text: String, testName: String): String? {

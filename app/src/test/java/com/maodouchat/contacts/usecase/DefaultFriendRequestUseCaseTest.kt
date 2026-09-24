@@ -4,8 +4,8 @@ import com.maodouchat.network.FriendRequestDto
 import com.maodouchat.network.UserDto
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -55,7 +55,7 @@ class DefaultFriendRequestUseCaseTest {
 
         // 第一个请求正在进行中
         val firstJob = async { useCase.sendFriendRequest("bob") }
-        delay(10) // 确保 firstJob 已经开始并记录了 inFlightSends
+        yield() // 让出事件循环，firstJob 得以开跑并记录 inFlightSends（单线程下确定性，不靠墙钟）
 
         // 第二个并发请求对同一个目标
         val secondResult = useCase.sendFriendRequest("bob")
@@ -108,7 +108,7 @@ class DefaultFriendRequestUseCaseTest {
         )
 
         val acceptJob = async { useCase.acceptFriendRequest("req-123") }
-        delay(10) // 确保 accept 已经进入 in-flight
+        yield() // 让出事件循环，accept 进入 in-flight（同上）
 
         // 在 accept 未完成时尝试 cancel 撤回
         val cancelResult = useCase.cancelFriendRequest("req-123")

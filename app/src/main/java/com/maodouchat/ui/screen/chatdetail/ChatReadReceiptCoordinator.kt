@@ -18,6 +18,13 @@ internal class ChatReadReceiptCoordinator(
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
     private val receiptsEnabled: () -> Boolean,
     private val errorMessage: (Throwable) -> String,
+    /**
+     * 落库所在调度器。默认 [Dispatchers.IO]（生产）；测试注入测试调度器后，
+     * 用例可以等调度器空闲而不是**真的睡 2 秒**——G328c 之前
+     * `ChatReadReceiptCoordinatorTest.awaitQuiescence()` 就是 `repeat(200) { delay(10) }`，
+     * 每个用例实打实耗掉两秒墙钟，还是「希望它收敛」式等待。
+     */
+    private val ioDispatcher: kotlin.coroutines.CoroutineContext = Dispatchers.IO,
 ) {
     fun loadDetails(messageId: String) {
         if (!receiptsEnabled()) {
@@ -42,7 +49,7 @@ internal class ChatReadReceiptCoordinator(
         scope.launch {
             updateState { it.copy(isLoadingReadReceipts = true, readReceipts = emptyList()) }
             try {
-                val receipts = withContext(Dispatchers.IO) {
+                val receipts = withContext(ioDispatcher) {
                     dao.getReceiptsForMessage(ownerUserId, messageId)
                 }
                 val readAtByUser = receipts.filter { it.readAt != null }.associate { it.recipientUserId to requireNotNull(it.readAt) }
@@ -116,7 +123,7 @@ internal class ChatReadReceiptCoordinator(
         if (messageId.isBlank() || ownerUserId.isBlank()) return
         if (!force && currentState().groupReadCounts.containsKey(messageId)) return
         scope.launch {
-            val receipts = withContext(Dispatchers.IO) {
+            val receipts = withContext(ioDispatcher) {
                 dao.getReceiptsForMessage(ownerUserId, messageId).filter { it.readAt != null }
             }
             val members = currentState().chat?.participants.orEmpty()

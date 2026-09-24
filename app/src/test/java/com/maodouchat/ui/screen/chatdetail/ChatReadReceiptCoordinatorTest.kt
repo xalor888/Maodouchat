@@ -99,15 +99,22 @@ class ChatReadReceiptCoordinatorTest {
             updateState = { transform -> live = transform(live); seen += live },
             receiptsEnabled = { receiptsEnabled },
             errorMessage = { "读不到已读状态" },
+            ioDispatcher = dispatcher,
         )
         return Triple(coordinator, seen) { live }
     }
 
-    /** 协调器内部用 `withContext(Dispatchers.IO)`，测试调度器管不到它——用真实等待收敛。 */
+    /**
+     * 等协程收敛。
+     *
+     * G328c 之前这里写的是 `repeat(200) { delay(10) }`——注释坦白「协调器内部用
+     * `withContext(Dispatchers.IO)`，测试调度器管不到它，用真实等待收敛」：
+     * 每个用例实打实睡满 2 秒墙钟，而且等的是**希望它已经跑完**而不是**确定跑完**。
+     * 现在协调器的落库调度器可注入（[ChatReadReceiptCoordinator.ioDispatcher]），
+     * 用测试调度器就能精确推进——既快又确定。
+     */
     private suspend fun awaitQuiescence() {
-        repeat(200) {
-            kotlinx.coroutines.delay(10)
-        }
+        dispatcher.scheduler.advanceUntilIdle()
     }
 
     @Before

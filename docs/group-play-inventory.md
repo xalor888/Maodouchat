@@ -7,11 +7,23 @@
 
 ## 结论一句话
 
-`GroupPlayPolicy.kt` 共 **715** 个声明（542 `fun` + 173 `val`），其中 **470** 个
-在全仓库（1580+ 个 .kt，含 app/server/core/domain/feature 与测试）**零引用**：
+> **2026-09-24 重新实测**：本文件此前头部的「715 个声明 / 470 个零引用 / `UNREFERENCED_BASELINE = 297`」
+> 是**很久以前的快照**，与当前代码差了约 30 倍——`fun` 的零引用数早就从 297 降到 10 了。
+> 下面这组数字是重跑两条棘轮门禁拿到的实测值（方法与本文件原本声明的一致：
+> 临时把基线改成错误值、让门禁失败并打印全量清单，再原样恢复；基线已还原）。
 
-- `fun` 成员：**297** 个（棘轮基线 `UNREFERENCED_BASELINE = 297`）
-- `val`/`var` 声明：**173** 个（棘轮基线 `UNREFERENCED_VAL_BASELINE = 173`，**100% 死**）
+`GroupPlayPolicy.kt` 共 **553** 个声明（380 `fun` + 173 `val`，1945 行），其中 **183** 个
+在全仓库（含 app/server/core/domain/feature 与测试）**零引用**：
+
+- `fun` 成员：**10** 个（棘轮基线 `UNREFERENCED_BASELINE = 10`；G295c 删掉 4 个确证死成员后从 14 降到 10）
+- `val`/`var` 声明：**173** 个（棘轮基线 `UNREFERENCED_VAL_BASELINE = 173`，基线是**精确相等**判定，故 173 个全部零引用）
+
+`fun` 的这 10 个是：`spinWheel`、`parseRedPacketJoke`、`parseMemoryMatch`、`parseMinuteTalk`、
+`parseCaptionThis`、`parseStorySwap`、`parseKaraoke`、`parseBlindQ`、`formatHotPotato`、`formatCountdownRace`。
+
+**本文件下方的成员表已全部过期**：表里列的 `flipCoin`、`rollNumberGuess`、`formatAnonBox`、
+`formatTruthPrompt`、`randomTruthPrompt`、`randomAcrostic`、`randomBingoBoard` 等
+**在源码里都是 0 次出现**（已被 G295c 删除）。需要当前清单时以门禁输出为准，不要引用下表。
 
 这些名字高度集中在几个「群玩法」上（转盘、宾果、抛硬币、猜谜、记忆配对、
 你画我猜、数字炸弹、反应赛……），**看起来像一条内容路线图**：骨架和格式解析都写好了，

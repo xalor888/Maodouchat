@@ -82,8 +82,10 @@ curl https://chat.example.com/health/ready
   优先级：后台设置 > 文件 > 环境变量；公告会推送给所有连接此服务器的 App 用户
 - **邀请制小站**：`ALLOW_REGISTRATION=false` 关闭公开注册
 - **去掉官网**：`PUBLIC_SITE=false` 后首页只显示你的服务器名片，不再展示毛豆官网
-- **AI 能力**：配置 `OPENAI_API_KEY` / `OPENAI_BASE_URL`（兼容任意 OpenAI 协议中转站）
-  即可开启翻译、总结、语义搜索等 AI 功能
+- **AI 能力（注意：只有审核）**：配置 `OPENAI_API_KEY` / `OPENAI_BASE_URL`（兼容任意
+  OpenAI 协议中转站）开启的是**动态与评论的 AI 审核**。服务端**没有** `/api/ai/*` 聊天接口
+  （请求会 404），翻译 / 总结 / 语义搜索这类能力在**客户端**由用户自配模型完成，
+  服务端不参与、也拿不到聊天明文。若你按旧文档找「开启翻译/总结的开关」，它不存在。
 - **管理后台**：`https://chat.example.com/<ADMIN_PATH>/` 内容审核、风控、审计导出
 - **机器人平台**：开发者账号可通过 Bot API 接入自定义机器人
 

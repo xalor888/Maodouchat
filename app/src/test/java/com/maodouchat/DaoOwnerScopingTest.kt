@@ -58,6 +58,61 @@ class DaoOwnerScopingTest {
     private fun norm(sql: String): String =
         sql.replace("\\\"", "\"").replace(Regex("\\s+"), "").lowercase()
 
+    /** 保留空格的归一化（`OR` 要按词判定，不能先把空白去掉）。 */
+    private fun spaced(sql: String): String =
+        sql.replace("\\\"", "\"").replace(Regex("\\s+"), " ").lowercase()
+
+    /** [pos] 之前的括号深度。 */
+    private fun depthAt(sql: String, pos: Int): Int {
+        var depth = 0
+        for (i in 0 until pos.coerceAtMost(sql.length)) {
+            when (sql[i]) {
+                '(' -> depth++
+                ')' -> if (depth > 0) depth--
+            }
+        }
+        return depth
+    }
+
+    /** 字符串里每个 `OR` 关键字所在的括号深度。 */
+    private fun orDepths(sql: String): List<Int> {
+        val depths = mutableListOf<Int>()
+        var depth = 0
+        var i = 0
+        while (i < sql.length) {
+            val c = sql[i]
+            when {
+                c == '(' -> { depth++; i++ }
+                c == ')' -> { depth = maxOf(0, depth - 1); i++ }
+                i > 0 && sql.startsWith("or", i) &&
+                    !sql[i - 1].isLetterOrDigit() && sql[i - 1] != '_' &&
+                    (i + 2 >= sql.length || (!sql[i + 2].isLetterOrDigit() && sql[i + 2] != '_')) -> {
+                    depths += depth
+                    i += 2
+                }
+                else -> i++
+            }
+        }
+        return depths
+    }
+
+    /**
+     * G328c：子串判据的真实缺口——`... WHERE ownerUserId = :ownerUserId OR 1=1`，以及
+     * 「把谓词塞进 `(... OR ...)` 组里」，都满足「含该子串」，却让谓词变成可选的：
+     * `A OR B` 只要 B 成立就整体成立，于是账号 A 照样读到账号 B 的行。
+     * 本闸门存在的理由正是防这个，所以补上一刀：
+     * **任何深度不深于谓词的 `OR`，都判该谓词不是合取项**。
+     *
+     * 取向保守：`(owner=:o AND x) OR (owner=:o AND y)` 这种「两个分支都带谓词」的写法
+     * 也会被判违规——那是对的，请加进豁免表并写明理由，而不是把判据放松。
+     */
+    private fun ownerPredicateIsMandatory(sql: String): Boolean {
+        val n = spaced(sql)
+        val predicate = Regex("owneruserid\\s*=\\s*:owneruserid").find(n) ?: return false
+        val predicateDepth = depthAt(n, predicate.range.first)
+        return orDepths(n).none { it <= predicateDepth }
+    }
+
     /** 显式豁免：这些查询故意不加 `ownerUserId = :ownerUserId`，理由写明。 */
     private val exemptions: List<Pair<String, String>> = listOf(
         // —— 登出/全局清理：WorkManager 或账号迁移触发，本就要跨账号 ——
@@ -105,7 +160,13 @@ class DaoOwnerScopingTest {
                 if (tables.none { it in ownerTables }) return@forEach
                 checked++
                 val n = norm(sql)
-                if ("owneruserid=:owneruserid" in n) return@forEach
+                if ("owneruserid=:owneruserid" in n) {
+                    // 子串在 ≠ 谓词有效：还得确实是**合取项**（见 ownerPredicateIsMandatory）。
+                    if (!ownerPredicateIsMandatory(sql)) {
+                        violations += "[${f.name}] ownerUserId 谓词被 OR 削弱，可能整条失效：$sql"
+                    }
+                    return@forEach
+                }
                 if (exemptions.any { (prefix, _) -> n.startsWith(prefix) || n.contains(prefix) }) return@forEach
                 violations += "[${f.name}] $sql"
             }

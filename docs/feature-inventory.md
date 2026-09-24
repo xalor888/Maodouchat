@@ -1,6 +1,6 @@
 # Maodouchat 功能全景与完整度盘点
   
-**更新时间**：2026-04-26（1.1.20：密聊批量复制/occupancy peer pin、群 Sender Key 强制信封、后台 CSV 排除 SECRET、官方 APK 跳转宿主校验）  
+**更新时间**：2026-09-24（本次按源码逐条校正 §12/§14 的符号、计数与「待接入」状态；主体 §1–§11 无改动。上一版为 2026-04-26 / 1.1.20）  
 **完整度标签**：
 
 | 标签 | 含义 |
@@ -183,7 +183,7 @@
 
 | 功能 | 完整度 | 说明 | 关键路径 |
 |------|--------|------|----------|
-| 本机助手 | 可用 | 客户端进程；用户自配 OpenAI 兼容模型（Key 加密存本机）；工具读 SQLCipher 已解密行；发消息需审批后写入 durable v2 outbox；密聊/未解锁 PIN 不可读。聊天明文不经毛豆 `/api/ai`。`OnDeviceEmbeddingGate` 仍 false | `ai/agent/*` + 设置「AI 与隐私」+ `Routes.AGENT` |
+| 本机助手 | 可用 | 客户端进程；用户自配 OpenAI 兼容模型（Key 加密存本机）；工具读 SQLCipher 已解密行；发消息需审批后写入 durable v2 outbox；密聊/未解锁 PIN 不可读。聊天明文不经毛豆 `/api/ai`。端侧既有能力全部是**纯本地启发式规则**（CJK 二元组 + 拉丁词统计），不引入 embedding 向量模型——原先此处写的 `OnDeviceEmbeddingGate` 类**已被删除**，不要再按它查代码 | `ai/agent/*` + 设置「AI 与隐私」+ `Routes.AGENT` |
 | 改写（含流式） | 完整 | 草稿流式改写；模式 polish/shorten/formal/gentle/casual/professional/expand/bullet/clarify/translate；可取消；走本机模型 | `LocalAiGateway` + ChatDetail |
 | 回复建议 | 完整 | 候选条最多 4 条；上下文最多 20 条；语气 友好/自然/正式/简洁/温和/幽默/直接/共情/鼓励；可点入草稿 | ChatDetail AI 建议条 |
 | 翻译 | 完整 | 24 种目标语言；语言列表可搜索；已译语言打勾；本机模型 | ChatDetail `TranslationLanguageDialog` |
@@ -264,7 +264,7 @@
 | 动态 | 完整 | posts、like、comment；受禁动态限制 |
 | 举报 | 完整 | 用户提交 + 管理处置 |
 | 风控规则/风险事件 | 完整 | moderation rules + events；列表搜索 |
-| AI 网关 | 完整* | 依赖 `OPENAI_*` 配置 |
+| AI 网关 | 完整* | 依赖 `OPENAI_*` 配置。**服务端 AI 只做动态/评论审核**；聊天相关的翻译/总结/语义搜索等能力在客户端由用户自配模型完成，服务端**没有** `/api/ai/*` 聊天接口（请求会 404，测试里就是这么断言的） |
 | 按需贴纸 | 完整 | `GET /api/stickers/manifest.json`（STORAGE_DIR/stickers-manifest.json，无文件返回空清单）+ `GET /static/stickers/{packId}/{name}`（白名单 + canonical 路径防穿越） |
 | Signal 密钥/设备 | 完整 | keys/upload、devices… |
 | 通话信令/TURN | 完整* | signaling + ice-config；依赖 TURN |
@@ -296,7 +296,7 @@
 | 多管理员角色体系 | 完整 | 3 角色（OWNER/ADMIN/MEMBER）+ ADMIN_ROLES 权限矩阵 + 所有权转让 + 成员提升/降级/禁言/踢出 + 审计日志（17 种 action）+ 客户端 GroupDetailScreen 角色管理 UI + isOwnerOrAdmin 检查 |
 
 静态资源：`server/src/main/resources/admin/admin.html|css|js`  
-路由：`server/.../plugins/AdminRouting.kt`
+路由：`server/src/main/kotlin/com/maodouchat/server/plugins/AdminRouting.kt`——它只是一份 22 行的**稳定注册表**（`configureAdminRouting` 把各域转调出去，被 `Routing.kt:288` 调用），真正的实现按域拆在同目录的 12 个 `Admin*Routing.kt` 里：`AdminManagementRouting` / `AdminUsersRouting` / `AdminChatsRouting` / `AdminContentRouting` / `AdminExportsRouting` / `AdminBulkRouting` / `AdminDiagnosticsRouting` / `AdminObservabilityRouting` / `AdminModerationRouting` / `AdminEnhanceRouting` / `AdminSystemRouting`，加静态资产 `AdminAssets`。
 
 ---
 
@@ -347,7 +347,7 @@
 1. `ChatDetailViewModel` / `ChatDetailScreen` / `Routing.kt` **超大文件**，变更成本高。  
 2. Admin 存在 **admin-jwt 控制台** 与 **moderator 捷径 API** 双通道，路径命名不完全统一。  
 3. 安全码为 **自研格式**，多端必须同算法。  
-4. Chat PIN 为轻量 SHA-256，非 KDF。  
+4. ~~Chat PIN 为轻量 SHA-256，非 KDF。~~ **已于本次勘误**：当前实现是 `PBKDF2WithHmacSHA256` 600,000 轮 + 16 字节随机盐（`security/pin/PinSecurityPolicy.kt:23,40-43`），旧版 `SHA-256(pin+salt)` 仅在验证成功后透明升级（同文件 :13-14）。本条与本文 §1 的会话 PIN 行现在一致。  
 5. 真机/弱网/公网验收依赖人工填表，**本盘点未执行测试**。
 
 ---
@@ -380,21 +380,28 @@
 
 > 本节合并原附录中 push #4…#66 的碎片记录。完整度均为 **代码面**；功能期以静态核验为主，**未**作为全量 Gradle 完成门禁。
 
-### 12.1 Surface 总表（密聊重点 #60–#68）
+### 12.1 Surface 总表（密聊重点 #60–#70）
 
-| # | 主题 | Runtime keys | Bot / health | 客户端 |
+> **2026-09-24 校正**：本表原先的「客户端」列列出的是 `SecretCopyBlockPrefs`、
+> `SecretMediaExportBlockPrefs`、`SealedSenderPrefs`、`PqxdhPreviewPrefs` 等十来个类名——
+> **它们已经不存在**：`app/src/main/java/com/maodouchat/util/RuntimeFlags.kt:8` 记载
+> 「合并自原先 98 个结构相同的 *Prefs.kt」，全部开关收敛成一个 `Flag` 值对象表，
+> 读取统一走 `RuntimeFlags.isEnabled(context, RuntimeFlags.XXX)`。
+> 下表按实测符号重写；运行时键（第 3 列）与服务端闸（第 4 列）保持不变，它们仍然有效。
+
+| # | 主题 | Runtime keys | Bot / health | 客户端符号（均为 `RuntimeFlags.*`，除非另注） |
 |---|------|--------------|--------------|--------|
-| 60 | 复制 / 媒体导出 | `secret_copy_block_enabled`, `secret_media_export_block_enabled` | `leakz` + hint 路由 | `SecretCopyBlockPrefs` / `SecretMediaExportBlockPrefs` |
-| 61 | 转发 / 会话导出 | `secret_forward_block_enabled`, `secret_chat_export_block_enabled` | `vaultz` | `SecretForwardBlockPrefs` / `SecretChatExportBlockPrefs` |
-| 62 | Sealed / PQXDH 开关 | `sealed_sender_enabled`, `pqxdh_preview` | `sealz` | `SealedSenderPrefs` / `PqxdhPreviewPrefs` |
-| 63 | 密聊整页盲水印 / 自动消失 | `blind_watermark_enabled`（整页 DWT+SVD，无可读 overlay） | `markz` | `SecretPageWatermark` / `SecretAutoDisappearPrefs` |
-| 64 | 链接隐私 | `secret_link_preview_block_enabled`, `secret_external_link_block_enabled` | `linkz` | `SecretLinkPreviewBlockPrefs` / `SecretExternalLinkBlockPrefs` |
-| 65 | 通知 / 列表预览 | `secret_notif_preview_block_enabled`, `secret_list_preview_block_enabled` | `privz` | `SecretNotifPreviewBlockPrefs` / `SecretListPreviewBlockPrefs` |
-| 66 | 反应 / 标星 | `secret_reaction_block_enabled`, `secret_star_block_enabled` | `metaz` | `SecretReactionBlockPrefs` / `SecretStarBlockPrefs` |
-| 67 | 输入状态侧信道 | `secret_typing_block_enabled` | `typtz` | `SecretTypingBlockPrefs` |
-| 68 | 已读回执侧信道 | `secret_read_receipt_block_enabled` | `redz` | `SecretReadReceiptBlockPrefs` |
-| 69 | 在线状态侧信道 | `secret_presence_block_enabled` | `presz` | `SecretPresenceBlockPrefs` |
-| 70 | 最后上线时间侧信道 | `secret_last_seen_block_enabled` | `lastsz` | `SecretLastSeenBlockPrefs` |
+| 60 | 复制 / 媒体导出 | `secret_copy_block_enabled`, `secret_media_export_block_enabled` | `leakz` + hint 路由 | `SECRET_COPY_BLOCK` / `SECRET_MEDIA_EXPORT_BLOCK` |
+| 61 | 转发 / 会话导出 | `secret_forward_block_enabled`, `secret_chat_export_block_enabled` | `vaultz` | `SECRET_FORWARD_BLOCK` / `SECRET_CHAT_EXPORT_BLOCK` |
+| 62 | Sealed / PQXDH 开关 | `sealed_sender_enabled`；PQXDH 由服务端 `RuntimeConfigService.isPqxdhPreviewEnabled` 决定 | `sealz` | `SEALED_SENDER`；PQXDH 无客户端 prefs，经 `/api/public/status` 的 `pqxdhPreview` 读入（`ui/screen/chatlist/ChatListServerFlags.kt:260`） |
+| 63 | 密聊整页盲水印 / 自动消失 | `blind_watermark_enabled`（整页 DWT+SVD，无可读 overlay） | `markz` | `BLIND_WATERMARK`；`watermark.SecretPageWatermark`（`ui/component/SecretPageBlindWatermark.kt`）；自动消失 `SECRET_AUTO_DISAPPEAR` |
+| 64 | 链接隐私 | `secret_link_preview_block_enabled`, `secret_external_link_block_enabled` | `linkz` | `SECRET_LINK_PREVIEW_BLOCK` / `SECRET_EXTERNAL_LINK_BLOCK` |
+| 65 | 通知 / 列表预览 | `secret_notif_preview_block_enabled`, `secret_list_preview_block_enabled` | `privz` | `SECRET_NOTIF_PREVIEW_BLOCK` / `SECRET_LIST_PREVIEW_BLOCK` |
+| 66 | 反应 / 标星 | `secret_reaction_block_enabled`, `secret_star_block_enabled` | `metaz` | `SECRET_REACTION_BLOCK` / `SECRET_STAR_BLOCK` |
+| 67 | 输入状态侧信道 | `secret_typing_block_enabled` | `typtz` | `SECRET_TYPING_BLOCK` |
+| 68 | 已读回执侧信道 | `secret_read_receipt_block_enabled` | `redz` | `SECRET_READ_RECEIPT_BLOCK` |
+| 69 | 在线状态侧信道 | `secret_presence_block_enabled` | `presz` | `SECRET_PRESENCE_BLOCK` |
+| 70 | 最后上线时间侧信道 | `secret_last_seen_block_enabled` | `lastsz` | `SECRET_LAST_SEEN_BLOCK` |
 
 配套群玩法 / Markdown（节选）：
 
@@ -476,7 +483,10 @@
 
 ## 14. 2026-08-02 B1–B8 区块最终状态（代码面）
 
-> 各区块完成度以编译 + 测试为准：App `compileDebugKotlin`/`testDebugUnitTest`（483 单测）与 Server `compileKotlin`/`test`（含 B2/B3/B4/B6 新增端点测试）**全部通过**；Release APK 11.72MB（19.7MB 旧包含已废弃 9.86MB WebRTC .so）。
+> 各区块完成度以编译 + 测试为准。**2026-09-24 实测口径**（此前写的「483 单测」是当时某一轮的数字，早已过期）：
+> App `testDebugUnitTest` **2114 例**、`androidTest` **156 例**、Server **578 例**、core/domain 模块 **59 例**，全绿；
+> Release APK 体积用 `:app:verifyReleaseSize` 护栏（基线见 `gradle.properties` 的 `MAODOU_SIZE_BASELINE_BYTES`）核对，
+> 本节记录的 11.72MB / 19.7MB 是历史数字，**不要**当成当前值引用。
 
 | 区块 | 交付 | 验证 |
 |------|------|------|
@@ -487,6 +497,11 @@
 | B5 系统集成 | 小组件全套 + 悬浮球（设置页入口已接线）+ 双栏 + 快捷回复（RemoteInput 平台限制→打开会话） | App 编译/单测通过 |
 | B6 运维 | 公告/标签/限流仪表盘/审计导出/设备一致性 + admin UI | `AdminEnhanceRoutesTest` 通过 |
 | B7 性能 | migration 27→28（5 索引）+ perf 工具 + 动效预算文档 | 索引名与 Entity 一致（运行时无 schema 崩溃） |
-| B8 质量 | strings 2440=2440 对称、术语 OK、A11y/深色 | `check-string-parity.py` 通过 |
+| B8 质量 | strings `values` 与 `values-en` **2843 = 2843** 对称（实测；旧文写的 2440 已过期）、术语 OK、A11y/深色 | `check-string-parity.py` 通过（该脚本在 CI 的 android job 里运行） |
 
-**待接入（涉及巨型/红线文件，记录）**：OnDemandStickerStore 贴纸面板、AnnouncementPolicy 通知中心、B4 六能力 UI 入口、ScreenshotBurnDetector 前台监听、密聊 TTL 清扫（需 SecretChatEntity 补活动时间字段 + migration）。
+**待接入清单（2026-09-24 逐项复核后的状态）**：
+- ~~OnDemandStickerStore 贴纸面板~~ → **已接线**：`ui/screen/chatdetail/ChatDetailExpressionPanel.kt:316`，另在设置页有 server-state 失效入口（`ui/screen/settings/SettingsServer.kt:206,269`）。
+- ~~AnnouncementPolicy 通知中心~~ → **已接线**：`ui/screen/chatlist/ChatListAnnouncementCoordinator.kt` + `ChatListUiState.activeAnnouncements`。
+- ~~ScreenshotBurnDetector 前台监听~~ → **已接线**：`ui/screen/chatdetail/ChatDetailRoute.kt:1037`。
+- ~~密聊 TTL 清扫~~ → **已完成**：前置条件已满足（`SecretChatEntity.lastActivityAt` 已存在），周期清扫 `security/SecretSurfaceWatchdogWorker`（15 分钟，`MainActivity.kt:162` 注册）+ 进会话即时校验 `security/SecretChatActivityHeartbeat`（`ChatDetailRoute.kt:837`）双层生效。
+- B4 六能力 UI 入口：**仍需逐项复核**（本次未展开，见 `docs/full-project-refactor-checklist.md` 的对应条目）。
