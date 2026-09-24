@@ -23,10 +23,49 @@ internal const val MAX_STICKER_WIRE_CONTENT_LENGTH = 65_536
 // BCrypt 实现静默截断 72 字节之后的输入（前 72 字节相同的密码互为等价）——上限必须 ≤72 字节
 internal const val MAX_PASSWORD_BYTES = 72
 
-/** 密码合法性：≥6 字符且 UTF-8 字节数 ≤72（BCrypt 截断边界）。 */
+/**
+ * 密码最小长度（G328c：6 → 8）。
+ *
+ * 为什么改：6 位下限在审计里被点名——配合「无登录失败锁定上限之外的其它约束」，
+ * 6 位是离线爆破几秒钟的量级。8 位是 NIST SP 800-63B 的最低建议值，也是不需要
+ * 引入长度上限以外的组合规则（那类规则按同一份 NIST 指南反而有害）就能拿到的提升。
+ * 注意：这是**新设密码**的下限；既有密码不受影响（校验走哈希比对，不重跑本条）。
+ */
+internal const val MIN_PASSWORD_LENGTH = 8
+
+/**
+ * 密码合法性：≥[MIN_PASSWORD_LENGTH] 字符且 UTF-8 字节数 ≤72（BCrypt 截断边界）。
+ * 另拒绝「全同一个字符」——这类密码在留 8 位下限后仍是最常见的弱口令形态。
+ */
 internal fun isValidPassword(password: String): Boolean {
-    if (password.length < 6) return false
-    return password.toByteArray(Charsets.UTF_8).size <= MAX_PASSWORD_BYTES
+    if (password.length < MIN_PASSWORD_LENGTH) return false
+    if (password.toByteArray(Charsets.UTF_8).size > MAX_PASSWORD_BYTES) return false
+    if (password.all { it == password[0] }) return false
+    return true
+}
+
+/**
+ * 日志用邮箱脱敏（G328c）：保留首字符与域名，中间打码。
+ *
+ * 原先登录审计按 INFO 级别打印**完整**邮箱 + 来源 IP——排障确实需要「哪个账号」，
+ * 但明文邮箱落进日志文件（并被 docker-compose 的日志轮转保留）是没有必要的 PII 面。
+ * 脱敏后仍可区分账号（首字符 + 域名 + 长度），排障够用。
+ */
+internal fun maskEmail(email: String): String {
+    val trimmed = email.trim()
+    val at = trimmed.indexOf('@')
+    if (at <= 0) return if (trimmed.isEmpty()) "" else "${trimmed.first()}***"
+    val local = trimmed.substring(0, at)
+    val domain = trimmed.substring(at)
+    val head = local.first()
+    val tail = if (local.length >= 3) local.last() else null
+    return buildString {
+        append(head)
+        // 至少 3 个星：否则 "a@x.com" 只出一个星，等于把本地部分的长度也说出来了
+        append("*".repeat(maxOf(3, local.length - 1)))
+        if (tail != null && local.length >= 3) append(tail)
+        append(domain)
+    }
 }
 internal const val MAX_POST_CONTENT_LENGTH = 2_000
 internal const val MAX_POST_IMAGES = 9

@@ -113,8 +113,10 @@ internal fun Route.configureAuthRoutes(
             val authed = loginResult.user != null
             // 9.5xx：登录全链路日志——管理后台「登不进」排障：每次尝试记录账号/来源/结果
             loginAuditLogger.info(
+                // G328c：邮箱脱敏后再落 INFO——排障要的是「哪个账号」，不是明文邮箱。
+                // 完整地址只在 DEBUG（默认不落盘）可用，见 maskEmail 的说明。
                 "login attempt email={} ip={} user={} passwordOk={} totpEnabled={} totpOk={}",
-                emailKey,
+                maskEmail(emailKey),
                 ip,
                 loginResult.user?.id.orEmpty(),
                 loginResult.passwordOk,
@@ -138,7 +140,10 @@ internal fun Route.configureAuthRoutes(
                 authed -> {
                     // 登录成功：清除失败计数（按 IP 隔离），避免历史失败触发误锁
                     loginGate.clear(accountLockKey)
-                    authTokenRepo.deleteExpired()
+                    // G328c：这里原先每次登录成功都跑 `deleteExpired()`，而它按 refresh_tokens
+                    // 逐行开事务（审计点名的 N+1）——过期积压时登录会变成事务风暴。
+                    // `MaintenanceRunner` 已有 15 分钟一轮的 `authSessionExpiry` 在做同一件事，
+                    // 登录路径上这次调用纯属重复，删掉。
                     call.respond(issueAuthResponse(checkNotNull(loginResult.user), authTokenRepo).copy(totpEnabled = loginResult.totpEnabled))
                 }
                 else -> {

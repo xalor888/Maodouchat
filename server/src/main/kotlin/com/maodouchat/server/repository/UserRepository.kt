@@ -117,16 +117,32 @@ class UserRepository {
     /**
      * 搜索用户（大小写不敏感的 LIKE；过滤掉不可被搜索的用户；过滤双向拉黑）
      * @param excludeUserId 排除指定用户（通常是搜索发起者自己）
+     *
+     * G328c：邮箱匹配加了**准入条件**——只有查询本身长得像邮箱（含 `@`）且本地部分
+     * 至少 3 个字符时才参与 email 匹配。原因：`lower(email) like '%q%'` 配合 2 字符查询
+     * 等于一个「这个地址是否注册过」的在线探测器（审计点名的「已认证用户可枚举邮箱」）。
+     * 按邮箱加好友是正当功能，所以不能直接去掉匹配，而是把它限制在「用户已经知道
+     * 完整地址」的形态上：`a@` 这类前缀扫描不再命中 email 列。
      */
     fun searchUsers(keyword: String, excludeUserId: String? = null, limit: Int = 30, viewerId: String? = null): List<UserResponse> {
         val trimmed = keyword.trim()
         if (trimmed.isBlank()) return emptyList()
+        val emailQueryAllowed = run {
+            val at = trimmed.indexOf('@')
+            at >= 3 && at < trimmed.length - 1
+        }
         return transaction {
             val escaped = trimmed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             val pattern = "%${escaped.lowercase()}%"
             val baseQuery = Users.selectAll().where {
-                (Users.searchable eq true) and
-                    ((Users.name.lowerCase() like pattern) or (Users.id.lowerCase() like pattern) or (Users.email.lowerCase() like pattern) or (Users.username.lowerCase() like pattern))
+                val textMatch = (Users.name.lowerCase() like pattern) or
+                    (Users.id.lowerCase() like pattern) or
+                    (Users.username.lowerCase() like pattern)
+                if (emailQueryAllowed) {
+                    (Users.searchable eq true) and (textMatch or (Users.email.lowerCase() like pattern))
+                } else {
+                    (Users.searchable eq true) and textMatch
+                }
             }
             val finalQuery = if (excludeUserId != null) baseQuery.andWhere { Users.id neq excludeUserId } else baseQuery
             val blocked = viewerId?.let { blockedUserIdsInTx(it) } ?: emptySet()
