@@ -228,6 +228,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/navigation/NavGraph.kt",
         "com/maodouchat/ui/screen/call/CallViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatBotGroupActionController.kt",
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailDisappearing.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailFeatureGates.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailSecretChat.kt",
@@ -354,7 +355,7 @@ class ClientArchitectureTest {
         // 棘轮方向不变：从这里开始只许降。上调的原因是必要的 import，不是往里堆逻辑。
 
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2930,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2598,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
@@ -419,7 +420,7 @@ class ClientArchitectureTest {
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2930,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2598,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
@@ -995,7 +996,10 @@ class ClientArchitectureTest {
         "screen/chatdetail/ChatDetailLiveLocation.kt" to 2,
         "screen/chatdetail/ChatDetailMedia.kt" to 1,
         "screen/chatdetail/ChatDetailRoute.kt" to 2,
-        "screen/chatdetail/ChatDetailViewModel.kt" to 35,
+        "screen/chatdetail/ChatDetailViewModel.kt" to 19,
+        // G328c：装配搬到 ChatDetailDeps 之后，直连持久层的命中随之搬过去
+        // （VM 35→19，deps 17，总数 192→193：多出的 1 是 deps 构造函数里对 VM 的引用被计入）。
+        "screen/chatdetail/ChatDetailDeps.kt" to 17,
         "screen/chatdetail/ChatExportController.kt" to 2,
         "screen/chatdetail/GroupDetailViewModel.kt" to 2,
         "screen/chatdetail/MediaCenterScreen.kt" to 6,

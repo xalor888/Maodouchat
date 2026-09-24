@@ -69,6 +69,7 @@ import com.maodouchat.util.VoicePlayer
 import com.maodouchat.util.VoiceRecorder
 import com.maodouchat.util.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -114,194 +115,43 @@ class ChatDetailViewModel(
     }
     internal val app = application as MaodouchatApp
     // G73：AI 能力端口（实现在 data 层，Route 只认端口）
-    internal val aiConversationProfileSource: AiConversationProfileSource =
-        com.maodouchat.data.local.RoomAiConversationProfileSource(application, app.database)
-    internal val aiChatClassificationSource: AiChatClassificationSource =
-        com.maodouchat.data.local.RoomAiChatClassificationSource(application, app.database)
-    internal val aiEmotionReplySource: AiEmotionReplySource =
-        com.maodouchat.data.local.RoomAiEmotionReplySource(application, app.database)
-    internal val aiWeeklyReportSource: AiWeeklyReportSource =
-        com.maodouchat.data.local.RoomAiWeeklyReportSource(application, app.database)
-    internal val messageRepo = LocalMessageStore(app.database.messageDao(), app.database)
-    internal val attachmentDownloadCoordinator = AttachmentDownloadCoordinator(
-        context = application,
-        messageStore = messageRepo,
-        tokenManager = TokenManager.getInstance(application),
-        isSecretChat = { message ->
-            _uiState.value.isSecretChat == true || app.secretConversationController.capabilities(message.chatId).isSecretChat
-        },
-        onProgress = ::updateFileTransferProgress,
-        onMessageUpdated = { updated ->
-            _uiState.update { state ->
-                state.copy(messages = state.messages.map { current ->
-                    if (current.id == updated.id) updated else current
-                })
-            }
-        },
-    )
-    private val messageGateway by lazy {
-        MessagingV2MessageGateway(
-            database = app.database,
-            messageStore = messageRepo,
-            outbox = app.messagingV2Outbox,
-            indexMessage = ::indexSearchableMessage,
-        )
-    }
-    internal val commandFacade by lazy {
-        ConversationCommandFacade(
-            gateway = messageGateway,
-            resolveChat = chatRepo::getChatById,
-            getMessage = messageRepo::getMessageById,
-            ownerUserId = { currentUserId },
-        )
-    }
-    internal val attachmentIntentController: AttachmentIntentController by lazy {
-        DefaultAttachmentIntentController(
-            context = getApplication(),
-            transferRepository = RoomTransferRepository(app),
-            preparationService = DefaultAttachmentPreparationService(getApplication()),
-            messageStore = messageRepo,
-            tokenManager = tokenManager,
-            commandFacade = commandFacade,
-            ownerUserId = { currentUserId },
-            onProgress = { id, completed, total ->
-                updateFileTransferProgress(id, completed, total, 0f, 0.35f)
-            },
-        )
-    }
-    internal val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
-    internal val secretTtlRepo = com.maodouchat.data.repository.SecretChatRepository(app.database.secretChatDao())
-    private val messageTerminalStore = MessageTerminalStore(
-        deleteCachedMedia = { messageId ->
-            MediaCache.deleteCachedMediaForMessage(getApplication(), messageId)
-        },
-        deleteSearchDocument = app.database.messageSearchDao()::deleteDocument,
-        deleteLocalMessage = messageRepo::deleteMessage,
-        upsertLocalMessage = { message -> messageRepo.applyRevokedMessage(message) }
-    )
-    internal val messagingMutationFacade = MessagingV2MutationFacade(
-        eventOutbox = MessagingV2EventOutbox { conversationId, event, groupRevision ->
-            app.messagingV2Outbox.enqueueEvent(conversationId, event, groupRevision)
-        },
-        persistDeleted = messageTerminalStore::persistDeleted,
-        persistRevoked = messageTerminalStore::persistRevoked,
-        persistEdited = messageRepo::applyEditedMessage,
-        persistReaction = { original, reactions, actorUserId, reactionEmoji ->
-            val reactedAt = reactions.lastOrNull { it.userId == actorUserId }?.reactedAt
-                ?: System.currentTimeMillis()
-            messageRepo.mutateMessageReactions(original.id) { existing ->
-                com.maodouchat.messaging.v2.ReactionMutationPolicy.apply(
-                    existing = existing,
-                    actorUserId = actorUserId,
-                    emoji = reactionEmoji,
-                    reactedAt = reactedAt,
-                )
-            }
-        },
-        indexMessage = ::indexSearchableMessage,
-        cleanupAttachment = ::cleanupAttachmentForMessage,
-        refreshConversationPreview = MaodouchatApp::emitChatListPreviewRefresh,
-        isOwnerSessionCurrent = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        },
-        cleanupTerminalNotification = { message ->
-            if (app.notificationCenter.removeMessageReferences(message.id)) {
-                com.maodouchat.notification.MessageNotificationService.cancelMessage(getApplication(), message.chatId)
-            }
-        },
-    )
-    private val conversationMessageMutationCoordinator =
-        ConversationMessageMutationCoordinator(messagingMutationFacade)
-    private val conversationReactionCoordinator =
-        ConversationReactionCoordinator(messagingMutationFacade)
-    internal val aiSummaryRepo = AiSummaryRepository(app.database.aiSummaryCacheDao())
-    internal val aiTaskRepo = AiTaskRepository(app.database.aiTaskDao(), application)
-    internal val aiOperationRepo = AiOperationRepository(app.database.aiOperationDao())
-    private val userRepo = UserRepository(app.database.userDao())
-    internal val chatRepo = ChatRepository(app.database.chatDao(), app.database.userDao())
-    internal val chatDraftDao = app.database.chatDraftDao()
-    internal val tokenManager = TokenManager.getInstance(application)
-    private val outgoingFacade by lazy {
-        ChatOutgoingFacade(
-            getCachedConversation = chatRepo::getChatById,
-            fetchConversations = { liveToken ->
-                ApiService.getChats(liveToken).getOrThrow().map { it.toDomainChat() }
-            },
-            createDirectConversation = { liveToken, recipientId, secret ->
-                ApiService.createChat(
-                    liveToken,
-                    listOf(recipientId),
-                    isGroup = false,
-                    groupName = null,
-                    chatType = if (secret) com.maodouchat.security.SecretChatPolicy.CHAT_TYPE else null,
-                ).getOrThrow().toDomainChat()
-            },
-            cacheConversation = { chatRepo.cacheChats(listOf(it)) },
-            ensureLocalCryptoReady = signalProtocol::ensureLocalCryptoReady,
-            isBotUserId = com.maodouchat.bot.BotCommandPolicy::isBotUserId,
-            isOwnerSessionCurrent = { ownerUserId ->
-                com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            },
-            errors = OutgoingConversationErrors(
-                notLoggedIn = { text(R.string.chat_not_logged_in) },
-                recipientNotReady = { text(R.string.chat_recipient_not_ready) },
-                cannotSendToSelf = { text(R.string.chat_cannot_send_self) },
-            ),
-            currentRequest = {
-                val state = _uiState.value
-                OutgoingConversationRequest(
-                    ownerUserId = currentUserId,
-                    authToken = token,
-                    activeConversationId = activeChatId,
-                    constructorConversationId = chatId,
-                    paintedConversation = state.chat,
-                    activeContactId = state.contact.id,
-                    createSecretConversation = state.chat?.isSecret == true || state.isSecretChat == true,
-                )
-            },
-            hydrateConversation = ::hydrateOutgoingChat,
-            stageDurableMessage = { message, groupRevision, body, type ->
-                messageGateway.stageAndEnqueue(message, groupRevision, body, type)
-            },
-            retryDurableMessage = { message, groupRevision, body, type ->
-                messageGateway.retry(message, groupRevision, body, type)
-            },
-            persistFailedMessage = messageRepo::insertMessage,
-            currentOwnerUserId = { currentUserId },
-            currentAuthToken = { token },
-            findCachedDirectConversation = chatRepo::findCachedDirectChat,
-            createOfflineDirectConversation = chatRepo::createOfflineDirectChat,
-            commandFacade = commandFacade,
-        )
-    }
-    private val conversationScheduleCoordinator = ConversationScheduleCoordinator(
-        ownerUserId = { tokenManager.getUserId().orEmpty() },
-        backend = AndroidConversationScheduleBackend(application),
-    )
-    private val chatScheduleController = ChatScheduleController(
-        coordinator = conversationScheduleCoordinator,
-        scheduledMessagesEnabled = {
-            RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SCHEDULED_MESSAGES)
-        },
-    )
-    internal val conversationLocalStateCoordinator = createAndroidConversationLocalStateCoordinator(
-        app = app,
-        tokenManager = tokenManager,
-        scheduleCoordinator = conversationScheduleCoordinator,
-    )
+    /**
+     * G328c：装配已搬到 [ChatDetailDeps]（553 行）。下面这些是**同名转发**——
+     * 调用点（Route / 各 Controller / 测试）一个都不用改，而 VM 里剩下的都是行为。
+     */
+    private val deps = ChatDetailDeps(application, host = this)
+
+    internal val aiConversationProfileSource get() = deps.aiConversationProfileSource
+    internal val aiChatClassificationSource get() = deps.aiChatClassificationSource
+    internal val aiEmotionReplySource get() = deps.aiEmotionReplySource
+    internal val aiWeeklyReportSource get() = deps.aiWeeklyReportSource
+    internal val messageRepo get() = deps.messageRepo
+    internal val attachmentDownloadCoordinator get() = deps.attachmentDownloadCoordinator
+    private val messageGateway get() = deps.messageGateway
+    internal val commandFacade get() = deps.commandFacade
+    internal val attachmentIntentController get() = deps.attachmentIntentController
+    internal val chatLockRepo get() = deps.chatLockRepo
+    internal val secretTtlRepo get() = deps.secretTtlRepo
+    private val messageTerminalStore get() = deps.messageTerminalStore
+    internal val messagingMutationFacade get() = deps.messagingMutationFacade
+    private val conversationMessageMutationCoordinator get() = deps.conversationMessageMutationCoordinator
+    private val conversationReactionCoordinator get() = deps.conversationReactionCoordinator
+    internal val aiSummaryRepo get() = deps.aiSummaryRepo
+    internal val aiTaskRepo get() = deps.aiTaskRepo
+    internal val aiOperationRepo get() = deps.aiOperationRepo
+    private val userRepo get() = deps.userRepo
+    internal val chatRepo get() = deps.chatRepo
+    internal val chatDraftDao get() = deps.chatDraftDao
+    internal val tokenManager get() = deps.tokenManager
+    private val outgoingFacade get() = deps.outgoingFacade
+    private val conversationScheduleCoordinator get() = deps.conversationScheduleCoordinator
+    private val chatScheduleController get() = deps.chatScheduleController
+    internal val conversationLocalStateCoordinator get() = deps.conversationLocalStateCoordinator
 
     private fun ownerSession(ownerUserId: String = currentUserId): OwnerSessionSnapshot =
         OwnerSessionSnapshot(ownerUserId, MaodouchatApp.currentSessionGeneration())
 
-    private fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
+    internal fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
         OwnerSessionPolicy.isCurrent(
             snapshot = session,
             liveUserId = tokenManager.getUserId(),
@@ -310,84 +160,17 @@ class ChatDetailViewModel(
             purgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
         )
 
-    internal val voiceRecorder = VoiceRecorder(application)
-    internal val recordingWaveformBuffer = VoiceRecordingWaveform()
-    internal var recordingMeterJob: Job? = null
-    internal val signalProtocol: SignalProtocol = app.signalProtocol
-    private val groupMessagingCoordinator = createAndroidGroupMessagingCoordinator(
-        app = app,
-        signalProtocol = signalProtocol,
-        tokenManager = tokenManager,
-    )
-    private val groupLifecycleCoordinator = GroupLifecycleCoordinator(
-        ownerUserId = { tokenManager.getUserId().orEmpty() },
-        token = { tokenManager.getToken().orEmpty() },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        },
-        fetchChat = { liveToken, targetChatId ->
-            ApiService.getChats(liveToken).map { chats ->
-                chats.firstOrNull { it.id == targetChatId }
-            }
-        },
-        invalidateEpoch = groupMessagingCoordinator::invalidateSenderKey,
-    )
-    private val groupLifecycleService: com.maodouchat.group.GroupLifecycleService by lazy {
-        com.maodouchat.group.DefaultGroupLifecycleService(
-            coordinator = groupLifecycleCoordinator,
-            tokenProvider = { tokenManager.getToken().orEmpty().ifBlank { token } },
-            membershipStore = app.groupMembershipStore,
-        )
-    }
-    internal val conversationForwardCoordinator by lazy {
-        ConversationForwardCoordinator(
-            ownerUserId = { tokenManager.getUserId().orEmpty() },
-            token = { tokenManager.getToken().orEmpty() },
-            sessionActive = { ownerUserId ->
-                com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
-            },
-            fetchTargets = { _ ->
-                val cached = chatRepo.getAllChats().first()
-                Result.success(cached)
-            },
-            resolveTargets = { _, targets ->
-                targets.mapNotNull { chatRepo.getChatById(it.id) ?: it }
-            },
-            stageMessage = { message, groupRevision ->
-                messageGateway.stageAndEnqueue(
-                    message = message,
-                    groupRevision = groupRevision,
-                    body = message.content,
-                    type = message.type,
-                )
-            },
-            attachmentIntentController = attachmentIntentController,
-            getMessageById = { id -> messageRepo.getMessageById(id) },
-            getChatById = { id -> chatRepo.getChatById(id) },
-            isChatLocked = { id -> !com.maodouchat.security.ChatLockSession.isUnlocked(id) && (chatLockRepo.get(id) != null) },
-            onDurableMessage = { message ->
-                if (message.chatId == activeChatId) {
-                    _uiState.update { state ->
-                        state.copy(messages = mergeMessages(state.messages, listOf(message)))
-                    }
-                }
-            },
-            onMessageSent = { targetChatId, preview, type ->
-                MaodouchatApp.emitMessageSent(targetChatId, preview, type.name)
-            },
-            preview = { type, content -> forwardPreview(type, content) },
-        )
-    }
-    /** Senders that already got one ensureSessions this chat open (history must not storm). */
-    internal val aiMessageResultStore = AiMessageResultStore(app.database)
+    internal val voiceRecorder get() = deps.voiceRecorder
+    internal val recordingWaveformBuffer get() = deps.recordingWaveformBuffer
+    internal var recordingMeterJob
+        get() = deps.recordingMeterJob
+        set(value) { deps.recordingMeterJob = value }
+    internal val signalProtocol get() = deps.signalProtocol
+    private val groupMessagingCoordinator get() = deps.groupMessagingCoordinator
+    private val groupLifecycleCoordinator get() = deps.groupLifecycleCoordinator
+    private val groupLifecycleService get() = deps.groupLifecycleService
+    internal val conversationForwardCoordinator get() = deps.conversationForwardCoordinator
+    internal val aiMessageResultStore get() = deps.aiMessageResultStore
     internal fun text(id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
 
     /** 9.217：复数串助手（ViewModel 非 Compose 路径）。 */
@@ -491,7 +274,7 @@ class ChatDetailViewModel(
     }
 
     /** Best-effort keyword index after local plaintext is durable (IO thread). */
-    private suspend fun indexSearchableMessage(message: Message) {
+    internal suspend fun indexSearchableMessage(message: Message) {
         // 密聊消息不落搜索索引（与 ImageOcrAutoIndexer 一致）：即使本地 SQLCipher 已加密，
         // 密聊明文不应进入可搜索缓存，避免密聊内容在全局搜索中可被检索。
         val caps = app.secretConversationController.capabilities(message.chatId)
@@ -509,44 +292,86 @@ class ChatDetailViewModel(
     }
 
     // G67：已处理过的消息 id 交给策略自己的 SeenSet（带上界，长会话不会无限增长）
-    private val readSeenMessages = ChatReadWatermarkPolicy.SeenSet()
-    private var pendingReadWatermarkMessageId: String? = null
-    private var lastMessagesSeen: List<Pair<String, MessageStatus>>? = null
-    private var markReadJob: kotlinx.coroutines.Job? = null
-    internal var pendingAiAction: PendingAiAction? = null
-    internal var pendingAiOperationRetryId: String? = null
-    internal var aiSettingsLoaded = false
-    internal var unreadSummaryAttemptedForKey: String? = null
-    /** In-flight auto unread summary key; prevents concurrent duplicate summarizeChat calls. */
-    internal var unreadSummaryInFlightKey: String? = null
-    internal val semanticSearchGate = AiRequestGenerationGate()
-    private val attachmentPreparationJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-    internal val aiOperationJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-    internal val aiAutoRetryJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-    internal val aiAutoRetryAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
-    internal val aiOperationQueueMutex = Mutex()
-    internal val aiOperationJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    internal var aiRewriteStreamJob: kotlinx.coroutines.Job? = null
-    internal var aiReplyStreamJob: kotlinx.coroutines.Job? = null
-    internal var semanticSearchJob: kotlinx.coroutines.Job? = null
-    internal var groupAiJob: kotlinx.coroutines.Job? = null
-    internal var manualSummaryJob: kotlinx.coroutines.Job? = null
-    internal var unreadSummaryJob: kotlinx.coroutines.Job? = null
-    internal val aiRewriteGate = AiRequestGenerationGate()
-    internal val aiReplyGate = AiRequestGenerationGate()
-    internal val groupAiGate = AiRequestGenerationGate()
-    internal val manualSummaryGate = AiRequestGenerationGate()
-    internal var lastAiRewriteMode = "polish"
-    internal var lastAiRewriteTargetLanguage: String? = null
-    internal var lastAiReplyTone: String = "friendly"
-    internal var liveLocationJob: kotlinx.coroutines.Job? = null
-    internal var liveLocationCancel: (() -> Unit)? = null
-    internal val liveLocationUpdateMutex = Mutex()
-    internal val inlineSendCompletions = java.util.concurrent.ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
-    @Volatile internal var lastLiveLocationPayload: com.maodouchat.data.model.LocationPayload? = null
-    internal var draftSaveJob: kotlinx.coroutines.Job? = null
-    /** Bumped on every schedule/clear so a late persist cannot resurrect a cleared draft. */
-    internal var draftGeneration = 0L
+    private val readSeenMessages get() = deps.readSeenMessages
+    private var pendingReadWatermarkMessageId
+        get() = deps.pendingReadWatermarkMessageId
+        set(value) { deps.pendingReadWatermarkMessageId = value }
+    private var lastMessagesSeen
+        get() = deps.lastMessagesSeen
+        set(value) { deps.lastMessagesSeen = value }
+    private var markReadJob
+        get() = deps.markReadJob
+        set(value) { deps.markReadJob = value }
+    internal var pendingAiAction
+        get() = deps.pendingAiAction
+        set(value) { deps.pendingAiAction = value }
+    internal var pendingAiOperationRetryId
+        get() = deps.pendingAiOperationRetryId
+        set(value) { deps.pendingAiOperationRetryId = value }
+    internal var aiSettingsLoaded
+        get() = deps.aiSettingsLoaded
+        set(value) { deps.aiSettingsLoaded = value }
+    internal var unreadSummaryAttemptedForKey
+        get() = deps.unreadSummaryAttemptedForKey
+        set(value) { deps.unreadSummaryAttemptedForKey = value }
+    internal var unreadSummaryInFlightKey
+        get() = deps.unreadSummaryInFlightKey
+        set(value) { deps.unreadSummaryInFlightKey = value }
+    internal val semanticSearchGate get() = deps.semanticSearchGate
+    private val attachmentPreparationJobs get() = deps.attachmentPreparationJobs
+    internal val aiOperationJobs get() = deps.aiOperationJobs
+    internal val aiAutoRetryJobs get() = deps.aiAutoRetryJobs
+    internal val aiAutoRetryAt get() = deps.aiAutoRetryAt
+    internal val aiOperationQueueMutex get() = deps.aiOperationQueueMutex
+    internal val aiOperationJson get() = deps.aiOperationJson
+    internal var aiRewriteStreamJob
+        get() = deps.aiRewriteStreamJob
+        set(value) { deps.aiRewriteStreamJob = value }
+    internal var aiReplyStreamJob
+        get() = deps.aiReplyStreamJob
+        set(value) { deps.aiReplyStreamJob = value }
+    internal var semanticSearchJob
+        get() = deps.semanticSearchJob
+        set(value) { deps.semanticSearchJob = value }
+    internal var groupAiJob
+        get() = deps.groupAiJob
+        set(value) { deps.groupAiJob = value }
+    internal var manualSummaryJob
+        get() = deps.manualSummaryJob
+        set(value) { deps.manualSummaryJob = value }
+    internal var unreadSummaryJob
+        get() = deps.unreadSummaryJob
+        set(value) { deps.unreadSummaryJob = value }
+    internal val aiRewriteGate get() = deps.aiRewriteGate
+    internal val aiReplyGate get() = deps.aiReplyGate
+    internal val groupAiGate get() = deps.groupAiGate
+    internal val manualSummaryGate get() = deps.manualSummaryGate
+    internal var lastAiRewriteMode
+        get() = deps.lastAiRewriteMode
+        set(value) { deps.lastAiRewriteMode = value }
+    internal var lastAiRewriteTargetLanguage
+        get() = deps.lastAiRewriteTargetLanguage
+        set(value) { deps.lastAiRewriteTargetLanguage = value }
+    internal var lastAiReplyTone
+        get() = deps.lastAiReplyTone
+        set(value) { deps.lastAiReplyTone = value }
+    internal var liveLocationJob
+        get() = deps.liveLocationJob
+        set(value) { deps.liveLocationJob = value }
+    internal var liveLocationCancel
+        get() = deps.liveLocationCancel
+        set(value) { deps.liveLocationCancel = value }
+    internal val liveLocationUpdateMutex get() = deps.liveLocationUpdateMutex
+    internal val inlineSendCompletions get() = deps.inlineSendCompletions
+    internal var lastLiveLocationPayload
+        get() = deps.lastLiveLocationPayload
+        set(value) { deps.lastLiveLocationPayload = value }
+    internal var draftSaveJob
+        get() = deps.draftSaveJob
+        set(value) { deps.draftSaveJob = value }
+    internal var draftGeneration
+        get() = deps.draftGeneration
+        set(value) { deps.draftGeneration = value }
     @Volatile internal var hasUserEditedInput = false
     internal val currentUserId: String get() = tokenManager.getUserId() ?: "me"
     internal val token: String get() = tokenManager.getToken() ?: ""
@@ -556,105 +381,15 @@ class ChatDetailViewModel(
 
     internal val _uiState = MutableStateFlow(ChatDetailUiState())
     val uiState: StateFlow<ChatDetailUiState> = _uiState.asStateFlow()
-    private val timelineStateController = ChatTimelineStateController(::mergeMessages)
-    internal val searchSelectionStateController = ChatSearchSelectionStateController()
-    private val groupSecurityStateController = ChatGroupSecurityStateController()
-    private val mediaStateController = ChatMediaStateController()
-    private val readReceiptCoordinator = ChatReadReceiptCoordinator(
-        scope = viewModelScope,
-        dao = com.maodouchat.data.local.RoomReadReceiptSource(app.database.messagingV2Dao()),
-        currentUserId = { currentUserId },
-        currentState = _uiState::value,
-        updateState = { transform -> _uiState.update(transform) },
-        receiptsEnabled = { RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.READ_RECEIPTS) },
-        errorMessage = { error -> error.message ?: text(R.string.chat_read_details_failed) },
-    )
-    private val pinStarController = ChatPinStarController(
-        application = application,
-        scope = viewModelScope,
-        chatId = { chatId },
-        ownerUserId = { currentUserId },
-        token = { token },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        },
-        currentState = _uiState::value,
-        updateState = { transform -> _uiState.update(transform) },
-        persistMessage = messageRepo::insertMessage,
-        text = { id, args -> text(id, *args) },
-    )
-    private val moderationController = ChatModerationController(
-        application = application,
-        scope = viewModelScope,
-        ownerUserId = { currentUserId },
-        token = { token },
-        activeChatId = { activeChatId },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        },
-        currentState = _uiState::value,
-        updateState = { transform -> _uiState.update(transform) },
-        text = { id, args -> text(id, *args) },
-    )
-    private val botGroupActionController = ChatBotGroupActionController(
-        scope = viewModelScope,
-        groupLifecycleCoordinator = groupLifecycleCoordinator,
-        ownerUserId = { currentUserId },
-        token = { token },
-        activeChatId = { activeChatId },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        },
-        currentState = _uiState::value,
-        updateState = { transform -> _uiState.update(transform) },
-        text = { id, args -> text(id, *args) },
-        quantityText = { id, quantity, args -> quantityText(id, quantity, *args) },
-    )
-    private val realtimeController = ChatRealtimeController(
-        application = application,
-        scope = viewModelScope,
-        tokenManager = tokenManager,
-        ownerUserId = { currentUserId },
-        token = { token },
-        activeChatId = { activeChatId },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
-        },
-        currentState = _uiState::value,
-        updateState = { transform -> _uiState.update(transform) },
-        persistDisappearingMessages = { targetChatId, seconds ->
-            chatRepo.getChatById(targetChatId)?.let { local ->
-                chatRepo.cacheChats(listOf(local.copy(disappearingMessageSeconds = seconds)))
-            }
-        },
-        applyRealtimeVisibility = { event ->
-            app.database.userDao().applyRealtimeVisibility(
-                userId = event.userId,
-                isOnline = event.isOnline,
-                onlineRevoked = event.onlineRevoked,
-                statusRevoked = event.statusRevoked,
-                updatedAt = System.currentTimeMillis(),
-            )
-        },
-        onGroupRevisionChanged = ::handleGroupRevisionChanged,
-        text = { id -> text(id) },
-    )
+    private val timelineStateController get() = deps.timelineStateController
+    internal val searchSelectionStateController get() = deps.searchSelectionStateController
+    private val groupSecurityStateController get() = deps.groupSecurityStateController
+    private val mediaStateController get() = deps.mediaStateController
+    private val readReceiptCoordinator get() = deps.readReceiptCoordinator
+    private val pinStarController get() = deps.pinStarController
+    private val moderationController get() = deps.moderationController
+    private val botGroupActionController get() = deps.botGroupActionController
+    private val realtimeController get() = deps.realtimeController
 
     init {
         _uiState.update {
@@ -734,7 +469,7 @@ class ChatDetailViewModel(
         }
     }
 
-    private fun observeAiOperations() {
+    internal fun observeAiOperations() {
         val ownerUserId = tokenManager.getUserId()?.takeIf(String::isNotBlank) ?: return
         aiOperationRepo.observeActionable(ownerUserId, activeChatId)
             .onEach { operations ->
@@ -781,7 +516,7 @@ class ChatDetailViewModel(
         }
     }
 
-    private fun observeMessageStatus() {
+    internal fun observeMessageStatus() {
         _uiState
             .onEach { state ->
                 if (state.chat == null) return@onEach
@@ -869,7 +604,7 @@ class ChatDetailViewModel(
         com.maodouchat.MaodouchatApp.emitChatRead(id)
     }
 
-    private fun observeAttachmentTransfers() {
+    internal fun observeAttachmentTransfers() {
         app.database.attachmentTransferDao().observeAllAccounts()
             .onEach { allTransfers ->
                 val liveOwnerUserId = tokenManager.getUserId().orEmpty()
@@ -923,7 +658,7 @@ class ChatDetailViewModel(
         }
     }
 
-    private fun observeVoicePlayback() {
+    internal fun observeVoicePlayback() {
         val playedEnqueued = mutableSetOf<String>()
         VoicePlayer.state
             .filter { it.isPlaying && it.messageId != null }
@@ -948,7 +683,7 @@ class ChatDetailViewModel(
      * Open-chat REST is ciphertext; merge local rows continuously so a readable
      * tail is not lost if history decrypt returns Duplicate/placeholder.
      */
-    private fun observeLocalMessages() {
+    internal fun observeLocalMessages() {
         val observedChatId = activeChatId.ifBlank { chatId }
         if (observedChatId.isBlank()) return
         val ownerUserId = currentUserId
@@ -971,7 +706,7 @@ class ChatDetailViewModel(
         }
     }
 
-    private fun observeAuthoritativeMessageMutations() {
+    internal fun observeAuthoritativeMessageMutations() {
         val observedChatId = activeChatId.ifBlank { chatId }
         if (observedChatId.isBlank()) return
         val ownerUserId = currentUserId
@@ -1006,7 +741,7 @@ class ChatDetailViewModel(
     }
 
     /** Room already knows participants; pin 1:1 peer before getChats returns. */
-    private suspend fun pinSessionCipherPeerFromCache(targetChatId: String) {
+    internal suspend fun pinSessionCipherPeerFromCache(targetChatId: String) {
         val cached = chatRepo.getChatById(targetChatId) ?: return
         if (cached.isGroup) {
             occupySessionCipher(cached.id, peerUserId = null, updatePeer = true)
@@ -1051,7 +786,7 @@ class ChatDetailViewModel(
         }
     }
 
-    private fun loadChat() {
+    internal fun loadChat() {
         _uiState.update { it.copy(isLoading = true, initialTimelineReady = false) }
         viewModelScope.launch {
             try {
@@ -1376,7 +1111,7 @@ class ChatDetailViewModel(
         }
     }
 
-    private suspend fun handleGroupRevisionChanged(event: WebSocketEvent.GroupRevisionChanged) {
+    internal suspend fun handleGroupRevisionChanged(event: WebSocketEvent.GroupRevisionChanged) {
         val revisionOwnerUserId = currentUserId
         if (
             revisionOwnerUserId.isBlank() ||
@@ -1543,7 +1278,7 @@ class ChatDetailViewModel(
         return true
     }
 
-    private fun observeAttachmentFinalizedEvents() {
+    internal fun observeAttachmentFinalizedEvents() {
         viewModelScope.launch {
             com.maodouchat.MaodouchatApp.attachmentFinalizedEvents.collect { event ->
                 if (event.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {
@@ -1741,7 +1476,7 @@ class ChatDetailViewModel(
      */
 
     /** Optimistically hides a message after its encrypted delete event is staged. */
-    fun deleteMessage(messageId: String) {
+    internal fun deleteMessage(messageId: String) {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
             return
@@ -2013,18 +1748,7 @@ class ChatDetailViewModel(
     }
 
 
-    private val scheduledMessageController = ScheduledMessageController(
-        chatScheduleController = chatScheduleController,
-        uiState = _uiState,
-        textProvider = ::text,
-        tokenManager = tokenManager,
-        activeChatId = { activeChatId },
-        chatId = chatId,
-        clearDraft = { clearDraft() },
-        sendMessage = { forceText, onDurableCommit, onDurableFailure ->
-            sendMessage(forceText = forceText, onDurableCommit = onDurableCommit, onDurableFailure = onDurableFailure)
-        },
-    )
+    private val scheduledMessageController get() = deps.scheduledMessageController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()
     fun clearScheduledInfo() = scheduledMessageController.clearScheduledInfo()
@@ -2037,27 +1761,14 @@ class ChatDetailViewModel(
     fun rescheduleScheduledMessage(id: String, delayMs: Long, newText: String? = null) = scheduledMessageController.rescheduleScheduledMessage(id, delayMs, newText)
     fun rescheduleScheduledMessageAt(id: String, sendAtMillis: Long, newText: String? = null) = scheduledMessageController.rescheduleScheduledMessageAt(id, sendAtMillis, newText)
 
-    private val chatReminderController = ChatReminderController(
-        chatScheduleController = chatScheduleController,
-        uiState = _uiState,
-        textProvider = ::text,
-        activeChatId = { activeChatId },
-        chatId = chatId,
-    )
+    private val chatReminderController get() = deps.chatReminderController
 
     fun scheduleMessageReminder(message: Message, remindAtMillis: Long) = chatReminderController.scheduleMessageReminder(message, remindAtMillis)
     fun listRemindersForChat(chatId: String): List<com.maodouchat.util.MessageReminderStore.MessageReminder> = chatReminderController.listRemindersForChat(chatId)
     fun cancelReminder(reminderId: String) = chatReminderController.cancelReminder(reminderId)
     fun clearRemindersForChat(chatId: String) = chatReminderController.clearRemindersForChat(chatId)
 
-    private val chatExportController = ChatExportController(
-        messageRepo = messageRepo,
-        tokenManager = tokenManager,
-        uiState = _uiState,
-        textProvider = ::text,
-        context = getApplication(),
-        scope = viewModelScope,
-    )
+    private val chatExportController get() = deps.chatExportController
 
     fun exportChatHistory() = chatExportController.exportChatHistory()
     fun exportChatAsJson(): String = chatExportController.exportChatAsJson()
@@ -2095,7 +1806,9 @@ class ChatDetailViewModel(
         }
     }
 
-    private var lastCapturePeerNotifyAt = 0L
+    private var lastCapturePeerNotifyAt
+        get() = deps.lastCapturePeerNotifyAt
+        set(value) { deps.lastCapturePeerNotifyAt = value }
 
     private fun sendCaptureAlertToPeer() {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CAPTURE_ALERT)) return
@@ -2385,23 +2098,15 @@ class ChatDetailViewModel(
 
 
 
-    private val identityVerificationController = IdentityVerificationController(
-        context = getApplication(),
-        scope = viewModelScope,
-        tokenManager = tokenManager,
-        signalProtocol = signalProtocol,
-        resetDirectIdentityForGroup = groupSecurityStateController::resetDirectIdentityForGroup,
-        uiState = _uiState,
-        text = ::text,
-    )
+    private val identityVerificationController get() = deps.identityVerificationController
 
     fun showSafetyCodeDialog() = identityVerificationController.showSafetyCodeDialog()
     fun dismissSafetyCodeDialog() = identityVerificationController.dismissSafetyCodeDialog()
     fun verifyAndTrustIdentity(deviceId: Int? = null) = identityVerificationController.verifyAndTrustIdentity(deviceId)
     fun verifyAllDevices() = identityVerificationController.verifyAllDevices()
-    private val recipientId: String get() = _uiState.value.contact.id
+    private val recipientId get() = deps.recipientId
 
-    private suspend fun hydrateOutgoingChat(
+    internal suspend fun hydrateOutgoingChat(
         chat: Chat,
         ownerUserId: String,
         resolvedPeerId: String?,
@@ -2468,7 +2173,7 @@ class ChatDetailViewModel(
      * [replyTarget] embeds replyToId into E2EE MessageMeta.
      * [silent] overrides composer silentSend when non-null.
      */
-    fun sendMessage(
+    internal fun sendMessage(
         replyTarget: Message? = null,
         silent: Boolean? = null,
         forceText: String? = null,
@@ -2607,23 +2312,7 @@ class ChatDetailViewModel(
      * G328c：附件传输族（下载/暂停/续传/取消/进度/错误文案）已抽到
      * [ChatDetailFileTransferController]。这里只保留一行转发，调用点不变。
      */
-    private val fileTransferController by lazy {
-        ChatDetailFileTransferController(
-            uiState = _uiState,
-            scope = viewModelScope,
-            applicationScope = app.applicationScope,
-            context = getApplication(),
-            activeChatId = { activeChatId },
-            messageRepo = messageRepo,
-            mediaStateController = mediaStateController,
-            attachmentIntentController = attachmentIntentController,
-            attachmentPreparationJobs = attachmentPreparationJobs,
-            text = { res -> text(res) },
-            ensureLocalAttachment = ::ensureLocalAttachment,
-            retryAllTransfers = { chatId -> AttachmentTransferSummaryRepository.retryAll(app, chatId) },
-            cancelAllTransfers = { chatId -> AttachmentTransferSummaryRepository.cancelAll(app, chatId) },
-        )
-    }
+    private val fileTransferController get() = deps.fileTransferController
 
     fun requestOpenFile(messageId: String) = fileTransferController.requestOpenFile(messageId)
 
@@ -2750,7 +2439,7 @@ class ChatDetailViewModel(
     }
 
     /** 删除消息时清理附件传输记录和本地密文文件，防止孤儿行和磁盘泄漏。 */
-    private suspend fun cleanupAttachmentForMessage(messageId: String) {
+    internal suspend fun cleanupAttachmentForMessage(messageId: String) {
         try {
             val ownerUserId = currentUserId
             if (ownerUserId.isBlank()) return
@@ -2874,28 +2563,7 @@ class ChatDetailViewModel(
      * 留在 ViewModel 里时它们要走 `getApplication()` 取文案，本机（无 Robolectric）测不了。
      * 这里只保留同名转发，调用点不变。
      */
-    private val decryptStatus by lazy {
-        ChatDetailDecryptStatus(
-            gate = signalProtocol,
-            texts = DecryptTexts(
-                failed = text(R.string.chat_decrypt_failed),
-                pending = text(R.string.chat_decrypt_pending),
-                sessionMissing = text(R.string.chat_decrypt_session_missing),
-                identityChanged = text(R.string.chat_decrypt_identity_changed),
-                groupFailed = text(R.string.chat_decrypt_group_failed),
-                groupKeyMissing = text(R.string.chat_decrypt_group_key_missing),
-                groupIdentityChanged = text(R.string.chat_decrypt_group_identity_changed),
-                groupNewer = text(R.string.chat_decrypt_group_newer),
-                imageFailed = text(R.string.chat_decrypt_image_failed),
-                gifFailed = text(R.string.chat_decrypt_gif_failed),
-                stickerFailed = text(R.string.chat_decrypt_sticker_failed),
-                locationFailed = text(R.string.chat_decrypt_location_failed),
-                videoFailed = text(R.string.chat_decrypt_video_failed),
-                voiceFailed = text(R.string.chat_decrypt_voice_failed),
-                fileFailed = text(R.string.chat_decrypt_file_failed),
-            ),
-        )
-    }
+    private val decryptStatus get() = deps.decryptStatus
 
     internal fun Message.mediaDecryptFailedText(): String = mediaDecryptFailedTextForType(type)
 
