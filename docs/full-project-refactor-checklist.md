@@ -13233,3 +13233,40 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
       **不是「主流程 UI 已验证」**。标 `[x]` 会让读者以为后者成立——
       那正是本台账反复在治的「叙述比现实乐观」。真要标 `[x]`，
       缺口是明确的：可注入的 ChatList ports（或把 43 参数按内聚分组）+ 数据相关用例。
+
+
+### G321c — **ChatListScreen 数据相关路径补齐**：播种 + `waitUntil`，消掉 G319c 的深度缺口
+
+- **G319c 留下的缺口**：那轮只覆盖了与数据无关的 chrome 与回调，
+  并在台账写明「**不含任何数据相关路径**（空态用例因环境耦合被移除）」。
+  根因是：列表由 VM 协程从真实 Room 库**异步**加载，
+  `compose.waitForIdle()` 只等 Compose 空闲，**不保证那次库查询已发射**——
+  所以空态用例红掉后只能移除。
+- **本轮换的两件事（都不是猜的，是先试出来的）**：
+  1. **播种**：`ChatDao.insertChats(List<ChatEntity>)` 往真实库塞一个群聊，
+     `@After` 用 `deleteAllChats()` 清干净（播种必须可清理）。
+     所以**不需要 fake `ChatListPorts`（那有 43 个参数）、也不需要任何生产接缝**。
+  2. **等节点而不是等 Idle**：用 `compose.waitUntil(timeoutMillis = 10_000) { 节点出现 }`。
+     这正是 G319c 那条红用例的根因——**`waitForIdle()` 之后库查询可能还没回来**。
+     这条经验比测试本身更值钱：**Compose 测试里异步数据源要用 `waitUntil`，不是 `waitForIdle`。**
+- **新增** `app/src/androidTest/.../ui/screen/chatlist/ChatListScreenDataTest.kt`，
+  **2 例真正的数据路径用例**：
+  1. 播种的群聊**渲染出群名与副标题**（副标题是播种的 `lastMessage`，
+     这条把「Room 数据 → VM → Compose UI」整条链钉住）；
+  2. **点它触发 `onChatClick` 且回传那条 chatId**（屏幕级行为）。
+- **负控制：预判完全命中（本会话第五次）**。手法是把屏幕的
+  `onChatClick = onChatClick` 改成 `onChatClick = {}`。
+  **动手前先读改动后的代码**：行仍渲染（群名/副标题不变），只是点击变空操作。
+  据此预测「行为断言红、渲染断言仍绿」——实测一字不差。
+  还原后 `diff` 与 HEAD 逐字节相同。
+  **同一结论第五次验证：只断言可见性的测试抓不到点击接线回归。**
+- **最终实测**：新测试 2 tests / 0 failures / 0 skipped；
+  全量 instrumented **141 tests / 0 failures**（27 skipped 仍只在
+  `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。
+- **§11 Q03 第 1 项**：深度说明从「ChatListScreen 不含任何数据相关路径」
+  更新为「已覆盖：chrome、回调接线、**经真实库的会话渲染与点击回传**」。
+  **仍维持 `[~]` 不标 `[x]`**，理由：(a) ChatListScreen 只有 5 例，
+  长按菜单/未读角标/置顶/归档/文件夹筛选等路径未覆盖；
+  (b) 其它屏幕（Call 的音频路由与群参与者、Settings 子页交互等）同样有未覆盖分支。
+  现在这七项证明的比 G319c 时多了一层——**多了一条「Room → VM → UI」的真实数据链**，
+  但仍不是「主流程 UI 已验证」。
