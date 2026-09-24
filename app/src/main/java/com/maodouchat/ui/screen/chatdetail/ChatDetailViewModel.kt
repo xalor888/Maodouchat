@@ -11,7 +11,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
-import com.maodouchat.attachment.AttachmentTransferSummaryRepository
 import com.maodouchat.attachment.AttachmentDownloadCoordinator
 import com.maodouchat.attachment.DefaultAttachmentIntentController
 import com.maodouchat.attachment.DefaultAttachmentPreparationService
@@ -20,7 +19,6 @@ import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.AttachmentKind
 import com.maodouchat.crypto.DecryptHistoryPolicy
-import com.maodouchat.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.conversation.ConversationCommandFacade
@@ -57,7 +55,6 @@ import com.maodouchat.data.repository.AiTaskRepository
 import com.maodouchat.data.repository.AiOperationRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.UserRepository
-import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketEvent
@@ -98,6 +95,7 @@ import com.maodouchat.ai.AiChatClassificationSource
 import com.maodouchat.ai.AiEmotionReplySource
 import com.maodouchat.ai.AiWeeklyReportSource
 import com.maodouchat.group.GroupLifecycleCoordinator
+import com.maodouchat.attachment.AttachmentTransferSummaryRepository
 
 class ChatDetailViewModel(
     application: Application,
@@ -1565,77 +1563,8 @@ class ChatDetailViewModel(
         }
     }
 
-    fun requestOpenFile(messageId: String) {
-        val message = _uiState.value.messages.firstOrNull { it.id == messageId && it.type == MessageType.FILE } ?: return
-        if (MediaCache.isReadableLocalUri(getApplication(), message.parsedContent())) {
-            _uiState.update { it.copy(fileReadyToOpenUri = message.parsedContent()) }
-            return
-        }
-        if (messageId in _uiState.value.downloadingFileMessageIds) return
-        viewModelScope.launch {
-            _uiState.update { state -> mediaStateController.beginDownload(state, messageId) }
-            try {
-                ensureLocalAttachment(message).fold(
-                    onSuccess = { localMessage ->
-                        _uiState.update { state ->
-                            mediaStateController.finishDownload(
-                                state,
-                                messageId,
-                                localUri = localMessage.parsedContent(),
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        _uiState.update { state ->
-                            mediaStateController.finishDownload(
-                                state,
-                                messageId,
-                                failureMessage = attachmentErrorText(error, R.string.chat_attachment_download_failed),
-                            )
-                        }
-                    },
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { state -> mediaStateController.finishDownload(state, messageId) }
-                throw error
-            }
-        }
-    }
 
-    fun requestMediaAttachment(messageId: String) {
-        val message = _uiState.value.messages.firstOrNull {
-            it.id == messageId && it.type in RELIABLE_ATTACHMENT_TYPES
-        } ?: return
-        if (MediaCache.isReadableLocalUri(getApplication(), message.parsedContent())) return
-        if (messageId in _uiState.value.downloadingFileMessageIds) return
-        viewModelScope.launch {
-            _uiState.update { state -> mediaStateController.beginDownload(state, messageId) }
-            try {
-                ensureLocalAttachment(message).fold(
-                    onSuccess = {
-                        _uiState.update { state -> mediaStateController.finishDownload(state, messageId) }
-                    },
-                    onFailure = { error ->
-                        _uiState.update { state ->
-                            mediaStateController.finishDownload(
-                                state,
-                                messageId,
-                                failureMessage = attachmentErrorText(error, R.string.chat_attachment_download_failed),
-                                markMediaFailure = true,
-                            )
-                        }
-                    },
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { state -> mediaStateController.finishDownload(state, messageId) }
-                throw error
-            }
-        }
-    }
 
-    fun consumeFileReadyToOpen() {
-        _uiState.update(mediaStateController::consumeReadyFile)
-    }
 
     /** Sends a nudge through the same durable encrypted outbox as every other message. */
     fun sendNudge() {
@@ -1800,98 +1729,16 @@ class ChatDetailViewModel(
         }
     }
 
-    fun pauseFileTransfer(messageId: String) {
-        if (_uiState.value.fileTransferStates[messageId] !in setOf(AttachmentTransferState.QUEUED, AttachmentTransferState.UPLOADING)) return
-        viewModelScope.launch(Dispatchers.IO) {
-            if (!attachmentIntentController.pause(messageId)) {
-                _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_file_transfer_control_failed)) }
-            }
-        }
-    }
 
-    fun resumeFileTransfer(messageId: String) {
-        val message = _uiState.value.messages.firstOrNull {
-            it.id == messageId && it.type in RELIABLE_ATTACHMENT_TYPES
-        } ?: return
-        _uiState.update { state ->
-            state.copy(
-                messages = state.messages.map { if (it.id == messageId) it.copy(status = MessageStatus.SENDING) else it },
-                fileTransferErrors = state.fileTransferErrors - messageId,
-                groupEncryptionWarning = null
-            )
-        }
-        viewModelScope.launch(Dispatchers.IO) {
-            messageRepo.updateMessageStatus(messageId, MessageStatus.SENDING)
-            if (!attachmentIntentController.resume(messageId)) {
-                messageRepo.updateMessageStatus(messageId, MessageStatus.FAILED)
-                _uiState.update { state ->
-                    state.copy(
-                        messages = state.messages.map { if (it.id == message.id) it.copy(status = MessageStatus.FAILED) else it },
-                        groupEncryptionWarning = text(R.string.chat_file_transfer_source_missing)
-                    )
-                }
-            }
-        }
-    }
 
-    fun cancelFileTransfer(messageId: String) {
-        if (messageId in _uiState.value.preparingAttachmentMessageIds) {
-            val sourceUri = _uiState.value.messages.firstOrNull { it.id == messageId }?.parsedContent()
-            attachmentPreparationJobs[messageId]?.cancel()
-            _uiState.update { state ->
-                state.copy(
-                    messages = state.messages.filterNot { it.id == messageId },
-                    fileTransferProgress = state.fileTransferProgress - messageId,
-                    preparingAttachmentMessageIds = state.preparingAttachmentMessageIds - messageId,
-                    isSending = false
-                )
-            }
-            com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
-                attachmentIntentController.cancel(messageId)
-                sourceUri?.let { MediaCache.releasePersistableReadPermission(getApplication(), it) }
-                MediaCache.deleteCachedMediaForMessage(getApplication(), messageId)
-                messageRepo.deleteMessage(messageId)
-            }
-            return
-        }
-        val transferState = _uiState.value.fileTransferStates[messageId] ?: return
-        if (transferState in setOf(AttachmentTransferState.READY, AttachmentTransferState.SENDING)) return
-        _uiState.update { state ->
-            state.copy(
-                messages = state.messages.filterNot { it.id == messageId },
-                fileTransferProgress = state.fileTransferProgress - messageId,
-                fileTransferStates = state.fileTransferStates - messageId,
-                fileTransferErrors = state.fileTransferErrors - messageId
-            )
-        }
-        viewModelScope.launch(Dispatchers.IO) {
-            attachmentIntentController.cancel(messageId)
-            MediaCache.deleteCachedMediaForMessage(getApplication(), messageId)
-            messageRepo.deleteMessage(messageId)
-        }
-    }
 
     /**
      * 一键重试当前聊天所有失败/暂停任务；状态栏展示的中转数减为 0 后会自动收起浮窗。
      */
-    fun retryAllAttachmentTransfers() {
-        val chatId = activeChatId
-        if (chatId.isBlank()) return
-        viewModelScope.launch(Dispatchers.IO) {
-            AttachmentTransferSummaryRepository.retryAll(app, chatId)
-        }
-    }
 
     /**
      * 一键清掉当前聊天的所有传输（已上传 READY 的不会被清掉）。
      */
-    fun cancelAllAttachmentTransfers() {
-        val chatId = activeChatId
-        if (chatId.isBlank()) return
-        viewModelScope.launch(Dispatchers.IO) {
-            AttachmentTransferSummaryRepository.cancelAll(app, chatId)
-        }
-    }
 
     /** Optimistically hides a message after its encrypted delete event is staged. */
     fun deleteMessage(messageId: String) {
@@ -2536,35 +2383,7 @@ class ChatDetailViewModel(
         preparationJob.start()
     }
 
-    internal fun updateFileTransferProgress(
-        messageId: String,
-        completed: Long,
-        total: Long,
-        start: Float,
-        end: Float
-    ) {
-        _uiState.update { state ->
-            mediaStateController.updateSegmentProgress(state, messageId, completed, total, start, end)
-        }
-    }
 
-    internal fun attachmentErrorText(error: Throwable, fallbackStringRes: Int): String =
-        when (com.maodouchat.attachment.AttachmentErrorUiPolicy.classify(error)) {
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.TOO_LARGE ->
-                text(R.string.chat_attachment_file_too_large)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.INVALID_REFERENCE ->
-                text(R.string.chat_attachment_reference_invalid)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.INTEGRITY_FAILED ->
-                text(R.string.chat_attachment_integrity_failed)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.CONTENT_MISMATCH ->
-                text(R.string.chat_attachment_content_mismatch)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.FALLBACK -> {
-                // 9.283：透传服务端具体错误（配额不足/总哈希校验失败/参数无效等），
-                // 避免笼统的「附件发送失败」掩盖真实原因，便于用户自查与我方定位
-                (error as? com.maodouchat.network.ApiException)?.serverMessage?.takeIf { it.isNotBlank() }
-                    ?: text(fallbackStringRes)
-            }
-        }
 
     private val identityVerificationController = IdentityVerificationController(
         context = getApplication(),
@@ -2784,6 +2603,55 @@ class ChatDetailViewModel(
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_decrypt_new_device)) }
     }
 
+    /**
+     * G328c：附件传输族（下载/暂停/续传/取消/进度/错误文案）已抽到
+     * [ChatDetailFileTransferController]。这里只保留一行转发，调用点不变。
+     */
+    private val fileTransferController by lazy {
+        ChatDetailFileTransferController(
+            uiState = _uiState,
+            scope = viewModelScope,
+            applicationScope = app.applicationScope,
+            context = getApplication(),
+            activeChatId = { activeChatId },
+            messageRepo = messageRepo,
+            mediaStateController = mediaStateController,
+            attachmentIntentController = attachmentIntentController,
+            attachmentPreparationJobs = attachmentPreparationJobs,
+            text = { res -> text(res) },
+            ensureLocalAttachment = ::ensureLocalAttachment,
+            retryAllTransfers = { chatId -> AttachmentTransferSummaryRepository.retryAll(app, chatId) },
+            cancelAllTransfers = { chatId -> AttachmentTransferSummaryRepository.cancelAll(app, chatId) },
+        )
+    }
+
+    fun requestOpenFile(messageId: String) = fileTransferController.requestOpenFile(messageId)
+
+    fun requestMediaAttachment(messageId: String) = fileTransferController.requestMediaAttachment(messageId)
+
+    fun consumeFileReadyToOpen() = fileTransferController.consumeFileReadyToOpen()
+
+    fun pauseFileTransfer(messageId: String) = fileTransferController.pauseFileTransfer(messageId)
+
+    fun resumeFileTransfer(messageId: String) = fileTransferController.resumeFileTransfer(messageId)
+
+    fun cancelFileTransfer(messageId: String) = fileTransferController.cancelFileTransfer(messageId)
+
+    fun retryAllAttachmentTransfers() = fileTransferController.retryAllAttachmentTransfers()
+
+    fun cancelAllAttachmentTransfers() = fileTransferController.cancelAllAttachmentTransfers()
+
+    internal fun updateFileTransferProgress(
+        messageId: String,
+        completed: Long,
+        total: Long,
+        start: Float,
+        end: Float
+    ) = fileTransferController.updateFileTransferProgress(messageId, completed, total, start, end)
+
+    internal fun attachmentErrorText(error: Throwable, fallbackStringRes: Int): String =
+        fileTransferController.attachmentErrorText(error, fallbackStringRes)
+
     internal suspend fun ensureLocalAttachment(message: Message): Result<Message> {
         return attachmentDownloadCoordinator.ensureLocalAttachment(message)
     }
@@ -2999,55 +2867,46 @@ class ChatDetailViewModel(
     }
 
     internal fun String.isSenderKeyMessage(): Boolean = signalProtocol.isSenderKeyEnvelope(this)
-    // G183：与 mediaDecryptFailedTextForType 的 when 逐字相同——原先两份各写一遍，
-    // 加一种新 MessageType 时漏改一处就会让 UI 出现两种不同的失败文案。
-    internal fun Message.mediaDecryptFailedText(): String = mediaDecryptFailedTextForType(type)
 
     /**
-     * Sync must not advance past recoverable decrypt failures (NoSession / identity / generic).
-     * Placeholders are still shown in UI but the (ts,id) cursor stays so a later retry can re-fetch.
+     * G328c：解密状态判定（失败文案 / 占位符识别 / 能否跳过）已抽到
+     * [ChatDetailDecryptStatus]——那里的依赖是显式注入的，因此能在纯 JVM 单测里覆盖；
+     * 留在 ViewModel 里时它们要走 `getApplication()` 取文案，本机（无 Robolectric）测不了。
+     * 这里只保留同名转发，调用点不变。
      */
-    internal fun isSyncDecryptFailurePlaceholder(message: Message): Boolean {
-        val c = message.content
-        if (c.isBlank()) return false
-        if (signalProtocol.isEncryptedEnvelope(c) || c.isSenderKeyMessage()) {
-            return true
-        }
-        return isKnownDecryptPlaceholder(message)
-    }
-
-    private fun isKnownDecryptPlaceholder(message: Message): Boolean =
-        DecryptPlaceholderPolicy.isPlaceholder(
-            message.content,
-            text(R.string.chat_decrypt_failed),
-            text(R.string.chat_decrypt_pending),
-            text(R.string.chat_decrypt_session_missing),
-            text(R.string.chat_decrypt_identity_changed),
-            text(R.string.chat_decrypt_group_failed),
-            text(R.string.chat_decrypt_group_key_missing),
-            text(R.string.chat_decrypt_group_identity_changed),
-            text(R.string.chat_decrypt_group_newer),
-            mediaDecryptFailedTextForType(message.type),
+    private val decryptStatus by lazy {
+        ChatDetailDecryptStatus(
+            gate = signalProtocol,
+            texts = DecryptTexts(
+                failed = text(R.string.chat_decrypt_failed),
+                pending = text(R.string.chat_decrypt_pending),
+                sessionMissing = text(R.string.chat_decrypt_session_missing),
+                identityChanged = text(R.string.chat_decrypt_identity_changed),
+                groupFailed = text(R.string.chat_decrypt_group_failed),
+                groupKeyMissing = text(R.string.chat_decrypt_group_key_missing),
+                groupIdentityChanged = text(R.string.chat_decrypt_group_identity_changed),
+                groupNewer = text(R.string.chat_decrypt_group_newer),
+                imageFailed = text(R.string.chat_decrypt_image_failed),
+                gifFailed = text(R.string.chat_decrypt_gif_failed),
+                stickerFailed = text(R.string.chat_decrypt_sticker_failed),
+                locationFailed = text(R.string.chat_decrypt_location_failed),
+                videoFailed = text(R.string.chat_decrypt_video_failed),
+                voiceFailed = text(R.string.chat_decrypt_voice_failed),
+                fileFailed = text(R.string.chat_decrypt_file_failed),
+            ),
         )
-
-    /** Terminal/capped wires remain placeholders but no longer head-of-line block backlog sync. */
-    internal fun canAdvancePastSyncDecryptFailure(message: Message): Boolean {
-        val content = message.content
-        if (!signalProtocol.isEncryptedEnvelope(content) && !content.isSenderKeyMessage()) return false
-        return signalProtocol.isDecryptTerminalFailure(message.senderId, content) ||
-            signalProtocol.isDecryptRetryExhausted(message.senderId, content)
     }
 
-    internal fun mediaDecryptFailedTextForType(type: MessageType): String = when (type) {
-        MessageType.IMAGE -> text(R.string.chat_decrypt_image_failed)
-        MessageType.GIF -> text(R.string.chat_decrypt_gif_failed)
-        MessageType.STICKER -> text(R.string.chat_decrypt_sticker_failed)
-        MessageType.LOCATION -> text(R.string.chat_decrypt_location_failed)
-        MessageType.VIDEO -> text(R.string.chat_decrypt_video_failed)
-        MessageType.VOICE -> text(R.string.chat_decrypt_voice_failed)
-        MessageType.FILE -> text(R.string.chat_decrypt_file_failed)
-        else -> text(R.string.chat_decrypt_failed)
-    }
+    internal fun Message.mediaDecryptFailedText(): String = mediaDecryptFailedTextForType(type)
+
+    internal fun isSyncDecryptFailurePlaceholder(message: Message): Boolean =
+        decryptStatus.isSyncFailurePlaceholder(message)
+
+    internal fun canAdvancePastSyncDecryptFailure(message: Message): Boolean =
+        decryptStatus.canAdvancePastSyncFailure(message)
+
+    internal fun mediaDecryptFailedTextForType(type: MessageType): String =
+        decryptStatus.failedTextFor(type)
 
     /** 合并本地备注名（服务端 UserDto 不含 nickname） */
     internal suspend fun withLocalNickname(user: User): User {

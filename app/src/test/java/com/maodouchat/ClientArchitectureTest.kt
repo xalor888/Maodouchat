@@ -369,7 +369,7 @@ class ClientArchitectureTest {
         // 棘轮方向不变：从这里开始只许降。上调的原因是必要的 import，不是往里堆逻辑。
 
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3071,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2930,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 1945,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
@@ -430,7 +430,7 @@ class ClientArchitectureTest {
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3071,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2930,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 1945,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 672,
@@ -983,6 +983,10 @@ class ClientArchitectureTest {
     )
 
     /** 次口径：整个 `ui/`（含 ViewModel / Ports）。同样只许下降。 */
+    // G328c：`ChatDetailViewModel` 36 -> 35——附件传输族（10 个方法）抽到
+    // `ChatDetailFileTransferController` 时，VM 里的 1 处直连持久层命中随之消失。
+    // 新控制器本身 0 命中（它只经 messageRepo / intentController 干活，
+    // 且刻意不接收 app 单例——两个仓库动作以 lambda 注入）。
     private val frozenUiDirectPersistence: Map<String, Int> = mapOf(
         "navigation/AuthDestinations.kt" to 2,
         "navigation/CallNavigation.kt" to 9,
@@ -998,7 +1002,7 @@ class ClientArchitectureTest {
         "screen/chatdetail/ChatDetailLiveLocation.kt" to 2,
         "screen/chatdetail/ChatDetailMedia.kt" to 1,
         "screen/chatdetail/ChatDetailRoute.kt" to 2,
-        "screen/chatdetail/ChatDetailViewModel.kt" to 36,
+        "screen/chatdetail/ChatDetailViewModel.kt" to 35,
         "screen/chatdetail/ChatExportController.kt" to 2,
         "screen/chatdetail/GroupDetailViewModel.kt" to 2,
         "screen/chatdetail/MediaCenterScreen.kt" to 6,
