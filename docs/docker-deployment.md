@@ -177,4 +177,7 @@ bash scripts/deploy.sh --no-build   # 复用镜像，快速重启
 # 或 docker compose up -d --build
 ```
 
-数据库迁移在服务启动时自动执行（Exposed `SchemaUtils`）。
+数据库迁移在服务启动时自动执行：`Application.kt:76` 调 `runDatabaseMigrations()`
+（`db/migration/MigrationRunner.kt`，单事务 + advisory lock 串行化）。
+注意与 `server-migration-expand-contract.md` 的说法对齐：`SchemaUtils.createMissingTablesAndColumns`
+只用于建**缺失**的表/列（`db/Database.kt`），**不**承担版本化迁移职责。

@@ -30,6 +30,6 @@ B01 要求破坏性 schema 变更不得在同一发布里「先删再建」。�
 ## 规则
 
 - 版本号严格递增、不可变；失败事务回滚且不写入 `schema_migrations`。
-- 破坏性 drop 只能出现在 contract 版本，并带数据守卫（见 `LegacyMessagingRetirement`）。
+- 破坏性 drop 只能出现在 contract 版本，并带数据守卫（见 `db/Database.kt` 的 `retireLegacyMessagingTables()`，实现与守卫说明在 `db/migration/DatabaseMigrations.kt` 的 migration v2）。
 - 双实例下 migration 与周期清理任务分别用 advisory/行锁与 `job_leases`，避免并发改 schema 或双跑清理。
 - 新领域表优先进入下一个 expand migration，而不是「启动期隐式建表、免版本号」的长期旁路。

@@ -1,7 +1,8 @@
 # Maodouchat Bot Developer API
 
 **更新时间**：2026-07-20  
-**角色**：机器人接入契约（与 `Routing.kt` bot 路由对齐；以代码为准）  
+**角色**：机器人接入契约。路由权威源是 `server/src/main/kotlin/com/maodouchat/server/plugins/` 下的
+`Bot*Routing.kt`（`Routing.kt` 只是模块注册表，本身不含 endpoint）；本文以代码为准。  
 **鉴权**：多数接口使用 `X-Bot-Token: <token>` 或 `Authorization: Bearer <bot_token>`  
 **注意**：Bot **不得**假设能读取用户 E2EE 明文正文；导出 / 审计仅元数据。Admin/Bot 不得 dump 密聊明文。人对人、群成员互发始终 E2EE（Sender Key）。用户主动发给 bot 的命令走独立明文 inbox，不是把群降成云聊。
 
@@ -83,7 +84,7 @@ Bot 可通过一系列 `get*Flags` 读取服务端运行时开关，用于自适
 | 69 | `getSecretPresenceFlags` | `presz` | `secret_presence_block_enabled` | `sendSecretPresenceHint` |
 | 70 | `getSecretLastSeenFlags` | `lastsz` | `secret_last_seen_block_enabled` | `sendSecretLastSeenHint` |
 
-注：surface 67–70 防侧信道（typing / read-receipt / presence / last-seen）；Bot flags 与 `/api/public/status` 同源 `RuntimeConfigService`，客户端经 `maodou_runtime_flags` 同步到对应 `SecretXxxPrefs`。
+注：surface 67–70 防侧信道（typing / read-receipt / presence / last-seen）；Bot flags 与 `/api/public/status` 同源 `RuntimeConfigService`，客户端经 `RuntimeConfigService` → `util/RuntimeFlags.kt` 的 `Flag`（如 `SECRET_TYPING_BLOCK`）读取。**`SecretXxxPrefs` 这批类已不存在**（98 个 *Prefs.kt 已并入 `RuntimeFlags`），旧文档提到它们的地方一律以 `RuntimeFlags` 为准。
 
 **#66 示例**
 
@@ -177,7 +178,7 @@ Bot 侧 flags 与 public/status **同源** `RuntimeConfigService`。
 | 本文 | Bot 契约与 flags 索引 |
 | `docs/feature-inventory.md` | 产品功能完整度 |
 | `RuntimeConfigService.kt` | 全部 runtime key 权威源 |
-| `Routing.kt` | 路由实现权威源 |
+| `Bot*Routing.kt`（`plugins/` 下） | 路由实现权威源（`Routing.kt` 仅模块注册） |
 
 变更 bot 路由时必须同步：`listCapabilities`、本文索引表、admin 行（若新增 runtime key）。
 

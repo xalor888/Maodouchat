@@ -2,11 +2,41 @@
 
 **审计基线日期**：2026-08-29  
 **审计分支**：`main`  
-**已提交基线**：`e3344a53`（当时与 `origin/main` 一致）  
-**工作区状态**：约 255 个未提交状态项；本文以当前未提交源码为准，数量会随实施变化。  
+**已提交基线**：`e3344a53`（当时与 `origin/main` 一致；此后到 2026-09-24 的进度见下方「权威口径」）  
+**工作区状态**：**2026-09-24 实测为干净**（此前这里写的「约 255 个未提交状态项」是 2026-08-29 的快照，早已不成立）。  
 **目标**：保留产品能力和已经验证的 Messaging V2 协议不变量，重写职责边界、状态所有权、存储、网络、UI 和后端领域实现，最终删除旧入口与兼容实现。
 
 本文是执行清单，不是“功能已经完成”的声明。只有同时满足代码、迁移、测试、删除旧路径和真实 E2E 门槛，条目才允许勾选完成。
+
+## 0. 权威口径（2026-09-24 重新实测）
+
+**这一节是本文所有数字的唯一权威来源。** 正文里的内联数字（尤其是 §G32–G58、§Q0x 那些
+长段落里带日期的数字）是**当时那一轮的日志**，多数已过期，甚至与本文其它段落互相矛盾——
+审计实测确实如此。要引用任何计数，先跑下面一条命令重新测，或引用本节。
+
+| 量 | 2026-09-24 实测值 | 怎么测 |
+|----|------------------|--------|
+| 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
+| App JVM 单测 | 2114 例（`@Test` 计数） | `grep -rho "@Test" app/src/test --include=*.kt \| wc -l` |
+| App 仪器测试 | 156 例 | 同上，路径换 `app/src/androidTest` |
+| Server 单测 | 578 例 | `grep -rho "@Test" server/src/test --include=*.kt \| wc -l` |
+| core/domain 单测 | 59 例 | 同上，路径换 `core` / `domain` |
+| `plugins/` 内 `transaction {` | **0 处** | `grep -rc "transaction {" server/src/main/kotlin/.../plugins/*.kt` |
+| `plugins/` 内 import Exposed | **0 个文件**（`StatusPages.kt` 只有全限定名引用，非 import） | `grep -rl org.jetbrains.exposed .../plugins/*.kt` |
+| `repository/`→`plugins/` 反向依赖 | 0 处 | `ServerArchitectureTest` 的 `frozenRepositoryDependingOnPlugins`（空 map） |
+| 最热三个文件行数 | `ChatDetailRoute.kt` 3433 / `ChatDetailViewModel.kt` 3102 / `util/GroupPlayPolicy.kt` 1945 | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**：改一行不更新即红） |
+| 有测试源文件的模块 | 5 个（core/crypto、core/realtime、core/session、core/testing、domain/messaging） | `ClientArchitectureTest.modulesWithTests` |
+
+**已确认为「正文写错、代码才对」的三处**（不要照正文改代码）：
+
+1. §G4/G5 段落的「全项目 `plugins/` 共 49 处 / 37 处 `transaction {`、34 个文件 import Exposed」
+   ——**当前实测 0 处 / 0 个**。该段是当时的下调记录；`ServerArchitectureTest` 的
+   `frozenRouteTransactions` 与 `frozenPluginsImportingExposed` 现在都是**空**，方向已反转为
+   「必须保持 0，新增即红」。
+2. 多处提到的 `ClientHotspotRatchetTest` —— 该类**已被合并进 `app/src/test/java/com/maodouchat/ClientArchitectureTest.kt`**，
+   独立类名不再存在；该文件自己的 KDoc 记录了合并时「三个棘轮测试全是红的」。
+3. §G8/G9 段落的「`ChatDetailRoute` 5061 行」与行号级引用（`:879`/`:891`/`:1010` 等）
+   ——当前 3433 行，行号已整体位移；要定位请用符号搜索而不是行号。
 
 ## 1. 状态标记
 
@@ -923,7 +953,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - `Agent-0 Integration`：总控、契约、共享热点接线、合并、回归和删除旧路径。
 - 每轮最多 3 个执行 Agent 并行。
 - 每个执行 Agent 使用独立 `git worktree` 和 `codex/refactor-*` 分支。
-- 当前 255 项脏工作区必须先由 Integration Agent 建立可恢复基线；未经用户要求不得提交或推送。
+- ~~当前 255 项脏工作区~~（2026-09-24 实测为 0，见 §0）必须先由 Integration Agent 建立可恢复基线；未经用户要求不得提交或推送。
 - Agent 只改自己的目录；共享热点只提交“接线请求”，由 Integration Agent 串行修改。
 
 ### Wave 0：冻结基线与防止继续恶化
