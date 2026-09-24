@@ -17,15 +17,22 @@
 | 量 | 2026-09-24 实测值 | 怎么测 |
 |----|------------------|--------|
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
-| App JVM 单测 | 2114 例（`@Test` 计数） | `grep -rho "@Test" app/src/test --include=*.kt \| wc -l` |
-| App 仪器测试 | 156 例 | 同上，路径换 `app/src/androidTest` |
-| Server 单测 | 578 例 | `grep -rho "@Test" server/src/test --include=*.kt \| wc -l` |
-| core/domain 单测 | 59 例 | 同上，路径换 `core` / `domain` |
+| App JVM 单测（执行数） | 2108 | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
+| App 仪器测试 | 156（`@Test` 计数） | `grep -rho "@Test" app/src/androidTest --include=*.kt \| wc -l` |
+| Server 单测（执行数） | 578（`@Test` 标注 603，差值是 postgres tag 等未进默认套件的） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
+| core/domain 模块测试（执行数） | 68 | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
+| 有测试源文件的模块 | 9 个 | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
+| `settings.gradle.kts` 模块数 | 10（app + 8 core + 1 domain） | `grep -c 'include(' settings.gradle.kts` |
 | `plugins/` 内 `transaction {` | **0 处** | `grep -rc "transaction {" server/src/main/kotlin/.../plugins/*.kt` |
 | `plugins/` 内 import Exposed | **0 个文件**（`StatusPages.kt` 只有全限定名引用，非 import） | `grep -rl org.jetbrains.exposed .../plugins/*.kt` |
-| `repository/`→`plugins/` 反向依赖 | 0 处 | `ServerArchitectureTest` 的 `frozenRepositoryDependingOnPlugins`（空 map） |
-| 最热三个文件行数 | `ChatDetailRoute.kt` 3433 / `ChatDetailViewModel.kt` 3102 / `util/GroupPlayPolicy.kt` 1945 | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**：改一行不更新即红） |
-| 有测试源文件的模块 | 5 个（core/crypto、core/realtime、core/session、core/testing、domain/messaging） | `ClientArchitectureTest.modulesWithTests` |
+| `repository/`→`plugins/` 反向依赖 | 0 处 | `ServerArchitectureTest.frozenRepositoryDependingOnPlugins`（空 map） |
+| 非 ui 包 import ui | **2 处**（均为合理例外，见门禁白名单） | `ClientArchitectureTest.packages outside ui must not import ui` |
+| ui 直连 `com.maodouchat.network` | **98 个文件**（已冻结，只许降） | `ClientArchitectureTest.frozenUiNetworkImporters` |
+| 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
+| 最热三个文件行数 | `ChatDetailRoute.kt` 3013 / `ChatDetailViewModel.kt` 3071 / `util/GroupPlayPolicy.kt` 1945 | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
+
+> 计数口径提醒：上面的「执行数」来自**最近一次跑该任务**的 XML；只跑单个测试类会把该模块的
+> 结果文件覆盖成那一类的结果。要复核就按表里的命令重新跑一遍再读 XML。
 
 **已确认为「正文写错、代码才对」的三处**（不要照正文改代码）：
 
@@ -1168,3 +1175,73 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 6. [ ] 每一波完成后汇报已完成清单 ID、测试、删除量和下一波阻塞。
 
 这份清单的完成标准不是文件变小，也不是新类数量增加，而是：职责只有一个 owner、状态只有一个真相源、所有入口走同一事务与权限边界、旧路径真正删除，并在真实离线和多设备环境中证明可以恢复。
+
+---
+
+## 附：G328c 轮次记录（2026-09-24 全项目审计 → 逐项修复）
+
+> 这一节记录**一轮完整的审计与修复**，以及**明确没做完的部分**。
+> 按本清单的规矩：没做完的写在下面，不勾选。
+
+### 已完成（每条都有可复跑的验证）
+
+**安全（三条高危，逐条实证）**
+1. `/api/admin/session` 补第二因子（TOTP / 恢复码）。此前只校验口令——账号开着 TOTP 也能
+   用「口令 + 任意有效 access token」换到 5 分钟全权限管理 token，2FA 在唯一提权入口失效。
+   新增 `AdminSessionSecondFactorRouteTest` 7 例钉住（含「同一时间窗内已被前一步消费的码
+   仍可用」这一刻意选择，与 `disableTotp` 同一先例）。
+2. `JWT_SECRET` 密钥分离：sealed-sender 证书与 dev_session 会话改用**用途子密钥**
+   （默认由主密钥派生，可用 `SEALED_SENDER_SECRET` / `DEVELOPER_SESSION_SECRET` 独立轮换）。
+   `deploy.sh` 新部署自动生成并在预检拒绝「用途密钥 == JWT_SECRET」。
+   新增 `PurposeKeyDerivationTest`（5 例）+ `DeveloperSessionKeyIsolationTest`（2 例）。
+3. 删掉 `AppUpdateStorage` 里那段**无人校验**的制品 HMAC——注释写「客户端据此验签」，
+   但客户端没有密钥、也不可能验证；全仓无一处消费该字段。
+
+**文档与代码对不上（逐条按源码核实后修正）**
+`feature-inventory` §12.1（客户端符号列全是不存在的类名，已按 `RuntimeFlags` 重写）、
+`group-play-inventory`（头部数字重测：553 声明 / 183 零引用 / 基线 10）、
+`self-host-quickstart`（删掉「配 OPENAI_API_KEY 即可开启翻译/总结/语义搜索」——服务端
+没有 `/api/ai/*` 路由）、`server-migration-expand-contract`、`bot-developer-api`、
+`docker-deployment`（迁移由 `runDatabaseMigrations()` 执行，不是 SchemaUtils）、README
+（「服务端只存密文」→「聊天消息正文只存密文」，并在 `messaging-v2-architecture.md`
+新增「服务端明文面」一节逐条登记）。
+
+**门禁「在说谎」的三处**
+`DaoOwnerScopingTest`（补 OR 析取判据：谓词被 `OR` 削弱即违规；先在 77 条查询上量过 0 误报）、
+`ClientArchitectureTest` 的 app 数据库单例判据（旧的两条字面量当场漏掉一个真实违规，
+换正则后如实冻结 9 个文件）、`MessagingInvariantTraceabilityTest`（补恒真断言判据）。
+
+**架构**
+- 删掉 8 个**零主源码**的空壳模块（4 个 feature + core:database + 3 个 domain），
+  `settings.gradle.kts` 从此描述真实架构。
+- 包级分层：非 ui 包 import ui 从 **11 处 → 2 处**（均为合理例外，已在门禁白名单写明理由）。
+  新增门禁 `packages outside ui must not import ui`。
+- 9 份独立 `OkHttpClient` 收敛到共享连接池工厂（`network/HttpClients.kt`，每用途一个带注释的
+  profile）+ 门禁防第十份。
+- `SessionContext` 同名不同义 → core 侧改名 `AuthSessionSnapshot`；
+  另外三处「疑似重复」（MessagingV2Runtime / SecurityCoordinator / GroupPollPolicy）
+  查证后确认是正确分层，已把分工写进注释。
+
+**测试与 CI**
+- core/domain 的 44 例此前 **CI 从不执行**；命令改为 `test -x :app:test`（新模块自动纳入），
+  `run-tests.sh` 同步并删掉它那句不成立的「CI 同款范围」。
+- `release.yml` 同步 ci.yml 已验证的 Android SDK 引导（原用的是导致 job 早退的
+  `android-actions/setup-android@v4`）+ artifact action 对齐 v7。
+- 四个零覆盖模块补契约测试（22 例）。
+- 去掉 2 秒墙钟等待（`ChatReadReceiptCoordinator` 的调度器改为可注入，用例从 ~2s → 0.064s）。
+- `ChatDetailRoute.kt` 抽出 450 行长按操作弹层：**3432 → 3013 行**（纯搬移不改判断）。
+
+**仓库卫生**：删根目录 3 个无人引用的入库文件；新增 `.github/dependabot.yml`（此前全仓
+没有任何依赖更新通道，正是服务端整栈停在 2023–24 年代的根因）。
+
+### 明确未完成（下一轮从这里继续）
+
+| 项 | 现状（实测） | 为什么没做 |
+|----|-------------|-----------|
+| `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable；剩余都是 15–40 行的中小块 | 大块（450 行弹层）已搬；剩下每块都要连带搬状态，收益递减而回归风险上升 |
+| `ChatDetailViewModel.kt` 拆 | 3071 行 / 116 个方法，最大单方法 141 行 | 没有 450 行级的自包含块；拆分要提取协作者类（`_uiState` 与 116 个方法互相调用），**且我无法在这里跑仪器测试验证**——仓促改的风险大于收益 |
+| ui 直连 network | **98 个文件 / 135 处调用**，已冻结成只许降的棘轮 | 每处都要判定归属哪个 repository；本轮只保证它不再增长 |
+| `GroupPlayPolicy.kt` | 1945 行（棘轮在，未拆） | 同上：需要先有行为测试再动 |
+| core/session 等冻结契约的**采纳** | `core/util`、`core/serialization`、`core/network`、`core/session` 仍只被 `:core:testing` 的 testImplementation 引用 | 属于 B02「依赖注入装配与 MaodouchatApp 瘦身」，是独立的大工程 |
+| 仪器测试（156 例） | 本机无模拟器/真机，未执行 | 需 `./gradlew :app:connectedDebugAndroidTest` 或 CI 的 instrumented job |
+
