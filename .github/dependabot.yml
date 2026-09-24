@@ -1,0 +1,67 @@
+# 依赖更新机制。
+#
+# 为什么补：全仓此前**没有任何**依赖更新通道——没有 Dependabot、没有 Renovate、
+# 没有版本目录（`gradle/libs.versions.toml`），版本散落在各 build.gradle.kts 里。
+# 后果在 2026-09-24 的全项目审计里很清楚：Android 侧还算新（AGP 8.13.2 / Kotlin 2.4.0 /
+# Compose BOM 2026.05.00），而**服务端整栈停在 2023–24 年代**（Ktor 2.3.7、Exposed 0.46.0、
+# coroutines 1.7.3），没有任何机制会提醒它们已经落后。
+#
+# 策略：只开 PR，不自动合并；Gradle 生态按周聚合，避免一次拉出十几个 PR。
+# 安全更新单独分组并设更高优先级——它们才是真正不能等的那一类。
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      # 同一生态拆两个组：安全更新优先看，常规更新批量看
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      gradle-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: gradle
+    directory: "/server"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - server
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      server-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+      - ci
+
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
