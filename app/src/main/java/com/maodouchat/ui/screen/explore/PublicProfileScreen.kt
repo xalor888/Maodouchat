@@ -74,6 +74,7 @@ import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.theme.TextHint
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.data.repository.PublicServerInfoRepository
 
 /**
  * 外部用户详情页 — 类似 t.me 的个人主页
@@ -112,7 +113,7 @@ fun PublicProfileScreen(
                 error = context.getString(R.string.public_profile_not_found)
                 return@LaunchedEffect
             }
-            ApiService.getPublicProfile(normalizedUsername).fold(
+            PublicServerInfoRepository().publicProfile(normalizedUsername).fold(
                 onSuccess = { response ->
                     val u = response.user
                     if (response.ok && u != null) {

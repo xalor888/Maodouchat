@@ -222,7 +222,7 @@ class ClientArchitectureTest {
      * 两组都**只许降**：搬一个就从对应名单删一行。判据在剥注释后的正文里找符号，
      * 不按 import 行（`com.maodouchat.util.X` 这类全限定名引用也要能被抓到）。
      */
-    // G328c 第一次真实下降：41 → 39。`ChatListServerFlags`（公共状态横幅）与
+    // G328c 真实下降：41 → 38。`ChatListServerFlags`（公共状态横幅）与
     // `AboutScreen`（检查更新）改走 `data/repository/PublicServerInfoRepository`。
     private val frozenUiApiCallers: Set<String> = setOf(
         "com/maodouchat/ui/component/MediaInteractiveCards.kt",
@@ -253,7 +253,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
         "com/maodouchat/ui/screen/explore/PublicProfileScreen.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPollScreen.kt",
-        "com/maodouchat/ui/screen/login/LoginScreen.kt",
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
         "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt",
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt",

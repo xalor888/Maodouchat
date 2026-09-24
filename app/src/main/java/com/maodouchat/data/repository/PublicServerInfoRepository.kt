@@ -17,10 +17,19 @@ import com.maodouchat.network.PublicUpdatesDto
 internal class PublicServerInfoRepository(
     private val fetchStatus: suspend () -> Result<String> = { ApiService.getPublicStatus() },
     private val fetchUpdates: suspend (String) -> Result<PublicUpdatesDto> = { baseUrl -> ApiService.getPublicUpdates(baseUrl) },
+    private val fetchProfile: suspend (String) -> Result<com.maodouchat.network.PublicProfileResponse> = { username ->
+        ApiService.getPublicProfile(username)
+    },
 ) {
     /** 服务器公共状态（未登录也可读）；失败返回 null，调用方按「没有横幅」处理。 */
     suspend fun publicStatus(): String? = fetchStatus().getOrNull()?.takeIf(String::isNotBlank)
 
     /** 公有更新信息（关于页的「检查更新」）。 */
     suspend fun publicUpdates(baseUrl: String): Result<PublicUpdatesDto> = fetchUpdates(baseUrl)
+
+    /**
+     * 公开主页资料（未登录/陌生人也能看）。`ok=false` 表示「查无此人」，由调用方决定文案。
+     */
+    suspend fun publicProfile(username: String): Result<com.maodouchat.network.PublicProfileResponse> =
+        fetchProfile(username)
 }

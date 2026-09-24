@@ -95,6 +95,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
+import com.maodouchat.data.repository.PublicServerInfoRepository
 
 @Composable
 // 资源字符串均在回调/协程内读取，非组合作用域
@@ -149,7 +150,8 @@ fun LoginScreen(
     var serverMaintenance by remember { mutableStateOf(false) }
     var serverMaintMsg by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        val raw = withContext(Dispatchers.IO) { ApiService.getPublicStatus().getOrNull().orEmpty() }
+        // G328c：传输层调用移到 data 层（同 ChatListServerFlags 的处理）。
+        val raw = withContext(Dispatchers.IO) { PublicServerInfoRepository().publicStatus().orEmpty() }
         if (raw.isBlank()) return@LaunchedEffect
         val o = runCatching { JSONObject(raw) }.getOrNull() ?: return@LaunchedEffect
         serverRegistrationOpen = if (o.has("registrationOpen")) o.optBoolean("registrationOpen") else null
