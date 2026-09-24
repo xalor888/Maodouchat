@@ -1245,7 +1245,7 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 
 | 项 | 现状（实测） | 为什么没做 |
 |----|-------------|-----------|
-| `ChatDetailViewModel.kt` 继续拆 | **2931 行**：方法体 2047 行（71 个方法）+ **属性装配 884 行**（96 个属性声明） | 下一步**有尺寸可依据**：把这 884 行装配抽成 `ChatDetailDeps`（interface + impl），VM 用 `class ChatDetailViewModel(...) : ChatDetailDeps by deps` 接口委托接入——调用点零改动、私有成员按需提升为 internal。预计 VM 降到约 2100 行。**未做的原因**：装配无测试兜底，且 `by` 委托对 `by lazy`/`@Volatile` 成员的语义要逐个确认，属于该单独一轮做的事 |
+| ~~`ChatDetailViewModel.kt` 的装配抽出~~ | **已完成**：2931 → **2598 行**（装配 475 行搬到 `ChatDetailDeps`） | 见下方第四轮小节。注意：这里原先写的「884 行装配」是**错的**——那是 `文件行数 − 方法行数` 的粗算，把空行与 companion 也算进去了；用声明级 span 实测是 **475 行** |
 | `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable | 剩余都是 15–40 行的中小块；大块（450 行弹层）已搬 |
 | ui 直连 network | **98 个文件 / 135 处调用**，冻结为只许降的棘轮 | 每处要判定归属哪个 repository；本轮只保证它不再增长 |
 | ~~`GroupPlayPolicy.kt`~~ | **已拆：1945 → 858 行** | 见下方第三轮小节（拆成 `GroupPlayClassicPolicy` 979 / `GroupPlayModePolicy` 492，父对象留同名委托） |
@@ -1311,3 +1311,29 @@ random 辅助（传递性死代码，以前测不出来）。
 **manifest 与客户端残余风险**：`SecretCodeReceiver` 的风险（任何本地应用都能发
 `Telephony.SECRET_CODE` 撤销隐藏入口）与「不加 UID 校验」的理由写进 manifest 注释；
 `docs/docker-deployment.md` 增「客户端已知残余风险」表。
+
+### 第四轮（2026-09-25）：抽出 ChatDetailDeps——ChatDetailViewModel 2931 → 2598 行
+
+**实测修正**：清单上一轮写的「属性装配 884 行」是 `文件行数 − 方法行数` 的粗算（含空行与 companion）。
+按声明级 span 逐条量，真实装配是 **475 行**（88 个属性）。方法体 2157 行、其余 204 行是类头/companion/空行。
+
+**落地方案改了**：原计划是「interface + `by` 委托」，动手后换成**deps 直接持有具体 VM 引用**
+（同模块 `internal` 类）。原因是三处实测出来的麻烦：
+1. 接口成员是 public，而两个宿主方法（`isOwnerSessionCurrent` / `hydrateOutgoingChat`）的签名
+   含 internal 类型，VM 作为 public 类无法在不暴露它们的前提下实现接口；
+2. 把 VM 改 `internal` 能绕过，但会波及 **18 个「ChatDetailViewModel 扩展」文件**
+   （public 扩展函数会「暴露 internal 接收者」）；
+3. 接口方案还要给 `forwardPreview`/`clearDraft`（定义在别的文件的 VM 扩展）做换名转发
+   （同名成员会遮蔽扩展 → 无限递归）。
+直接持有具体引用把三处全绕开，改动面更小。
+
+**过程中修掉的 6 个生成器 bug**（脚本注释里都写了，避免重踩）：命名实参被误改
+（`app = app` → `host.app = host.app`）、lambda 形参被误改（`{ chatId -> }`）、`obj::m` 被误改、
+`init {}` / `companion object` / `override fun` 未被当作声明边界（会把整个 `init` 块吞进上一个属性）、
+`@Annotation` 在可见性之前的写法未被识别。
+
+**棘轮同步（都不是放宽）**：热点上限 VM 2930 → 2598；持久层预算 VM 35→19 + 新增 deps 17
+（总数 192→193，多出的 1 是 deps 构造参数对 VM 的引用被计入）；ui→network 两组名单重算。
+
+**运行时的关键检查交给 CI 的 instrumented job**：它会在模拟器上真实构造这个 VM 并走完聊天流程，
+装配搬移若引入构造期访问顺序问题（例如装配在 `_uiState` 初始化之前就去读它），那里会红。
