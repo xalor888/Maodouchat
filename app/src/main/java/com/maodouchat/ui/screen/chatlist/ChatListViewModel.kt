@@ -26,18 +26,23 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * G317c：主构造器由 `private` 放宽为 `internal`。
+ * G319c：主构造器恢复为 `private`。
  *
- * 为什么：`ChatListScreen`（及其两个 dialog 组）都要求 `ChatListViewModel`，
- * 而此前**唯一的公开入口是 `ChatListViewModel(application)`——它会经
- * `AndroidChatListPorts.create(application)` 建起真实 ports（Room/TokenManager/…），
- * 于是 UI 测试要么不传 VM（触发真实构造）、要么传不了。
- * `private` 让测试源码集**即便同模块也碰不到**这个收 `ChatListPorts` 的构造器。
+ * G317c 我曾把它放宽为 `internal`，理由是「UI 测试碰不到这个收
+ * `ChatListPorts` 的构造器，所以 `ChatListScreen` 测不了」。
+ * **该理由不成立**：`ChatListScreenUiTest`（G319c）用**公开**构造器
+ * `ChatListViewModel(application)` 就能渲染并断言——它内部走
+ * `AndroidChatListPorts.create(application)`，在仪器测试里
+ * `application as MaodouchatApp` 成立，真实 Room 库可用。
  *
- * 这**只是放宽可见性**，不改变任何运行时行为：两个构造器的分发逻辑、
- * 依赖装配、`AndroidViewModel` 的继承关系都原样不动。
+ * 而这个 `internal` **没有任何外部使用者**（唯一的 2 参调用者是本类
+ * 第 588 行的内部工厂，`private` 本就可达）。按「无使用者就回退」，
+ * 恢复 `private`，以免留下一个没有需求的加宽 API。
+ *
+ * 若将来要覆盖「指定会话数据下的 UI」，仍需要这个接缝（或把 43 参数的
+ * `ChatListPorts` 按内聚分组）——那时再有理由加宽。
  */
-class ChatListViewModel internal constructor(
+class ChatListViewModel private constructor(
     application: Application,
     private val ports: ChatListPorts,
 ) : AndroidViewModel(application) {

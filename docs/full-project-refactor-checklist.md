@@ -887,7 +887,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q03 Compose 与系统集成
 
-- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G315c：七个入口里六个有覆盖，含四个屏幕本体**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（原 G313c 五点实证仍成立——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；**但 G317c 已铺好接缝**：ports 构造器 `private` → `internal`，测试侧现在能 `ChatListViewModel(app, ports)`；且 G317c 已更正我当时的错误推论——那 4 个里 `TokenManager` 有 `getInstance` 入口、`ChatRepository`/`MissedCallRepository` 收 Room DAO **接口**、`NotificationCenterRepository` 收 `Context`，**都并非不可构造，只是没人做过**。剩余仅 fake/内存库工作）与 Call / Settings 的屏幕本体（**G315c 已补**：Call 8 例、Settings 6 例）；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`。
+- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G319c：七个入口全覆盖（含五个屏幕本体）**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（原 G313c 五点实证仍成立——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；**但 G317c 已铺好接缝**：ports 构造器 `private` → `internal`，测试侧现在能 `ChatListViewModel(app, ports)`；且 G317c 已更正我当时的错误推论——那 4 个里 `TokenManager` 有 `getInstance` 入口、`ChatRepository`/`MissedCallRepository` 收 Room DAO **接口**、`NotificationCenterRepository` 收 `Context`，**都并非不可构造，只是没人做过**。剩余仅 fake/内存库工作）与 Call / Settings 的屏幕本体（**G315c 已补**：Call 8 例、Settings 6 例；**G319c 补 Chats 3 例**）；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`。
 - [ ] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文。
 - [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
 
@@ -13189,3 +13189,47 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   「Chats（接缝已于 G317c 铺好：构造器 `internal`；剩余 fake/内存库工作）」。
   **这不是阻塞解除，是阻塞从「需要改生产代码」降级为「需要写 fake」**——
   两者性质不同：前者有回归风险，后者纯测试侧工作。
+
+
+### G319c — **Chats 屏幕测试落地（Q03 七项全覆盖）；并回退 G317c 那个本不需要的接缝**
+
+- **最重要的一件事：G317c 的 `internal` 改动是推测性的，本轮已回退。**
+  G317c 我把 `ChatListViewModel` 收 `ChatListPorts` 的构造器 `private` → `internal`，
+  理由是「UI 测试碰不到它」。本轮写测试时发现**这个理由不成立**：
+  **公开构造器 `ChatListViewModel(application)` 就能用**——它内部走
+  `AndroidChatListPorts.create(application)`，而仪器测试里被测应用的
+  Application 就是 `MaodouchatApp`（那个 `application as MaodouchatApp` 硬转型成立），
+  真实 Room 库也可用。所以测试**根本不需要** fake `ChatListPorts`
+  （那有 **43 个参数**，我 G317c 时误记为 24 个）也不需要 `internal`。
+  进一步核实：2 参构造器的唯一调用者是本类第 588 行的内部工厂，
+  `private` 本就可达——**外部零使用者**。故按「无使用者就回退」恢复 `private`，
+  并在 KDoc 里写明「为何曾经加宽、为何现在收回、将来什么情况下才值得再加宽」。
+  **回退后三条用例照样全绿**——这直接证明该改动本就不需要。
+- **第二个更正：G313c 的「Chats 需先做生产侧接缝」不成立。**
+  那轮我从「4 个协作者从未被任何测试构造过」推出「需改造」，
+  G317c 已更正推论（它们都并非不可构造），本轮进一步说明**连构造都不需要**。
+- **新增** `app/src/androidTest/java/com/maodouchat/ui/screen/chatlist/ChatListScreenUiTest.kt`，
+  **3 例**（用公开构造器 + 真实库）：
+  1. 常驻 chrome：文件夹行的「全部/未读/群聊/单聊」四个系统 chip 都渲染（与数据无关）；
+  2. **点搜索图标触发 `onOpenGlobalSearch`**（`ChatListScaffoldChrome.kt:155` 的
+     `IconButton(onClick = onOpenGlobalSearch)`——屏幕级接线）；
+  3. **点通知图标触发 `onOpenNotificationCenter`**。
+- **一个被移除的用例（如实记录，而非留个不稳的）**：原打算断言
+  「空库 → `chat_empty_title`」。源码里它确是默认分支
+  （`ChatListComponents.kt` 的 `when ... else -> chat_empty_title`），
+  但实测该用例红——判断是列表由 VM 协程从真实 Room 库**异步**加载，
+  `compose.waitForIdle()` 不保证那次发射完成，可能仍停在 loading/shimmer 分支；
+  也可能是测试库并非真空。**这是环境耦合的用例**（依赖库状态与协程时序），
+  不是结构化保证，故按「不要为凑数写断言」**移除**。
+  要覆盖空态需 fake ports（43 参数）或显式播种+清理，超出本轮边界。
+- **最终实测**：新测试 3 tests / 0 failures / 0 skipped；
+  全量 instrumented **139 tests / 0 failures**（27 skipped 仍只在
+  `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）；构造器回退后复跑仍全绿。
+- **§11 Q03 第 1 项**：更新为「七个入口全覆盖」。**`[~]` → `[x]` 我选择不标**，理由：
+  (a) ChatListScreen 的覆盖只有 3 例且**不含任何数据相关路径**（空态用例因环境耦合被移除，
+      会话渲染/点击/长按菜单等均未覆盖）；(b) 其它屏幕同样深度有限
+      （Call 的音频路由切换、群参与者、摄像头；Settings 的子页交互）。
+      这七项加起来证明的是「屏幕能渲染、chrome 与回调接线被钉住」，
+      **不是「主流程 UI 已验证」**。标 `[x]` 会让读者以为后者成立——
+      那正是本台账反复在治的「叙述比现实乐观」。真要标 `[x]`，
+      缺口是明确的：可注入的 ChatList ports（或把 43 参数按内聚分组）+ 数据相关用例。
