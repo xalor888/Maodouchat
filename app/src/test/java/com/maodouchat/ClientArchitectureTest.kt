@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 /**
  * G63：轨道 C（客户端热点）的**前置边界门禁**。
  *
- * `DIRECTION.md` 说得很直接：「这些是本项目最贵的债，但**放在最后做**：在边界门禁就位之前动它们，
+ * 客户端热点有一条既定原则：「这些是本项目最贵的债，但**放在最后做**：在边界门禁就位之前动它们，
  * 只会重演『表面收敛、实质未动』。」本轮就是把这句话变成可执行断言——先立门槛，再谈重构。
  *
  * 三条硬约束，全部做成**棘轮**（冻结当前实测值，只许降不许升），与 `ServerArchitectureTest` 同一思路：
@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  *    当前实测只有 1 处违规——所以这里是**精确名单**而不是类别禁止：
  *    清掉那一处后名单变空，此后任何新增都会立刻红。
  * 2. 三个热点文件的行数上限冻结在当前值（只许降）：重构把文件拆小 → 通过；越改越胖 → 红。
- * 3. `GroupPlayPolicy` 不得出现同名重复文件（DIRECTION 点名的「有同名重复文件」）。
+ * 3. `GroupPlayPolicy` 不得出现同名重复文件（历史遗留债，精确名单见下方断言）。
  *
  * 为什么用**源码文本**而不是 ArchUnit：app 模块没有 ArchUnit 依赖，而这三条判据
  * （import 面、文件行数、同名重复）本来就是源码属性；用文本断言不引入新依赖，
@@ -312,7 +312,7 @@ class ClientArchitectureTest {
         assertEquals(
             listOf("app/src/main/java/com/maodouchat/util/GroupPlayPolicy.kt"),
             matches.sorted(),
-            "GroupPlayPolicy 出现同名重复文件——DIRECTION 点名过这个债，必须只有一个",
+            "GroupPlayPolicy 出现同名重复文件——这个债必须只有一个",
         )
     }
 
@@ -333,7 +333,7 @@ class ClientArchitectureTest {
     /**
      * `ui/` 下直接抓 `MaodouchatApp.database` 的文件（Composable 内落库的典型形态）。
      *
-     * `DIRECTION.md` 点名 `ChatDetailRoute.kt`「5051 行 composable」是客户端最贵的债之一。
+     * `ChatDetailRoute.kt` 的「单个超长 composable」是客户端最贵的债之一。
      * 实测该文件里有 **4 处** `(appContext as MaodouchatApp).database`——全在 `LaunchedEffect` 里、
      * 也都包了 `withContext(Dispatchers.IO)`，所以**不会崩**；但它们是「UI 层直接拿数据库」的
      * 完整样本：读什么表、什么时候读，UI 自己决定，ViewModel 完全不知道。
@@ -385,7 +385,7 @@ class ClientArchitectureTest {
     /**
      * 热点文件里的裸 `while (true)` 是主线程死循环的经典形态。
      *
-     * `DIRECTION.md` 点名 `ChatDetailRoute.kt`「内含 while(true) 每 60s 写库」。实测只有一处，
+     * `ChatDetailRoute.kt`「内含 while(true) 每 60s 写库」是已知的 UI 内落库样本。实测只有一处，
      * 且它**合规**：包在 `LaunchedEffect` 里、循环体第一件事就是 `delay(10 * 60 * 1000L)`。
      *
      * 这条断言锁住两件事：① 每个 `while (true)` 都必须在一个 `LaunchedEffect {` 之后出现；
@@ -447,7 +447,7 @@ class ClientArchitectureTest {
         assertTrue("该文件应当含 LaunchedEffect（否则上面的循环契约是空转）") {
             text.contains("LaunchedEffect")
         }
-        assertTrue("该文件应当含 while (true)（DIRECTION 点名的那处）") {
+        assertTrue("该文件应当含 while (true)（已知的那处 UI 内落库）") {
             text.contains("while (true)")
         }
     }
@@ -511,7 +511,7 @@ class ClientArchitectureTest {
     /**
      * G182d：**stripComments 自己的负控制，固化成常驻测试**。
      *
-     * §3.5 第 2 条写着「剥注释本身要过负控制」，但此前它只是文档里的一句话——
+     * 源码文本门禁约定的第 2 条写着「剥注释本身要过负控制」，但此前它只是文档里的一句话——
      * 没有测试守着。于是将来注释驱逐逻辑回归（比如忘了处理字符串内的 `//`），
      * 没有人会知道，G215b 那种「门禁恒真」的陷阱会重演。
      *
@@ -570,7 +570,7 @@ class ClientArchitectureTest {
      *     门禁空转，被下面的防空转断言抓住；
      * (b) 更讽刺的是，本想把 (a) 写进这段 KDoc 说明，结果写的时候贴了那两个符号的
      *     字面实例，其中星斜线**真的把这段 KDoc 提前结束**，报 Unclosed comment。
-     *     这正是这条门禁要防的事——所以按 §3.5 的约定，这里只用文字。
+     *     这正是这条门禁要防的事——所以按同一约定，这里只用文字。
      */
     private fun kdocBodiesOfTestFunctions(text: String): List<Pair<Int, String>> {
         val out = mutableListOf<Pair<Int, String>>()
@@ -600,7 +600,7 @@ class ClientArchitectureTest {
     /**
      * G182d：**任何 @Test 函数的 KDoc 里不得出现注释定界符的字面实例**。
      *
-     * 这是 DIRECTION.md §3.5 第 3 条的固化。
+     * 这是源码文本门禁约定第 3 条的固化。
      *
      * 实测（G182d）：Kotlin 的块注释是**可嵌套**的，所以 KDoc 里出现斜线星会**再开一层**
      * 注释，出现星斜线会提前结束——两者都会**编译失败**，由编译器强制，
@@ -608,7 +608,7 @@ class ClientArchitectureTest {
      * 因此这条门禁真正能守的只有**双斜线**：它能编译通过，却会污染任何
      * 「按出现次数判罚」的粗粒度门禁——G156b 正是这么虚增 55% 的。
      *
-     * 按 §3.5 的约定，文中提这三个符号时用文字（斜线星 / 星斜线 / 双斜线）或拼接。
+     * 按同一约定，文中提这三个符号时用文字（斜线星 / 星斜线 / 双斜线）或拼接。
      * **本文件自己也在这条规则管辖之内**：上面这段 KDoc 和下面的常量都靠字符串
      * 拼接构造，源文本里没有任何字面实例——所以不需要给门禁自己开豁免口。
      *
@@ -643,7 +643,7 @@ class ClientArchitectureTest {
         )
         assertTrue(
             violations.isEmpty(),
-            "下列 @Test 的 KDoc 含注释定界符字面实例。按 §3.5 改成文字（斜线星/星斜线/双斜线）或拼接：\n" +
+            "下列 @Test 的 KDoc 含注释定界符字面实例。按约定改成文字（斜线星/星斜线/双斜线）或拼接：\n" +
                 violations.joinToString("\n"),
         )
     }
@@ -810,7 +810,7 @@ class ClientArchitectureTest {
     }
 
     /**
-     * G158b：[stripComments] 的自检——DIRECTION.md 3.5 节约定的「可执行」部分。
+     * G158b：[stripComments] 的自检——「源码文本判决第一步必须剥注释」这一工程约定的「可执行」部分。
      *
      * 为什么要单测它：本项目四套源码文本门禁里有三套都因为「不剥注释」而误判过
      * （G155b/G156b/G157b）。`stripComments` 现在是这些门禁的共同地基，
@@ -858,12 +858,12 @@ class ClientArchitectureTest {
      * 的一条等价门禁；**两侧之间靠人工同步**——改任一份都要改另一份。
      */
     /**
-     * G182g：**§3.5 的「哪套门禁受管辖」必须与事实一致**。
+     * G182g：**「哪套门禁受管辖」必须与事实一致**。
      *
-     * §3.5 开头原本写「本项目有四套读源码文本下结论的门禁」，把
+     * 该约定开头原本写「本项目有四套读源码文本下结论的门禁」，把
      * `core/testing/ArchitectureTest` 也列进去了。**实测（G182g）它是 ArchUnit 的
      * `@AnalyzeClasses`，读的是编译后的字节码，不是源码文本**——注释在字节码里
-     * 根本不存在，所以它对 §3.5 的三条规则天然免疫。
+     * 根本不存在，所以它对那三条规则天然免疫。
      *
      * 真正受管辖的是 **3 套**：
      *   1. `app/src/test/.../ClientArchitectureTest.kt`
@@ -899,19 +899,19 @@ class ClientArchitectureTest {
         // 它自己不是门禁，但那份拷贝同样受 copy-consistency 管辖
         // （app 侧的同一测试扫整个 app/src/test）。
         // 所以这里冻住完整的 4 个文件——将来无论新增门禁还是新增复用方，
-        // 都必须同步更新 DIRECTION.md §3.5 与本清单。
+        // 都必须同步更新本测试的 expected 清单。
         assertEquals(
             expected,
             actual,
             "带 stripComments 的文件集合变了。若新增了一套源码文本门禁或新的复用方，" +
-                "请同步更新 DIRECTION.md §3.5 的门禁清单与本测试的 expected。",
+                "请同步更新本测试的 expected 门禁清单。",
         )
         expected.forEach { path ->
             val f = File(repoRoot, path)
             assertTrue(f.isFile, "清单里的门禁不存在了：$path")
             assertTrue(
                 f.readText().contains("readText()"),
-                "$path 不读源码文本——它不该在 §3.5 的管辖清单里",
+                "$path 不读源码文本——它不该在管辖清单里",
             )
         }
     }

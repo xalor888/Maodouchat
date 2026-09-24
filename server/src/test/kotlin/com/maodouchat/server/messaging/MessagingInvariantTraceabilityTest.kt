@@ -125,7 +125,7 @@ class MessagingInvariantTraceabilityTest {
      * G182d：**stripComments 自己的负控制，固化成常驻测试**（与 app 侧
      * `ClientArchitectureTest.stripComments itself is under test` 同一族）。
      *
-     * §3.5 第 2 条写着「剥注释本身要过负控制」，此前只是文档里的一句话。
+     * 源码文本门禁约定第 2 条写着「剥注释本身要过负控制」，此前只是文档里的一句话。
      * 这里钉住：行注释/块注释被剥掉、而**字符串与字符字面量里的内容必须原样保留**。
      */
     @Test
@@ -297,7 +297,7 @@ class MessagingInvariantTraceabilityTest {
      * (b) 开口必须是斜线星星（三字符），不是两个斜线星拼接——那是四字符，
      *     indexOf 与正则都匹配不上，门禁空转，被防空转断言抓住；
      * (c) 想把这些教训写进 KDoc 时贴了符号的字面实例，真的把 KDoc 提前结束。
-     *     所以这里只按 §3.5 的约定用文字描述。
+     *     所以这里只按同一约定用文字描述。
      */
     private fun kdocBodiesOfTestFunctions(text: String): List<Pair<Int, String>> {
         val out = mutableListOf<Pair<Int, String>>()
@@ -327,7 +327,7 @@ class MessagingInvariantTraceabilityTest {
     /**
      * G182e：**任何 @Test 函数的 KDoc 里不得出现注释定界符的字面实例**。
      *
-     * 与 app 侧 `ClientArchitectureTest` 同名用例同构（DIRECTION.md §3.5 第 3 条）。
+     * 与 app 侧 `ClientArchitectureTest` 同名用例同构（源码文本门禁约定第 3 条）。
      *
      * 实测结论（app 侧 G182d 已确认，此处同样成立）：Kotlin 块注释可嵌套，
      * 所以 KDoc 里出现斜线星会再开一层注释、出现星斜线会提前结束——两者都
@@ -366,7 +366,7 @@ class MessagingInvariantTraceabilityTest {
         assertTrue(
             violations.isEmpty(),
             "These @Test KDocs contain literal comment delimiters; " +
-                "rewrite them in words per DIRECTION.md 3.5:\n" + violations.joinToString("\n"),
+                "rewrite them in words per the source-text gate convention:\n" + violations.joinToString("\n"),
         )
     }
 

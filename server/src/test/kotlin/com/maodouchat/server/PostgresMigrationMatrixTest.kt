@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * DIRECTION M4：迁移矩阵以 **真实 PostgreSQL** 为真源（H2 只做快测）。
+ * 迁移矩阵以 **真实 PostgreSQL** 为真源（H2 只做快测）。
  *
  * `MigrationRunnerTest` 已经覆盖了 H2 上的矩阵（成功/失败回滚/重复版本拒绝/顺序校验）。
  * 但生产跑的是 PostgreSQL，而 PG 路径上有 H2 完全没有的东西：

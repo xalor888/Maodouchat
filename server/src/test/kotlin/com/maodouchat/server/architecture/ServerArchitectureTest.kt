@@ -34,7 +34,7 @@ import kotlin.test.fail
 class ServerArchitectureTest {
 
     // ------------------------------------------------------------------
-    // 棘轮基线（当前实测值，见 DIRECTION.md 第 0 节）
+    // 棘轮基线（当前实测值）
     // ------------------------------------------------------------------
 
     /**
@@ -104,7 +104,7 @@ class ServerArchitectureTest {
      * 「修」一个不存在的问题；临时注释掉代码也会让门禁红。
      *
      * 这是同一个坑的第四次（G155b / G156b / G157b / G168b），
-     * DIRECTION.md 3.5 已把它写成工程约定。`server/` 是独立 Gradle 构建，
+     * 源码文本门禁约定已把它写成工程约定。`server/` 是独立 Gradle 构建，
      * 暂时不复用 `MessagingInvariantTraceabilityTest` 里那份实现，
      * 但两份语义必须保持一致。
      */

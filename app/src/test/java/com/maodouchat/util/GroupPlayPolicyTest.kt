@@ -181,7 +181,7 @@ class GroupPlayPolicyTest {
         // 而口径真坏（正则失配、文件被清空）仍然会红。
         assertTrue(members.size >= 320, "成员数异常少（${members.size}）——扫描口径可能坏了")
 
-        // DIRECTION.md 3.5：源码文本判决第一步必须剥注释。
+        // 源码文本门禁约定：判决第一步必须剥注释。
         // 第一版**没剥**，结果本用例自己的 KDoc 里举例提到的 `spinWheel` 被当成了
         // 「有人引用它」——死成员数因此少了 1，而且这个数还会随我改注释而变。
         val allSources = sequenceOf("app/src", "server/src", "core", "domain", "feature")

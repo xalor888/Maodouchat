@@ -264,7 +264,7 @@ jobs:
         # curl 连不上 chat.mdou.me:443（退出 28），步骤仍报 success、
         # 整个 release run success，Release 页面显示发布成功。
         # 而这一步是用户拿到更新的**唯一**通道（GitHub 直链被禁为更新源），
-        # 静默失败正是 DIRECTION.md §1 警告的「宣称成立而路径其实没有」。
+        # 静默失败正是「宣称成立而路径其实没有」这一类问题的典型形态。
         env:
           UPDATE_DEPLOY_TOKEN: ${{ secrets.UPDATE_DEPLOY_TOKEN }}
           UPDATE_SERVER_URL: ${{ secrets.UPDATE_SERVER_URL }}

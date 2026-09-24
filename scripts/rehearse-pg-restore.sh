@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 备份 → 恢复 演练（Q06 / DIRECTION M4）。
+# 备份 → 恢复 演练（Q06）。
 #
 # 这个脚本**只在本机跑**，用真实的 PostgreSQL 复现生产 `scripts/backup-production.sh` +
 # `scripts/restore-production.sh` 的数据库那一半，并做逐表行数比对。

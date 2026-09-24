@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  * （或反过来，客户端拒绝服务端已接受的时长，用户看到的是「设了却没生效」）。
  * 在阅后即焚这个语境里，这是**消息不消失**——安全性质。
  *
- * 这里的判据只基于**代码文本**，所以按 DIRECTION.md §3.5 的约定**先剥注释再比**——
+ * 这里的判据只基于**代码文本**，所以按源码文本门禁约定**先剥注释再比**——
  * 否则服务端少一行 KDoc、或多一个 `remainingMs`（UI 专用），都会误报。
  */
 class DisappearingMessagePolicyParityTest {

@@ -29,7 +29,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * G58：DIRECTION M4 记录在案的那个真实缺口——「迁移矩阵的旧库没有真实生产数据 fixture」。
+ * G58：迁移矩阵此前的真实缺口——「旧库没有真实生产数据 fixture」。
  *
  * `PostgresMigrationMatrixTest.an older database only applies the missing versions` 只跑前 3 个
  * 迁移造出一个**空**旧库，然后验证版本号推进。它证明的是「schema 能升级」，**不是**

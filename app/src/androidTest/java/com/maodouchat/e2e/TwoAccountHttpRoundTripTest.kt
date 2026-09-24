@@ -2242,7 +2242,7 @@ class TwoAccountHttpRoundTripTest {
     }
 
     /**
-     * **删除/撤回是终态数据库事实，延迟 DATA 不得复活**（DIRECTION 不变量里仍是 `[~]` 的一条）。
+     * **删除/撤回是终态数据库事实，延迟 DATA 不得复活**。
      *
      * 这里把生产 `MessagingV2TimelineProjector` 接到**真实 app 数据库**上当作 domain sink，
      * 于是「投影」这一步也是生产代码 + 真实落库，而不是我的假 sink。
