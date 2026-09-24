@@ -93,7 +93,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                 bots = emptyList()
                 return
             }
-            val result = withContext(Dispatchers.IO) { ApiService.listBots(token) }
+            val result = withContext(Dispatchers.IO) { com.maodouchat.data.repository.BotNetworkRepository().listBots(token) }
             result.onSuccess { raw ->
                 bots = parseBots(raw)
             }.onFailure {
@@ -179,7 +179,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                             return@launch
                                         }
                                         val result = withContext(Dispatchers.IO) {
-                                            ApiService.createBot(token, name.trim(), username.trim())
+                                            com.maodouchat.data.repository.BotNetworkRepository().createBot(token, name.trim(), username.trim())
                                         }
                                         result.onSuccess { raw ->
                                             lastToken = extractTokenOnce(raw)
@@ -297,7 +297,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                                 return@launch
                                             }
                                             val result = withContext(Dispatchers.IO) {
-                                                ApiService.setBotWebhook(
+                                                com.maodouchat.data.repository.BotNetworkRepository().setWebhook(
                                                     token,
                                                     bot.id,
                                                     url.ifBlank { null }
@@ -337,7 +337,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                                 return@launch
                                             }
                                             val result = withContext(Dispatchers.IO) {
-                                                ApiService.regenerateBotToken(token, bot.id)
+                                                com.maodouchat.data.repository.BotNetworkRepository().regenerateToken(token, bot.id)
                                             }
                                             result.onSuccess { raw ->
                                                 lastToken = extractTokenOnce(raw)
@@ -379,7 +379,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                                 return@launch
                                             }
                                             val result = withContext(Dispatchers.IO) {
-                                                ApiService.setBotEnabled(token, bot.id, !bot.enabled)
+                                                com.maodouchat.data.repository.BotNetworkRepository().setEnabled(token, bot.id, !bot.enabled)
                                             }
                                             result.onSuccess {
                                                 info = context.getString(
@@ -430,7 +430,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                                 return@launch
                                             }
                                             val result = withContext(Dispatchers.IO) {
-                                                ApiService.openBotDirectChat(token, bot.id)
+                                                com.maodouchat.data.repository.BotNetworkRepository().openDirectChat(token, bot.id)
                                             }
                                             result.onSuccess { chat ->
                                                 onOpenChat(chat.id)
@@ -482,7 +482,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                     error = context.getString(R.string.developer_bots_delete_failed)
                                     return@launch
                                 }
-                                val result = withContext(Dispatchers.IO) { ApiService.deleteBot(token, bot.id) }
+                                val result = withContext(Dispatchers.IO) { com.maodouchat.data.repository.BotNetworkRepository().deleteBot(token, bot.id) }
                                 result.onSuccess {
                                     info = context.getString(R.string.developer_bots_deleted)
                                     reload()
