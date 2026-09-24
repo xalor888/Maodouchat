@@ -918,9 +918,17 @@ class ClientArchitectureTest {
      */
     private val modulesWithTests: Set<String> = setOf(
         "core/crypto",
+        // G328c：core/model、core/network、core/serialization、core/util 此前**零测试**
+        // （审计点名的「零覆盖模块」）。本轮给四个冻结契约各补了一组契约测试
+        // （共 22 例：空值拒绝、id 格式与唯一性、Json 严格/前向兼容之别、
+        // NetworkResult 不吞错误信息），故这份名单从 5 个变成 9 个。
+        "core/model",
+        "core/network",
         "core/realtime",
+        "core/serialization",
         "core/session",
         "core/testing",
+        "core/util",
         "domain/messaging",
     )
 
