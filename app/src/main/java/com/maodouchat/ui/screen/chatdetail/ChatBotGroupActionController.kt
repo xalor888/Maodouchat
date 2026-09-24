@@ -36,7 +36,7 @@ internal class ChatBotGroupActionController(
         }
         scope.launch {
             if (!sessionActive(owner)) return@launch
-            ApiService.getAllSearchableUsers(token()).fold(
+            com.maodouchat.data.repository.GroupNetworkRepository().allSearchableUsers(token()).fold(
                 onSuccess = { users ->
                     if (!sessionActive(owner)) return@fold
                     val existingIds = currentState().chat?.participants.orEmpty().map { it.id }.toSet()
@@ -65,7 +65,7 @@ internal class ChatBotGroupActionController(
             failureMessage = string(R.string.chat_group_name_failed),
             fallbackChat = { it.copy(groupName = trimmed) },
         ) { liveToken ->
-            ApiService.renameGroup(liveToken, chat.id, trimmed).getOrThrow()
+            com.maodouchat.data.repository.GroupNetworkRepository().rename(liveToken, chat.id, trimmed).getOrThrow()
         }
     }
 
@@ -80,7 +80,7 @@ internal class ChatBotGroupActionController(
             successMessage = string(R.string.chat_group_member_added_key),
             failureMessage = string(R.string.chat_group_add_failed),
         ) { liveToken ->
-            ApiService.addGroupMembers(liveToken, chat.id, listOf(userId)).getOrThrow()
+            com.maodouchat.data.repository.GroupNetworkRepository().addMembers(liveToken, chat.id, listOf(userId)).getOrThrow()
         }
     }
 
@@ -96,7 +96,7 @@ internal class ChatBotGroupActionController(
             successMessage = string(R.string.chat_group_member_removed_key),
             failureMessage = string(R.string.chat_group_remove_failed),
         ) { liveToken ->
-            ApiService.removeGroupMember(liveToken, chat.id, userId).getOrThrow()
+            com.maodouchat.data.repository.GroupNetworkRepository().removeMember(liveToken, chat.id, userId).getOrThrow()
         }
     }
 
@@ -113,7 +113,7 @@ internal class ChatBotGroupActionController(
             state.botCommands.isNotEmpty() || state.chat?.participants.orEmpty().any { BotCommandPolicy.isBotUserId(it.id) }
         )
         if (!BotCommandPolicy.shouldSendInbox(plaintext, isDirectWithBot, hasGroupBots)) return
-        ApiService.postBotInbox(liveToken, chatId, plaintext).onFailure { error ->
+        com.maodouchat.data.repository.BotNetworkRepository().postInbox(liveToken, chatId, plaintext).onFailure { error ->
             if (error is CancellationException) throw error
             android.util.Log.w("ChatDetail", "bot-inbox failed: ${error.message}")
         }
@@ -125,7 +125,7 @@ internal class ChatBotGroupActionController(
         scope.launch(Dispatchers.IO) {
             val liveToken = token()
             if (liveToken.isBlank()) return@launch
-            val raw = ApiService.listChatBotCommands(liveToken, chatId).getOrNull() ?: return@launch
+            val raw = com.maodouchat.data.repository.BotNetworkRepository().chatCommands(liveToken, chatId).getOrNull() ?: return@launch
             if (!sessionActive(owner)) return@launch
             updateState { it.copy(botCommands = parseBotCommands(raw)) }
         }
@@ -138,7 +138,7 @@ internal class ChatBotGroupActionController(
                 warn(R.string.error_session_expired)
                 return@launch
             }
-            withContext(Dispatchers.IO) { ApiService.listBots(liveToken) }
+            withContext(Dispatchers.IO) { com.maodouchat.data.repository.BotNetworkRepository().listBots(liveToken) }
                 .onSuccess { raw ->
                     val array = runCatching { JSONArray(raw) }.getOrNull()
                     val firstId = if (array != null && array.length() > 0) {
@@ -157,7 +157,7 @@ internal class ChatBotGroupActionController(
         if (targetChatId.isBlank() || botId.isBlank()) return
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                ApiService.inviteBotToChat(token(), targetChatId, botId)
+                com.maodouchat.data.repository.BotNetworkRepository().inviteToChat(token(), targetChatId, botId)
             }
             result.onSuccess { warn(R.string.group_play_bot_invited) }
                 .onFailure { warn(R.string.group_play_bot_invite_failed) }

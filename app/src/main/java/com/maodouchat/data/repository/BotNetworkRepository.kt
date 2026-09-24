@@ -27,6 +27,12 @@ internal class BotNetworkRepository(
         { token, botId, url -> ApiService.setBotWebhook(token, botId, url) },
     private val openDirectChatApi: suspend (String, String) -> Result<ChatDto> =
         { token, botId -> ApiService.openBotDirectChat(token, botId) },
+    private val inviteToChatApi: suspend (String, String, String) -> Result<String> =
+        { token, chatId, botId -> ApiService.inviteBotToChat(token, chatId, botId) },
+    private val chatCommandsApi: suspend (String, String) -> Result<String> =
+        { token, chatId -> ApiService.listChatBotCommands(token, chatId) },
+    private val postInboxApi: suspend (String, String, String, String?) -> Result<String> =
+        { token, chatId, text, botId -> ApiService.postBotInbox(token, chatId, text, botId) },
 ) {
     /** 服务端原始列表 JSON（调用方自行解析，见类注释）。 */
     suspend fun listBots(token: String): Result<String> = listBotsApi(token)
@@ -45,4 +51,15 @@ internal class BotNetworkRepository(
         setWebhookApi(token, botId, url)
 
     suspend fun openDirectChat(token: String, botId: String): Result<ChatDto> = openDirectChatApi(token, botId)
+
+    /** 把机器人邀请进某个会话。 */
+    suspend fun inviteToChat(token: String, chatId: String, botId: String): Result<String> =
+        inviteToChatApi(token, chatId, botId)
+
+    /** 某会话内机器人的可用指令（服务端原始 JSON 文本）。 */
+    suspend fun chatCommands(token: String, chatId: String): Result<String> = chatCommandsApi(token, chatId)
+
+    /** 往机器人收件箱投递（`/` 指令或自由文本）。 */
+    suspend fun postInbox(token: String, chatId: String, text: String, botId: String? = null): Result<String> =
+        postInboxApi(token, chatId, text, botId)
 }

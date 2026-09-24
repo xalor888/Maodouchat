@@ -230,7 +230,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/MediaInteractiveCards.kt",
         "com/maodouchat/ui/navigation/CallNavigation.kt",
         "com/maodouchat/ui/navigation/NavGraph.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatBotGroupActionController.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailFeatureGates.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatModerationController.kt",
