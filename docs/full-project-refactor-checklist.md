@@ -31,6 +31,11 @@
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
 | 最热三个文件行数 | `ChatDetailRoute.kt` 3013 / `ChatDetailViewModel.kt` 3071 / `util/GroupPlayPolicy.kt` 1945 | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
+> 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
+> `compileDebugUnitTestKotlin`（JVM 单测）、`compileDebugAndroidTestKotlin`（仪器测试）。
+> 只跑前两个而漏掉第三个，就会漏掉「androidTest 仍引用已搬走的类型」这类问题——CI 的
+> instrumented job 抓到过一次。本地验证请把 `:app:compileDebugAndroidTestKotlin` 一起跑。
+
 > 计数口径提醒：上面的「执行数」来自**最近一次跑该任务**的 XML；只跑单个测试类会把该模块的
 > 结果文件覆盖成那一类的结果。要复核就按表里的命令重新跑一遍再读 XML。
 
@@ -1243,7 +1248,7 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 | `ChatDetailViewModel.kt` 继续拆 | **2930 行**（本轮 3071 → 2930）；已抽 2 个协作者 | 剩下的 116 个方法绝大多数已是「15 个控制器的门面 + 属性装配」，继续按方法抽收益递减；再要显著缩小需要把整块装配提取成容器（设计变更，且无仪器测试兜底） |
 | `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable | 剩余都是 15–40 行的中小块；大块（450 行弹层）已搬 |
 | ui 直连 network | **98 个文件 / 135 处调用**，冻结为只许降的棘轮 | 每处要判定归属哪个 repository；本轮只保证它不再增长 |
-| `GroupPlayPolicy.kt` | 1945 行 | 复查后判断它是 **172 个前缀、380 个小函数的扁平编解码目录**，不是纠缠的上帝对象；拆分收益低于其它项，且会牵动专门盯着它的棘轮（`GroupPlayPolicyTest` 按此文件计数） |
+| ~~`GroupPlayPolicy.kt`~~ | **已拆：1945 → 858 行** | 见下方第三轮小节（拆成 `GroupPlayClassicPolicy` 979 / `GroupPlayModePolicy` 492，父对象留同名委托） |
 | `NotificationCenterRepository` 的 `runBlocking` 桥接 | 4 处，DAO 配 `deleteForUserBlocking` 等同步变体 | 调用方含 Compose lambda 与非协程回调，改成 suspend 要连带改调用链；本轮已在 KDoc 写明「调用方含主线程」的现状与代价 |
 | core 冻结契约的**采纳** | `core/util`、`core/serialization`、`core/network` 仍只被 `:core:testing` 的 testImplementation 引用 | 属于 B02「依赖注入装配与 MaodouchatApp 瘦身」，是独立大工程 |
 | 仪器测试（156 例） | 本机无模拟器/真机，未执行 | 需 `./gradlew :app:connectedDebugAndroidTest` 或 CI 的 instrumented job；**本轮已推送，由 CI 覆盖** |
@@ -1276,3 +1281,33 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 - 全部 17 个提交**已推送**，CI 覆盖这批改动（此前从没被 CI 验证过）。
 - Dependabot 生效：已开出 setup-java / action-gh-release / playwright-core /
   download-artifact 等更新 PR（本意如此——依赖更新通道从无到有）。
+
+### 第三轮（2026-09-25）：拆 GroupPlayPolicy + 修一条「永远为真」的棘轮
+
+**拆分**：`GroupPlayPolicy.kt` 1945 → **858 行**。判据是「它是扁平编解码目录（172 前缀 /
+376 函数），不是纠缠的上帝对象」，所以按 G88 先例拆：实现按族搬到
+`GroupPlayClassicPolicy`（979 行）与 `GroupPlayModePolicy`（492 行），父对象保留**同名委托**，
+调用方零改动（`TextMessageBubble` 有 166 处引用）。前缀常量留在父对象——实测有外部调用点
+以全限定名直接读 `GroupPlayPolicy.WORD_PREFIX`；共用的 `esc`/`unesc` 提成
+`GroupPlayFieldEscape`。
+
+**修一条「永远为真」的棘轮**（本轮最有价值的发现）：`GroupPlayPolicyTest` 的 val 零引用判定里，
+两个正则用的不是 `\b` 而是**真实的退格字符 U+0008** → 正则谁都匹配不到 → 每个 val 都满足
+`0 - 0 == 0` → 门禁把**全部** val 报成零引用。**这条棘轮自建立起就没在测东西**，
+而 173 这个假数被写进文档、还被审计当成「173 个 val 100% 死」引用过。修复后真实值 163。
+同时把两条判定统一为**族外零引用**（否则拆分本身会让 10 个真死成员「复活」——
+实现文件里的那一行被误认为外部引用）；fun 基线 10 → 14，多出的 4 个是只被自身死函数调用的
+random 辅助（传递性死代码，以前测不出来）。
+
+**CI 抓到的问题**：`ConfigRobustnessTest`（androidTest）仍引用上一轮搬走的
+`ui.screen.settings.SecurityPreferences` —— `:app:compileDebugAndroidTestKotlin` 我本机此前
+没编过（unit test 与 androidTest 是两个编译单元），CI 的 instrumented job 因此红了。
+已修，并把「本地验证要带上 androidTest 编译」这件事记进验证口径。
+
+**棘轮判据第二次收紧**：ui→network 从「import 了 network 包」（98）→ 剔掉只导入 DTO 的（61）
+→ 按「发请求 / 读令牌」拆成两组（**40 + 21**），因为那是两个不同的问题、不同的修法。
+数字变化写进门禁 KDoc，避免下次又按粗略口径数。
+
+**manifest 与客户端残余风险**：`SecretCodeReceiver` 的风险（任何本地应用都能发
+`Telephony.SECRET_CODE` 撤销隐藏入口）与「不加 UID 校验」的理由写进 manifest 注释；
+`docs/docker-deployment.md` 增「客户端已知残余风险」表。
