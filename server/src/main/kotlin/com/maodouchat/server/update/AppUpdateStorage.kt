@@ -102,16 +102,18 @@ object AppUpdateStorage {
 
     /** B14：不可变制品元数据——发布时原子写入 manifest 旁文件（与 APK 同目录，仅发布流程可写）。 */
     fun writeManifest(versionCode: Int, versionName: String, apkSha256: String, bytes: Long) {
-        // B14：制品签名——对确定性字段行做 HMAC-SHA256（key=JWT_SECRET），客户端据此验签。
-        val canonical = "versionCode=$versionCode\nversionName=$versionName\napkSha256=$apkSha256\nbytes=$bytes"
-        val signature = hmacSha256Hex(ServerConfig.jwtSecret, canonical)
+        // G328c：这里原先还写一个 `signature` 字段，注释说「客户端据此验签」——
+        // 但客户端**没有** JWT_SECRET，不可能验证 HMAC；实测全仓（服务端、客户端、
+        // 发布脚本、测试）无一处消费该字段，它既没有安全价值，又让 JWT_SECRET
+        // 多背一个用途。删除。
+        // 真正的完整性保证不在这个字段上，而在客户端：SHA-256 逐字节比对 +
+        // APK 签名证书摘要集合相等 + versionCode 单调（见 docs/app-update-release.md §2）。
         val json = buildJsonObject {
             put("versionCode", versionCode)
             put("versionName", versionName)
             put("apkSha256", apkSha256)
             put("bytes", bytes)
             put("publishedAt", System.currentTimeMillis())
-            put("signature", signature)
         }.toString()
         val tmp = File(typeRoot(), "$MANIFEST_NAME.tmp")
         tmp.writeText(json)
@@ -125,13 +127,6 @@ object AppUpdateStorage {
         } catch (_: AtomicMoveNotSupportedException) {
             Files.move(tmp.toPath(), manifestFile().toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
-    }
-
-    private fun hmacSha256Hex(secret: String, message: String): String {
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
-        val raw = mac.doFinal(message.toByteArray(StandardCharsets.UTF_8))
-        return raw.joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
     /** B14：读取已发布制品的不可变元数据（无发布时返回 null）。 */

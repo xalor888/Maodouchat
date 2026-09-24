@@ -15,7 +15,8 @@ import javax.crypto.spec.SecretKeySpec
  *
  * Token format (base64url):
  *   v1.{userId}.{deviceId}.{expiresAtMs}.{sigHex}
- * where sig = HMAC-SHA256(jwtSecret, "v1|userId|deviceId|expiresAtMs")
+ * where sig = HMAC-SHA256(sealedSenderSecret, "v1|userId|deviceId|expiresAtMs")
+ * （`sealedSenderSecret` 默认由 JWT_SECRET 按用途派生，可用 SEALED_SENDER_SECRET 独立轮换）
  */
 object SealedSenderCertificateService {
     private const val VERSION = "v1"
@@ -68,9 +69,11 @@ object SealedSenderCertificateService {
     }
 
     private fun sign(userId: String, deviceId: Int, expiresAt: Long): String? {
-        // 8.39：jwtSecret 为空时 fail-closed——此前回退到公开硬编码密钥，任何人可用
-        // 该已知字符串为任意 userId/deviceId 签发合法证书，伪造 sealed-sender 认证
-        val secret = ServerConfig.jwtSecret.ifBlank { return null }
+        // 8.39：secret 为空时 fail-closed——此前回退到公开硬编码密钥，任何人可用
+        // 该已知字符串为任意 userId/deviceId 签发合法证书，伪造 sealed-sender 认证。
+        // G328c：改用用途子密钥（默认由主密钥派生，可用 SEALED_SENDER_SECRET 独立轮换），
+        // 不再与 access token 共用 JWT_SECRET——否则换密钥等于把所有登录态一起作废。
+        val secret = ServerConfig.sealedSenderSecret.ifBlank { return null }
         return try {
             val mac = Mac.getInstance("HmacSHA256")
             mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))

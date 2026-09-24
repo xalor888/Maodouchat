@@ -60,6 +60,10 @@ services:
       PORT: 8080
       BASE_URL: ${BASE_URL:?Set BASE_URL in .env}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      # 可选：按用途分离的签名密钥。留空 = 由 JWT_SECRET 按用途派生（G328c）。
+      # 配了就只影响该用途，可单独轮换而不把所有人踢下线。
+      SEALED_SENDER_SECRET: ${SEALED_SENDER_SECRET:-}
+      DEVELOPER_SESSION_SECRET: ${DEVELOPER_SESSION_SECRET:-}
       # Push 签名密钥：生产模式必填（relaxed 模式可留空，推送校验降级 fail-open）。
       PUSH_HMAC_SECRET: ${PUSH_HMAC_SECRET:-}
       # 自托管宽松模式：允许无 SMTP / TURN 启动（验证码打日志、通话仅 STUN）。

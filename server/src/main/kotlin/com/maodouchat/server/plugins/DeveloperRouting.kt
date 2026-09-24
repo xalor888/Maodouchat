@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.auth0.jwt.JWT
+import com.auth0.jwt.interfaces.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.common.postPinnedWebhookJson
@@ -42,11 +43,16 @@ import javax.crypto.spec.SecretKeySpec
 import java.nio.charset.StandardCharsets
 
 // ═══ Developer-account session (dev_session JWT) ═══
-// A short-lived JWT minted from email+password login. It reuses the same
-// HMAC secret + issuer as JwtConfig so JwtConfig.verifier accepts it, and
-// carries a token_use=dev_session claim that authenticateDevSession enforces.
+// A short-lived JWT minted from email+password login, carrying a
+// token_use=dev_session claim that every dev-session entry point enforces.
 // Like admin_session tokens, it also embeds the user's accessTokenVersion so
 // password-change / logout-all / suspension automatically invalidate it.
+//
+// G328c：签名密钥从 JWT_SECRET 改为**用途子密钥**（默认由主密钥派生，可用
+// DEVELOPER_SESSION_SECRET 独立轮换）。此前它与 access token 共用一把密钥 + 同一个
+// issuer，于是两类令牌在 `JwtConfig.verifier` 眼里是同一族，隔离只靠一个 `token_use`
+// 字符串；现在 dev_session 有独立 verifier，拿 access token 或主密钥以外的任何
+// 输入都构造不出可被接受的后台会话。
 private const val DEV_SESSION_VALIDITY_MS = 2L * 60 * 60 * 1000 // 2 小时
 private const val TOKEN_USE_DEV_SESSION = "dev_session"
 private const val JWT_ISSUER = "maodouchat"
@@ -57,9 +63,23 @@ private val devAuthTokenRepo = AuthTokenRepository()
 private val devParticipantRepo = ConversationParticipantRepository()
 private val devJson = Json { ignoreUnknownKeys = true }
 
+/**
+ * dev_session 专用验证器。按密钥值缓存——[ServerConfig.developerSessionSecret] 是
+ * `get()`（每次读环境/系统属性），测试会在同一 JVM 内切换 JWT_SECRET，缓存必须跟着变。
+ */
+private var cachedDevSessionVerifier: Pair<String, JWTVerifier>? = null
+
+private fun devSessionVerifier(): JWTVerifier {
+    val secret = ServerConfig.developerSessionSecret
+    cachedDevSessionVerifier?.let { if (it.first == secret) return it.second }
+    val verifier = JWT.require(Algorithm.HMAC256(secret)).withIssuer(JWT_ISSUER).build()
+    cachedDevSessionVerifier = secret to verifier
+    return verifier
+}
+
 /** Mint a 2-hour dev_session JWT for [userId]. */
 private fun mintDevSessionToken(userId: String, tokenVersion: Long): String {
-    val algorithm = Algorithm.HMAC256(ServerConfig.jwtSecret)
+    val algorithm = Algorithm.HMAC256(ServerConfig.developerSessionSecret)
     val expiresAt = System.currentTimeMillis() + DEV_SESSION_VALIDITY_MS
     return JWT.create()
         .withIssuer(JWT_ISSUER)
@@ -75,12 +95,13 @@ private fun mintDevSessionToken(userId: String, tokenVersion: Long): String {
 /**
  * Validate the dev_session JWT from the Authorization header and return the
  * owning userId, or null (responding 401 is the caller's job). Verifies the
- * signature/issuer/expiry via JwtConfig, enforces the dev_session purpose,
- * and re-checks isAccessTokenAllowed so suspension / version rotation revoke it.
+ * signature/issuer/expiry with the **dev_session 专用密钥**, enforces the
+ * dev_session purpose, and re-checks isAccessTokenAllowed so suspension /
+ * version rotation revoke it.
  */
 private fun devSessionUserId(call: ApplicationCall): String? {
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull() ?: return null
-    val decoded = JwtConfig.verifyToken(bearer) ?: return null
+    val decoded = runCatching { devSessionVerifier().verify(bearer) }.getOrNull() ?: return null
     if (decoded.getClaim("token_use").asString() != TOKEN_USE_DEV_SESSION) return null
     val userId = decoded.subject ?: return null
     if (!devAuthTokenRepo.isAccessTokenAllowed(userId, JwtConfig.tokenVersion(decoded), decoded.id)) return null
@@ -574,7 +595,7 @@ private suspend fun authenticateBot(call: ApplicationCall): BotRepository.BotDto
 private suspend fun authenticateDeveloperBot(call: ApplicationCall): BotRepository.BotDto? {
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
     if (bearer.isNotBlank()) {
-        val decoded = JwtConfig.verifyToken(bearer)
+        val decoded = runCatching { devSessionVerifier().verify(bearer) }.getOrNull()
         if (decoded != null && decoded.getClaim("token_use").asString() == TOKEN_USE_DEV_SESSION) {
             val userId = decoded.subject
             if (userId.isNullOrBlank() ||
@@ -608,7 +629,7 @@ private suspend fun authenticateDeveloperBot(call: ApplicationCall): BotReposito
 private suspend fun authenticateDeveloperIdentity(call: ApplicationCall): Boolean {
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
     if (bearer.isNotBlank()) {
-        val decoded = JwtConfig.verifyToken(bearer)
+        val decoded = runCatching { devSessionVerifier().verify(bearer) }.getOrNull()
         if (decoded != null && decoded.getClaim("token_use").asString() == TOKEN_USE_DEV_SESSION) {
             val userId = decoded.subject
             if (userId.isNullOrBlank() ||

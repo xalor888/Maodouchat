@@ -415,6 +415,12 @@ fi
 # 密钥自动生成（占位或空值才替换）
 replace_key JWT_SECRET "$(gen_secret)$(gen_secret)"
 replace_key PUSH_HMAC_SECRET "$(gen_secret)$(gen_secret)"
+# G328c 密钥分离：新部署从一开始就给这两个用途独立的密钥。留空也能跑
+# （服务端会由 JWT_SECRET 按用途派生），但独立密钥才谈得上单独轮换。
+ensure_key SEALED_SENDER_SECRET ""
+replace_key SEALED_SENDER_SECRET "$(gen_secret)$(gen_secret)"
+ensure_key DEVELOPER_SESSION_SECRET ""
+replace_key DEVELOPER_SESSION_SECRET "$(gen_secret)$(gen_secret)"
 replace_key POSTGRES_PASSWORD "$(gen_secret)"
 replace_key TURN_SHARED_SECRET "$(gen_secret)$(gen_secret)"
 replace_key TURN_REALM "${HOST:+turn.${HOST}}"
@@ -468,6 +474,13 @@ JWT_SECRET_VALUE="$(sed -n 's/^JWT_SECRET=//p' .env | head -n1)"
 POSTGRES_PASSWORD_VALUE="$(sed -n 's/^POSTGRES_PASSWORD=//p' .env | head -n1)"
 [[ ${#POSTGRES_PASSWORD_VALUE} -lt 16 || "$POSTGRES_PASSWORD_VALUE" == replace-with* || "$POSTGRES_PASSWORD_VALUE" == "$JWT_SECRET_VALUE" ]] \
   && fail "POSTGRES_PASSWORD must be at least 16 random characters and not equal to JWT_SECRET (regenerate or set a strong value in .env)"
+# G328c：用途密钥若显式配置，就必须与主密钥不同——否则「分离」只是名义上的。
+for _purpose_key in SEALED_SENDER_SECRET DEVELOPER_SESSION_SECRET; do
+  _purpose_value="$(sed -n "s/^${_purpose_key}=//p" .env | head -n1)"
+  if [[ -n "$_purpose_value" && "$_purpose_value" == "$JWT_SECRET_VALUE" ]]; then
+    fail "${_purpose_key} must differ from JWT_SECRET (regenerate or set a strong value in .env)"
+  fi
+done
 
 # 1.303：BASE_URL 必须与 PUBLIC_HOST 一致（避免 App 连错域名）
 if [[ "$PUBLIC_HOST_VALUE" != localhost* && "$PUBLIC_HOST_VALUE" != 127.0.0.1* ]]; then

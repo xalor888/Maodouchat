@@ -45,6 +45,9 @@ BASE_URL=https://chat.example.com
 ADMIN_PATH=my-admin                     # 管理后台路径（随机字符串，勿用 admin）
 JWT_SECRET=$(openssl rand -base64 48 的输出)
 PUSH_HMAC_SECRET=$(openssl rand -base64 48 的输出)
+# 可选（deploy.sh 会自动生成）：按用途分离的签名密钥
+SEALED_SENDER_SECRET=$(openssl rand -base64 48 的输出)
+DEVELOPER_SESSION_SECRET=$(openssl rand -base64 48 的输出)
 POSTGRES_PASSWORD=$(长随机密码)
 RELAXED_VERIFICATION=true               # 无私有部署无 SMTP/TURN 时开启（验证码打印到日志）
 BOOTSTRAP_FIRST_USER_AS_ADMIN=true      # 第一个注册用户自动成为管理员（一次性）

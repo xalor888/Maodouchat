@@ -48,6 +48,7 @@ cp .env.example .env
 | `HOST` / `PORT` | 监听地址，默认 `0.0.0.0:8080` |
 | `BASE_URL` | 文件 URL 基础地址；生产必须 HTTPS |
 | `JWT_SECRET` | 生产必须 ≥32 字符随机串 |
+| `SEALED_SENDER_SECRET` / `DEVELOPER_SESSION_SECRET` | 可选。封存发送证书与开发者会话的独立签名密钥；不配置则由 `JWT_SECRET` 按用途派生。配了就只影响该用途，可单独轮换 |
 | `DATABASE_URL` / `DATABASE_DRIVER` | 开发默认 H2 内存库；生产必须 PostgreSQL |
 | `STORAGE_DIR` | 上传目录，默认 `./uploads` |
 | `USER_STORAGE_QUOTA_BYTES` | 单用户存储配额（1GB~1TB，默认 20GB） |
@@ -101,7 +102,7 @@ Release 仅允许 HTTPS/WSS 且必须显式指定：
 
 Release 启用 R8 + 资源收缩，默认仅 arm64-v8a。运行时也可在 App「设置 → 服务器」切换服务器地址，无需重新构建。
 
-安全基线：本地库 SQLCipher + Keystore；access token 15 分钟 + refresh token 轮换吊销；消息正文 E2EE，服务端只存密文与元数据；后台消息走 WebSocket 保活（无 FCM）；Android 备份已关闭并排除敏感目录。
+安全基线：本地库 SQLCipher + Keystore；access token 15 分钟 + refresh token 轮换吊销；聊天消息正文 E2EE，服务端只存密文与元数据（系统消息、动态/评论、举报备注等**非** E2EE 通道是明文，见 `docs/messaging-v2-architecture.md`）；后台消息走 WebSocket 保活（无 FCM）；Android 备份已关闭并排除敏感目录。
 
 ## CI 与发布
 

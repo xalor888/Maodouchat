@@ -199,9 +199,16 @@ jobs:
       # M6：客户端架构门禁 + 热点棘轮。此前 :core:testing 被 include 进 settings，但
       # 没有任何模块依赖它、CI 也从不调用它的 test 任务，于是 A01 的类级 ArchUnit 规则
       # **从未在 CI 上执行过**（第三次「门禁不门禁」）。这一步让它真正运行：
-      # ArchUnit 规则 + ClientHotspotRatchetTest（热点行数 / UI 直连持久层次数，精确相等棘轮）。
-      - name: Client architecture gate and hotspot ratchet (A01/M6)
-        run: ./gradlew :core:testing:test --no-daemon --console=plain
+      # ArchUnit 规则 + 客户端架构门禁与热点棘轮（精确相等棘轮）。
+      #
+      # G328c：命令从 `:core:testing:test` 换成 `test -x :app:test`——点名式维护漏掉了
+      # :core:crypto / :core:realtime / :core:session / :domain:messaging 的 44 例
+      # （含加密健康策略与身份信任状态机）：CI 没跑过，本地 run-tests.sh 也没有。
+      # 同一个病，还是「绿着但其实没跑」。`test` 命中每个含该任务的子工程，将来新增
+      # JVM 模块**自动**纳入；排除 :app 是因为 app 的聚合 `test` 会再跑一遍
+      # testReleaseUnitTest，而 app 自己的单测上面那一步已经跑过。
+      - name: Client architecture gate, hotspot ratchet and all JVM module tests (A01/M6)
+        run: ./gradlew test -x :app:test --no-daemon --console=plain
 
       - name: Navigation registration check (P08 route gate)
         run: python3 scripts/check-nav-registration.py

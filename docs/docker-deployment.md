@@ -65,6 +65,7 @@ Windows 服务器 / Docker Desktop 用等价脚本：
 
 - `BASE_URL`：必须为 `https://...`
 - `JWT_SECRET`：≥32 字符随机串（`openssl rand -base64 48`）
+- `SEALED_SENDER_SECRET` / `DEVELOPER_SESSION_SECRET`：**可选**。封存发送证书与开发者会话的独立签名密钥；留空时服务端由 `JWT_SECRET` 按用途派生（安全，但无法单独轮换）。`deploy.sh` 会在新部署时自动生成，二者若显式配置则必须与 `JWT_SECRET` 不同
 - `POSTGRES_PASSWORD`：随机串
 - `MASTER_ADMINS`：管理后台用户 ID（或启用 `BOOTSTRAP_FIRST_USER_AS_ADMIN=true` 让首个注册用户自动成为管理员）
 - SMTP（标准模式必填；宽松模式可留空）：`SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS`

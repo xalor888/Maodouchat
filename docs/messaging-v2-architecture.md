@@ -261,3 +261,24 @@ control traffic. New code must not add dependencies from `messaging/v2` back int
   must consume the durable v2 inbox instead of decrypting directly from a message preview.
 - The WebSocket `REQUEST_SENDER_KEY` fan-out has been retired. Missing-key repair uses encrypted,
   device-addressed `KEY_REQUEST` mailbox items and therefore does not require simultaneous presence.
+
+## 服务端明文面（非 E2EE 通道）
+
+「服务端只存密文」是**不准确**的笼统说法。准确的说法是：**人类聊天消息正文**在服务端
+只有密文；下列通道按设计就是明文，理解它们的存在与否是判断风险的前提：
+
+| 通道 | 落库位置 | 说明 |
+|------|----------|------|
+| 系统/服务消息 | `service_messages.content`（TEXT） | 服务端自己生成的文本（入群提示、通话记录等），由 `ServiceMessagePublisher` 写入 |
+| 动态与评论 | `posts` / `post_comments` | 公开内容，审核需要明文（AI 审帖只接这两处） |
+| 投票/接龙/打卡条目 | `group_chain_entries`、`group_chains`、`group_checkins`、`group_pk_*` | 群内公开数据，非 E2EE 承载 |
+| 举报备注 | `reports.description` / `reports.resolution_note`（各 varchar(800)） | 用户可粘贴任意文本（上限 800 字）；管理员可 CSV 导出 |
+| 群昵称 / 群名 / 会话标题等元数据 | 多方 | 元数据不加密，见上表「元数据」相关不变量 |
+
+与之对照，**人类消息正文**路径的可验证性质：入站 v2 正文只落
+`messaging_v2_envelopes.ciphertext`；幂等键哈希只覆盖路由元数据与密文；管理后台的
+「消息搜索」按 id/chatId/senderId/kind 过滤且**回显 contentPreview 为空**；导出不含消息列；
+AI 审核只接动态/评论，聊天密文永不送模型。
+
+新增落库字段前请对照本表：任何把用户自由输入的文本放进明文列的改动，
+都必须在这里显式登记，否则「只存密文」的说法会再次悄悄失真。

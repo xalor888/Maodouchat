@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # 毛豆聊天一键测试：在本机运行全部可离线执行的测试，自动定位 JDK 21。
 # 用法：
-#   ./run-tests.sh               # App 单测 + 服务端全量测试（CI 同款范围，无需设备）
+#   ./run-tests.sh               # App 单测 + core/domain 模块测试 + 服务端全量（无需设备）
 #   ./run-tests.sh --app         # 只跑 App 单测
+#   ./run-tests.sh --jvm         # 只跑 core/domain 模块测试（含架构门禁）
 #   ./run-tests.sh --server      # 只跑服务端测试
 #   ./run-tests.sh --lint        # App 单测 + Android Lint（CI 门禁项）
 #   ./run-tests.sh --instrumented  # 仪器测试（需要模拟器或真机）
+#
+# 注意：CI 的范围**大于**本脚本。CI 还会跑 checkArchitecture、lintDebug、assemble、
+# Postgres 集成用例、backup/restore 演练、admin/website/developer 三个浏览器 E2E
+# 与三个 Python 字符串/导航/术语门禁。本脚本只覆盖其中可离线、无需浏览器的部分，
+# 所以它是「快速自查」而不是「CI 同款」——此前那句「CI 同款范围」是不成立的。
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -28,19 +34,28 @@ echo "使用 JDK：$JAVA_HOME"
 echo ""
 
 mode="${1:-all}"
-run_app=0; run_server=0; run_lint=0; run_instrumented=0
+run_app=0; run_server=0; run_lint=0; run_instrumented=0; run_jvm=0
 case "$mode" in
   --app) run_app=1 ;;
+  --jvm) run_jvm=1 ;;
   --server) run_server=1 ;;
   --lint) run_app=1; run_lint=1 ;;
   --instrumented) run_instrumented=1 ;;
-  all|"") run_app=1; run_server=1 ;;
-  *) echo "未知参数：$mode（支持 --app / --server / --lint / --instrumented）" >&2; exit 1 ;;
+  all|"") run_app=1; run_jvm=1; run_server=1 ;;
+  *) echo "未知参数：$mode（支持 --app / --jvm / --server / --lint / --instrumented）" >&2; exit 1 ;;
 esac
 
 if [ "$run_app" = 1 ]; then
   echo "═══ App 单元测试（JVM，无需设备） ═══"
   ./gradlew :app:testDebugUnitTest --console=plain
+  echo ""
+fi
+
+if [ "$run_jvm" = 1 ]; then
+  echo "═══ core/domain 模块测试（含架构门禁与热点棘轮） ═══"
+  # `test` 命中每个含该任务的子工程，排除 :app 避免重复跑 app 的单测。
+  # 这 44 例（core:crypto/realtime/session、domain:messaging 等）此前 CI 与本脚本都没有执行过。
+  ./gradlew test -x :app:test --console=plain
   echo ""
 fi
 

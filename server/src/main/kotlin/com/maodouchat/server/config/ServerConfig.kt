@@ -237,4 +237,37 @@ object ServerConfig {
             ?: System.getProperty(name)?.takeIf(String::isNotBlank)
             ?: defaultValue
     }
+
+    /**
+     * 用途子密钥（密钥分离）。
+     *
+     * 为什么需要：封存发送证书（sealed-sender）与开发者会话此前都直接用 `JWT_SECRET` 做
+     * HMAC 密钥。同一把密钥服务多个互不相关的协议有两个后果：
+     * 1. **无法单独轮换**——换掉它等于把所有 access token 一起作废；
+     * 2. 任何一处协议的弱点都会波及全部（例如长度扩展、规范化歧义），审计里这条被点名。
+     *
+     * 默认值由主密钥按用途派生（HMAC-SHA256(master, "maodouchat/v1/<purpose>")），
+     * 因此**不需要任何配置变更**就已分离；想真正独立轮换时，用 [envName] 单独配置即可，
+     * 换掉它只影响该用途（sealed-sender 证书 24 小时内自然轮换，开发者会话 2 小时）。
+     */
+    private fun purposeSecret(purpose: String, envName: String): String {
+        val explicit = env(envName, "")
+        if (explicit.isNotBlank()) return explicit
+        val master = jwtSecret
+        if (master.isBlank()) return ""
+        return try {
+            val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+            mac.init(javax.crypto.spec.SecretKeySpec(master.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+            mac.doFinal("maodouchat/v1/$purpose".toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    /** 封存发送证书的签名密钥；可用 `SEALED_SENDER_SECRET` 独立配置。 */
+    val sealedSenderSecret: String get() = purposeSecret("sealed-sender", "SEALED_SENDER_SECRET")
+
+    /** 开发者会话（dev_session）JWT 的签名密钥；可用 `DEVELOPER_SESSION_SECRET` 独立配置。 */
+    val developerSessionSecret: String get() = purposeSecret("developer-session", "DEVELOPER_SESSION_SECRET")
 }
