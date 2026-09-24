@@ -13428,3 +13428,48 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   且只覆盖了两个类（一个 19 行的 SharedPreferences 单例 + 两个纯函数）**；
   通知 / Widget / 深链 / 权限 / 前台服务**仍为零**，
   `AppUpdateDownloadWorker`（真正干下载活的那个）也仍未测。
+
+
+### G331c — **加固发布工作流的「生产恢复路径」**；并证实 `release.yml` 是个 CI 盲区
+
+- **动机**：当前最大的实际风险是「用户拿不到 v1.3.0」——制品在 GitHub Release，
+  但 `Upload APK to chat server` 连不上 `chat.mdou.me:443`。生产不可达我修不了，
+  **但恢复路径必须现在就是对的**，因为它是生产恢复后唯一要做的事。
+- **查实的两件事（都不是推测）**：
+  1. `release.yml` 的 `release` job 里 `Publish GitHub Release` **先于**
+     `Upload APK to chat server`——所以上传失败时**制品一定已在 Release 上**，
+     错误信息里这句是真的；
+  2. 但后半句「**生产恢复后重跑本步骤即可**」**证据不利**：`release-assets/` 是
+     `Package release assets` 步骤里 `mkdir -p` 建的**工作目录本地目录**，
+     而**整个 release.yml 没有任何 `upload-artifact`/`download-artifact`**（grep 证实）。
+     若重跑 semantics 是「只重跑失败步骤、复用成功步骤产物」，新 runner 工作区里
+     没有 `release-assets/`，上传步骤会以 `APK missing` 退出 1——**照指引做反而失败**。
+     我不能本地跑 GitHub Actions 实测重跑语义，所以不断言它一定坏，但**不放着一个
+     可能误导事故处置的承诺**。
+- **改动一：让恢复路径不依赖重跑 semantics**。新增两步：
+  - `Stash release assets as an artifact (for recovery)`（`upload-artifact@v4`，
+    名 `release-assets-<版本>`，path `release-assets/`，`if-no-files-found: error`）
+    ——紧跟打包步骤之后；
+  - `Restore release assets from artifact`（`download-artifact@v4`，同名同 path）
+    ——紧跟 `Publish GitHub Release` 之后、`Upload APK to chat server` **之前**。
+  这不是重复发布：Release 资产仍由 `Publish GitHub Release` 负责，artifact 只为恢复冗余一份。
+- **改动二：把错误指引改精确**。原来只写含糊的「重跑本步骤即可」；现在给出两条
+  可直接照做的路径（`gh run rerun <id> --failed`，以及手动
+  `gh release download` + `curl`，curl 用与工作流相同的三个头），并指向文档。
+- **改动三：补文档**。`docs/app-update-release.md` 新增第 7 节「生产不可达时的人工恢复」，
+  写明查实过的顺序事实、两条恢复路径、成功响应形状（参考 1.2.1 那次的真实响应），
+  以及下面这个盲区。**这份文档正是下次出事时会读的那份。**
+- **发现的真实盲区（已写进文档与台账，未修）**：**`release.yml` 没有任何 CI 作业校验**。
+  实测 `ci.yml` 里没有 actionlint、没有 YAML 校验；`.github/workflows/` 内唯一
+  「提及」release.yml 的地方是它自己的注释。它只在打 tag 时跑，所以
+  **语法错误或步骤引用断裂只会在真发版时暴露**——正是最不该出错的时刻。
+  本轮只做到「改动后本地 `yaml.safe_load` 解析通过 + 列出全部 18 个步骤人工核对」；
+  **没有把 actionlint 接进 CI**（构建变更，超出本轮边界）。
+  **下一步值得做：在 ci.yml 加一个 actionlint 作业。**
+- **过程中自己制造又当场修掉的一个错**：第一次编辑时漏写了 `- name:`/`uses:` 头，
+  产生非法 YAML。随即用 `yaml.safe_load` 发现并修正——**这正是上面那个盲区的微型演示：
+  没有校验器，错 YAML 要等到运行时才炸。**
+- **验证**：`python3 -c "yaml.safe_load(...)"` 通过；`release` job 18 步顺序为
+  …10 Package → **11 Stash artifact** → 12 生成 notes → 13 Publish Release →
+  **14 Restore artifact** → **15 Upload APK** → …，两步的 `name`/`path` 一致；
+  新的错误指引字符串在位。本轮不改 Kotlin，但按纪律复跑三个全量并全绿。

@@ -62,3 +62,55 @@ python3 scripts/check-app-update-gates.py
 ```
 
 该脚本静态确认客户端/服务端更新门禁与单测文件仍存在，并接入 CI android 作业。
+
+## 7. 生产不可达时的人工恢复（G331c）
+
+**背景事实（G331c 逐条查实，不是推测）**：`release.yml` 的 `release` job 中，
+`Publish GitHub Release` **先于** `Upload APK to chat server` 执行。
+所以上传失败时**制品一定已经在 GitHub Release 上**——这是恢复的物资基础。
+
+而 `Upload APK to chat server` 是用户拿到更新的**唯一**通道
+（GitHub 直链被禁为更新源，见本文档上半部分）。
+v1.3.0 就是这样卡住的：curl 连不上 `chat.mdou.me:443`（退出 28），
+制品在 Release 上，但用户拿不到。
+
+### 恢复路径 A：重跑工作流（推荐）
+
+```bash
+gh run rerun <run id> --failed
+```
+
+之所以可靠：`Package release assets + checksums` 之后有一步
+`Stash release assets as an artifact (for recovery)`（`actions/upload-artifact@v4`，
+名为 `release-assets-<版本>`），而 `Upload APK to chat server` 之前有
+`Restore release assets from artifact`（`actions/download-artifact@v4`）。
+所以无论 `--failed` 的语义是「整 job 重跑」还是「只重跑失败步骤、复用成功步骤产物」，
+APK 都在手边。**不必重新打 tag。**
+
+### 恢复路径 B：完全手动
+
+```bash
+# 1. 从 Release 取回制品（不重新构建）
+gh release download v<版本> --pattern '*.apk' --dir /tmp/maodou-apk
+
+# 2. 上传到生产（用 release.yml 里同样的三个头）
+curl --fail-with-body -sS -X PUT "$UPDATE_SERVER_URL/api/internal/app-update" \
+  -H "Authorization: Bearer $UPDATE_DEPLOY_TOKEN" \
+  -H "X-Version-Code: <versionCode>" \
+  -H "X-Version-Name: <版本>" \
+  -H "Content-Type: application/vnd.android.package-archive" \
+  --data-binary @/tmp/maodou-apk/<apk 文件名>
+```
+
+成功后响应形如 `{"ok":true,"versionCode":...}`（参考 1.2.1 那次：
+`{"ok":true,"versionCode":912,"versionName":"1.2.1","bytes":13275173}`）。
+
+### ⚠️ 一个仍未消除的盲区（G331c 记录）
+
+**`release.yml` 没有任何 CI 作业校验。** 已实测：`ci.yml` 里没有 actionlint、
+没有 YAML 校验；`.github/workflows/` 内唯一「提及」release.yml 的地方是它自己的注释。
+它只在打 tag 时运行，所以**语法错误或步骤引用断裂只会在真发版时暴露**——
+正是最不该出错的时刻。G331c 只做到「改动后用 `python3 -c "import yaml; yaml.safe_load(...)"`
+本地解析验证 + 列出全部 18 个步骤人工核对」，**没有把 actionlint 接进 CI**
+（那是构建变更，超出本轮边界）。若要把这个盲区真正堵上，
+下一步是在 ci.yml 加一个 actionlint 作业——记在这里，因为它值得做。

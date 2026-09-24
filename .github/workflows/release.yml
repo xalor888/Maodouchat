@@ -197,6 +197,21 @@ jobs:
           sha256sum * > SHA256SUMS.txt
           ls -la
 
+      # G331c：把制品另存为 artifact。
+      # 为什么：`release-assets/` 本来是**工作目录本地目录**（上面 mkdir 建的），
+      # 而下面「Upload APK to chat server」失败时的恢复指引是「生产恢复后重跑本步骤即可」。
+      # 若重跑的 semantics 是「只重跑失败步骤、复用成功步骤产物」，新 runner 的工作区里
+      # 不会有 release-assets/，上传步骤会以 `APK missing` 退出 1——**照指引做反而失败**。
+      # 存成 artifact 后，无论重跑是整 job 还是只重跑失败步骤，APK 都在手边。
+      # 这不是重复发布：Release 资产仍由下面 `Publish GitHub Release` 负责。
+      - name: Stash release assets as an artifact (for recovery)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ steps.version.outputs.version }}
+          path: release-assets/
+          retention-days: 30
+          if-no-files-found: error
+
       - name: Generate release notes
         run: |
           PREV_TAG="$(git tag --sort=-version:refname | grep '^v' | sed -n '2p' || true)"
@@ -231,6 +246,16 @@ jobs:
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           files: |
             release-assets/*
+
+      # G331c：把制品从 artifact 取回工作区。
+      # 上面的 `Stash release assets as an artifact` 已存一份；这里取回，
+      # 于是即使本次 run 的上传失败、日后 `gh run rerun --failed` 只重跑失败步骤，
+      # APK 依然在（不必依赖工作目录是否保留）。
+      - name: Restore release assets from artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets-${{ steps.version.outputs.version }}
+          path: release-assets/
 
       - name: Upload APK to chat server
         if: success()
@@ -273,7 +298,14 @@ jobs:
             sleep 10
           done
           echo "::error::APK upload failed after 3 attempts — 用户拿不到这次更新。" \
-               "制品已在 GitHub Release，生产恢复后重跑本步骤即可（不必重新打 tag）。"
+               "制品已在 GitHub Release。生产恢复后两条路（任选）：" \
+               "(a) gh run rerun <本 run id> --failed —— 工作流会先从 artifact" \
+               "'release-assets-<版本>' 还原 APK，不必重新打 tag；" \
+               "(b) 手动：gh release download v<版本> --pattern '*.apk' 拿到制品，" \
+               "再 curl -X PUT \"\$UPDATE_SERVER_URL/api/internal/app-update\"" \
+               "-H \"Authorization: Bearer \$UPDATE_DEPLOY_TOKEN\"" \
+               "-H \"X-Version-Code: <versionCode>\" -H \"X-Version-Name: <版本>\"" \
+               "--data-binary @<apk>。详见 docs/app-update-release.md 的『生产不可达时的人工恢复』。"
           exit 1
 
       - name: Notify Yunhu about release
