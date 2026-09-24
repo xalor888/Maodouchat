@@ -14,7 +14,7 @@ repositories {
     mavenCentral()
 }
 
-val ktorVersion = "2.3.7"
+val ktorVersion = "3.6.0"
 val exposedVersion = "0.46.0"
 
 // 9.303：仅用于提取 WebRTC .so 的独立配置（不进运行时 classpath）
