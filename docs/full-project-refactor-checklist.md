@@ -1245,7 +1245,7 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 
 | 项 | 现状（实测） | 为什么没做 |
 |----|-------------|-----------|
-| `ChatDetailViewModel.kt` 继续拆 | **2930 行**（本轮 3071 → 2930）；已抽 2 个协作者 | 剩下的 116 个方法绝大多数已是「15 个控制器的门面 + 属性装配」，继续按方法抽收益递减；再要显著缩小需要把整块装配提取成容器（设计变更，且无仪器测试兜底） |
+| `ChatDetailViewModel.kt` 继续拆 | **2931 行**：方法体 2047 行（71 个方法）+ **属性装配 884 行**（96 个属性声明） | 下一步**有尺寸可依据**：把这 884 行装配抽成 `ChatDetailDeps`（interface + impl），VM 用 `class ChatDetailViewModel(...) : ChatDetailDeps by deps` 接口委托接入——调用点零改动、私有成员按需提升为 internal。预计 VM 降到约 2100 行。**未做的原因**：装配无测试兜底，且 `by` 委托对 `by lazy`/`@Volatile` 成员的语义要逐个确认，属于该单独一轮做的事 |
 | `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable | 剩余都是 15–40 行的中小块；大块（450 行弹层）已搬 |
 | ui 直连 network | **98 个文件 / 135 处调用**，冻结为只许降的棘轮 | 每处要判定归属哪个 repository；本轮只保证它不再增长 |
 | ~~`GroupPlayPolicy.kt`~~ | **已拆：1945 → 858 行** | 见下方第三轮小节（拆成 `GroupPlayClassicPolicy` 979 / `GroupPlayModePolicy` 492，父对象留同名委托） |
