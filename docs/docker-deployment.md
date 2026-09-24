@@ -181,3 +181,14 @@ bash scripts/deploy.sh --no-build   # 复用镜像，快速重启
 （`db/migration/MigrationRunner.kt`，单事务 + advisory lock 串行化）。
 注意与 `server-migration-expand-contract.md` 的说法对齐：`SchemaUtils.createMissingTablesAndColumns`
 只用于建**缺失**的表/列（`db/Database.kt`），**不**承担版本化迁移职责。
+
+## 已知残余风险（2026-09-25 记录，未修）
+
+诚实起见，以下是审计发现但**本轮没有修**的点，部署前请知悉：
+
+| 项 | 现状 | 为什么留着 | 缓解 |
+|----|------|-----------|------|
+| 限流是**进程内**的 | 登录 10/min/IP、发码 3/min/email、管理后台 5/5min 等都在单 JVM 内存里 | 改成共享限流需要 Redis 或等价设施，会改变部署形态 | 当前 compose 是**单实例**；横向扩容（`--scale`）会让每个预算成倍放大，且验证码可能落到另一实例。要扩容先做共享限流 |
+| TOTP 密钥**明文**存库 | `users.totp_secret` 是明文列 | 加密需要引入密钥管理（应用侧主密钥 + 轮换），且会让既有用户无法登录，属于需要单独设计的变更 | 库被读走即等于 2FA 失效；因此**数据库访问权限**与备份加密是当前唯一防线。恢复码是 BCrypt 哈希，不受影响 |
+| 基础镜像**未固定 digest** | `server/Dockerfile` 用的是版本标签（如 `eclipse-temurin:21-jre-alpine`） | 固定 digest 需要能解析镜像仓库元数据（本机无 Docker/网络时无法取得真实 digest，写一个猜的值比不写更糟） | 版本标签已固定到 minor；要求更强的可复现性时，用 `docker pull` 后 `docker inspect` 取 digest 再钉 |
+| `TRUST_PROXY_HEADERS=true` | compose 里固定开启 | 它**只有在 Ktor 端口未被发布时才安全**（否则任何人可伪造 `X-Forwarded-For` 绕过按 IP 的限流与锁定） | `docker-compose.yml` 用 `expose` 而非 `ports`，且 CI 有断言「server 不得发布宿主端口」——见 `.github/workflows/ci.yml` 的 `Verify production network isolation`。**改 compose 时不要给它加 ports** |

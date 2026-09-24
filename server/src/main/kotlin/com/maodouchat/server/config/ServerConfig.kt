@@ -57,6 +57,19 @@ object ServerConfig {
      * 空 = 关闭 PUT /api/internal/app-update。
      */
     val updateDeployToken: String get() = env("UPDATE_DEPLOY_TOKEN", "")
+
+    /**
+     * 运维指标令牌（G328c）。空 = `/health/metrics` **关闭**（404）。
+     *
+     * 为什么改成默认关闭：审计点名的「未认证运维指标」——该端点无需任何凭据就返回
+     * JVM 堆/运行时长、限流器的 allowed/rejected/maxBuckets/maxPerMinute（等于把全局
+     * 预算告诉对方，便于贴着阈值刷）、每个缓存的 size/maxSize/ttl/hits/misses，
+     * 以及在线用户数。这些都不该对匿名者开放。
+     *
+     * 管理后台另有权限化的观测端点（`AdminObservabilityRouting`），所以关闭公开面
+     * 不会让运维失去手段；需要给外部监控（Prometheus 之类）留口时，设一个强随机值即可。
+     */
+    val metricsToken: String get() = env("METRICS_TOKEN", "")
     /** Trust proxy-supplied client IP headers only when the Ktor port is isolated behind a known proxy. */
     val trustProxyHeaders: Boolean get() = env("TRUST_PROXY_HEADERS", "false").toBooleanStrictOrNull() ?: false
 

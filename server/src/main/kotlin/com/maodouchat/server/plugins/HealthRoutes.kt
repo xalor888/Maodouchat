@@ -42,18 +42,44 @@ fun Route.configureHealthRoutes() {
         call.respondReadiness()
     }
 
-    // Detailed server status for monitoring (no JWT required, but no sensitive info exposed)
+    // 部署探测用的最小状态（无需凭据，且**不含** APP_ENV——G328c 之前这里会告诉匿名者
+    // 当前是 development 还是 production，而 development 意味着 relaxed 校验，属于有用的侦察信息）
     get("/api/status") {
         call.respondText(
-            """{"status":"ok","service":"Maodouchat Server","env":"${ServerConfig.appEnv}","version":"1.0.0"}""",
+            """{"status":"ok","service":"Maodouchat Server","version":"1.0.0"}""",
             contentType = io.ktor.http.ContentType.Application.Json
         )
     }
 
     // Richer observability: JVM runtime, rate-limit counters, per-cache stats, gauges.
-    // No JWT (ops/monitoring), but guarded by a dedicated per-IP limiter so the public
-    // endpoint cannot be scraped into a DoS. Does NOT touch the /api/ global budget.
+    //
+    // G328c：**改为默认关闭**（此前匿名可读——审计点名的「未认证运维指标」）。
+    // 需要给外部监控留口时设 `METRICS_TOKEN`，然后带 `Authorization: Bearer <token>` 访问。
+    // 令牌比较用 MessageDigest.isEqual（常量时间），避免逐字节比较的时序侧信道。
+    // 保留原有的独立限流器：拿到令牌也不能把端点刷成 DoS，且不占用 /api/ 全局预算。
     get("/health/metrics") {
+        val expected = ServerConfig.metricsToken
+        if (expected.isBlank()) {
+            // fail-closed：未配置即视为不开放。文案给出开启方式，避免运维以为端点坏了。
+            call.respond(
+                HttpStatusCode.NotFound,
+                ErrorResponse("metrics disabled; set METRICS_TOKEN on the server to enable", code = "METRICS_DISABLED"),
+            )
+            return@get
+        }
+        val presented = call.request.headers[HttpHeaders.Authorization]
+            ?.removePrefix("Bearer ")
+            ?.trim()
+            .orEmpty()
+        val authorized = presented.isNotEmpty() &&
+            java.security.MessageDigest.isEqual(
+                expected.toByteArray(Charsets.UTF_8),
+                presented.toByteArray(Charsets.UTF_8),
+            )
+        if (!authorized) {
+            call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid metrics token", code = "METRICS_UNAUTHORIZED"))
+            return@get
+        }
         val ip = call.remoteHost()
         if (!healthMetricsLimiter.acquire(ip, maxPerMinute = 30)) {
             call.response.headers.append(HttpHeaders.RetryAfter, "2")

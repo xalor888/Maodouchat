@@ -56,6 +56,7 @@ cp .env.example .env
 | `MODERATOR_EMAILS` | 内容审核员邮箱，授予 App 内审核能力 |
 | `MASTER_ADMINS` | 主管理员用户 ID，授予完整管理后台权限 |
 | `SMTP_*` | 邮箱验证码；未配置时验证码打印到控制台 |
+| `METRICS_TOKEN` | 可选。`/health/metrics` 默认**关闭**；配了强随机值才开放，且需 `Authorization: Bearer <token>` |
 | `OPENAI_API_KEY` 等 | 仅动态/评论审核可选；聊天明文推理在客户端自配模型 |
 
 生产模式启动前强制校验：HTTPS `BASE_URL`、强 JWT 密钥、持久化数据库、关闭演示用户、SMTP 与 TURN 配置；不满足直接拒绝启动。自托管可加 `--relaxed` 放宽 SMTP/TURN。

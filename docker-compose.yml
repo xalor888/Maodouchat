@@ -64,6 +64,7 @@ services:
       # 配了就只影响该用途，可单独轮换而不把所有人踢下线。
       SEALED_SENDER_SECRET: ${SEALED_SENDER_SECRET:-}
       DEVELOPER_SESSION_SECRET: ${DEVELOPER_SESSION_SECRET:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
       # Push 签名密钥：生产模式必填（relaxed 模式可留空，推送校验降级 fail-open）。
       PUSH_HMAC_SECRET: ${PUSH_HMAC_SECRET:-}
       # 自托管宽松模式：允许无 SMTP / TURN 启动（验证码打日志、通话仅 STUN）。
