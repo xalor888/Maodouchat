@@ -127,7 +127,15 @@
             </intent-filter>
         </receiver>
 
-        <!-- 拨号盘 `*#*#75263#*#*`：恢复被隐藏的桌面图标并拉起 App（假聊天模式配套） -->
+        <!--
+            拨号盘 `*#*#75263#*#*`：恢复被隐藏的桌面图标并拉起 App（假聊天模式配套）。
+
+            G328c 复审（已知残余风险，未改行为）：`Telephony.SECRET_CODE` 是**普通隐式广播**，
+            任何已安装的应用都能发同样的 intent（host 猜中即生效），于是「隐藏入口」这一层
+            可被本地恶意应用撤销。为什么不直接加 UID 校验：秘密码广播的发送方在不同 OEM 拨号器
+            上并不一致（系统/拨号器/空 UID 都有实测案例），加严会**直接弄坏恢复入口**——
+            而这是用户在紧急场景下唯一的入口。已记入 docs/docker-deployment.md 的残余风险表。
+        -->
         <receiver
             android:name=".security.SecretCodeReceiver"
             android:exported="true">

@@ -192,3 +192,11 @@ bash scripts/deploy.sh --no-build   # 复用镜像，快速重启
 | TOTP 密钥**明文**存库 | `users.totp_secret` 是明文列 | 加密需要引入密钥管理（应用侧主密钥 + 轮换），且会让既有用户无法登录，属于需要单独设计的变更 | 库被读走即等于 2FA 失效；因此**数据库访问权限**与备份加密是当前唯一防线。恢复码是 BCrypt 哈希，不受影响 |
 | 基础镜像**未固定 digest** | `server/Dockerfile` 用的是版本标签（如 `eclipse-temurin:21-jre-alpine`） | 固定 digest 需要能解析镜像仓库元数据（本机无 Docker/网络时无法取得真实 digest，写一个猜的值比不写更糟） | 版本标签已固定到 minor；要求更强的可复现性时，用 `docker pull` 后 `docker inspect` 取 digest 再钉 |
 | `TRUST_PROXY_HEADERS=true` | compose 里固定开启 | 它**只有在 Ktor 端口未被发布时才安全**（否则任何人可伪造 `X-Forwarded-For` 绕过按 IP 的限流与锁定） | `docker-compose.yml` 用 `expose` 而非 `ports`，且 CI 有断言「server 不得发布宿主端口」——见 `.github/workflows/ci.yml` 的 `Verify production network isolation`。**改 compose 时不要给它加 ports** |
+## 客户端已知残余风险（2026-09-25 复审）
+
+| 项 | 现状 | 为什么不改 |
+|----|------|-----------|
+| `SecretCodeReceiver` 对外导出 | 拨号盘秘密码 `*#*#75263#*#*` 的 `Telephony.SECRET_CODE` 是普通隐式广播，**任何本地应用**都能发同样 intent（host 猜中即生效），可撤销「隐藏桌面入口」 | 发送方 UID 在不同 OEM 拨号器上不一致，加严会弄坏恢复入口——而那是用户在紧急场景下唯一的入口。见 `AndroidManifest.xml` 内同一段说明 |
+| `REQUEST_INSTALL_PACKAGES` / `SYSTEM_ALERT_WINDOW` | 分别用于应用内更新与悬浮球 | 均为功能必需，且运行时需用户在系统设置里显式授权 |
+| `READ_PHONE_STATE` / `MANAGE_OWN_CALLS` | 电信框架集成（系统通话 UI） | 用于通话功能；`MANAGE_OWN_CALLS` 是自管理连接服务的前提 |
+| `NotificationCenterRepository` 的同步桥接 | 4 处 `runBlocking(Dispatchers.IO)`，DAO 配 `*Blocking` 同步变体 | 调用方含 Compose lambda 与非协程回调，改 suspend 要连带改调用链；当前是单行 Room 操作 |
