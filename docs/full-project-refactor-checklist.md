@@ -887,7 +887,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q03 Compose 与系统集成
 
-- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G309c：五个入口有了覆盖，含两个屏幕本体**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（**G313c：五点实证的阻塞，不是假设**——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、VM 主构造器 `private`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；最小接缝 = ports 构造器改 `internal` + 给那 4 个类造 fake）与 Call / Settings 的屏幕本体；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`）。
+- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G315c：七个入口里六个有覆盖，含四个屏幕本体**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（**G313c：五点实证的阻塞，不是假设**——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、VM 主构造器 `private`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；最小接缝 = ports 构造器改 `internal` + 给那 4 个类造 fake）与 Call / Settings 的屏幕本体；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`）。
 - [ ] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文。
 - [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
 
@@ -13114,3 +13114,46 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **§11 Q03 第 1 项同步**：未做项从「Chats 与 Call / Settings 的屏幕本体」
   精确为「Chats（需先造 VM seam，见 G313c 五点实证）」+ Call / Settings。
   **注意这不是「我认为测不了」，而是有实证的阻塞 + 明确的接缝路径。**
+
+
+### G315c — **CallScreen 与 SettingsScreen 屏幕级测试落地**：Q03 第 1 项七项里六项有覆盖
+
+- **动机**：Q03 第 1 项原文列「Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试」。
+  G301c–G309c 已补 Contacts/Explore 两批 + 两个屏幕本体；本轮补 **Call 与 Settings**。
+- **两者的形态比 Contacts/Explore 还轻（本轮先实测再动手）**：
+  - `CallScreen`（`CallScreen.kt:100-132`）**完全没有 viewModel 参数**，只收约 20 个纯数据参数
+    + 一串回调 → 连 fake VM 都不用造，直接 `setContent { CallScreen(contactName=..., callState=...) }`。
+  - `SettingsScreen` 收 14 个回调**外加** `viewModel: SettingsViewModel = viewModel()`；
+    但 `SettingsViewModel`（`SettingsViewModel.kt:77-81`）的依赖是
+    `SettingsRepository`（**只有 7 个方法**的接口）+ `SecurityCoordinator(该接口)`，
+    所以 fake 一个 7 方法接口即可构造整条链——与 G309c 的 `FeedRepository`（5 方法）同量级，
+    **不是 Chats 那种 private 构造器 + 7 个具体协作者的情况**。
+- **新增两个测试文件**：
+  - `ui/screen/call/CallScreenUiTest.kt`（**8 例**）：contactName 渲染（探针）；
+    来电响铃 → 同时有「接听」与「挂断」；**非来电响铃 → 不得出现「接听」**（反向断言）；
+    CONNECTED+AUDIO → 显示带时长的状态文案；点「接听」触发 `onAccept`；
+    点「挂断」触发 `onHangUp`；`errorMessage != null` → 「知道了」+ `onDismissError`；
+    无 errorMessage → 不得出现「知道了」。
+  - `ui/screen/settings/SettingsScreenUiTest.kt`（**6 例**）：标题渲染（探针）；
+    「账号安全」/「我的举报」/「黑名单」/「我的二维码」/「我的收藏」五个入口，
+    每例同时断言可见性 + 点击触发对应 `onOpenXxx` 回调。
+- **负控制两轮，均先读改动代码再预测，且都命中**（本会话第四次、第五次）：
+  1. CallScreen：把来电响铃分支的 `onClick = onHangUp` 改成 `{}`。
+     先读代码确认「Icon/contentDescription 未变 → 按钮仍渲染、点击变空操作」，
+     据此预测「`hangUpButtonFiresTheScreensOnHangUpCallback` 红、
+     `incomingRingingShowsBothAcceptAndHangUp` 仍绿」——实测一字不差。
+  2. SettingsScreen：把「账号安全」的 `onClick = onOpenAccountSecurity` 改成 `{}`。
+     同理预测「`accountSecurityEntryFiresTheScreensCallback` 红、其余绿」——实测一字不差。
+  两轮均还原，`diff` 确认与 HEAD 逐字节相同。
+  **这是同一结论的第四次验证：只断言可见性的测试抓不到点击接线回归。**
+- **最终实测**：新测试 8 + 6 = **14 tests / 0 failures / 0 skipped**（XML 逐条核对）；
+  全量 instrumented **136 tests / 0 failures**（27 skipped 仍只在
+  `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。
+- **§11 Q03 第 1 项状态**：七项里 **六项**有覆盖（ChatDetail dialog、Contacts 行、
+  Explore 弹窗、ContactsScreen、ExploreScreen、Call、Settings 中的六个——
+  仅 **Chats** 因 G313c 五点实证阻塞除外）。本项**维持 `[~]` 不标 `[x]`**，
+  理由：(a) Chats 未覆盖；(b) 「有覆盖」只证明渲染与回调接线被钉住，
+  不等于每个交互分支都覆盖（如 CallScreen 的音频路由切换、群通话参与者、
+  摄像头/切换镜头等尚未覆盖；Settings 的隐私/安全子页与各项内部交互也未覆盖）。
+  把 `[~]` 标成 `[x]` 会让读者以为这两块已经够了——那正是本台账反复在治的
+  「叙述比现实乐观」。
