@@ -1247,7 +1247,7 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 |----|-------------|-----------|
 | ~~`ChatDetailViewModel.kt` 的装配抽出~~ | **已完成**：2931 → **2598 行**（装配 475 行搬到 `ChatDetailDeps`） | 见下方第四轮小节。注意：这里原先写的「884 行装配」是**错的**——那是 `文件行数 − 方法行数` 的粗算，把空行与 companion 也算进去了；用声明级 span 实测是 **475 行** |
 | `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable | 剩余都是 15–40 行的中小块；大块（450 行弹层）已搬 |
-| ui 直连 network | **41 → 26**（判据修准后的真实迁移） | 剩 26 个文件仍直接调 `ApiService`；已完成 5 批（公共端点/用户读取/会话读写/账号设备/2FA/举报审核）。下一批候选：`ChatListPorts`(7)、`ChatBotGroupActionController`(8)、`AuthorProfileScreen`(7)、`DeveloperBotsScreen`(7)、`LoginViewModel`(5，其中 1 处是读 TokenManager 的会话操作，不适合搬) |
+| ui 直连 network | **41 → 24**（判据修准后的真实迁移） | 剩 24 个文件仍直接调 `ApiService`；已完成 7 批（公共端点/用户读取/会话读写/账号设备/2FA/举报审核/机器人+群）。下一批候选：`ChatListPorts`(7)、`AuthorProfileScreen`(7)、`ExploreNearbyScreen`(4)、`LoginViewModel`(5，其中 `refreshAccessTokenForCurrentSession` 读 TokenManager、属会话层操作，不适合搬进端点仓库) |
 | ~~`GroupPlayPolicy.kt`~~ | **已拆：1945 → 858 行** | 见下方第三轮小节（拆成 `GroupPlayClassicPolicy` 979 / `GroupPlayModePolicy` 492，父对象留同名委托） |
 | `NotificationCenterRepository` 的 `runBlocking` 桥接 | 4 处，DAO 配 `deleteForUserBlocking` 等同步变体 | 调用方含 Compose lambda 与非协程回调，改成 suspend 要连带改调用链；本轮已在 KDoc 写明「调用方含主线程」的现状与代价 |
 | core 冻结契约的**采纳** | `core/util`、`core/serialization`、`core/network` 仍只被 `:core:testing` 的 testImplementation 引用 | 属于 B02「依赖注入装配与 MaodouchatApp 瘦身」，是独立大工程 |
@@ -1383,3 +1383,15 @@ random 辅助（传递性死代码，以前测不出来）。
 `AuthorProfileScreen` 7、`DeveloperBotsScreen` 7、`LoginViewModel` 5 等）；
 `LoginViewModel` 里那个 `refreshAccessTokenForCurrentSession` 读 TokenManager、
 属于会话层操作，不适合搬进端点仓库——需要先设计会话层边界。
+
+（第六轮续）本轮又迁了 3 个文件：`DeveloperBotsScreen`(7) + `ChatBotGroupActionController`(8)
+→ 新增 `BotNetworkRepository`（含会话内机器人的邀请/指令/投递）与 `GroupNetworkRepository`
+（群成员增删/改名/全量可搜索用户）。`ChatBotGroupActionController` 本身是「群与机器人混在
+一个文件」的例子——迁移时按域拆开走两个仓库，比整文件塞进一个更能说明每个动作的失败语义。
+
+**两次 CI instrumented 失败都是基础设施**，不是代码：日志里是
+`Error on ZipFile unknown archive`（SDK 的 emulator 包在 runner 上损坏）与
+`Unable to connect to adb daemon on port: 5037`——模拟器根本没启动、没有任何断言执行；
+同一批提交的 `Android`（单测+lint+打包）与 `Server` 两个作业始终是绿的。重跑后成功。
+这类抖动与代码无关，但值得记下来：看到 instrumented 红时**先看模拟器有没有起来**，
+再怀疑测试。
