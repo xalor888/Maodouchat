@@ -26,7 +26,7 @@
 | 服务端测试文件 / 用例 | 121 个 / **564 绿** | `find server/src/test -name '*.kt'`；`server/build/test-results/test/*.xml` 汇总
 | 客户端 JVM 测试文件 / 用例 | 365 个 / **2116 绿** | `find app/src/test -name '*.kt'`；`app/build/test-results/testDebugUnitTest/*.xml` 汇总
 | instrumented 测试（androidTest） | **21 个文件** | `find app/src/androidTest -name '*.kt'`
-| 自审清单体量 | 1,160,082 字节 | `wc -c docs/full-project-refactor-checklist.md`
+| 自审清单体量 | 1,163,217 字节 | `wc -c docs/full-project-refactor-checklist.md`
 | `plugins/` 内 `transaction {` | **0 处 / 0 个文件**（G258b：连同其余 Exposed import 一并删净，plugins/ 层已无任何 Exposed import） | `grep -rho 'transaction {' server/.../plugins/`（M2 已闭环） |
 | 最差单文件 | `ChatDetailRoute.kt` **3433 行** | `wc -l` |
 | `plugins/` 中 import Exposed 的文件 | **1**（G258b：37 行死 import 已删净；import 现为 0，该 1 处是 `StatusPages.kt` 的 `exception<ExposedSQLException>`，属引用而非 import） | `grep -rl org.jetbrains.exposed plugins/` |
@@ -233,10 +233,16 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 读用例数，若上一次是 `--tests '*某个类'` 的过滤跑，合理性守卫会拒绝同步
 （不拿不完整快照当真相）。
 
-#### Git pre-push 闸门（G307c）
+#### Git pre-push 闸门（G307c / G327c）
 
-`.githooks/pre-push` 在 §0 与实测不一致时**拒绝推送**。它治的是
-「追加台账 / 新增文件后忘同步 §0」——本会话为此红过 **6 次** CI。
+`.githooks/pre-push` 在两道关不过时**拒绝推送**：
+
+1. **§0 与实测不一致**——治「追加台账 / 新增文件后忘同步 §0」，
+   本会话为此红过多次 CI；
+2. **`:app:lintDebug` 失败**（G327c 新增）——治「lint 是我本地从不跑的那一门」：
+   G325c 推送后 CI 四个作业里只有 lint 红，白白付了一整轮 CI（约 20 分钟）。
+   lint 正是本地 `testDebugUnitTest`/`server test`/`connectedDebugAndroidTest`
+   都不覆盖的那一门。
 
 新 clone 一次性启用（`core.hooksPath` 是本地配置，不随仓库传播）：
 
@@ -244,8 +250,10 @@ M2 闭环了。当时它是「愿望」，现在它是有门禁守着的事实�
 git config core.hooksPath .githooks
 ```
 
-被拒时用 `--write-fast` 修（不是 `--write`：上次若是过滤跑，`--write` 会被
-用例数下限守卫整体拒绝，一行都写不了）。详见 `scripts/README.md` §5。
+被拒时：§0 用 `--write-fast` 修（不是 `--write`：上次若是过滤跑，`--write` 会被
+用例数下限守卫整体拒绝，一行都写不了）；lint 看 `/tmp/pre-push-lint.log`。
+**lint 这一步冷缓存约 3 分钟、热缓存约 1 秒**——有意的代价交换。
+确需跳过：`git push --no-verify`（代价自负）。详见 `scripts/README.md` §5。
 
 #### 一次性收尾脚本（特定清理专用，不是每轮都用）
 

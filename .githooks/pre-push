@@ -15,21 +15,30 @@
 # `--check-fast` 只校验不依赖 XML 的行（字节数、已跟踪文件数、各测试**文件**数、
 # plugins 各计数、最差单文件行数），1 秒内完成；用例数那两位的权威校验
 # 由 `DirectionDocFreshnessTest` 在 app 全量里做——分工明确。
+#
+# G327c：第二步——跑 `lintDebug`。
+# 为什么加：G325c 推送后 CI 四个作业里**只有 lintDebug 红**
+# （`ConfigRobustnessTest.kt:69: Constructing a view model in a composable`）。
+# 我本地一向只跑 testDebugUnitTest / server test / connectedDebugAndroidTest，
+# **lint 是我从不本地跑的那一门**，于是整整一轮 CI（约 20 分钟）才暴露。
+# 这个 hook 的职责是「让 CI 会拒的东西推不出去」，lint 正是我反复漏的一门。
+#
+# 代价：本地约 3 分钟。这是**有意的交换**——3 分钟本地 vs 20 分钟 CI 红 + 重推。
+# 若你确需跳过（例如连推多个小提交），用 `git push --no-verify`，
+# 但**代价自负**：lint 若真有问题，仍是 CI 红一轮。
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-if python3 scripts/sync-direction-numbers.py --check-fast; then
-  exit 0
-fi
-
-cat >&2 <<'MSG'
+# ---- 第一步：§0 一致性（约 1 秒）----
+if ! python3 scripts/sync-direction-numbers.py --check-fast; then
+  cat >&2 <<'MSG'
 
 ✋ 推送被拒绝：DIRECTION.md §0 与实测不一致。
 
 这几乎总是「追加了台账条目 / 新增了文件，但没同步 §0」——
-本会话我已犯过 6 次，每次都以 CI 红一次收场。现在就修（约 1 秒）：
+本会话我已犯过多次，每次都以 CI 红一次收场。现在就修（约 1 秒）：
 
     python3 scripts/sync-direction-numbers.py --write-fast
     git add DIRECTION.md && git commit --amend --no-edit   # 或另开一个提交
@@ -40,4 +49,26 @@ cat >&2 <<'MSG'
 再用 `--write` 把用例数那两位一起对齐。）
 
 MSG
-exit 1
+  exit 1
+fi
+
+# ---- 第二步：lintDebug（约 3 分钟）----
+echo "pre-push: §0 一致；开始跑 lintDebug（约 3 分钟）…" >&2
+if ! ./gradlew :app:lintDebug --console=plain > /tmp/pre-push-lint.log 2>&1; then
+  cat >&2 <<MSG
+
+✋ 推送被拒绝：:app:lintDebug 失败（这是 G325c 那次 CI 红的同一门）。
+
+我本地一向不跑 lint，所以它只在 CI 里才暴露——代价是一整轮 CI。
+日志已存到 /tmp/pre-push-lint.log，先看它：
+
+    grep -E 'Error:|error:' /tmp/pre-push-lint.log | head -20
+
+修完再推。若你确认这是误报且确需现在推送，可用 \`git push --no-verify\`
+绕过本 hook——但代价自负：lint 若真有问题，仍是 CI 红一轮。
+
+MSG
+  exit 1
+fi
+
+exit 0

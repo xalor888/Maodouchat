@@ -13348,9 +13348,47 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 [ViewModelConstructorInComposable]`。原因是我把 composable lambda 赋给显式
 `var content: @Composable () -> Unit`，lint 因此认出这是 composable 函数体，
 于是在其中构造 `ChatListViewModel(...)` 被抓到。（早前两个测试把构造直接写在
-`compose.setContent { }` 的 lambda 里，lint 不报——**同一个反模式，换个写法就暴露，
-说明那两处也只是侥幸**，已在 G325c 记一笔。）
+`compose.setContent { }` 的 lambda 里，lint 没报它们——但**为什么没报，原因未查明**：
+已实测修复后 `lint-results-debug.xml` 里 androidTest 类目零问题，可那是**修复后**
+的状态，不能反推当时。所以这里**不写「那两处也只是侥幸」那种因果猜测**，
+只记可观察的事实：同一检测器当时只命中了 `ConfigRobustnessTest` 一处。）
 修法：把 VM 构造**提到 composable 之外**（先 `val viewModel = ...` 再进 `setContent`），
 这本来就是更对的做法。本地 `./gradlew :app:lintDebug` 复跑 BUILD SUCCESSFUL 后提交。
 **教训：CI 的 lint 作业是我本地不会跑的那一门，本地全绿不等于 CI 全绿**——
 本轮四个作业里只有 lint 红，正是这个原因。
+
+
+### G327c — **把 lint 纳入 pre-push 闸门**；并更正我上一轮写的一句未验证归因
+
+- **动机（一次真实的代价）**：G325c 推送后，CI 四个作业里**只有 `lintDebug` 红**
+  （`ConfigRobustnessTest.kt:69: Constructing a view model in a composable
+  [ViewModelConstructorInComposable]`）。我本地一向只跑
+  `testDebugUnitTest` / `server test` / `connectedDebugAndroidTest`——
+  **`lintDebug` 与 `docker compose config` 是我从不本地跑的两门**，
+  于是整整一轮 CI（约 20 分钟）才暴露，然后修完再等一轮。
+  这个 hook 的职责本来就是「让 CI 会拒的东西推不出去」，lint 正是我反复漏的那门。
+- **改动**：`.githooks/pre-push` 在 `--check-fast` 之后追加第二步
+  `./gradlew :app:lintDebug`，失败则拒推并把日志指到 `/tmp/pre-push-lint.log`。
+  同时拒推信息里写明可用 `--no-verify` 绕过及其代价。
+- **实测代价（比预期好）**：**冷缓存约 3 分钟，热缓存约 1 秒**
+  （Gradle 增量判定；实测热缓存下 `lintDebug` 847ms 完成，分析任务 UP-TO-DATE）。
+  所以这道关几乎不改变日常推送手感，却挡住了那类「只在 CI 红」的失败。
+- **双向验证（都做了，不是只跑一遍脚本）**：
+  1. **干净状态放行**：hook exit 0（§0 一致 + lint 通过）；
+  2. **负控制拒推**：把 VM 构造放回 composable lambda 内（即复现 G325c 那个错），
+     hook **exit 1**，且 `/tmp/pre-push-lint.log` 里红的正是
+     `ConfigRobustnessTest.kt:78: Constructing a view model in a composable`——
+     与 CI 报的是同一检测器。还原后 `diff` 与 HEAD 逐字节相同，再跑 hook exit 0。
+- **顺带更正一句未验证归因**：G325c 补记里我写「早前两个测试也是同一个反模式……
+  **说明那两处也只是侥幸**」。本轮核实发现这是**因果猜测**：
+  实测修复后 `lint-results-debug.xml` 的 androidTest 类目零问题，
+  但那是**修复后**的状态，不能反推当时为何没报。
+  已把该句改为只陈述可观察事实：「同一检测器当时只命中了
+  `ConfigRobustnessTest` 一处；早前两个文件为何没被命中，**原因未查明**」。
+  **这又是本会话反复出现的那类错误——用猜测填补证据空缺**，
+  而且是在我刚写过「不要用猜测替代证据」的同一份台账里犯的。
+- **文档同步**：`scripts/README.md` §5 与 `DIRECTION.md` §4.5 的 hook 小节
+  都改为「两道关」，并写清 lint 这一步的时间代价与 `--no-verify` 的绕过代价。
+- **仍未本地覆盖的 CI 门**：`docker compose config`（Docker Compose Config 作业）。
+  它很快（CI 里约 7–13 秒）且几乎不会因我的改动而红，本轮未纳入；
+  若将来它也红一次，按同样思路加进 hook 即可。

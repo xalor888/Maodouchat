@@ -83,8 +83,20 @@
 git config core.hooksPath .githooks
 ```
 
-之后每次 `git push` 前它会自动跑（约 1 秒）。被拒时照它打印的做：
+之后每次 `git push` 前它会自动跑。被拒时照它打印的做：
 `python3 scripts/sync-direction-numbers.py --write-fast` 然后 amend 再推。
 （用 `--write-fast` 而非 `--write`：上次若是过滤跑的测试，`--write` 会被
 用例数下限守卫整体拒绝，一行都写不了。）
+
+### G327c 起它还会跑 `:app:lintDebug`（第二步，`--check-fast` 之后）
+
+为什么加：G325c 推送后 CI 四个作业里**只有 `lintDebug` 红**
+（`ConfigRobustnessTest.kt:69: Constructing a view model in a composable`）。
+本地一向只跑 `testDebugUnitTest`/`server test`/`connectedDebugAndroidTest`，
+**lint 是从不本地跑的那一门**，于是整整一轮 CI（约 20 分钟）才暴露。
+这个 hook 的职责就是「让 CI 会拒的东西推不出去」，lint 正是反复漏的一门。
+
+代价：**冷缓存约 3 分钟，热缓存约 1 秒**（Gradle 增量判定，实测）。
+这是有意的交换——3 分钟本地 vs 20 分钟 CI 红 + 重推。
+确需跳过时 `git push --no-verify`，但代价自负：lint 若真有问题仍是 CI 红一轮。
 
