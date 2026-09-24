@@ -5,6 +5,7 @@ import com.maodouchat.network.ApiService
 import org.json.JSONObject
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import com.maodouchat.data.repository.PublicServerInfoRepository
 
 /**
  * 服务端下发的功能开关批量解析（G142 从 `ChatListScreen.kt` 的 `LaunchedEffect(Unit)` 拆出，
@@ -245,7 +246,8 @@ internal fun applyServerFeatureFlags(
  */
 internal suspend fun fetchPublicStatusBanner(context: android.content.Context): String? =
     withContext(Dispatchers.IO) {
-        val raw = ApiService.getPublicStatus().getOrNull().orEmpty()
+        // G328c：传输层调用移到 data 层（PublicServerInfoRepository），ui 只依赖 repository。
+        val raw = PublicServerInfoRepository().publicStatus().orEmpty()
         if (raw.isBlank()) return@withContext null
         val o = runCatching { JSONObject(raw) }.getOrNull() ?: return@withContext null
         // optString 缺失键返回字面 "null"（非 blank）——统一用 safeOpt 排除，避免横幅显示 "null"/写入垃圾 key

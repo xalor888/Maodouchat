@@ -52,6 +52,7 @@ import com.maodouchat.update.AppUpdateDownloadScheduler
 import com.maodouchat.update.AppUpdatePolicy
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import com.maodouchat.data.repository.PublicServerInfoRepository
 
 /**
  * 关于 / 版本页 — 展示应用图标、名称、版本、版权与安全摘要。
@@ -192,7 +193,8 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                     downloadSha256 = null
                     downloadVersionCode = 0
                     scope.launch {
-                        val result = ApiService.getPublicUpdates()
+                        // G328c：同上，走 data 层的 PublicServerInfoRepository。
+                        val result = PublicServerInfoRepository().publicUpdates(com.maodouchat.network.ApiConfig.BASE_URL)
                         checkingUpdate = false
                         result.fold(
                             onSuccess = { remote ->
