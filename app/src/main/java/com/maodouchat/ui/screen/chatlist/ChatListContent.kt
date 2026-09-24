@@ -41,7 +41,7 @@ import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.PullToRefreshLayout
 import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.SwipeableChatItem
-import com.maodouchat.ui.navigation.MainTab
+import com.maodouchat.navigation.MainTab
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue

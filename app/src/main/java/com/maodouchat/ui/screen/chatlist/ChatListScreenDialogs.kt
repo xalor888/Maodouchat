@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatlist
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
-import com.maodouchat.ui.navigation.MainTab
+import com.maodouchat.navigation.MainTab
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size

@@ -9,6 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.conversation.ReadReceiptSource
 
 internal class ChatReadReceiptCoordinator(
     private val scope: CoroutineScope,

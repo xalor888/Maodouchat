@@ -4,8 +4,8 @@ import com.maodouchat.notification.SocialNotificationService
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.notification.CallNotificationService
-import com.maodouchat.ui.navigation.AppLinkDestination
-import com.maodouchat.ui.navigation.AppLinkRouter
+import com.maodouchat.navigation.AppLinkDestination
+import com.maodouchat.navigation.AppLinkRouter
 import android.annotation.SuppressLint
 import android.app.Application
 import androidx.compose.animation.core.spring
@@ -99,6 +99,7 @@ import com.maodouchat.ui.theme.UnreadRed
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.notification.NotificationCenterType
 
 class NotificationCenterViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as MaodouchatApp
@@ -686,17 +687,6 @@ internal fun iconForType(item: NotificationCenterItem): Pair<ImageVector, Color>
     }
 }
 
-object NotificationCenterType {
-    const val MESSAGE = "MESSAGE"
-    const val MISSED_CALL = "MISSED_CALL"
-    const val AI_TASK = "AI_TASK"
-    const val POST_INTERACTION = "POST_INTERACTION"
-    const val GROUP_INVITE = "GROUP_INVITE"
-    const val SECURITY = "SECURITY"
-    const val REPORT = "REPORT"
-    const val MODERATION = "MODERATION"
-    const val FRIEND_REQUEST = "FRIEND_REQUEST"
-}
 
 private fun List<NotificationCenterItem>.groupByDay(): List<Pair<StringBucket, List<NotificationCenterItem>>> {
     val now = System.currentTimeMillis()

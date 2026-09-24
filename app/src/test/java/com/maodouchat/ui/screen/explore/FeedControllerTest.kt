@@ -6,6 +6,11 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.explore.repository.FeedController
+import com.maodouchat.explore.repository.FeedRepository
+import com.maodouchat.explore.repository.FeedSession
+import com.maodouchat.explore.repository.FeedSessionChangedException
 
 class FeedControllerTest {
     private val post = PostDto(

@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.maodouchat.ui.screen.login.LoginScreen
 import kotlinx.coroutines.launch
+import com.maodouchat.navigation.Routes
 
 /**
  * 登录/主壳目的地（P08：自 `NavGraph.kt` 迁出的第七个 feature 簇）。

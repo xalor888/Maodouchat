@@ -79,6 +79,7 @@ import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.maodouchat.explore.policy.ExploreFeedPolicy
 
 /**
  * 「发现」页的帖子卡片与评论对话框（G122 从 `ExploreScreen.kt` 拆出，原 555 行）。

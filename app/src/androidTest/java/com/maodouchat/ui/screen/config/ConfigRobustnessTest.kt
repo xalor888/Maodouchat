@@ -13,16 +13,18 @@ import com.maodouchat.R
 import com.maodouchat.ui.screen.chatlist.ChatListScreen
 import com.maodouchat.ui.screen.chatlist.ChatListViewModel
 import com.maodouchat.ui.screen.settings.SecurityCoordinator
-import com.maodouchat.ui.screen.settings.SettingsPrivacy
-import com.maodouchat.ui.screen.settings.SettingsPrivacyPatch
-import com.maodouchat.ui.screen.settings.SettingsProfile
-import com.maodouchat.ui.screen.settings.SettingsRepository
+import com.maodouchat.settings.repository.SettingsPrivacy
+import com.maodouchat.settings.repository.SettingsPrivacyPatch
+import com.maodouchat.settings.repository.SettingsProfile
+import com.maodouchat.settings.repository.SettingsRepository
 import com.maodouchat.ui.screen.settings.SettingsScreen
-import com.maodouchat.ui.screen.settings.SettingsSession
+import com.maodouchat.settings.repository.SettingsSession
 import com.maodouchat.ui.screen.settings.SettingsViewModel
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.maodouchat.settings.repository.SecurityPreferences
+import com.maodouchat.settings.repository.SecurityPreferencesPatch
 
 /**
  * G325c：**配置健壮性探针**——屏幕在 RTL 与大字体下是否仍能渲染。

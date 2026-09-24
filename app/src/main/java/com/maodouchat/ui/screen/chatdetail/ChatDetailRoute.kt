@@ -184,7 +184,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
@@ -2665,7 +2664,7 @@ internal fun ChatDetailRoute(
                                     if (context !is android.app.Activity) fileChooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                     runCatching { context.startActivity(fileChooser) }
                                 } else {
-                                    val shareText = com.maodouchat.ui.component.ChatMarkdown.toPlainText(contentUri).ifBlank {
+                                    val shareText = com.maodouchat.messaging.ChatMarkdown.toPlainText(contentUri).ifBlank {
                                         when (msg.type) {
                                             MessageType.IMAGE -> previewImageLabel
                                             MessageType.GIF -> previewGifLabel
@@ -2695,7 +2694,7 @@ internal fun ChatDetailRoute(
                                     clipboard.setPrimaryClip(
                                         android.content.ClipData.newPlainText(
                                             chatClipboardMessageLabel,
-                                            com.maodouchat.ui.component.ChatMarkdown.toPlainText(msg.parsedContent())
+                                            com.maodouchat.messaging.ChatMarkdown.toPlainText(msg.parsedContent())
                                         )
                                     )
                                     Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
@@ -2708,7 +2707,7 @@ internal fun ChatDetailRoute(
                         if (msg.parsedContent().contains("[contactUser:")) {
                             TextButton(
                                 onClick = {
-                                    val clean = com.maodouchat.ui.component.ChatMarkdown.stripContactCardMarker(msg.parsedContent()).trim()
+                                    val clean = com.maodouchat.messaging.ChatMarkdown.stripContactCardMarker(msg.parsedContent()).trim()
                                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, clean))
                                     Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()

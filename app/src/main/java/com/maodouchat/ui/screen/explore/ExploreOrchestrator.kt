@@ -17,7 +17,6 @@ import com.maodouchat.explore.repository.UploadStatus
 import com.maodouchat.explore.usecase.CommentPostUseCase
 import com.maodouchat.explore.usecase.LoadFeedUseCase
 import com.maodouchat.explore.usecase.PublishPostUseCase
-import com.maodouchat.explore.usecase.PublishPostValidation
 import com.maodouchat.explore.usecase.ResolveNearbyUseCase
 import com.maodouchat.explore.usecase.ToggleLikeUseCase
 import com.maodouchat.network.ApiService
@@ -44,6 +43,11 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
+import com.maodouchat.explore.policy.ExploreDraftPolicy
+import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.explore.repository.AndroidFeedRepository
+import com.maodouchat.explore.repository.FeedController
+import com.maodouchat.explore.policy.ExplorePaging
 
 class ExploreOrchestrator(
     private val application: Application,
@@ -183,7 +187,7 @@ class ExploreOrchestrator(
                             it.copy(
                                 posts = posts,
                                 isLoading = false,
-                                hasMore = posts.size >= FEED_PAGE_SIZE,
+                                hasMore = posts.size >= ExplorePaging.FEED_PAGE_SIZE,
                                 errorMessage = null,
                                 feedErrorMessage = null
                             )
@@ -231,7 +235,7 @@ class ExploreOrchestrator(
                                 current.copy(
                                     posts = combined,
                                     isLoadingMore = false,
-                                    hasMore = newPosts.size >= FEED_PAGE_SIZE
+                                    hasMore = newPosts.size >= ExplorePaging.FEED_PAGE_SIZE
                                 )
                             }
                         },
@@ -324,7 +328,7 @@ class ExploreOrchestrator(
                                     state.copy(
                                         comments = comments,
                                         isCommentsLoading = false,
-                                        hasMoreComments = comments.size >= COMMENTS_PAGE_SIZE
+                                        hasMoreComments = comments.size >= ExplorePaging.COMMENTS_PAGE_SIZE
                                     )
                                 } else state
                             }
@@ -453,7 +457,7 @@ class ExploreOrchestrator(
                     commentPostUseCase.loadComments(
                         token = token,
                         postId = postId,
-                        limit = COMMENTS_PAGE_SIZE,
+                        limit = ExplorePaging.COMMENTS_PAGE_SIZE,
                         before = oldest.createdAt,
                         beforeId = oldest.id
                     ).fold(
@@ -463,7 +467,7 @@ class ExploreOrchestrator(
                                     if (current.selectedPostId != postId) current else current.copy(
                                         comments = (older + current.comments).distinctBy { it.id },
                                         isLoadingOlderComments = false,
-                                        hasMoreComments = older.size >= COMMENTS_PAGE_SIZE
+                                        hasMoreComments = older.size >= ExplorePaging.COMMENTS_PAGE_SIZE
                                     )
                                 }
                             }
@@ -1030,10 +1034,5 @@ class ExploreOrchestrator(
             }
         }
         uploadQueue.clear()
-    }
-
-    private companion object {
-        const val COMMENTS_PAGE_SIZE = 50
-        const val FEED_PAGE_SIZE = 40
     }
 }

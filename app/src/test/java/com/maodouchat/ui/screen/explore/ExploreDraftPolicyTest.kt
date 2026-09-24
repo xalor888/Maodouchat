@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import com.maodouchat.explore.policy.ExploreDraftPolicy
 
 class ExploreDraftPolicyTest {
     @Test

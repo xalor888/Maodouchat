@@ -19,6 +19,7 @@ import com.maodouchat.ui.screen.chatdetail.GroupEditScreen
 import com.maodouchat.ui.screen.chatdetail.GroupInviteQrScreen
 import com.maodouchat.ui.screen.chatdetail.MediaCenterScreen
 import com.maodouchat.ui.screen.chatdetail.StarredMessagesScreen
+import com.maodouchat.navigation.Routes
 
 /**
  * 聊天域目的地（P08：自 `NavGraph.kt` 迁出的第六个 feature 簇，最大的一块）。

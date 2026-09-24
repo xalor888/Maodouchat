@@ -3,7 +3,7 @@ package com.maodouchat.group
 import com.maodouchat.data.model.User
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.GroupMemberDto
-import com.maodouchat.ui.screen.chatdetail.GroupMutationCommit
+import com.maodouchat.group.GroupMutationCommit
 
 /**
  * 客户端群生命周期服务（U06）。

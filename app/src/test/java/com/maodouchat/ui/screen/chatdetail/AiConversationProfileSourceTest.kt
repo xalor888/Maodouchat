@@ -8,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import com.maodouchat.ai.AiConversationProfileSource
 
 /**
  * G73 契约测试：`AiConversationProfileSource` 端口的行为约定。

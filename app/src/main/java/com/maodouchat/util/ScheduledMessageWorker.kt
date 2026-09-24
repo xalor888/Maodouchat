@@ -127,7 +127,7 @@ class ScheduledMessageWorker(
         MaodouchatApp.emitMessageSent(
             item.chatId,
             item.text.take(200),
-            if (com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(item.text)) "MARKDOWN" else "TEXT",
+            if (com.maodouchat.messaging.ChatMarkdown.looksLikeMarkdown(item.text)) "MARKDOWN" else "TEXT",
         )
         Result.success()
     }

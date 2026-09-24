@@ -6,7 +6,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -20,44 +19,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ripple
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.maodouchat.network.TokenManager
-import com.maodouchat.network.ApiService
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,15 +42,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import kotlin.math.roundToInt
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
@@ -83,35 +56,24 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.R
-import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy
 import com.maodouchat.util.LinkPreviewPolicy
 import com.maodouchat.util.LinkPreviewPreferences
 import com.maodouchat.util.LinkPreviewRepository
-import com.maodouchat.util.MediaCache
 import com.maodouchat.ui.theme.Error
-import androidx.compose.ui.graphics.Brush
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.rememberMotionPulse
 import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.OnlineGreen
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
-import com.maodouchat.ui.theme.TextWhite
-import com.maodouchat.ui.theme.TextWhiteSecondary
-import com.maodouchat.ui.theme.UnreadRed
-import java.util.Locale
+import com.maodouchat.navigation.AppLinkOpener
+import com.maodouchat.messaging.ChatMarkdown
 
 // ─── resolveBubbleShape ───
 @Composable
@@ -535,7 +497,7 @@ internal fun TextBubble(
                                 ).show()
                                 return@MarkdownMessageContent
                             }
-                            com.maodouchat.ui.navigation.AppLinkOpener.openUserFacingUrl(linkContext, url)
+                            com.maodouchat.navigation.AppLinkOpener.openUserFacingUrl(linkContext, url)
                         }
                     )
                 } else {
@@ -569,7 +531,7 @@ internal fun TextBubble(
                                 ).show()
                                 return@RichTextContent
                             }
-                            com.maodouchat.ui.navigation.AppLinkOpener.openUserFacingUrl(linkContext, url)
+                            com.maodouchat.navigation.AppLinkOpener.openUserFacingUrl(linkContext, url)
                         }
                     )
                 }
@@ -800,7 +762,7 @@ internal fun LinkPreviewSlot(
                 ).show()
                 return@LinkPreviewCard
             }
-            com.maodouchat.ui.navigation.AppLinkOpener.openUserFacingUrl(context, card.url)
+            com.maodouchat.navigation.AppLinkOpener.openUserFacingUrl(context, card.url)
         }
     )
 }
@@ -912,7 +874,7 @@ internal fun RichTextContent(
         }
     }
     // 1.11：先剥离名片标记，接收端不会看到裸 [contactUser:...]（1.18 复用 ChatMarkdown 统一实现）
-    val cleanText = com.maodouchat.ui.component.ChatMarkdown.stripContactCardMarker(text)
+    val cleanText = com.maodouchat.messaging.ChatMarkdown.stripContactCardMarker(text)
     // 1.17：名片消息整体渲染为可点击链接（点击打开该用户资料）
     val cardUserId = remember(text) { CONTACT_CARD_USER_RE.find(text)?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() } }
     if (cardUserId != null) {

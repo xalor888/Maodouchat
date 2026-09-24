@@ -33,47 +33,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-typealias OwnedBotUi = GroupOwnedBotUi
-typealias GroupMemberUi = com.maodouchat.group.GroupMemberUi
-
-data class GroupDetailUiState(
-    val groupName: String = "",
-    val groupAnnouncement: String = "",
-    val groupAvatar: String? = null,
-    val memberRevision: Long = 0,
-    val members: List<GroupMemberUi> = emptyList(),
-    val candidates: List<User> = emptyList(),
-    val senderKeyStatus: SenderKeyDistributionStatusDto? = null,
-    /** 8.48：本机是否实际持有当前 epoch 的 Sender Key（区别于服务端分发记录）。 */
-    val localHasSenderKey: Boolean? = null,
-    val groupInvitePayload: String = "",
-    val inviteExpiresAt: Long = 0,
-    val inviteMaxUses: Int = 0,
-    val inviteUsedCount: Int = 0,
-    val inviteRemainingUses: Int = 0,
-    val auditLogs: List<GroupAuditLogDto> = emptyList(),
-    val isLoadingMoreAudit: Boolean = false,
-    val hasMoreAudit: Boolean = false,
-    val currentUserId: String = "",
-    val myRole: String = "MEMBER",
-    val myNickname: String = "",
-    val isLoading: Boolean = true,
-    val isUpdating: Boolean = false,
-    val isLoadingInvite: Boolean = false,
-    val isUploadingAvatar: Boolean = false,
-    val message: String? = null,
-    /** Structured feedback for transfer/mute/invite/avatar failures — enables retry without swallowing errors. */
-    val feedback: GroupMutationFeedback? = null,
-    val isSecretChat: Boolean = false,
-    /** 广播频道（单向一对多）：非 OWNER 订阅者只读。 */
-    val isChannel: Boolean = false,
-    val ownedBots: List<OwnedBotUi> = emptyList(),
-    val isInvitingBot: Boolean = false,
-) {
-    val canManageGroup: Boolean get() = myRole == "OWNER" || myRole == "ADMIN"
-    val isOwner: Boolean get() = myRole == "OWNER"
-}
+import com.maodouchat.group.GroupLifecycleCoordinator
+import com.maodouchat.group.GroupMutationCommit
+import com.maodouchat.group.GroupDetailUiState
+import com.maodouchat.group.GroupMutationAction
+import com.maodouchat.group.GroupMutationFeedback
+import com.maodouchat.group.GroupMutationFeedbackKind
+import com.maodouchat.group.GroupMutationFeedbackPolicy
 
 class GroupDetailViewModel(
     application: Application,

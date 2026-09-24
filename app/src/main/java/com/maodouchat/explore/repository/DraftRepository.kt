@@ -1,7 +1,7 @@
 package com.maodouchat.explore.repository
 
 import android.content.SharedPreferences
-import com.maodouchat.ui.screen.explore.ExploreDraftPolicy
+import com.maodouchat.explore.policy.ExploreDraftPolicy
 
 data class ExploreDraft(
     val composerText: String = "",

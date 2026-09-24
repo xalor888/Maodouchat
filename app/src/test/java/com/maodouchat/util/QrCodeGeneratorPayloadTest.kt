@@ -7,6 +7,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.maodouchat.navigation.AppLinkRouter
 
 /**
  * G213b：`QrCodeGenerator` 的载荷编解码，重点是**安全码二维码**。

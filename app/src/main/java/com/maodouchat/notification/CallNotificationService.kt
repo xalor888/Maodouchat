@@ -10,7 +10,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.ui.screen.chatlist.NotificationCenterType
+import com.maodouchat.notification.NotificationCenterType
 
 
 /**

@@ -12,8 +12,8 @@ import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.network.TokenManager
-import com.maodouchat.ui.component.ChatMarkdown
-import com.maodouchat.ui.screen.chatlist.NotificationCenterType
+import com.maodouchat.messaging.ChatMarkdown
+import com.maodouchat.notification.NotificationCenterType
 
 import com.maodouchat.util.RuntimeFlags
 

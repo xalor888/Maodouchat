@@ -138,7 +138,7 @@ import com.maodouchat.ui.component.PullToRefreshLayout
 import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.SwipeableChatItem
 import com.maodouchat.ui.component.ShimmerChatRow
-import com.maodouchat.ui.navigation.MainTab
+import com.maodouchat.navigation.MainTab
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.util.ChatFolderPolicy
 import com.maodouchat.util.HapticGate

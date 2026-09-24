@@ -31,13 +31,8 @@ import androidx.compose.ui.unit.sp
  */
 
 /** Pre-compiled, hot-path Markdown matchers — avoid recompiling Regex on every message render. */
-internal val MD_LINK_REGEX = Regex("""\[[^\]]+\]\([^\)]+\)""")
-
-internal val MD_IMAGE_REGEX = Regex("""!\[[^\]]*\]\([^\)]+\)""")
 
 internal val MD_ORDERED_LIST_REGEX = Regex("""^\d+\.\s+""")
-
-internal val MD_ORDERED_LIST_ML_REGEX = Regex("""^\d+\.\s""", RegexOption.MULTILINE)
 
 internal fun parseMarkdownBlocks(src: String): List<MdBlock> {
     val out = mutableListOf<MdBlock>()

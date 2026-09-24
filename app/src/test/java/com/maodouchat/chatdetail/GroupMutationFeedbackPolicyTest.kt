@@ -2,9 +2,9 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.ui.screen.chatdetail.GroupMutationAction
-import com.maodouchat.ui.screen.chatdetail.GroupMutationFeedbackKind
-import com.maodouchat.ui.screen.chatdetail.GroupMutationFeedbackPolicy
+import com.maodouchat.group.GroupMutationAction
+import com.maodouchat.group.GroupMutationFeedbackKind
+import com.maodouchat.group.GroupMutationFeedbackPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

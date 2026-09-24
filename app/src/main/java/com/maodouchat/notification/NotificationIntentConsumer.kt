@@ -6,11 +6,11 @@ import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.network.TokenManager
 import com.maodouchat.telecom.TelecomHelper
-import com.maodouchat.ui.navigation.AppLinkAuthGate
-import com.maodouchat.ui.navigation.AppLinkDestination
-import com.maodouchat.ui.navigation.AppLinkParseResult
-import com.maodouchat.ui.navigation.AppLinkRouter
-import com.maodouchat.ui.navigation.NotificationTarget
+import com.maodouchat.navigation.AppLinkAuthGate
+import com.maodouchat.navigation.AppLinkDestination
+import com.maodouchat.navigation.AppLinkParseResult
+import com.maodouchat.navigation.AppLinkRouter
+import com.maodouchat.navigation.NotificationTarget
 
 /**
  * 系统入口 Intent 消费（P08：自 `MainActivity` 逐字迁出）。

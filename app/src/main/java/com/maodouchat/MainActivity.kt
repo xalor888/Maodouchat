@@ -6,7 +6,7 @@ import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.notification.NotificationIntentConsumer
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.notification.CallNotificationService
-import com.maodouchat.ui.navigation.NotificationTarget
+import com.maodouchat.navigation.NotificationTarget
 import com.maodouchat.util.RuntimeFlags
 import android.Manifest
 import android.content.Intent
@@ -32,10 +32,9 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
-import com.maodouchat.ui.navigation.MaodouchatNavGraph
-import com.maodouchat.ui.navigation.NotificationTargetReplayPolicy
-import com.maodouchat.ui.navigation.Routes
-import com.maodouchat.ui.navigation.toDestination
+import com.maodouchat.navigation.NotificationTargetReplayPolicy
+import com.maodouchat.navigation.Routes
+import com.maodouchat.navigation.toDestination
 import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.call.CallSystemIntegration
@@ -59,6 +58,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.navigation.AppLinkDestination
+import com.maodouchat.ui.navigation.MaodouchatNavGraph
 
 class MainActivity : FragmentActivity() {
 

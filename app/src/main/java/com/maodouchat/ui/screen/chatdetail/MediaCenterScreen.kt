@@ -63,7 +63,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import com.maodouchat.ui.component.SearchHighlightSurface
 import com.maodouchat.ui.component.SearchHighlightAccent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.getValue
@@ -102,7 +101,6 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache
-import com.maodouchat.util.MediaViewerPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -111,6 +109,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
+import com.maodouchat.navigation.AppLinkOpener
 
 data class MediaCenterUiState(
     val items: List<MediaCenterItem> = emptyList(),
@@ -1035,7 +1034,7 @@ private fun MediaCenterCategory.labelResource(): Int = when (this) {
 }
 
 private fun openWebLink(context: Context, url: String) {
-    com.maodouchat.ui.navigation.AppLinkOpener.openUserFacingUrl(context, url)
+    com.maodouchat.navigation.AppLinkOpener.openUserFacingUrl(context, url)
 }
 
 private fun openLocalContent(context: Context, rawUri: String, mimeType: String?) {

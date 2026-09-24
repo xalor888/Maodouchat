@@ -1,7 +1,7 @@
 package com.maodouchat.data.local
 
 import com.maodouchat.data.repository.AiProfileRepository
-import com.maodouchat.ui.screen.chatdetail.AiChatClassificationSource
+import com.maodouchat.ai.AiChatClassificationSource
 
 /** `AiChatClassificationSource` 的装配实现（G73）；端口在 ui，实现在 data。 */
 internal class RoomAiChatClassificationSource(

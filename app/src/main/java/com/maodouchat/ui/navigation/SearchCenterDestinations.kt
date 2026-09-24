@@ -5,6 +5,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.maodouchat.ui.screen.chatlist.GlobalSearchScreen
 import com.maodouchat.ui.screen.chatlist.NotificationCenterScreen
+import com.maodouchat.navigation.AppLinkDestination
+import com.maodouchat.navigation.AppLinkRouter
+import com.maodouchat.navigation.Routes
 
 /**
  * 搜索/通知中心目的地（P08：自 `NavGraph.kt` 迁出的第五个 feature 簇）。

@@ -41,7 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.ui.navigation.MainTab
+import com.maodouchat.navigation.MainTab
 import com.maodouchat.util.ChatFolderPolicy
 import androidx.compose.runtime.Composable
 

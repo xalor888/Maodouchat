@@ -60,6 +60,7 @@ import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.maodouchat.explore.policy.ExploreFeedPolicy
 
 /**
  * 「发现」页的发布编辑器组件（G123 从 `ExploreScreen.kt` 拆出，原 461 行）。

@@ -2,7 +2,7 @@ package com.maodouchat.data.local
 
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
-import com.maodouchat.ui.screen.chatdetail.ReadReceiptSource
+import com.maodouchat.conversation.ReadReceiptSource
 import kotlinx.coroutines.flow.Flow
 
 /**

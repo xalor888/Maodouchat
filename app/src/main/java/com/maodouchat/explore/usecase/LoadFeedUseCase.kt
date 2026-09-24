@@ -4,9 +4,9 @@ import com.maodouchat.network.PostDto
 import com.maodouchat.network.UserDto
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient
-import com.maodouchat.ui.screen.explore.ExploreFeedPolicy
-import com.maodouchat.ui.screen.explore.FeedRepository
-import com.maodouchat.ui.screen.explore.FeedSession
+import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.explore.repository.FeedRepository
+import com.maodouchat.explore.repository.FeedSession
 
 class LoadFeedUseCase(
     private val feedRepository: FeedRepository,

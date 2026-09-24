@@ -36,9 +36,6 @@ dependencies {
     testImplementation(project(":core:session"))
     testImplementation(project(":core:serialization"))
     testImplementation(project(":domain:messaging"))
-    testImplementation(project(":domain:conversation"))
-    testImplementation(project(":domain:groups"))
-    testImplementation(project(":domain:calls"))
 }
 
 tasks.test {

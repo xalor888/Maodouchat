@@ -100,6 +100,8 @@ import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import com.maodouchat.update.OfficialApkInstaller
 import com.maodouchat.consumeIfStale
+import com.maodouchat.navigation.MainTab
+import com.maodouchat.navigation.Routes
 
 
 /**

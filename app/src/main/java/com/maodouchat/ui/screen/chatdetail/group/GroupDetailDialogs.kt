@@ -26,13 +26,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.maodouchat.R
 import com.maodouchat.ui.component.ZoomableAsyncImage
-import com.maodouchat.ui.screen.chatdetail.GroupDetailUiState
 import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
 import com.maodouchat.group.GroupMemberUi
 import com.maodouchat.ui.screen.chatdetail.GroupMutePolicy
-import com.maodouchat.ui.screen.chatdetail.GroupMutationFeedbackKind
-import com.maodouchat.ui.screen.chatdetail.OwnedBotUi
+import com.maodouchat.group.GroupMutationFeedbackKind
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.group.GroupDetailUiState
+import com.maodouchat.group.OwnedBotUi
 
 @Composable
 fun GroupAvatarPreview(avatarUrl: String, groupName: String, onDismiss: () -> Unit) {

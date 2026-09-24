@@ -1,7 +1,7 @@
 package com.maodouchat.explore
 
 import com.maodouchat.ui.screen.explore.VisibilityOption
-import com.maodouchat.ui.screen.explore.ExploreDraftPolicy
+import com.maodouchat.explore.policy.ExploreDraftPolicy
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

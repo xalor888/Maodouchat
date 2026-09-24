@@ -95,6 +95,7 @@ import com.maodouchat.network.PublicUpdatesDto
 import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import com.maodouchat.update.OfficialApkInstaller
+import com.maodouchat.navigation.Routes
 
 
 @Composable

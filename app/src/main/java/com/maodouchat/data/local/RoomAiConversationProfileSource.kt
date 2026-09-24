@@ -1,7 +1,7 @@
 package com.maodouchat.data.local
 
 import com.maodouchat.ai.AiConversationProfile
-import com.maodouchat.ui.screen.chatdetail.AiConversationProfileSource
+import com.maodouchat.ai.AiConversationProfileSource
 
 /**
  * `AiConversationProfileSource` 的装配实现（G73）。

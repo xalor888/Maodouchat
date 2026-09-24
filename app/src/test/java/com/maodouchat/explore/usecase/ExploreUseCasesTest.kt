@@ -19,9 +19,9 @@ import com.maodouchat.network.ReportResponse
 import com.maodouchat.network.SetUsernameResponse
 import com.maodouchat.network.UserDto
 import com.maodouchat.network.api.SocialApi
-import com.maodouchat.ui.screen.explore.ExploreFeedPolicy
-import com.maodouchat.ui.screen.explore.FeedRepository
-import com.maodouchat.ui.screen.explore.FeedSession
+import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.explore.repository.FeedRepository
+import com.maodouchat.explore.repository.FeedSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest

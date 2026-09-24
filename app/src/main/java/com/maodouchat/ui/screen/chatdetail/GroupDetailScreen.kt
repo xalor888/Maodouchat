@@ -83,6 +83,7 @@ import com.maodouchat.ui.screen.chatdetail.group.TransferOwnershipDialog
 import com.maodouchat.ui.screen.chatdetail.group.groupAuditActionSearchTokens
 import com.maodouchat.ui.screen.chatdetail.group.roleRank
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.group.GroupMemberUi
 
 private const val AUDIT_PAGE_SIZE = 80
 private const val CANDIDATE_PAGE_SIZE = 32

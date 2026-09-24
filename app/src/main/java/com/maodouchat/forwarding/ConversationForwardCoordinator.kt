@@ -95,7 +95,7 @@ class ConversationForwardCoordinator(
                 is ConversationCommandOutcome.Rejected -> error("forward_note_rejected:${staged.reason}")
             }
         }
-        val markdown = com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(normalized)
+        val markdown = com.maodouchat.messaging.ChatMarkdown.looksLikeMarkdown(normalized)
         val type = if (markdown) MessageType.MARKDOWN else MessageType.TEXT
         val message = Message(
             id = messageId(),

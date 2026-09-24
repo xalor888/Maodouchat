@@ -2,7 +2,7 @@ package com.maodouchat.explore
 
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.UserDto
-import com.maodouchat.ui.screen.explore.ExploreFeedPolicy
+import com.maodouchat.explore.policy.ExploreFeedPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

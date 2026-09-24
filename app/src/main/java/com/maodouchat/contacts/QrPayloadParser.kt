@@ -87,7 +87,7 @@ object QrPayloadParser {
     }
 
     private fun parseChatInvitePayload(rawToken: String): QrParsedPayload {
-        val token = com.maodouchat.ui.navigation.AppLinkRouter.sanitizeChatInviteToken(rawToken)
+        val token = com.maodouchat.navigation.AppLinkRouter.sanitizeChatInviteToken(rawToken)
             ?: return QrParsedPayload.Invalid("Malformed chat invite token in payload")
         return QrParsedPayload.ChatInvite(token)
     }

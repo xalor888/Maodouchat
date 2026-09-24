@@ -14,7 +14,7 @@ import org.gradle.api.artifacts.ProjectDependency
 // 任何反向/越层依赖在 CI 直接失败。对应清单 A01「为禁止依赖建立静态检查」。
 tasks.register("checkArchitecture") {
     group = "verification"
-    description = "Enforce one-way module dependency rules"
+    description = "Enforce one-way module dependency rules (core <- domain <- app)"
 
     fun layer(path: String): String = when {
         path == ":app" -> "app"
@@ -52,6 +52,9 @@ tasks.register("checkArchitecture") {
         if (violations.isNotEmpty()) {
             throw GradleException("架构违规 ${violations.size} 处:\n" + violations.joinToString("\n"))
         }
-        println("架构检查通过：模块依赖单向无环（core <- domain <- feature <- app）。")
+        println(
+            "架构检查通过：模块依赖单向无环（core <- domain <- app；feature 层规则保留，" +
+                "但当前没有 feature 模块——空壳已在 G328c 删除）。"
+        )
     }
 }

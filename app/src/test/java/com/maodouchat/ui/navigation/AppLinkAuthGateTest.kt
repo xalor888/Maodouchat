@@ -3,6 +3,8 @@ package com.maodouchat.ui.navigation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import com.maodouchat.navigation.AppLinkAuthGate
+import com.maodouchat.navigation.AppLinkDestination
 
 class AppLinkAuthGateTest {
 

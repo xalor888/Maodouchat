@@ -35,10 +35,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
@@ -81,6 +79,7 @@ import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.maodouchat.explore.policy.ExploreFeedPolicy
 
 /**
  * 「动态详情」页（G115 从 `ExploreSubScreens.kt` 拆出，原 659 行）。

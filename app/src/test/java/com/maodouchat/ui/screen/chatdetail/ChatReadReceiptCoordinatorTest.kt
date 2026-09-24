@@ -24,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import com.maodouchat.conversation.ReadReceiptSource
 
 /**
  * G64 安全网：`ChatReadReceiptCoordinator` 的行为契约。

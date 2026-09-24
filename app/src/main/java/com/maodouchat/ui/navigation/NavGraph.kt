@@ -72,7 +72,13 @@ import com.maodouchat.update.AppUpdateDownloadScheduler
 import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import androidx.work.WorkInfo
-import kotlinx.coroutines.flow.collectLatest
+import com.maodouchat.navigation.AppLinkRouter
+import com.maodouchat.navigation.MainTab
+import com.maodouchat.navigation.Routes
+import com.maodouchat.navigation.callDestinations
+import com.maodouchat.navigation.exploreDestinations
+import com.maodouchat.navigation.groupPlayDestinations
+import com.maodouchat.navigation.settingsDestinations
 
 /**
  * 导航图（注册装配；路由定义见 `NavRoutes.kt`，深链决策见 `AppLinkRouter`）。

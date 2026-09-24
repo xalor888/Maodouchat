@@ -123,7 +123,7 @@ class ConversationCommandFacade(
         }
         val normalized = text.trim()
         if (normalized.isBlank()) return ConversationCommandOutcome.Rejected(ConversationCommandRejection.EMPTY_TEXT)
-        val type = if (com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(normalized)) {
+        val type = if (com.maodouchat.messaging.ChatMarkdown.looksLikeMarkdown(normalized)) {
             MessageType.MARKDOWN
         } else {
             MessageType.TEXT
@@ -196,7 +196,7 @@ class ConversationCommandFacade(
     private fun mapContentPayload(content: ContentPayload): Triple<String, MessageType, MessageMeta> = when (content) {
         is ContentPayload.Text -> {
             val trimmed = content.text.trim()
-            val isMd = com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(trimmed)
+            val isMd = com.maodouchat.messaging.ChatMarkdown.looksLikeMarkdown(trimmed)
             val msgType = if (isMd) MessageType.MARKDOWN else MessageType.TEXT
             val meta = MessageMeta(
                 mentions = content.mentions.map { it.userId },
@@ -333,7 +333,7 @@ class ConversationCommandFacade(
     ): ConversationCommandOutcome {
         val normalized = text.trim()
         if (normalized.isBlank()) return ConversationCommandOutcome.Rejected(ConversationCommandRejection.EMPTY_TEXT)
-        val type = if (com.maodouchat.ui.component.ChatMarkdown.looksLikeMarkdown(normalized)) {
+        val type = if (com.maodouchat.messaging.ChatMarkdown.looksLikeMarkdown(normalized)) {
             MessageType.MARKDOWN
         } else {
             MessageType.TEXT

@@ -5,6 +5,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.maodouchat.navigation.AppLinkDestination
+import com.maodouchat.navigation.AppLinkParseResult
+import com.maodouchat.navigation.AppLinkRouter
+import com.maodouchat.navigation.NotificationTarget
+import com.maodouchat.navigation.Routes
+import com.maodouchat.navigation.toDestination
 
 // NotificationTarget lives in the same package (NavTargets.kt).
 
