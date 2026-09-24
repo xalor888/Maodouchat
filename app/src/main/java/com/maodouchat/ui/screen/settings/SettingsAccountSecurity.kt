@@ -505,10 +505,10 @@ internal fun TotpSetupDialog(
         if (secret == null) {
             isWorking = true
             // 0.77：先查状态——已启用则不重新 setup，进入恢复码/禁用模式
-            val enabled = com.maodouchat.network.ApiService.totpStatus(token).getOrDefault(false)
+            val enabled = com.maodouchat.data.repository.TotpNetworkRepository().status(token).getOrDefault(false)
             alreadyEnabled = enabled
             if (!enabled) {
-                com.maodouchat.network.ApiService.setupTotp(token)
+                com.maodouchat.data.repository.TotpNetworkRepository().setup(token)
                     .onSuccess { body ->
                         val obj = runCatching { org.json.JSONObject(body) }.getOrNull()
                         secret = obj?.optString("secret").orEmpty().takeIf { it.isNotBlank() }
@@ -619,7 +619,7 @@ internal fun TotpSetupDialog(
                         isWorking = true
                         error = null
                         scope.launch {
-                            com.maodouchat.network.ApiService.regenerateTotpCodes(token, code.trim())
+                            com.maodouchat.data.repository.TotpNetworkRepository().regenerateBackupCodes(token, code.trim())
                                 .onSuccess { codes ->
                                     backupCodes = codes
                                     code = ""
@@ -636,7 +636,7 @@ internal fun TotpSetupDialog(
                         isWorking = true
                         error = null
                         scope.launch {
-                            com.maodouchat.network.ApiService.confirmTotp(token, code.trim())
+                            com.maodouchat.data.repository.TotpNetworkRepository().confirm(token, code.trim())
                                 .onSuccess { codes ->
                                     backupCodes = codes
                                     code = ""
@@ -656,7 +656,7 @@ internal fun TotpSetupDialog(
                             isWorking = true
                             error = null
                             scope.launch {
-                                com.maodouchat.network.ApiService.disableTotp(token, code.trim())
+                                com.maodouchat.data.repository.TotpNetworkRepository().disable(token, code.trim())
                                     .onSuccess { onDismiss() }
                                     .onFailure { error = context.getString(com.maodouchat.R.string.totp_setup_error) }
                                 isWorking = false

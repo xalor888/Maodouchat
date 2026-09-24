@@ -100,7 +100,7 @@ internal fun SettingsTotpSection(userId: String) {
         if (token.isBlank() || !isCurrentTotpOwner(ownerUserId)) return@LaunchedEffect
         totpBusy = true
         try {
-            ApiService.getTotpStatus(token).fold(
+            com.maodouchat.data.repository.TotpNetworkRepository().statusRaw(token).fold(
                 onSuccess = { raw ->
                     if (!isCurrentTotpOwner(ownerUserId)) return@fold
                     runCatching { org.json.JSONObject(raw).optBoolean("enabled", false) }
@@ -125,7 +125,7 @@ internal fun SettingsTotpSection(userId: String) {
         if (token.isBlank() || !isCurrentTotpOwner(ownerUserId)) return@LaunchedEffect
         totpBusy = true
         try {
-            ApiService.getTotpStatus(token).fold(
+            com.maodouchat.data.repository.TotpNetworkRepository().statusRaw(token).fold(
                 onSuccess = { raw ->
                     if (!isCurrentTotpOwner(ownerUserId)) return@fold
                     runCatching { org.json.JSONObject(raw).optBoolean("enabled", false) }
@@ -225,7 +225,7 @@ internal fun SettingsTotpSection(userId: String) {
                                 totpBusy = true
                                 totpScope.launch {
                                     try {
-                                        val result = ApiService.confirmTotp(token, code)
+                                        val result = com.maodouchat.data.repository.TotpNetworkRepository().confirm(token, code)
                                         if (!isCurrentTotpOwner(ownerUserId)) return@launch
                                         result.onSuccess {
                                             totpEnabled = true
@@ -258,7 +258,7 @@ internal fun SettingsTotpSection(userId: String) {
                                 totpBusy = true
                                 totpScope.launch {
                                     try {
-                                        val result = ApiService.setupTotp(token)
+                                        val result = com.maodouchat.data.repository.TotpNetworkRepository().setup(token)
                                         if (!isCurrentTotpOwner(ownerUserId)) return@launch
                                         result.onSuccess { raw ->
                                             runCatching { org.json.JSONObject(raw) }
@@ -311,7 +311,7 @@ internal fun SettingsTotpSection(userId: String) {
                                         totpBusy = true
                                         totpScope.launch {
                                             try {
-                                                val disable = ApiService.disableTotp(token, code)
+                                                val disable = com.maodouchat.data.repository.TotpNetworkRepository().disable(token, code)
                                                 if (!isCurrentTotpOwner(ownerUserId)) return@launch
                                                 disable.onSuccess {
                                                     totpEnabled = false
