@@ -252,9 +252,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt",
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacyViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsGeneralSettingsViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsModerationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsReports.kt",
     )
 
     private val frozenUiTokenReaders: Set<String> = setOf(
@@ -284,6 +282,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPlayViewModelSupport.kt",
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt",
+        "com/maodouchat/ui/screen/settings/SettingsModerationViewModel.kt",
+        "com/maodouchat/ui/screen/settings/SettingsReports.kt",
         "com/maodouchat/ui/screen/settings/SettingsTotpSection.kt",
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt",
     )

@@ -79,7 +79,7 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
     suspend fun load() {
         isLoading.value = true
         error.value = null
-        com.maodouchat.network.ApiService.getMyReports(tokenManager.getToken().orEmpty())
+        com.maodouchat.data.repository.ModerationNetworkRepository().myReports(tokenManager.getToken().orEmpty())
             .onSuccess { reports.value = it }
             .onFailure { error.value = loadFailedText }
         isLoading.value = false
@@ -198,7 +198,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     suspend fun load() {
         isLoading.value = true
         error.value = null
-        com.maodouchat.network.ApiService.getBlockedUserDetails(tokenManager.getToken().orEmpty())
+        com.maodouchat.data.repository.AccountSecurityNetworkRepository().blockedUserDetails(tokenManager.getToken().orEmpty())
             .onSuccess { blocked.value = it }
             .onFailure { error.value = blockedLoadFailedText }
         isLoading.value = false
@@ -284,7 +284,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                             onClick = {
                                 unblockingIds.value = unblockingIds.value + user.id
                                 scope.launch {
-                                    com.maodouchat.network.ApiService.unblockUser(tokenManager.getToken().orEmpty(), user.id)
+                                    com.maodouchat.data.repository.AccountSecurityNetworkRepository().unblock(tokenManager.getToken().orEmpty(), user.id)
                                         .onSuccess { blocked.value = blocked.value.filter { it.id != user.id } }
                                         .onFailure { error.value = unblockFailedText }
                                     unblockingIds.value = unblockingIds.value - user.id

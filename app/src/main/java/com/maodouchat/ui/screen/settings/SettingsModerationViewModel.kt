@@ -139,7 +139,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.getAdminReports(liveToken, filter).fold(
+                com.maodouchat.data.repository.ModerationNetworkRepository().adminReports(liveToken, filter).fold(
                     onSuccess = { reports ->
                         if (reportsGeneration == generation && isCurrentOwner(ownerUserId)) {
                             _uiState.update { it.copy(isLoading = false, reports = reports) }
@@ -188,7 +188,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 if (!isCurrentOwner(ownerUserId)) return@launch
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.getRiskEvents(liveToken, needsReview = true).fold(
+                com.maodouchat.data.repository.ModerationNetworkRepository().riskEvents(liveToken, needsReview = true).fold(
                     onSuccess = { events ->
                         if (riskEventsGeneration == generation && isCurrentOwner(ownerUserId)) {
                             _uiState.update { it.copy(riskEvents = events) }
@@ -231,7 +231,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 if (!isCurrentOwner(ownerUserId)) return@launch
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.getModerationRules(liveToken).fold(
+                com.maodouchat.data.repository.ModerationNetworkRepository().moderationRules(liveToken).fold(
                     onSuccess = { rules ->
                         if (rulesGeneration == generation && isCurrentOwner(ownerUserId)) {
                             _uiState.update { it.copy(rules = rules) }
@@ -263,7 +263,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         rulesGeneration++
         rulesJob?.cancel()
         launchMutation(R.string.moderation_rule_update_failed) { liveToken, ownerUserId ->
-            ApiService.updateModerationRule(liveToken, ruleId, UpdateModerationRuleRequest(enabled = enabled)).fold(
+            com.maodouchat.data.repository.ModerationNetworkRepository().updateModerationRule(liveToken, ruleId, UpdateModerationRuleRequest(enabled = enabled)).fold(
                 onSuccess = { updated ->
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
@@ -292,7 +292,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         rulesGeneration++
         rulesJob?.cancel()
         launchMutation(R.string.moderation_rule_save_failed) { liveToken, ownerUserId ->
-            ApiService.updateModerationRule(liveToken, ruleId, request).fold(
+            com.maodouchat.data.repository.ModerationNetworkRepository().updateModerationRule(liveToken, ruleId, request).fold(
                 onSuccess = { updated ->
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
@@ -316,7 +316,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         riskEventsGeneration++
         riskEventsJob?.cancel()
         launchMutation(R.string.moderation_acknowledge_failed) { liveToken, ownerUserId ->
-            ApiService.acknowledgeRiskEvent(liveToken, eventId).fold(
+            com.maodouchat.data.repository.ModerationNetworkRepository().acknowledgeRiskEvent(liveToken, eventId).fold(
                 onSuccess = {
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
@@ -341,7 +341,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         reportsJob?.cancel()
         _uiState.update { it.copy(isLoading = false) }
         launchMutation(R.string.moderation_status_update_failed) { liveToken, ownerUserId ->
-            ApiService.updateReportStatus(liveToken, reportId, status, note).fold(
+            com.maodouchat.data.repository.ModerationNetworkRepository().updateReportStatus(liveToken, reportId, status, note).fold(
                 onSuccess = { updated ->
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
@@ -367,7 +367,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         reportsJob?.cancel()
         _uiState.update { it.copy(isLoading = false) }
         launchMutation(R.string.moderation_action_failed) { liveToken, ownerUserId ->
-            ApiService.applyReportAction(liveToken, reportId, action, note).fold(
+            com.maodouchat.data.repository.ModerationNetworkRepository().applyReportAction(liveToken, reportId, action, note).fold(
                 onSuccess = { updated ->
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
