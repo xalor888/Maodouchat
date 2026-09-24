@@ -889,7 +889,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 - [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G319c：七个入口全覆盖（含五个屏幕本体）**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（原 G313c 五点实证仍成立——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；**但 G317c 已铺好接缝**：ports 构造器 `private` → `internal`，测试侧现在能 `ChatListViewModel(app, ports)`；且 G317c 已更正我当时的错误推论——那 4 个里 `TokenManager` 有 `getInstance` 入口、`ChatRepository`/`MissedCallRepository` 收 Room DAO **接口**、`NotificationCenterRepository` 收 `Context`，**都并非不可构造，只是没人做过**。剩余仅 fake/内存库工作）与 Call / Settings 的屏幕本体（**G315c 已补**：Call 8 例、Settings 6 例；**G319c 补 Chats 3 例**）；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`。
 - [~] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文（**G325c：零依赖起步**。仓库此前**零截图基建**（无 paparazzi/roborazzi），所以本轮没做像素回归（那需新增构建依赖），改用 `CompositionLocalProvider` 覆盖 `LocalLayoutDirection`(RTL) 与 `LocalConfiguration`(fontScale=2.0)，对 ChatListScreen 与 SettingsScreen 各测两种配置，断言「不崩 + 关键内容仍在」——4 例。**关键是防「配置没生效却空跑」**：每例先捕获生效值并断言，且对捕获值断言本身做了负控制（Rtl 改 Ltr → 红在捕获值断言而非 chip 断言），证明覆盖生效、断言承重。**仍未做**：像素级截图回归、浅/深色、平板尺寸、横屏、中英文）
-- [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
+- [~] 通知、Widget、深链、权限、前台服务和更新器仪器测试（**G329c：只开了「更新器」一个头**。实测 `app/src/androidTest` 原有子目录只有 crypto/data/e2e/messaging/ui，六项全为零。新增 `update/AppUpdatePromptStoreTest`（4 例，钉住「同一 versionCode 只弹一次、等下一版再弹」这条 UX 契约）与 `update/AppUpdateDownloadSchedulerTest`（5 例，只测 `progressOf`/`errorOf` 两个纯函数；**实测 `androidx.work.WorkInfo` 构造器在测试里可直接调用**，不需要 `work-testing` 依赖）。**其余五项（通知/Widget/深链/权限/前台服务）仍为零**，`AppUpdateDownloadWorker`（真正干下载活的）也未测——它的 `enqueue`/`cancel`/`observe` 要真跑 WorkManager）
 
 ### Q04 双账号、双设备和离线 E2E
 
@@ -13392,3 +13392,39 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **仍未本地覆盖的 CI 门**：`docker compose config`（Docker Compose Config 作业）。
   它很快（CI 里约 7–13 秒）且几乎不会因我的改动而红，本轮未纳入；
   若将来它也红一次，按同样思路加进 hook 即可。
+
+
+### G329c — **更新器子系统开测**（Q03 第 3 项六项里的第一项）；并实测出 `WorkInfo` 可构造
+
+- **动机**：Q03 第 3 项「通知、Widget、深链、权限、前台服务和更新器仪器测试」
+  六项全为零（`app/src/androidTest` 现有子目录只有 crypto / data / e2e / messaging / ui）。
+  选**更新器**先做：它正是与当前生产故障直接相关的子系统
+  （v1.3.0 制品在 GitHub Release 上但用户拿不到，上传那步失败过），
+  而它内部有 **3 个类零测试覆盖**（`AppUpdatePromptStore` / `AppUpdateDownloadScheduler` /
+  `AppUpdateDownloadWorker`），另 3 个策略类有测试。
+- **`AppUpdatePromptStoreTest`（4 例）**——钉住它自己 KDoc 写的那条 UX 契约：
+  「同一 versionCode 只弹一次；用户点稍后后等下一版再弹」。
+  这条属性坏了用户不会报错，只会被反复骚扰、或相反（升了新版却不再提示），
+  属于典型静默腐烂。覆盖：全新安装返回 0；`markOffered(1085)` 后读回 1085；
+  同版本重复标记**幂等**；标记更高版本 1100 后覆盖为 1100（「等下一版再弹」可满足）。
+  它只是 19 行的无状态 object + SharedPreferences，**不需要 fake、不需要改生产签名**。
+- **`AppUpdateDownloadSchedulerTest`（5 例）**——只测两个纯函数
+  （`progressOf` / `errorOf`），**不碰** `enqueue`/`cancel`/`observe`
+  （那些要真跑 WorkManager，需 `work-testing` 依赖，属构建变更）。
+  **可行性是实测出来的而非假设**：`androidx.work.WorkInfo` 的构造器在测试里
+  **可直接调用**（id / state / outputData / tags / progress / runAttemptCount / generation），
+  所以能喂一个带 `progress` 的真实 `WorkInfo`。覆盖：null → 0；无 progress → 0；
+  带 progress → 原样读回；`progressData` 的 `coerceIn(0, 100)` 夹住越界值
+  （这是该纯函数里唯一的分支逻辑）；`errorOf` 的 outputData 优先于 progress。
+- **负控制：预判完全命中（本会话第七次）**。手法是把 `markOffered` 里的
+  `.putInt(KEY_OFFERED, versionCode)` 摘掉。**动手前先读改动后的代码**：
+  读路径不变、只是不再写盘。据此预测「三条依赖写盘的紅、从不调用 markOffered 的
+  `freshInstallHasNeverBeenOfferedAnUpdate` 仍绿」——实测一字不差。
+  还原后 `diff` 与 HEAD 逐字节相同。
+- **最终实测**：新测试 4 + 5 = **9 tests / 0 failures / 0 skipped**（XML 逐条核对）；
+  全量 instrumented **156 tests / 0 failures**（27 skipped 仍只在
+  `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。
+- **§11 Q03 第 3 项**：由 `[ ]` 更新为 `[~]`，并写明**六项里只开了「更新器」一个头，
+  且只覆盖了两个类（一个 19 行的 SharedPreferences 单例 + 两个纯函数）**；
+  通知 / Widget / 深链 / 权限 / 前台服务**仍为零**，
+  `AppUpdateDownloadWorker`（真正干下载活的那个）也仍未测。
