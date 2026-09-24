@@ -40,13 +40,13 @@ internal fun ChatDetailViewModel.refreshChatLockState() {
 }
 
 /**
- * 校验 PIN。成功返回 true 并标记本进程已解锁。
- * 同步读 Room 短路径（单行 + SHA-256），供门闩回调即时反馈。
+ * 校验 PIN。成功返回 true 并标记本进程已解锁；结果经 [onResult] 回调，**不阻塞调用方**。
  *
- * 注意：此函数在主线程调用并使用 runBlocking(Dispatchers.IO) 同步等待 Room 查询。
- * UI 调用方依赖 Boolean 返回值做即时门闩判断，改为 suspend 会破坏调用链。
- * 当前仅单行 SELECT + SHA-256，阻塞窗口极小，保守保留同步实现。
- * 若后续 Room 查询变复杂或出现卡顿，应考虑重构为异步回调。
+ * G328c 更正：这段 KDoc 此前写着「在主线程调用并使用 `runBlocking(Dispatchers.IO)`
+ * 同步等待 Room 查询」——**与代码不符**：实现早已改成 `viewModelScope.launch` +
+ * `withContext(Dispatchers.IO)`，文件里也没有任何 `runBlocking`。
+ * 审计正是靠这条过期注释把本函数记成了「主线程阻塞、有 ANR 风险」，
+ * 所以这里改成描述真实行为，而不是保留一个更吓人的说法。
  */
 internal fun ChatDetailViewModel.unlockChatWithPin(pin: String, onResult: (Boolean) -> Unit) {
     val lockChatId = activeChatId.ifBlank { chatId }

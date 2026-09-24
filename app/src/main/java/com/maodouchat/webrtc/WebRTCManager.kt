@@ -437,9 +437,6 @@ class WebRTCManager(
         _callState.value = CallState.DISCONNECTED
     }
 
-    /**
-     * 切换摄像头
-     */
     fun switchCamera() {
         (videoCapturer as? org.webrtc.CameraVideoCapturer)?.switchCamera(
             object : org.webrtc.CameraVideoCapturer.CameraSwitchHandler {
@@ -469,7 +466,10 @@ class WebRTCManager(
         if (released) return
         try {
             peerConnection?.restartIce()
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            // G328c：这里原先静默吞掉。重启 ICE 失败意味着弱网恢复不会发生——
+            // 属于「用户感知得到、日志里却查不到」的那一类，至少留一行。
+            android.util.Log.w("WebRTCManager", "restartIce failed: ${error.message}")
         }
     }
 

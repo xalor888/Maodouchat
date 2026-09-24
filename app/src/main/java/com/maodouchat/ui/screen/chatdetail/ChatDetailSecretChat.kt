@@ -33,10 +33,20 @@ internal fun ChatDetailViewModel.refreshSecretChatState() {
             true
         }
         if (secret) {
-            try { secretTtlRepo.touch(targetChatId) } catch (_: Exception) {}
+            try {
+                secretTtlRepo.touch(targetChatId)
+            } catch (error: Exception) {
+                // G328c：TTL 心跳写失败会让密聊**提前过期或永不过期**，两种都影响安全语义，
+                // 不能完全静默（原先这里是 catch (_: Exception) {}）。
+                android.util.Log.w("ChatDetailSecretChat", "secret TTL touch failed: ${error.message}")
+            }
             com.maodouchat.security.SecretChatSession.markSurfaceActive(targetChatId)
         } else {
-            try { secretTtlRepo.remove(targetChatId) } catch (_: Exception) {}
+            try {
+                secretTtlRepo.remove(targetChatId)
+            } catch (error: Exception) {
+                android.util.Log.w("ChatDetailSecretChat", "secret TTL remove failed: ${error.message}")
+            }
             com.maodouchat.security.SecretChatSession.clearSurfaceMarker(targetChatId)
         }
         _uiState.update { it.copy(isSecretChat = secret) }
@@ -96,8 +106,16 @@ internal fun ChatDetailViewModel.startSecretChat() {
         )
         result.fold(
             onSuccess = { chatDto ->
-                try { secretTtlRepo.touch(chatDto.id) } catch (_: Exception) {}
-                try { chatRepo.cacheChats(listOf(chatDto.toDomainChat())) } catch (_: Exception) {}
+                try {
+                    secretTtlRepo.touch(chatDto.id)
+                } catch (error: Exception) {
+                    android.util.Log.w("ChatDetailSecretChat", "secret TTL touch failed: ${error.message}")
+                }
+                try {
+                    chatRepo.cacheChats(listOf(chatDto.toDomainChat()))
+                } catch (error: Exception) {
+                    android.util.Log.w("ChatDetailSecretChat", "cacheChats after secret start failed: ${error.message}")
+                }
                 _uiState.update {
                     it.copy(
                         openedSecretChatId = chatDto.id,

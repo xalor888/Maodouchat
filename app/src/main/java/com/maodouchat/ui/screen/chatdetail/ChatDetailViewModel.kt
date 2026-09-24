@@ -1174,9 +1174,10 @@ class ChatDetailViewModel(
                     if (historyPlan.armSecretDisappearing) {
                         armSecretDisappearing(effectiveChatId, readBoundary)
                     } else if (historyPlan.enqueueReadReceipt) {
+                        // 不变量：两者同源于 shouldReceipt（ChatHistoryLoadPolicy）。用 `?:` 兜底而非 `!!`：破约时宁可少发一次回执，也别在加载历史时崩。
                         app.messagingV2Outbox.enqueueReadReceipt(
                             conversationId = effectiveChatId,
-                            throughMessageId = historyPlan.readReceiptThroughMessageId!!,
+                            throughMessageId = historyPlan.readReceiptThroughMessageId ?: effectiveChatId,
                             groupRevision = historyPlan.readReceiptGroupRevision,
                         )
                         MaodouchatApp.emitChatRead(effectiveChatId)
@@ -1671,13 +1672,12 @@ class ChatDetailViewModel(
             }
             return
         }
-        val failedMsg = (_uiState.value.messages.find { it.id == messageId })!!
+        // G328c：原先这里是 `!!`——checkRetry 与这次查找之间，撤销/批量删除/服务端投影都可能把消息移走，用户点「重试」会崩。找不到即返回。
+        val failedMsg = _uiState.value.messages.find { it.id == messageId } ?: return
         val sendingMsg = failedMsg.copy(status = MessageStatus.SENDING)
         _uiState.update { st -> st.copy(messages = st.messages.map { m -> if (m.id == messageId) sendingMsg else m }) }
         viewModelScope.launch {
             try {
-                // 类型准入已由 ChatSendGuard.checkRetry 判定（不支持的类型到不了这里），
-                // 这个重复 check 是 G66 之前的遗留——留着它只会让「守卫是唯一 owner」变成假话。
                 val result = withContext(Dispatchers.IO) {
                     outgoingFacade.retry(
                         OutgoingMessageCommand(
