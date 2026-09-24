@@ -179,6 +179,33 @@ class ClientArchitectureTest {
         )
     }
 
+    // ─── 1c. HTTP 客户端必须经共享工厂（G328c） ───
+
+    /**
+     * 除工厂自己外，任何地方都不得就地 `OkHttpClient.Builder()`。
+     *
+     * 审计实测 app 里有 **9 处**独立 builder。它们的超时是有意不同的（不是重复代码），
+     * 但每个 `OkHttpClient` 会自建一份连接池与线程池——9 份池子，同主机连接无法复用。
+     * 已收敛到 `network/HttpClients.kt`（共享池 + 每用途一个命名 profile）。
+     * 这条门禁保证第 10 份池子不会悄悄出现：新增用途请加 profile，而不是就地 new。
+     */
+    @Test
+    fun `okhttp clients must come from the shared factory`() {
+        val factory = "com/maodouchat/network/HttpClients.kt"
+        val offenders = ktFilesUnder(appMain)
+            .map { it.relativeTo(appMain).path.replace('\\', '/') to it }
+            .filter { (rel, _) -> rel != factory }
+            .filter { (_, file) -> stripComments(file.readText()).contains("OkHttpClient.Builder()") }
+            .map { it.first }
+            .sorted()
+        assertEquals(
+            emptyList(),
+            offenders,
+            "这些文件就地构造了 OkHttpClient.Builder——会各自新建一份连接池。" +
+                "请改用 network/HttpClients.kt 的命名 profile；确需新 profile 就加在那个工厂里。实际=$offenders",
+        )
+    }
+
     // ─── 2. 热点文件行数冻结（只许降） ───
 
     /**
@@ -226,7 +253,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 1010,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
-        "com/maodouchat/network/WebSocketClient.kt" to 974,
+        "com/maodouchat/network/WebSocketClient.kt" to 969,
         "com/maodouchat/ui/component/MarkdownParser.kt" to 966,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 945,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
@@ -282,7 +309,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 998,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 1010,
         // G164b：Top-20 排名门禁纳入的 8 个
-        "com/maodouchat/network/WebSocketClient.kt" to 974,
+        "com/maodouchat/network/WebSocketClient.kt" to 969,
         "com/maodouchat/ui/component/MarkdownParser.kt" to 966,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 945,
         "com/maodouchat/ui/theme/Motion.kt" to 939,

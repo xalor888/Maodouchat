@@ -4,10 +4,8 @@ import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.TimeUnit
 
 /**
  * 群玩法 B3 的轻量 HTTP 客户端。
@@ -25,10 +23,7 @@ internal data class GroupPlayResponse(
 }
 
 internal object GroupPlayHttp {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val client = com.maodouchat.network.HttpClients.groupPlay()
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
 
     suspend fun get(token: String, path: String): GroupPlayResponse =

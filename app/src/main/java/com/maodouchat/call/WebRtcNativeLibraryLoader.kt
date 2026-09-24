@@ -13,11 +13,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
 
 /**
  * WebRTC 原生库加载器（自服下载）。
@@ -44,10 +42,7 @@ object WebRtcNativeLibraryLoader {
     val progress: StateFlow<Int> = _progress.asStateFlow()
 
     private val httpClient by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .build()
+        com.maodouchat.network.HttpClients.largeDownload()
     }
 
     fun isLoaded(): Boolean = loaded

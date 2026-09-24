@@ -9,7 +9,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -24,13 +23,11 @@ object LinkPreviewRepository {
 
     internal var clientOverride: OkHttpClient? = null
 
-    private val defaultClient: OkHttpClient = OkHttpClient.Builder()
+    // 关键防护：OkHttp 禁用自动重定向跟随，由应用层显式校验每一跳的重定向目标 URL
+    // （该语义已固化在 HttpClients.linkPreview() 里）；这里只额外挂上自定义 DNS。
+    private val defaultClient: OkHttpClient = com.maodouchat.network.HttpClients.linkPreview()
+        .newBuilder()
         .dns(PublicNetworkDns.create())
-        .connectTimeout(4, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
-        // 关键防护：OkHttp 禁用自动重定向跟随，由应用层显式校验每一跳的重定向目标 URL
-        .followRedirects(false)
-        .followSslRedirects(false)
         .build()
 
     private val client: OkHttpClient get() = clientOverride ?: defaultClient

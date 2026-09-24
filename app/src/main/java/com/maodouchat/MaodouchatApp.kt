@@ -36,7 +36,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.OkHttpClient
 
 /**
  * 会话作用域事件：携带发射时 session 世代，收集器丢弃过期事件（登出/换号后送达）。
@@ -484,7 +483,7 @@ class MaodouchatApp : Application() {
         val imageLoader = coil.ImageLoader.Builder(this)
             .okHttpClient {
                 val apiHost = ApiConfig.BASE_URL.toHttpUrlOrNull()?.host
-                OkHttpClient.Builder()
+                com.maodouchat.network.HttpClients.imageLoader()
                     .dns(com.maodouchat.util.PublicNetworkDns.create(setOfNotNull(apiHost)))
                     .addInterceptor { chain ->
                         val request = chain.request()

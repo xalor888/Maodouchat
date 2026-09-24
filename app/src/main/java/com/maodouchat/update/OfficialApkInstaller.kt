@@ -10,11 +10,9 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
 
 /**
  * Official in-app APK install: HTTPS only, FileProvider, never GitHub/browser.
@@ -24,13 +22,7 @@ object OfficialApkInstaller {
     private const val DIR = "updates"
     private const val FILE = "maodou-update.apk"
 
-    private val client = OkHttpClient.Builder()
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
+    private val client = com.maodouchat.network.HttpClients.largeDownload()
 
     fun canOfferHttps(apkUrl: String): Boolean =
         AppUpdatePolicy.isOfficialApkUrl(apkUrl)

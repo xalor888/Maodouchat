@@ -19,12 +19,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import java.util.concurrent.TimeUnit
 
 sealed class WebSocketEvent {
     data class PostDeleted(val postId: String) : WebSocketEvent()
@@ -251,11 +249,8 @@ internal object WebSocketTransport : RealtimeTransport {
 
     private val json = Json { ignoreUnknownKeys = true }
     private var webSocket: WebSocket? = null
-    private val client = OkHttpClient.Builder()
-        // readTimeout=0：长连接读不超时，靠应用层心跳判定死连接（Ideaura 同款）
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(5, TimeUnit.SECONDS)
-        .build()
+    // readTimeout=0：长连接读不超时，靠应用层心跳判定死连接（Ideaura 同款）
+    private val client = HttpClients.webSocket()
 
     // 业务事件不能向新订阅者重放，否则新页面可能重复处理旧消息、删除或群变更。
     // 来电 offer 由 IncomingCallCoordinator 和服务端 pending signaling 持久承接。

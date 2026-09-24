@@ -15,11 +15,9 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.TimeUnit
 import com.maodouchat.network.api.ApiEndpointClients
 import com.maodouchat.util.toHexString
 import com.maodouchat.network.api.ApiSurface
@@ -130,11 +128,7 @@ object ApiService :
     private val tokenManager: TokenManager?
         get() = TokenManager.getInstanceOrNull()
     private val refreshMutex = Mutex()
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
+    private val client = HttpClients.api()
 
     internal val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
     internal const val ATTACHMENT_CHUNK_BYTES = 4L * 1024L * 1024L

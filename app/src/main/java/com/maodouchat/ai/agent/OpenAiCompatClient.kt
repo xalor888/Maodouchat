@@ -10,7 +10,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 /**
  * Talks only to the user-configured provider. Supports OpenAI Chat Completions,
@@ -94,11 +93,7 @@ object OpenAiCompatClient {
 
     private fun http(provider: LocalAiProvider): OkHttpClient {
         val timeout = provider.clampedTimeoutSeconds().toLong()
-        return OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(timeout, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
-            .build()
+        return com.maodouchat.network.HttpClients.chatModel(timeout)
     }
 
     suspend fun completeVision(

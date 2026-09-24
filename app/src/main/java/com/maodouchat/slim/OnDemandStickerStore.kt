@@ -8,12 +8,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -85,10 +83,7 @@ object OnDemandStickerStore {
     )
 
     private val httpClient by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
+        com.maodouchat.network.HttpClients.mediaDownload()
     }
 
     /** 8.34：每包下载互斥——getSticker 与 UI 手动下载同一包并发时此前互相覆盖 .part 导致 SHA 失败。 */
