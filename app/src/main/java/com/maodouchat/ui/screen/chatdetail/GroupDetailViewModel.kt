@@ -72,7 +72,7 @@ class GroupDetailViewModel(
             )
         },
         fetchChat = { liveToken, targetChatId ->
-            com.maodouchat.network.ApiService.getChats(liveToken).map { chats ->
+            com.maodouchat.data.repository.ChatNetworkRepository().chats(liveToken).map { chats ->
                 chats.firstOrNull { it.id == targetChatId }
             }
         },

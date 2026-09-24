@@ -96,6 +96,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import com.maodouchat.data.repository.ChatNetworkRepository
 
 /**
  * 聊天详情页的**装配**（G328c 从 `ChatDetailViewModel` 搬出，纯搬移不改判断）。
@@ -232,10 +233,10 @@ internal class ChatDetailDeps(
         ChatOutgoingFacade(
             getCachedConversation = chatRepo::getChatById,
             fetchConversations = { liveToken ->
-                ApiService.getChats(liveToken).getOrThrow().map { it.toDomainChat() }
+                ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() }
             },
             createDirectConversation = { liveToken, recipientId, secret ->
-                ApiService.createChat(
+                ChatNetworkRepository().createChat(
                     liveToken,
                     listOf(recipientId),
                     isGroup = false,
@@ -320,7 +321,7 @@ internal class ChatDetailDeps(
             )
         },
         fetchChat = { liveToken, targetChatId ->
-            ApiService.getChats(liveToken).map { chats ->
+            ChatNetworkRepository().chats(liveToken).map { chats ->
                 chats.firstOrNull { it.id == targetChatId }
             }
         },

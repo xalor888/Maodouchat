@@ -222,21 +222,17 @@ class ClientArchitectureTest {
      * 两组都**只许降**：搬一个就从对应名单删一行。判据在剥注释后的正文里找符号，
      * 不按 import 行（`com.maodouchat.util.X` 这类全限定名引用也要能被抓到）。
      */
-    // G328c 真实下降：41 → 34。`ChatListServerFlags`（公共状态横幅）与
+    // G328c 真实下降：41 → 31（公共端点 3 处 + 用户读取 4 处 + 会话读写 4 处）。`ChatListServerFlags`（公共状态横幅）与
     // `AboutScreen`（检查更新）改走 `data/repository/PublicServerInfoRepository`。
     private val frozenUiApiCallers: Set<String> = setOf(
         "com/maodouchat/ui/component/MediaInteractiveCards.kt",
         "com/maodouchat/ui/navigation/CallNavigation.kt",
         "com/maodouchat/ui/navigation/NavGraph.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatBotGroupActionController.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDisappearing.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailFeatureGates.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailSecretChat.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatModerationController.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatPinStarController.kt",
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
         "com/maodouchat/ui/screen/chatlist/ChatFolderController.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
@@ -268,9 +264,11 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/OwnerScopedImageKeys.kt",
         "com/maodouchat/ui/navigation/MainContainerRoute.kt",
         "com/maodouchat/ui/screen/call/CallViewModel.kt",
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatExportController.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatRealtimeController.kt",
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/IdentityVerificationController.kt",
         "com/maodouchat/ui/screen/chatdetail/ScheduledMessageController.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListAnnouncementCoordinator.kt",

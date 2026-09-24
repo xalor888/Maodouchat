@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.data.repository.ChatNetworkRepository
 
 // 阅后即焚 / 消失消息（自 ChatDetailViewModel.kt 拆分）。
 // 涵盖定时设置、密聊默认时限、截止时间落库与过期本地清理，复用 messageRepo / chatRepo。
@@ -69,7 +70,7 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
                 return@launch
             }
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.updateDisappearingMessages(liveToken, chatId, normalized).fold(
+            ChatNetworkRepository().updateDisappearingMessages(liveToken, chatId, normalized).fold(
                 onSuccess = { response ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
