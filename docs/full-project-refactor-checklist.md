@@ -258,7 +258,7 @@
 - [~] 为禁止依赖建立静态检查：模块级 `checkArchitecture` + 类级 ArchUnit 已建立（core/domain 不依赖 Android/全局单例）；「ViewModel/Composable 不得依赖 DAO/API/Application」规则待代码迁移时启用。
 - [ ] `MaodouchatApp.kt` 只保留进程级初始化和 dependency graph。
 - [~] 建立模块级测试任务、Lint 和 API visibility 规则：JVM 模块 `useJUnitPlatform` 已接（`:core:testing`）；Android 模块 lint 由 AGP 自带；逐模块 Lint/visibility 规则待后续补全。
-- [~] 所有共享接口先冻结再并行实施：clock/id/dispatcher/SessionContext/领域错误(NetworkResult)/JSON(MaodouJson) 已冻结；typed payload 待 M01 定义。
+- [~] 所有共享接口先冻结再并行实施：clock/id/dispatcher/SessionContext/领域错误(NetworkResult)/JSON(MaodouJson) 已冻结；typed payload 待 M01 定义。（G328c：其中的 `core/session/SessionContext` 已**改名为 `AuthSessionSnapshot`**——它与 app 侧 `com.maodouchat.session.SessionContext` 同名但字段与用途不同，同名只在跨模块阅读时制造混淆。）
 
 Gate：空壳模块可编译；旧 app 仍能运行；禁止依赖检查进入 CI（`checkArchitecture` 已接入 CI android 作业，本地验证通过）。
 

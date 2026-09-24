@@ -7,11 +7,11 @@ import kotlinx.coroutines.flow.Flow
  * 领域层只依赖此接口，不直接读 TokenManager / WebSocket / Application。
  */
 interface SessionCoordinator {
-    /** 当前会话快照（未登录返回 [SessionContext.EMPTY]）。 */
-    val current: SessionContext
+    /** 当前会话快照（未登录返回 [AuthSessionSnapshot.EMPTY]）。 */
+    val current: AuthSessionSnapshot
 
     /** 会话变化流，通知消息 / Push / Widget / AI 等模块。 */
-    val changes: Flow<SessionContext>
+    val changes: Flow<AuthSessionSnapshot>
 
     /** 并发安全地刷新 token（single-flight）。 */
     suspend fun refreshToken(): Boolean

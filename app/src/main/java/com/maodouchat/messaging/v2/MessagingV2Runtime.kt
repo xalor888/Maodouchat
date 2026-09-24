@@ -21,7 +21,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** Process-scoped lifecycle owner for durable v2 transport convergence. */
+/**
+ * Process-scoped lifecycle owner for durable v2 transport convergence.
+ *
+ * 它是 `domain:messaging` 里 [com.maodouchat.domain.messaging.MessagingV2Runtime] **端口的生产实现**
+ * （同名不同角色，不是重复实现）：domain 侧只有接口与 `OutboxState`，装配与生命周期在这里。
+ */
 class MessagingV2Runtime(
     private val app: MaodouchatApp,
     private val scope: CoroutineScope,

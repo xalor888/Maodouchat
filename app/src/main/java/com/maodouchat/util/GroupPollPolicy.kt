@@ -11,6 +11,15 @@ package com.maodouchat.util
  * 数据持久化在服务端（PollRouting.kt / GroupCheckinRepository.kt），
  * 投票/签到为群内公开元数据，明文传输即可。
  */
+/**
+ * 群投票的**校验 / 快捷指令 / 分享文案**策略（U06 解耦后遗留的门面）。
+ *
+ * 注意不要与 `com.maodouchat.group.play.GroupPollPolicy` 混淆：那个只管
+ * **payload 的构建与解析**（`POLL:` 前缀 + JSON 编解码），本对象在这里把
+ * `buildPollPayload`/`parsePoll` 转调过去，自己负责校验、投票/打卡/接龙/PK 的快捷指令
+ * 与分享文案。两者是**分工**而不是重复实现——审计把「两个 GroupPollPolicy」列为重复，
+ * 实际是同一个名字在两个包里的两个职责。合并的前提是先把快捷指令那部分也搬进 group/play。
+ */
 object GroupPollPolicy {
 
     // ── 快捷符前缀（与服务端事件名无耦合，纯客户端契约）──
