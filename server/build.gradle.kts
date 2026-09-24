@@ -1,8 +1,8 @@
 import java.util.zip.ZipFile
 
 plugins {
-    kotlin("jvm") version "2.4.0"
-    kotlin("plugin.serialization") version "2.4.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     id("application")
 }
 
@@ -46,25 +46,25 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
 
     // H2 Database
-    implementation("com.h2database:h2:2.2.224")
+    implementation("com.h2database:h2:2.5.250")
     // PostgreSQL driver for Docker/production deployments
-    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("org.postgresql:postgresql:42.7.13")
 
     // 8.31 运维修复 CRITICAL：数据库连接池（Exposed 0.46 的 Database.connect(url, driver)
     // 不再自动建池，每次事务裸连 DB；HikariCP 提供复用、超时与泄漏检测）
     implementation("com.zaxxer:HikariCP:5.1.0")
 
     // JWT
-    implementation("com.auth0:java-jwt:4.4.0")
+    implementation("com.auth0:java-jwt:4.6.1")
 
     // Verify device-approval signatures made by Signal identity keys.
-    implementation("org.signal:libsignal-client:0.41.0")
+    implementation("org.signal:libsignal-client:0.86.5")
 
     // 9.303：WebRTC 原生库仅用于构建期提取 .so（GET /api/webrtc/lib/{abi} 自服下载）。
     // 此前 .so 靠 scripts/webrtc-sync-native.sh 手工同步到 resources 且被 gitignore/dockerignore
     // 双重排除 → 生产镜像永远缺库 → 通话首次拉库 503，语音/视频通话全挂。
     // 现改为构建期从 Maven 依赖自动提取，Docker 构建自足。
-    "webrtcNative"("io.getstream:stream-webrtc-android:1.1.1")
+    "webrtcNative"("io.getstream:stream-webrtc-android:1.3.10")
 
     // BCrypt
     implementation("at.favre.lib:bcrypt:0.10.2")
@@ -73,20 +73,20 @@ dependencies {
     implementation("com.google.re2j:re2j:1.8")
 
     // JavaMail
-    implementation("com.sun.mail:jakarta.mail:2.0.1")
+    implementation("com.sun.mail:jakarta.mail:2.0.2")
 
     // Logging
-    implementation("ch.qos.logback:logback-classic:1.4.14")
+    implementation("ch.qos.logback:logback-classic:1.6.3")
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     // Test
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.20")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     testImplementation("io.ktor:ktor-client-core:$ktorVersion")
