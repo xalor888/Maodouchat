@@ -1236,12 +1236,43 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 
 ### 明确未完成（下一轮从这里继续）
 
+> 2026-09-25 更新：下表已按本轮进展重写。**已完成的项从表中移出**（见下方「第二轮」小节）。
+
 | 项 | 现状（实测） | 为什么没做 |
 |----|-------------|-----------|
-| `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable；剩余都是 15–40 行的中小块 | 大块（450 行弹层）已搬；剩下每块都要连带搬状态，收益递减而回归风险上升 |
-| `ChatDetailViewModel.kt` 拆 | 3071 行 / 116 个方法，最大单方法 141 行 | 没有 450 行级的自包含块；拆分要提取协作者类（`_uiState` 与 116 个方法互相调用），**且我无法在这里跑仪器测试验证**——仓促改的风险大于收益 |
-| ui 直连 network | **98 个文件 / 135 处调用**，已冻结成只许降的棘轮 | 每处都要判定归属哪个 repository；本轮只保证它不再增长 |
-| `GroupPlayPolicy.kt` | 1945 行（棘轮在，未拆） | 同上：需要先有行为测试再动 |
-| core/session 等冻结契约的**采纳** | `core/util`、`core/serialization`、`core/network`、`core/session` 仍只被 `:core:testing` 的 testImplementation 引用 | 属于 B02「依赖注入装配与 MaodouchatApp 瘦身」，是独立的大工程 |
-| 仪器测试（156 例） | 本机无模拟器/真机，未执行 | 需 `./gradlew :app:connectedDebugAndroidTest` 或 CI 的 instrumented job |
+| `ChatDetailViewModel.kt` 继续拆 | **2930 行**（本轮 3071 → 2930）；已抽 2 个协作者 | 剩下的 116 个方法绝大多数已是「15 个控制器的门面 + 属性装配」，继续按方法抽收益递减；再要显著缩小需要把整块装配提取成容器（设计变更，且无仪器测试兜底） |
+| `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable | 剩余都是 15–40 行的中小块；大块（450 行弹层）已搬 |
+| ui 直连 network | **98 个文件 / 135 处调用**，冻结为只许降的棘轮 | 每处要判定归属哪个 repository；本轮只保证它不再增长 |
+| `GroupPlayPolicy.kt` | 1945 行 | 复查后判断它是 **172 个前缀、380 个小函数的扁平编解码目录**，不是纠缠的上帝对象；拆分收益低于其它项，且会牵动专门盯着它的棘轮（`GroupPlayPolicyTest` 按此文件计数） |
+| `NotificationCenterRepository` 的 `runBlocking` 桥接 | 4 处，DAO 配 `deleteForUserBlocking` 等同步变体 | 调用方含 Compose lambda 与非协程回调，改成 suspend 要连带改调用链；本轮已在 KDoc 写明「调用方含主线程」的现状与代价 |
+| core 冻结契约的**采纳** | `core/util`、`core/serialization`、`core/network` 仍只被 `:core:testing` 的 testImplementation 引用 | 属于 B02「依赖注入装配与 MaodouchatApp 瘦身」，是独立大工程 |
+| 仪器测试（156 例） | 本机无模拟器/真机，未执行 | 需 `./gradlew :app:connectedDebugAndroidTest` 或 CI 的 instrumented job；**本轮已推送，由 CI 覆盖** |
+| 服务端残余风险 | 限流仅进程内、TOTP 密钥明文、镜像未固定 digest、`TRUST_PROXY_HEADERS` 的适用前提 | 已逐条写进 `docs/docker-deployment.md` 的「已知残余风险」表（含缓解措施），而不是留在审计报告里 |
 
+### 第二轮（2026-09-25）：接着上一段的「未完成」往下做
+
+**服务端（审计 15 条里剩下的可独立验证项）**
+- `/health/metrics` **默认关闭**（未配 `METRICS_TOKEN` 即 404），配了则要求 `Bearer`，
+  比较用常量时间；`/api/status` 不再暴露 `APP_ENV`。
+- 口令下限 6 → 8，并拒绝「全同一个字符」。
+- 登录审计日志的邮箱改为脱敏（`maskEmail`）。
+- 用户搜索的 email 列加准入条件（查询须含 `@` 且本地部分 ≥3 字符）——原先 2 字符查询
+  就能确认「某地址是否注册过」。
+- 登录路径上的 `deleteExpired()` 删除（`MaintenanceRunner` 已有 15 分钟一轮的同名任务，
+  登录路径那次是重复且按行开事务的 N+1）。
+- 四条残余风险（进程内限流 / TOTP 明文 / 镜像 digest / TRUST_PROXY_HEADERS 前提）
+  写进 `docs/docker-deployment.md` 的「已知残余风险」表。
+
+**app**
+- 静默吞异常：真正的空 `catch` 从 7 处降到 2 处（其余 5 处改为留痕）。
+- 两处 `!!` 去掉（`retrySendMessage` 的竞态查找、历史加载的回执边界），其余 13 处
+  逐个查证有紧邻守卫或构造期不变量。
+- `ChatDetailLock.unlockChatWithPin` 的误导性 KDoc 更正（它并非主线程 `runBlocking`）。
+- `ChatDetailViewModel` 3071 → 2930：先抽 `ChatDetailDecryptStatus`（依赖收窄 + 文案注入，
+  于是这组逻辑**第一次有了 13 例纯 JVM 测试**——此前测试文件的注释写着「无 Robolectric 测不了」），
+  再抽 `ChatDetailFileTransferController`（10 个方法、179 行薄编排）。
+
+**流程**
+- 全部 17 个提交**已推送**，CI 覆盖这批改动（此前从没被 CI 验证过）。
+- Dependabot 生效：已开出 setup-java / action-gh-release / playwright-core /
+  download-artifact 等更新 PR（本意如此——依赖更新通道从无到有）。

@@ -209,20 +209,21 @@ class ClientArchitectureTest {
     // ─── 1d. ui 直连 network 层的棘轮（G328c） ───
 
     /**
-     * 当前 `ui/` 下 import `com.maodouchat.network` 的文件**快照**（98 个）。
+     * 当前 `ui/` 下**真的调用 `ApiService` / `TokenManager` / `ApiEndpointClients`**
+     * 的文件快照（62 个）。
      *
-     * 审计把这条列为分层问题：ViewModel 应当只依赖 repository/usecase，而不是自己
-     * 调 `ApiService`。本轮**没有**做这个迁移——它是 98 个文件、135 处直接调用的规模，
-     * 且每处都要判定「这个调用该归到哪个 repository」，仓促改会引入真回归。
+     * 判据的修订过程值得记下来：第一版数的是「import 了 `com.maodouchat.network` 的文件」，
+     * 得 98 个。但逐个看发现其中 **36 个只是导入 DTO**（`UserDto`、`PostDto` 这类
+     * 接口契约的数据形状）——那属于「认识服务端的数据模型」，与「ui 自己发请求」不是一回事。
+     * 把它们算进「直连」会让这条棘轮指向错误的目标（要清的其实是那 62 个）。
+     * 所以判据改成在**去掉 import 行之后**的正文里找 `ApiService`/`TokenManager`/
+     * `ApiEndpointClients` 的引用。
      *
-     * 所以这里按项目一贯的做法处理：**冻结现状 + 棘轮只许降**。
-     * 为什么必须有这道门禁：不加的话，「ui 直连 network」会随着新功能继续增长，
-     * 而迁移要做的量只会越滚越大——审计之前它就是这样从少数变成 98 个的。
-     *
-     * 收紧方式：把某个文件的调用搬进 repository 后，从下面名单里**删掉那一行**。
-     * 名单为空 = 目标达成（ui 不再直连 network）。
+     * 为什么仍然要冻结：审计把这条列为分层问题，而它此前是**无界**的——98 → 62 这个
+     * 真实数字如果不冻住，会随着新功能继续涨，迁移量只会越滚越大。
+     * 收紧方式：把某个文件的调用搬进 repository 后，从下面名单里删掉那一行。
      */
-    private val frozenUiNetworkImporters: Set<String> = setOf(
+    private val frozenUiDirectApiUsers: Set<String> = setOf(
         "com/maodouchat/ui/component/Avatar.kt",
         "com/maodouchat/ui/component/GroupAvatar.kt",
         "com/maodouchat/ui/component/MediaInteractiveCards.kt",
@@ -231,56 +232,31 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/navigation/MainContainerRoute.kt",
         "com/maodouchat/ui/navigation/NavGraph.kt",
         "com/maodouchat/ui/screen/call/CallViewModel.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatAiContextBuilder.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatAiOperationModel.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatBotGroupActionController.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiAssistantCard.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiContext.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiIntents.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiOperations.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiResults.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiSummary.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailDisappearing.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailFeatureGates.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailGroupAi.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailLiveLocation.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailMedia.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailOfflineSuggestions.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailSecretChat.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailUiModels.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatExportController.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatGroupSecurityStateController.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatModerationController.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatPinStarController.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatRealtimeController.kt",
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/IdentityVerificationController.kt",
-        "com/maodouchat/ui/screen/chatdetail/MessageMutationPolicy.kt",
-        "com/maodouchat/ui/screen/chatdetail/RemoteTypingCoordinator.kt",
         "com/maodouchat/ui/screen/chatdetail/ScheduledMessageController.kt",
         "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
-        "com/maodouchat/ui/screen/chatdetail/group/GroupAuditSection.kt",
-        "com/maodouchat/ui/screen/chatdetail/group/GroupSenderKeySection.kt",
         "com/maodouchat/ui/screen/chatlist/ChatFolderController.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListAnnouncementCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListArchiveSuggestionCoordinator.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListLoadCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListLocalProjectionCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListMissedCallCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListMutationCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListRealtimeCoordinator.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListRemoteMergePolicy.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListServerFlags.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListSettingsToggle.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListUiState.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListUnreadBatchCoordinator.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListViewModel.kt",
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt",
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt",
         "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
@@ -292,17 +268,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreNearbyScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
-        "com/maodouchat/ui/screen/explore/ExplorePostCards.kt",
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt",
-        "com/maodouchat/ui/screen/explore/ExplorePublicProfilePolicy.kt",
-        "com/maodouchat/ui/screen/explore/ExplorePublishErrorPolicy.kt",
-        "com/maodouchat/ui/screen/explore/ExploreUiState.kt",
-        "com/maodouchat/ui/screen/explore/ExploreViewModel.kt",
         "com/maodouchat/ui/screen/explore/PublicProfileScreen.kt",
-        "com/maodouchat/ui/screen/groupplay/GroupChainScreen.kt",
-        "com/maodouchat/ui/screen/groupplay/GroupCheckinScreen.kt",
-        "com/maodouchat/ui/screen/groupplay/GroupPkScreen.kt",
-        "com/maodouchat/ui/screen/groupplay/GroupPlayHttp.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPlayViewModelSupport.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPollScreen.kt",
         "com/maodouchat/ui/screen/login/LoginScreen.kt",
@@ -311,14 +278,11 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt",
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt",
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt",
-        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt",
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacyViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsGeneralSettingsViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsModeration.kt",
         "com/maodouchat/ui/screen/settings/SettingsModerationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsReports.kt",
-        "com/maodouchat/ui/screen/settings/SettingsScreen.kt",
         "com/maodouchat/ui/screen/settings/SettingsTotpSection.kt",
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt",
     )
@@ -327,22 +291,25 @@ class ClientArchitectureTest {
     fun `ui must not grow its direct network usage`() {
         val actual = ktFilesUnder(File(appMain, "com/maodouchat/ui"))
             .filter { file ->
-                stripComments(file.readText()).lines().any { it.startsWith("import com.maodouchat.network") }
+                val lines = stripComments(file.readText()).lines()
+                if (lines.none { it.startsWith("import com.maodouchat.network") }) return@filter false
+                val body = lines.filterNot { it.startsWith("import ") }.joinToString("\n")
+                Regex("""\bApiService\b|\bTokenManager\b|\bApiEndpointClients\b""").containsMatchIn(body)
             }
             .map { it.relativeTo(appMain).path.replace('\\', '/') }
             .toSet()
-        val grown = (actual - frozenUiNetworkImporters).sorted()
+        val grown = (actual - frozenUiDirectApiUsers).sorted()
         assertEquals(
             emptyList(),
             grown,
-            "ui/ 新增了直连 network 层的文件——新代码请走 repository/usecase；" +
-                "确实必须直连的，加进 frozenUiNetworkImporters 并说明理由（那是一次显式让步）。实际=$grown",
+            "ui/ 新增了直接调 API/Token 的文件——新代码请走 repository/usecase；" +
+                "确实必须直连的，加进 frozenUiDirectApiUsers 并说明理由（那是一次显式让步）。实际=$grown",
         )
-        val shrunk = (frozenUiNetworkImporters - actual).sorted()
+        val shrunk = (frozenUiDirectApiUsers - actual).sorted()
         assertEquals(
             emptyList(),
             shrunk,
-            "有文件已经不再直连 network（好事）——请把它从 frozenUiNetworkImporters 删掉，让棘轮收紧。实际=$shrunk",
+            "有文件已经不再直连 API（好事）——请把它从 frozenUiDirectApiUsers 删掉，让棘轮收紧。实际=$shrunk",
         )
     }
 
