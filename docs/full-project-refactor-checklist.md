@@ -1247,7 +1247,7 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 |----|-------------|-----------|
 | ~~`ChatDetailViewModel.kt` 的装配抽出~~ | **已完成**：2931 → **2598 行**（装配 475 行搬到 `ChatDetailDeps`） | 见下方第四轮小节。注意：这里原先写的「884 行装配」是**错的**——那是 `文件行数 − 方法行数` 的粗算，把空行与 companion 也算进去了；用声明级 span 实测是 **475 行** |
 | `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable | 剩余都是 15–40 行的中小块；大块（450 行弹层）已搬 |
-| ui 直连 network | **98 个文件 / 135 处调用**，冻结为只许降的棘轮 | 每处要判定归属哪个 repository；本轮只保证它不再增长 |
+| ui 直连 network | **判据修准后从 98 → 61 → 40+21，本轮真实迁移到 31 + 26** | 剩 31 个文件仍直接调 `ApiService`（最大一处 `SettingsViewModel` 有 14 种调用）。迁移按「同类端点归一个 data 层仓库」推进，已完成公共端点/用户读取/会话读写三批 |
 | ~~`GroupPlayPolicy.kt`~~ | **已拆：1945 → 858 行** | 见下方第三轮小节（拆成 `GroupPlayClassicPolicy` 979 / `GroupPlayModePolicy` 492，父对象留同名委托） |
 | `NotificationCenterRepository` 的 `runBlocking` 桥接 | 4 处，DAO 配 `deleteForUserBlocking` 等同步变体 | 调用方含 Compose lambda 与非协程回调，改成 suspend 要连带改调用链；本轮已在 KDoc 写明「调用方含主线程」的现状与代价 |
 | core 冻结契约的**采纳** | `core/util`、`core/serialization`、`core/network` 仍只被 `:core:testing` 的 testImplementation 引用 | 属于 B02「依赖注入装配与 MaodouchatApp 瘦身」，是独立大工程 |
@@ -1337,3 +1337,22 @@ random 辅助（传递性死代码，以前测不出来）。
 
 **运行时的关键检查交给 CI 的 instrumented job**：它会在模拟器上真实构造这个 VM 并走完聊天流程，
 装配搬移若引入构造期访问顺序问题（例如装配在 `_uiState` 初始化之前就去读它），那里会红。
+
+### 第五轮（2026-09-25）：ui→network 棘轮的真实下降（41 → 31）
+
+前几轮只是把这条棘轮的**判据**修准（98 → 61 → 40 + 21），本轮开始真的把调用搬走：
+
+| 新增的 data 层仓库 | 覆盖的端点 | 迁移的文件 |
+|-------------------|-----------|-----------|
+| `PublicServerInfoRepository` | `/api/public/status`、`/api/public/updates`、公开主页资料 | `ChatListServerFlags`、`AboutScreen`、`LoginScreen`、`PublicProfileScreen` |
+| `UserNetworkRepository` | 鉴权用户读取（getUser / getUsers / getCurrentUser*） | `MyQrCodeViewModel`、`ChatRealtimeController`、`CallViewModel`、`CallNavigation` |
+| `ChatNetworkRepository` | 会话读写（createChat / getChats / updateChatSettings / updateDisappearingMessages） | `ChatDetailSecretChat`、`ChatDetailDisappearing`、`GroupDetailViewModel`、`ChatDetailDeps` |
+
+三个仓库都刻意很薄（不缓存、不重试）——调用方本来就有自己的会话校验与容错；
+也都接受 lambda 因而自身可测。**为什么不是一个通用仓库**：端点分属不同失败语义
+（免鉴权公共信息 / 鉴权用户 / 会话 CRUD），合成一个只会让「谁负责重试」变模糊。
+
+`frozenUiApiCallers` 41 → **31**；`frozenUiTokenReaders` 21 → 26——后者不是新增耦合：
+同一批文件从「调 API」迁到「只读令牌」，是在两个集合之间移动（分类规则本就是
+「先看是否调 API，否则看是否读令牌」）。**剩 31 个文件待迁**，其中 `SettingsViewModel`
+一个文件就有 14 种调用，是下一批的主要目标。
