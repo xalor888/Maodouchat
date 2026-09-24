@@ -887,7 +887,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q03 Compose 与系统集成
 
-- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G309c：五个入口有了覆盖，含两个屏幕本体**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats 与 Call / Settings 的屏幕本体；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`）。
+- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G309c：五个入口有了覆盖，含两个屏幕本体**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（**G313c：五点实证的阻塞，不是假设**——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、VM 主构造器 `private`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；最小接缝 = ports 构造器改 `internal` + 给那 4 个类造 fake）与 Call / Settings 的屏幕本体；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`）。
 - [ ] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文。
 - [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
 
@@ -13076,3 +13076,41 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
 - **核验**：`grep -c '23 条不变量' DIRECTION.md` → **0**；`26 条不变量` → **1**；
   867 行行首 → `messaging-v2 的 26 条不变量`；历史表述仍在；
   `git diff --stat docs/messaging-v2-architecture.md` → **空**（未改事实源）。
+
+
+### G313c — **Chats 屏幕确认是真阻塞**（这是四次「测不了」判断里第一次成立），并记下所需的最小接缝
+
+- **动机**：Q03 第 1 项只剩 Chats 屏幕未覆盖。我此前（G301c）把它记为「依赖真实会话数据与分页，范围更大」，
+  但**从未验证**。本轮验证，结论是：它确实需要先做生产侧接缝，且**具体卡在哪儿是明确的**。
+- **五点实证（与 Contacts/Explore 结构性不同）**：
+  1. `ChatListScreen.kt` 全文件只有 **1 个顶层 fun**（`ChatListScreen` 自身）——
+     **没有抽出无状态行 composable**；会话行是 LazyColumn 内联的。
+     （Contacts 那边有 `ContactItem`/`FriendRequestRow` 可直接测，这条路在 Chats 不存在。）
+  2. 两个 dialog 组 `ChatListScreenDialogs` / `ChatListMiscDialogs` 都把
+     `viewModel: ChatListViewModel` 当**必填参数**——连 dialog 层都绕不开 VM。
+  3. `ChatListViewModel` 的主构造器是 **`private constructor(application, ports)`**；
+     公开的只有 `ChatListViewModel(application)`，它走
+     `AndroidChatListPorts.create(application)` 建**真实** ports（Room/DAO）。
+  4. `ChatListPorts` 是 **`internal class`（具体类，非接口）**，构造器收 9 类协作者，
+     其中 **7 个是具体类**（`TokenManager`/`ChatRepository`/`LocalMessageStore`/
+     `MissedCallRepository`/`NotificationCenterRepository`/`ConversationScheduleCoordinator`/
+     `ConversationLocalStateCoordinator`），只有 `RealtimeEventDispatcher` 是接口。
+  5. 这 7 个里，`TokenManager`/`ChatRepository`/`MissedCallRepository`/
+     `NotificationCenterRepository` **从未被任何现有测试构造过**（另 3 个有）。
+- **为什么这次结论与前三次不同**：G301c（ContactsScreen「需 DI 改造」）、
+  G307c（ExploreScreen「需改造」）、以及 G307c 里 again 那次，都是**只看构造器默认值、
+  没试过显式传参**就被我写成了结论。这次是按同一条纪律反方向验证后仍然成立：
+  不是「默认值重」，而是**根本没有可传的 seam**（private 构造器 + 具体类 ports + 无状态行）。
+  **教训**：先验证再下结论这条纪律，既会推翻错误的「测不了」，也会证实真正的「测不了」——
+  它两个方向都有效，不能因为前三次被推翻就默认这次也错。
+- **所需的最小接缝（未实施，留给后续）**：把 `ChatListViewModel` 那个
+  `private constructor(application, ports)` 改成 `internal constructor(...)`。
+  它是**加宽可见性**、零运行时行为变化，且测试源码集与 main 同模块、
+  `internal` 本就对它可见——所以改完之后测试就能 `ChatListViewModel(app, ports)`。
+  但**仅此一步还不够**：仍要能构造 `ChatListPorts`，而那需要给那 4 个
+  「从未被测过」的具体类各造一个 fake（或把 `ChatListPorts` 改成接口 + 
+  `AndroidChatListPorts` 实现，那是一次更大的重构）。
+  **本轮故意不动生产代码**——我不想做一个自己没法端到端验证的改变。
+- **§11 Q03 第 1 项同步**：未做项从「Chats 与 Call / Settings 的屏幕本体」
+  精确为「Chats（需先造 VM seam，见 G313c 五点实证）」+ Call / Settings。
+  **注意这不是「我认为测不了」，而是有实证的阻塞 + 明确的接缝路径。**
