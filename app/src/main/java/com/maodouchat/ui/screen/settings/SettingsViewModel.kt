@@ -36,6 +36,8 @@ class SettingsViewModel @JvmOverloads constructor(
     private val settingsRepository: SettingsRepository = AndroidSettingsRepository(application),
     private val securityCoordinator: SecurityCoordinator = SecurityCoordinator(settingsRepository),
 ) : AndroidViewModel(application) {
+    /** G328c：账号/设备/拉黑这类**命令式**端点走 data 层仓库（ui 不再直接调 ApiService）。 */
+    private val accountApi get() = com.maodouchat.data.repository.AccountSecurityNetworkRepository()
 
     internal val tokenManager = TokenManager.getInstance(application)
     private val app = application as MaodouchatApp
@@ -90,8 +92,7 @@ class SettingsViewModel @JvmOverloads constructor(
         update()
     }
 
-    private fun currentLoadedPrivacy() =
-        loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }
+    private fun currentLoadedPrivacy() = loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }
 
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -243,7 +244,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.updateProfile(liveToken, status = status).fold(
+                accountApi.updateProfile(liveToken, status = status).fold(
                     onSuccess = { user ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = profileOwnerUserId,
@@ -304,7 +305,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.updateProfile(liveToken, name = name).fold(
+                accountApi.updateProfile(liveToken, name = name).fold(
                     onSuccess = { user ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = profileOwnerUserId,
@@ -360,7 +361,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     }
                     val token = tokenManager.getToken()
                     if (token.isNullOrBlank()) { _uiState.update { it.copy(isUploading = false, errorMessage = text(R.string.error_session_expired)) }; return@launch }
-                    ApiService.uploadAvatar(token, base64).fold(
+                    accountApi.uploadAvatar(token, base64).fold(
                         onSuccess = { url ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                     expectedUserId = uploadOwnerUserId,
@@ -502,7 +503,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.getBlockedUserDetails(liveToken).fold(
+                accountApi.blockedUserDetails(liveToken).fold(
                     onSuccess = { users ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = ownerUserId,
@@ -549,7 +550,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.removeAvatar(liveToken).fold(
+                accountApi.removeAvatar(liveToken).fold(
                     onSuccess = {
                         if (!isCurrentOwner(ownerUserId)) return@fold
                         _uiState.update {
@@ -597,7 +598,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.unblockUser(liveToken, userId).fold(
+                accountApi.unblock(liveToken, userId).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = ownerUserId,
@@ -657,7 +658,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.getDevices(liveToken, userId, currentDeviceId).fold(
+                accountApi.devices(liveToken, userId, currentDeviceId).fold(
                     onSuccess = { devices ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = userId,
@@ -714,7 +715,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.removeMyDevice(liveToken, deviceId).fold(
+                accountApi.removeDevice(liveToken, deviceId).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = ownerUserId,
@@ -774,7 +775,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.renameMyDevice(liveToken, deviceId, trimmed).fold(
+                accountApi.renameDevice(liveToken, deviceId, trimmed).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = ownerUserId,
@@ -841,7 +842,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.confirmMyDevice(liveToken, deviceId, approverDeviceId, approvalSignature).fold(
+                accountApi.confirmDevice(liveToken, deviceId, approverDeviceId, approvalSignature).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = ownerUserId,
@@ -1055,7 +1056,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.logoutAll(liveToken).fold(
+                accountApi.logoutAll(liveToken).fold(
                     onSuccess = {
                         if (!isCurrentOwner(ownerUserId)) return@fold
                         withContext(NonCancellable) {
@@ -1111,7 +1112,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.deleteAccount(liveToken, password).fold(
+                accountApi.deleteAccount(liveToken, password).fold(
                     onSuccess = {
                         if (!isCurrentOwner(deleteOwnerUserId)) return@fold
                         val purged = withContext(kotlinx.coroutines.NonCancellable) {
@@ -1157,7 +1158,6 @@ class SettingsViewModel @JvmOverloads constructor(
         }
     }
 
-    // ─── 用户名设置 ──────────────────────────
 
     /** 加载公开个人主页 URL */
     fun loadPublicProfileUrl() {
@@ -1167,7 +1167,7 @@ class SettingsViewModel @JvmOverloads constructor(
             val ownerUserId = tokenManager.getUserId().orEmpty()
             if (!isCurrentOwner(ownerUserId)) return@launch
             val liveToken = tokenManager.getToken() ?: token
-            ApiService.getCurrentUserPublic(liveToken).onSuccess { resp ->
+            accountApi.currentUserPublic(liveToken).onSuccess { resp ->
                 if (!isCurrentOwner(ownerUserId)) return@onSuccess
                 _uiState.update {
                     it.copy(
@@ -1223,9 +1223,9 @@ class SettingsViewModel @JvmOverloads constructor(
                 // 8.37 修复：此前两分支的 Result 被当表达式语句丢弃、无条件 success——
                 // 用户名重复/非法/网络失败被吞掉还显示「已更新」。改为真实返回。
                 val result = if (username.isBlank()) {
-                    ApiService.clearUsername(liveToken).map { username }
+                    accountApi.clearUsername(liveToken).map { username }
                 } else {
-                    ApiService.setUsername(liveToken, username).map { it.username ?: username }
+                    accountApi.setUsername(liveToken, username).map { it.username ?: username }
                 }
                 result.onSuccess {
                     if (!isCurrentOwner(ownerUserId)) return@onSuccess

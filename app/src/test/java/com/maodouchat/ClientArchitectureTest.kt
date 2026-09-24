@@ -222,7 +222,9 @@ class ClientArchitectureTest {
      * 两组都**只许降**：搬一个就从对应名单删一行。判据在剥注释后的正文里找符号，
      * 不按 import 行（`com.maodouchat.util.X` 这类全限定名引用也要能被抓到）。
      */
-    // G328c 真实下降：41 → 31（公共端点 3 处 + 用户读取 4 处 + 会话读写 4 处）。`ChatListServerFlags`（公共状态横幅）与
+    // G328c 真实下降：41 → 30（公共端点 3 + 用户读取 4 + 会话读写 4 + 设置页账号/设备 1）。
+    // 注意 SettingsViewModel 已在此名单之外——它的 14 处调用全部改走
+    // `data/repository/AccountSecurityNetworkRepository`。`ChatListServerFlags`（公共状态横幅）与
     // `AboutScreen`（检查更新）改走 `data/repository/PublicServerInfoRepository`。
     private val frozenUiApiCallers: Set<String> = setOf(
         "com/maodouchat/ui/component/MediaInteractiveCards.kt",
@@ -255,7 +257,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsReports.kt",
         "com/maodouchat/ui/screen/settings/SettingsTotpSection.kt",
-        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt",
     )
 
     private val frozenUiTokenReaders: Set<String> = setOf(
@@ -285,6 +286,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPlayViewModelSupport.kt",
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt",
+        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt",
     )
 
     @Test
