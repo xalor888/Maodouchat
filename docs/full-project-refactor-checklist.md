@@ -13342,3 +13342,15 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   浅色/深色主题切换、手机/平板尺寸、横屏、中英文多语言
   （本仓库连多语言资源都不一定有，未核实）。
   **不标 `[x]`**：冒烟不等于截图回归，截图回归才是该项的本意。
+
+**G325c 补记（CI 红后的修复）**：上一版提交后 CI 的 `lintDebug` 红——
+`ConfigRobustnessTest.kt:69: Constructing a view model in a composable
+[ViewModelConstructorInComposable]`。原因是我把 composable lambda 赋给显式
+`var content: @Composable () -> Unit`，lint 因此认出这是 composable 函数体，
+于是在其中构造 `ChatListViewModel(...)` 被抓到。（早前两个测试把构造直接写在
+`compose.setContent { }` 的 lambda 里，lint 不报——**同一个反模式，换个写法就暴露，
+说明那两处也只是侥幸**，已在 G325c 记一笔。）
+修法：把 VM 构造**提到 composable 之外**（先 `val viewModel = ...` 再进 `setContent`），
+这本来就是更对的做法。本地 `./gradlew :app:lintDebug` 复跑 BUILD SUCCESSFUL 后提交。
+**教训：CI 的 lint 作业是我本地不会跑的那一门，本地全绿不等于 CI 全绿**——
+本轮四个作业里只有 lint 红，正是这个原因。

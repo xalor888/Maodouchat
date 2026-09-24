@@ -55,10 +55,19 @@ class ConfigRobustnessTest {
     private var capturedDirection: LayoutDirection? = null
     private var capturedFontScale: Float? = null
 
+    /**
+     * 在 composable **之外**构造 VM——`setContent { }` 与这里的 `var content` 都是
+     * composable lambda，在里面构造 VM 会触发 lint 的
+     * `ViewModelConstructorInComposable`（G325c 实测：CI 的 `lintDebug` 因此红过一次）。
+     */
+    private fun chatListViewModel(): ChatListViewModel =
+        ChatListViewModel(application())
+
     private fun setChatListScreenUnder(
         direction: LayoutDirection? = null,
         fontScale: Float? = null,
     ) {
+        val viewModel = chatListViewModel()
         compose.setContent {
             // 逐层覆盖：RTL 与字体缩放互不依赖，可分别施加。
             var content: @androidx.compose.runtime.Composable () -> Unit = {
@@ -66,7 +75,7 @@ class ConfigRobustnessTest {
                 capturedDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
                 capturedFontScale = LocalConfiguration.current.fontScale
                 ChatListScreen(
-                    viewModel = ChatListViewModel(application()),
+                    viewModel = viewModel,
                     onChatClick = {},
                     onOpenGroupDetail = {},
                     onOpenGlobalSearch = {},
@@ -183,11 +192,12 @@ class ConfigRobustnessTest {
         direction: LayoutDirection? = null,
         fontScale: Float? = null,
     ) {
+        val viewModel = buildSettingsViewModel()
         compose.setContent {
             var content: @androidx.compose.runtime.Composable () -> Unit = {
                 capturedDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
                 capturedFontScale = LocalConfiguration.current.fontScale
-                SettingsScreen(viewModel = buildSettingsViewModel())
+                SettingsScreen(viewModel = viewModel)
             }
             if (fontScale != null) {
                 val scaled = Configuration(LocalConfiguration.current).apply {
