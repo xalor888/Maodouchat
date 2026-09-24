@@ -184,19 +184,11 @@ class GroupPlayPolicyTest {
         // 源码文本门禁约定：判决第一步必须剥注释。
         // 第一版**没剥**，结果本用例自己的 KDoc 里举例提到的 `spinWheel` 被当成了
         // 「有人引用它」——死成员数因此少了 1，而且这个数还会随我改注释而变。
-        val allSources = sequenceOf("app/src", "server/src", "core", "domain", "feature")
-            .map { File(TEST_SOURCE_ROOT, it) }
-            .filter { it.isDirectory }
-            .flatMap { it.walkTopDown().filter { f -> f.isFile && f.extension == "kt" }.asSequence() }
-            .map { stripComments(it.readText()) }
-            .toList()
+        val allSources = sourcesOutsideCluster()
 
         val unreferenced = members.filter { name ->
-            // 全仓库出现次数减去「本文件里的定义行」——只剩定义行即零引用
-            val total = allSources.sumOf { Regex("""\b${Regex.escape(name)}\b""").findAll(it).count() }
-            val definitions = Regex("""^    (?:internal |private )?(?:suspend )?fun ${Regex.escape(name)}\(""",
-                RegexOption.MULTILINE).findAll(policyText).count()
-            total - definitions == 0
+            // 族外出现次数为 0 才算零引用（族内的实现/委托不算引用，见 POLICY_CLUSTER_FILES）
+            allSources.sumOf { Regex("""\b${Regex.escape(name)}\b""").findAll(it).count() } == 0
         }
         assertEquals(
             UNREFERENCED_BASELINE,
@@ -207,15 +199,42 @@ class GroupPlayPolicyTest {
         )
     }
 
+    /**
+     * 群玩法策略族：实现按模式归族后分散在几个文件里，「零引用」必须**把整个族当作声明面**。
+     *
+     * 为什么（G328c 实测）：拆分后 `formatHotPotato` 这类函数的实现搬到了
+     * `GroupPlayClassicPolicy`，父对象只留同名委托。旧判定按「全仓出现次数 − 本文件里的定义行」
+     * 算，于是**实现文件里的那一行**被当成了外部引用 —— 10 个真正的死成员一夜之间全部「复活」，
+     * 这条棘轮再也测不出死代码。改成「族外引用为零才算死」后语义恢复原意，且对后续继续拆族也成立。
+     */
+    private val POLICY_CLUSTER_FILES = setOf(
+        "GroupPlayPolicy.kt",
+        "GroupPlayClassicPolicy.kt",
+        "GroupPlayModePolicy.kt",
+        "GroupPlaySealPolicy.kt",
+        "GroupPlayFieldEscape.kt",
+    )
+
+    /** 族外源码（已剥注释）。 */
+    private fun sourcesOutsideCluster(): List<String> =
+        sequenceOf("app/src", "server/src", "core", "domain", "feature")
+            .map { File(TEST_SOURCE_ROOT, it) }
+            .filter { it.isDirectory }
+            .flatMap { it.walkTopDown().filter { f -> f.isFile && f.extension == "kt" }.asSequence() }
+            .filter { it.name !in POLICY_CLUSTER_FILES }
+            .map { stripComments(it.readText()) }
+            .toList()
+
     /** G216b：零引用的 `val`/`var` 声明（口径与 fun 那条完全一致）。 */
     private fun unreferencedVals(policyText: String, allSources: List<String>): List<String> {
         val vals = Regex("""^    (?:internal |private )?(?:const )?(?:val|var) (\w+)""", RegexOption.MULTILINE)
             .findAll(policyText).map { it.groupValues[1] }.toList()
         return vals.filter { name ->
-            val total = allSources.sumOf { Regex("""${Regex.escape(name)}""").findAll(it).count() }
-            val definitions = Regex("""^    (?:internal |private )?(?:const )?(?:val|var) ${Regex.escape(name)}""",
-                RegexOption.MULTILINE).findAll(policyText).count()
-            total - definitions == 0
+            // G328c 修复：这里原本是两个**真实的退格字符**（U+0008）而不是 `\b`，
+            // 正则因此谁都匹配不到 → 每个 val 都满足 `0 - 0 == 0` → 门禁把**全部** val
+            // 报成「零引用」（基线 173 就是这么来的），实际上它什么也没测。
+            // 现在按「族外零引用」判定，与 fun 那条同一口径。
+            allSources.sumOf { Regex("""\b${Regex.escape(name)}\b""").findAll(it).count() } == 0
         }
     }
 
@@ -230,12 +249,7 @@ class GroupPlayPolicyTest {
         val source = File(TEST_SOURCE_ROOT, "app/src/main/java/com/maodouchat/util/GroupPlayPolicy.kt")
         assertTrue(source.isFile, "GroupPlayPolicy.kt 不存在：${source.path}")
         val policyText = stripComments(source.readText())
-        val allSources = sequenceOf("app/src", "server/src", "core", "domain", "feature")
-            .map { File(TEST_SOURCE_ROOT, it) }
-            .filter { it.isDirectory }
-            .flatMap { it.walkTopDown().filter { f -> f.isFile && f.extension == "kt" }.asSequence() }
-            .map { stripComments(it.readText()) }
-            .toList()
+        val allSources = sourcesOutsideCluster()
 
         val vals = Regex("""^    (?:internal |private )?(?:const )?(?:val|var) (\w+)""", RegexOption.MULTILINE)
             .findAll(policyText).map { it.groupValues[1] }.toList()
@@ -672,7 +686,7 @@ class GroupPlayPolicyTest {
          *
          * G223c：**226**。往下调的原因是 G223c 的往返测试用反射驱动那 88 个
          * `(mode, hostLabel)` 形状的 format，函数名以字符串字面量出现在
-         * `MODE_HOST_LABEL_FORMATS` 名单里，于是棘轮的 `name` 口径认它们为
+         * `MODE_HOST_LABEL_FORMATS` 名单里，于是棘轮按「名字在族外出现」判定它们为
          * 「已被引用」。这**不是数字游戏**——那 88 个函数现在真的有测试覆盖
          * （往返断言），从「死代码」变成「有测试但无产品入口」。
          * 剩下 226 个仍是真死代码。
@@ -684,7 +698,15 @@ class GroupPlayPolicyTest {
         // 分别把 24 个、9 个误判成死成员（详见台账 G295c）。
         // 保留 TRUTH_PREFIX / ANON_PREFIX：它们虽只被已删的 format* 使用，
         // 但 TextMessageBubble.kt 的解析分支依赖它们，删了会直接编译失败。
-        const val UNREFERENCED_BASELINE = 10
+        /**
+         * G328c：10 → **14**。这不是新增了死代码，而是**口径修正后暴露出来的**：
+         * 判定从「全仓出现次数 − 本文件定义行」改成「族外引用为零」（见
+         * [POLICY_CLUSTER_FILES]）之后，只被**自身已死函数**调用的 4 个 random 辅助
+         * （`randomMemoryBoard` / `randomEmojiDuel` / `randomChainSeed` / `randomHideEmoji`）
+         * 不再被误认为「有人用」——它们本来就是传递性死代码。
+         * 棘轮方向不变：从这里开始只许降。
+         */
+        const val UNREFERENCED_BASELINE = 14
 
     /**
      * G216b：`val`/`var` 声明的零引用冻结值。
@@ -693,7 +715,15 @@ class GroupPlayPolicyTest {
      * 它们完全不在监管范围内：新增一个没人用的常量不会让任何门禁变红。
      * 这是同一类「门禁只覆盖了一半」的缝。
      */
-    const val UNREFERENCED_VAL_BASELINE = 173
+    /**
+     * G328c：173 → **163**。**旧值是一个永远假的数**——那条判定里的两个正则用的不是 `\b`
+     * 而是**真实的退格字符 U+0008**，于是正则谁都匹配不到、每个 val 都满足 `0 - 0 == 0`，
+     * 门禁把**全部** val 报成「零引用」。也就是说这条棘轮自建立起就没在测东西，
+     * 而 173 这个数被写进文档、又被审计当成「173 个 val 100% 死」引用过。
+     * 修好正则 + 统一为族外零引用口径后，真实值是 163 —— 仍有 10 个前缀常量有族外引用
+     * （`TextMessageBubble` 用全限定名读了 `WORD_PREFIX` / `EMOJI_RAIN_PREFIX` / `QUIZ_PREFIX` 等）。
+     */
+    const val UNREFERENCED_VAL_BASELINE = 163
 
         /** 仓库根（测试的 user.dir 可能是模块目录，向上找到 settings.gradle.kts + app）。 */
         val TEST_SOURCE_ROOT: File = run {

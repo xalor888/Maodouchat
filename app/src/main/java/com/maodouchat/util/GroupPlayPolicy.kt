@@ -9,8 +9,6 @@ import kotlin.random.Random
  * Poll persistence is server-backed; dice is ephemeral system text with optional E2EE payload.
  */
 object GroupPlayPolicy {
-    private fun esc(s: String): String = s.replace("|", "\u0001").replace("^", "\u0002")
-    private fun unesc(s: String): String = s.replace("\u0001", "|").replace("\u0002", "^")
     const val DICE_PREFIX = "DICE:"
     const val POLL_PREFIX = "POLL:"
     const val CHECKIN_PREFIX = "CHECKIN:"
@@ -28,7 +26,7 @@ object GroupPlayPolicy {
     fun parseDice(content: String): Pair<Int, Int>? {
         if (!content.startsWith(DICE_PREFIX)) return null
         val body = content.removePrefix(DICE_PREFIX)
-        val head = unesc(body.substringBefore('|'))
+        val head = GroupPlayFieldEscape.unesc(body.substringBefore('|'))
         val parts = head.split(':')
         if (parts.size < 2) return null
         val sides = parts[0].toIntOrNull() ?: return null
@@ -51,13 +49,13 @@ object GroupPlayPolicy {
         com.maodouchat.group.play.GroupPollPolicy.parsePoll(content)
 
     fun formatLuckyDraw(pickerName: String, targetName: String): String {
-        return "LUCKY:${esc(pickerName)}|$targetName"
+        return "LUCKY:${GroupPlayFieldEscape.esc(pickerName)}|$targetName"
     }
 
     fun parseLuckyDraw(content: String): Pair<String, String>? {
         if (!content.startsWith("LUCKY:")) return null
         val body = content.removePrefix("LUCKY:")
-        val a = unesc(body.substringBefore('|'))
+        val a = GroupPlayFieldEscape.unesc(body.substringBefore('|'))
         val b = body.substringAfter('|', "")
         if (a.isBlank() || b.isBlank()) return null
         return a to b
@@ -67,1279 +65,578 @@ object GroupPlayPolicy {
     const val TRUTH_PREFIX = "TRUTH:"
     const val ANON_PREFIX = "ANON:"
 
-    fun rollRps(): String = com.maodouchat.group.play.GroupPkPolicy.rollRps()
+    fun rollRps(): String = GroupPlayClassicPolicy.rollRps()
 
-    fun formatRps(choice: String, userLabel: String): String =
-        com.maodouchat.group.play.GroupPkPolicy.formatRps(choice, userLabel)
+    fun formatRps(choice: String, userLabel: String): String = GroupPlayClassicPolicy.formatRps(choice, userLabel)
 
-    fun parseRps(content: String): String? =
-        com.maodouchat.group.play.GroupPkPolicy.parseRps(content)
+    fun parseRps(content: String): String? = GroupPlayClassicPolicy.parseRps(content)
 
     const val BOMB_PREFIX = "BOMB:"
     const val WORD_PREFIX = "WORD:"
 
-    fun rollNumberBomb(max: Int = 100): Pair<Int, Int> =
-        com.maodouchat.group.play.GroupPkPolicy.rollNumberBomb(max)
+    fun rollNumberBomb(max: Int = 100): Pair<Int, Int> = GroupPlayClassicPolicy.rollNumberBomb(max)
 
-    fun formatNumberBomb(secret: Int, max: Int, hostLabel: String): String =
-        com.maodouchat.group.play.GroupPkPolicy.formatNumberBomb(secret, max, hostLabel)
+    fun formatNumberBomb(secret: Int, max: Int, hostLabel: String): String = GroupPlayClassicPolicy.formatNumberBomb(secret, max, hostLabel)
 
-    fun parseNumberBomb(content: String): Triple<Int, Int, String>? =
-        com.maodouchat.group.play.GroupPkPolicy.parseNumberBomb(content)
+    fun parseNumberBomb(content: String): Triple<Int, Int, String>? = GroupPlayClassicPolicy.parseNumberBomb(content)
 
-    fun randomWordSeed(): String = com.maodouchat.group.play.GroupChainPolicy.randomWordSeed()
+    fun randomWordSeed(): String = GroupPlayClassicPolicy.randomWordSeed()
 
-    fun formatWordChain(seed: String, userLabel: String): String =
-        com.maodouchat.group.play.GroupChainPolicy.formatWordChain(seed, userLabel)
+    fun formatWordChain(seed: String, userLabel: String): String = GroupPlayClassicPolicy.formatWordChain(seed, userLabel)
 
     const val RACE_PREFIX = "RACE:"
 
-    fun randomRaceToken(): String = com.maodouchat.group.play.GroupPkPolicy.randomRaceToken()
+    fun randomRaceToken(): String = GroupPlayClassicPolicy.randomRaceToken()
 
-    fun formatReactionRace(token: String, hostLabel: String): String =
-        com.maodouchat.group.play.GroupPkPolicy.formatReactionRace(token, hostLabel)
+    fun formatReactionRace(token: String, hostLabel: String): String = GroupPlayClassicPolicy.formatReactionRace(token, hostLabel)
 
-    fun parseReactionRace(content: String): Pair<String, String>? =
-        com.maodouchat.group.play.GroupPkPolicy.parseReactionRace(content)
+    fun parseReactionRace(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseReactionRace(content)
 
     const val WOULD_PREFIX = "WOULD:"
     const val EMOJI_RAIN_PREFIX = "EMOJI_RAIN:"
 
-    fun formatWouldYouRather(a: String, b: String, hostLabel: String): String {
-        val left = a.trim().take(80)
-        val right = b.trim().take(80)
-        return "${WOULD_PREFIX}${esc(left)}|${esc(right)}|${hostLabel} would you rather"
-    }
+    fun formatWouldYouRather(a: String, b: String, hostLabel: String): String = GroupPlayClassicPolicy.formatWouldYouRather(a, b, hostLabel)
 
-    fun parseWouldYouRather(content: String): Triple<String, String, String>? {
-        if (!content.startsWith(WOULD_PREFIX)) return null
-        val body = content.removePrefix(WOULD_PREFIX)
-        val parts = body.split('|').map { unesc(it) }
-        if (parts.size < 2) return null
-        val a = parts[0]
-        val b = parts[1]
-        val label = parts.getOrNull(2).orEmpty()
-        if (a.isBlank() || b.isBlank()) return null
-        return Triple(a, b, label)
-    }
+    fun parseWouldYouRather(content: String): Triple<String, String, String>? = GroupPlayClassicPolicy.parseWouldYouRather(content)
 
-    fun formatEmojiRain(hostLabel: String, emoji: String = rainEmojis.random()): String {
-        val e = emoji.take(4).ifBlank { "🎉" }
-        return "${EMOJI_RAIN_PREFIX}${esc(e)}|${hostLabel} started emoji rain $e"
-    }
+    fun formatEmojiRain(hostLabel: String, emoji: String = rainEmojis.random()): String = GroupPlayClassicPolicy.formatEmojiRain(hostLabel, emoji)
 
-    fun parseEmojiRain(content: String): Pair<String, String>? {
-        if (!content.startsWith(EMOJI_RAIN_PREFIX)) return null
-        val body = content.removePrefix(EMOJI_RAIN_PREFIX)
-        val emoji = unesc(body.substringBefore('|')).ifBlank { return null }
-        val rest = body.substringAfter('|', "")
-        return emoji to rest
-    }
+    fun parseEmojiRain(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseEmojiRain(content)
 
     const val TRUTHS_PREFIX = "TRUTHS:"
     const val QUIZ_PREFIX = "QUIZ:"
 
-    fun formatTwoTruthsOneLie(t1: String, t2: String, lie: String, hostLabel: String): String {
-        val a = t1.trim().take(80)
-        val b = t2.trim().take(80)
-        val c = lie.trim().take(80)
-        // Order shuffled client-side for display; lie index embedded for E2EE peers
-        return "${TRUTHS_PREFIX}2|${esc(a)}|${esc(b)}|${esc(c)}|${hostLabel} two truths & one lie"
-    }
+    fun formatTwoTruthsOneLie(t1: String, t2: String, lie: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTwoTruthsOneLie(t1, t2, lie, hostLabel)
 
-    fun parseTwoTruthsOneLie(content: String): List<String>? {
-        if (!content.startsWith(TRUTHS_PREFIX)) return null
-        val body = content.removePrefix(TRUTHS_PREFIX)
-        val parts = body.split('|').map { unesc(it) }
-        if (parts.size < 4) return null
-        return listOf(parts[1], parts[2], parts[3]).filter { it.isNotBlank() }
-    }
+    fun parseTwoTruthsOneLie(content: String): List<String>? = GroupPlayClassicPolicy.parseTwoTruthsOneLie(content)
 
-    fun formatQuiz(question: String, answer: String, options: List<String>, hostLabel: String): String {
-        // 9.224 修复：先逐项 esc 再 join——此前 join 后才 esc，选项内的 ^/| 与连接符
-        // 一并被转义，解析端无法区分导致选项断裂（round-trip 破坏）
-        val opts = options.joinToString("^") { esc(it.take(40)) }
-        return "${QUIZ_PREFIX}${esc(question.take(120))}|${esc(answer)}|${opts}|${hostLabel} quiz"
-    }
+    fun formatQuiz(question: String, answer: String, options: List<String>, hostLabel: String): String = GroupPlayClassicPolicy.formatQuiz(question, answer, options, hostLabel)
 
-    fun parseQuiz(content: String): Triple<String, String, List<String>>? {
-        if (!content.startsWith(QUIZ_PREFIX)) return null
-        val body = content.removePrefix(QUIZ_PREFIX)
-        // 9.224：选项段先按 ^ 切分再逐项 unesc，与 format 的「先 esc 再 join」对偶；
-        // q/ans 仍整段 unesc。旧格式（无真 ^ 分隔）退化为单项展示，不崩溃。
-        val parts = body.split('|')
-        if (parts.size < 3) return null
-        val q = unesc(parts[0])
-        val ans = unesc(parts[1])
-        val opts = parts[2].split('^').filter { it.isNotBlank() }.map { unesc(it) }
-        return Triple(q, ans, opts)
-    }
+    fun parseQuiz(content: String): Triple<String, String, List<String>>? = GroupPlayClassicPolicy.parseQuiz(content)
 
     const val SPIN_PREFIX = "SPIN:"
     const val STORY_PREFIX = "STORY:"
     const val COUNTDOWN_PREFIX = "COUNTDOWN:"
 
-    fun spinWheel(): String = spinOptions.random()
+    fun spinWheel(): String = GroupPlayClassicPolicy.spinWheel()
 
-    fun formatSpin(result: String, hostLabel: String): String {
-        return "${SPIN_PREFIX}${esc(result.take(40))}|${hostLabel} spun the wheel"
-    }
+    fun formatSpin(result: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSpin(result, hostLabel)
 
-    fun parseSpin(content: String): String? {
-        if (!content.startsWith(SPIN_PREFIX)) return null
-        return unesc(content.removePrefix(SPIN_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseSpin(content: String): String? = GroupPlayClassicPolicy.parseSpin(content)
 
-    fun formatStory(seed: String, hostLabel: String): String {
-        val s = seed.trim().ifBlank { "Once upon a time in a chat group..." }.take(160)
-        return "${STORY_PREFIX}${esc(s)}|${hostLabel} started a story"
-    }
+    fun formatStory(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatStory(seed, hostLabel)
 
-    fun parseStory(content: String): String? {
-        if (!content.startsWith(STORY_PREFIX)) return null
-        return unesc(content.removePrefix(STORY_PREFIX).substringBefore('|'))
-    }
+    fun parseStory(content: String): String? = GroupPlayClassicPolicy.parseStory(content)
 
-    fun formatCountdown(seconds: Int, hostLabel: String): String {
-        val s = seconds.coerceIn(5, 600)
-        return "${COUNTDOWN_PREFIX}$s|${hostLabel} started ${s}s countdown"
-    }
+    fun formatCountdown(seconds: Int, hostLabel: String): String = GroupPlayClassicPolicy.formatCountdown(seconds, hostLabel)
 
-    fun parseCountdown(content: String): Int? {
-        if (!content.startsWith(COUNTDOWN_PREFIX)) return null
-        return unesc(content.removePrefix(COUNTDOWN_PREFIX).substringBefore('|')).toIntOrNull()
-    }
+    fun parseCountdown(content: String): Int? = GroupPlayClassicPolicy.parseCountdown(content)
 
     const val BINGO_PREFIX = "BINGO:"
     const val LOTTERY_PREFIX = "LOTTERY:"
     const val HOTSEAT_PREFIX = "HOTSEAT:"
 
-    fun formatBingo(board: List<String>, hostLabel: String): String {
-        // 9.224：同 quiz 修复——先逐项 esc 再 join，避免格内 ^ 与连接符混淆
-        val cells = board.joinToString("^") { esc(it.take(4)) }
-        return "${BINGO_PREFIX}$cells|${hostLabel} bingo board"
-    }
+    fun formatBingo(board: List<String>, hostLabel: String): String = GroupPlayClassicPolicy.formatBingo(board, hostLabel)
 
-    fun parseBingo(content: String): List<String>? {
-        if (!content.startsWith(BINGO_PREFIX)) return null
-        val body = content.removePrefix(BINGO_PREFIX).substringBefore('|')
-        val cells = body.split('^').filter { it.isNotBlank() }.map { unesc(it) }
-        return cells.takeIf { it.isNotEmpty() }
-    }
+    fun parseBingo(content: String): List<String>? = GroupPlayClassicPolicy.parseBingo(content)
 
-    fun formatLottery(pool: List<String>, winner: String, hostLabel: String): String {
-        // 9.224：同 quiz 修复——奖池可能含任意用户输入，必须先逐项 esc 再 join
-        val p = pool.joinToString("^") { esc(it.take(24)) }.take(200)
-        return "${LOTTERY_PREFIX}${esc(winner)}|$p|${hostLabel} lottery"
-    }
+    fun formatLottery(pool: List<String>, winner: String, hostLabel: String): String = GroupPlayClassicPolicy.formatLottery(pool, winner, hostLabel)
 
-    fun parseLottery(content: String): Pair<String, List<String>>? {
-        if (!content.startsWith(LOTTERY_PREFIX)) return null
-        val body = content.removePrefix(LOTTERY_PREFIX)
-        val winner = unesc(body.substringBefore('|'))
-        val rest = body.substringAfter('|', "")
-        val pool = rest.substringBefore('|').split('^').filter { it.isNotBlank() }.map { unesc(it) }
-        if (winner.isBlank()) return null
-        return winner to pool
-    }
+    fun parseLottery(content: String): Pair<String, List<String>>? = GroupPlayClassicPolicy.parseLottery(content)
 
-    fun formatHotSeat(target: String, hostLabel: String): String {
-        val t = target.trim().ifBlank { "someone" }.take(40)
-        return "${HOTSEAT_PREFIX}${esc(t)}|${hostLabel} put $t on the hot seat — ask a question!"
-    }
+    fun formatHotSeat(target: String, hostLabel: String): String = GroupPlayClassicPolicy.formatHotSeat(target, hostLabel)
 
-    fun parseHotSeat(content: String): String? {
-        if (!content.startsWith(HOTSEAT_PREFIX)) return null
-        return unesc(content.removePrefix(HOTSEAT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseHotSeat(content: String): String? = GroupPlayClassicPolicy.parseHotSeat(content)
 
     const val COINFLIP_PREFIX = "COINFLIP:"
     const val REDPACKET_PREFIX = "REDPACKET:"
 
-    fun formatCoinFlip(side: String, hostLabel: String): String {
-        val s = if (side.equals("HEADS", true)) "HEADS" else "TAILS"
-        return "${COINFLIP_PREFIX}${esc(s)}|${hostLabel} flipped $s"
-    }
+    fun formatCoinFlip(side: String, hostLabel: String): String = GroupPlayClassicPolicy.formatCoinFlip(side, hostLabel)
 
-    fun parseCoinFlip(content: String): String? {
-        if (!content.startsWith(COINFLIP_PREFIX)) return null
-        return unesc(content.removePrefix(COINFLIP_PREFIX).substringBefore('|'))
-    }
+    fun parseCoinFlip(content: String): String? = GroupPlayClassicPolicy.parseCoinFlip(content)
 
-    fun formatRedPacketJoke(amountLabel: String, hostLabel: String): String {
-        val a = amountLabel.trim().ifBlank { "lucky" }.take(24)
-        return "${REDPACKET_PREFIX}${esc(a)}|${hostLabel} sent a fun red packet ($a) — claim in chat!"
-    }
+    fun formatRedPacketJoke(amountLabel: String, hostLabel: String): String = GroupPlayClassicPolicy.formatRedPacketJoke(amountLabel, hostLabel)
 
-    fun parseRedPacketJoke(content: String): String? {
-        if (!content.startsWith(REDPACKET_PREFIX)) return null
-        return unesc(content.removePrefix(REDPACKET_PREFIX).substringBefore('|'))
-    }
+    fun parseRedPacketJoke(content: String): String? = GroupPlayClassicPolicy.parseRedPacketJoke(content)
 
     const val CHARADES_PREFIX = "CHARADES:"
     const val NUMBERGUESS_PREFIX = "NUMGUESS:"
 
-    fun formatCharades(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().ifBlank { "mystery" }.take(40)
-        return "${CHARADES_PREFIX}${esc(p)}|${hostLabel} charades — act it out!"
-    }
+    fun formatCharades(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatCharades(prompt, hostLabel)
 
-    fun parseCharades(content: String): String? {
-        if (!content.startsWith(CHARADES_PREFIX)) return null
-        return unesc(content.removePrefix(CHARADES_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseCharades(content: String): String? = GroupPlayClassicPolicy.parseCharades(content)
 
-    fun formatNumberGuess(secret: Int, max: Int, hostLabel: String): String {
-        // Secret is client-local in E2EE body; others only see range.
-        return "${NUMBERGUESS_PREFIX}$secret|$max|${hostLabel} number guess 1..$max"
-    }
+    fun formatNumberGuess(secret: Int, max: Int, hostLabel: String): String = GroupPlayClassicPolicy.formatNumberGuess(secret, max, hostLabel)
 
-    fun parseNumberGuess(content: String): Pair<Int, Int>? {
-        if (!content.startsWith(NUMBERGUESS_PREFIX)) return null
-        val body = content.removePrefix(NUMBERGUESS_PREFIX)
-        val secret = unesc(body.substringBefore('|')).toIntOrNull() ?: return null
-        val max = unesc(body.substringAfter('|').substringBefore('|')).toIntOrNull() ?: return null
-        return secret to max
-    }
+    fun parseNumberGuess(content: String): Pair<Int, Int>? = GroupPlayClassicPolicy.parseNumberGuess(content)
 
     const val IMPOSTOR_PREFIX = "IMPOSTOR:"
     const val RIDDLE_PREFIX = "RIDDLE:"
     const val EMOJI_STORY_PREFIX = "EMOJISTORY:"
 
-    fun formatRiddle(q: String, a: String, hostLabel: String): String {
-        val qq = q.trim().take(80)
-        val aa = a.trim().take(40)
-        return "${RIDDLE_PREFIX}${esc(qq)}|${esc(aa)}|${hostLabel} riddle"
-    }
+    fun formatRiddle(q: String, a: String, hostLabel: String): String = GroupPlayClassicPolicy.formatRiddle(q, a, hostLabel)
 
-    fun parseRiddle(content: String): Pair<String, String>? {
-        if (!content.startsWith(RIDDLE_PREFIX)) return null
-        val body = content.removePrefix(RIDDLE_PREFIX)
-        // 9.225：畸形格式（缺分隔符）拒绝解析，避免 a 回退为 q 的错误展示
-        if (!body.contains('|')) return null
-        val q = unesc(body.substringBefore('|'))
-        val a = unesc(body.substringAfter('|').substringBefore('|'))
-        if (q.isBlank()) return null
-        return q to a
-    }
+    fun parseRiddle(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseRiddle(content)
 
-    fun formatImpostor(word: String, hostLabel: String): String {
-        val w = word.trim().ifBlank { "apple" }.take(24)
-        // Secret word in E2EE body; host privately knows; others discuss.
-        return "${IMPOSTOR_PREFIX}${esc(w)}|${hostLabel} started impostor — find the odd one out!"
-    }
+    fun formatImpostor(word: String, hostLabel: String): String = GroupPlayClassicPolicy.formatImpostor(word, hostLabel)
 
-    fun parseImpostor(content: String): String? {
-        if (!content.startsWith(IMPOSTOR_PREFIX)) return null
-        return unesc(content.removePrefix(IMPOSTOR_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseImpostor(content: String): String? = GroupPlayClassicPolicy.parseImpostor(content)
 
-    fun formatEmojiStory(seed: String, hostLabel: String): String {
-        val s = seed.trim().ifBlank { "✨" }.take(24)
-        return "${EMOJI_STORY_PREFIX}${esc(s)}|${hostLabel} emoji story — continue in chat!"
-    }
+    fun formatEmojiStory(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatEmojiStory(seed, hostLabel)
 
-    fun parseEmojiStory(content: String): String? {
-        if (!content.startsWith(EMOJI_STORY_PREFIX)) return null
-        return unesc(content.removePrefix(EMOJI_STORY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseEmojiStory(content: String): String? = GroupPlayClassicPolicy.parseEmojiStory(content)
 
     const val SIMON_PREFIX = "SIMON:"
     const val HOTORNOT_PREFIX = "HOTORNOT:"
     const val ALPHABET_PREFIX = "ALPHABET:"
 
-    fun formatSimon(seq: String, hostLabel: String): String {
-        val s = seq.take(16)
-        return "${SIMON_PREFIX}${esc(s)}|${hostLabel} simon says — repeat the sequence!"
-    }
+    fun formatSimon(seq: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSimon(seq, hostLabel)
 
-    fun parseSimon(content: String): String? {
-        if (!content.startsWith(SIMON_PREFIX)) return null
-        return unesc(content.removePrefix(SIMON_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseSimon(content: String): String? = GroupPlayClassicPolicy.parseSimon(content)
 
-    fun formatHotOrNot(topic: String, hostLabel: String): String {
-        val t = topic.trim().ifBlank { "this idea" }.take(60)
-        return "${HOTORNOT_PREFIX}${esc(t)}|${hostLabel} hot or not: $t"
-    }
+    fun formatHotOrNot(topic: String, hostLabel: String): String = GroupPlayClassicPolicy.formatHotOrNot(topic, hostLabel)
 
-    fun parseHotOrNot(content: String): String? {
-        if (!content.startsWith(HOTORNOT_PREFIX)) return null
-        return unesc(content.removePrefix(HOTORNOT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseHotOrNot(content: String): String? = GroupPlayClassicPolicy.parseHotOrNot(content)
 
-    fun formatAlphabet(letter: String, hostLabel: String): String {
-        val L = letter.trim().take(1).uppercase().ifBlank { "A" }
-        return "${ALPHABET_PREFIX}$L|${hostLabel} alphabet race — name something starting with $L"
-    }
+    fun formatAlphabet(letter: String, hostLabel: String): String = GroupPlayClassicPolicy.formatAlphabet(letter, hostLabel)
 
-    fun parseAlphabet(content: String): String? {
-        if (!content.startsWith(ALPHABET_PREFIX)) return null
-        return unesc(content.removePrefix(ALPHABET_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseAlphabet(content: String): String? = GroupPlayClassicPolicy.parseAlphabet(content)
 
     const val TRIVIA_PREFIX = "TRIVIA:"
     const val SPEED_PREFIX = "SPEED:"
 
-    fun formatTrivia(q: String, a: String, hostLabel: String): String {
-        return "${TRIVIA_PREFIX}${esc(q.take(80))}|${esc(a.take(40))}|${hostLabel} trivia"
-    }
+    fun formatTrivia(q: String, a: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTrivia(q, a, hostLabel)
 
-    fun parseTrivia(content: String): Pair<String, String>? {
-        if (!content.startsWith(TRIVIA_PREFIX)) return null
-        val body = content.removePrefix(TRIVIA_PREFIX)
-        // 9.225：同 riddle——缺分隔符的畸形格式拒绝解析
-        if (!body.contains('|')) return null
-        val q = unesc(body.substringBefore('|'))
-        val a = unesc(body.substringAfter('|').substringBefore('|'))
-        if (q.isBlank()) return null
-        return q to a
-    }
+    fun parseTrivia(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseTrivia(content)
 
-    fun formatSpeedChallenge(sec: Int, hostLabel: String): String {
-        val s = sec.coerceIn(5, 60)
-        return "${SPEED_PREFIX}$s|${hostLabel} speed challenge — reply in ${s}s!"
-    }
+    fun formatSpeedChallenge(sec: Int, hostLabel: String): String = GroupPlayClassicPolicy.formatSpeedChallenge(sec, hostLabel)
 
-    fun parseSpeedChallenge(content: String): Int? {
-        if (!content.startsWith(SPEED_PREFIX)) return null
-        return unesc(content.removePrefix(SPEED_PREFIX).substringBefore('|')).toIntOrNull()
-    }
+    fun parseSpeedChallenge(content: String): Int? = GroupPlayClassicPolicy.parseSpeedChallenge(content)
 
     const val TRUTH_OR_DARE_PREFIX = "TRUTHDARE:"
     const val NEVER_HAVE_PREFIX = "NEVERHAVE:"
     const val MEMORY_MATCH_PREFIX = "MEMORY:"
     const val DRAW_PROMPT_PREFIX = "DRAWPROMPT:"
 
-    fun randomMemoryBoard(): String = memoryEmojis.random()
+    fun randomMemoryBoard(): String = GroupPlayClassicPolicy.randomMemoryBoard()
 
-    fun formatTruthOrDare(mode: String, prompt: String, hostLabel: String): String {
-        val m = mode.trim().lowercase().let { if (it == "dare") "dare" else "truth" }
-        val p = prompt.trim().take(80)
-        return "${TRUTH_OR_DARE_PREFIX}${esc(m)}|${esc(p)}|${hostLabel} truth-or-dare"
-    }
+    fun formatTruthOrDare(mode: String, prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTruthOrDare(mode, prompt, hostLabel)
 
-    fun parseTruthOrDare(content: String): Pair<String, String>? {
-        if (!content.startsWith(TRUTH_OR_DARE_PREFIX)) return null
-        val body = content.removePrefix(TRUTH_OR_DARE_PREFIX)
-        if (!body.contains('|')) return null
-        val mode = unesc(body.substringBefore('|'))
-        val prompt = unesc(body.substringAfter('|').substringBefore('|'))
-        if (prompt.isBlank()) return null
-        return mode to prompt
-    }
+    fun parseTruthOrDare(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseTruthOrDare(content)
 
-    fun formatNeverHaveIEver(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().take(100)
-        return "${NEVER_HAVE_PREFIX}${esc(p)}|${hostLabel} never-have-I-ever — react if you have!"
-    }
+    fun formatNeverHaveIEver(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatNeverHaveIEver(prompt, hostLabel)
 
-    fun parseNeverHaveIEver(content: String): String? {
-        if (!content.startsWith(NEVER_HAVE_PREFIX)) return null
-        return unesc(content.removePrefix(NEVER_HAVE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseNeverHaveIEver(content: String): String? = GroupPlayClassicPolicy.parseNeverHaveIEver(content)
 
-    fun formatMemoryMatch(board: String, hostLabel: String): String {
-        val b = board.trim().ifBlank { randomMemoryBoard() }.take(24)
-        return "${MEMORY_MATCH_PREFIX}${esc(b)}|${hostLabel} memory match — find pairs!"
-    }
+    fun formatMemoryMatch(board: String, hostLabel: String): String = GroupPlayClassicPolicy.formatMemoryMatch(board, hostLabel)
 
-    fun parseMemoryMatch(content: String): String? {
-        if (!content.startsWith(MEMORY_MATCH_PREFIX)) return null
-        return unesc(content.removePrefix(MEMORY_MATCH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseMemoryMatch(content: String): String? = GroupPlayClassicPolicy.parseMemoryMatch(content)
 
-    fun formatDrawPrompt(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().take(60)
-        return "${DRAW_PROMPT_PREFIX}${esc(p)}|${hostLabel} draw this (no words)!"
-    }
+    fun formatDrawPrompt(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatDrawPrompt(prompt, hostLabel)
 
-    fun parseDrawPrompt(content: String): String? {
-        if (!content.startsWith(DRAW_PROMPT_PREFIX)) return null
-        return unesc(content.removePrefix(DRAW_PROMPT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseDrawPrompt(content: String): String? = GroupPlayClassicPolicy.parseDrawPrompt(content)
 
     const val ICEBREAKER_PREFIX = "ICEBREAKER:"
     const val EMOJI_DUEL_PREFIX = "EMOJIDUEL:"
     const val RAPID_FIRE_PREFIX = "RAPIDFIRE:"
 
-    fun randomEmojiDuel(): String = duelEmojis.random()
+    fun randomEmojiDuel(): String = GroupPlayClassicPolicy.randomEmojiDuel()
 
-    fun formatIcebreaker(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().take(100)
-        return "${ICEBREAKER_PREFIX}${esc(p)}|${hostLabel} icebreaker"
-    }
+    fun formatIcebreaker(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatIcebreaker(prompt, hostLabel)
 
-    fun parseIcebreaker(content: String): String? {
-        if (!content.startsWith(ICEBREAKER_PREFIX)) return null
-        return unesc(content.removePrefix(ICEBREAKER_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseIcebreaker(content: String): String? = GroupPlayClassicPolicy.parseIcebreaker(content)
 
-    fun formatEmojiDuel(pair: String, hostLabel: String): String {
-        val p = pair.trim().ifBlank { randomEmojiDuel() }.take(16)
-        return "${EMOJI_DUEL_PREFIX}${esc(p)}|${hostLabel} emoji duel — pick a side!"
-    }
+    fun formatEmojiDuel(pair: String, hostLabel: String): String = GroupPlayClassicPolicy.formatEmojiDuel(pair, hostLabel)
 
-    fun parseEmojiDuel(content: String): String? {
-        if (!content.startsWith(EMOJI_DUEL_PREFIX)) return null
-        return unesc(content.removePrefix(EMOJI_DUEL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseEmojiDuel(content: String): String? = GroupPlayClassicPolicy.parseEmojiDuel(content)
 
-    fun formatRapidFire(topic: String, hostLabel: String): String {
-        val t = topic.trim().take(40)
-        return "${RAPID_FIRE_PREFIX}${esc(t)}|${hostLabel} rapid-fire — name 5 in 20s!"
-    }
+    fun formatRapidFire(topic: String, hostLabel: String): String = GroupPlayClassicPolicy.formatRapidFire(topic, hostLabel)
 
-    fun parseRapidFire(content: String): String? {
-        if (!content.startsWith(RAPID_FIRE_PREFIX)) return null
-        return unesc(content.removePrefix(RAPID_FIRE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseRapidFire(content: String): String? = GroupPlayClassicPolicy.parseRapidFire(content)
 
     const val SCATTER_PREFIX = "SCATTER:"
     const val MINUTE_TALK_PREFIX = "MINUTETALK:"
     const val CAPTION_THIS_PREFIX = "CAPTION:"
 
-    fun formatScatter(letter: String, category: String, hostLabel: String): String {
-        val l = letter.trim().take(2).uppercase()
-        val c = category.trim().take(24)
-        return "${SCATTER_PREFIX}${esc(l)}|${esc(c)}|${hostLabel} scattergories — name one!"
-    }
+    fun formatScatter(letter: String, category: String, hostLabel: String): String = GroupPlayClassicPolicy.formatScatter(letter, category, hostLabel)
 
-    fun parseScatter(content: String): Pair<String, String>? {
-        if (!content.startsWith(SCATTER_PREFIX)) return null
-        val body = content.removePrefix(SCATTER_PREFIX)
-        val letter = unesc(body.substringBefore('|'))
-        val cat = unesc(body.substringAfter('|').substringBefore('|'))
-        if (letter.isBlank() || cat.isBlank()) return null
-        return letter to cat
-    }
+    fun parseScatter(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseScatter(content)
 
-    fun formatMinuteTalk(topic: String, hostLabel: String): String {
-        val t = topic.trim().take(80)
-        return "${MINUTE_TALK_PREFIX}${esc(t)}|${hostLabel} 60s talk — go!"
-    }
+    fun formatMinuteTalk(topic: String, hostLabel: String): String = GroupPlayClassicPolicy.formatMinuteTalk(topic, hostLabel)
 
-    fun parseMinuteTalk(content: String): String? {
-        if (!content.startsWith(MINUTE_TALK_PREFIX)) return null
-        return unesc(content.removePrefix(MINUTE_TALK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseMinuteTalk(content: String): String? = GroupPlayClassicPolicy.parseMinuteTalk(content)
 
-    fun formatCaptionThis(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(40)
-        return "${CAPTION_THIS_PREFIX}${esc(s)}|${hostLabel} caption this!"
-    }
+    fun formatCaptionThis(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatCaptionThis(seed, hostLabel)
 
-    fun parseCaptionThis(content: String): String? {
-        if (!content.startsWith(CAPTION_THIS_PREFIX)) return null
-        return unesc(content.removePrefix(CAPTION_THIS_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseCaptionThis(content: String): String? = GroupPlayClassicPolicy.parseCaptionThis(content)
 
     const val STORY_SWAP_PREFIX = "STORYSWAP:"
     const val KARAOKE_PREFIX = "KARAOKE:"
     const val BLIND_Q_PREFIX = "BLINDQ:"
 
-    fun formatStorySwap(opener: String, hostLabel: String): String {
-        val o = opener.trim().take(80)
-        return "${STORY_SWAP_PREFIX}${esc(o)}|${hostLabel} story swap — continue!"
-    }
+    fun formatStorySwap(opener: String, hostLabel: String): String = GroupPlayClassicPolicy.formatStorySwap(opener, hostLabel)
 
-    fun parseStorySwap(content: String): String? {
-        if (!content.startsWith(STORY_SWAP_PREFIX)) return null
-        return unesc(content.removePrefix(STORY_SWAP_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseStorySwap(content: String): String? = GroupPlayClassicPolicy.parseStorySwap(content)
 
-    fun formatKaraoke(line: String, hostLabel: String): String {
-        val l = line.trim().take(80)
-        return "${KARAOKE_PREFIX}${esc(l)}|${hostLabel} karaoke challenge"
-    }
+    fun formatKaraoke(line: String, hostLabel: String): String = GroupPlayClassicPolicy.formatKaraoke(line, hostLabel)
 
-    fun parseKaraoke(content: String): String? {
-        if (!content.startsWith(KARAOKE_PREFIX)) return null
-        return unesc(content.removePrefix(KARAOKE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseKaraoke(content: String): String? = GroupPlayClassicPolicy.parseKaraoke(content)
 
-    fun formatBlindQ(q: String, hostLabel: String): String {
-        val qq = q.trim().take(80)
-        return "${BLIND_Q_PREFIX}${esc(qq)}|${hostLabel} blind Q — guess about someone!"
-    }
+    fun formatBlindQ(q: String, hostLabel: String): String = GroupPlayClassicPolicy.formatBlindQ(q, hostLabel)
 
-    fun parseBlindQ(content: String): String? {
-        if (!content.startsWith(BLIND_Q_PREFIX)) return null
-        return unesc(content.removePrefix(BLIND_Q_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseBlindQ(content: String): String? = GroupPlayClassicPolicy.parseBlindQ(content)
 
     const val FORTUNE_PREFIX = "FORTUNE:"
     const val EMOJI_QUIZ_PREFIX = "EMOJIQUIZ:"
     const val CHAIN_REACT_PREFIX = "CHAINREACT:"
 
-    fun randomChainSeed(): String = chainSeeds.random()
+    fun randomChainSeed(): String = GroupPlayClassicPolicy.randomChainSeed()
 
-    fun formatFortune(text: String, hostLabel: String): String {
-        val t = text.trim().take(80)
-        return "${FORTUNE_PREFIX}${esc(t)}|${hostLabel} fortune cookie"
-    }
+    fun formatFortune(text: String, hostLabel: String): String = GroupPlayClassicPolicy.formatFortune(text, hostLabel)
 
-    fun parseFortune(content: String): String? {
-        if (!content.startsWith(FORTUNE_PREFIX)) return null
-        return unesc(content.removePrefix(FORTUNE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseFortune(content: String): String? = GroupPlayClassicPolicy.parseFortune(content)
 
-    fun formatEmojiQuiz(prompt: String, answer: String, hostLabel: String): String {
-        val p = prompt.trim().take(24)
-        val a = answer.trim().take(40)
-        return "${EMOJI_QUIZ_PREFIX}${esc(p)}|${esc(a)}|${hostLabel} emoji quiz"
-    }
+    fun formatEmojiQuiz(prompt: String, answer: String, hostLabel: String): String = GroupPlayClassicPolicy.formatEmojiQuiz(prompt, answer, hostLabel)
 
-    fun parseEmojiQuiz(content: String): Pair<String, String>? {
-        if (!content.startsWith(EMOJI_QUIZ_PREFIX)) return null
-        val body = content.removePrefix(EMOJI_QUIZ_PREFIX)
-        if (!body.contains('|')) return null
-        val p = unesc(body.substringBefore('|'))
-        val a = unesc(body.substringAfter('|').substringBefore('|'))
-        if (p.isBlank()) return null
-        return p to a
-    }
+    fun parseEmojiQuiz(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseEmojiQuiz(content)
 
-    fun formatChainReact(seed: String, hostLabel: String): String {
-        val s = seed.trim().ifBlank { randomChainSeed() }.take(8)
-        return "${CHAIN_REACT_PREFIX}${esc(s)}|${hostLabel} chain react — reply with related emoji!"
-    }
+    fun formatChainReact(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatChainReact(seed, hostLabel)
 
-    fun parseChainReact(content: String): String? {
-        if (!content.startsWith(CHAIN_REACT_PREFIX)) return null
-        return unesc(content.removePrefix(CHAIN_REACT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseChainReact(content: String): String? = GroupPlayClassicPolicy.parseChainReact(content)
 
     const val DEBATE_PREFIX = "DEBATE:"
     const val MIRROR_PREFIX = "MIRROR:"
     const val HIDESEEK_PREFIX = "HIDESEEK:"
     const val TOAST_PREFIX = "TOAST:"
 
-    fun randomHideEmoji(): String = hideEmojis.random()
+    fun randomHideEmoji(): String = GroupPlayClassicPolicy.randomHideEmoji()
 
-    fun formatDebate(topic: String, hostLabel: String): String {
-        val t = topic.trim().take(80)
-        return "${DEBATE_PREFIX}${esc(t)}|${hostLabel} debate — pick a side!"
-    }
+    fun formatDebate(topic: String, hostLabel: String): String = GroupPlayClassicPolicy.formatDebate(topic, hostLabel)
 
-    fun parseDebate(content: String): String? {
-        if (!content.startsWith(DEBATE_PREFIX)) return null
-        return unesc(content.removePrefix(DEBATE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseDebate(content: String): String? = GroupPlayClassicPolicy.parseDebate(content)
 
-    fun formatMirror(line: String, hostLabel: String): String {
-        val l = line.trim().take(100)
-        return "${MIRROR_PREFIX}${esc(l)}|${hostLabel} mirror — repeat in your style"
-    }
+    fun formatMirror(line: String, hostLabel: String): String = GroupPlayClassicPolicy.formatMirror(line, hostLabel)
 
-    fun parseMirror(content: String): String? {
-        if (!content.startsWith(MIRROR_PREFIX)) return null
-        return unesc(content.removePrefix(MIRROR_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseMirror(content: String): String? = GroupPlayClassicPolicy.parseMirror(content)
 
-    fun formatHideSeek(emoji: String, hostLabel: String): String {
-        val e = emoji.trim().ifBlank { randomHideEmoji() }.take(8)
-        return "${HIDESEEK_PREFIX}${esc(e)}|${hostLabel} hide & seek — find the emoji in chat history!"
-    }
+    fun formatHideSeek(emoji: String, hostLabel: String): String = GroupPlayClassicPolicy.formatHideSeek(emoji, hostLabel)
 
-    fun parseHideSeek(content: String): String? {
-        if (!content.startsWith(HIDESEEK_PREFIX)) return null
-        return unesc(content.removePrefix(HIDESEEK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseHideSeek(content: String): String? = GroupPlayClassicPolicy.parseHideSeek(content)
 
-    fun formatToast(line: String, hostLabel: String): String {
-        val t = line.trim().take(80)
-        return "${TOAST_PREFIX}${esc(t)}|${hostLabel} friendly roast"
-    }
+    fun formatToast(line: String, hostLabel: String): String = GroupPlayClassicPolicy.formatToast(line, hostLabel)
 
-    fun parseToast(content: String): String? {
-        if (!content.startsWith(TOAST_PREFIX)) return null
-        return unesc(content.removePrefix(TOAST_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseToast(content: String): String? = GroupPlayClassicPolicy.parseToast(content)
 
     const val HOTPOTATO_PREFIX = "HOTPOTATO:"
     const val WORDHINT_PREFIX = "WORDHINT:"
 
-    fun formatHotPotato(seconds: Int, hostLabel: String): String {
-        val s = seconds.coerceIn(5, 30)
-        return "${HOTPOTATO_PREFIX}$s|${hostLabel} hot potato — pass in ${s}s!"
-    }
+    fun formatHotPotato(seconds: Int, hostLabel: String): String = GroupPlayClassicPolicy.formatHotPotato(seconds, hostLabel)
 
-    fun parseHotPotato(content: String): Int? {
-        if (!content.startsWith(HOTPOTATO_PREFIX)) return null
-        return unesc(content.removePrefix(HOTPOTATO_PREFIX).substringBefore('|')).toIntOrNull()
-    }
+    fun parseHotPotato(content: String): Int? = GroupPlayClassicPolicy.parseHotPotato(content)
 
-    fun formatWordHint(hint: String, answer: String, hostLabel: String): String {
-        val h = hint.trim().take(60)
-        val a = answer.trim().take(40)
-        return "${WORDHINT_PREFIX}${esc(h)}|${esc(a)}|${hostLabel} word hint"
-    }
+    fun formatWordHint(hint: String, answer: String, hostLabel: String): String = GroupPlayClassicPolicy.formatWordHint(hint, answer, hostLabel)
 
-    fun parseWordHint(content: String): Pair<String, String>? {
-        if (!content.startsWith(WORDHINT_PREFIX)) return null
-        val body = content.removePrefix(WORDHINT_PREFIX)
-        val h = unesc(body.substringBefore('|'))
-        val a = unesc(body.substringAfter('|').substringBefore('|'))
-        if (h.isBlank()) return null
-        return h to a
-    }
+    fun parseWordHint(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseWordHint(content)
 
     const val SPYFALL_PREFIX = "SPYFALL:"
     const val ACROSTIC_PREFIX = "ACROSTIC:"
     const val EMOJI_TR_PREFIX = "EMOJITR:"
 
-    fun formatSpyfall(location: String, hostLabel: String): String {
-        val loc = location.trim().take(40)
-        return "${SPYFALL_PREFIX}${esc(loc)}|${hostLabel} spyfall — one spy doesn't know the place!"
-    }
+    fun formatSpyfall(location: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSpyfall(location, hostLabel)
 
-    fun parseSpyfall(content: String): String? {
-        if (!content.startsWith(SPYFALL_PREFIX)) return null
-        return unesc(content.removePrefix(SPYFALL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseSpyfall(content: String): String? = GroupPlayClassicPolicy.parseSpyfall(content)
 
-    fun formatAcrostic(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(20)
-        return "${ACROSTIC_PREFIX}${esc(s)}|${hostLabel} acrostic — start each line with letters of '$s'"
-    }
+    fun formatAcrostic(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatAcrostic(seed, hostLabel)
 
-    fun parseAcrostic(content: String): String? {
-        if (!content.startsWith(ACROSTIC_PREFIX)) return null
-        return unesc(content.removePrefix(ACROSTIC_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseAcrostic(content: String): String? = GroupPlayClassicPolicy.parseAcrostic(content)
 
-    fun formatEmojiTranslate(prompt: String, answer: String, hostLabel: String): String {
-        val p = prompt.trim().take(24)
-        val a = answer.trim().take(40)
-        return "${EMOJI_TR_PREFIX}${esc(p)}|${esc(a)}|${hostLabel} emoji translate"
-    }
+    fun formatEmojiTranslate(prompt: String, answer: String, hostLabel: String): String = GroupPlayClassicPolicy.formatEmojiTranslate(prompt, answer, hostLabel)
 
-    fun parseEmojiTranslate(content: String): Pair<String, String>? {
-        if (!content.startsWith(EMOJI_TR_PREFIX)) return null
-        val body = content.removePrefix(EMOJI_TR_PREFIX)
-        val p = unesc(body.substringBefore('|'))
-        val a = unesc(body.substringAfter('|').substringBefore('|'))
-        if (p.isBlank()) return null
-        return p to a
-    }
+    fun parseEmojiTranslate(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseEmojiTranslate(content)
 
     const val TWENTYQ_PREFIX = "TWENTYQ:"
     const val RHYME_PREFIX = "RHYME:"
     const val ODDONE_PREFIX = "ODDONE:"
 
-    fun formatTwentyQuestions(subject: String, hostLabel: String): String {
-        val s = subject.trim().take(40)
-        return "${TWENTYQ_PREFIX}${esc(s)}|${hostLabel} 20 questions — yes/no only!"
-    }
+    fun formatTwentyQuestions(subject: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTwentyQuestions(subject, hostLabel)
 
-    fun parseTwentyQuestions(content: String): String? {
-        if (!content.startsWith(TWENTYQ_PREFIX)) return null
-        return unesc(content.removePrefix(TWENTYQ_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTwentyQuestions(content: String): String? = GroupPlayClassicPolicy.parseTwentyQuestions(content)
 
-    fun formatRhyme(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(20)
-        return "${RHYME_PREFIX}${esc(s)}|${hostLabel} rhyme chain — rhyme with '$s'"
-    }
+    fun formatRhyme(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatRhyme(seed, hostLabel)
 
-    fun parseRhyme(content: String): String? {
-        if (!content.startsWith(RHYME_PREFIX)) return null
-        return unesc(content.removePrefix(RHYME_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseRhyme(content: String): String? = GroupPlayClassicPolicy.parseRhyme(content)
 
-    fun formatOddOneOut(options: String, answer: String, hostLabel: String): String {
-        val o = options.trim().take(80)
-        val a = answer.trim().take(40)
-        return "${ODDONE_PREFIX}${esc(o)}|${esc(a)}|${hostLabel} odd one out"
-    }
+    fun formatOddOneOut(options: String, answer: String, hostLabel: String): String = GroupPlayClassicPolicy.formatOddOneOut(options, answer, hostLabel)
 
-    fun parseOddOneOut(content: String): Pair<String, String>? {
-        if (!content.startsWith(ODDONE_PREFIX)) return null
-        val body = content.removePrefix(ODDONE_PREFIX)
-        val o = unesc(body.substringBefore('|'))
-        val a = unesc(body.substringAfter('|').substringBefore('|'))
-        if (o.isBlank()) return null
-        return o to a
-    }
+    fun parseOddOneOut(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseOddOneOut(content)
 
     const val CATEGORIES_PREFIX = "CATEGORIES:"
     const val PASSWORD_PREFIX = "PASSWORD:"
     const val TIMECAPSULE_PREFIX = "TIMECAPSULE:"
 
-    fun formatCategories(cat: String, hostLabel: String): String {
-        val c = cat.trim().take(30)
-        return "${CATEGORIES_PREFIX}${esc(c)}|${hostLabel} categories — name things in '$c'"
-    }
+    fun formatCategories(cat: String, hostLabel: String): String = GroupPlayClassicPolicy.formatCategories(cat, hostLabel)
 
-    fun parseCategories(content: String): String? {
-        if (!content.startsWith(CATEGORIES_PREFIX)) return null
-        return unesc(content.removePrefix(CATEGORIES_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseCategories(content: String): String? = GroupPlayClassicPolicy.parseCategories(content)
 
-    fun formatPasswordGame(hint: String, hostLabel: String): String {
-        val h = hint.trim().take(40)
-        return "${PASSWORD_PREFIX}${esc(h)}|${hostLabel} password game — guess under rules"
-    }
+    fun formatPasswordGame(hint: String, hostLabel: String): String = GroupPlayClassicPolicy.formatPasswordGame(hint, hostLabel)
 
-    fun parsePasswordGame(content: String): String? {
-        if (!content.startsWith(PASSWORD_PREFIX)) return null
-        return unesc(content.removePrefix(PASSWORD_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parsePasswordGame(content: String): String? = GroupPlayClassicPolicy.parsePasswordGame(content)
 
-    fun formatTimeCapsule(note: String, hostLabel: String): String {
-        val n = note.trim().take(80)
-        return "${TIMECAPSULE_PREFIX}${esc(n)}|${hostLabel} time capsule — open later"
-    }
+    fun formatTimeCapsule(note: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTimeCapsule(note, hostLabel)
 
-    fun parseTimeCapsule(content: String): String? {
-        if (!content.startsWith(TIMECAPSULE_PREFIX)) return null
-        return unesc(content.removePrefix(TIMECAPSULE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTimeCapsule(content: String): String? = GroupPlayClassicPolicy.parseTimeCapsule(content)
 
     const val TABOO_PREFIX = "TABOO:"
     const val LIGHTNING_PREFIX = "LIGHTNING:"
     const val TWO_WORDS_PREFIX = "TWOWORDS:"
 
-    fun formatTaboo(card: String, hostLabel: String): String {
-        val c = card.trim().take(60)
-        val word = c.substringBefore('|')
-        return "${TABOO_PREFIX}${esc(c)}|${hostLabel} taboo — describe '$word' without banned words"
-    }
+    fun formatTaboo(card: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTaboo(card, hostLabel)
 
-    fun parseTaboo(content: String): String? {
-        if (!content.startsWith(TABOO_PREFIX)) return null
-        return unesc(content.removePrefix(TABOO_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTaboo(content: String): String? = GroupPlayClassicPolicy.parseTaboo(content)
 
-    fun formatLightning(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().take(60)
-        return "${LIGHTNING_PREFIX}${esc(p)}|${hostLabel} lightning round"
-    }
+    fun formatLightning(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatLightning(prompt, hostLabel)
 
-    fun parseLightning(content: String): String? {
-        if (!content.startsWith(LIGHTNING_PREFIX)) return null
-        return unesc(content.removePrefix(LIGHTNING_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseLightning(content: String): String? = GroupPlayClassicPolicy.parseLightning(content)
 
-    fun formatTwoWords(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(20)
-        return "${TWO_WORDS_PREFIX}${esc(s)}|${hostLabel} two-word story — start with '$s'"
-    }
+    fun formatTwoWords(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTwoWords(seed, hostLabel)
 
-    fun parseTwoWords(content: String): String? {
-        if (!content.startsWith(TWO_WORDS_PREFIX)) return null
-        return unesc(content.removePrefix(TWO_WORDS_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTwoWords(content: String): String? = GroupPlayClassicPolicy.parseTwoWords(content)
 
     const val WHISPER_PREFIX = "WHISPER:"
     const val COUNTDOWN_RACE_PREFIX = "COUNTRACE:"
 
-    fun formatWhisper(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().take(60)
-        return "${WHISPER_PREFIX}${esc(p)}|${hostLabel} whisper challenge"
-    }
+    fun formatWhisper(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatWhisper(prompt, hostLabel)
 
-    fun parseWhisper(content: String): String? {
-        if (!content.startsWith(WHISPER_PREFIX)) return null
-        return unesc(content.removePrefix(WHISPER_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseWhisper(content: String): String? = GroupPlayClassicPolicy.parseWhisper(content)
 
-    fun formatCountdownRace(seconds: Int, hostLabel: String): String {
-        val s = seconds.coerceIn(2, 30)
-        return "${COUNTDOWN_RACE_PREFIX}$s|${hostLabel} countdown race - first reply wins!"
-    }
+    fun formatCountdownRace(seconds: Int, hostLabel: String): String = GroupPlayClassicPolicy.formatCountdownRace(seconds, hostLabel)
 
-    fun parseCountdownRace(content: String): String? {
-        if (!content.startsWith(COUNTDOWN_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(COUNTDOWN_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseCountdownRace(content: String): String? = GroupPlayClassicPolicy.parseCountdownRace(content)
 
     const val EMOJI_MEMORY_PREFIX = "EMOJIMEM:"
     const val GEO_GUESS_PREFIX = "GEOGUESS:"
 
-    fun formatEmojiMemory(board: String, hostLabel: String): String {
-        val b = board.trim().take(24)
-        return "${EMOJI_MEMORY_PREFIX}${esc(b)}|${hostLabel} emoji memory — memorize then recall"
-    }
+    fun formatEmojiMemory(board: String, hostLabel: String): String = GroupPlayClassicPolicy.formatEmojiMemory(board, hostLabel)
 
-    fun parseEmojiMemory(content: String): String? {
-        if (!content.startsWith(EMOJI_MEMORY_PREFIX)) return null
-        return unesc(content.removePrefix(EMOJI_MEMORY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseEmojiMemory(content: String): String? = GroupPlayClassicPolicy.parseEmojiMemory(content)
 
-    fun formatGeoGuess(clue: String, hostLabel: String): String {
-        val c = clue.trim().take(50)
-        return "${GEO_GUESS_PREFIX}${esc(c)}|${hostLabel} geo guess"
-    }
+    fun formatGeoGuess(clue: String, hostLabel: String): String = GroupPlayClassicPolicy.formatGeoGuess(clue, hostLabel)
 
-    fun parseGeoGuess(content: String): String? {
-        if (!content.startsWith(GEO_GUESS_PREFIX)) return null
-        return unesc(content.removePrefix(GEO_GUESS_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseGeoGuess(content: String): String? = GroupPlayClassicPolicy.parseGeoGuess(content)
 
     const val ONE_WORD_PREFIX = "ONEWORD:"
     const val SPEED_MATH_PREFIX = "SPEEDMATH:"
     const val STORY_SEED_PREFIX = "STORYSEED:"
 
-    fun formatOneWord(word: String, hostLabel: String): String {
-        val w = word.trim().take(20)
-        return "${ONE_WORD_PREFIX}${esc(w)}|${hostLabel} one-word story — continue with one word"
-    }
+    fun formatOneWord(word: String, hostLabel: String): String = GroupPlayClassicPolicy.formatOneWord(word, hostLabel)
 
-    fun parseOneWord(content: String): String? {
-        if (!content.startsWith(ONE_WORD_PREFIX)) return null
-        return unesc(content.removePrefix(ONE_WORD_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseOneWord(content: String): String? = GroupPlayClassicPolicy.parseOneWord(content)
 
-    fun formatSpeedMath(q: String, hostLabel: String): String {
-        val qq = q.trim().take(20)
-        return "${SPEED_MATH_PREFIX}${esc(qq)}|${hostLabel} speed math — first correct wins"
-    }
+    fun formatSpeedMath(q: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSpeedMath(q, hostLabel)
 
-    fun parseSpeedMath(content: String): String? {
-        if (!content.startsWith(SPEED_MATH_PREFIX)) return null
-        return unesc(content.removePrefix(SPEED_MATH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseSpeedMath(content: String): String? = GroupPlayClassicPolicy.parseSpeedMath(content)
 
-    fun formatStorySeed(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(50)
-        return "${STORY_SEED_PREFIX}${esc(s)}|${hostLabel} story seed — write the next sentence"
-    }
+    fun formatStorySeed(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatStorySeed(seed, hostLabel)
 
-    fun parseStorySeed(content: String): String? {
-        if (!content.startsWith(STORY_SEED_PREFIX)) return null
-        return unesc(content.removePrefix(STORY_SEED_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseStorySeed(content: String): String? = GroupPlayClassicPolicy.parseStorySeed(content)
 
     const val WOULD_YOU_PREFIX2 = "WOULD2:"
     const val EMOJI_ONLY_PREFIX = "EMOJIONLY:"
     const val BLIND_DRAW_PREFIX = "BLINDDRAW:"
 
-    fun formatWould2(a: String, b: String, hostLabel: String): String {
-        return "${WOULD_YOU_PREFIX2}${esc(a.trim().take(30))}|${esc(b.trim().take(30))}|${hostLabel} would you rather"
-    }
+    fun formatWould2(a: String, b: String, hostLabel: String): String = GroupPlayClassicPolicy.formatWould2(a, b, hostLabel)
 
-    fun parseWould2(content: String): Pair<String, String>? {
-        if (!content.startsWith(WOULD_YOU_PREFIX2)) return null
-        val body = content.removePrefix(WOULD_YOU_PREFIX2)
-        val a = unesc(body.substringBefore('|'))
-        val b = unesc(body.substringAfter('|').substringBefore('|'))
-        if (a.isBlank() || b.isBlank()) return null
-        return a to b
-    }
+    fun parseWould2(content: String): Pair<String, String>? = GroupPlayClassicPolicy.parseWould2(content)
 
-    fun formatEmojiOnly(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().take(50)
-        return "${EMOJI_ONLY_PREFIX}${esc(p)}|${hostLabel} emoji-only challenge"
-    }
+    fun formatEmojiOnly(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatEmojiOnly(prompt, hostLabel)
 
-    fun parseEmojiOnly(content: String): String? {
-        if (!content.startsWith(EMOJI_ONLY_PREFIX)) return null
-        return unesc(content.removePrefix(EMOJI_ONLY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseEmojiOnly(content: String): String? = GroupPlayClassicPolicy.parseEmojiOnly(content)
 
-    fun formatBlindDraw(token: String, hostLabel: String): String {
-        val t = token.trim().take(8)
-        return "${BLIND_DRAW_PREFIX}${esc(t)}|${hostLabel} blind draw — guess the emoji"
-    }
+    fun formatBlindDraw(token: String, hostLabel: String): String = GroupPlayClassicPolicy.formatBlindDraw(token, hostLabel)
 
-    fun parseBlindDraw(content: String): String? {
-        if (!content.startsWith(BLIND_DRAW_PREFIX)) return null
-        return unesc(content.removePrefix(BLIND_DRAW_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseBlindDraw(content: String): String? = GroupPlayClassicPolicy.parseBlindDraw(content)
 
     const val ALPHABET_RACE_PREFIX = "ALPHARACE:"
     const val SILENT_MOVIE_PREFIX = "SILENTMOVIE:"
     const val COLOR_WORD_PREFIX = "COLORWORD:"
 
-    fun formatAlphabetRace(start: String, hostLabel: String): String {
-        val s = start.trim().take(4)
-        return "${ALPHABET_RACE_PREFIX}${esc(s)}|${hostLabel} alphabet race"
-    }
+    fun formatAlphabetRace(start: String, hostLabel: String): String = GroupPlayClassicPolicy.formatAlphabetRace(start, hostLabel)
 
-    fun parseAlphabetRace(content: String): String? {
-        if (!content.startsWith(ALPHABET_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(ALPHABET_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseAlphabetRace(content: String): String? = GroupPlayClassicPolicy.parseAlphabetRace(content)
 
-    fun formatSilentMovie(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().take(40)
-        return "${SILENT_MOVIE_PREFIX}${esc(p)}|${hostLabel} silent movie"
-    }
+    fun formatSilentMovie(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSilentMovie(prompt, hostLabel)
 
-    fun parseSilentMovie(content: String): String? {
-        if (!content.startsWith(SILENT_MOVIE_PREFIX)) return null
-        return unesc(content.removePrefix(SILENT_MOVIE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseSilentMovie(content: String): String? = GroupPlayClassicPolicy.parseSilentMovie(content)
 
-    fun formatColorWord(pair: String, hostLabel: String): String {
-        val p = pair.trim().take(30)
-        return "${COLOR_WORD_PREFIX}${esc(p)}|${hostLabel} color-word"
-    }
+    fun formatColorWord(pair: String, hostLabel: String): String = GroupPlayClassicPolicy.formatColorWord(pair, hostLabel)
 
-    fun parseColorWord(content: String): String? {
-        if (!content.startsWith(COLOR_WORD_PREFIX)) return null
-        return unesc(content.removePrefix(COLOR_WORD_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseColorWord(content: String): String? = GroupPlayClassicPolicy.parseColorWord(content)
 
     const val DEBATE_FLASH_PREFIX = "DEBATEFLASH:"
     const val QUICK_POLL_PREFIX = "QUICKPOLL:"
 
-    fun formatDebateFlash(topic: String, hostLabel: String): String {
-        val tp = topic.trim().take(50)
-        return "${DEBATE_FLASH_PREFIX}${esc(tp)}|${hostLabel} debate flash - 30s side"
-    }
+    fun formatDebateFlash(topic: String, hostLabel: String): String = GroupPlayClassicPolicy.formatDebateFlash(topic, hostLabel)
 
-    fun parseDebateFlash(content: String): String? {
-        if (!content.startsWith(DEBATE_FLASH_PREFIX)) return null
-        return unesc(content.removePrefix(DEBATE_FLASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseDebateFlash(content: String): String? = GroupPlayClassicPolicy.parseDebateFlash(content)
 
-    fun formatQuickPoll(options: String, hostLabel: String): String {
-        val o = options.trim().take(60)
-        return "${QUICK_POLL_PREFIX}${esc(o)}|${hostLabel} quick poll"
-    }
+    fun formatQuickPoll(options: String, hostLabel: String): String = GroupPlayClassicPolicy.formatQuickPoll(options, hostLabel)
 
-    fun parseQuickPoll(content: String): String? {
-        if (!content.startsWith(QUICK_POLL_PREFIX)) return null
-        return unesc(content.removePrefix(QUICK_POLL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseQuickPoll(content: String): String? = GroupPlayClassicPolicy.parseQuickPoll(content)
 
     const val MIRROR_ECHO_PREFIX = "MIRRORECHO:"
     const val SYNC_CLAP_PREFIX = "SYNCCLAP:"
     const val FACT_OR_FICTION_PREFIX = "FACTORFICTION:"
 
-    fun formatMirrorEcho(line: String, hostLabel: String): String {
-        val l = line.trim().take(50)
-        return "${MIRROR_ECHO_PREFIX}${esc(l)}|${hostLabel} mirror echo — reverse it"
-    }
+    fun formatMirrorEcho(line: String, hostLabel: String): String = GroupPlayClassicPolicy.formatMirrorEcho(line, hostLabel)
 
-    fun parseMirrorEcho(content: String): String? {
-        if (!content.startsWith(MIRROR_ECHO_PREFIX)) return null
-        return unesc(content.removePrefix(MIRROR_ECHO_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseMirrorEcho(content: String): String? = GroupPlayClassicPolicy.parseMirrorEcho(content)
 
-    fun formatSyncClap(count: String, hostLabel: String): String {
-        val c = count.trim().take(4)
-        return "${SYNC_CLAP_PREFIX}${esc(c)}|${hostLabel} sync clap x$c"
-    }
+    fun formatSyncClap(count: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSyncClap(count, hostLabel)
 
-    fun parseSyncClap(content: String): String? {
-        if (!content.startsWith(SYNC_CLAP_PREFIX)) return null
-        return unesc(content.removePrefix(SYNC_CLAP_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseSyncClap(content: String): String? = GroupPlayClassicPolicy.parseSyncClap(content)
 
-    fun formatFactOrFiction(item: String, hostLabel: String): String {
-        val it = item.trim().take(60)
-        return "${FACT_OR_FICTION_PREFIX}${esc(it)}|${hostLabel} fact or fiction"
-    }
+    fun formatFactOrFiction(item: String, hostLabel: String): String = GroupPlayClassicPolicy.formatFactOrFiction(item, hostLabel)
 
-    fun parseFactOrFiction(content: String): String? {
-        if (!content.startsWith(FACT_OR_FICTION_PREFIX)) return null
-        return unesc(content.removePrefix(FACT_OR_FICTION_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseFactOrFiction(content: String): String? = GroupPlayClassicPolicy.parseFactOrFiction(content)
 
     const val IMPULSE_DRAW_PREFIX = "IMPULSEDRAW:"
     const val WORD_SCRAMBLE_PREFIX = "WORDSCRAMBLE:"
     const val REACTION_DUEL_PREFIX = "REACTDUEL:"
 
-    fun formatImpulseDraw(token: String, hostLabel: String): String {
-        val tk = token.trim().take(8)
-        return "${IMPULSE_DRAW_PREFIX}${esc(tk)}|${hostLabel} impulse draw"
-    }
+    fun formatImpulseDraw(token: String, hostLabel: String): String = GroupPlayClassicPolicy.formatImpulseDraw(token, hostLabel)
 
-    fun parseImpulseDraw(content: String): String? {
-        if (!content.startsWith(IMPULSE_DRAW_PREFIX)) return null
-        return unesc(content.removePrefix(IMPULSE_DRAW_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseImpulseDraw(content: String): String? = GroupPlayClassicPolicy.parseImpulseDraw(content)
 
-    fun formatWordScramble(pair: String, hostLabel: String): String {
-        val p = pair.trim().take(40)
-        return "${WORD_SCRAMBLE_PREFIX}${esc(p)}|${hostLabel} word scramble"
-    }
+    fun formatWordScramble(pair: String, hostLabel: String): String = GroupPlayClassicPolicy.formatWordScramble(pair, hostLabel)
 
-    fun parseWordScramble(content: String): String? {
-        if (!content.startsWith(WORD_SCRAMBLE_PREFIX)) return null
-        return unesc(content.removePrefix(WORD_SCRAMBLE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseWordScramble(content: String): String? = GroupPlayClassicPolicy.parseWordScramble(content)
 
-    fun formatReactionDuel(pair: String, hostLabel: String): String {
-        val p = pair.trim().take(20)
-        return "${REACTION_DUEL_PREFIX}${esc(p)}|${hostLabel} reaction duel"
-    }
+    fun formatReactionDuel(pair: String, hostLabel: String): String = GroupPlayClassicPolicy.formatReactionDuel(pair, hostLabel)
 
-    fun parseReactionDuel(content: String): String? {
-        if (!content.startsWith(REACTION_DUEL_PREFIX)) return null
-        return unesc(content.removePrefix(REACTION_DUEL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseReactionDuel(content: String): String? = GroupPlayClassicPolicy.parseReactionDuel(content)
 
     const val CODE_BREAKER_PREFIX = "CODEBREAKER:"
     const val SILLY_LAW_PREFIX = "SILLYLAW:"
     const val EMOJI_MATH_PREFIX = "EMOJIMATH:"
 
-    fun formatCodeBreaker(code: String, hostLabel: String): String {
-        val c = code.trim().take(8)
-        return "${CODE_BREAKER_PREFIX}${esc(c)}|${hostLabel} code breaker — guess digits"
-    }
+    fun formatCodeBreaker(code: String, hostLabel: String): String = GroupPlayClassicPolicy.formatCodeBreaker(code, hostLabel)
 
-    fun parseCodeBreaker(content: String): String? {
-        if (!content.startsWith(CODE_BREAKER_PREFIX)) return null
-        return unesc(content.removePrefix(CODE_BREAKER_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseCodeBreaker(content: String): String? = GroupPlayClassicPolicy.parseCodeBreaker(content)
 
-    fun formatSillyLaw(law: String, hostLabel: String): String {
-        val l = law.trim().take(50)
-        return "${SILLY_LAW_PREFIX}${esc(l)}|${hostLabel} silly law"
-    }
+    fun formatSillyLaw(law: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSillyLaw(law, hostLabel)
 
-    fun parseSillyLaw(content: String): String? {
-        if (!content.startsWith(SILLY_LAW_PREFIX)) return null
-        return unesc(content.removePrefix(SILLY_LAW_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseSillyLaw(content: String): String? = GroupPlayClassicPolicy.parseSillyLaw(content)
 
-    fun formatEmojiMath(expr: String, hostLabel: String): String {
-        val e = expr.trim().take(20)
-        return "${EMOJI_MATH_PREFIX}${esc(e)}|${hostLabel} emoji math"
-    }
+    fun formatEmojiMath(expr: String, hostLabel: String): String = GroupPlayClassicPolicy.formatEmojiMath(expr, hostLabel)
 
-    fun parseEmojiMath(content: String): String? {
-        if (!content.startsWith(EMOJI_MATH_PREFIX)) return null
-        return unesc(content.removePrefix(EMOJI_MATH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseEmojiMath(content: String): String? = GroupPlayClassicPolicy.parseEmojiMath(content)
 
     const val PIN_THE_MOOD_PREFIX = "PINTHEMOOD:"
     const val REVOKE_RUSH_PREFIX = "REVOKERUSH:"
     const val SECRET_SIGNAL_PREFIX = "SECRETSIGNAL:"
 
-    fun formatPinTheMood(mood: String, hostLabel: String): String {
-        val m = mood.trim().take(20)
-        return "${PIN_THE_MOOD_PREFIX}${esc(m)}|${hostLabel} pin the mood"
-    }
+    fun formatPinTheMood(mood: String, hostLabel: String): String = GroupPlayClassicPolicy.formatPinTheMood(mood, hostLabel)
 
-    fun parsePinTheMood(content: String): String? {
-        if (!content.startsWith(PIN_THE_MOOD_PREFIX)) return null
-        return unesc(content.removePrefix(PIN_THE_MOOD_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parsePinTheMood(content: String): String? = GroupPlayClassicPolicy.parsePinTheMood(content)
 
-    fun formatRevokeRush(window: String, hostLabel: String): String {
-        val w = window.trim().take(10)
-        return "${REVOKE_RUSH_PREFIX}${esc(w)}|${hostLabel} revoke rush"
-    }
+    fun formatRevokeRush(window: String, hostLabel: String): String = GroupPlayClassicPolicy.formatRevokeRush(window, hostLabel)
 
-    fun parseRevokeRush(content: String): String? {
-        if (!content.startsWith(REVOKE_RUSH_PREFIX)) return null
-        return unesc(content.removePrefix(REVOKE_RUSH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseRevokeRush(content: String): String? = GroupPlayClassicPolicy.parseRevokeRush(content)
 
-    fun formatSecretSignal(signal: String, hostLabel: String): String {
-        val s = signal.trim().take(30)
-        return "${SECRET_SIGNAL_PREFIX}${esc(s)}|${hostLabel} secret signal"
-    }
+    fun formatSecretSignal(signal: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSecretSignal(signal, hostLabel)
 
-    fun parseSecretSignal(content: String): String? {
-        if (!content.startsWith(SECRET_SIGNAL_PREFIX)) return null
-        return unesc(content.removePrefix(SECRET_SIGNAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseSecretSignal(content: String): String? = GroupPlayClassicPolicy.parseSecretSignal(content)
 
     const val IDEA_RELAY_PREFIX = "IDEARELAY:"
     const val TEMPO_TAP_PREFIX = "TEMPOTAP:"
     const val TRANSLATE_RELAY_PREFIX = "TRANSRELAY:"
 
-    fun formatIdeaRelay(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(40)
-        return "${IDEA_RELAY_PREFIX}${esc(s)}|${hostLabel} idea relay"
-    }
+    fun formatIdeaRelay(seed: String, hostLabel: String): String = GroupPlayClassicPolicy.formatIdeaRelay(seed, hostLabel)
 
-    fun parseIdeaRelay(content: String): String? {
-        if (!content.startsWith(IDEA_RELAY_PREFIX)) return null
-        return unesc(content.removePrefix(IDEA_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseIdeaRelay(content: String): String? = GroupPlayClassicPolicy.parseIdeaRelay(content)
 
-    fun formatTempoTap(beat: String, hostLabel: String): String {
-        val b = beat.trim().take(12)
-        return "${TEMPO_TAP_PREFIX}${esc(b)}|${hostLabel} tempo tap"
-    }
+    fun formatTempoTap(beat: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTempoTap(beat, hostLabel)
 
-    fun parseTempoTap(content: String): String? {
-        if (!content.startsWith(TEMPO_TAP_PREFIX)) return null
-        return unesc(content.removePrefix(TEMPO_TAP_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTempoTap(content: String): String? = GroupPlayClassicPolicy.parseTempoTap(content)
 
-    fun formatTranslateRelay(pair: String, hostLabel: String): String {
-        val p = pair.trim().take(20)
-        return "${TRANSLATE_RELAY_PREFIX}${esc(p)}|${hostLabel} translate relay"
-    }
+    fun formatTranslateRelay(pair: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTranslateRelay(pair, hostLabel)
 
-    fun parseTranslateRelay(content: String): String? {
-        if (!content.startsWith(TRANSLATE_RELAY_PREFIX)) return null
-        return unesc(content.removePrefix(TRANSLATE_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTranslateRelay(content: String): String? = GroupPlayClassicPolicy.parseTranslateRelay(content)
 
     const val INVITE_RACE_PREFIX = "INVITERACE:"
     const val MENTION_MAYHEM_PREFIX = "MENTIONMAY:"
     const val LINK_HUNT_PREFIX = "LINKHUNT:"
 
-    fun formatInviteRace(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(30)
-        return "${INVITE_RACE_PREFIX}${esc(m)}|${hostLabel} invite race"
-    }
+    fun formatInviteRace(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatInviteRace(mode, hostLabel)
 
-    fun parseInviteRace(content: String): String? {
-        if (!content.startsWith(INVITE_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(INVITE_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseInviteRace(content: String): String? = GroupPlayClassicPolicy.parseInviteRace(content)
 
-    fun formatMentionMayhem(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(30)
-        return "${MENTION_MAYHEM_PREFIX}${esc(m)}|${hostLabel} mention mayhem"
-    }
+    fun formatMentionMayhem(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatMentionMayhem(mode, hostLabel)
 
-    fun parseMentionMayhem(content: String): String? {
-        if (!content.startsWith(MENTION_MAYHEM_PREFIX)) return null
-        return unesc(content.removePrefix(MENTION_MAYHEM_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseMentionMayhem(content: String): String? = GroupPlayClassicPolicy.parseMentionMayhem(content)
 
-    fun formatLinkHunt(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(30)
-        return "${LINK_HUNT_PREFIX}${esc(m)}|${hostLabel} link hunt"
-    }
+    fun formatLinkHunt(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatLinkHunt(mode, hostLabel)
 
-    fun parseLinkHunt(content: String): String? {
-        if (!content.startsWith(LINK_HUNT_PREFIX)) return null
-        return unesc(content.removePrefix(LINK_HUNT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseLinkHunt(content: String): String? = GroupPlayClassicPolicy.parseLinkHunt(content)
 
     const val NUDGE_DASH_PREFIX = "NUDGEDASH:"
     const val CODE_CHECK_PREFIX = "CODECHECK:"
     const val TRUST_SPRINT_PREFIX = "TRUSTSPRINT:"
 
-    fun formatNudgeDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${NUDGE_DASH_PREFIX}${esc(m)}|${hostLabel} nudge dash"
-    }
+    fun formatNudgeDash(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatNudgeDash(mode, hostLabel)
 
-    fun parseNudgeDash(content: String): String? {
-        if (!content.startsWith(NUDGE_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(NUDGE_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseNudgeDash(content: String): String? = GroupPlayClassicPolicy.parseNudgeDash(content)
 
-    fun formatCodeCheck(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${CODE_CHECK_PREFIX}${esc(m)}|${hostLabel} code check"
-    }
+    fun formatCodeCheck(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatCodeCheck(mode, hostLabel)
 
-    fun parseCodeCheck(content: String): String? {
-        if (!content.startsWith(CODE_CHECK_PREFIX)) return null
-        return unesc(content.removePrefix(CODE_CHECK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseCodeCheck(content: String): String? = GroupPlayClassicPolicy.parseCodeCheck(content)
 
-    fun formatTrustSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${TRUST_SPRINT_PREFIX}${esc(m)}|${hostLabel} trust sprint"
-    }
+    fun formatTrustSprint(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatTrustSprint(mode, hostLabel)
 
-    fun parseTrustSprint(content: String): String? {
-        if (!content.startsWith(TRUST_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(TRUST_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTrustSprint(content: String): String? = GroupPlayClassicPolicy.parseTrustSprint(content)
 
     const val MOOD_METER_PREFIX = "MOODMETER:"
     const val FOCUS_SPRINT_PREFIX = "FOCUSPRINT:"
     const val GRATITUDE_ROUND_PREFIX = "GRATROUND:"
 
-    fun formatMoodMeter(scale: String, hostLabel: String): String {
-        val s = scale.trim().take(30)
-        return "${MOOD_METER_PREFIX}${esc(s)}|${hostLabel} mood meter"
-    }
+    fun formatMoodMeter(scale: String, hostLabel: String): String = GroupPlayClassicPolicy.formatMoodMeter(scale, hostLabel)
 
-    fun parseMoodMeter(content: String): String? {
-        if (!content.startsWith(MOOD_METER_PREFIX)) return null
-        return unesc(content.removePrefix(MOOD_METER_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseMoodMeter(content: String): String? = GroupPlayClassicPolicy.parseMoodMeter(content)
 
-    fun formatFocusSprint(window: String, hostLabel: String): String {
-        val w = window.trim().take(10)
-        return "${FOCUS_SPRINT_PREFIX}${esc(w)}|${hostLabel} focus sprint"
-    }
+    fun formatFocusSprint(window: String, hostLabel: String): String = GroupPlayClassicPolicy.formatFocusSprint(window, hostLabel)
 
-    fun parseFocusSprint(content: String): String? {
-        if (!content.startsWith(FOCUS_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(FOCUS_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseFocusSprint(content: String): String? = GroupPlayClassicPolicy.parseFocusSprint(content)
 
-    fun formatGratitudeRound(prompt: String, hostLabel: String): String {
-        val p = prompt.trim().take(40)
-        return "${GRATITUDE_ROUND_PREFIX}${esc(p)}|${hostLabel} gratitude round"
-    }
+    fun formatGratitudeRound(prompt: String, hostLabel: String): String = GroupPlayClassicPolicy.formatGratitudeRound(prompt, hostLabel)
 
-    fun parseGratitudeRound(content: String): String? {
-        if (!content.startsWith(GRATITUDE_ROUND_PREFIX)) return null
-        return unesc(content.removePrefix(GRATITUDE_ROUND_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseGratitudeRound(content: String): String? = GroupPlayClassicPolicy.parseGratitudeRound(content)
 
     const val QR_QUEST_PREFIX = "QRQUEST:"
     const val CONTACT_SWAP_PREFIX = "CONTACTSWAP:"
     const val SCAN_SPRINT_PREFIX = "SCANSPRINT:"
 
-    fun formatQrQuest(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${QR_QUEST_PREFIX}${esc(m)}|${hostLabel} qr quest"
-    }
+    fun formatQrQuest(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatQrQuest(mode, hostLabel)
 
-    fun parseQrQuest(content: String): String? {
-        if (!content.startsWith(QR_QUEST_PREFIX)) return null
-        return unesc(content.removePrefix(QR_QUEST_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseQrQuest(content: String): String? = GroupPlayClassicPolicy.parseQrQuest(content)
 
-    fun formatContactSwap(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${CONTACT_SWAP_PREFIX}${esc(m)}|${hostLabel} contact swap"
-    }
+    fun formatContactSwap(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatContactSwap(mode, hostLabel)
 
-    fun parseContactSwap(content: String): String? {
-        if (!content.startsWith(CONTACT_SWAP_PREFIX)) return null
-        return unesc(content.removePrefix(CONTACT_SWAP_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseContactSwap(content: String): String? = GroupPlayClassicPolicy.parseContactSwap(content)
 
-    fun formatScanSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SCAN_SPRINT_PREFIX}${esc(m)}|${hostLabel} scan sprint"
-    }
+    fun formatScanSprint(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatScanSprint(mode, hostLabel)
 
-    fun parseScanSprint(content: String): String? {
-        if (!content.startsWith(SCAN_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(SCAN_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseScanSprint(content: String): String? = GroupPlayClassicPolicy.parseScanSprint(content)
 
     const val SPOILER_RACE_PREFIX = "SPOILERRACE:"
     const val BLUR_BATTLE_PREFIX = "BLURBATTLE:"
     const val DOWNLOAD_DASH_PREFIX = "DLDASH:"
 
-    fun formatSpoilerRace(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SPOILER_RACE_PREFIX}${esc(m)}|${hostLabel} spoiler race"
-    }
-    fun parseSpoilerRace(content: String): String? {
-        if (!content.startsWith(SPOILER_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(SPOILER_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatBlurBattle(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${BLUR_BATTLE_PREFIX}${esc(m)}|${hostLabel} blur battle"
-    }
-    fun parseBlurBattle(content: String): String? {
-        if (!content.startsWith(BLUR_BATTLE_PREFIX)) return null
-        return unesc(content.removePrefix(BLUR_BATTLE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatDownloadDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${DOWNLOAD_DASH_PREFIX}${esc(m)}|${hostLabel} download dash"
-    }
-    fun parseDownloadDash(content: String): String? {
-        if (!content.startsWith(DOWNLOAD_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(DOWNLOAD_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun formatSpoilerRace(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSpoilerRace(mode, hostLabel)
+    fun parseSpoilerRace(content: String): String? = GroupPlayClassicPolicy.parseSpoilerRace(content)
+    fun formatBlurBattle(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatBlurBattle(mode, hostLabel)
+    fun parseBlurBattle(content: String): String? = GroupPlayClassicPolicy.parseBlurBattle(content)
+    fun formatDownloadDash(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatDownloadDash(mode, hostLabel)
+    fun parseDownloadDash(content: String): String? = GroupPlayClassicPolicy.parseDownloadDash(content)
 
     const val PIN_DROP_PREFIX = "PINDROP:"
     const val FILE_RELAY_PREFIX = "FILERELAY:"
@@ -1348,54 +645,18 @@ object GroupPlayPolicy {
     const val WATERMARK_HUNT_PREFIX = "WMHUNT:"
     const val SECURE_SPRINT_PREFIX = "SECURESPRINT:"
 
-    fun formatPinDrop(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PIN_DROP_PREFIX}${esc(m)}|${hostLabel} pin drop"
-    }
-    fun parsePinDrop(content: String): String? {
-        if (!content.startsWith(PIN_DROP_PREFIX)) return null
-        return unesc(content.removePrefix(PIN_DROP_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatFileRelay(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${FILE_RELAY_PREFIX}${esc(m)}|${hostLabel} file relay"
-    }
-    fun parseFileRelay(content: String): String? {
-        if (!content.startsWith(FILE_RELAY_PREFIX)) return null
-        return unesc(content.removePrefix(FILE_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatMapDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${MAP_DASH_PREFIX}${esc(m)}|${hostLabel} map dash"
-    }
-    fun parseMapDash(content: String): String? {
-        if (!content.startsWith(MAP_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(MAP_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatVaultLock(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${VAULT_LOCK_PREFIX}${esc(m)}|${hostLabel} vault lock"
-    }
-    fun parseVaultLock(content: String): String? {
-        if (!content.startsWith(VAULT_LOCK_PREFIX)) return null
-        return unesc(content.removePrefix(VAULT_LOCK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatWatermarkHunt(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${WATERMARK_HUNT_PREFIX}${esc(m)}|${hostLabel} watermark hunt"
-    }
-    fun parseWatermarkHunt(content: String): String? {
-        if (!content.startsWith(WATERMARK_HUNT_PREFIX)) return null
-        return unesc(content.removePrefix(WATERMARK_HUNT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatSecureSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SECURE_SPRINT_PREFIX}${esc(m)}|${hostLabel} secure sprint"
-    }
-    fun parseSecureSprint(content: String): String? {
-        if (!content.startsWith(SECURE_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(SECURE_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun formatPinDrop(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatPinDrop(mode, hostLabel)
+    fun parsePinDrop(content: String): String? = GroupPlayClassicPolicy.parsePinDrop(content)
+    fun formatFileRelay(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatFileRelay(mode, hostLabel)
+    fun parseFileRelay(content: String): String? = GroupPlayClassicPolicy.parseFileRelay(content)
+    fun formatMapDash(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatMapDash(mode, hostLabel)
+    fun parseMapDash(content: String): String? = GroupPlayClassicPolicy.parseMapDash(content)
+    fun formatVaultLock(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatVaultLock(mode, hostLabel)
+    fun parseVaultLock(content: String): String? = GroupPlayClassicPolicy.parseVaultLock(content)
+    fun formatWatermarkHunt(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatWatermarkHunt(mode, hostLabel)
+    fun parseWatermarkHunt(content: String): String? = GroupPlayClassicPolicy.parseWatermarkHunt(content)
+    fun formatSecureSprint(mode: String, hostLabel: String): String = GroupPlayClassicPolicy.formatSecureSprint(mode, hostLabel)
+    fun parseSecureSprint(content: String): String? = GroupPlayClassicPolicy.parseSecureSprint(content)
 
     const val PHOTO_RACE_PREFIX = "PHOTORACE:"
     const val CLIP_DASH_PREFIX = "CLIPDASH:"
@@ -1455,490 +716,142 @@ object GroupPlayPolicy {
     const val FADE_TIMER_PREFIX = "FADETIMER:"
     const val STAMP_RELAY_PREFIX = "STAMPRELAY:"
 
-    fun formatPhotoRace(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PHOTO_RACE_PREFIX}${esc(m)}|${hostLabel} photo race"
-    }
-    fun parsePhotoRace(content: String): String? {
-        if (!content.startsWith(PHOTO_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(PHOTO_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatClipDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${CLIP_DASH_PREFIX}${esc(m)}|${hostLabel} clip dash"
-    }
-    fun parseClipDash(content: String): String? {
-        if (!content.startsWith(CLIP_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(CLIP_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatFrameHunt(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${FRAME_HUNT_PREFIX}${esc(m)}|${hostLabel} frame hunt"
-    }
-    fun parseFrameHunt(content: String): String? {
-        if (!content.startsWith(FRAME_HUNT_PREFIX)) return null
-        return unesc(content.removePrefix(FRAME_HUNT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatSummaryCircle(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SUMMARY_CIRCLE_PREFIX}${esc(m)}|${hostLabel} summary circle"
-    }
-    fun parseSummaryCircle(content: String): String? {
-        if (!content.startsWith(SUMMARY_CIRCLE_PREFIX)) return null
-        return unesc(content.removePrefix(SUMMARY_CIRCLE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatRewriteRelay(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${REWRITE_RELAY_PREFIX}${esc(m)}|${hostLabel} rewrite relay"
-    }
-    fun parseRewriteRelay(content: String): String? {
-        if (!content.startsWith(REWRITE_RELAY_PREFIX)) return null
-        return unesc(content.removePrefix(REWRITE_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatPromptSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PROMPT_SPRINT_PREFIX}${esc(m)}|${hostLabel} prompt sprint"
-    }
-    fun parsePromptSprint(content: String): String? {
-        if (!content.startsWith(PROMPT_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(PROMPT_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun formatPhotoRace(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatPhotoRace(mode, hostLabel)
+    fun parsePhotoRace(content: String): String? = GroupPlayModePolicy.parsePhotoRace(content)
+    fun formatClipDash(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatClipDash(mode, hostLabel)
+    fun parseClipDash(content: String): String? = GroupPlayModePolicy.parseClipDash(content)
+    fun formatFrameHunt(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatFrameHunt(mode, hostLabel)
+    fun parseFrameHunt(content: String): String? = GroupPlayModePolicy.parseFrameHunt(content)
+    fun formatSummaryCircle(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatSummaryCircle(mode, hostLabel)
+    fun parseSummaryCircle(content: String): String? = GroupPlayModePolicy.parseSummaryCircle(content)
+    fun formatRewriteRelay(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatRewriteRelay(mode, hostLabel)
+    fun parseRewriteRelay(content: String): String? = GroupPlayModePolicy.parseRewriteRelay(content)
+    fun formatPromptSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatPromptSprint(mode, hostLabel)
+    fun parsePromptSprint(content: String): String? = GroupPlayModePolicy.parsePromptSprint(content)
 
-    fun formatSuggestCircle(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SUGGEST_CIRCLE_PREFIX}${esc(m)}|${hostLabel} suggest circle"
-    }
-    fun parseSuggestCircle(content: String): String? {
-        if (!content.startsWith(SUGGEST_CIRCLE_PREFIX)) return null
-        return unesc(content.removePrefix(SUGGEST_CIRCLE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatVoiceRace(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${VOICE_RACE_PREFIX}${esc(m)}|${hostLabel} voice race"
-    }
-    fun parseVoiceRace(content: String): String? {
-        if (!content.startsWith(VOICE_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(VOICE_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatReplySprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${REPLY_SPRINT_PREFIX}${esc(m)}|${hostLabel} reply sprint"
-    }
-    fun parseReplySprint(content: String): String? {
-        if (!content.startsWith(REPLY_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(REPLY_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun formatSuggestCircle(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatSuggestCircle(mode, hostLabel)
+    fun parseSuggestCircle(content: String): String? = GroupPlayModePolicy.parseSuggestCircle(content)
+    fun formatVoiceRace(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatVoiceRace(mode, hostLabel)
+    fun parseVoiceRace(content: String): String? = GroupPlayModePolicy.parseVoiceRace(content)
+    fun formatReplySprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatReplySprint(mode, hostLabel)
+    fun parseReplySprint(content: String): String? = GroupPlayModePolicy.parseReplySprint(content)
 
-    fun formatPixelQuest(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PIXEL_QUEST_PREFIX}${esc(m)}|${hostLabel} pixel quest"
-    }
-    fun parsePixelQuest(content: String): String? {
-        if (!content.startsWith(PIXEL_QUEST_PREFIX)) return null
-        return unesc(content.removePrefix(PIXEL_QUEST_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-fun formatAssistCircle(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${ASSIST_CIRCLE_PREFIX}${esc(m)}|${hostLabel} assist circle"
-    }
-    fun parseAssistCircle(content: String): String? {
-        if (!content.startsWith(ASSIST_CIRCLE_PREFIX)) return null
-        return unesc(content.removePrefix(ASSIST_CIRCLE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-fun formatDecisionDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${DECISION_DASH_PREFIX}${esc(m)}|${hostLabel} decision dash"
-    }
-    fun parseDecisionDash(content: String): String? {
-        if (!content.startsWith(DECISION_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(DECISION_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun formatPixelQuest(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatPixelQuest(mode, hostLabel)
+    fun parsePixelQuest(content: String): String? = GroupPlayModePolicy.parsePixelQuest(content)
+    fun parseAssistCircle(content: String): String? = GroupPlayModePolicy.parseAssistCircle(content)
+    fun parseDecisionDash(content: String): String? = GroupPlayModePolicy.parseDecisionDash(content)
 
-    fun formatDocHunt(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${DOC_HUNT_PREFIX}${esc(m)}|${hostLabel} doc hunt"
-    }
-    fun parseDocHunt(content: String): String? {
-        if (!content.startsWith(DOC_HUNT_PREFIX)) return null
-        return unesc(content.removePrefix(DOC_HUNT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-fun formatMeaningRace(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${MEANING_RACE_PREFIX}${esc(m)}|${hostLabel} meaning race"
-    }
-    fun parseMeaningRace(content: String): String? {
-        if (!content.startsWith(MEANING_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(MEANING_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-fun formatInsightSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${INSIGHT_SPRINT_PREFIX}${esc(m)}|${hostLabel} insight sprint"
-    }
-    fun parseInsightSprint(content: String): String? {
-        if (!content.startsWith(INSIGHT_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(INSIGHT_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatGifRelay(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${GIF_RELAY_PREFIX}${esc(m)}|${hostLabel} gif relay"
-    }
-    fun parseGifRelay(content: String): String? {
-        if (!content.startsWith(GIF_RELAY_PREFIX)) return null
-        return unesc(content.removePrefix(GIF_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatMarkHunt(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${MARK_HUNT_PREFIX}${esc(m)}|${hostLabel} mark hunt"
-    }
-    fun parseMarkHunt(content: String): String? {
-        if (!content.startsWith(MARK_HUNT_PREFIX)) return null
-        return unesc(content.removePrefix(MARK_HUNT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatLeakSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${LEAK_SPRINT_PREFIX}${esc(m)}|${hostLabel} leak sprint"
-    }
-    fun parseLeakSprint(content: String): String? {
-        if (!content.startsWith(LEAK_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(LEAK_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatVoiceRing(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${VOICE_RING_PREFIX}${esc(m)}|${hostLabel} voice ring"
-    }
-    fun parseVoiceRing(content: String): String? {
-        if (!content.startsWith(VOICE_RING_PREFIX)) return null
-        return unesc(content.removePrefix(VOICE_RING_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatVideoStage(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${VIDEO_STAGE_PREFIX}${esc(m)}|${hostLabel} video stage"
-    }
-    fun parseVideoStage(content: String): String? {
-        if (!content.startsWith(VIDEO_STAGE_PREFIX)) return null
-        return unesc(content.removePrefix(VIDEO_STAGE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatRingDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${RING_DASH_PREFIX}${esc(m)}|${hostLabel} ring dash"
-    }
-    fun parseRingDash(content: String): String? {
-        if (!content.startsWith(RING_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(RING_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatWallPick(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${WALL_PICK_PREFIX}${esc(m)}|${hostLabel} wall pick"
-    }
-    fun parseWallPick(content: String): String? {
-        if (!content.startsWith(WALL_PICK_PREFIX)) return null
-        return unesc(content.removePrefix(WALL_PICK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatFontRace(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${FONT_RACE_PREFIX}${esc(m)}|${hostLabel} font race"
-    }
-    fun parseFontRace(content: String): String? {
-        if (!content.startsWith(FONT_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(FONT_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatThemeSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${THEME_SPRINT_PREFIX}${esc(m)}|${hostLabel} theme sprint"
-    }
-    fun parseThemeSprint(content: String): String? {
-        if (!content.startsWith(THEME_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(THEME_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatUnreadRush(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${UNREAD_RUSH_PREFIX}${esc(m)}|${hostLabel} unread rush"
-    }
-    fun parseUnreadRush(content: String): String? {
-        if (!content.startsWith(UNREAD_RUSH_PREFIX)) return null
-        return unesc(content.removePrefix(UNREAD_RUSH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatRingChoir(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${RING_CHOIR_PREFIX}${esc(m)}|${hostLabel} ring choir"
-    }
-    fun parseRingChoir(content: String): String? {
-        if (!content.startsWith(RING_CHOIR_PREFIX)) return null
-        return unesc(content.removePrefix(RING_CHOIR_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatAlertSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${ALERT_SPRINT_PREFIX}${esc(m)}|${hostLabel} alert sprint"
-    }
-    fun parseAlertSprint(content: String): String? {
-        if (!content.startsWith(ALERT_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(ALERT_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatSoundWave(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SOUND_WAVE_PREFIX}${esc(m)}|${hostLabel} sound wave"
-    }
-    fun parseSoundWave(content: String): String? {
-        if (!content.startsWith(SOUND_WAVE_PREFIX)) return null
-        return unesc(content.removePrefix(SOUND_WAVE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatPreviewMask(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PREVIEW_MASK_PREFIX}${esc(m)}|${hostLabel} preview mask"
-    }
-    fun parsePreviewMask(content: String): String? {
-        if (!content.startsWith(PREVIEW_MASK_PREFIX)) return null
-        return unesc(content.removePrefix(PREVIEW_MASK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatBeepDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${BEEP_DASH_PREFIX}${esc(m)}|${hostLabel} beep dash"
-    }
-    fun parseBeepDash(content: String): String? {
-        if (!content.startsWith(BEEP_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(BEEP_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatPushRace(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PUSH_RACE_PREFIX}${esc(m)}|${hostLabel} push race"
-    }
-    fun parsePushRace(content: String): String? {
-        if (!content.startsWith(PUSH_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(PUSH_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatRemindCircle(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${REMIND_CIRCLE_PREFIX}${esc(m)}|${hostLabel} remind circle"
-    }
-    fun parseRemindCircle(content: String): String? {
-        if (!content.startsWith(REMIND_CIRCLE_PREFIX)) return null
-        return unesc(content.removePrefix(REMIND_CIRCLE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatWakeSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${WAKE_SPRINT_PREFIX}${esc(m)}|${hostLabel} wake sprint"
-    }
-    fun parseWakeSprint(content: String): String? {
-        if (!content.startsWith(WAKE_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(WAKE_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatQuietHour(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${QUIET_HOUR_PREFIX}${esc(m)}|${hostLabel} quiet hour"
-    }
-    fun parseQuietHour(content: String): String? {
-        if (!content.startsWith(QUIET_HOUR_PREFIX)) return null
-        return unesc(content.removePrefix(QUIET_HOUR_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatOfflineHint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${OFFLINE_HINT_PREFIX}${esc(m)}|${hostLabel} offline hint"
-    }
-    fun parseOfflineHint(content: String): String? {
-        if (!content.startsWith(OFFLINE_HINT_PREFIX)) return null
-        return unesc(content.removePrefix(OFFLINE_HINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatFallbackDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${FALLBACK_DASH_PREFIX}${esc(m)}|${hostLabel} fallback dash"
-    }
-    fun parseFallbackDash(content: String): String? {
-        if (!content.startsWith(FALLBACK_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(FALLBACK_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatClickBeat(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${CLICK_BEAT_PREFIX}${esc(m)}|${hostLabel} click beat"
-    }
-    fun parseClickBeat(content: String): String? {
-        if (!content.startsWith(CLICK_BEAT_PREFIX)) return null
-        return unesc(content.removePrefix(CLICK_BEAT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatBuzzRelay(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${BUZZ_RELAY_PREFIX}${esc(m)}|${hostLabel} buzz relay"
-    }
-    fun parseBuzzRelay(content: String): String? {
-        if (!content.startsWith(BUZZ_RELAY_PREFIX)) return null
-        return unesc(content.removePrefix(BUZZ_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatFeelSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${FEEL_SPRINT_PREFIX}${esc(m)}|${hostLabel} feel sprint"
-    }
-    fun parseFeelSprint(content: String): String? {
-        if (!content.startsWith(FEEL_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(FEEL_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatSlideRace(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SLIDE_RACE_PREFIX}${esc(m)}|${hostLabel} slide race"
-    }
-    fun parseSlideRace(content: String): String? {
-        if (!content.startsWith(SLIDE_RACE_PREFIX)) return null
-        return unesc(content.removePrefix(SLIDE_RACE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatFadeCircle(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${FADE_CIRCLE_PREFIX}${esc(m)}|${hostLabel} fade circle"
-    }
-    fun parseFadeCircle(content: String): String? {
-        if (!content.startsWith(FADE_CIRCLE_PREFIX)) return null
-        return unesc(content.removePrefix(FADE_CIRCLE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatSpringDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SPRING_DASH_PREFIX}${esc(m)}|${hostLabel} spring dash"
-    }
-    fun parseSpringDash(content: String): String? {
-        if (!content.startsWith(SPRING_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(SPRING_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatSnapGuard(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SNAP_GUARD_PREFIX}${esc(m)}|${hostLabel} snap guard"
-    }
-    fun parseSnapGuard(content: String): String? {
-        if (!content.startsWith(SNAP_GUARD_PREFIX)) return null
-        return unesc(content.removePrefix(SNAP_GUARD_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatRecentsHide(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${RECENTS_HIDE_PREFIX}${esc(m)}|${hostLabel} recents hide"
-    }
-    fun parseRecentsHide(content: String): String? {
-        if (!content.startsWith(RECENTS_HIDE_PREFIX)) return null
-        return unesc(content.removePrefix(RECENTS_HIDE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatShieldSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SHIELD_SPRINT_PREFIX}${esc(m)}|${hostLabel} shield sprint"
-    }
-    fun parseShieldSprint(content: String): String? {
-        if (!content.startsWith(SHIELD_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(SHIELD_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatCopyLock(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${COPY_LOCK_PREFIX}${esc(m)}|${hostLabel} copy lock"
-    }
-    fun parseCopyLock(content: String): String? {
-        if (!content.startsWith(COPY_LOCK_PREFIX)) return null
-        return unesc(content.removePrefix(COPY_LOCK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatExportSeal(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${EXPORT_SEAL_PREFIX}${esc(m)}|${hostLabel} export seal"
-    }
-    fun parseExportSeal(content: String): String? {
-        if (!content.startsWith(EXPORT_SEAL_PREFIX)) return null
-        return unesc(content.removePrefix(EXPORT_SEAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatLeakWall(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${LEAK_WALL_PREFIX}${esc(m)}|${hostLabel} leak wall"
-    }
-    fun parseLeakWall(content: String): String? {
-        if (!content.startsWith(LEAK_WALL_PREFIX)) return null
-        return unesc(content.removePrefix(LEAK_WALL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatForwardSeal(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${FORWARD_SEAL_PREFIX}${esc(m)}|${hostLabel} forward seal"
-    }
-    fun parseForwardSeal(content: String): String? {
-        if (!content.startsWith(FORWARD_SEAL_PREFIX)) return null
-        return unesc(content.removePrefix(FORWARD_SEAL_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatChatExportLock(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${CHAT_EXPORT_LOCK_PREFIX}${esc(m)}|${hostLabel} chat export lock"
-    }
-    fun parseChatExportLock(content: String): String? {
-        if (!content.startsWith(CHAT_EXPORT_LOCK_PREFIX)) return null
-        return unesc(content.removePrefix(CHAT_EXPORT_LOCK_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatVaultFence(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${VAULT_FENCE_PREFIX}${esc(m)}|${hostLabel} vault fence"
-    }
-    fun parseVaultFence(content: String): String? {
-        if (!content.startsWith(VAULT_FENCE_PREFIX)) return null
-        return unesc(content.removePrefix(VAULT_FENCE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatSealSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${SEAL_SPRINT_PREFIX}${esc(m)}|${hostLabel} seal sprint"
-    }
-    fun parseSealSprint(content: String): String? {
-        if (!content.startsWith(SEAL_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(SEAL_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatPqxdhDash(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${PQXDH_DASH_PREFIX}${esc(m)}|${hostLabel} pqxdh dash"
-    }
-    fun parsePqxdhDash(content: String): String? {
-        if (!content.startsWith(PQXDH_DASH_PREFIX)) return null
-        return unesc(content.removePrefix(PQXDH_DASH_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatCertRelay(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${CERT_RELAY_PREFIX}${esc(m)}|${hostLabel} cert relay"
-    }
-    fun parseCertRelay(content: String): String? {
-        if (!content.startsWith(CERT_RELAY_PREFIX)) return null
-        return unesc(content.removePrefix(CERT_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatMarkSprint(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${MARK_SPRINT_PREFIX}${esc(m)}|${hostLabel} mark sprint"
-    }
-    fun parseMarkSprint(content: String): String? {
-        if (!content.startsWith(MARK_SPRINT_PREFIX)) return null
-        return unesc(content.removePrefix(MARK_SPRINT_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatFadeTimer(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${FADE_TIMER_PREFIX}${esc(m)}|${hostLabel} fade timer"
-    }
-    fun parseFadeTimer(content: String): String? {
-        if (!content.startsWith(FADE_TIMER_PREFIX)) return null
-        return unesc(content.removePrefix(FADE_TIMER_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-    fun formatStampRelay(mode: String, hostLabel: String): String {
-        val m = mode.trim().take(40)
-        return "${STAMP_RELAY_PREFIX}${esc(m)}|${hostLabel} stamp relay"
-    }
-    fun parseStampRelay(content: String): String? {
-        if (!content.startsWith(STAMP_RELAY_PREFIX)) return null
-        return unesc(content.removePrefix(STAMP_RELAY_PREFIX).substringBefore('|')).ifBlank { null }
-    }
-
-    // ─── 隐私开关一族（G88 拆至 GroupPlaySealPolicy，此处仅保留同名委托，调用方零改动） ───
-    fun formatLinkLock(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatLinkLock(mode, hostLabel)
-    fun parseLinkLock(content: String): String? = GroupPlaySealPolicy.parseLinkLock(content)
-    fun formatPreviewMute(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatPreviewMute(mode, hostLabel)
-    fun parsePreviewMute(content: String): String? = GroupPlaySealPolicy.parsePreviewMute(content)
-    fun formatUrlFence(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatUrlFence(mode, hostLabel)
-    fun parseUrlFence(content: String): String? = GroupPlaySealPolicy.parseUrlFence(content)
-    fun formatNotifMask(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatNotifMask(mode, hostLabel)
-    fun parseNotifMask(content: String): String? = GroupPlaySealPolicy.parseNotifMask(content)
-    fun formatListBlur(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatListBlur(mode, hostLabel)
-    fun parseListBlur(content: String): String? = GroupPlaySealPolicy.parseListBlur(content)
-    fun formatTraySeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatTraySeal(mode, hostLabel)
-    fun parseTraySeal(content: String): String? = GroupPlaySealPolicy.parseTraySeal(content)
-    fun formatReactLock(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatReactLock(mode, hostLabel)
-    fun parseReactLock(content: String): String? = GroupPlaySealPolicy.parseReactLock(content)
-    fun formatStarSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatStarSeal(mode, hostLabel)
-    fun parseStarSeal(content: String): String? = GroupPlaySealPolicy.parseStarSeal(content)
-    fun formatMetaFence(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatMetaFence(mode, hostLabel)
-    fun parseMetaFence(content: String): String? = GroupPlaySealPolicy.parseMetaFence(content)
-    fun formatTypingSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatTypingSeal(mode, hostLabel)
-    fun parseTypingSeal(content: String): String? = GroupPlaySealPolicy.parseTypingSeal(content)
-    fun formatReadSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatReadSeal(mode, hostLabel)
-    fun parseReadSeal(content: String): String? = GroupPlaySealPolicy.parseReadSeal(content)
-    fun formatPresenceSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatPresenceSeal(mode, hostLabel)
+    fun formatDocHunt(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatDocHunt(mode, hostLabel)
+    fun parseDocHunt(content: String): String? = GroupPlayModePolicy.parseDocHunt(content)
+    fun parseMeaningRace(content: String): String? = GroupPlayModePolicy.parseMeaningRace(content)
+    fun parseInsightSprint(content: String): String? = GroupPlayModePolicy.parseInsightSprint(content)
+    fun formatGifRelay(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatGifRelay(mode, hostLabel)
+    fun parseGifRelay(content: String): String? = GroupPlayModePolicy.parseGifRelay(content)
+    fun formatMarkHunt(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatMarkHunt(mode, hostLabel)
+    fun parseMarkHunt(content: String): String? = GroupPlayModePolicy.parseMarkHunt(content)
+    fun formatLeakSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatLeakSprint(mode, hostLabel)
+    fun parseLeakSprint(content: String): String? = GroupPlayModePolicy.parseLeakSprint(content)
+    fun formatVoiceRing(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatVoiceRing(mode, hostLabel)
+    fun parseVoiceRing(content: String): String? = GroupPlayModePolicy.parseVoiceRing(content)
+    fun formatVideoStage(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatVideoStage(mode, hostLabel)
+    fun parseVideoStage(content: String): String? = GroupPlayModePolicy.parseVideoStage(content)
+    fun formatRingDash(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatRingDash(mode, hostLabel)
+    fun parseRingDash(content: String): String? = GroupPlayModePolicy.parseRingDash(content)
+    fun formatWallPick(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatWallPick(mode, hostLabel)
+    fun parseWallPick(content: String): String? = GroupPlayModePolicy.parseWallPick(content)
+    fun formatFontRace(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatFontRace(mode, hostLabel)
+    fun parseFontRace(content: String): String? = GroupPlayModePolicy.parseFontRace(content)
+    fun formatThemeSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatThemeSprint(mode, hostLabel)
+    fun parseThemeSprint(content: String): String? = GroupPlayModePolicy.parseThemeSprint(content)
+    fun formatUnreadRush(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatUnreadRush(mode, hostLabel)
+    fun parseUnreadRush(content: String): String? = GroupPlayModePolicy.parseUnreadRush(content)
+    fun formatRingChoir(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatRingChoir(mode, hostLabel)
+    fun parseRingChoir(content: String): String? = GroupPlayModePolicy.parseRingChoir(content)
+    fun formatAlertSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatAlertSprint(mode, hostLabel)
+    fun parseAlertSprint(content: String): String? = GroupPlayModePolicy.parseAlertSprint(content)
+    fun formatSoundWave(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatSoundWave(mode, hostLabel)
+    fun parseSoundWave(content: String): String? = GroupPlayModePolicy.parseSoundWave(content)
+    fun formatPreviewMask(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatPreviewMask(mode, hostLabel)
+    fun parsePreviewMask(content: String): String? = GroupPlayModePolicy.parsePreviewMask(content)
+    fun formatBeepDash(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatBeepDash(mode, hostLabel)
+    fun parseBeepDash(content: String): String? = GroupPlayModePolicy.parseBeepDash(content)
+    fun formatPushRace(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatPushRace(mode, hostLabel)
+    fun parsePushRace(content: String): String? = GroupPlayModePolicy.parsePushRace(content)
+    fun formatRemindCircle(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatRemindCircle(mode, hostLabel)
+    fun parseRemindCircle(content: String): String? = GroupPlayModePolicy.parseRemindCircle(content)
+    fun formatWakeSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatWakeSprint(mode, hostLabel)
+    fun parseWakeSprint(content: String): String? = GroupPlayModePolicy.parseWakeSprint(content)
+    fun formatQuietHour(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatQuietHour(mode, hostLabel)
+    fun parseQuietHour(content: String): String? = GroupPlayModePolicy.parseQuietHour(content)
+    fun formatOfflineHint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatOfflineHint(mode, hostLabel)
+    fun parseOfflineHint(content: String): String? = GroupPlayModePolicy.parseOfflineHint(content)
+    fun formatFallbackDash(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatFallbackDash(mode, hostLabel)
+    fun parseFallbackDash(content: String): String? = GroupPlayModePolicy.parseFallbackDash(content)
+    fun formatClickBeat(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatClickBeat(mode, hostLabel)
+    fun parseClickBeat(content: String): String? = GroupPlayModePolicy.parseClickBeat(content)
+    fun formatBuzzRelay(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatBuzzRelay(mode, hostLabel)
+    fun parseBuzzRelay(content: String): String? = GroupPlayModePolicy.parseBuzzRelay(content)
+    fun formatFeelSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatFeelSprint(mode, hostLabel)
+    fun parseFeelSprint(content: String): String? = GroupPlayModePolicy.parseFeelSprint(content)
+    fun formatSlideRace(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatSlideRace(mode, hostLabel)
+    fun parseSlideRace(content: String): String? = GroupPlayModePolicy.parseSlideRace(content)
+    fun formatFadeCircle(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatFadeCircle(mode, hostLabel)
+    fun parseFadeCircle(content: String): String? = GroupPlayModePolicy.parseFadeCircle(content)
+    fun formatSpringDash(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatSpringDash(mode, hostLabel)
+    fun parseSpringDash(content: String): String? = GroupPlayModePolicy.parseSpringDash(content)
+    fun formatSnapGuard(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatSnapGuard(mode, hostLabel)
+    fun parseSnapGuard(content: String): String? = GroupPlayModePolicy.parseSnapGuard(content)
+    fun formatRecentsHide(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatRecentsHide(mode, hostLabel)
+    fun parseRecentsHide(content: String): String? = GroupPlayModePolicy.parseRecentsHide(content)
+    fun formatShieldSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatShieldSprint(mode, hostLabel)
+    fun parseShieldSprint(content: String): String? = GroupPlayModePolicy.parseShieldSprint(content)
+    fun formatCopyLock(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatCopyLock(mode, hostLabel)
+    fun parseCopyLock(content: String): String? = GroupPlayModePolicy.parseCopyLock(content)
+    fun formatExportSeal(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatExportSeal(mode, hostLabel)
+    fun parseExportSeal(content: String): String? = GroupPlayModePolicy.parseExportSeal(content)
+    fun formatLeakWall(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatLeakWall(mode, hostLabel)
+    fun parseLeakWall(content: String): String? = GroupPlayModePolicy.parseLeakWall(content)
+    fun formatForwardSeal(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatForwardSeal(mode, hostLabel)
+    fun parseForwardSeal(content: String): String? = GroupPlayModePolicy.parseForwardSeal(content)
+    fun formatChatExportLock(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatChatExportLock(mode, hostLabel)
+    fun parseChatExportLock(content: String): String? = GroupPlayModePolicy.parseChatExportLock(content)
+    fun formatVaultFence(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatVaultFence(mode, hostLabel)
+    fun parseVaultFence(content: String): String? = GroupPlayModePolicy.parseVaultFence(content)
+    fun formatSealSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatSealSprint(mode, hostLabel)
+    fun parseSealSprint(content: String): String? = GroupPlayModePolicy.parseSealSprint(content)
+    fun formatPqxdhDash(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatPqxdhDash(mode, hostLabel)
+    fun parsePqxdhDash(content: String): String? = GroupPlayModePolicy.parsePqxdhDash(content)
+    fun formatCertRelay(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatCertRelay(mode, hostLabel)
+    fun parseCertRelay(content: String): String? = GroupPlayModePolicy.parseCertRelay(content)
+    fun formatMarkSprint(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatMarkSprint(mode, hostLabel)
+    fun parseMarkSprint(content: String): String? = GroupPlayModePolicy.parseMarkSprint(content)
+    fun formatFadeTimer(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatFadeTimer(mode, hostLabel)
+    fun parseFadeTimer(content: String): String? = GroupPlayModePolicy.parseFadeTimer(content)
+    fun formatStampRelay(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatStampRelay(mode, hostLabel)
+    fun parseStampRelay(content: String): String? = GroupPlayModePolicy.parseStampRelay(content)
+    fun formatLinkLock(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatLinkLock(mode, hostLabel)
+    fun parseLinkLock(content: String): String? = GroupPlayModePolicy.parseLinkLock(content)
+    fun formatPreviewMute(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatPreviewMute(mode, hostLabel)
+    fun parsePreviewMute(content: String): String? = GroupPlayModePolicy.parsePreviewMute(content)
+    fun formatUrlFence(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatUrlFence(mode, hostLabel)
+    fun parseUrlFence(content: String): String? = GroupPlayModePolicy.parseUrlFence(content)
+    fun formatNotifMask(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatNotifMask(mode, hostLabel)
+    fun parseNotifMask(content: String): String? = GroupPlayModePolicy.parseNotifMask(content)
+    fun formatListBlur(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatListBlur(mode, hostLabel)
+    fun parseListBlur(content: String): String? = GroupPlayModePolicy.parseListBlur(content)
+    fun formatTraySeal(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatTraySeal(mode, hostLabel)
+    fun parseTraySeal(content: String): String? = GroupPlayModePolicy.parseTraySeal(content)
+    fun formatReactLock(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatReactLock(mode, hostLabel)
+    fun parseReactLock(content: String): String? = GroupPlayModePolicy.parseReactLock(content)
+    fun formatStarSeal(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatStarSeal(mode, hostLabel)
+    fun parseStarSeal(content: String): String? = GroupPlayModePolicy.parseStarSeal(content)
+    fun formatMetaFence(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatMetaFence(mode, hostLabel)
+    fun parseMetaFence(content: String): String? = GroupPlayModePolicy.parseMetaFence(content)
+    fun formatTypingSeal(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatTypingSeal(mode, hostLabel)
+    fun parseTypingSeal(content: String): String? = GroupPlayModePolicy.parseTypingSeal(content)
+    fun formatReadSeal(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatReadSeal(mode, hostLabel)
+    fun parseReadSeal(content: String): String? = GroupPlayModePolicy.parseReadSeal(content)
+    fun formatPresenceSeal(mode: String, hostLabel: String): String = GroupPlayModePolicy.formatPresenceSeal(mode, hostLabel)
     fun parsePresenceSeal(content: String): String? = GroupPlaySealPolicy.parsePresenceSeal(content)
     fun formatLastSeenSeal(mode: String, hostLabel: String): String = GroupPlaySealPolicy.formatLastSeenSeal(mode, hostLabel)
     fun parseLastSeenSeal(content: String): String? = GroupPlaySealPolicy.parseLastSeenSeal(content)

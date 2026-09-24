@@ -166,16 +166,16 @@ class ConfigRobustnessTest {
         )
         override suspend fun loadSecurityPreferences(
             session: SettingsSession,
-        ): Result<com.maodouchat.ui.screen.settings.SecurityPreferences> = Result.success(
-            com.maodouchat.ui.screen.settings.SecurityPreferences(
+        ): Result<com.maodouchat.settings.repository.SecurityPreferences> = Result.success(
+            com.maodouchat.settings.repository.SecurityPreferences(
                 appLockTimeoutMinutes = 5L, screenSecureEnabled = false, sensitiveGateEnabled = false,
             )
         )
         override suspend fun saveSecurityPreferences(
             session: SettingsSession,
-            patch: com.maodouchat.ui.screen.settings.SecurityPreferencesPatch,
-        ): Result<com.maodouchat.ui.screen.settings.SecurityPreferences> = Result.success(
-            com.maodouchat.ui.screen.settings.SecurityPreferences(
+            patch: com.maodouchat.settings.repository.SecurityPreferencesPatch,
+        ): Result<com.maodouchat.settings.repository.SecurityPreferences> = Result.success(
+            com.maodouchat.settings.repository.SecurityPreferences(
                 appLockTimeoutMinutes = 5L, screenSecureEnabled = false, sensitiveGateEnabled = false,
             )
         )

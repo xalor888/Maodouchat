@@ -337,7 +337,11 @@ class ClientArchitectureTest {
 
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2930,
-        "com/maodouchat/util/GroupPlayPolicy.kt" to 1945,
+        "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
+        // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
+        // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
+        "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 979,
+        "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
@@ -398,7 +402,11 @@ class ClientArchitectureTest {
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2930,
-            "com/maodouchat/util/GroupPlayPolicy.kt" to 1945,
+            "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
+        // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
+        // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
+        "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 979,
+        "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 672,
             "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1651,
