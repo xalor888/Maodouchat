@@ -214,6 +214,11 @@ class ClientArchitectureTest {
      * 语义是「不得再增长」而不是「必须小于某个数」：重构拆小 → 上限自动有余量；
      * 但任何人往这些文件里堆代码 → 立刻红。要收紧上限，改小这里的数字即可。
      */
+    /**
+     * G328c：`ChatDetailRoute.kt` **3432 → 3013**——把长按消息的 450 行操作弹层
+     * （`messageToActions?.let { ... }` 整块）搬成 `ChatDetailMessageActionsSheet.kt`。
+     * 搬它是因为它是该文件里最大的自包含块，而热点棘轮要压的就是这个单体 composable。
+     */
     /** G164b：按行数排名监控前多少个文件。改大 = 管得更宽，但要同步补上限。 */
     private val MONITORED_TOP_N = 20
 
@@ -223,7 +228,7 @@ class ClientArchitectureTest {
         // 与 MarkdownParser 是拆出 ChatMarkdown 后的净**下降**）。
         // 棘轮方向不变：从这里开始只许降。上调的原因是必要的 import，不是往里堆逻辑。
 
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3432,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3071,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 1945,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
@@ -284,7 +289,7 @@ class ClientArchitectureTest {
         // 「两份相等」这条弱断言（见下方 G165 的说明——真正的外部基线是与 git HEAD 比）。
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3432,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 3071,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 1945,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
