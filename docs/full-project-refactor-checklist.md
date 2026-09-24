@@ -887,7 +887,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 ### Q03 Compose 与系统集成
 
-- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G315c：七个入口里六个有覆盖，含四个屏幕本体**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（**G313c：五点实证的阻塞，不是假设**——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、VM 主构造器 `private`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；最小接缝 = ports 构造器改 `internal` + 给那 4 个类造 fake）与 Call / Settings 的屏幕本体；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`）。
+- [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G315c：七个入口里六个有覆盖，含四个屏幕本体**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（原 G313c 五点实证仍成立——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；**但 G317c 已铺好接缝**：ports 构造器 `private` → `internal`，测试侧现在能 `ChatListViewModel(app, ports)`；且 G317c 已更正我当时的错误推论——那 4 个里 `TokenManager` 有 `getInstance` 入口、`ChatRepository`/`MissedCallRepository` 收 Room DAO **接口**、`NotificationCenterRepository` 收 `Context`，**都并非不可构造，只是没人做过**。剩余仅 fake/内存库工作）与 Call / Settings 的屏幕本体（**G315c 已补**：Call 8 例、Settings 6 例）；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`。
 - [ ] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文。
 - [ ] 通知、Widget、深链、权限、前台服务和更新器仪器测试。
 
@@ -13157,3 +13157,35 @@ spinning wheel / bingo / coin flip / memory match……），不是我能单方�
   摄像头/切换镜头等尚未覆盖；Settings 的隐私/安全子页与各项内部交互也未覆盖）。
   把 `[~]` 标成 `[x]` 会让读者以为这两块已经够了——那正是本台账反复在治的
   「叙述比现实乐观」。
+
+
+### G317c — **铺好 Chats 的接缝**（构造器 private → internal），并更正 G313c 的一处错误推论
+
+- **动机**：G313c 我写下「Chats 需先做生产侧接缝，且那 4 个类从未被任何测试构造过」。
+  本轮开工前重查那 4 个类，**发现自己当时的推论错了一步**：
+  - `TokenManager`：`private constructor(context)`，但有 `TokenManager.getInstance(appContext)`
+    这个 companion 单例入口——**测试里拿得到**（真机 context 有 SharedPreferences）；
+  - `ChatRepository(chatDao: ChatDao, userDao: UserDao)`：收的是 **Room DAO 接口**——**可 fake**；
+  - `MissedCallRepository(dao: MissedCallDao)`：同样收**接口**——**可 fake**；
+  - `NotificationCenterRepository(context: Context)`：收 **Context**——**可构造**。
+  **即「从未被测试构造过」≠「无法构造」，只是没人做过。**
+  这是本会话第四次把「没人做过」读成「做不了」（前三次：G301c/G307c 的
+  「ContactsScreen/ExploreScreen 需改造」、以及 G307c 的 again）——
+  **共同点都是用一个**缺席证据**（没有测试做过）去支撑一个**能力判断**。
+- **本轮做了什么**：把 `ChatListViewModel` 收 `ChatListPorts` 的主构造器
+  由 `private constructor` 放宽为 `internal constructor`，并补 KDoc 说明缘由。
+  **这只是一个字的可见性变更**：两个构造器的分发、依赖装配、
+  `AndroidViewModel` 继承关系全部原样不动；
+  测试源码集与 main 同模块，`internal` 本就对它可见，所以改完即可
+  `ChatListViewModel(app, ports)` 构造。
+- **为什么敢直接改**：这是**零运行时行为变更**的可见性放宽，
+  而它的验证方式是「两个全量套件保持全绿」——本轮跑完了：
+  **app 2116 / 0**、**server 564 / 0**（JUnit XML 逐套汇总）。
+  若这个改动真影响了行为，不可能两边都一字不差。
+- **仍然没做 ChatGPT 屏幕的测试本身**：还差给 `TokenManager`/
+  `ChatDao`/`UserDao`/`MissedCallDao` 造 fake（或在仪器测试里用内存库）。
+  本轮只铺接缝 + 更正记录，**没有为凑数写空断言**。
+- **§11 / Q03**：未做项从「Chats（G313c 五点实证阻塞）」更新为
+  「Chats（接缝已于 G317c 铺好：构造器 `internal`；剩余 fake/内存库工作）」。
+  **这不是阻塞解除，是阻塞从「需要改生产代码」降级为「需要写 fake」**——
+  两者性质不同：前者有回归风险，后者纯测试侧工作。

@@ -25,7 +25,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ChatListViewModel private constructor(
+/**
+ * G317c：主构造器由 `private` 放宽为 `internal`。
+ *
+ * 为什么：`ChatListScreen`（及其两个 dialog 组）都要求 `ChatListViewModel`，
+ * 而此前**唯一的公开入口是 `ChatListViewModel(application)`——它会经
+ * `AndroidChatListPorts.create(application)` 建起真实 ports（Room/TokenManager/…），
+ * 于是 UI 测试要么不传 VM（触发真实构造）、要么传不了。
+ * `private` 让测试源码集**即便同模块也碰不到**这个收 `ChatListPorts` 的构造器。
+ *
+ * 这**只是放宽可见性**，不改变任何运行时行为：两个构造器的分发逻辑、
+ * 依赖装配、`AndroidViewModel` 的继承关系都原样不动。
+ */
+class ChatListViewModel internal constructor(
     application: Application,
     private val ports: ChatListPorts,
 ) : AndroidViewModel(application) {
