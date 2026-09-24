@@ -478,6 +478,14 @@ class UserRepository {
     fun verifyPassword(userId: String, password: String): Boolean =
         credentialService.verifyPassword(userId, password)
 
+    /** 管理后台二次确认（口令 + 账号启用 TOTP 时的第二因子）。见 [CredentialService.verifyAdminCredentials]。 */
+    fun verifyAdminCredentials(
+        userId: String,
+        password: String,
+        totpCode: String?,
+    ): CredentialService.AdminCredentialCheck =
+        credentialService.verifyAdminCredentials(userId, password, totpCode)
+
     private val accountLifecycleService = AccountLifecycleService()
     private val mfaService = com.maodouchat.server.service.MfaService()
 

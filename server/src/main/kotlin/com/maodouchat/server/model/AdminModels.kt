@@ -14,8 +14,19 @@ data class AdminDashboardResponse(
     val activeModerationRules: Long
 )
 
+/**
+ * 管理后台二次确认请求。
+ *
+ * [totpCode] 是账号启用 TOTP 时的必需第二因子：此前这里只有口令，于是「口令 + 任意
+ * 有效 access token」就能换发全权限管理会话，账号开着 2FA 也一样——2FA 在应用登录
+ * 生效、却在提权入口被绕过。缺失或错误时服务端回 401 且 `code` 为
+ * `TOTP_REQUIRED` / `TOTP_INVALID`，前端据此提示。
+ */
 @Serializable
-data class AdminSessionRequest(val password: String)
+data class AdminSessionRequest(
+    val password: String,
+    val totpCode: String? = null
+)
 
 @Serializable
 data class AdminSessionResponse(

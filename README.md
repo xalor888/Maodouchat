@@ -79,7 +79,7 @@ bash scripts/deploy.sh --host your.domain.com --email you@example.com
 
 ## 管理后台
 
-配置 `MASTER_ADMINS` 并重启后，访问 `https://<域名>/<ADMIN_PATH>/admin`（部署时生成随机前缀）。后台登录需二次确认密码，换取 5 分钟用途限定 Token；Token 仅存内存，到期强制退出。主管理员自动继承审核员权限，反之不成立。
+配置 `MASTER_ADMINS` 并重启后，访问 `https://<域名>/<ADMIN_PATH>/admin`（部署时生成随机前缀）。后台登录需二次确认（密码 + 账号启用时的动态验证码），换取 5 分钟用途限定 Token；Token 仅存内存，到期强制退出。主管理员自动继承审核员权限，反之不成立。
 
 ## 构建 Android
 

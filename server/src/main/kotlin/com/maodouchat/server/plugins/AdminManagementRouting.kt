@@ -44,7 +44,8 @@ import java.util.UUID
 
 /**
  * 独立管理后台 API。仅允许 MASTER_ADMINS 中配置的账号访问；普通内容审核员继续使用受限审核 API。
- * Web 后台使用密码二次确认换取 5 分钟、带 admin_session 用途声明的专用 Token。
+ * Web 后台使用「口令 + 账号启用 TOTP 时的动态验证码」二次确认，换取 5 分钟、
+ * 带 admin_session 用途声明的专用 Token。
  */
 internal fun Application.configureAdminManagementRouting(
     userRepo: UserRepository,
@@ -94,8 +95,30 @@ internal fun Application.configureAdminManagementRouting(
                 }
                 val request = call.receiveAdminJson<AdminSessionRequest>()
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
-                if (!userRepo.verifyPassword(userId, request.password)) {
+                // 口令与第二因子在同一事务的行锁下判定（见 CredentialService.verifyAdminCredentials）。
+                val check = userRepo.verifyAdminCredentials(userId, request.password, request.totpCode)
+                if (!check.passwordOk) {
                     return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("管理员密码错误"))
+                }
+                if (!check.secondFactorOk) {
+                    // 账号启用了 TOTP 却没给（或给错）动态码——与「口令错」分开报，
+                    // 前端据此决定是弹动态码输入框还是提示重输。不泄露该码是否正确之外的任何信息。
+                    val missing = request.totpCode.isNullOrBlank()
+                    adminAuditLogger.warn(
+                        "Admin session second factor rejected for user {} (codeMissing={}, totpEnabled={})",
+                        userId, missing, check.totpEnabled
+                    )
+                    return@post call.respond(
+                        HttpStatusCode.Unauthorized,
+                        ErrorResponse(
+                            if (missing) {
+                                "该主管理员账号已启用动态验证码，换发管理会话需一并提交 totpCode"
+                            } else {
+                                "动态验证码错误或已过期"
+                            },
+                            code = if (missing) "TOTP_REQUIRED" else "TOTP_INVALID",
+                        )
+                    )
                 }
                 adminSessionAttemptLimiter.reset(userId)
                 val issuedAt = System.currentTimeMillis()

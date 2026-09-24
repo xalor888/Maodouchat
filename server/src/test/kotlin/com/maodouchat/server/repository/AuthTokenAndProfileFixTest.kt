@@ -5,17 +5,14 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.model.ClientPrefsUpdateRequest
 import com.maodouchat.server.service.MfaService
+import com.maodouchat.server.testTotpCode
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
-import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -151,36 +148,3 @@ class AuthTokenAndProfileFixTest {
     }
 }
 
-private const val TOTP_PERIOD_SEC = 30L
-private const val TOTP_DIGITS = 6
-
-private fun testTotpCode(secretBase32: String, nowMs: Long = System.currentTimeMillis()): String {
-    val cleaned = secretBase32.trim().uppercase().replace("=", "").replace(" ", "")
-    val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-    var buffer = 0
-    var bitsLeft = 0
-    val out = ArrayList<Byte>()
-    for (ch in cleaned) {
-        val idx = alphabet.indexOf(ch)
-        check(idx >= 0) { "invalid base32 char: $ch" }
-        buffer = (buffer shl 5) or idx
-        bitsLeft += 5
-        if (bitsLeft >= 8) {
-            out.add(((buffer shr (bitsLeft - 8)) and 0xff).toByte())
-            bitsLeft -= 8
-        }
-    }
-    val counter = nowMs / 1000L / TOTP_PERIOD_SEC
-    val data = ByteBuffer.allocate(8).putLong(counter).array()
-    val mac = Mac.getInstance("HmacSHA1")
-    mac.init(SecretKeySpec(out.toByteArray(), "HmacSHA1"))
-    val hash = mac.doFinal(data)
-    val offset = hash.last().toInt() and 0x0f
-    val binary =
-        ((hash[offset].toInt() and 0x7f) shl 24) or
-            ((hash[offset + 1].toInt() and 0xff) shl 16) or
-            ((hash[offset + 2].toInt() and 0xff) shl 8) or
-            (hash[offset + 3].toInt() and 0xff)
-    val otp = binary % 10.0.pow(TOTP_DIGITS).toInt()
-    return otp.toString().padStart(TOTP_DIGITS, '0')
-}

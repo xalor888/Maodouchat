@@ -26,11 +26,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.Database
-import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
-import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -42,41 +38,6 @@ import kotlin.test.assertTrue
  * 纯逻辑层（TotpService）+ 完整 API 流程（setup→confirm→requiresTotp→disable）。
  * 独立 JVM（forkEvery=1），TOTP 计算与服务端同算法（RFC 6238 / SHA-1 / 30s / 6 位）。
  */
-private const val TOTP_PERIOD_SEC = 30L
-private const val TOTP_DIGITS = 6
-
-/** 测试侧 RFC 6238 生成器：与服务端 TotpService.generateCode 一致 */
-private fun testTotpCode(secretBase32: String, nowMs: Long = System.currentTimeMillis()): String {
-    val cleaned = secretBase32.trim().uppercase().replace("=", "").replace(" ", "")
-    val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-    var buffer = 0
-    var bitsLeft = 0
-    val out = ArrayList<Byte>()
-    for (ch in cleaned) {
-        val idx = alphabet.indexOf(ch)
-        check(idx >= 0) { "invalid base32 char: $ch" }
-        buffer = (buffer shl 5) or idx
-        bitsLeft += 5
-        if (bitsLeft >= 8) {
-            out.add(((buffer shr (bitsLeft - 8)) and 0xff).toByte())
-            bitsLeft -= 8
-        }
-    }
-    val counter = nowMs / 1000L / TOTP_PERIOD_SEC
-    val data = ByteBuffer.allocate(8).putLong(counter).array()
-    val mac = Mac.getInstance("HmacSHA1")
-    mac.init(SecretKeySpec(out.toByteArray(), "HmacSHA1"))
-    val hash = mac.doFinal(data)
-    val offset = hash.last().toInt() and 0x0f
-    val binary =
-        ((hash[offset].toInt() and 0x7f) shl 24) or
-            ((hash[offset + 1].toInt() and 0xff) shl 16) or
-            ((hash[offset + 2].toInt() and 0xff) shl 8) or
-            (hash[offset + 3].toInt() and 0xff)
-    val otp = binary % 10.0.pow(TOTP_DIGITS).toInt()
-    return otp.toString().padStart(TOTP_DIGITS, '0')
-}
-
 class TotpServiceLogicTest {
     @Test
     fun `generated secret is valid base32 and verify accepts current code`() {

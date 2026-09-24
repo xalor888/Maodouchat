@@ -190,16 +190,25 @@
         throw new Error((d && d.error) || ('请求失败 ' + r.status));
       }
 
+      // 二次确认要带动态码：账号启用 TOTP 时它是**必需**的第二因子。
+      // 此前这里只发 password，于是「口令 + 任意有效 access token」就能换发全权限
+      // 管理会话——2FA 在应用登录生效、却在提权入口被绕过。
       var sr = await fetch('/api/admin/session', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + d.token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: password })
+        body: JSON.stringify({ password: password, totpCode: totpCode })
       });
       var srtext = await sr.text();
       var sd = null;
       if (srtext) { try { sd = JSON.parse(srtext); } catch (e) { sd = null; } }
       if (!sr.ok || !sd || !sd.token) {
         if (sr.status === 403) throw new Error((sd && sd.error) || '该账号不是主管理员。MASTER_ADMINS 配的是用户 ID，不是邮箱。');
+        if (sd && sd.code === 'TOTP_REQUIRED') {
+          el('totp-field').classList.remove('hidden');
+          el('totp-code').focus();
+          throw new Error((sd && sd.error) || '该账号已启用动态验证码，请填写后重试');
+        }
+        if (sd && sd.code === 'TOTP_INVALID') throw new Error((sd && sd.error) || '动态验证码错误或已过期');
         throw new Error((sd && sd.error) || ('管理员二次验证失败 ' + sr.status));
       }
 
