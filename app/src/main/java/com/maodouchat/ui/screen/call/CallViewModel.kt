@@ -272,7 +272,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.getUsers(liveToken).onSuccess { users ->
+            com.maodouchat.data.repository.UserNetworkRepository().users(liveToken).onSuccess { users ->
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = ownerUserId,
                         liveToken = tokenManager.getToken(),

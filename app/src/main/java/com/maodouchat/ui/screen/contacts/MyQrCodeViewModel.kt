@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.data.repository.UserNetworkRepository
 
 data class MyQrCodeUiState(
     val userName: String = "",
@@ -82,7 +83,7 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
                         )
                     ) {
                         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                        ApiService.getCurrentUser(liveToken).onSuccess { me ->
+                        UserNetworkRepository().currentUser(liveToken).onSuccess { me ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                     expectedUserId = userId,
                                     liveToken = tokenManager.getToken(),

@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.data.repository.UserNetworkRepository
 
 internal class ChatRealtimeController(
     private val application: Application,
@@ -110,7 +111,7 @@ internal class ChatRealtimeController(
                 val contactId = state.contact.id.takeIf(String::isNotBlank) ?: continue
                 val liveToken = token()
                 if (liveToken.isBlank()) continue
-                ApiService.getUser(liveToken, contactId).onSuccess { dto ->
+                UserNetworkRepository().user(liveToken, contactId).onSuccess { dto ->
                     updateState { current ->
                         if (current.contact.id != contactId || current.chatIsGroup) current
                         else current.copy(

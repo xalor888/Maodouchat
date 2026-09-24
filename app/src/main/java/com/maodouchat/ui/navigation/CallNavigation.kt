@@ -96,6 +96,7 @@ import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import com.maodouchat.update.OfficialApkInstaller
 import com.maodouchat.navigation.Routes
+import com.maodouchat.data.repository.UserNetworkRepository
 
 
 @Composable
@@ -407,7 +408,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                         )
                     ) {
                         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                        ApiService.getUsers(liveToken).getOrNull()?.find { it.id == event.fromUserId }?.name
+                        UserNetworkRepository().users(liveToken).getOrNull()?.find { it.id == event.fromUserId }?.name
                     } else {
                         null
                     }
