@@ -7,7 +7,6 @@ import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.network.TokenManager
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.call.CallActionBus
@@ -84,10 +83,10 @@ data class GroupCallParticipantUi(
 
 class CallViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val tokenManager = TokenManager.getInstance(application)
     private val mediaBridge = CallMediaBridge()
     private val webRTCManager: WebRTCManager? get() = mediaBridge.manager
-    private val token: String get() = tokenManager.getToken() ?: ""
+    private val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token ?: ""
+
     private val app: Application get() = getApplication()
 
     private fun text(id: Int, vararg args: Any): String =
@@ -261,7 +260,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadGroupParticipantProfiles() {
         viewModelScope.launch {
-            val ownerUserId = tokenManager.getUserId().orEmpty()
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
             if (token.isBlank() || ownerUserId.isBlank()) return@launch
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
@@ -269,7 +268,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             ) {
                 return@launch
             }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+            val liveToken = token
             com.maodouchat.data.repository.UserNetworkRepository().users(liveToken).onSuccess { users ->
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
@@ -367,7 +366,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun startDeterministicMeshEdges(manager: WebRTCManager, primaryPeerId: String, session: Long) {
-        val selfUserId = tokenManager.getUserId().orEmpty()
+        val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         activeGroupMemberIds.filter { it != primaryPeerId }.forEach { peerId ->
             scheduleGroupPeerTimeout(peerId)
             if (GroupCallPolicy.shouldInitiateMeshEdge(selfUserId, peerId) && !manager.hasGroupPeer(peerId)) {
@@ -453,7 +452,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         activeGroupId = ""
         meshGroupMemberIds = emptyList()
         // 8.55：呼出时快照账号，作为通话记录写入的 expectedUserId 守卫
-        callLogOwnerUserId = tokenManager.getUserId().orEmpty()
+        callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         _uiState.update {
             it.copy(
                 contactId = contactId,
@@ -644,7 +643,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         if (callId.isNotBlank()) {
             com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, callId)
         }
-        val selfUserId = tokenManager.getUserId().orEmpty()
+        val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val normalizedMembers = groupMemberIds.filter(String::isNotBlank).distinct()
         val isGroup = groupId.isNotBlank() &&
             GroupCallCapabilities.canStartMesh(normalizedMembers.size) &&
@@ -668,7 +667,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         // 8.55：呼入时快照账号，作为通话记录写入的 expectedUserId 守卫
-        callLogOwnerUserId = tokenManager.getUserId().orEmpty()
+        callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (isGroup) loadGroupParticipantProfiles()
         startRingingTimeout(contactId)
         observeSignaling()
@@ -932,7 +931,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private fun observeSignaling() {
         // 独立管理两个 job：一个死掉不影响另一个；避免"WS  collector 死了但 polling 还活着导致永远不重连"
         if (webSocketJob?.isActive != true) {
-            val signalOwnerUserId = tokenManager.getUserId().orEmpty()
+            val signalOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
             val dispatcher = (app as? com.maodouchat.MaodouchatApp)?.realtimeEventDispatcher
             if (dispatcher != null) {
                 webSocketJob = viewModelScope.launch {
@@ -979,7 +978,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (pollingJob?.isActive != true) {
-            val pollOwnerUserId = tokenManager.getUserId().orEmpty()
+            val pollOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
             pollingJob = viewModelScope.launch {
                 while (_uiState.value.callState != CallState.DISCONNECTED) {
                     delay(2000)
@@ -991,7 +990,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     ) {
                         continue
                     }
-                    val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+                    val liveToken = token
                     if (liveToken.isBlank()) continue
                     WebRTCSignaling.fetchPending(liveToken)
                         .onSuccess { messages ->
@@ -1033,7 +1032,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     /** 群通话邀请：挨个向群成员发 offer（依赖 WebRTC 端已实现 group peer 池） */
     fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) {
         if (_uiState.value.callState != CallState.IDLE) return
-        val selfUserId = tokenManager.getUserId().orEmpty()
+        val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val remoteMembers = memberIds.filter { it.isNotBlank() && it != selfUserId }.distinct()
         if (remoteMembers.isEmpty()) return
         if (token.isBlank()) {
@@ -1548,7 +1547,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 delay(ICE_REFRESH_INTERVAL_MS)
                 if (!callSessionGate.isCurrent(session) || _uiState.value.callState != CallState.CONNECTED) break
                 val manager = webRTCManager ?: continue
-                val liveToken = tokenManager.getToken().orEmpty()
+                val liveToken = token
                 if (liveToken.isBlank()) continue
                 val fresh = WebRTCSignaling.fetchIceServers(liveToken).getOrNull() ?: continue
                 manager.refreshIceServers(fresh)
@@ -1568,7 +1567,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         if (toUserId.isBlank()) return
         // Capture owner at hang-up request time: after account switch, do not hang up under new session.
-        val hangUpOwnerUserId = tokenManager.getUserId().orEmpty()
+        val hangUpOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (hangUpOwnerUserId.isBlank()) return
         val ticket = outboundSignalingCursor.next(callId, "hang-up")
         com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
@@ -1581,8 +1580,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 ) {
                     return@withContext
                 }
-                // 启动时再读 token（可能刚 refresh）；hangUp 内部 ApiService 仍会 401 重试
-                val authToken = tokenManager.getToken().orEmpty()
+                // 启动时再读一次会话令牌（可能刚 refresh，比上面捕获的更新）；
+                // hangUp 内部 ApiService 仍会 401 重试
+                val authToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
                 if (authToken.isBlank()) return@withContext
                 // 走 /api/signaling/hangup：存 hang-up 并 clearForCallExcluding，避免离线仍响铃
                 try {

@@ -58,7 +58,6 @@ import androidx.navigation.navDeepLink
 import com.maodouchat.R
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
-import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.screen.chatdetail.ChatDetailScreen
@@ -101,14 +100,13 @@ import com.maodouchat.navigation.Routes
 @Composable
 internal fun IncomingCallObserver(navController: NavHostController) {
     val context = LocalContext.current
-    val tokenManager = remember { TokenManager.getInstance(context) }
 
     suspend fun pollPendingOffers(preferCallId: String = "", autoAnswer: Boolean = false) {
-        val token = tokenManager.getToken().orEmpty()
+        val token = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
         if (token.isBlank()) return
         // Capture epoch so logout/account switch mid-fetch cannot apply offers to the next owner.
         val pollGeneration = com.maodouchat.MaodouchatApp.currentSessionGeneration()
-        val pollUserId = tokenManager.getUserId().orEmpty()
+        val pollUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         (context.applicationContext as? com.maodouchat.MaodouchatApp)?.ensureRealtimeConnected()
         WebRTCSignaling.fetchPending(token, offersOnly = true).onSuccess { messages ->
             if (
@@ -219,7 +217,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
     LaunchedEffect(Unit) {
         // Wait briefly for token if login just completed
         var attempts = 0
-        while (tokenManager.getToken().isNullOrBlank() && attempts < 20) {
+        while (!com.maodouchat.session.CurrentSession.hasSession() && attempts < 20) {
             kotlinx.coroutines.delay(250)
             attempts++
         }
@@ -239,7 +237,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
     }
 
     LaunchedEffect(Unit) {
-        val signalOwnerUserId = tokenManager.getUserId().orEmpty()
+        val signalOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return@LaunchedEffect
         app.realtimeEventDispatcher.callSignalingEvents.collect { event ->
             // Drop buffered signaling after logout / account switch.
@@ -310,7 +308,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                 ) {
                     return@collect
                 }
-                val token = tokenManager.getToken().orEmpty()
+        val token = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
                 val app = context.applicationContext as com.maodouchat.MaodouchatApp
                 // 已有 pending/活跃通话：对后来的 offer 回 busy，避免静默覆盖
                 val existingPending = IncomingCallCoordinator.peekPending()
@@ -330,7 +328,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                             expectedUserId = signalOwnerUserId,
                         )
                     ) {
-                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+                        val liveToken = token
                         WebRTCSignaling.sendViaRest(
                             liveToken,
                             event.fromUserId,
@@ -385,8 +383,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                             notifyPeer = false
                         )
                     }
-                    val tokenManager = com.maodouchat.network.TokenManager.getInstance(app)
-                    val liveOwner = tokenManager.getUserId().orEmpty()
+                    val liveOwner = com.maodouchat.session.CurrentSession.ownerUserId()
                     val resolvedName = if (
                         token.isNotBlank() &&
                         liveOwner.isNotBlank() &&
@@ -394,7 +391,7 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                             expectedUserId = liveOwner,
                         )
                     ) {
-                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+        val liveToken = token
                         UserNetworkRepository().users(liveToken).getOrNull()?.find { it.id == event.fromUserId }?.name
                     } else {
                         null
@@ -436,8 +433,7 @@ private suspend fun resolveCallerAndNavigate(
 ) {
     // 尝试解析来电者名称，避免显示原始 UUID
     val appCtx = navController.context.applicationContext
-    val tokenManager = com.maodouchat.network.TokenManager.getInstance(appCtx)
-    val ownerUserId = tokenManager.getUserId().orEmpty()
+    val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
     val callerName = if (
         token.isNotBlank() &&
         ownerUserId.isNotBlank() &&
@@ -445,7 +441,7 @@ private suspend fun resolveCallerAndNavigate(
             expectedUserId = ownerUserId,
         )
     ) {
-        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+        val liveToken = token
         UserNetworkRepository().users(liveToken).getOrNull()
             ?.find { it.id == fromUserId }
             ?.name

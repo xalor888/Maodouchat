@@ -58,7 +58,6 @@ import androidx.navigation.navArgument
 import com.maodouchat.R
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
-import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 // B5 新增（仅追加）：平板双栏布局
@@ -128,14 +127,12 @@ fun MaodouchatNavGraph(
     }
 
     LaunchedEffect(Unit) {
-        val ownerUserId = TokenManager.getInstance(context).getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return@LaunchedEffect
         app.realtimeEventDispatcher.adminNoticeEvents.collect { event ->
             if (ownerUserId.isBlank() ||
                 !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
-                    liveToken = TokenManager.getInstance(context).getToken(),
-                    liveUserId = TokenManager.getInstance(context).getUserId(),
                 )
             ) {
                 return@collect
@@ -220,7 +217,7 @@ fun MaodouchatNavGraph(
             if (!com.maodouchat.network.TokenExpiredEventPolicy.shouldHandle(
                     eventOwnerUserId = event.ownerUserId,
                     eventSessionGeneration = event.sessionGeneration,
-                    currentOwnerUserId = TokenManager.getInstance(context).getUserId(),
+                    currentOwnerUserId = com.maodouchat.session.CurrentSession.snapshot().userId,
                     currentSessionGeneration = com.maodouchat.MaodouchatApp.currentSessionGeneration(),
                 )
             ) return@collectLatest
@@ -271,9 +268,8 @@ fun MaodouchatNavGraph(
             }
             // 通过 ContactsViewModel 创建/获取 1-on-1 私聊
             val app = context.applicationContext as com.maodouchat.MaodouchatApp
-            val tokenManager = com.maodouchat.network.TokenManager.getInstance(app)
-            val token = tokenManager.getToken().orEmpty()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
+        val token = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
             if (token.isBlank() || ownerUserId.isBlank() ||
                 !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
@@ -282,7 +278,7 @@ fun MaodouchatNavGraph(
                 Toast.makeText(context, sessionExpiredMsg, Toast.LENGTH_SHORT).show()
                 return@collect
             }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+        val liveToken = token
             ChatNetworkRepository().createChat(liveToken, listOf(req.userId))
                 .onSuccess { chat ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
