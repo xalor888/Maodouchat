@@ -8,7 +8,6 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.ChatSettingsResponse
-import com.maodouchat.network.TokenManager
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.security.SecretChatPolicy
@@ -31,19 +30,16 @@ import kotlinx.coroutines.withContext
 internal class ChatListMutationCoordinator(
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<ChatListUiState>,
-    private val tokenManager: TokenManager,
     private val deletedChatIds: MutableSet<String>,
     private val settingsInFlight: MutableSet<String>,
     private val ownerUserId: () -> String,
     private val cacheChats: suspend (List<Chat>) -> Unit,
     private val updateChatSettingsRemote: suspend (
-        token: String,
         chatId: String,
         request: UpdateChatSettingsRequest,
     ) -> Result<ChatSettingsResponse>,
-    private val deleteChatRemote: suspend (token: String, chatId: String) -> Result<Unit>,
+    private val deleteChatRemote: suspend (chatId: String) -> Result<Unit>,
     private val createChatRemote: suspend (
-        token: String,
         peerIds: List<String>,
         isGroup: Boolean,
         groupName: String?,
@@ -62,8 +58,7 @@ internal class ChatListMutationCoordinator(
     fun updateChatSettings(chat: Chat, optimistic: Chat, request: UpdateChatSettingsRequest) {
         if (!settingsInFlight.add(chat.id)) return
         val settingsOwnerUserId = ownerUserId()
-        val token = tokenManager.getToken().orEmpty()
-        if (token.isBlank() || settingsOwnerUserId.isBlank()) {
+        if (!com.maodouchat.session.CurrentSession.hasSession() || settingsOwnerUserId.isBlank()) {
             uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             settingsInFlight.remove(chat.id)
             return
@@ -93,8 +88,7 @@ internal class ChatListMutationCoordinator(
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                updateChatSettingsRemote(liveToken, chat.id, request).fold(
+                updateChatSettingsRemote(chat.id, request).fold(
                     onSuccess = { settings ->
                         if (!BackgroundSessionGate.mayContinue(
                             expectedUserId = settingsOwnerUserId,
@@ -174,17 +168,14 @@ internal class ChatListMutationCoordinator(
             } catch (error: Exception) {
                 Log.w(TAG, "clearMarkedUnread cache failed for ${chat.id}", error)
             }
-            val token = tokenManager.getToken().orEmpty()
-            if (token.isBlank() || clearOwnerUserId.isBlank()) return@launch
+            if (!com.maodouchat.session.CurrentSession.hasSession() || clearOwnerUserId.isBlank()) return@launch
             if (!BackgroundSessionGate.mayContinue(
                 expectedUserId = clearOwnerUserId,
             )
             ) {
                 return@launch
             }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
             updateChatSettingsRemote(
-                liveToken,
                 chat.id,
                 UpdateChatSettingsRequest(markedUnread = false),
             ).fold(
@@ -243,10 +234,9 @@ internal class ChatListMutationCoordinator(
     }
 
     fun deleteChat(chatId: String) {
-        val token = tokenManager.getToken().orEmpty()
         val deleteOwnerUserId = ownerUserId()
         val cleanupSession = cleanupSessionFor(deleteOwnerUserId)
-        if (token.isBlank() || deleteOwnerUserId.isBlank()) {
+        if (!com.maodouchat.session.CurrentSession.hasSession() || deleteOwnerUserId.isBlank()) {
             uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -272,8 +262,7 @@ internal class ChatListMutationCoordinator(
                     ) {
                         return@launch
                     }
-                    val liveToken = tokenManager.getToken() ?: token
-                    val result = deleteChatRemote(liveToken, chatId)
+                    val result = deleteChatRemote(chatId)
                     val resultError = result.exceptionOrNull()
                     if (resultError is CancellationException) throw resultError
                     if (!BackgroundSessionGate.mayContinue(
@@ -338,9 +327,8 @@ internal class ChatListMutationCoordinator(
             uiState.update { it.copy(errorMessage = secretChatDisabledMessage()) }
             return
         }
-        val token = tokenManager.getToken().orEmpty()
         val owner = ownerUserId()
-        if (token.isBlank() || owner.isBlank()) {
+        if (!com.maodouchat.session.CurrentSession.hasSession() || owner.isBlank()) {
             uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -352,9 +340,7 @@ internal class ChatListMutationCoordinator(
                 uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
             val result = createChatRemote(
-                liveToken,
                 listOf(peerId),
                 false,
                 null,

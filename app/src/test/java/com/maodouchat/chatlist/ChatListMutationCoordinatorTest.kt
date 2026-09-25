@@ -4,7 +4,6 @@ import com.maodouchat.R
 import com.maodouchat.conversation.ConversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
 import com.maodouchat.network.ChatSettingsResponse
-import com.maodouchat.network.TokenManager
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.ui.screen.chatlist.ChatListMutationCoordinator
@@ -50,17 +49,13 @@ class ChatListMutationCoordinatorTest {
         val chat = Chat(id = "c1", pinnedAt = 0, settingsUpdatedAt = 1)
         val optimistic = chat.copy(pinnedAt = 10, settingsUpdatedAt = 20)
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
-        val tokenManager = mockk<TokenManager>()
-        every { tokenManager.getToken() } returns "tok"
-        every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
         val cached = mutableListOf<List<Chat>>()
         var remoteCalls = 0
         val coordinator = buildCoordinator(
             uiState = uiState,
-            tokenManager = tokenManager,
             cacheChats = { cached += it },
-            updateChatSettingsRemote = { _, _, _ ->
+            updateChatSettingsRemote = { _, _ ->
                 remoteCalls += 1
                 Result.success(
                     ChatSettingsResponse(
@@ -92,17 +87,13 @@ class ChatListMutationCoordinatorTest {
     fun updateChatSettingsIgnoresReentry() = runTest(dispatcher) {
         val chat = Chat(id = "c1")
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
-        val tokenManager = mockk<TokenManager>()
-        every { tokenManager.getToken() } returns "tok"
-        every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
         val inFlight = mutableSetOf("c1")
         var remoteCalls = 0
         val coordinator = buildCoordinator(
             uiState = uiState,
-            tokenManager = tokenManager,
             settingsInFlight = inFlight,
-            updateChatSettingsRemote = { _, _, _ ->
+            updateChatSettingsRemote = { _, _ ->
                 remoteCalls += 1
                 Result.success(
                     ChatSettingsResponse("c1", 0, false, false, false, 1)
@@ -119,17 +110,13 @@ class ChatListMutationCoordinatorTest {
     fun deleteChatRemovesThenConfirmsLeave() = runTest(dispatcher) {
         val chat = Chat(id = "c1", lastMessage = "hi")
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
-        val tokenManager = mockk<TokenManager>()
-        every { tokenManager.getToken() } returns "tok"
-        every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
         val deleted = mutableSetOf<String>()
         var cleaned = false
         val coordinator = buildCoordinator(
             uiState = uiState,
-            tokenManager = tokenManager,
             deletedChatIds = deleted,
-            deleteChatRemote = { _, id ->
+            deleteChatRemote = { id ->
                 assertEquals("c1", id)
                 Result.success(Unit)
             },
@@ -150,14 +137,10 @@ class ChatListMutationCoordinatorTest {
         val chat = Chat(id = "c1", lastMessageTime = 50)
         val other = Chat(id = "c0", lastMessageTime = 10)
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat, other)))
-        val tokenManager = mockk<TokenManager>()
-        every { tokenManager.getToken() } returns "tok"
-        every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
         val coordinator = buildCoordinator(
             uiState = uiState,
-            tokenManager = tokenManager,
-            deleteChatRemote = { _, _ -> Result.failure(IllegalStateException("nope")) },
+            deleteChatRemote = { _ -> Result.failure(IllegalStateException("nope")) },
         )
 
         coordinator.deleteChat("c1")
@@ -169,25 +152,23 @@ class ChatListMutationCoordinatorTest {
 
     private fun kotlinx.coroutines.CoroutineScope.buildCoordinator(
         uiState: MutableStateFlow<ChatListUiState>,
-        tokenManager: TokenManager,
         deletedChatIds: MutableSet<String> = mutableSetOf(),
         settingsInFlight: MutableSet<String> = mutableSetOf(),
         cacheChats: suspend (List<Chat>) -> Unit = {},
-        updateChatSettingsRemote: suspend (String, String, UpdateChatSettingsRequest) -> Result<ChatSettingsResponse> =
-            { _, _, _ -> error("unexpected") },
-        deleteChatRemote: suspend (String, String) -> Result<Unit> = { _, _ -> error("unexpected") },
+        updateChatSettingsRemote: suspend (String, UpdateChatSettingsRequest) -> Result<ChatSettingsResponse> =
+            { _, _ -> error("unexpected") },
+        deleteChatRemote: suspend (String) -> Result<Unit> = { _ -> error("unexpected") },
         cleanupLocalChat: suspend (String, ConversationLocalCleanupSession) -> Unit = { _, _ -> },
     ) = ChatListMutationCoordinator(
         scope = this,
         uiState = uiState,
-        tokenManager = tokenManager,
         deletedChatIds = deletedChatIds,
         settingsInFlight = settingsInFlight,
-        ownerUserId = { tokenManager.getUserId().orEmpty() },
+        ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
         cacheChats = cacheChats,
         updateChatSettingsRemote = updateChatSettingsRemote,
         deleteChatRemote = deleteChatRemote,
-        createChatRemote = { _, _, _, _, _ -> error("unexpected") },
+        createChatRemote = { _, _, _, _ -> error("unexpected") },
         touchSecretChat = {},
         cleanupLocalChat = cleanupLocalChat,
         cleanupSessionFor = { ConversationLocalCleanupSession(it, 1L) },

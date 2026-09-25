@@ -53,7 +53,6 @@ class ChatListViewModel private constructor(
         AndroidChatListPorts.create(application),
     )
 
-    private val tokenManager = ports.tokenManager
     private val chatRepo = ports.chatRepository
     private val messageRepo = ports.messageStore
     private val missedRepo = ports.missedCallRepository
@@ -66,7 +65,7 @@ class ChatListViewModel private constructor(
     /** 清空指定会话的本地明文（保留会话/PIN/草稿/同步游标）。不清游标，避免重拉密文 Duplicate。 */
     fun clearLocalChatHistory(chatId: String) {
         if (chatId.isBlank()) return
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (ownerUserId.isBlank()) return
         val cleanupSession = conversationLocalCleanupSession(ownerUserId)
         viewModelScope.launch(Dispatchers.IO) {
@@ -128,7 +127,6 @@ class ChatListViewModel private constructor(
     private val loadCoordinator = ChatListLoadCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        tokenManager = tokenManager,
         deletedChatIds = deletedChatIds,
         ownerUserId = { currentUserIdStr },
         getAllChats = { chatRepo.getAllChats() },
@@ -164,7 +162,6 @@ class ChatListViewModel private constructor(
     private val mutationCoordinator = ChatListMutationCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        tokenManager = tokenManager,
         deletedChatIds = deletedChatIds,
         settingsInFlight = settingsInFlight,
         ownerUserId = { currentUserIdStr },
@@ -286,8 +283,8 @@ class ChatListViewModel private constructor(
     private fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
         OwnerSessionPolicy.isCurrent(
             snapshot = session,
-            liveUserId = tokenManager.getUserId(),
-            liveToken = tokenManager.getToken(),
+            liveUserId = com.maodouchat.session.CurrentSession.snapshot().userId,
+            liveToken = com.maodouchat.session.CurrentSession.snapshot().token,
             liveSessionGeneration = ports.sessionGeneration(),
             purgeInProgress = ports.isPurgeInProgress(),
         )
@@ -426,7 +423,7 @@ class ChatListViewModel private constructor(
     fun removeMissedCallLocally(callId: String) =
         missedCallCoordinator.removeMissedCallLocally(callId)
 
-    private val currentUserIdStr: String get() = tokenManager.getUserId() ?: ""
+    private val currentUserIdStr: String get() = com.maodouchat.session.CurrentSession.snapshot().userId ?: ""
 
     /** 1.146：刷新各会话待发送定时消息数（本地 prefs store）。 */
     fun refreshScheduledCounts() {
@@ -567,7 +564,7 @@ class ChatListViewModel private constructor(
     /** 1.142：会话列表长按菜单「清除草稿」（本地，不打开会话）。 */
     fun clearChatDraft(chatId: String) {
         if (chatId.isBlank()) return
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (ownerUserId.isBlank()) return
         viewModelScope.launch {
             try {

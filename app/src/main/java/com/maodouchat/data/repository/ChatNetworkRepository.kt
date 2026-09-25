@@ -25,28 +25,30 @@ internal class ChatNetworkRepository(
         { token, chatId -> ApiService.deleteChat(token, chatId) },
 ) {
     suspend fun createChat(
-        token: String,
+        token: String? = null,
         peerIds: List<String>,
         isGroup: Boolean = false,
         groupName: String? = null,
         chatType: String? = null,
-    ): Result<ChatDto> = createChatApi(token, peerIds, isGroup, groupName, chatType)
+    ): Result<ChatDto> = createChatApi(token ?: currentAccessToken(), peerIds, isGroup, groupName, chatType)
 
     suspend fun chats(token: String? = null): Result<List<ChatDto>> =
         getChatsApi(token ?: currentAccessToken())
 
     suspend fun updateChatSettings(
-        token: String,
+        token: String? = null,
         chatId: String,
         request: com.maodouchat.network.UpdateChatSettingsRequest,
-    ): Result<com.maodouchat.network.ChatSettingsResponse> = updateChatSettingsApi(token, chatId, request)
+    ): Result<com.maodouchat.network.ChatSettingsResponse> =
+        updateChatSettingsApi(token ?: currentAccessToken(), chatId, request)
 
     suspend fun updateDisappearingMessages(
-        token: String,
+        token: String? = null,
         chatId: String,
         seconds: Int,
     ): Result<com.maodouchat.network.DisappearingMessagesResponse> =
-        updateDisappearingApi(token, chatId, seconds)
+        updateDisappearingApi(token ?: currentAccessToken(), chatId, seconds)
 
-    suspend fun deleteChat(token: String, chatId: String): Result<Unit> = deleteChatApi(token, chatId)
+    suspend fun deleteChat(token: String? = null, chatId: String): Result<Unit> =
+        deleteChatApi(token ?: currentAccessToken(), chatId)
 }

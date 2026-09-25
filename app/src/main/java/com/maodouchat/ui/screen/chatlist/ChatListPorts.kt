@@ -13,12 +13,12 @@ import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.repository.AnnouncementNetworkRepository
 import com.maodouchat.data.repository.ChatNetworkRepository
-import com.maodouchat.network.TokenManager
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.MissedCallRepository
 import com.maodouchat.data.repository.PushNetworkRepository
+import com.maodouchat.network.TokenManager
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.data.repository.SecretChatRepository
 import com.maodouchat.messaging.v2.MessagingV2Outbox
@@ -42,7 +42,6 @@ import kotlinx.coroutines.flow.SharedFlow
  * [AndroidChatListPorts.create] 装配。
  */
 internal class ChatListPorts(
-    val tokenManager: TokenManager,
     val chatRepository: ChatRepository,
     val messageStore: LocalMessageStore,
     val missedCallRepository: MissedCallRepository,
@@ -56,19 +55,17 @@ internal class ChatListPorts(
     val chatReadEvents: SharedFlow<MaodouchatApp.Companion.ChatReadEvent>,
     val chatMessageSentEvents: SharedFlow<MaodouchatApp.Companion.ChatMessageSentEvent>,
     val withRoomTransaction: suspend (block: suspend () -> Boolean) -> Boolean,
-    val fetchRemoteChats: suspend (token: String) -> Result<List<ChatDto>>,
+    val fetchRemoteChats: suspend () -> Result<List<ChatDto>>,
     val fetchActiveAnnouncements: suspend () -> Result<String>,
     val ackAnnouncementRemote: suspend (announcementId: String) -> Result<*>,
     val fetchPushVerifyKeyRaw: suspend () -> Result<String>,
     val applyPushVerifyKey: (raw: String) -> Unit,
     val updateChatSettingsRemote: suspend (
-        token: String,
         chatId: String,
         request: UpdateChatSettingsRequest,
     ) -> Result<ChatSettingsResponse>,
-    val deleteChatRemote: suspend (token: String, chatId: String) -> Result<Unit>,
+    val deleteChatRemote: suspend (chatId: String) -> Result<Unit>,
     val createChatRemote: suspend (
-        token: String,
         peerIds: List<String>,
         isGroup: Boolean,
         groupName: String?,
@@ -111,7 +108,6 @@ internal object AndroidChatListPorts {
     fun create(application: Application): ChatListPorts {
         val app = application as MaodouchatApp
         val database = app.database
-        val tokenManager = TokenManager.getInstance(application)
         val chatRepository = ChatRepository(database.chatDao(), database.userDao())
         val messageStore = LocalMessageStore(database.messageDao(), database)
         val missedCallRepository = MissedCallRepository(database.missedCallDao())
@@ -119,9 +115,11 @@ internal object AndroidChatListPorts {
             ownerUserId = { CurrentSession.ownerUserId() },
             backend = AndroidConversationScheduleBackend(application),
         )
+        // `conversation/` 的工厂要 TokenManager 实例（它自己读会话上下文），
+        // 那是非 ui 层的依赖，不在本棘轮管辖范围——这里只做装配，不读凭据。
         val conversationLocalStateCoordinator = createAndroidConversationLocalStateCoordinator(
             app = app,
-            tokenManager = tokenManager,
+            tokenManager = TokenManager.getInstance(application),
             scheduleCoordinator = scheduleCoordinator,
         )
         val outbox: MessagingV2Outbox = app.messagingV2Outbox
@@ -131,7 +129,6 @@ internal object AndroidChatListPorts {
         val announcements = AnnouncementNetworkRepository()
         val push = PushNetworkRepository()
         return ChatListPorts(
-            tokenManager = tokenManager,
             chatRepository = chatRepository,
             messageStore = messageStore,
             missedCallRepository = missedCallRepository,
@@ -145,7 +142,7 @@ internal object AndroidChatListPorts {
             chatReadEvents = MaodouchatApp.chatReadEvents,
             chatMessageSentEvents = MaodouchatApp.chatMessageSentEvents,
             withRoomTransaction = { block -> database.withTransaction { block() } },
-            fetchRemoteChats = { token -> chatNetwork.chats(token) },
+            fetchRemoteChats = { chatNetwork.chats() },
             fetchActiveAnnouncements = { announcements.active() },
             ackAnnouncementRemote = { id -> announcements.ack(announcementId = id) },
             fetchPushVerifyKeyRaw = { push.verifyKey() },
@@ -156,12 +153,12 @@ internal object AndroidChatListPorts {
                     PushVerifyKeyAction.Ignore -> Unit
                 }
             },
-            updateChatSettingsRemote = { token, chatId, request ->
-                chatNetwork.updateChatSettings(token, chatId, request)
+            updateChatSettingsRemote = { chatId, request ->
+                chatNetwork.updateChatSettings(chatId = chatId, request = request)
             },
-            deleteChatRemote = { token, chatId -> chatNetwork.deleteChat(token, chatId) },
-            createChatRemote = { token, peerIds, isGroup, groupName, chatType ->
-                chatNetwork.createChat(token, peerIds, isGroup, groupName, chatType)
+            deleteChatRemote = { chatId -> chatNetwork.deleteChat(chatId = chatId) },
+            createChatRemote = { peerIds, isGroup, groupName, chatType ->
+                chatNetwork.createChat(peerIds = peerIds, isGroup = isGroup, groupName = groupName, chatType = chatType)
             },
             touchSecretChat = { chatId ->
                 SecretChatRepository(database.secretChatDao()).touch(chatId)

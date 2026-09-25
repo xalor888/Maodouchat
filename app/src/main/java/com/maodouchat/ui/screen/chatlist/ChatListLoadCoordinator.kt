@@ -6,7 +6,6 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MissedCall
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ChatDto
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -32,13 +31,12 @@ import kotlinx.coroutines.withContext
 internal class ChatListLoadCoordinator(
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<ChatListUiState>,
-    private val tokenManager: TokenManager,
     private val deletedChatIds: MutableSet<String>,
     private val ownerUserId: () -> String,
     private val getAllChats: suspend () -> Flow<List<Chat>>,
     private val getChatById: suspend (String) -> Chat?,
     private val cacheChats: suspend (List<Chat>) -> Unit,
-    private val fetchRemoteChats: suspend (token: String) -> Result<List<ChatDto>>,
+    private val fetchRemoteChats: suspend () -> Result<List<ChatDto>>,
     private val enrichServerChatPreview: suspend (Chat, ownerUserId: String) -> Chat,
     private val cleanupLocalChat: suspend (chatId: String, session: ConversationLocalCleanupSession) -> Unit,
     private val cleanupSessionFor: (ownerUserId: String) -> ConversationLocalCleanupSession,
@@ -77,7 +75,6 @@ internal class ChatListLoadCoordinator(
     fun loadChats(showLoading: Boolean = true) {
         loadChatsJob?.cancel()
         val requestId = ++loadChatsRequestId
-        val token = tokenManager.getToken().orEmpty()
         val loadOwnerUserId = ownerUserId()
         val loadCleanupSession = cleanupSessionFor(loadOwnerUserId)
         if (showLoading) {
@@ -103,11 +100,11 @@ internal class ChatListLoadCoordinator(
             }
 
             try {
-                if (token.isBlank() || loadOwnerUserId.isBlank()) {
+                if (!com.maodouchat.session.CurrentSession.hasSession() || loadOwnerUserId.isBlank()) {
                     val chats = getAllChats().firstOrNull() ?: emptyList()
                     if (requestId != loadChatsRequestId ||
-                        tokenManager.getUserId().orEmpty() != loadOwnerUserId ||
-                        !tokenManager.getToken().isNullOrBlank()
+                        com.maodouchat.session.CurrentSession.ownerUserId() != loadOwnerUserId ||
+                        !com.maodouchat.session.CurrentSession.hasSession()
                     ) {
                         finishIfCurrent()
                         return@launch
@@ -129,9 +126,7 @@ internal class ChatListLoadCoordinator(
                     finishIfCurrent(errorMessage = text(sessionExpiredMessageRes))
                     return@launch
                 }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-
-                val result = fetchRemoteChats(liveToken)
+                val result = fetchRemoteChats()
                 result.fold(
                     onSuccess = { chatDtos ->
                         if (requestId != loadChatsRequestId) return@fold
@@ -139,7 +134,7 @@ internal class ChatListLoadCoordinator(
                             finishIfCurrent(errorMessage = text(sessionExpiredMessageRes))
                             return@fold
                         }
-                        val currentUserId = tokenManager.getUserId().orEmpty()
+                        val currentUserId = com.maodouchat.session.CurrentSession.ownerUserId()
                         val localById = getAllChats().firstOrNull().orEmpty().associateBy { it.id }
                         val uiById = uiState.value.chats.associateBy { it.id }
                         val activeId = activeChatId()

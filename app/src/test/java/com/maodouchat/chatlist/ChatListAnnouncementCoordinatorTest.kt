@@ -43,10 +43,7 @@ class ChatListAnnouncementCoordinatorTest {
     fun refreshAnnouncementsParsesAndFiltersActivePayload() = runTest(dispatcher) {
         val now = 1_000_000L
         val uiState = MutableStateFlow(ChatListUiState())
-        val tokenManager = mockk<TokenManager>()
-        every { tokenManager.getToken() } returns "tok"
-        every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
         val raw = """
             {"announcements":[
               {"id":"a1","title":"T","content":"C","level":"INFO","startsAt":0,"expiresAt":2000000,"status":"ACTIVE","acked":false},
@@ -82,10 +79,7 @@ class ChatListAnnouncementCoordinatorTest {
             acked = false,
         )
         val uiState = MutableStateFlow(ChatListUiState(activeAnnouncements = listOf(item)))
-        val tokenManager = mockk<TokenManager>()
-        every { tokenManager.getToken() } returns "tok"
-        every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
         var ackCount = 0
         val coordinator = ChatListAnnouncementCoordinator(
             scope = this,

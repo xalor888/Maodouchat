@@ -25,9 +25,7 @@ class ChatListPortsTest {
         var generation = 7L
         var remoteCalls = 0
         var draftDeleted = false
-        val tokenManager = mockk<TokenManager>(relaxed = true)
         val ports = ChatListPorts(
-            tokenManager = tokenManager,
             chatRepository = mockk(relaxed = true),
             messageStore = mockk(relaxed = true),
             missedCallRepository = mockk(relaxed = true),
@@ -49,11 +47,11 @@ class ChatListPortsTest {
             ackAnnouncementRemote = { _ -> Result.success(Unit) },
             fetchPushVerifyKeyRaw = { Result.success("{}") },
             applyPushVerifyKey = {},
-            updateChatSettingsRemote = { _, _, _ ->
+            updateChatSettingsRemote = { _, _ ->
                 Result.success(mockk<ChatSettingsResponse>(relaxed = true))
             },
-            deleteChatRemote = { _, _ -> Result.success(Unit) },
-            createChatRemote = { _, _, _, _, _ -> Result.success(mockk<ChatDto>(relaxed = true)) },
+            deleteChatRemote = { _ -> Result.success(Unit) },
+            createChatRemote = { _, _, _, _ -> Result.success(mockk<ChatDto>(relaxed = true)) },
             touchSecretChat = {},
             cancelMessageNotification = {},
             cancelMissedCallNotification = {},
@@ -76,13 +74,12 @@ class ChatListPortsTest {
             isFlagEnabled = { it == RuntimeFlags.CHAT_PIN },
         )
 
-        assertSame(tokenManager, ports.tokenManager)
         assertEquals(7L, ports.sessionGeneration())
         generation = 9L
         assertEquals(9L, ports.sessionGeneration())
         assertEquals("chat-active", ports.activeChatId())
         assertFalse(ports.isPurgeInProgress())
-        assertTrue(ports.fetchRemoteChats("tok").isSuccess)
+        assertTrue(ports.fetchRemoteChats().isSuccess)
         assertEquals(1, remoteCalls)
         ports.deleteDraftForChat("u1", "c1")
         assertTrue(draftDeleted)
