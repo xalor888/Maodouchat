@@ -1,8 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
+import com.maodouchat.data.repository.AccountSecurityNetworkRepository
+import com.maodouchat.data.repository.ModerationNetworkRepository
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +25,7 @@ internal class ChatModerationController(
         if (contactId.isBlank() || token().isBlank() || owner.isBlank()) return
         scope.launch {
             if (!sessionActive(owner)) return@launch
-            ApiService.getBlockedUsers(token()).onSuccess { blocked ->
+            ModerationNetworkRepository().blockedUserIds(token()).onSuccess { blocked ->
                 if (sessionActive(owner)) updateState { it.copy(isContactBlocked = contactId in blocked) }
             }
         }
@@ -50,7 +51,7 @@ internal class ChatModerationController(
                     updateState { it.copy(isBlockingContact = false) }
                     return@launch
                 }
-                ApiService.blockUser(token(), contactId).fold(
+                ModerationNetworkRepository().blockUser(token(), contactId).fold(
                     onSuccess = {
                         if (!sessionActive(owner)) return@fold
                         updateState {
@@ -93,7 +94,7 @@ internal class ChatModerationController(
                     updateState { it.copy(isBlockingContact = false) }
                     return@launch
                 }
-                ApiService.unblockUser(token(), contactId).fold(
+                AccountSecurityNetworkRepository().unblock(token(), contactId).fold(
                     onSuccess = {
                         if (!sessionActive(owner)) return@fold
                         updateState {
@@ -134,7 +135,7 @@ internal class ChatModerationController(
         }
         scope.launch {
             if (!sessionActive(owner)) return@launch
-            ApiService.createReport(
+            ModerationNetworkRepository().createReport(
                 token = token(),
                 targetType = "USER",
                 targetId = contactId,
@@ -165,7 +166,7 @@ internal class ChatModerationController(
         updateState { it.copy(isReporting = true) }
         scope.launch {
             if (!sessionActive(owner)) return@launch
-            ApiService.createReport(
+            ModerationNetworkRepository().createReport(
                 token = token(),
                 targetType = "MESSAGE",
                 targetId = messageId,

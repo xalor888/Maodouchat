@@ -1,5 +1,6 @@
 package com.maodouchat.ui.navigation
 
+import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.Manifest
@@ -57,7 +58,6 @@ import androidx.navigation.navDeepLink
 import com.maodouchat.R
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -96,7 +96,6 @@ import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import com.maodouchat.update.OfficialApkInstaller
 import com.maodouchat.navigation.Routes
-import com.maodouchat.data.repository.UserNetworkRepository
 
 
 @Composable
@@ -461,7 +460,7 @@ private suspend fun resolveCallerAndNavigate(
         )
     ) {
         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-        ApiService.getUsers(liveToken).getOrNull()
+        UserNetworkRepository().users(liveToken).getOrNull()
             ?.find { it.id == fromUserId }
             ?.name
     } else null

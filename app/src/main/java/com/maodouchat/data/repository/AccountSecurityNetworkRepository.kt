@@ -48,6 +48,10 @@ internal class AccountSecurityNetworkRepository(
         { token -> ApiService.getBlockedUserDetails(token) },
     private val unblockApi: suspend (String, String) -> Result<Unit> =
         { token, userId -> ApiService.unblockUser(token, userId) },
+    private val privacyApi: suspend (String) -> Result<com.maodouchat.network.UserPrivacyDto> =
+        { token -> ApiService.getPrivacy(token) },
+    private val updatePrivacyApi: suspend (String, String?) -> Result<com.maodouchat.network.UserPrivacyDto> =
+        { token, defaultPostVisibility -> ApiService.updatePrivacy(token, defaultPostVisibility = defaultPostVisibility) },
     private val changePasswordApi: suspend (String, String, String) -> Result<Unit> =
         { token, oldPassword, newPassword -> ApiService.changePassword(token, oldPassword, newPassword) },
 ) {
@@ -93,4 +97,18 @@ internal class AccountSecurityNetworkRepository(
      */
     suspend fun changePassword(token: String, oldPassword: String, newPassword: String): Result<Unit> =
         changePasswordApi(token, oldPassword, newPassword)
+
+    /**
+     * 隐私设置（谁能看到在线状态、能不能被搜到、动态默认可见性）。
+     *
+     * `updatePrivacy` 在 `ApiService` 上有 5 个可空字段，这里**只暴露改得动的那个**：
+     * 目前只有「动态默认可见性」在客户端有入口，其余由服务端/其他端维护。
+     * 把 5 个都透传会让调用方以为能改别的，其实是给了一个改不动的旋钮。
+     */
+    suspend fun privacy(token: String): Result<com.maodouchat.network.UserPrivacyDto> = privacyApi(token)
+
+    suspend fun updateDefaultPostVisibility(
+        token: String,
+        defaultPostVisibility: String?,
+    ): Result<com.maodouchat.network.UserPrivacyDto> = updatePrivacyApi(token, defaultPostVisibility)
 }

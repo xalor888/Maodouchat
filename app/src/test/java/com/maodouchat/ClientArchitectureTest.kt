@@ -215,9 +215,10 @@ class ClientArchitectureTest {
      * 2. 发现其中 36 个**只导入 DTO**（接口契约的数据形状，不算直接发请求）→ 61 个。
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
-     *    - [frozenUiApiCallers]（**17 个**）：结构上违分层，要搬进 repository；
-     *    - [frozenUiTokenReaders]（**37 个**）：多用于给图片 URL 加鉴权头，
-     *      修法是让图片层自己拿令牌，而不是 ViewModel 传。
+     *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
+     *    - [frozenUiTokenReaders]（**48 个**）：多用于给图片 URL 加鉴权头，
+     *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
+     *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
      * 两组都**只许降**：搬一个就从对应名单删一行。判据在剥注释后的正文里找符号，
      * 不按 import 行（`com.maodouchat.util.X` 这类全限定名引用也要能被抓到）。
@@ -225,37 +226,23 @@ class ClientArchitectureTest {
      * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
      * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
      * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
-     * （当前 54）。别把它当成棘轮被放松。
+     * （G328c 全程：98 → 61 → 55 → 48）。别把它当成棘轮被放松。
      */
-    // G328c 真实下降：41 → 30（公共端点 3 + 用户读取 4 + 会话读写 4 + 设置页账号/设备 1）。
-    // 注意 SettingsViewModel 已在此名单之外——它的 14 处调用全部改走
-    // `data/repository/AccountSecurityNetworkRepository`。`ChatListServerFlags`（公共状态横幅）与
-    // `AboutScreen`（检查更新）改走 `data/repository/PublicServerInfoRepository`。
+    // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
+    // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
+    // 41（G328c 开工）→ 30 → 23 → 22 → 17 → 0，共 17 批、约 90 处调用。
+    // 反向断言仍在：这里若被改回非空，等于放松棘轮。
     private val frozenUiApiCallers: Set<String> = setOf(
-        "com/maodouchat/ui/component/MediaInteractiveCards.kt",
-        "com/maodouchat/ui/navigation/CallNavigation.kt",
-        "com/maodouchat/ui/navigation/NavGraph.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailFeatureGates.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatModerationController.kt",
-        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt",
-        "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
-        "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
-        "com/maodouchat/ui/screen/contacts/JoinGroupInviteScreen.kt",
-        "com/maodouchat/ui/screen/explore/ExploreComposerCards.kt",
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
-        "com/maodouchat/ui/screen/explore/PublicProfileScreen.kt",
-        "com/maodouchat/ui/screen/groupplay/GroupPollScreen.kt",
-        "com/maodouchat/ui/screen/login/LoginViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsAiPrivacyViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
     )
 
     private val frozenUiTokenReaders: Set<String> = setOf(
         "com/maodouchat/ui/component/Avatar.kt",
         "com/maodouchat/ui/component/GroupAvatar.kt",
+        "com/maodouchat/ui/component/MediaInteractiveCards.kt",
         "com/maodouchat/ui/component/OwnerScopedImageKeys.kt",
+        "com/maodouchat/ui/navigation/CallNavigation.kt",
         "com/maodouchat/ui/navigation/MainContainerRoute.kt",
+        "com/maodouchat/ui/navigation/NavGraph.kt",
         "com/maodouchat/ui/screen/call/CallViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt",
@@ -276,16 +263,24 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/ChatListRealtimeCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListUnreadBatchCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt",
+        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt",
+        "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
+        "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
+        "com/maodouchat/ui/screen/contacts/JoinGroupInviteScreen.kt",
         "com/maodouchat/ui/screen/contacts/MyQrCodeViewModel.kt",
         "com/maodouchat/ui/screen/explore/AuthorProfileScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreNearbyScreen.kt",
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPlayViewModelSupport.kt",
+        "com/maodouchat/ui/screen/login/LoginViewModel.kt",
         "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt",
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt",
+        "com/maodouchat/ui/screen/settings/SettingsAiPrivacyViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsGeneralSettingsViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsModerationViewModel.kt",
+        "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsReports.kt",
         "com/maodouchat/ui/screen/settings/SettingsTotpSection.kt",
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt",

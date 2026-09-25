@@ -30,8 +30,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
@@ -97,7 +97,7 @@ internal fun InteractivePollCard(
         loading = true
         val token = TokenManager.getInstance(context).getToken().orEmpty()
         if (token.isNotBlank()) {
-            val result = withContext(Dispatchers.IO) { ApiService.getGroupPoll(token, pollId) }
+            val result = withContext(Dispatchers.IO) { GroupPollNetworkRepository().fetchPoll(token, pollId) }
             result.onSuccess { applyServerJson(it) }
         }
         loading = false
@@ -137,7 +137,7 @@ internal fun InteractivePollCard(
                                     val token = TokenManager.getInstance(context).getToken().orEmpty()
                                     if (token.isNotBlank()) {
                                         val result = withContext(Dispatchers.IO) {
-                                            ApiService.getGroupPoll(token, pollId)
+                                            GroupPollNetworkRepository().fetchPoll(token, pollId)
                                         }
                                         result.onSuccess { applyServerJson(it) }
                                     }

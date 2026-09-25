@@ -2,8 +2,9 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
 import androidx.lifecycle.viewModelScope
+import com.maodouchat.data.repository.BotNetworkRepository
+import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -21,7 +22,7 @@ internal fun ChatDetailViewModel.votePoll(pollId: String, optionIndex: Int) {
     viewModelScope.launch {
         val token = tokenManager.getToken().orEmpty()
         if (token.isBlank()) return@launch
-        ApiService.voteGroupPoll(token, pollId, listOf(optionIndex)).fold(
+        GroupPollNetworkRepository().votePoll(token, pollId, listOf(optionIndex)).fold(
             onSuccess = {
                 _uiState.update { st -> st.copy(infoMessage = text(R.string.group_play_vote_ok)) }
             },
@@ -124,7 +125,7 @@ internal fun ChatDetailViewModel.sendBotCallback(messageId: String, botUserId: S
             val tok = tokenManager.getToken().orEmpty()
             if (tok.isBlank()) return@launch
             val chatId = _uiState.value.chat?.id ?: return@launch
-            val ok = ApiService.postBotCallback(
+            val ok = BotNetworkRepository().postBotCallback(
                 token = tok,
                 chatId = chatId,
                 messageId = messageId,

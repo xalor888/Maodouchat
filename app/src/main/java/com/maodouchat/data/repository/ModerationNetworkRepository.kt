@@ -37,6 +37,10 @@ internal class ModerationNetworkRepository(
         { token, userId -> ApiService.blockUser(token, userId) },
     private val blockedIdsApi: suspend (String) -> Result<List<String>> =
         { token -> ApiService.getBlockedUsers(token) },
+    private val createReportApi: suspend (String, String, String, String?, String?, String, String?) -> Result<ReportResponse> =
+        { token, targetType, targetId, chatId, messageId, reason, description ->
+            ApiService.createReport(token, targetType, targetId, chatId, messageId, reason, description)
+        },
 ) {
     suspend fun myReports(token: String, limit: Int = 50): Result<List<ReportResponse>> =
         myReportsApi(token, limit)
@@ -76,4 +80,20 @@ internal class ModerationNetworkRepository(
 
     /** 已拉黑的**用户 id 列表**（与 `blockedUserDetails` 的区别：那个返回用户资料）。 */
     suspend fun blockedUserIds(token: String): Result<List<String>> = blockedIdsApi(token)
+
+    /**
+     * 提交举报。`targetType` 决定后半组的必填项：`USER` 看 `targetId`，
+     * `MESSAGE` 还要 `messageId`——两者都是可空 String，传错位置编译不报错，
+     * 所以这里把服务端要求的**七个位置参数**一个不改地透传，不做任何「智能推断」。
+     */
+    suspend fun createReport(
+        token: String,
+        targetType: String,
+        targetId: String,
+        chatId: String? = null,
+        messageId: String? = null,
+        reason: String,
+        description: String? = null,
+    ): Result<ReportResponse> =
+        createReportApi(token, targetType, targetId, chatId, messageId, reason, description)
 }

@@ -33,6 +33,10 @@ internal class BotNetworkRepository(
         { token, chatId -> ApiService.listChatBotCommands(token, chatId) },
     private val postInboxApi: suspend (String, String, String, String?) -> Result<String> =
         { token, chatId, text, botId -> ApiService.postBotInbox(token, chatId, text, botId) },
+    private val botCallbackApi: suspend (String, String, String, String, String) -> Result<Boolean> =
+        { token, chatId, messageId, botUserId, callbackData ->
+            ApiService.postBotCallback(token, chatId, messageId, botUserId, callbackData)
+        },
 ) {
     /** 服务端原始列表 JSON（调用方自行解析，见类注释）。 */
     suspend fun listBots(token: String): Result<String> = listBotsApi(token)
@@ -62,4 +66,12 @@ internal class BotNetworkRepository(
     /** 往机器人收件箱投递（`/` 指令或自由文本）。 */
     suspend fun postInbox(token: String, chatId: String, text: String, botId: String? = null): Result<String> =
         postInboxApi(token, chatId, text, botId)
+    /** 回传机器人按钮的 callback（群玩法的交互入口）。 */
+    suspend fun postBotCallback(
+        token: String,
+        chatId: String,
+        messageId: String,
+        botUserId: String,
+        callbackData: String,
+    ): Result<Boolean> = botCallbackApi(token, chatId, messageId, botUserId, callbackData)
 }

@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.group.JoinGroupInviteResult
 import com.maodouchat.group.JoinGroupInviteUseCase
-import com.maodouchat.network.ApiService
+import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -66,7 +66,7 @@ fun JoinGroupInviteScreen(
                     liveUserId = tokenManager.getUserId(),
                 )
             },
-            join = { auth, invite -> ApiService.joinGroupByInvite(auth, invite) },
+            join = { auth, invite -> ContactNetworkRepository().joinGroupByInvite(auth, invite) },
         )
         when (val result = useCase.join(inviteCode)) {
             is JoinGroupInviteResult.Joined -> {

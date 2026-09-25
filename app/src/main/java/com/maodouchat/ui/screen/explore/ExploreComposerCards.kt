@@ -52,9 +52,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.maodouchat.data.repository.MediaDownloadNetworkRepository
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.ui.theme.Error
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -451,7 +451,7 @@ internal fun ImageGrid(imageUrls: List<String>) {
                                     return@launch
                                 }
                                 val file = java.io.File(viewerContext.cacheDir, "post_${System.currentTimeMillis()}.jpg")
-                                ApiService.downloadPostImage(token, imageUrl, file).fold(
+                                MediaDownloadNetworkRepository().downloadPostImage(token, imageUrl, file).fold(
                                     onSuccess = {
                                         val saved = com.maodouchat.util.MediaExport.saveToGallery(
                                             viewerContext,
@@ -497,7 +497,7 @@ internal fun ImageGrid(imageUrls: List<String>) {
                                 val token = com.maodouchat.network.TokenManager.getInstance(viewerContext).getToken().orEmpty()
                                 if (token.isBlank()) return@launch
                                 val file = java.io.File(viewerContext.cacheDir, "post_share_${System.currentTimeMillis()}.jpg")
-                                ApiService.downloadPostImage(token, imageUrl, file).fold(
+                                MediaDownloadNetworkRepository().downloadPostImage(token, imageUrl, file).fold(
                                     onSuccess = {
                                         val shared = com.maodouchat.util.MediaExport.share(
                                             viewerContext,

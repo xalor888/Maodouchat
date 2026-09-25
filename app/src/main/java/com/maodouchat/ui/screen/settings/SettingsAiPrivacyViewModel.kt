@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import com.maodouchat.data.repository.ClientPrefsNetworkRepository
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -9,7 +10,6 @@ import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.ai.AiWritingStylePolicy
 import com.maodouchat.ai.AiWritingStylePreferences
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.ClientPrefsUpdateRequest
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,8 @@ import com.maodouchat.network.AiAuditLogResponse
  * 管 AI 总开关、本机授权（localSafety）、写作风格偏好、调用审计日志的拉取与保存。
  * 含它的 UI 状态数据类 `AiPrivacySettingsUiState`。
  *
- * **拆解约束**：不直接抓应用级数据库单例；网络经 `ApiService`，偏好经
+ * **拆解约束**：不直接抓应用级数据库单例；网络经 `data/repository` 的薄仓库（G328c 起
+ * 不再直连 `ApiService`），偏好经
  * `AiPrivacyPreferences` / `AiWritingStylePreferences`。纯搬移，不改判断。
  */
 
@@ -114,7 +115,7 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
                 val liveToken = tokenManager.getToken() ?: token
                 val localEnabled = AiPrivacyPreferences.userEnabled(getApplication())
                 // Pull multi-device writing-style prefs (non-secret tone hints)
-                ApiService.getClientPrefs(liveToken).onSuccess { remote ->
+                ClientPrefsNetworkRepository().prefs(liveToken).onSuccess { remote ->
                     if (!isCurrentOwner(ownerUserId)) return@onSuccess
                     if (refreshGeneration == generation && writingStyleRevision == styleRevisionAtStart) {
                         applyRemoteWritingStyle(remote)
@@ -191,7 +192,7 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
                         return@withLock
                     }
                     val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    ApiService.putClientPrefs(
+                    ClientPrefsNetworkRepository().putPrefs(
                         liveToken,
                         ClientPrefsUpdateRequest(
                             writingStyleEnabled = enabled,

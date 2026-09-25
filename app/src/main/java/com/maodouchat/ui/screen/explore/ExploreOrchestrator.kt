@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
+import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.R
 import com.maodouchat.explore.policy.PostVisibility
 import com.maodouchat.explore.repository.DefaultMediaUploadQueue
@@ -19,7 +20,6 @@ import com.maodouchat.explore.usecase.LoadFeedUseCase
 import com.maodouchat.explore.usecase.PublishPostUseCase
 import com.maodouchat.explore.usecase.ResolveNearbyUseCase
 import com.maodouchat.explore.usecase.ToggleLikeUseCase
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.PostCommentDto
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.TokenManager
@@ -130,7 +130,7 @@ class ExploreOrchestrator(
             try {
                 if (!BackgroundSessionGate.mayContinue(ownerUserId, tokenManager.getToken(), tokenManager.getUserId())) return@launch
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.getPrivacy(liveToken).fold(
+                AccountSecurityNetworkRepository().privacy(liveToken).fold(
                     onSuccess = { privacy ->
                         if (privacyDefaultsGeneration == generation && isCurrentOwner(ownerUserId)) {
                             val defaultVisibility = ExploreDraftPolicy.normalizeVisibility(privacy.defaultPostVisibility)

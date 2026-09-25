@@ -69,8 +69,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.theme.TextHint
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -87,8 +85,6 @@ fun PublicProfileScreen(
     username: String,
     onBack: () -> Unit,
     onStartChat: (String) -> Unit = {},
-    apiService: ApiService? = null,
-    tokenManager: TokenManager? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

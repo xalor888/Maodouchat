@@ -74,9 +74,9 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.maodouchat.contacts.QrScanFeedbackPolicy
 import com.maodouchat.data.model.User
+import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.component.Avatar
@@ -472,7 +472,7 @@ fun ScanScreen(
                         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
                         // 8.38：改用按 id 定向查询——此前全量 getUsers() 在非好友/网络失败时
                         // 会把「有效用户码」误判为「查不到用户」，且无法区分网络错误
-                        ApiService.getUser(liveToken, target.userId).onSuccess { dto ->
+                        com.maodouchat.data.repository.UserNetworkRepository().user(liveToken, target.userId).onSuccess { dto ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                     expectedUserId = scanOwnerUserId,
                                     liveToken = tokenManager.getToken(),
@@ -708,7 +708,7 @@ fun ScanScreen(
                                             return@launch
                                         }
                                         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                                        ApiService.sendFriendRequest(liveToken, user.id, "").fold(
+                                        ContactNetworkRepository().sendFriendRequest(liveToken, user.id).fold(
                                             onSuccess = {
                                                 scannedUserFriendMessage = context.getString(R.string.contacts_friend_request_sent)
                                             },

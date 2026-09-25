@@ -55,7 +55,7 @@ import com.maodouchat.data.repository.AiTaskRepository
 import com.maodouchat.data.repository.AiOperationRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.UserRepository
-import com.maodouchat.network.ApiService
+import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
@@ -806,7 +806,7 @@ class ChatDetailViewModel(
                 }
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
                 val cachedChat = chatRepo.getChatById(chatId)
-                val chatsResult = ApiService.getChats(liveToken)
+                val chatsResult = ChatNetworkRepository().chats(liveToken)
                 // getChats can outlive logout/switch — do not invalidate SK / cache / paint meta for next owner.
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = loadOwnerUserId,
@@ -1058,7 +1058,7 @@ class ChatDetailViewModel(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.updateChatSettings(
+                ChatNetworkRepository().updateChatSettings(
                     liveToken,
                     chatId,
                     com.maodouchat.network.UpdateChatSettingsRequest(markedUnread = next)
@@ -1096,7 +1096,7 @@ class ChatDetailViewModel(
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.updateChatSettings(
+                ChatNetworkRepository().updateChatSettings(
                     liveToken,
                     chatId,
                     com.maodouchat.network.UpdateChatSettingsRequest(pinned = !wasPinned)

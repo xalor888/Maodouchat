@@ -3,10 +3,11 @@ package com.maodouchat.ui.screen.login
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.maodouchat.data.repository.AuthNetworkRepository
+import com.maodouchat.data.repository.SessionNetworkRepository
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ai.AiTaskReminderScheduler
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.toUserFacingMessage
 import com.maodouchat.push.PushRegistrationManager
@@ -67,7 +68,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 val accessExp = tokenManager.getAccessTokenExpiresAt()
                 if (accessExp > 0L && accessExp <= System.currentTimeMillis()) {
                     val refreshed = runCatching {
-                        ApiService.refreshAccessTokenForCurrentSession()
+                        SessionNetworkRepository().refreshAccessToken()
                     }.getOrNull()
                     if (!refreshed.isNullOrBlank()) {
                         token = refreshed
@@ -189,7 +190,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                val result = ApiService.sendVerificationCode(email, purpose)
+                val result = AuthNetworkRepository().sendVerificationCode(email, purpose)
                 result.fold(
                     onSuccess = {
                         _uiState.update { it.copy(isCodeSending = false, codeSent = true, codeCountdown = 60) }
@@ -264,7 +265,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             viewModelScope.launch {
                 _uiState.update { it.copy(errorMessage = null, infoMessage = null) }
                 try {
-                    ApiService.resetPassword(state.email, state.code, state.password).fold(
+                    AuthNetworkRepository().resetPassword(state.email, state.code, state.password).fold(
                         onSuccess = {
                             _uiState.update {
                                 it.copy(
@@ -306,9 +307,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(errorMessage = null, infoMessage = null) }
             try {
                 val result = if (state.selectedTab == 0) {
-                    ApiService.login(state.email, state.password, state.totpCode)
+                    AuthNetworkRepository().login(state.email, state.password, state.totpCode)
                 } else {
-                    ApiService.registerWithCode(state.name, state.email, state.password, state.code)
+                    AuthNetworkRepository().register(state.name, state.email, state.password, state.code)
                 }
 
                 result.fold(

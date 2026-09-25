@@ -1,5 +1,8 @@
 package com.maodouchat.ui.navigation
 
+import com.maodouchat.data.repository.ChatNetworkRepository
+import com.maodouchat.data.repository.PublicServerInfoRepository
+import com.maodouchat.data.repository.SessionNetworkRepository
 import com.maodouchat.notification.SocialNotificationService
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.MessageNotificationService
@@ -55,7 +58,6 @@ import androidx.navigation.navArgument
 import com.maodouchat.R
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -150,7 +152,7 @@ fun MaodouchatNavGraph(
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
             if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode.toInt() else @Suppress("DEPRECATION") info.versionCode
         }.getOrDefault(0)
-        val remote = ApiService.getPublicUpdates().getOrNull() ?: return@LaunchedEffect
+        val remote = PublicServerInfoRepository().publicUpdates(ApiConfig.BASE_URL).getOrNull() ?: return@LaunchedEffect
         if (!AppUpdatePolicy.shouldOfferUpdate(currentCode, remote.versionCode, remote.apkUrl, remote.apkSha256)) return@LaunchedEffect
         if (AppUpdatePromptStore.lastOfferedVersionCode(context) >= remote.versionCode) return@LaunchedEffect
         AppUpdatePromptStore.markOffered(context, remote.versionCode)
@@ -213,7 +215,7 @@ fun MaodouchatNavGraph(
 
     // Bug #20: 监听 Token 过期事件（401），完整清理本地会话后跳转登录页
     LaunchedEffect(Unit) {
-        ApiService.tokenExpired.collectLatest { event ->
+        SessionNetworkRepository().tokenExpiredEvents.collectLatest { event ->
             val app = context.applicationContext as? com.maodouchat.MaodouchatApp
             if (!com.maodouchat.network.TokenExpiredEventPolicy.shouldHandle(
                     eventOwnerUserId = event.ownerUserId,
@@ -283,7 +285,7 @@ fun MaodouchatNavGraph(
                 return@collect
             }
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            com.maodouchat.network.ApiService.createChat(liveToken, listOf(req.userId), isGroup = false, groupName = null)
+            ChatNetworkRepository().createChat(liveToken, listOf(req.userId))
                 .onSuccess { chat ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,

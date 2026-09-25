@@ -20,7 +20,7 @@ import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.UserRepository
-import com.maodouchat.network.ApiService
+import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.GroupInvitationDto
 import com.maodouchat.network.GroupInviteAcceptResponse
 import com.maodouchat.network.TokenManager
@@ -158,9 +158,9 @@ class ContactsViewModel @JvmOverloads constructor(
             }
         }
     ),
-    private val groupInviteLoader: suspend (token: String) -> Result<List<GroupInvitationDto>> = { ApiService.getGroupInvitations(it) },
-    private val groupInviteAcceptor: suspend (token: String, inviteId: String) -> Result<GroupInviteAcceptResponse> = { token, id -> ApiService.acceptGroupInvitation(token, id) },
-    private val groupInviteDecliner: suspend (token: String, inviteId: String) -> Result<GroupInviteAcceptResponse> = { token, id -> ApiService.declineGroupInvitation(token, id) }
+    private val groupInviteLoader: suspend (token: String) -> Result<List<GroupInvitationDto>> = { ContactNetworkRepository().groupInvitations(it) },
+    private val groupInviteAcceptor: suspend (token: String, inviteId: String) -> Result<GroupInviteAcceptResponse> = { token, id -> ContactNetworkRepository().acceptGroupInvitation(token, id) },
+    private val groupInviteDecliner: suspend (token: String, inviteId: String) -> Result<GroupInviteAcceptResponse> = { token, id -> ContactNetworkRepository().declineGroupInvitation(token, id) }
 ) : AndroidViewModel(application) {
 
     private val app = application as? MaodouchatApp

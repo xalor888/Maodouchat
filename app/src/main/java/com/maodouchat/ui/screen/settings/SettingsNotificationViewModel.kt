@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import com.maodouchat.data.repository.NotificationSettingsNetworkRepository
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.util.RuntimeFlags
@@ -9,7 +10,6 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiTaskReminderPreferences
 import com.maodouchat.ai.AiTaskReminderScheduler
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.NotificationSettingsRequest
 import com.maodouchat.network.NotificationSettingsResponse
 import com.maodouchat.network.TokenManager
@@ -31,7 +31,8 @@ import kotlinx.coroutines.sync.withLock
  * 管通知总开关、声音/震动/预览/铃声、任务提醒、免打扰时段（显式开关 + 分钟级窗口）、
  * 厂商推送（FCM）配置与就绪状态刷新。含它的 UI 状态数据类 `NotificationSettingsUiState`。
  *
- * **拆解约束**：不直接抓应用级数据库单例；网络经 `ApiService`，偏好经
+ * **拆解约束**：不直接抓应用级数据库单例；网络经 `data/repository` 的薄仓库（G328c 起
+ * 不再直连 `ApiService`），偏好经
  * `NotificationPreferences` / `AiTaskReminderPreferences`。纯搬移，不改判断。
  */
 
@@ -153,7 +154,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.getNotificationSettings(liveToken).fold(
+                NotificationSettingsNetworkRepository().settings(liveToken).fold(
                     onSuccess = { remote ->
                         if (refreshGeneration != generation || !isCurrentOwner(ownerUserId)) {
                             return@fold
@@ -393,7 +394,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
                         dndEndMinute = state.dndEndMinute
                     )
                     val liveToken = tokenManager.getToken() ?: token
-                    ApiService.updateNotificationSettings(liveToken, request).fold(
+                    NotificationSettingsNetworkRepository().updateSettings(liveToken, request).fold(
                         onSuccess = { remote ->
                             if (generation != syncGeneration || !isCurrentOwner(syncOwnerUserId)) {
                                 return@fold

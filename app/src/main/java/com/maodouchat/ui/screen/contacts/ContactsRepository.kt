@@ -5,7 +5,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.UserRepository
-import com.maodouchat.network.ApiService
+import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -80,7 +80,7 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
             return cachedFriends(session, failure = null, sessionMissing = true)
         }
         return try {
-            ApiService.getFriends(token).fold(
+            ContactNetworkRepository().friends(token).fold(
                 onSuccess = { dtos ->
                     if (!isCurrent(session)) return ContactsLoadResult(emptyList(), sessionMissing = true)
                     val users = dtos
@@ -111,7 +111,7 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
         val token = tokenManager.getToken().orEmpty()
         if (token.isBlank()) return ContactsLoadResult(emptyList(), sessionMissing = true)
         return try {
-            ApiService.searchUsers(token, query).fold(
+            ContactNetworkRepository().searchUsers(token, query).fold(
                 onSuccess = { dtos ->
                     if (!isCurrent(session)) return ContactsLoadResult(emptyList(), sessionMissing = true)
                     val users = dtos.map { it.toContactUser() }

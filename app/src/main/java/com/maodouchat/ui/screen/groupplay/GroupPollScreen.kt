@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,7 +47,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.GroupPollPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -170,7 +170,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         if (s.creating) return
         _uiState.value = s.copy(creating = true, error = null, notice = null)
         viewModelScope.launch {
-            val result = ApiService.createGroupPoll(authToken(), chatId, question, options, s.multi, s.anonymous)
+            val result = GroupPollNetworkRepository().createPoll(authToken(), chatId, question, options, s.multi, s.anonymous)
             // 9.4xx：接口返回整段 PollDto JSON（executeForText 原始 body），
             // 此前把整段 JSON 当 pollId 塞进分享快捷符 → 群友无法投票
             val pollId = result.getOrNull()?.let { text ->
@@ -205,7 +205,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         if (_uiState.value.votingPollId != null) return
         _uiState.value = _uiState.value.copy(votingPollId = pollId, error = null, notice = null)
         viewModelScope.launch {
-            val result = ApiService.voteGroupPoll(authToken(), pollId, indexes)
+            val result = GroupPollNetworkRepository().votePoll(authToken(), pollId, indexes)
             _uiState.value = _uiState.value.copy(votingPollId = null)
             if (result.isSuccess) {
                 _uiState.value = _uiState.value.copy(notice = localizedString(R.string.group_play_vote_ok), error = null)
