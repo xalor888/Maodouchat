@@ -279,7 +279,7 @@ jobs:
       # 于是即使本次 run 的上传失败、日后 `gh run rerun --failed` 只重跑失败步骤，
       # APK 依然在（不必依赖工作目录是否保留）。
       - name: Restore release assets from artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: release-assets-${{ steps.version.outputs.version }}
           path: release-assets/
