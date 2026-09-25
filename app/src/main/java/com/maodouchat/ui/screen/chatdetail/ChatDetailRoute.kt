@@ -313,6 +313,8 @@ internal fun ChatDetailRoute(
     onOpenCallHistory: (() -> Unit)? = null,
     viewModel: ChatDetailViewModel = viewModel()
 ) {
+    // G335：群通话「类型 → 选成员」流程收进持有类（带 Saver，见 ChatDetailGroupCallState.kt）
+    val groupCall = rememberChatDetailGroupCallState()
     // G335：搜索状态族收进持有类（带 Saver，保存语义不变——见 ChatDetailSearchState.kt）
     val search = rememberChatDetailSearchState()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -445,11 +447,6 @@ internal fun ChatDetailRoute(
     var selectedMessageIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
     var showGroupInfo by rememberSaveable { mutableStateOf(false) }
-    var showGroupCallTypeDialog by rememberSaveable { mutableStateOf(false) }
-    var showGroupCallMemberDialog by rememberSaveable { mutableStateOf(false) }
-    var pendingGroupCallType by rememberSaveable { mutableStateOf<com.maodouchat.webrtc.CallType?>(null) }
-    var selectedGroupCallMemberIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
-    var groupCallMemberSearch by rememberSaveable { mutableStateOf("") }
     var showContactActions by rememberSaveable { mutableStateOf(false) }
     var showContactProfile by rememberSaveable { mutableStateOf(false) }
     // 1.11：发送名片——联系人选择对话框
@@ -1362,36 +1359,34 @@ internal fun ChatDetailRoute(
     }
 
     GroupCallTypeDialog(
-        visible = showGroupCallTypeDialog,
+        visible = groupCall.showGroupCallTypeDialog,
         candidateCount = state.chat?.participants.orEmpty().count { it.id != state.currentUserId },
         onPick = { type ->
-            showGroupCallTypeDialog = false
+            groupCall.showGroupCallTypeDialog = false
             val candidates = state.chat?.participants.orEmpty().filter { it.id != state.currentUserId }
             if (candidates.size <= com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1) {
                 viewModel.startGroupCallFromChat(type)
             } else {
-                pendingGroupCallType = type
-                selectedGroupCallMemberIds = emptySet()
-                groupCallMemberSearch = ""
-                showGroupCallMemberDialog = true
+                // 超过 mesh 上限：进入选成员（第二步）。五步复位收在持有类里，避免只清一半。
+                groupCall.chooseType(type)
             }
         },
-        onDismiss = { showGroupCallTypeDialog = false },
+        onDismiss = { groupCall.showGroupCallTypeDialog = false },
     )
 
     // G78：群通话成员选择对话框（123 行）抽到 ChatDetailGroupCallMemberDialog.kt，纯搬移不改判断。
     // 三个 rememberSaveable 开关的所有权留在 Route（打开入口也在这里），以「值 + setter」传入。
-    if (showGroupCallMemberDialog) {
+    if (groupCall.showGroupCallMemberDialog) {
         ChatDetailGroupCallMemberDialog(
             chat = state.chat,
             currentUserId = state.currentUserId,
-            pendingCallType = pendingGroupCallType,
-            selectedMemberIds = selectedGroupCallMemberIds,
-            memberQuery = groupCallMemberSearch,
-            onDismiss = { showGroupCallMemberDialog = false },
-            onPendingCallTypeChange = { pendingGroupCallType = it },
-            onSelectedMemberIdsChange = { selectedGroupCallMemberIds = it },
-            onMemberQueryChange = { groupCallMemberSearch = it },
+            pendingCallType = groupCall.pendingGroupCallType,
+            selectedMemberIds = groupCall.selectedGroupCallMemberIds,
+            memberQuery = groupCall.groupCallMemberSearch,
+            onDismiss = { groupCall.showGroupCallMemberDialog = false },
+            onPendingCallTypeChange = { groupCall.pendingGroupCallType = it },
+            onSelectedMemberIdsChange = { groupCall.selectedGroupCallMemberIds = it },
+            onMemberQueryChange = { groupCall.groupCallMemberSearch = it },
             onStartGroupCall = { type, ids -> viewModel.startGroupCallFromChat(type, ids) },
         )
     }
@@ -1588,7 +1583,7 @@ internal fun ChatDetailRoute(
                 },
                 actions = {
                     if (state.chatIsGroup) {
-                        IconButton(onClick = { showGroupCallTypeDialog = true }) {
+                        IconButton(onClick = { groupCall.showGroupCallTypeDialog = true }) {
                             Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_group_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                         }
                     } else {
