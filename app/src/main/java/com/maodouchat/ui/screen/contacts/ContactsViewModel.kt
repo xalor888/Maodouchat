@@ -23,7 +23,6 @@ import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.GroupInvitationDto
 import com.maodouchat.network.GroupInviteAcceptResponse
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.notification.NotificationCenterType
 import com.maodouchat.util.RuntimeFlags
@@ -100,20 +99,19 @@ class ContactsViewModel @JvmOverloads constructor(
     private val contactsController: ContactsController = ContactsController(AndroidContactsRepository(application)),
     private val friendRequestUseCase: FriendRequestUseCase = DefaultFriendRequestUseCase(
         sessionProvider = {
-            val tm = TokenManager.getInstance(application)
-            Pair(tm.getUserId(), tm.getToken())
+            val snap = com.maodouchat.session.CurrentSession.snapshot()
+            Pair(snap.userId, snap.token)
         },
         onFriendAccepted = { newFriend ->
             val app = application as MaodouchatApp
-            val tm = TokenManager.getInstance(application)
             UserRepository(app.database.userDao()).insertUsers(listOf(newFriend))
-            FriendCacheStore.add(application, newFriend.id, tm.getUserId())
+            FriendCacheStore.add(application, newFriend.id, com.maodouchat.session.CurrentSession.ownerUserId())
         }
     ),
     private val contactMutationUseCase: ContactMutationUseCase = DefaultContactMutationUseCase(
         sessionProvider = {
-            val tm = TokenManager.getInstance(application)
-            Pair(tm.getUserId(), tm.getToken())
+            val snap = com.maodouchat.session.CurrentSession.snapshot()
+            Pair(snap.userId, snap.token)
         },
         setNicknameLocal = { userId, nickname ->
             val app = application as MaodouchatApp
@@ -128,8 +126,8 @@ class ContactsViewModel @JvmOverloads constructor(
     ),
     private val conversationCreationPort: ConversationCreationPort = DefaultConversationCreationPort(
         sessionProvider = {
-            val tm = TokenManager.getInstance(application)
-            Pair(tm.getUserId(), tm.getToken())
+            val snap = com.maodouchat.session.CurrentSession.snapshot()
+            Pair(snap.userId, snap.token)
         },
         isSecretChatFeatureEnabled = {
             RuntimeFlags.isEnabled(application, RuntimeFlags.SECRET_CHAT)
@@ -140,8 +138,7 @@ class ContactsViewModel @JvmOverloads constructor(
         userDao = (application as MaodouchatApp).database.userDao(),
         userRepository = UserRepository(application.database.userDao()),
         onNotificationCenterItem = { id, title, subtitle, msg ->
-            val tm = TokenManager.getInstance(application)
-            val uid = tm.getUserId().orEmpty()
+            val uid = com.maodouchat.session.CurrentSession.ownerUserId()
             if (uid.isNotBlank()) {
                 MaodouchatApp.emitNotificationCenterItem(
                     NotificationCenterItem(
@@ -158,13 +155,12 @@ class ContactsViewModel @JvmOverloads constructor(
             }
         }
     ),
-    private val groupInviteLoader: suspend (token: String) -> Result<List<GroupInvitationDto>> = { ContactNetworkRepository().groupInvitations(it) },
-    private val groupInviteAcceptor: suspend (token: String, inviteId: String) -> Result<GroupInviteAcceptResponse> = { token, id -> ContactNetworkRepository().acceptGroupInvitation(token, id) },
-    private val groupInviteDecliner: suspend (token: String, inviteId: String) -> Result<GroupInviteAcceptResponse> = { token, id -> ContactNetworkRepository().declineGroupInvitation(token, id) }
+    private val groupInviteLoader: suspend () -> Result<List<GroupInvitationDto>> = { ContactNetworkRepository().groupInvitations() },
+    private val groupInviteAcceptor: suspend (inviteId: String) -> Result<GroupInviteAcceptResponse> = { id -> ContactNetworkRepository().acceptGroupInvitation(inviteId = id) },
+    private val groupInviteDecliner: suspend (inviteId: String) -> Result<GroupInviteAcceptResponse> = { id -> ContactNetworkRepository().declineGroupInvitation(inviteId = id) }
 ) : AndroidViewModel(application) {
 
     private val app = application as? MaodouchatApp
-    private val tokenManager: TokenManager? = try { TokenManager.getInstance(application) } catch (_: Exception) { null }
 
     private fun text(id: Int, vararg formatArgs: Any): String =
         try {
@@ -204,8 +200,8 @@ class ContactsViewModel @JvmOverloads constructor(
                 viewModelScope,
                 eventsFlow
             ) {
-                val tm = tokenManager
-                Pair(tm?.getUserId(), tm?.getToken())
+                val snap = com.maodouchat.session.CurrentSession.snapshot()
+                Pair(snap.userId, snap.token)
             }
         }
 
@@ -604,17 +600,14 @@ class ContactsViewModel @JvmOverloads constructor(
     // ─── 群邀请流程 ──────────────────────────────────────────────
 
     fun loadGroupInvites() {
-        val tm = tokenManager ?: return
-        val token = tm.getToken().orEmpty()
-        val ownerUserId = tm.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) return
         viewModelScope.launch {
             if (!BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
             )
             ) return@launch
-            val liveToken = tm.getToken().orEmpty().ifBlank { token }
-            val result = groupInviteLoader(liveToken)
+            val result = groupInviteLoader()
             if (!BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
             )
@@ -646,10 +639,8 @@ class ContactsViewModel @JvmOverloads constructor(
     }
 
     private fun mutateGroupInvite(inviteId: String, accept: Boolean) {
-        val tm = tokenManager ?: return
-        val token = tm.getToken().orEmpty()
-        val ownerUserId = tm.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank() || _uiState.value.isGroupInviteBusy) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank() || _uiState.value.isGroupInviteBusy) return
         viewModelScope.launch {
             if (!BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
@@ -657,11 +648,10 @@ class ContactsViewModel @JvmOverloads constructor(
             ) return@launch
             _uiState.update { it.copy(isGroupInviteBusy = true, errorMessage = null, infoMessage = null) }
             try {
-                val liveToken = tm.getToken().orEmpty().ifBlank { token }
                 val result = if (accept) {
-                    groupInviteAcceptor(liveToken, inviteId)
+                    groupInviteAcceptor(inviteId)
                 } else {
-                    groupInviteDecliner(liveToken, inviteId)
+                    groupInviteDecliner(inviteId)
                 }
                 if (!BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,

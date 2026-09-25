@@ -12,7 +12,6 @@ import com.maodouchat.ai.AiTaskReminderPreferences
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.network.NotificationSettingsRequest
 import com.maodouchat.network.NotificationSettingsResponse
-import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.NotificationPreferences
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,14 +59,13 @@ data class NotificationSettingsUiState(
 
 class NotificationSettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application
-    private val tokenManager = TokenManager.getInstance(application)
     private val syncMutex = Mutex()
     private var settingsRevision = 0L
     private var lastSyncedRevision = 0L
     private var syncGeneration = 0L
     private var refreshGeneration = 0L
     private var refreshJob: kotlinx.coroutines.Job? = null
-    private var revisionOwnerUserId: String? = tokenManager.getUserId()
+    private var revisionOwnerUserId: String? = com.maodouchat.session.CurrentSession.snapshot().userId
 
     private val _uiState = MutableStateFlow(NotificationSettingsUiState(
         enableNotifications = NotificationPreferences.notificationsEnabled(application),
@@ -341,7 +339,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     }
 
     private fun updateLocal(transform: (NotificationSettingsUiState) -> NotificationSettingsUiState) {
-        tokenManager.getUserId()?.takeIf { it.isNotBlank() }?.let(::adoptRevisionOwner)
+        com.maodouchat.session.CurrentSession.snapshot().userId?.takeIf { it.isNotBlank() }?.let(::adoptRevisionOwner)
         refreshGeneration++
         refreshJob?.cancel()
         settingsRevision++

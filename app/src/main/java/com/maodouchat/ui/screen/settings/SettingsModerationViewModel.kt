@@ -23,7 +23,7 @@ import kotlinx.coroutines.sync.Mutex
  * 管风险事件列表、审核规则（开关 + 阈值）、举报处理（通过/驳回）与复核。
  * 含它的 UI 状态数据类 `ModerationUiState`。
  *
- * **拆解约束**：不直接抓应用级数据库单例；网络经 `ApiService`，凭据经 `TokenManager`。
+ * **拆解约束**：不直接抓应用级数据库单例；网络经 `data/repository` 的薄仓库（G328c 起不再直连 `ApiService`），会话态经 `CurrentSession`。
  * 纯搬移，不改判断。
  */
 
@@ -40,7 +40,6 @@ data class ModerationUiState(
 )
 
 class ModerationViewModel(application: Application) : AndroidViewModel(application) {
-    private val tokenManager = TokenManager.getInstance(application)
     private var reportsGeneration = 0L
     private var reportsJob: kotlinx.coroutines.Job? = null
     private var riskEventsGeneration = 0L

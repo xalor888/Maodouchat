@@ -182,8 +182,8 @@ class ContactsViewModelTest {
             conversationCreationPort = conversationCreationPort,
             realtimeSyncCoordinator = realtimeSyncCoordinator,
             groupInviteLoader = { Result.success(emptyList()) },
-            groupInviteAcceptor = { _, _ -> Result.success(GroupInviteAcceptResponse("ok")) },
-            groupInviteDecliner = { _, _ -> Result.success(GroupInviteAcceptResponse("ok")) }
+            groupInviteAcceptor = { _ -> Result.success(GroupInviteAcceptResponse("ok")) },
+            groupInviteDecliner = { _ -> Result.success(GroupInviteAcceptResponse("ok")) }
         )
         createdViewModels.add(vm)
         return vm

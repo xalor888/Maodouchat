@@ -158,8 +158,8 @@ class ContactsScreenUiTest {
             conversationCreationPort = createFakeConversationCreationPort(),
             realtimeSyncCoordinator = createFakeRealtimeCoordinator(),
             groupInviteLoader = { Result.success(emptyList()) },
-            groupInviteAcceptor = { _, _ -> Result.success(GroupInviteAcceptResponse("ok")) },
-            groupInviteDecliner = { _, _ -> Result.success(GroupInviteAcceptResponse("ok")) }
+            groupInviteAcceptor = { _ -> Result.success(GroupInviteAcceptResponse("ok")) },
+            groupInviteDecliner = { _ -> Result.success(GroupInviteAcceptResponse("ok")) }
         )
     }
 
