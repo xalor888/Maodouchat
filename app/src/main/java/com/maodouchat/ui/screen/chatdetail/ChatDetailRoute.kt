@@ -313,6 +313,9 @@ internal fun ChatDetailRoute(
     onOpenCallHistory: (() -> Unit)? = null,
     viewModel: ChatDetailViewModel = viewModel()
 ) {
+    // G335：会话级流程开关 / 草稿与选择集收进持有类（各带 Saver，见 ChatDetailConversationFlowStates.kt）
+    val flows = rememberChatDetailConversationFlowState()
+    val drafts = rememberChatDetailDraftState()
     // G335：AI 面板与杂项弹层开关收进持有类（带 Saver，见 ChatDetailAiPanelState.kt）
     val aiPanels = rememberChatDetailAiPanelState()
     // G335：聊天锁流程 / 联系人入口链收进持有类（各带 Saver，见 ChatDetailChatLockAndContactStates.kt）
@@ -425,11 +428,8 @@ internal fun ChatDetailRoute(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    var fileQuestionDraft by rememberSaveable { mutableStateOf("") }
     // G335：这一族「弹层当前操作哪条消息」的状态收进持有类（见 ChatDetailMessageActionState）。
     val messageActions = remember { ChatDetailMessageActionState() }
-    var editDraft by rememberSaveable { mutableStateOf("") }
-    var showDateJumpDialog by rememberSaveable { mutableStateOf(false) }
     val chatAiSurfacesVisible = com.maodouchat.ai.AiEntryPolicy.shouldShowAiSurfaces(
         chatAiEnabled = state.aiEnabled,
         consentAccepted = com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(context),
@@ -451,17 +451,11 @@ internal fun ChatDetailRoute(
     var showClearHistoryConfirm by remember { mutableStateOf(false) }
     val chatSnackbarHostState = remember { SnackbarHostState() }
     var replyTarget by remember { mutableStateOf<Message?>(null) }
-    var selectedMessageIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
     var showGroupInfo by rememberSaveable { mutableStateOf(false) }
     // 1.11：发送名片——联系人选择对话框
     var showChatOverflow by remember { mutableStateOf(false) }
     // 1.02：临时静音至对话框
-    var showAnnouncementBanner by rememberSaveable { mutableStateOf(true) }
-    var showAnnouncementDialog by rememberSaveable { mutableStateOf(false) }
-    var showSecretChatConfirm by rememberSaveable { mutableStateOf(false) }
-    var showLiveLocationDuration by rememberSaveable { mutableStateOf(false) }
-    var pendingLiveLocationPermission by rememberSaveable { mutableStateOf(false) }
 
     var setLockError by remember { mutableStateOf<String?>(null) }
     // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
@@ -571,14 +565,14 @@ internal fun ChatDetailRoute(
         isGroup = state.chatIsGroup,
         lastSeen = if (state.isSecretChat == true && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_LAST_SEEN_BLOCK)) 0L else state.contact.lastSeen
     )
-    val selectedMessages = remember(state.messages, selectedMessageIds) {
-        state.messages.filter { it.id in selectedMessageIds }
+    val selectedMessages = remember(state.messages, drafts.selectedMessageIds) {
+        state.messages.filter { it.id in drafts.selectedMessageIds }
     }
-    val messageSelectionMode = selectedMessageIds.isNotEmpty()
+    val messageSelectionMode = drafts.selectedMessageIds.isNotEmpty()
     BackHandler(enabled = showChatOverflow || messageSelectionMode || search.showSearchBar) {
         when {
             showChatOverflow -> showChatOverflow = false
-            messageSelectionMode -> selectedMessageIds = emptySet()
+            messageSelectionMode -> drafts.selectedMessageIds = emptySet()
             search.showSearchBar -> search.showSearchBar = false
         }
     }
@@ -637,9 +631,9 @@ internal fun ChatDetailRoute(
         onVoiceCallGranted = { onVoiceCall(state.contact.id, state.contact.name) },
         onVideoCallGranted = { onVideoCall(state.contact.id, state.contact.name) },
         onLocationGranted = {
-            if (pendingLiveLocationPermission) showLiveLocationDuration = true
+            if (flows.pendingLiveLocationPermission) flows.showLiveLocationDuration = true
             else viewModel.sendCurrentLocation()
-            pendingLiveLocationPermission = false
+            flows.pendingLiveLocationPermission = false
         },
     )
 
@@ -1427,22 +1421,22 @@ internal fun ChatDetailRoute(
     )
     
     LiveLocationDurationDialog(
-        visible = showLiveLocationDuration,
+        visible = flows.showLiveLocationDuration,
         onPick = { ms ->
-            showLiveLocationDuration = false
+            flows.showLiveLocationDuration = false
             viewModel.sendLiveLocation(ms)
         },
-        onDismiss = { showLiveLocationDuration = false },
+        onDismiss = { flows.showLiveLocationDuration = false },
     )
 
 
     SecretChatConfirmDialog(
-        visible = showSecretChatConfirm,
+        visible = flows.showSecretChatConfirm,
         onConfirm = {
-            showSecretChatConfirm = false
+            flows.showSecretChatConfirm = false
             viewModel.startSecretChat()
         },
-        onDismiss = { showSecretChatConfirm = false },
+        onDismiss = { flows.showSecretChatConfirm = false },
     )
     val chatLiquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLiquidGlassBackdrop provides chatLiquidBackdrop) {
@@ -1671,7 +1665,7 @@ internal fun ChatDetailRoute(
                                     text = { Text(stringResource(R.string.secret_chat_menu_start)) },
                                     onClick = {
                                         showChatOverflow = false
-                                        showSecretChatConfirm = true
+                                        flows.showSecretChatConfirm = true
                                     }
                                 )
                             }
@@ -1691,7 +1685,7 @@ internal fun ChatDetailRoute(
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_jump_date)) },
-                                onClick = { showChatOverflow = false; showDateJumpDialog = true }
+                                onClick = { showChatOverflow = false; drafts.showDateJumpDialog = true }
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_clear_local_history), color = LocalChatPalette.current.unreadRed) },
@@ -1764,13 +1758,13 @@ internal fun ChatDetailRoute(
                 )
             }
             // 8.57：群公告会话顶部横幅（可折叠；点开看全文）
-            if (showAnnouncementBanner && state.chatIsGroup) {
+            if (flows.showAnnouncementBanner && state.chatIsGroup) {
                 val announcement = state.chat?.groupAnnouncement?.trim()
                 if (!announcement.isNullOrBlank()) {
                     GroupAnnouncementBanner(
                         announcement = announcement,
-                        onOpen = { showAnnouncementDialog = true },
-                        onDismiss = { showAnnouncementBanner = false }
+                        onOpen = { flows.showAnnouncementDialog = true },
+                        onDismiss = { flows.showAnnouncementBanner = false }
                     )
                 }
             }
@@ -1904,14 +1898,14 @@ internal fun ChatDetailRoute(
                     visible = messageSelectionMode,
                     selectedMessages = selectedMessages,
                     allMessages = state.messages,
-                    selectedIds = selectedMessageIds,
+                    selectedIds = drafts.selectedMessageIds,
                     chatIsGroup = state.chatIsGroup,
                     myMemberRole = state.myMemberRole,
                     pinnedMessageIds = remember(state.pinnedMessages) { state.pinnedMessages.map { it.messageId }.toSet() },
                     isSecretChat = state.isSecretChat == true,
                     preparingAttachmentMessageIds = state.preparingAttachmentMessageIds,
-                    onSelectAll = { selectedMessageIds = it },
-                    onClearSelection = { selectedMessageIds = emptySet() },
+                    onSelectAll = { drafts.selectedMessageIds = it },
+                    onClearSelection = { drafts.selectedMessageIds = emptySet() },
                     onForward = { msgs ->
                         messageActions.messagesToForward = msgs
                         viewModel.loadForwardTargets()
@@ -1961,7 +1955,7 @@ internal fun ChatDetailRoute(
                         listState = listState,
                         motion = motion,
                         allItems = reversedChatItems,
-                        selectedMessageIds = selectedMessageIds,
+                        selectedMessageIds = drafts.selectedMessageIds,
                         messageSelectionMode = messageSelectionMode,
                         animatingMessageId = particles.animatingMessageId,
                         searchResults = searchResults,
@@ -1984,7 +1978,7 @@ internal fun ChatDetailRoute(
                         },
                         onReplyTo = { msg -> replyTarget = msg },
                         onDismissSafetyForMessage = { id -> dismissSafetyForMessage(id) },
-                        onToggleSelection = { selectedMessageIds = it },
+                        onToggleSelection = { drafts.selectedMessageIds = it },
                         onRetryMessage = { msg -> messageActions.messageToRetry = msg },
                         onMessageActions = { msg -> messageActions.messageToActions = msg },
                         onOpenProfile = { userId -> onOpenProfile?.invoke(userId) },
@@ -2331,14 +2325,14 @@ internal fun ChatDetailRoute(
                 onSendLocation = {
                     if (com.maodouchat.util.LocationProvider.hasLocationPermission(context)) viewModel.sendCurrentLocation()
                     else {
-                        pendingLiveLocationPermission = false
+                        flows.pendingLiveLocationPermission = false
                         pickers.locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                     }
                 },
                 onSendLiveLocation = {
-                    if (com.maodouchat.util.LocationProvider.hasLocationPermission(context)) showLiveLocationDuration = true
+                    if (com.maodouchat.util.LocationProvider.hasLocationPermission(context)) flows.showLiveLocationDuration = true
                     else {
-                        pendingLiveLocationPermission = true
+                        flows.pendingLiveLocationPermission = true
                         pickers.locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                     }
                 },
@@ -2393,16 +2387,16 @@ internal fun ChatDetailRoute(
     // 8.57：群公告全文弹窗
     val groupAnnouncementText = state.chat?.groupAnnouncement?.trim().orEmpty()
     GroupAnnouncementDialog(
-        visible = showAnnouncementDialog, announcement = groupAnnouncementText,
+        visible = flows.showAnnouncementDialog, announcement = groupAnnouncementText,
         onCopy = {
             if (groupAnnouncementText.isNotBlank()) {
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.group_announcement_copy), groupAnnouncementText))
                 Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
             }
-            showAnnouncementDialog = false
+            flows.showAnnouncementDialog = false
         },
-        onDismiss = { showAnnouncementDialog = false },
+        onDismiss = { flows.showAnnouncementDialog = false },
     )
 
     // G86：批量删除确认对话框（50 行）抽到 ChatDetailBatchDeleteDialog.kt，纯搬移不改判断。
@@ -2412,7 +2406,7 @@ internal fun ChatDetailRoute(
             currentUserId = state.currentUserId,
             onDelete = { ids -> viewModel.deleteMessagesBatch(ids) },
             onDismiss = { showBatchDeleteConfirm = false },
-            onSelectionCleared = { selectedMessageIds = emptySet() },
+            onSelectionCleared = { drafts.selectedMessageIds = emptySet() },
         )
     }
 
@@ -2442,9 +2436,9 @@ internal fun ChatDetailRoute(
             onMessageForReadReceipts = { messageActions.messageForReadReceipts = it },
             onMessageToAnalyzeImage = { messageActions.messageToAnalyzeImage = it },
             onMessageToAnalyzeFile = { messageActions.messageToAnalyzeFile = it },
-            onEditDraft = { editDraft = it },
+            onEditDraft = { drafts.editDraft = it },
             onReplyTarget = { replyTarget = it },
-            onSelectedMessageIds = { selectedMessageIds = it },
+            onSelectedMessageIds = { drafts.selectedMessageIds = it },
         )
     }
 
@@ -2514,7 +2508,7 @@ internal fun ChatDetailRoute(
                 if (mode == AiFileAnalysisMode.SUMMARIZE) {
                     viewModel.requestAiFileAnalysis(message.id, mode)
                 } else {
-                    fileQuestionDraft = ""
+                    drafts.fileQuestionDraft = ""
                     messageActions.fileQuestionMessage = message
                 }
             },
@@ -2525,16 +2519,16 @@ internal fun ChatDetailRoute(
     messageActions.fileQuestionMessage?.let { message ->
         AiFileQuestionDialog(
             fileName = message.parsedMeta().fileName.orEmpty(),
-            question = fileQuestionDraft,
-            onQuestionChange = { fileQuestionDraft = it.take(500) },
+            question = drafts.fileQuestionDraft,
+            onQuestionChange = { drafts.fileQuestionDraft = it.take(500) },
             onSubmit = {
-                viewModel.requestAiFileAnalysis(message.id, AiFileAnalysisMode.QUESTION, fileQuestionDraft)
+                viewModel.requestAiFileAnalysis(message.id, AiFileAnalysisMode.QUESTION, drafts.fileQuestionDraft)
                 messageActions.fileQuestionMessage = null
-                fileQuestionDraft = ""
+                drafts.fileQuestionDraft = ""
             },
             onDismiss = {
                 messageActions.fileQuestionMessage = null
-                fileQuestionDraft = ""
+                drafts.fileQuestionDraft = ""
             }
         )
     }
@@ -2561,11 +2555,11 @@ internal fun ChatDetailRoute(
         )
     }
 
-    if (showDateJumpDialog) {
+    if (drafts.showDateJumpDialog) {
         DateJumpDialog(
-            onDismiss = { showDateJumpDialog = false },
+            onDismiss = { drafts.showDateJumpDialog = false },
             onJump = { dayStartMillis ->
-                showDateJumpDialog = false
+                drafts.showDateJumpDialog = false
                 viewModel.jumpToDate(dayStartMillis)
             }
         )
@@ -2638,7 +2632,7 @@ internal fun ChatDetailRoute(
                 viewModel.loadForwardTargets()
             },
             onEdit = {
-                editDraft = msg.parsedContent()
+                drafts.editDraft = msg.parsedContent()
                 messageActions.messageToEdit = msg
             },
             onRevoke = { messageActions.messageToRevoke = msg },
@@ -2648,10 +2642,10 @@ internal fun ChatDetailRoute(
 
     EditMessageDialog(
         visible = messageActions.messageToEdit != null,
-        draft = editDraft,
-        onDraftChange = { editDraft = it.take(2000) },
+        draft = drafts.editDraft,
+        onDraftChange = { drafts.editDraft = it.take(2000) },
         onSave = {
-            messageActions.messageToEdit?.let { viewModel.editTextMessage(it.id, editDraft) }
+            messageActions.messageToEdit?.let { viewModel.editTextMessage(it.id, drafts.editDraft) }
             messageActions.messageToEdit = null
         },
         onDismiss = { messageActions.messageToEdit = null },
@@ -2669,7 +2663,7 @@ internal fun ChatDetailRoute(
                 viewModel.forwardMessagesBatch(msgs, targets, note)
             },
             onSendTextToChat = { chatId, body -> viewModel.sendTextToChat(chatId, body) },
-            onSelectionCleared = { selectedMessageIds = emptySet() },
+            onSelectionCleared = { drafts.selectedMessageIds = emptySet() },
             onLoadForwardTargets = { viewModel.loadForwardTargets() },
             secretSource = secretActive,
         )
