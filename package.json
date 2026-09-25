@@ -8,6 +8,6 @@
     "preview": "node scripts/preview-server.mjs"
   },
   "devDependencies": {
-    "playwright-core": "1.61.1"
+    "playwright-core": "1.63.0"
   }
 }
