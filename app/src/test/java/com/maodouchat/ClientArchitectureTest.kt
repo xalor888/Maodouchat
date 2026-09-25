@@ -236,6 +236,20 @@ class ClientArchitectureTest {
      * 所以它们会一直计在内。要让它们离场，得把那些工厂的入参从 `TokenManager` 换成
      * 会话提供者（`SessionContextProvider` / `() -> SessionSnapshot`）——那是非 ui 层的改动，
      * 不在本棘轮管辖范围，单独一轮做。**不要**为了让数字好看去删工厂需要的东西。
+     *
+     * 剩余 7 个的三类性质（G332 收口时的分类，逐个查过，不是按名字猜的）：
+     * 1. **只做装配**（4）：`ChatDetailDeps`、`ChatListPorts`、`ChatRealtimeController`、
+     *    `GroupDetailViewModel`——见上一段。
+     * 2. **它本身就是会话的拥有者**（1）：`LoginViewModel`。登录页要判断
+     *    `isLoggedIn()`、读 token/userId 去初始化 Signal 存储、读 `getAccessTokenExpiresAt()`
+     *    决定要不要先刷新、登录成功后 `saveAuthSession(...)`——**它是在建立会话**，
+     *    不是「拿会话去发请求」。把它改掉需要的是「会话建立门面」，不是本棘轮的目标。
+     * 3. **凭据要交给协议层**（1）：`IdentityVerificationController`——
+     *    `signalProtocol.getRemoteDeviceSafetyStates(token, …)`，发请求的是 crypto/signal 那条链；
+     *    要让 ui 不碰令牌，得先让协议层自己取凭据。
+     * 4. **真的还该继续拆**（1）：`SettingsViewModel`（27 处取令牌 + 22 处取身份）。
+     *    它在热点上限里零余量，且这些读取与「POST 前后各校验一次会话」的流程绑在一起，
+     *    要逐条对照着改，属单独一轮。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
