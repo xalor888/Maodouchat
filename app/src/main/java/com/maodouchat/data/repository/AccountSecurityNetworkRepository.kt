@@ -48,6 +48,8 @@ internal class AccountSecurityNetworkRepository(
         { token -> ApiService.getBlockedUserDetails(token) },
     private val unblockApi: suspend (String, String) -> Result<Unit> =
         { token, userId -> ApiService.unblockUser(token, userId) },
+    private val changePasswordApi: suspend (String, String, String) -> Result<Unit> =
+        { token, oldPassword, newPassword -> ApiService.changePassword(token, oldPassword, newPassword) },
 ) {
     suspend fun updateProfile(token: String, name: String? = null, status: String? = null): Result<UserDto> =
         updateProfileApi(token, name, status)
@@ -84,4 +86,11 @@ internal class AccountSecurityNetworkRepository(
     suspend fun blockedUserDetails(token: String): Result<List<UserDto>> = blockedDetailsApi(token)
 
     suspend fun unblock(token: String, userId: String): Result<Unit> = unblockApi(token, userId)
+
+    /**
+     * 改密码。归在本类而不是「设置页仓库」：服务端通常要求旧密码 + 会失效其他会话，
+     * 与 `deleteAccount`/`logoutAll` 是同一族「账号级凭据操作」。
+     */
+    suspend fun changePassword(token: String, oldPassword: String, newPassword: String): Result<Unit> =
+        changePasswordApi(token, oldPassword, newPassword)
 }

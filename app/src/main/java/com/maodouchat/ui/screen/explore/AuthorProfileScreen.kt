@@ -75,6 +75,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.data.repository.UserNetworkRepository
+import com.maodouchat.data.repository.ModerationNetworkRepository
+import com.maodouchat.data.repository.PostNetworkRepository
+import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 
 data class AuthorProfileUiState(
     val currentUserId: String = "",
@@ -143,7 +147,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                ApiService.getUser(liveToken, authorId).onSuccess { author ->
+                UserNetworkRepository().user(liveToken, authorId).onSuccess { author ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = loadOwnerUserId,
                             liveToken = tokenManager.getToken(),
@@ -161,7 +165,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     }
                 }
                 // 1.287：加载拉黑状态（决定操作按钮显示「拉黑」还是「解除拉黑」）
-                ApiService.getBlockedUsers(tokenManager.getToken() ?: liveToken).onSuccess { blockedIds ->
+                ModerationNetworkRepository().blockedUserIds(tokenManager.getToken() ?: liveToken).onSuccess { blockedIds ->
                     if (loadGeneration == generation && tokenManager.getUserId() == loadOwnerUserId) {
                         _uiState.update { it.copy(isBlocked = authorId in blockedIds) }
                     }
@@ -178,7 +182,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     return@launch
                 }
                 // 拉作者全部动态
-                ApiService.getPosts(tokenManager.getToken() ?: liveToken, limit = AUTHOR_PAGE_SIZE, authorId = authorId).fold(
+                PostNetworkRepository().posts(tokenManager.getToken() ?: liveToken, limit = AUTHOR_PAGE_SIZE, authorId = authorId).fold(
                     onSuccess = { posts ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = loadOwnerUserId,
@@ -243,7 +247,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                         _uiState.update { it.copy(isLoadingMore = false) }
                         return@withLock
                     }
-                    ApiService.getPosts(
+                    PostNetworkRepository().posts(
                         token = token,
                         limit = AUTHOR_PAGE_SIZE,
                         before = cursor.createdAt,
@@ -311,7 +315,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                val request = if (wantBlock) ApiService.blockUser(liveToken, authorId) else ApiService.unblockUser(liveToken, authorId)
+                val request = if (wantBlock) ModerationNetworkRepository().blockUser(liveToken, authorId) else AccountSecurityNetworkRepository().unblock(liveToken, authorId)
                 request.fold(
                     onSuccess = {
                         if (tokenManager.getUserId() != ownerUserId) return@fold
@@ -381,7 +385,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     return@launch
                 }
                 val liveToken = tokenManager.getToken() ?: token
-                val result = if (currentPost.likedByMe) ApiService.unlikePost(liveToken, post.id) else ApiService.likePost(liveToken, post.id)
+                val result = if (currentPost.likedByMe) PostNetworkRepository().unlike(liveToken, post.id) else PostNetworkRepository().like(liveToken, post.id)
                 result.fold(
                     onSuccess = { updated ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(

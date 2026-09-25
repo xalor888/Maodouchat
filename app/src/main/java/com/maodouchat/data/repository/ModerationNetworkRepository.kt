@@ -35,6 +35,8 @@ internal class ModerationNetworkRepository(
         { token, eventId -> ApiService.acknowledgeRiskEvent(token, eventId) },
     private val blockUserApi: suspend (String, String) -> Result<Unit> =
         { token, userId -> ApiService.blockUser(token, userId) },
+    private val blockedIdsApi: suspend (String) -> Result<List<String>> =
+        { token -> ApiService.getBlockedUsers(token) },
 ) {
     suspend fun myReports(token: String, limit: Int = 50): Result<List<ReportResponse>> =
         myReportsApi(token, limit)
@@ -71,4 +73,7 @@ internal class ModerationNetworkRepository(
         acknowledgeRiskApi(token, eventId)
 
     suspend fun blockUser(token: String, userId: String): Result<Unit> = blockUserApi(token, userId)
+
+    /** 已拉黑的**用户 id 列表**（与 `blockedUserDetails` 的区别：那个返回用户资料）。 */
+    suspend fun blockedUserIds(token: String): Result<List<String>> = blockedIdsApi(token)
 }

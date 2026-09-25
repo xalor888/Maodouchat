@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.explore
 
 import kotlin.math.min
+import com.maodouchat.data.repository.NearbyNetworkRepository
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.RuntimeFlags
@@ -504,7 +505,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.getNearbyLocationStatus(liveToken).onSuccess { status ->
+                NearbyNetworkRepository().status(liveToken).onSuccess { status ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
                             liveToken = tokenManager.getToken(),
@@ -566,7 +567,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                             return@fold
                         }
                         val liveToken = tokenManager.getToken() ?: token
-                        ApiService.updateNearbyLocation(liveToken, location.latitude, location.longitude).fold(
+                        NearbyNetworkRepository().updateLocation(liveToken, location.latitude, location.longitude).fold(
                             onSuccess = { status ->
                                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                         expectedUserId = ownerUserId,
@@ -614,7 +615,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                 return@launch
             }
             val liveToken = tokenManager.getToken() ?: token
-            ApiService.stopNearbyLocationSharing(liveToken).fold(
+            NearbyNetworkRepository().stopSharing(liveToken).fold(
                 onSuccess = {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
@@ -678,7 +679,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                         // 8.58：POST 前再校验——关闭共享后（stopSharing 已递增代际）跳过广播，
                         // 杜绝在途 refresh 把位置重新广播
                         if (generation != refreshGeneration || !_uiState.value.isSharing) return@onSuccess
-                        ApiService.updateNearbyLocation(liveToken, location.latitude, location.longitude).onSuccess { status ->
+                        NearbyNetworkRepository().updateLocation(liveToken, location.latitude, location.longitude).onSuccess { status ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                     expectedUserId = ownerUserId,
                                     liveToken = tokenManager.getToken(),
@@ -692,7 +693,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }
-                ApiService.getNearbyUsers(liveToken, radiusKm = radiusKm).fold(
+                NearbyNetworkRepository().nearbyUsers(liveToken, radiusKm = radiusKm).fold(
                     onSuccess = { dtos ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = ownerUserId,

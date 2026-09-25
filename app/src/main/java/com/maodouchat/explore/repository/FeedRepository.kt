@@ -5,6 +5,7 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.data.repository.PostNetworkRepository
 
 data class FeedSession(val ownerUserId: String)
 
@@ -60,7 +61,7 @@ internal class AndroidFeedRepository(application: Application) : FeedRepository 
         session: FeedSession,
         cursor: ExploreFeedPolicy.Cursor?,
     ): Result<List<PostDto>> = withToken(session) { token ->
-        ApiService.getPosts(token, before = cursor?.createdAt, beforeId = cursor?.postId)
+        PostNetworkRepository().posts(token, before = cursor?.createdAt, beforeId = cursor?.postId)
     }
 
     override suspend fun publish(

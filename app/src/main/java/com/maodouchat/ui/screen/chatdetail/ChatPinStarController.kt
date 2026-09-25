@@ -1,9 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.data.repository.PinStarNetworkRepository
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
-import com.maodouchat.network.ApiService
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +28,7 @@ internal class ChatPinStarController(
         if (expectedUserId.isBlank() || targetChatId.isBlank() || !sessionActive(expectedUserId)) return
         val liveToken = token()
         if (liveToken.isBlank()) return
-        ApiService.getPinnedMessages(liveToken, targetChatId).onSuccess { response ->
+        PinStarNetworkRepository().pinned(liveToken, targetChatId).onSuccess { response ->
             if (sessionActive(expectedUserId)) {
                 updateState { it.copy(pinnedMessages = response.pins) }
             }
@@ -67,7 +67,7 @@ internal class ChatPinStarController(
                     }
                     return@launch
                 }
-                ApiService.togglePinnedMessage(token(), targetChatId, messageId).fold(
+                PinStarNetworkRepository().togglePin(token(), targetChatId, messageId).fold(
                     onSuccess = { response ->
                         if (!sessionActive(owner)) return@fold
                         updateState {
@@ -150,7 +150,7 @@ internal class ChatPinStarController(
                         sessionExpired = true
                         break
                     }
-                    ApiService.togglePinnedMessage(token(), targetChatId, targetId).fold(
+                    PinStarNetworkRepository().togglePin(token(), targetChatId, targetId).fold(
                         onSuccess = { response ->
                             successCount += 1
                             currentPins = response.pins
@@ -209,7 +209,7 @@ internal class ChatPinStarController(
                     replaceMessage(original, string(R.string.error_session_expired))
                     return@launch
                 }
-                ApiService.toggleStarMessage(token(), messageId).fold(
+                PinStarNetworkRepository().toggleStar(token(), messageId).fold(
                     onSuccess = { response ->
                         if (!sessionActive(owner)) return@fold
                         val updated = original.copy(starred = response.starred)
@@ -252,7 +252,7 @@ internal class ChatPinStarController(
                         warn(R.string.error_session_expired)
                         return@launch
                     }
-                    ApiService.toggleStarMessage(token(), message.id).fold(
+                    PinStarNetworkRepository().toggleStar(token(), message.id).fold(
                         onSuccess = { response ->
                             val updated = message.copy(starred = response.starred)
                             replaceMessage(updated)

@@ -6,7 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.attachment.AttachmentTransferCoordinator
-import com.maodouchat.network.ApiService
+import com.maodouchat.data.repository.AccountSecurityNetworkRepository
+import com.maodouchat.data.repository.ClientPrefsNetworkRepository
 import com.maodouchat.network.ClientPrefsUpdateRequest
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.MediaCache
@@ -28,8 +29,10 @@ import kotlinx.coroutines.withContext
  * （修改密码：旧密码校验、长度、二次确认、服务端成功后清会话）。
  * 含它的 UI 状态数据类 `GeneralSettingsUiState`。
  *
- * **拆解约束**：不直接抓应用级数据库单例；网络经 `ApiService`，凭据经 `TokenManager`，
- * 偏好经 `AppLocaleManager` / `MediaCache`。纯搬移，不改判断。
+ * **拆解约束**：不直接抓应用级数据库单例；网络经 `data/repository` 的
+ * `ClientPrefsNetworkRepository` / `AccountSecurityNetworkRepository`（G328c 起不再直连
+ * `ApiService`），凭据经 `TokenManager`，偏好经 `AppLocaleManager` / `MediaCache`。
+ * 纯搬移，不改判断。
  */
 
 data class GeneralSettingsUiState(
@@ -208,7 +211,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
             try {
                 if (!isCurrentOwner(ownerUserId)) return@launch
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ApiService.getClientPrefs(liveToken).onSuccess { remote ->
+                ClientPrefsNetworkRepository().prefs(liveToken).onSuccess { remote ->
                     if (
                         generation == clientPrefsPullGeneration &&
                         prefsRevision == revisionAtStart &&
@@ -286,7 +289,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
                         unreadPriorityEnabled = state.unreadPriorityEnabled
                     )
                     val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    ApiService.putClientPrefs(liveToken, request).onFailure { error ->
+                    ClientPrefsNetworkRepository().putPrefs(liveToken, request).onFailure { error ->
                         if (generation == clientPrefsPushGeneration && isCurrentOwner(ownerUserId)) {
                             _uiState.update {
                                 it.copy(infoMessage = error.message ?: text(R.string.error_operation_failed))
@@ -446,7 +449,7 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                 return@launch
             }
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            ApiService.changePassword(liveToken, old, new).fold(
+            AccountSecurityNetworkRepository().changePassword(liveToken, old, new).fold(
                 onSuccess = {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,

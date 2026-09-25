@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import android.content.Context
-import com.maodouchat.network.ApiService
+import com.maodouchat.data.repository.ChatFolderNetworkRepository
 import com.maodouchat.network.ChatFolderDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
@@ -46,7 +46,7 @@ class ChatFolderController(
                 )
             ) return@launch
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            val remoteResult = ApiService.getChatFolders(liveToken)
+            val remoteResult = ChatFolderNetworkRepository().folders(liveToken)
             val remoteError = remoteResult.exceptionOrNull()
             if (remoteError is CancellationException) throw remoteError
             val remote = remoteResult.getOrNull() ?: return@launch
@@ -103,7 +103,7 @@ class ChatFolderController(
                     chatIds = folder.chatIds
                 )
             }
-            val result = ApiService.putChatFolders(liveToken, payload)
+            val result = ChatFolderNetworkRepository().putFolders(liveToken, payload)
             val error = result.exceptionOrNull()
             if (error is CancellationException) throw error
         }

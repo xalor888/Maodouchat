@@ -215,12 +215,17 @@ class ClientArchitectureTest {
      * 2. 发现其中 36 个**只导入 DTO**（接口契约的数据形状，不算直接发请求）→ 61 个。
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
-     *    - [frozenUiApiCallers]（**40 个**）：结构上违分层，要搬进 repository；
-     *    - [frozenUiTokenReaders]（**21 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiApiCallers]（**17 个**）：结构上违分层，要搬进 repository；
+     *    - [frozenUiTokenReaders]（**37 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传。
      *
      * 两组都**只许降**：搬一个就从对应名单删一行。判据在剥注释后的正文里找符号，
      * 不按 import 行（`com.maodouchat.util.X` 这类全限定名引用也要能被抓到）。
+     *
+     * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
+     * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
+     * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
+     * （当前 54）。别把它当成棘轮被放松。
      */
     // G328c 真实下降：41 → 30（公共端点 3 + 用户读取 4 + 会话读写 4 + 设置页账号/设备 1）。
     // 注意 SettingsViewModel 已在此名单之外——它的 14 处调用全部改走
@@ -233,22 +238,16 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailFeatureGates.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatModerationController.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatPinStarController.kt",
-        "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatFolderController.kt",
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt",
         "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
         "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
         "com/maodouchat/ui/screen/contacts/JoinGroupInviteScreen.kt",
-        "com/maodouchat/ui/screen/explore/AuthorProfileScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreComposerCards.kt",
-        "com/maodouchat/ui/screen/explore/ExploreNearbyScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
         "com/maodouchat/ui/screen/explore/PublicProfileScreen.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPollScreen.kt",
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacyViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsGeneralSettingsViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
     )
 
@@ -265,6 +264,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/IdentityVerificationController.kt",
         "com/maodouchat/ui/screen/chatdetail/ScheduledMessageController.kt",
+        "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
+        "com/maodouchat/ui/screen/chatlist/ChatFolderController.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListAnnouncementCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListArchiveSuggestionCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListLoadCoordinator.kt",
@@ -276,11 +277,14 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/ChatListUnreadBatchCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt",
         "com/maodouchat/ui/screen/contacts/MyQrCodeViewModel.kt",
+        "com/maodouchat/ui/screen/explore/AuthorProfileScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt",
+        "com/maodouchat/ui/screen/explore/ExploreNearbyScreen.kt",
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPlayViewModelSupport.kt",
         "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt",
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt",
+        "com/maodouchat/ui/screen/settings/SettingsGeneralSettingsViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsModerationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsReports.kt",
         "com/maodouchat/ui/screen/settings/SettingsTotpSection.kt",

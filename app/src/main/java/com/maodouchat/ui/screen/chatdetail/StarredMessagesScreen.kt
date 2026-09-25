@@ -73,7 +73,8 @@ import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.network.ApiService
+import com.maodouchat.data.repository.ChatNetworkRepository
+import com.maodouchat.data.repository.PinStarNetworkRepository
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.MessageDto
 import com.maodouchat.network.TokenManager
@@ -177,10 +178,10 @@ class StarredMessagesViewModel(
                             throw kotlinx.coroutines.CancellationException("starred_session_changed")
                         }
                         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                        val chats = ApiService.getChats(liveToken).getOrThrow().map { it.toDomainChat() }
+                        val chats = ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() }
                         val chatsById = chats.associateBy { it.id }
                         val chat = chatsById[chatId]
-                        val remote = ApiService.getStarredMessages(
+                        val remote = PinStarNetworkRepository().starred(
                             liveToken,
                             chatId.takeIf { it.isNotBlank() }
                         ).getOrThrow()
@@ -304,7 +305,7 @@ class StarredMessagesViewModel(
         loadGeneration.incrementAndGet()
         _uiState.update { it.copy(messages = it.messages.filter { m -> m.id != messageId }) }
         viewModelScope.launch {
-            val result = ApiService.toggleStarMessage(liveToken, messageId)
+            val result = PinStarNetworkRepository().toggleStar(liveToken, messageId)
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
                     liveToken = tokenManager.getToken(),
@@ -358,7 +359,7 @@ class StarredMessagesViewModel(
                 ) {
                     return@launch
                 }
-                ApiService.toggleStarMessage(liveToken, message.id)
+                PinStarNetworkRepository().toggleStar(liveToken, message.id)
             }
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
