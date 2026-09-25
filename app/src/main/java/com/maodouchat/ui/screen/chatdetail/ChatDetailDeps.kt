@@ -504,7 +504,6 @@ internal class ChatDetailDeps(
         chatScheduleController = chatScheduleController,
         uiState = host._uiState,
         textProvider = host::text,
-        tokenManager = tokenManager,
         activeChatId = { host.activeChatId },
         chatId = host.chatId,
         clearDraft = { host.clearDraft() },

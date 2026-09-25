@@ -1,7 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.network.TokenManager
 import com.maodouchat.scheduling.ChatScheduleCommand
 import com.maodouchat.scheduling.ChatScheduleController
 import com.maodouchat.scheduling.ChatScheduleImmediateOutcome
@@ -19,7 +18,6 @@ class ScheduledMessageController(
     private val chatScheduleController: ChatScheduleController,
     private val uiState: MutableStateFlow<ChatDetailUiState>,
     private val textProvider: (Int, Array<out Any>) -> String,
-    private val tokenManager: TokenManager,
     private val activeChatId: () -> String,
     private val chatId: String,
     private val clearDraft: () -> Unit,
@@ -113,14 +111,14 @@ class ScheduledMessageController(
                     result.item.text,
                     {
                         chatScheduleController.completeImmediateSend(scheduleOwnerUserId, id)
-                        if (tokenManager.getUserId() == scheduleOwnerUserId) {
+                        if (com.maodouchat.session.CurrentSession.ownerUserId() == scheduleOwnerUserId) {
                             refreshScheduledMessages()
                             uiState.update { it.copy(scheduledInfoMessage = text(R.string.schedule_sent_now)) }
                         }
                     },
                     {
                         chatScheduleController.restoreImmediateSend(scheduleOwnerUserId, id)
-                        if (tokenManager.getUserId() == scheduleOwnerUserId) {
+                        if (com.maodouchat.session.CurrentSession.ownerUserId() == scheduleOwnerUserId) {
                             refreshScheduledMessages()
                         }
                     },

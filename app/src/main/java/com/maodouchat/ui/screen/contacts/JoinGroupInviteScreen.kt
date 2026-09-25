@@ -25,7 +25,6 @@ import com.maodouchat.R
 import com.maodouchat.group.JoinGroupInviteResult
 import com.maodouchat.group.JoinGroupInviteUseCase
 import com.maodouchat.data.repository.ContactNetworkRepository
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -54,11 +53,10 @@ fun JoinGroupInviteScreen(
         errorMessage = null
         joinedChatId = null
         joinedTitle = null
-        val tokenManager = TokenManager.getInstance(context)
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val useCase = JoinGroupInviteUseCase(
             tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
-            userIdProvider = { tokenManager.getUserId().orEmpty() },
+            userIdProvider = { com.maodouchat.session.CurrentSession.ownerUserId() },
             sessionGate = {
                 BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,

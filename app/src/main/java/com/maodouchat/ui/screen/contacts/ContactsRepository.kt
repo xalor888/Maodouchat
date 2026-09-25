@@ -6,7 +6,6 @@ import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.data.repository.ContactNetworkRepository
-import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -47,16 +46,15 @@ class ContactsController(private val repository: ContactsRepository) {
 
 internal class AndroidContactsRepository(application: Application) : ContactsRepository {
     private val app = application as MaodouchatApp
-    private val tokenManager = TokenManager.getInstance(application)
     private val userRepository = UserRepository(app.database.userDao())
 
     override fun currentSession(): ContactsSession? {
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         return ownerUserId.takeIf(String::isNotBlank)?.let(::ContactsSession)
     }
 
     override fun isCurrent(session: ContactsSession): Boolean =
-        tokenManager.getUserId().orEmpty() == session.ownerUserId
+        com.maodouchat.session.CurrentSession.ownerUserId() == session.ownerUserId
 
     private fun isAuthenticated(session: ContactsSession): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
