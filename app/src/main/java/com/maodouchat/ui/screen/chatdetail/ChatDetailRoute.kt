@@ -414,21 +414,9 @@ internal fun ChatDetailRoute(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    var messageToDelete by remember { mutableStateOf<Message?>(null) }
-    var messageToRevoke by remember { mutableStateOf<Message?>(null) }
-    var messageToCopy by remember { mutableStateOf<Message?>(null) }
-    var messagesToForward by remember { mutableStateOf<List<Message>>(emptyList()) }
-    var messageToRetry by remember { mutableStateOf<Message?>(null) }
-    var messageToEdit by remember { mutableStateOf<Message?>(null) }
-    var messageToActions by remember { mutableStateOf<Message?>(null) }
-    var messageToRemind by remember { mutableStateOf<Message?>(null) }
-    var messageToTranslate by remember { mutableStateOf<Message?>(null) }
-    var messageToReport by remember { mutableStateOf<Message?>(null) }
-    var messageForReadReceipts by remember { mutableStateOf<Message?>(null) }
-    var messageToAnalyzeImage by remember { mutableStateOf<Message?>(null) }
-    var messageToAnalyzeFile by remember { mutableStateOf<Message?>(null) }
-    var fileQuestionMessage by remember { mutableStateOf<Message?>(null) }
     var fileQuestionDraft by rememberSaveable { mutableStateOf("") }
+    // G335：这一族「弹层当前操作哪条消息」的状态收进持有类（见 ChatDetailMessageActionState）。
+    val messageActions = remember { ChatDetailMessageActionState() }
     var editDraft by rememberSaveable { mutableStateOf("") }
     var showSearchBar by rememberSaveable { mutableStateOf(false) }
     var showDateJumpDialog by rememberSaveable { mutableStateOf(false) }
@@ -1970,7 +1958,7 @@ internal fun ChatDetailRoute(
                     onSelectAll = { selectedMessageIds = it },
                     onClearSelection = { selectedMessageIds = emptySet() },
                     onForward = { msgs ->
-                        messagesToForward = msgs
+                        messageActions.messagesToForward = msgs
                         viewModel.loadForwardTargets()
                     },
                     onToggleStar = { ids, shouldStar -> viewModel.toggleStarMessagesBatch(ids, shouldStar) },
@@ -2042,10 +2030,10 @@ internal fun ChatDetailRoute(
                         onReplyTo = { msg -> replyTarget = msg },
                         onDismissSafetyForMessage = { id -> dismissSafetyForMessage(id) },
                         onToggleSelection = { selectedMessageIds = it },
-                        onRetryMessage = { msg -> messageToRetry = msg },
-                        onMessageActions = { msg -> messageToActions = msg },
+                        onRetryMessage = { msg -> messageActions.messageToRetry = msg },
+                        onMessageActions = { msg -> messageActions.messageToActions = msg },
                         onOpenProfile = { userId -> onOpenProfile?.invoke(userId) },
-                        onShowReadReceipts = { msg -> messageForReadReceipts = msg },
+                        onShowReadReceipts = { msg -> messageActions.messageForReadReceipts = msg },
                     )
                 }
                 if (state.isLoadingOlderMessages) {
@@ -2473,9 +2461,9 @@ internal fun ChatDetailRoute(
         )
     }
 
-    messageToActions?.let { message ->
+    messageActions.messageToActions?.let { message ->
         ChatDetailMessageActionsSheet(
-            onMessageToActionsDismiss = { messageToActions = null },
+            onMessageToActionsDismiss = { messageActions.messageToActions = null },
             chatCopiedMsg = chatCopiedMsg,
             chatTranslationCopiedMsg = chatTranslationCopiedMsg,
             chatTranscriptCopiedMsg = chatTranscriptCopiedMsg,
@@ -2488,41 +2476,41 @@ internal fun ChatDetailRoute(
             viewModel = viewModel,
             context = context,
             senderName = resolveSenderName(message),
-            onMessageToActions = { messageToActions = it },
-            onMessageToDelete = { messageToDelete = it },
-            onMessageToRevoke = { messageToRevoke = it },
-            onMessagesToForward = { messagesToForward = it },
-            onMessageToEdit = { messageToEdit = it },
-            onMessageToRemind = { messageToRemind = it },
-            onMessageToTranslate = { messageToTranslate = it },
-            onMessageToReport = { messageToReport = it },
-            onMessageForReadReceipts = { messageForReadReceipts = it },
-            onMessageToAnalyzeImage = { messageToAnalyzeImage = it },
-            onMessageToAnalyzeFile = { messageToAnalyzeFile = it },
+            onMessageToActions = { messageActions.messageToActions = it },
+            onMessageToDelete = { messageActions.messageToDelete = it },
+            onMessageToRevoke = { messageActions.messageToRevoke = it },
+            onMessagesToForward = { messageActions.messagesToForward = it },
+            onMessageToEdit = { messageActions.messageToEdit = it },
+            onMessageToRemind = { messageActions.messageToRemind = it },
+            onMessageToTranslate = { messageActions.messageToTranslate = it },
+            onMessageToReport = { messageActions.messageToReport = it },
+            onMessageForReadReceipts = { messageActions.messageForReadReceipts = it },
+            onMessageToAnalyzeImage = { messageActions.messageToAnalyzeImage = it },
+            onMessageToAnalyzeFile = { messageActions.messageToAnalyzeFile = it },
             onEditDraft = { editDraft = it },
             onReplyTarget = { replyTarget = it },
             onSelectedMessageIds = { selectedMessageIds = it },
         )
     }
 
-    messageToAnalyzeImage?.let { message ->
+    messageActions.messageToAnalyzeImage?.let { message ->
         AiImageAnalysisModeDialog(
             onSelect = { mode ->
-                messageToAnalyzeImage = null
+                messageActions.messageToAnalyzeImage = null
                 viewModel.requestAiImageAnalysis(message.id, mode)
             },
-            onDismiss = { messageToAnalyzeImage = null }
+            onDismiss = { messageActions.messageToAnalyzeImage = null }
         )
     }
 
     // 8.41：消息「稍后提醒」时间选择
-    messageToRemind?.let { message ->
+    messageActions.messageToRemind?.let { message ->
         MessageReminderTimeDialog(
             onPick = { delayMs ->
-                messageToRemind = null
+                messageActions.messageToRemind = null
                 viewModel.scheduleMessageReminder(message, System.currentTimeMillis() + delayMs)
             },
-            onDismiss = { messageToRemind = null }
+            onDismiss = { messageActions.messageToRemind = null }
         )
     }
 
@@ -2563,57 +2551,57 @@ internal fun ChatDetailRoute(
         )
     }
 
-    messageToAnalyzeFile?.let { message ->
+    messageActions.messageToAnalyzeFile?.let { message ->
         AiFileAnalysisModeDialog(
             fileName = message.parsedMeta().fileName.orEmpty(),
             onSelect = { mode ->
-                messageToAnalyzeFile = null
+                messageActions.messageToAnalyzeFile = null
                 if (mode == AiFileAnalysisMode.SUMMARIZE) {
                     viewModel.requestAiFileAnalysis(message.id, mode)
                 } else {
                     fileQuestionDraft = ""
-                    fileQuestionMessage = message
+                    messageActions.fileQuestionMessage = message
                 }
             },
-            onDismiss = { messageToAnalyzeFile = null }
+            onDismiss = { messageActions.messageToAnalyzeFile = null }
         )
     }
 
-    fileQuestionMessage?.let { message ->
+    messageActions.fileQuestionMessage?.let { message ->
         AiFileQuestionDialog(
             fileName = message.parsedMeta().fileName.orEmpty(),
             question = fileQuestionDraft,
             onQuestionChange = { fileQuestionDraft = it.take(500) },
             onSubmit = {
                 viewModel.requestAiFileAnalysis(message.id, AiFileAnalysisMode.QUESTION, fileQuestionDraft)
-                fileQuestionMessage = null
+                messageActions.fileQuestionMessage = null
                 fileQuestionDraft = ""
             },
             onDismiss = {
-                fileQuestionMessage = null
+                messageActions.fileQuestionMessage = null
                 fileQuestionDraft = ""
             }
         )
     }
 
-    messageToTranslate?.let { message ->
+    messageActions.messageToTranslate?.let { message ->
         TranslationLanguageDialog(
             translatedLanguages = message.parsedMeta().translations.keys,
-            onDismiss = { messageToTranslate = null },
+            onDismiss = { messageActions.messageToTranslate = null },
             onSelect = { language ->
                 viewModel.requestMessageTranslation(message.id, language)
-                messageToTranslate = null
+                messageActions.messageToTranslate = null
             }
         )
     }
 
-    messageToReport?.let { msg ->
+    messageActions.messageToReport?.let { msg ->
         ReportDialog(
             title = stringResource(R.string.chat_report_message),
-            onDismiss = { messageToReport = null },
+            onDismiss = { messageActions.messageToReport = null },
             onReport = { reason, description ->
                 viewModel.reportMessage(msg.id, reason, description)
-                messageToReport = null
+                messageActions.messageToReport = null
             }
         )
     }
@@ -2629,14 +2617,14 @@ internal fun ChatDetailRoute(
     }
 
     // G332：已读回执面板 176 行搬进 `ChatDetailReadReceiptsSheet.kt`。
-    messageForReadReceipts?.let { receiptMessage ->
+    messageActions.messageForReadReceipts?.let { receiptMessage ->
         ChatDetailReadReceiptsSheet(
             messageId = receiptMessage.id,
             receipts = state.readReceipts,
             isLoading = state.isLoadingReadReceipts,
             onOpenProfile = onOpenProfile,
             onDismiss = {
-                messageForReadReceipts = null
+                messageActions.messageForReadReceipts = null
                 viewModel.clearReadReceipts()
             },
         )
@@ -2644,18 +2632,18 @@ internal fun ChatDetailRoute(
 
     // 长按撤回消息确认弹窗（带粒子动效）
     RevokeMessageConfirmDialog(
-        visible = messageToRevoke != null,
-        sentAtMillis = messageToRevoke?.timestamp ?: 0L,
+        visible = messageActions.messageToRevoke != null,
+        sentAtMillis = messageActions.messageToRevoke?.timestamp ?: 0L,
         onRevoke = {
-            messageToRevoke?.let { startParticleEffect(it, ParticleAction.REVOKE) }
-            messageToRevoke = null
+            messageActions.messageToRevoke?.let { startParticleEffect(it, ParticleAction.REVOKE) }
+            messageActions.messageToRevoke = null
         },
-        onDismiss = { messageToRevoke = null },
+        onDismiss = { messageActions.messageToRevoke = null },
     )
 
     // 长按删除消息确认弹窗
-    // messageToDelete 是 by remember 委托属性，不能智能转换——先取局部值（G159b）
-    val pendingDelete = messageToDelete
+    // messageActions.messageToDelete 是 by remember 委托属性，不能智能转换——先取局部值（G159b）
+    val pendingDelete = messageActions.messageToDelete
     DeleteMessageConfirmDialog(
         visible = pendingDelete != null,
         isOwn = pendingDelete?.senderId == state.currentUserId,
@@ -2666,62 +2654,62 @@ internal fun ChatDetailRoute(
         ),
         onDelete = {
             pendingDelete?.let { startParticleEffect(it, ParticleAction.DELETE) }
-            messageToDelete = null
+            messageActions.messageToDelete = null
         },
         onForward = {
             pendingDelete?.let {
-                messagesToForward = listOf(it)
+                messageActions.messagesToForward = listOf(it)
                 viewModel.loadForwardTargets()
             }
-            messageToDelete = null
+            messageActions.messageToDelete = null
         },
-        onDismiss = { messageToDelete = null },
+        onDismiss = { messageActions.messageToDelete = null },
     )
 
     // G80：消息操作弹窗（58 行）抽到 ChatDetailMessageActionsDialog.kt，纯搬移不改判断。
-    messageToCopy?.let { msg ->
+    messageActions.messageToCopy?.let { msg ->
         ChatDetailMessageActionsDialog(
             msg = msg,
             currentUserId = state.currentUserId,
             isSecretChat = state.isSecretChat == true,
-            onDismiss = { messageToCopy = null },
+            onDismiss = { messageActions.messageToCopy = null },
             onCopy = {
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, msg.parsedContent()))
                 Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
             },
             onForward = {
-                messagesToForward = listOf(msg)
+                messageActions.messagesToForward = listOf(msg)
                 viewModel.loadForwardTargets()
             },
             onEdit = {
                 editDraft = msg.parsedContent()
-                messageToEdit = msg
+                messageActions.messageToEdit = msg
             },
-            onRevoke = { messageToRevoke = msg },
+            onRevoke = { messageActions.messageToRevoke = msg },
             onDelete = { startParticleEffect(msg, ParticleAction.DELETE) },
         )
     }
 
     EditMessageDialog(
-        visible = messageToEdit != null,
+        visible = messageActions.messageToEdit != null,
         draft = editDraft,
         onDraftChange = { editDraft = it.take(2000) },
         onSave = {
-            messageToEdit?.let { viewModel.editTextMessage(it.id, editDraft) }
-            messageToEdit = null
+            messageActions.messageToEdit?.let { viewModel.editTextMessage(it.id, editDraft) }
+            messageActions.messageToEdit = null
         },
-        onDismiss = { messageToEdit = null },
+        onDismiss = { messageActions.messageToEdit = null },
     )
 
     // 转发目标选择弹窗
     // G75：转发目标选择弹窗（235 行）抽到 ChatDetailForwardPicker.kt，纯搬移不改判断。
-    if (messagesToForward.isNotEmpty()) {
+    if (messageActions.messagesToForward.isNotEmpty()) {
         ChatDetailForwardPicker(
-            messages = messagesToForward,
+            messages = messageActions.messagesToForward,
             forwardTargets = state.forwardTargets,
             currentUserId = state.currentUserId,
-            onCancel = { messagesToForward = emptyList() },
+            onCancel = { messageActions.messagesToForward = emptyList() },
             onForwardBatch = { msgs, targets, note ->
                 viewModel.forwardMessagesBatch(msgs, targets, note)
             },
@@ -2734,16 +2722,16 @@ internal fun ChatDetailRoute(
 
     // 重发失败消息弹窗
     RetryMessageDialog(
-        visible = messageToRetry != null,
+        visible = messageActions.messageToRetry != null,
         onRetry = {
-            messageToRetry?.let { viewModel.retrySendMessage(it.id) }
-            messageToRetry = null
+            messageActions.messageToRetry?.let { viewModel.retrySendMessage(it.id) }
+            messageActions.messageToRetry = null
         },
         onDelete = {
-            messageToRetry?.let { startParticleEffect(it, ParticleAction.DELETE) }
-            messageToRetry = null
+            messageActions.messageToRetry?.let { startParticleEffect(it, ParticleAction.DELETE) }
+            messageActions.messageToRetry = null
         },
-        onDismiss = { messageToRetry = null },
+        onDismiss = { messageActions.messageToRetry = null },
     )
 
     // G76：全屏图片/视频查看器（207 行）抽到 ChatDetailFullscreenMedia.kt，纯搬移不改判断。
