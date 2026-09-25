@@ -61,8 +61,6 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
     private fun isAuthenticated(session: ContactsSession): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = session.ownerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     override fun observeFriends(session: ContactsSession): Flow<List<User>> =

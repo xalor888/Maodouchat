@@ -39,6 +39,7 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
 
     @AfterTest
     fun tearDown() {
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = null
         unmockkAll()
     }
 
@@ -46,16 +47,13 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     fun markMissedCallsReadClearsTrayAndCenter() = runTest(dispatcher) {
         val call = MissedCall(id = "m1", callerId = "u1", callerName = "A", callType = "audio", receivedAt = 1L)
         val uiState = MutableStateFlow(ChatListUiState(missedCalls = listOf(call)))
-        val tokenManager = mockk<TokenManager>()
-        every { tokenManager.getToken() } returns "tok"
-        every { tokenManager.getUserId() } returns "me"
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { "tok" to "me" }
         var marked = false
         val cancelled = mutableListOf<String>()
         val removed = mutableListOf<String>()
         val coordinator = ChatListMissedCallCoordinator(
             scope = this,
             uiState = uiState,
-            tokenManager = tokenManager,
             ownerUserId = { "me" },
             markAllRead = { marked = true },
             clearAll = {},
@@ -76,15 +74,12 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     fun removeMissedCallLocallyDropsUiAndDeletes() = runTest(dispatcher) {
         val call = MissedCall(id = "m1", callerId = "u1", callerName = "A", callType = "audio", receivedAt = 1L)
         val uiState = MutableStateFlow(ChatListUiState(missedCalls = listOf(call)))
-        val tokenManager = mockk<TokenManager>()
-        every { tokenManager.getToken() } returns "tok"
-        every { tokenManager.getUserId() } returns "me"
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { "tok" to "me" }
         var deleted: String? = null
         val cancelled = mutableListOf<String>()
         val coordinator = ChatListMissedCallCoordinator(
             scope = this,
             uiState = uiState,
-            tokenManager = tokenManager,
             ownerUserId = { "me" },
             markAllRead = {},
             clearAll = {},
@@ -106,11 +101,10 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
         val peer = User(id = "u2", name = "Peer")
         val chat = Chat(id = "c1", isGroup = false, participants = listOf(peer))
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
-        val tokenManager = mockk<TokenManager>()
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { "tok" to "me" }
         val coordinator = ChatListMissedCallCoordinator(
             scope = mockk(relaxed = true),
             uiState = uiState,
-            tokenManager = tokenManager,
             ownerUserId = { "me" },
             markAllRead = {},
             clearAll = {},
@@ -127,9 +121,10 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     fun dismissArchiveSuggestionPersistsAndFilters() = runTest(dispatcher) {
         val suggestion = AiArchiveSuggestion.Suggestion("c1", 10, "idle")
         val uiState = MutableStateFlow(ChatListUiState(archiveSuggestions = listOf(suggestion)))
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { "tok" to "me" }
+        val persisted = mutableListOf<Triple<String, String, Long>>()
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getUserId() } returns "me"
-        val persisted = mutableListOf<Triple<String, String, Long>>()
         val coordinator = ChatListArchiveSuggestionCoordinator(
             scope = this,
             uiState = uiState,
@@ -160,9 +155,10 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
         val uiState = MutableStateFlow(
             ChatListUiState(chats = listOf(chat), archiveSuggestions = listOf(suggestion))
         )
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { "tok" to "me" }
+        var archivedCalls = 0
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getUserId() } returns "me"
-        var archivedCalls = 0
         val coordinator = ChatListArchiveSuggestionCoordinator(
             scope = this,
             uiState = uiState,
@@ -187,6 +183,7 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     @Test
     fun loadArchiveSuggestionsFiltersDismissed() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { "tok" to "me" }
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getUserId() } returns "me"
         val coordinator = ChatListArchiveSuggestionCoordinator(

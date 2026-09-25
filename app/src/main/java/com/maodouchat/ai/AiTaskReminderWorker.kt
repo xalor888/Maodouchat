@@ -46,10 +46,8 @@ class AiTaskReminderWorker(
 
             // Logout/account switch after Room read: do not notify or mark under the next owner.
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = expectedUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = expectedUserId,
+            )
             ) {
                 return Result.success()
             }
@@ -64,10 +62,8 @@ class AiTaskReminderWorker(
                 expectedUserId = expectedUserId,
             )
             if (posted && com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = expectedUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = expectedUserId,
+            )
             ) {
                 dao.markReminded(task.id, now)
             } else if (!posted) {
@@ -116,10 +112,8 @@ class AiTaskReminderReconcileWorker(
             val app = applicationContext as MaodouchatApp
             app.database.aiTaskDao().getPendingReminders().forEach { task ->
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = expectedUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = expectedUserId,
+                )
                 ) {
                     return Result.success()
                 }

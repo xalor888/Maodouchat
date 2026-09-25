@@ -610,18 +610,14 @@ class ContactsViewModel @JvmOverloads constructor(
         if (token.isBlank() || ownerUserId.isBlank()) return
         viewModelScope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tm.getToken(),
-                    liveUserId = tm.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) return@launch
             val liveToken = tm.getToken().orEmpty().ifBlank { token }
             val result = groupInviteLoader(liveToken)
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tm.getToken(),
-                    liveUserId = tm.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) return@launch
             val invites = result.getOrNull() ?: return@launch
             _uiState.update {
@@ -656,10 +652,8 @@ class ContactsViewModel @JvmOverloads constructor(
         if (token.isBlank() || ownerUserId.isBlank() || _uiState.value.isGroupInviteBusy) return
         viewModelScope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tm.getToken(),
-                    liveUserId = tm.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) return@launch
             _uiState.update { it.copy(isGroupInviteBusy = true, errorMessage = null, infoMessage = null) }
             try {
@@ -670,10 +664,8 @@ class ContactsViewModel @JvmOverloads constructor(
                     groupInviteDecliner(liveToken, inviteId)
                 }
                 if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tm.getToken(),
-                        liveUserId = tm.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) return@launch
                 result.fold(
                     onSuccess = {

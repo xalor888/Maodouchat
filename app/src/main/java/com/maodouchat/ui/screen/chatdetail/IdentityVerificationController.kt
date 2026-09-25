@@ -43,8 +43,6 @@ class IdentityVerificationController(
             safetyOwnerUserId == "me" ||
             !BackgroundSessionGate.mayContinue(
                 expectedUserId = safetyOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return
@@ -53,10 +51,8 @@ class IdentityVerificationController(
             uiState.update { it.copy(isLoadingDeviceSafety = true, deviceSafetyWarning = null) }
             try {
                 if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = safetyOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = safetyOwnerUserId,
+                )
                 ) {
                     uiState.update { it.copy(isLoadingDeviceSafety = false) }
                     return@launch
@@ -66,10 +62,8 @@ class IdentityVerificationController(
                     signalProtocol.getRemoteDeviceSafetyStates(liveToken, contactId)
                 }
                 if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = safetyOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = safetyOwnerUserId,
+                )
                 ) {
                     uiState.update { it.copy(isLoadingDeviceSafety = false) }
                     return@launch
@@ -77,10 +71,8 @@ class IdentityVerificationController(
                 result.fold(
                     onSuccess = { states ->
                         if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = safetyOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = safetyOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -110,10 +102,8 @@ class IdentityVerificationController(
                     },
                     onFailure = {
                         if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = safetyOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = safetyOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -152,8 +142,6 @@ class IdentityVerificationController(
             verifyOwnerUserId == "me" ||
             !BackgroundSessionGate.mayContinue(
                 expectedUserId = verifyOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return
@@ -161,19 +149,15 @@ class IdentityVerificationController(
         val targetDeviceId = deviceId ?: 1
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = verifyOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = verifyOwnerUserId,
+            )
             ) {
                 return@launch
             }
             val success = withContext(Dispatchers.IO) { signalProtocol.markIdentityVerified(contactId, targetDeviceId) }
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = verifyOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = verifyOwnerUserId,
+            )
             ) {
                 return@launch
             }
@@ -202,8 +186,6 @@ class IdentityVerificationController(
             verifyOwnerUserId == "me" ||
             !BackgroundSessionGate.mayContinue(
                 expectedUserId = verifyOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return
@@ -212,10 +194,8 @@ class IdentityVerificationController(
             var allSuccess = true
             for (device in devices) {
                 if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = verifyOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = verifyOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -225,10 +205,8 @@ class IdentityVerificationController(
                 if (!ok) allSuccess = false
             }
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = verifyOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = verifyOwnerUserId,
+            )
             ) {
                 return@launch
             }

@@ -234,10 +234,8 @@ fun ChatDetailViewModel.requestAiSummary(
             _uiState.value.messages
         }
         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = summaryOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = summaryOwnerUserId,
+        )
         ) {
             return@launch
         }

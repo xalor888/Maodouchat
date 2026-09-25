@@ -10,7 +10,6 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.network.RealtimeDisconnectPolicy
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
@@ -32,7 +31,6 @@ import kotlinx.coroutines.launch
 internal class ChatListRealtimeCoordinator(
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<ChatListUiState>,
-    private val tokenManager: TokenManager,
     private val realtimeEventDispatcher: RealtimeEventDispatcher,
     private val notificationCenter: NotificationCenterRepository,
     private val chatReadEvents: SharedFlow<MaodouchatApp.Companion.ChatReadEvent>,
@@ -180,10 +178,8 @@ internal class ChatListRealtimeCoordinator(
                                 Log.w(TAG, "Failed to store admin broadcast", error)
                             }
                             if (!BackgroundSessionGate.mayContinue(
-                                    expectedUserId = liveUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
+                                expectedUserId = liveUserId,
+                            )
                             ) return@collect
                             uiState.update {
                                 it.copy(realtimeBanner = projection.bannerText)
@@ -217,10 +213,8 @@ internal class ChatListRealtimeCoordinator(
                         // Collector already blank-checks token/userId; re-check so buffered events
                         // after switch do not paint previous-owner online dots onto the new list.
                         if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = liveUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = liveUserId,
+                        )
                         ) {
                             return@collect
                         }
@@ -236,10 +230,8 @@ internal class ChatListRealtimeCoordinator(
                             }
                         }
                         if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = liveUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = liveUserId,
+                        )
                         ) return@collect
                         uiState.update { state ->
                             state.copy(

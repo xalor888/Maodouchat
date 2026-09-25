@@ -135,8 +135,6 @@ internal fun ChatDetailViewModel.forgotChatLockAndClearLocal() {
             ownerUserId.isBlank() ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return@launch
@@ -191,8 +189,6 @@ internal fun ChatDetailViewModel.clearLocalChatHistory() {
             ownerUserId.isBlank() ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }

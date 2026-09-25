@@ -77,18 +77,14 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
                 var avatar = local?.avatar
                 if (token.isNotBlank() && userId.isNotBlank()) {
                     if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = userId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = userId,
+                    )
                     ) {
                         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
                         UserNetworkRepository().currentUser(liveToken).onSuccess { me ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = userId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
+                                expectedUserId = userId,
+                            )
                             ) {
                                 return@onSuccess
                             }

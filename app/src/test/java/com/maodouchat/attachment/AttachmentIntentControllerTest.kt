@@ -45,6 +45,8 @@ class AttachmentIntentControllerTest {
         every { mockPrefs.getBoolean(any(), any()) } returns true
 
         every { mockTokenManager.getUserId() } returns "user-owner"
+
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { mockTokenManager.getToken() to mockTokenManager.getUserId() }
         every { mockTokenManager.getToken() } returns "valid-token"
 
         fakeTransferRepo = FakeTransferRepository()

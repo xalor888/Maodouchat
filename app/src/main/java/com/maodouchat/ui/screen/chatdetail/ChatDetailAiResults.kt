@@ -388,10 +388,8 @@ fun ChatDetailViewModel.setAiEnabledForChat(enabled: Boolean) {
             _uiState.update { it.copy(isUpdatingAiSetting = true, groupEncryptionWarning = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(isUpdatingAiSetting = false, groupEncryptionWarning = text(R.string.error_session_expired))
@@ -399,10 +397,8 @@ fun ChatDetailViewModel.setAiEnabledForChat(enabled: Boolean) {
                     return@launch
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(isUpdatingAiSetting = false, groupEncryptionWarning = text(R.string.error_session_expired))

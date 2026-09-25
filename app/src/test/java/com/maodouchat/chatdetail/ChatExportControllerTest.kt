@@ -48,6 +48,8 @@ class ChatExportControllerTest {
         mockContext = mockk(relaxed = true)
 
         every { tokenManager.getUserId() } returns "user_me"
+
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
         every { tokenManager.getToken() } returns "valid_token"
 
         controller = ChatExportController(

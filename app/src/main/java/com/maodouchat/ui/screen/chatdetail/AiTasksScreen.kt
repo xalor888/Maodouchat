@@ -147,8 +147,6 @@ class AiTasksViewModel(
         if (ownerUserId.isBlank()) return false
         return com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = ownerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
     }
 

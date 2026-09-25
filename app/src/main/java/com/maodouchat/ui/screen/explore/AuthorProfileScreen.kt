@@ -136,10 +136,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
         val job = viewModelScope.launch {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = loadOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = loadOwnerUserId,
+                )
                 ) {
                     if (loadGeneration == generation) {
                         _uiState.update { it.copy(isLoading = false) }
@@ -149,10 +147,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                 val liveToken = tokenManager.getToken() ?: token
                 UserNetworkRepository().user(liveToken, authorId).onSuccess { author ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = loadOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = loadOwnerUserId,
+                    )
                     ) {
                         return@onSuccess
                     }
@@ -171,10 +167,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     }
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = loadOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = loadOwnerUserId,
+                )
                 ) {
                     if (loadGeneration == generation) {
                         _uiState.update { it.copy(isLoading = false) }
@@ -185,10 +179,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                 PostNetworkRepository().posts(tokenManager.getToken() ?: liveToken, limit = AUTHOR_PAGE_SIZE, authorId = authorId).fold(
                     onSuccess = { posts ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = loadOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -239,10 +231,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                 _uiState.update { it.copy(isLoadingMore = true, errorMessage = null) }
                 try {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = ownerUserId,
+                    )
                     ) {
                         _uiState.update { it.copy(isLoadingMore = false) }
                         return@withLock
@@ -306,10 +296,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
             _uiState.update { it.copy(isBlocking = true, infoMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     _uiState.update { it.copy(isBlocking = false) }
                     return@launch
@@ -371,10 +359,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = likeOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = likeOwnerUserId,
+                )
                 ) {
                     _uiState.update { state ->
                         state.copy(
@@ -389,10 +375,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                 result.fold(
                     onSuccess = { updated ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = likeOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = likeOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }

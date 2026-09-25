@@ -139,10 +139,8 @@ fun ChatDetailViewModel.sendLiveLocation(durationMs: Long = com.maodouchat.util.
         _uiState.update { it.copy(isSending = true, groupEncryptionWarning = null) }
         try {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = locOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = locOwnerUserId,
+            )
             ) {
                 _uiState.update { it.copy(isSending = false, groupEncryptionWarning = text(R.string.error_session_expired)) }
                 return@launch
@@ -150,10 +148,8 @@ fun ChatDetailViewModel.sendLiveLocation(durationMs: Long = com.maodouchat.util.
             com.maodouchat.util.LocationProvider.currentLocation(getApplication()).fold(
                 onSuccess = { location ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = locOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = locOwnerUserId,
+                    )
                     ) {
                         _uiState.update { it.copy(isSending = false, groupEncryptionWarning = text(R.string.error_session_expired)) }
                         return@fold
@@ -318,10 +314,8 @@ internal suspend fun ChatDetailViewModel.updateLiveLocationMessage(
     val ownerUserId = currentUserId
     if (token.isBlank() || ownerUserId.isBlank()) return@withLock
     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-            expectedUserId = ownerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
-        )
+        expectedUserId = ownerUserId,
+    )
     ) return@withLock
     val stagedOriginal = _uiState.value.messages.firstOrNull { it.id == messageId }
         ?.takeIf { it.senderId == ownerUserId && it.type == MessageType.LOCATION }
@@ -352,10 +346,8 @@ internal suspend fun ChatDetailViewModel.updateLiveLocationMessage(
             refreshPreview = false,
         )
         if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) {
             _uiState.update { state ->
                 state.copy(messages = state.messages.map { if (it.id == messageId) updated else it })
@@ -384,10 +376,8 @@ fun ChatDetailViewModel.sendCurrentLocation() {
         _uiState.update { it.copy(isSending = true, groupEncryptionWarning = null) }
         try {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = locOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = locOwnerUserId,
+            )
             ) {
                 _uiState.update { it.copy(isSending = false, groupEncryptionWarning = text(R.string.error_session_expired)) }
                 return@launch
@@ -395,10 +385,8 @@ fun ChatDetailViewModel.sendCurrentLocation() {
             com.maodouchat.util.LocationProvider.currentLocation(getApplication()).fold(
                 onSuccess = { location ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = locOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = locOwnerUserId,
+                    )
                     ) {
                         _uiState.update { it.copy(isSending = false, groupEncryptionWarning = text(R.string.error_session_expired)) }
                         return@fold

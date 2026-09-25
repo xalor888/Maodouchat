@@ -53,10 +53,8 @@ object MissedCallRecorder {
         )
         // Re-check after suspend points in Room path setup (token clear mid-call).
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = userId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = userId,
+        )
         ) {
             return
         }
@@ -86,10 +84,8 @@ object MissedCallRecorder {
             expectedUserId = userId
         )
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = userId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = userId,
+        )
         ) {
             repo.delete(missedId)
             return
@@ -97,10 +93,8 @@ object MissedCallRecorder {
         if (MissedCallTimeoutPolicy.shouldShowTray(NotificationPreferences.notificationsEnabled(appCtx))) {
             // Tray prefs are account-scoped; skip if session already gone.
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = userId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = userId,
+            )
             ) {
                 return
             }

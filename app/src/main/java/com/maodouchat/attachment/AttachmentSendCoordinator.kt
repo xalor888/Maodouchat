@@ -97,10 +97,8 @@ internal class AttachmentSendCoordinator(
 
     private fun ensureSession(ownerUserId: String) {
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) {
             throw CancellationException("attachment_prepare_session_changed")
         }

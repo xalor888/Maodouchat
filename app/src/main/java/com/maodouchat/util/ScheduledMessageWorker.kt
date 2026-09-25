@@ -55,10 +55,8 @@ class ScheduledMessageWorker(
             }
         }
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) {
             return@withContext if (runAttemptCount >= MAX_TRANSIENT_RETRIES) {
                 abandonScheduledMessage(scheduledDao, item, scheduleId, expectedOwnerUserId)

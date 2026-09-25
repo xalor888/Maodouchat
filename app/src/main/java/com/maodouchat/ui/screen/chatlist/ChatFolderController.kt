@@ -40,10 +40,8 @@ class ChatFolderController(
         if (token.isBlank() || ownerUserId.isBlank()) return
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) return@launch
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
             val remoteResult = ChatFolderNetworkRepository().folders(liveToken)
@@ -51,10 +49,8 @@ class ChatFolderController(
             if (remoteError is CancellationException) throw remoteError
             val remote = remoteResult.getOrNull() ?: return@launch
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) return@launch
             val local = ChatFolderPreferences.getFolders(context)
             if (remote.folders.isEmpty() && local.isNotEmpty()) {
@@ -89,10 +85,8 @@ class ChatFolderController(
         if (token.isBlank() || ownerUserId.isBlank()) return
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) return@launch
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
             val payload = folders.map { folder ->

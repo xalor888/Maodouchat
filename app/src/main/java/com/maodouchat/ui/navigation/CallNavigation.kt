@@ -115,8 +115,6 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                 pollGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration() ||
                 !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = pollUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
             ) {
                 return@onSuccess
@@ -249,8 +247,6 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                 signalOwnerUserId.isBlank() ||
                 !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = signalOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
             ) {
                 return@collect
@@ -276,10 +272,8 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                             launch {
                                 try {
                                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = hangupOwnerUserId,
-                                            liveToken = tokenManager.getToken(),
-                                            liveUserId = tokenManager.getUserId(),
-                                        )
+                                        expectedUserId = hangupOwnerUserId,
+                                    )
                                     ) {
                                         return@launch
                                     }
@@ -311,10 +305,8 @@ internal fun IncomingCallObserver(navController: NavHostController) {
             }
             if (event.type == "offer" && com.maodouchat.call.CallOfferSelector.isDirectRingOffer(event.groupId, event.groupInvite)) {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = signalOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = signalOwnerUserId,
+                )
                 ) {
                     return@collect
                 }
@@ -336,8 +328,6 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                         token.isNotBlank() &&
                         com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = signalOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
                         )
                     ) {
                         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
@@ -402,8 +392,6 @@ internal fun IncomingCallObserver(navController: NavHostController) {
                         liveOwner.isNotBlank() &&
                         com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = liveOwner,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
                         )
                     ) {
                         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
@@ -455,8 +443,6 @@ private suspend fun resolveCallerAndNavigate(
         ownerUserId.isNotBlank() &&
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = ownerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
     ) {
         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
@@ -469,8 +455,6 @@ private suspend fun resolveCallerAndNavigate(
         ownerUserId.isBlank() ||
         !com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = ownerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
     ) {
         return

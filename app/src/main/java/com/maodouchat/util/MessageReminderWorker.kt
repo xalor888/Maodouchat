@@ -8,7 +8,6 @@ import androidx.work.WorkerParameters
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toModel
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 
 /**
@@ -28,12 +27,9 @@ class MessageReminderWorker(
         val app = applicationContext as? MaodouchatApp
         val reminderDao = app?.database?.messageReminderDao()
             ?: AppDatabase.getInstance(applicationContext).messageReminderDao()
-        val tokenManager = TokenManager.getInstance(applicationContext)
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) {
             // 账号已切换/登出：提醒作废
             reminderDao.deleteById(reminderId, ownerUserId)

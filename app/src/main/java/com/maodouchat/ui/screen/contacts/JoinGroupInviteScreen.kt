@@ -62,8 +62,6 @@ fun JoinGroupInviteScreen(
             sessionGate = {
                 BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
             },
             join = { auth, invite -> ContactNetworkRepository().joinGroupByInvite(auth, invite) },

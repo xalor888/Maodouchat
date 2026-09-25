@@ -104,10 +104,8 @@ internal class AttachmentDownloadCoordinator(
 
     private fun requireSession(ownerUserId: String) {
         if (ownerUserId.isBlank() || !BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) {
             throw CancellationException("attachment_download_session_changed")
         }

@@ -37,10 +37,8 @@ import kotlinx.serialization.json.Json
         }
         viewModelScope.launch {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 aiSettingsLoaded = true
                 return@launch

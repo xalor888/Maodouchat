@@ -75,8 +75,6 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     private fun loadWritingStyleSnapshot(): AiWritingStylePolicy.Snapshot =

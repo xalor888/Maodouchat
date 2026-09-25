@@ -59,8 +59,6 @@ class ImageOcrAutoIndexer(
     private fun sessionGate(expectedUserId: String, tokenManager: TokenManager): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     private fun preconditionsMet(): Boolean {

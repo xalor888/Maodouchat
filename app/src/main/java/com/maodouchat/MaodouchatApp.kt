@@ -323,8 +323,6 @@ class MaodouchatApp : Application() {
                     fun stillCurrent(): Boolean =
                         com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = userId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
                         )
                     if (!stillCurrent()) return@launch
                     signalProtocol.initialize(token, userId)
@@ -386,11 +384,7 @@ class MaodouchatApp : Application() {
                 try { signalProtocol.replenishPreKeysIfNeeded(t, ownerId) }
                 catch (e: kotlinx.coroutines.CancellationException) { throw e }
                 catch (e: Exception) { android.util.Log.w("MaodouchatApp", "PreKey replenish failed", e) }
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        ownerId,
-                        tm.getToken(),
-                        tm.getUserId(),
-                    )
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(ownerId)
                 ) continue
                 try { signalProtocol.rotateSignedPreKeyIfNeeded(t, ownerId) }
                 catch (e: kotlinx.coroutines.CancellationException) { throw e }

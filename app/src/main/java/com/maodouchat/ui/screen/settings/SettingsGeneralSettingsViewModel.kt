@@ -81,8 +81,6 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     init {
@@ -439,10 +437,8 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
     val job = viewModelScope.launch {
         try {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 // 8.38：门禁失败需复位 isSaving，否则弹窗转圈且无法关闭
                 _uiState.update { it.copy(isSaving = false, errorMessage = text(R.string.error_session_expired)) }
@@ -452,10 +448,8 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
             AccountSecurityNetworkRepository().changePassword(liveToken, old, new).fold(
                 onSuccess = {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = ownerUserId,
+                    )
                     ) {
                         // 8.38：成功路径二次门禁失败也需复位，否则弹窗无法关闭
                         _uiState.update { it.copy(isSaving = false) }
@@ -465,10 +459,8 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                     // 否则下一次 401→refresh 失败会走 tokenExpired 并 destroyEncryptedDatabase。
                     val purged = withContext(kotlinx.coroutines.NonCancellable) {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             return@withContext false
                         }
@@ -497,10 +489,8 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                 },
                 onFailure = { error ->
                     if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = ownerUserId,
+                    )
                     ) {
                         _uiState.update { it.copy(isSaving = false, errorMessage = error.message ?: text(R.string.settings_password_change_failed)) }
                     }
@@ -508,20 +498,16 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
             )
         } catch (error: kotlinx.coroutines.CancellationException) {
             if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 _uiState.update { it.copy(isSaving = false) }
             }
             throw error
         } catch (error: Throwable) {
             if (com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 _uiState.update {
                     it.copy(

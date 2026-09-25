@@ -53,6 +53,7 @@ class ChatListMutationCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
         val cached = mutableListOf<List<Chat>>()
         var remoteCalls = 0
         val coordinator = buildCoordinator(
@@ -94,6 +95,7 @@ class ChatListMutationCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
         val inFlight = mutableSetOf("c1")
         var remoteCalls = 0
         val coordinator = buildCoordinator(
@@ -120,6 +122,7 @@ class ChatListMutationCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
         val deleted = mutableSetOf<String>()
         var cleaned = false
         val coordinator = buildCoordinator(
@@ -150,6 +153,7 @@ class ChatListMutationCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
+        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
         val coordinator = buildCoordinator(
             uiState = uiState,
             tokenManager = tokenManager,

@@ -267,8 +267,6 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
     private fun sessionActive(tokenManager: TokenManager, expectedOwnerUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedOwnerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     private fun ensureSessionActive(tokenManager: TokenManager, expectedOwnerUserId: String) {

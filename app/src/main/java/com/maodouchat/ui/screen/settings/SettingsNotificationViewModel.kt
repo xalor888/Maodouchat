@@ -99,8 +99,6 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     // 8.34 修复：sync 失败持久化标记——上次会话有未同步的本地修改时，新 ViewModel 的
@@ -374,10 +372,8 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
                 syncMutex.withLock {
                     if (generation != syncGeneration) return@withLock
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = syncOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = syncOwnerUserId,
+                    )
                     ) {
                         return@withLock
                     }

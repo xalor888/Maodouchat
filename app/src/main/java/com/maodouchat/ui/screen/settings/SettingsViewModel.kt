@@ -97,8 +97,6 @@ class SettingsViewModel @JvmOverloads constructor(
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     private fun loadUserInfo() {
@@ -236,10 +234,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = profileOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = profileOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -247,10 +243,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 accountApi.updateProfile(liveToken, status = status).fold(
                     onSuccess = { user ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = profileOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = profileOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -297,10 +291,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = profileOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = profileOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -308,10 +300,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 accountApi.updateProfile(liveToken, name = name).fold(
                     onSuccess = { user ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = profileOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = profileOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -347,10 +337,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 }
                 if (base64 != null) {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = uploadOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = uploadOwnerUserId,
+                    )
                     ) {
                         if (tokenManager.getUserId() == uploadOwnerUserId) {
                             _uiState.update {
@@ -364,10 +352,8 @@ class SettingsViewModel @JvmOverloads constructor(
                     accountApi.uploadAvatar(token, base64).fold(
                         onSuccess = { url ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = uploadOwnerUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
+                                expectedUserId = uploadOwnerUserId,
+                            )
                             ) {
                                 return@fold
                             }
@@ -490,10 +476,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isLoadingBlockedUsers = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     if (tokenManager.getUserId() == ownerUserId) {
                         _uiState.update {
@@ -506,10 +490,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 accountApi.blockedUserDetails(liveToken).fold(
                     onSuccess = { users ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -542,10 +524,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isUploading = true) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -590,10 +570,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isUpdatingBlockedUsers = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -601,10 +579,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 accountApi.unblock(liveToken, userId).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -645,10 +621,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isLoadingDevices = true, currentDeviceId = currentDeviceId, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = userId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = userId,
+                )
                 ) {
                     if (tokenManager.getUserId() == userId) {
                         _uiState.update {
@@ -661,10 +635,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 accountApi.devices(liveToken, userId, currentDeviceId).fold(
                     onSuccess = { devices ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = userId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = userId,
+                        )
                         ) {
                             return@fold
                         }
@@ -705,10 +677,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(removingDeviceId = deviceId, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     // 8.38：门禁失败复位 removingDeviceId
                     _uiState.update { it.copy(removingDeviceId = null, errorMessage = text(R.string.error_session_expired)) }
@@ -718,10 +688,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 accountApi.removeDevice(liveToken, deviceId).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -765,10 +733,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(renamingDeviceId = deviceId, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     // 8.38：门禁失败复位 renamingDeviceId
                     _uiState.update { it.copy(renamingDeviceId = null, errorMessage = text(R.string.error_session_expired)) }
@@ -778,10 +744,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 accountApi.renameDevice(liveToken, deviceId, trimmed).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -834,10 +798,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(confirmingDeviceId = deviceId, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -845,10 +807,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 accountApi.confirmDevice(liveToken, deviceId, approverDeviceId, approvalSignature).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -900,10 +860,8 @@ class SettingsViewModel @JvmOverloads constructor(
             }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = privacyOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = privacyOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -923,10 +881,8 @@ class SettingsViewModel @JvmOverloads constructor(
                 ).fold(
                     onSuccess = { privacy ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = privacyOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = privacyOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -1047,10 +1003,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isLoggingOutAll = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     _uiState.update { it.copy(isLoggingOutAll = false, errorMessage = text(R.string.error_session_expired)) }
                     return@launch
@@ -1102,10 +1056,8 @@ class SettingsViewModel @JvmOverloads constructor(
             _uiState.update { it.copy(isDeletingAccount = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = deleteOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = deleteOwnerUserId,
+                )
                 ) {
                     // 8.38：门禁失败复位 isDeletingAccount，否则删号弹窗永久转圈
                     _uiState.update { it.copy(isDeletingAccount = false, errorMessage = text(R.string.error_session_expired)) }

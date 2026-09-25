@@ -459,10 +459,8 @@ fun ScanScreen(
                             return@launch
                         }
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = scanOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = scanOwnerUserId,
+                        )
                         ) {
                             if (cached == null) {
                                 scannedUserError = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
@@ -474,10 +472,8 @@ fun ScanScreen(
                         // 会把「有效用户码」误判为「查不到用户」，且无法区分网络错误
                         com.maodouchat.data.repository.UserNetworkRepository().user(liveToken, target.userId).onSuccess { dto ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = scanOwnerUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
+                                expectedUserId = scanOwnerUserId,
+                            )
                             ) {
                                 return@onSuccess
                             }
@@ -699,10 +695,8 @@ fun ScanScreen(
                                 scope.launch {
                                     try {
                                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                                expectedUserId = ownerUserId,
-                                                liveToken = tokenManager.getToken(),
-                                                liveUserId = tokenManager.getUserId(),
-                                            )
+                                            expectedUserId = ownerUserId,
+                                        )
                                         ) {
                                             scannedUserFriendMessage = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
                                             return@launch

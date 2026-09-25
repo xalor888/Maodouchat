@@ -9,7 +9,6 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.NotificationCenterRepository
-import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListRealtimeCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListReloadPolicy
@@ -233,14 +232,11 @@ class ChatListRealtimeCoordinatorTest {
         onClearMarkedUnreadAfterOpen: (Chat) -> Unit = {},
         onRequestBacklogSync: () -> Unit = {},
     ): ChatListRealtimeCoordinator {
-        val tokenManager = mockk<TokenManager>(relaxed = true)
-        every { tokenManager.getToken() } returns tokenValue
-        every { tokenManager.getUserId() } returns tokenUserId
+    com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenValue to tokenUserId }
         val notificationCenter = mockk<NotificationCenterRepository>(relaxed = true)
         return ChatListRealtimeCoordinator(
             scope = scope,
             uiState = uiState,
-            tokenManager = tokenManager,
             realtimeEventDispatcher = realtime,
             notificationCenter = notificationCenter,
             chatReadEvents = chatReadEvents,

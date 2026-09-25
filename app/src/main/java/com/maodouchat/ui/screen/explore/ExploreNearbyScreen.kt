@@ -496,10 +496,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     _uiState.update { it.copy(isLoading = false) }
                     return@launch
@@ -507,10 +505,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                 val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
                 NearbyNetworkRepository().status(liveToken).onSuccess { status ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = ownerUserId,
+                    )
                     ) {
                         return@onSuccess
                     }
@@ -547,10 +543,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     _uiState.update { it.copy(isLoading = false, errorMessage = text(R.string.error_session_expired)) }
                     return@launch
@@ -558,10 +552,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                 com.maodouchat.util.LocationProvider.currentLocation(getApplication()).fold(
                     onSuccess = { location ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             _uiState.update { it.copy(isLoading = false) }
                             return@fold
@@ -570,10 +562,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                         NearbyNetworkRepository().updateLocation(liveToken, location.latitude, location.longitude).fold(
                             onSuccess = { status ->
                                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                        expectedUserId = ownerUserId,
-                                        liveToken = tokenManager.getToken(),
-                                        liveUserId = tokenManager.getUserId(),
-                                    )
+                                    expectedUserId = ownerUserId,
+                                )
                                 ) {
                                     return@fold
                                 }
@@ -606,10 +596,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
             // 重新广播到服务端（stop 晚到被反转，位置对他人可见直到 TTL）
             ++refreshGeneration
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
@@ -618,10 +606,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
             NearbyNetworkRepository().stopSharing(liveToken).fold(
                 onSuccess = {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = ownerUserId,
+                    )
                     ) {
                         return@fold
                     }
@@ -657,10 +643,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     if (generation == refreshGeneration) _uiState.update { it.copy(isLoading = false) }
                     return@launch
@@ -669,10 +653,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                 if (com.maodouchat.util.LocationProvider.hasLocationPermission(getApplication())) {
                     com.maodouchat.util.LocationProvider.currentLocation(getApplication()).onSuccess { location ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             return@onSuccess
                         }
@@ -681,10 +663,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                         if (generation != refreshGeneration || !_uiState.value.isSharing) return@onSuccess
                         NearbyNetworkRepository().updateLocation(liveToken, location.latitude, location.longitude).onSuccess { status ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = ownerUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
+                                expectedUserId = ownerUserId,
+                            )
                             ) {
                                 return@onSuccess
                             }
@@ -696,10 +676,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                 NearbyNetworkRepository().nearbyUsers(liveToken, radiusKm = radiusKm).fold(
                     onSuccess = { dtos ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = ownerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = ownerUserId,
+                        )
                         ) {
                             return@fold
                         }

@@ -67,8 +67,6 @@ class GroupDetailViewModel(
         sessionActive = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         },
         fetchChat = { liveToken, targetChatId ->
@@ -121,8 +119,6 @@ class GroupDetailViewModel(
                     revisionOwnerUserId.isBlank() ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = revisionOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
                     )
                 ) {
                     return@collect
@@ -184,10 +180,8 @@ class GroupDetailViewModel(
                     if (event.memberRevision > _uiState.value.memberRevision) {
                         withContext(Dispatchers.IO) {
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = revisionOwnerUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
+                                expectedUserId = revisionOwnerUserId,
+                            )
                             ) {
                                 return@withContext
                             }
@@ -199,10 +193,8 @@ class GroupDetailViewModel(
                         }
                     }
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = revisionOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = revisionOwnerUserId,
+                    )
                     ) {
                         return@collect
                     }
@@ -235,10 +227,8 @@ class GroupDetailViewModel(
             _uiState.update { it.copy(isLoading = true, message = feedbackMessage, feedback = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = loadOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = loadOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(
@@ -255,10 +245,8 @@ class GroupDetailViewModel(
                 val loaded = withContext(Dispatchers.IO) {
                     try {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = loadOwnerUserId,
+                        )
                         ) {
                             throw kotlinx.coroutines.CancellationException("group_load_session_changed")
                         }
@@ -320,10 +308,8 @@ class GroupDetailViewModel(
                 loaded.fold(
                     onSuccess = { next ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = loadOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -377,10 +363,8 @@ class GroupDetailViewModel(
         viewModelScope.launch {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = auditOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = auditOwnerUserId,
+                )
                 ) {
                     _uiState.update { it.copy(isLoadingMoreAudit = false) }
                     return@launch
@@ -389,10 +373,8 @@ class GroupDetailViewModel(
                 val page = groupAuditController.fetchAuditLogs(chatId, limit = 100, offset = offset).getOrNull().orEmpty()
                 auditNextOffset = offset + page.size
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = auditOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = auditOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -463,10 +445,8 @@ class GroupDetailViewModel(
             _uiState.update { it.copy(isLoadingInvite = true, message = null, feedback = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = inviteOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = inviteOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(
@@ -488,10 +468,8 @@ class GroupDetailViewModel(
                 result.fold(
                     onSuccess = { res ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = inviteOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = inviteOwnerUserId,
+                        )
                         ) {
                             _uiState.update { it.copy(isLoadingInvite = false) }
                             return@fold
@@ -552,10 +530,8 @@ class GroupDetailViewModel(
             _uiState.update { it.copy(isUploadingAvatar = true, message = null, feedback = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = avatarOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = avatarOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(
@@ -587,10 +563,8 @@ class GroupDetailViewModel(
                     return@launch
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = avatarOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = avatarOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(
@@ -607,10 +581,8 @@ class GroupDetailViewModel(
                 groupLifecycleService.uploadAvatar(chatId, base64).fold(
                     onSuccess = { url ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = avatarOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = avatarOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -733,10 +705,8 @@ class GroupDetailViewModel(
             _uiState.update { it.copy(isUpdating = true, message = null, feedback = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = redisOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = redisOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(
@@ -880,10 +850,8 @@ class GroupDetailViewModel(
             _uiState.update { it.copy(isUpdating = true, message = null, feedback = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = mutationOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = mutationOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(
@@ -909,10 +877,8 @@ class GroupDetailViewModel(
                 result.fold(
                     onSuccess = { commit ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = mutationOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = mutationOwnerUserId,
+                        )
                         ) {
                             _uiState.update { it.copy(isUpdating = false) }
                             return@fold
@@ -961,19 +927,15 @@ class GroupDetailViewModel(
             _uiState.update { it.copy(isInvitingBot = true, message = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) return@launch
                 val result = withContext(Dispatchers.IO) {
                     groupBotController.inviteBot(chatId, botId)
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) return@launch
                 result.fold(
                     onSuccess = {

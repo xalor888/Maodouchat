@@ -317,10 +317,8 @@ class DefaultAttachmentIntentController(
 
     private fun ensureSessionActive(expectedOwnerUserId: String) {
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = expectedOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = expectedOwnerUserId,
+        )
         ) {
             throw CancellationException("attachment_session_changed")
         }

@@ -128,7 +128,7 @@ class ExploreOrchestrator(
         privacyDefaultsJob?.cancel()
         val job = scope.launch {
             try {
-                if (!BackgroundSessionGate.mayContinue(ownerUserId, tokenManager.getToken(), tokenManager.getUserId())) return@launch
+                if (!BackgroundSessionGate.mayContinue(ownerUserId)) return@launch
                 val liveToken = tokenManager.getToken() ?: token
                 AccountSecurityNetworkRepository().privacy(liveToken).fold(
                     onSuccess = { privacy ->
@@ -313,7 +313,7 @@ class ExploreOrchestrator(
         }
         val job = scope.launch {
             try {
-                if (!BackgroundSessionGate.mayContinue(commentsOwnerUserId, tokenManager.getToken(), tokenManager.getUserId())) {
+                if (!BackgroundSessionGate.mayContinue(commentsOwnerUserId)) {
                     if (commentsGeneration == generation && isCurrentOwner(commentsOwnerUserId)) {
                         _uiState.update { it.copy(isCommentsLoading = false) }
                     }

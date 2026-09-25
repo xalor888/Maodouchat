@@ -154,10 +154,8 @@ internal class AttachmentSendWorkflow(
 
     private fun checkSession(ownerUserId: String) {
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) {
             throw CancellationException("attachment_send_session_changed")
         }

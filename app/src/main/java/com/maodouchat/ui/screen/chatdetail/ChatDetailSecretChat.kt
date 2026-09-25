@@ -89,10 +89,8 @@ internal fun ChatDetailViewModel.startSecretChat() {
     }
     viewModelScope.launch(Dispatchers.IO) {
         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return@launch

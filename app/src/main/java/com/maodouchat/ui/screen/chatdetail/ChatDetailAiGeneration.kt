@@ -41,8 +41,6 @@ internal fun ChatDetailViewModel.captureAiRequestSnapshot(): AiRequestSnapshot? 
     if (chatId.isBlank() || state.currentUserId != userId || state.chat?.id != chatId ||
         !com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = userId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
     ) {
         return null
@@ -56,8 +54,6 @@ internal fun ChatDetailViewModel.isAiRequestCurrent(snapshot: AiRequestSnapshot)
         _uiState.value.chat?.id == snapshot.chatId &&
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = snapshot.userId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
 internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnapshot) {

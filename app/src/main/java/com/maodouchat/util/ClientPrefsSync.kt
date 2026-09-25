@@ -23,10 +23,8 @@ object ClientPrefsSync {
         val ownerUserId = tokenManager.getUserId().orEmpty()
         if (token.isBlank() || ownerUserId.isBlank()) return null
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) return null
         val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
         val result = ApiService.getClientPrefs(liveToken)
@@ -34,10 +32,8 @@ object ClientPrefsSync {
         if (error is kotlinx.coroutines.CancellationException) throw error
         val remote = result.getOrNull() ?: return null
         if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = ownerUserId,
+        )
         ) return null
         apply(app, remote)
         return remote

@@ -215,8 +215,6 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
     private fun sessionActive(expectedOwnerUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedOwnerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     private fun ensureSessionActive(expectedOwnerUserId: String) {

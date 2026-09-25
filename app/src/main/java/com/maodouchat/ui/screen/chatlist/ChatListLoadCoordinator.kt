@@ -89,8 +89,6 @@ internal class ChatListLoadCoordinator(
             fun stillCurrent(): Boolean = requestId == loadChatsRequestId &&
                 BackgroundSessionGate.mayContinue(
                     expectedUserId = loadOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
 
             fun finishIfCurrent(errorMessage: String? = null, chats: List<Chat>? = null) {
@@ -258,10 +256,8 @@ internal class ChatListLoadCoordinator(
         val missedOwnerUserId = ownerUserId()
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = missedOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = missedOwnerUserId,
+            )
             ) {
                 return@launch
             }
@@ -274,10 +270,8 @@ internal class ChatListLoadCoordinator(
             }
             observeMissedCalls().collect { list ->
                 if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = missedOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = missedOwnerUserId,
+                )
                 ) {
                     return@collect
                 }

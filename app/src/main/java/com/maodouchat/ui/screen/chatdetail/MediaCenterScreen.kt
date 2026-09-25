@@ -138,8 +138,6 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                 ownerUserId.isBlank() ||
                 !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
             ) {
                 _uiState.update { MediaCenterUiState(items = emptyList(), isLoading = false, isChatLocked = false) }
@@ -230,8 +228,6 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                 ownerUserId.isBlank() ||
                 !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
             ) {
                 _uiState.update { MediaCenterUiState(items = emptyList(), isLoading = false, isChatLocked = false) }
@@ -239,10 +235,8 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
             }
             repository.observeMediaCenterMessages(chatId).collect { messages ->
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     _uiState.update { MediaCenterUiState(items = emptyList(), isLoading = false, isChatLocked = false) }
                     return@collect

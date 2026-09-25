@@ -302,8 +302,6 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             indexOwnerUserId.isBlank() ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = indexOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             _uiState.update {
@@ -315,10 +313,8 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             _uiState.update { it.copy(isIndexing = true, error = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = indexOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = indexOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(isIndexing = false, results = emptyList(), error = text(R.string.error_session_expired))
@@ -332,10 +328,8 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                     searchRepository.refreshIndexIfStale()
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = indexOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = indexOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(isIndexing = false, results = emptyList(), error = text(R.string.error_session_expired))
@@ -367,8 +361,6 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             searchOwnerUserId.isBlank() ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = searchOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             _uiState.update { it.copy(results = emptyList(), error = text(R.string.error_session_expired)) }
@@ -382,8 +374,6 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                     _uiState.value.mode != GlobalSearchMode.KEYWORD ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = searchOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
                     )
                 ) {
                     return@launch
@@ -408,8 +398,6 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                     _uiState.value.mode != GlobalSearchMode.KEYWORD ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = searchOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
                     )
                 ) {
                     return@launch
@@ -464,10 +452,8 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                         .let { applyTypeFilter(it, filterType) }
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = searchOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = searchOwnerUserId,
+                )
                 ) {
                     _uiState.update {
                         it.copy(isSearching = false, error = text(R.string.error_session_expired))

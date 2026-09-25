@@ -89,8 +89,6 @@ internal fun SettingsTotpSection(userId: String) {
     fun isCurrentTotpOwner(expectedUserId: String): Boolean =
         BackgroundSessionGate.mayContinue(
             expectedUserId = expectedUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     LaunchedEffect(userId) {

@@ -32,20 +32,16 @@ internal class ChatListAnnouncementCoordinator(
         if (token.isBlank() || ownerUserId.isBlank()) return
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 return@launch
             }
             val raw = fetchActiveAnnouncements(token).getOrNull().orEmpty()
             if (raw.isBlank()) return@launch
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 return@launch
             }
@@ -79,10 +75,8 @@ internal class ChatListAnnouncementCoordinator(
         if (token.isBlank() || ownerUserId.isBlank()) return
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 return@launch
             }

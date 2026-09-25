@@ -29,8 +29,6 @@ internal fun ChatDetailViewModel.startRecording() {
         recordOwnerUserId == "me" ||
         !com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = recordOwnerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
     ) {
         _uiState.update {
@@ -204,8 +202,6 @@ internal fun ChatDetailViewModel.sendVoicePreview() {
         voiceOwnerUserId == "me" ||
         !com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = voiceOwnerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
     ) {
         source.delete()
@@ -225,10 +221,8 @@ internal fun ChatDetailViewModel.sendVoicePreview() {
     viewModelScope.launch {
         try {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = voiceOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = voiceOwnerUserId,
+            )
             ) {
                 withContext(NonCancellable) {
                     source.delete()
@@ -266,10 +260,8 @@ internal fun ChatDetailViewModel.sendVoicePreview() {
                 return@launch
             }
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = voiceOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = voiceOwnerUserId,
+            )
             ) {
                 withContext(NonCancellable) {
                     prepared.delete()

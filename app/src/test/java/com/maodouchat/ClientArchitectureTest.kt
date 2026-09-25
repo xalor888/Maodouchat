@@ -216,7 +216,7 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**48 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**46 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -226,7 +226,7 @@ class ClientArchitectureTest {
      * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
      * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
      * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
-     * （G328c 全程：98 → 61 → 55 → 48）。别把它当成棘轮被放松。
+     * （G328c 全程：98 → 61 → 55 → 48 → 46）。别把它当成棘轮被放松。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
@@ -257,10 +257,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/ChatListArchiveSuggestionCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListLoadCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListLocalProjectionCoordinator.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListMissedCallCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListMutationCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListRealtimeCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListUnreadBatchCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt",
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt",
@@ -351,7 +349,7 @@ class ClientArchitectureTest {
         // 棘轮方向不变：从这里开始只许降。上调的原因是必要的 import，不是往里堆逻辑。
 
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2598,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2545,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
@@ -359,16 +357,16 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 672,
-        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1651,
+        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1635,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
         // 1100+ 行源文件全部在监。
         "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1271,
+        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1223,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
         "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -378,10 +376,10 @@ class ClientArchitectureTest {
         // **盲带**里——可以在无人知晓的情况下从 1000 长到 1100，只有越过 1100
         // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1066,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1038,
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 998,
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 1010,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 996,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
         "com/maodouchat/network/WebSocketClient.kt" to 969,
@@ -390,7 +388,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
-        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 900,
+        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 894,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 888,
     )
 
@@ -416,22 +414,22 @@ class ClientArchitectureTest {
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 3013,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2598,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2545,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 979,
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 340,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 672,
-            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1651,
+            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1635,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
             // 1100+ 行源文件全部在监。
             "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1271,
+            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1223,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
             "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -439,10 +437,10 @@ class ClientArchitectureTest {
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
         // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1066,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1038,
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 998,
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 1010,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 996,
         // G164b：Top-20 排名门禁纳入的 8 个
         "com/maodouchat/network/WebSocketClient.kt" to 969,
         "com/maodouchat/ui/component/MarkdownParser.kt" to 966,
@@ -450,7 +448,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
-        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 900,
+        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 894,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 888,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")

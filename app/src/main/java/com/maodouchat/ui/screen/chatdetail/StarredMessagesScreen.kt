@@ -157,10 +157,8 @@ class StarredMessagesViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = loadOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = loadOwnerUserId,
+                )
                 ) {
                     if (loadGeneration.get() == generation) {
                         _uiState.update { it.copy(isLoading = false, error = text(R.string.error_session_expired)) }
@@ -170,10 +168,8 @@ class StarredMessagesViewModel(
                 val result = withContext(Dispatchers.IO) {
                     try {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = loadOwnerUserId,
+                        )
                         ) {
                             throw kotlinx.coroutines.CancellationException("starred_session_changed")
                         }
@@ -232,10 +228,8 @@ class StarredMessagesViewModel(
                     onSuccess = { payload ->
                         if (loadGeneration.get() != generation) return@fold
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = loadOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = loadOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -307,10 +301,8 @@ class StarredMessagesViewModel(
         viewModelScope.launch {
             val result = PinStarNetworkRepository().toggleStar(liveToken, messageId)
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 return@launch
             }
@@ -352,20 +344,16 @@ class StarredMessagesViewModel(
             // 条目如实恢复显示，避免「清空」动作自我撤销。
             for (message in all) {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     return@launch
                 }
                 PinStarNetworkRepository().toggleStar(liveToken, message.id)
             }
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 return@launch
             }

@@ -76,8 +76,6 @@ class DefaultVersionedSettingsRepository(
     override fun isCurrent(session: SettingsSession): Boolean =
         BackgroundSessionGate.mayContinue(
             expectedUserId = session.ownerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     override suspend fun loadProfile(session: SettingsSession): Result<SettingsProfile> =

@@ -2,7 +2,6 @@ package com.maodouchat.ui.screen.chatlist
 
 import android.util.Log
 import com.maodouchat.data.model.MissedCall
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -18,7 +17,6 @@ import kotlinx.coroutines.launch
 internal class ChatListMissedCallCoordinator(
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<ChatListUiState>,
-    private val tokenManager: TokenManager,
     private val ownerUserId: () -> String,
     private val markAllRead: suspend () -> Unit,
     private val clearAll: suspend () -> Unit,
@@ -32,18 +30,14 @@ internal class ChatListMissedCallCoordinator(
             markOwnerUserId.isBlank() ||
             !BackgroundSessionGate.mayContinue(
                 expectedUserId = markOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return
         }
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = markOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = markOwnerUserId,
+            )
             ) {
                 return@launch
             }
@@ -56,10 +50,8 @@ internal class ChatListMissedCallCoordinator(
                 Log.w(TAG, "markMissedCallsRead failed", error)
             }
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = markOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = markOwnerUserId,
+            )
             ) {
                 return@launch
             }
@@ -74,18 +66,14 @@ internal class ChatListMissedCallCoordinator(
             clearOwnerUserId.isBlank() ||
             !BackgroundSessionGate.mayContinue(
                 expectedUserId = clearOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return
         }
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = clearOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = clearOwnerUserId,
+            )
             ) {
                 return@launch
             }
@@ -98,10 +86,8 @@ internal class ChatListMissedCallCoordinator(
                 Log.w(TAG, "clearMissedCalls failed", error)
             }
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = clearOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = clearOwnerUserId,
+            )
             ) {
                 return@launch
             }
@@ -133,10 +119,8 @@ internal class ChatListMissedCallCoordinator(
         if (owner.isBlank()) return
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = owner,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = owner,
+            )
             ) {
                 return@launch
             }

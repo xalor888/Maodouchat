@@ -208,8 +208,6 @@ internal class ChatDetailDeps(
         isOwnerSessionCurrent = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         },
         cleanupTerminalNotification = { message ->
@@ -250,8 +248,6 @@ internal class ChatDetailDeps(
             isOwnerSessionCurrent = { ownerUserId ->
                 com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
             },
             errors = OutgoingConversationErrors(
@@ -316,8 +312,6 @@ internal class ChatDetailDeps(
         sessionActive = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         },
         fetchChat = { liveToken, targetChatId ->
@@ -341,8 +335,6 @@ internal class ChatDetailDeps(
             sessionActive = { ownerUserId ->
                 com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
             },
             fetchTargets = { _ ->
@@ -439,8 +431,6 @@ internal class ChatDetailDeps(
         sessionActive = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         },
         currentState = host._uiState::value,
@@ -457,8 +447,6 @@ internal class ChatDetailDeps(
         sessionActive = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         },
         currentState = host._uiState::value,
@@ -474,8 +462,6 @@ internal class ChatDetailDeps(
         sessionActive = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         },
         currentState = host._uiState::value,
@@ -493,8 +479,6 @@ internal class ChatDetailDeps(
         sessionActive = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         },
         currentState = host._uiState::value,

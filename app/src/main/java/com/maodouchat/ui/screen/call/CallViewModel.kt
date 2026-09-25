@@ -264,20 +264,16 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             val ownerUserId = tokenManager.getUserId().orEmpty()
             if (token.isBlank() || ownerUserId.isBlank()) return@launch
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 return@launch
             }
             val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
             com.maodouchat.data.repository.UserNetworkRepository().users(liveToken).onSuccess { users ->
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     return@onSuccess
                 }
@@ -945,8 +941,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                             signalOwnerUserId.isBlank() ||
                             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = signalOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
                             )
                         ) {
                             return@collect
@@ -993,8 +987,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                         pollOwnerUserId.isBlank() ||
                         !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = pollOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
                         )
                     ) {
                         continue
@@ -1004,10 +996,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     WebRTCSignaling.fetchPending(liveToken)
                         .onSuccess { messages ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = pollOwnerUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
+                                expectedUserId = pollOwnerUserId,
+                            )
                             ) {
                                 return@onSuccess
                             }
@@ -1028,10 +1018,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         .onFailure { error ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                    expectedUserId = pollOwnerUserId,
-                                    liveToken = tokenManager.getToken(),
-                                    liveUserId = tokenManager.getUserId(),
-                                )
+                                expectedUserId = pollOwnerUserId,
+                            )
                             ) {
                                 return@onFailure
                             }
@@ -1588,10 +1576,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             withContext(kotlinx.coroutines.NonCancellable) {
                 // Same owner + live token only; never hang-up under a switched account.
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = hangUpOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = hangUpOwnerUserId,
+                )
                 ) {
                     return@withContext
                 }
@@ -1611,10 +1597,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 // REST 失败或 WS 更快送达时仍尽力推一条（仍要求同一 owner）
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = hangUpOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = hangUpOwnerUserId,
+                )
                 ) {
                     return@withContext
                 }

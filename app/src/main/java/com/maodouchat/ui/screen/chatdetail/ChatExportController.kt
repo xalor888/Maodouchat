@@ -114,8 +114,6 @@ class ChatExportController(
             exportOwnerUserId == "me" ||
             !BackgroundSessionGate.mayContinue(
                 expectedUserId = exportOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return "{}"

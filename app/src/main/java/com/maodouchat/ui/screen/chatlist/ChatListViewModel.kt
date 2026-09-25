@@ -200,7 +200,6 @@ class ChatListViewModel private constructor(
     private val realtimeCoordinator = ChatListRealtimeCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        tokenManager = tokenManager,
         realtimeEventDispatcher = ports.realtimeEventDispatcher,
         notificationCenter = notificationRepo,
         chatReadEvents = ports.chatReadEvents,
@@ -234,7 +233,6 @@ class ChatListViewModel private constructor(
     private val missedCallCoordinator = ChatListMissedCallCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        tokenManager = tokenManager,
         ownerUserId = { currentUserIdStr },
         markAllRead = { missedRepo.markAllRead() },
         clearAll = { missedRepo.clearAll() },

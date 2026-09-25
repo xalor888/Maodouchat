@@ -277,8 +277,6 @@ fun MaodouchatNavGraph(
             if (token.isBlank() || ownerUserId.isBlank() ||
                 !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
                 )
             ) {
                 Toast.makeText(context, sessionExpiredMsg, Toast.LENGTH_SHORT).show()
@@ -288,10 +286,8 @@ fun MaodouchatNavGraph(
             ChatNetworkRepository().createChat(liveToken, listOf(req.userId))
                 .onSuccess { chat ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = ownerUserId,
+                    )
                     ) {
                         return@onSuccess
                     }

@@ -75,10 +75,8 @@ internal class ChatListMutationCoordinator(
         scope.launch {
             try {
                 if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = settingsOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = settingsOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -90,10 +88,8 @@ internal class ChatListMutationCoordinator(
                     Log.w(TAG, "optimistic cacheChats failed for ${chat.id}", error)
                 }
                 if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = settingsOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = settingsOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -101,20 +97,16 @@ internal class ChatListMutationCoordinator(
                 updateChatSettingsRemote(liveToken, chat.id, request).fold(
                     onSuccess = { settings ->
                         if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = settingsOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = settingsOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
                         val confirmed = applyConfirmedSettings(optimistic, settings)
                         cacheChats(listOf(confirmed))
                         if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = settingsOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = settingsOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -125,10 +117,8 @@ internal class ChatListMutationCoordinator(
                     onFailure = { error ->
                         if (error is CancellationException) throw error
                         if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = settingsOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = settingsOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -139,10 +129,8 @@ internal class ChatListMutationCoordinator(
                         } catch (_: Exception) {
                         }
                         if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = settingsOwnerUserId,
-                                liveToken = tokenManager.getToken(),
-                                liveUserId = tokenManager.getUserId(),
-                            )
+                            expectedUserId = settingsOwnerUserId,
+                        )
                         ) {
                             return@fold
                         }
@@ -174,10 +162,8 @@ internal class ChatListMutationCoordinator(
         )
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = clearOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = clearOwnerUserId,
+            )
             ) {
                 return@launch
             }
@@ -191,10 +177,8 @@ internal class ChatListMutationCoordinator(
             val token = tokenManager.getToken().orEmpty()
             if (token.isBlank() || clearOwnerUserId.isBlank()) return@launch
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = clearOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = clearOwnerUserId,
+            )
             ) {
                 return@launch
             }
@@ -206,10 +190,8 @@ internal class ChatListMutationCoordinator(
             ).fold(
                 onSuccess = { settings ->
                     if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = clearOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = clearOwnerUserId,
+                    )
                     ) {
                         return@fold
                     }
@@ -222,10 +204,8 @@ internal class ChatListMutationCoordinator(
                     )
                     cacheChats(listOf(confirmed))
                     if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = clearOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = clearOwnerUserId,
+                    )
                     ) {
                         return@fold
                     }
@@ -251,10 +231,8 @@ internal class ChatListMutationCoordinator(
                 onFailure = { error ->
                     if (error is CancellationException) throw error
                     if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = clearOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = clearOwnerUserId,
+                    )
                     ) {
                         return@fold
                     }
@@ -277,10 +255,8 @@ internal class ChatListMutationCoordinator(
         scope.launch {
             try {
                 if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = deleteOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = deleteOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -291,10 +267,8 @@ internal class ChatListMutationCoordinator(
                 var leaveConfirmed = false
                 try {
                     if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = deleteOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = deleteOwnerUserId,
+                    )
                     ) {
                         return@launch
                     }
@@ -303,10 +277,8 @@ internal class ChatListMutationCoordinator(
                     val resultError = result.exceptionOrNull()
                     if (resultError is CancellationException) throw resultError
                     if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = deleteOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = deleteOwnerUserId,
+                    )
                     ) {
                         return@launch
                     }
@@ -341,8 +313,6 @@ internal class ChatListMutationCoordinator(
                     if (!leaveConfirmed && previous != null &&
                         BackgroundSessionGate.mayContinue(
                             expectedUserId = deleteOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
                         ) &&
                         uiState.value.chats.none { it.id == chatId }
                     ) {
@@ -376,10 +346,8 @@ internal class ChatListMutationCoordinator(
         }
         scope.launch(ioDispatcher) {
             if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = owner,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = owner,
+            )
             ) {
                 uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch

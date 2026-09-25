@@ -53,8 +53,6 @@ internal class AndroidFeedRepository(application: Application) : FeedRepository 
     override fun isCurrent(session: FeedSession): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = session.ownerUserId,
-            liveToken = tokenManager.getToken(),
-            liveUserId = tokenManager.getUserId(),
         )
 
     override suspend fun load(

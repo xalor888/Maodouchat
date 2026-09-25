@@ -457,8 +457,6 @@ class ChatDetailViewModel(
                     if (purgeOwnerUserId.isBlank() ||
                         !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = purgeOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
                         )
                     ) continue
                     if (tokenManager.getToken().isNullOrBlank()) continue
@@ -535,8 +533,6 @@ class ChatDetailViewModel(
                         ownerUserId = ownerUserId,
                         sessionMayContinue = com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
                         ),
                     ),
                     seen = readSeenMessages,
@@ -569,10 +565,8 @@ class ChatDetailViewModel(
                     }
                     delay(500)
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = ownerUserId,
+                    )
                     ) {
                         return@launch
                     }
@@ -635,8 +629,6 @@ class ChatDetailViewModel(
             ownerUserId == "me" ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return
@@ -693,8 +685,6 @@ class ChatDetailViewModel(
                 if (ownerUserId.isBlank() ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
                     )
                 ) {
                     return@collect
@@ -717,8 +707,6 @@ class ChatDetailViewModel(
                     ownerUserId.isBlank() ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
                     )
                 ) {
                     return@collect
@@ -797,8 +785,6 @@ class ChatDetailViewModel(
                 if (loadOwnerUserId.isBlank() ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = loadOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
                     )
                 ) {
                     _uiState.update { it.copy(isLoading = false) }
@@ -809,10 +795,8 @@ class ChatDetailViewModel(
                 val chatsResult = ChatNetworkRepository().chats(liveToken)
                 // getChats can outlive logout/switch — do not invalidate SK / cache / paint meta for next owner.
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = loadOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = loadOwnerUserId,
+                )
                 ) {
                     _uiState.update { it.copy(isLoading = false) }
                     return@launch
@@ -880,10 +864,8 @@ class ChatDetailViewModel(
                     // G70：这个门禁原先在这里**连着写了两遍**（同参同值，第二遍是纯死代码）——
                     // 复制粘贴遗留，删掉不影响任何行为，只影响阅读。
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = loadOwnerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = loadOwnerUserId,
+                    )
                     ) {
                         return@withContext
                     }
@@ -947,10 +929,8 @@ class ChatDetailViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -978,10 +958,8 @@ class ChatDetailViewModel(
     private suspend fun refreshMyMemberRole(expectedUserId: String) {
         if (expectedUserId.isBlank() || chatId.isBlank()) return
         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = expectedUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = expectedUserId,
+        )
         ) {
             return
         }
@@ -989,10 +967,8 @@ class ChatDetailViewModel(
         if (liveToken.isBlank()) return
         groupLifecycleService.fetchGroupMembers(chatId).onSuccess { members ->
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = expectedUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = expectedUserId,
+            )
             ) {
                 return@onSuccess
             }
@@ -1050,10 +1026,8 @@ class ChatDetailViewModel(
         viewModelScope.launch {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -1088,10 +1062,8 @@ class ChatDetailViewModel(
         viewModelScope.launch {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = ownerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -1118,8 +1090,6 @@ class ChatDetailViewModel(
             revisionOwnerUserId == "me" ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = revisionOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) {
             return
@@ -1137,10 +1107,8 @@ class ChatDetailViewModel(
         val removedFromGroup = impact == GroupRevisionImpact.CURRENT_USER_REMOVED
         if (shouldInvalidateGroupKey(currentRevision, event.memberRevision, impact)) {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = revisionOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = revisionOwnerUserId,
+            )
             ) {
                 return
             }
@@ -1148,10 +1116,8 @@ class ChatDetailViewModel(
         }
         if (removedFromGroup) {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = revisionOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = revisionOwnerUserId,
+            )
             ) {
                 return
             }
@@ -1188,10 +1154,8 @@ class ChatDetailViewModel(
             }
             if (!cleanup.completed) return
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = revisionOwnerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = revisionOwnerUserId,
+            )
             ) {
                 return
             }
@@ -1211,10 +1175,8 @@ class ChatDetailViewModel(
             return
         }
         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = revisionOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
-            )
+            expectedUserId = revisionOwnerUserId,
+        )
         ) {
             return
         }
@@ -1256,8 +1218,6 @@ class ChatDetailViewModel(
         if (message.chatId != expectedChatId || activeChatId != expectedChatId ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = expectedUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) throw kotlinx.coroutines.CancellationException("ai_result_context_changed")
         val committed = withContext(Dispatchers.IO) {
@@ -1267,8 +1227,6 @@ class ChatDetailViewModel(
         if (activeChatId != expectedChatId ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = expectedUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             )
         ) return false
         if (operationId != null) {
@@ -1444,10 +1402,8 @@ class ChatDetailViewModel(
                 throw error
             } catch (error: Exception) {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = retryOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = retryOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -2383,8 +2339,6 @@ class ChatDetailViewModel(
             token = token,
             sessionMayContinue = com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = exportOwnerUserId,
-                liveToken = tokenManager.getToken(),
-                liveUserId = tokenManager.getUserId(),
             ),
             serializedJson = exportChatAsJson(),
         )
@@ -2398,10 +2352,8 @@ class ChatDetailViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = exportOwnerUserId,
-                        liveToken = tokenManager.getToken(),
-                        liveUserId = tokenManager.getUserId(),
-                    )
+                    expectedUserId = exportOwnerUserId,
+                )
                 ) {
                     return@launch
                 }
@@ -2489,16 +2441,11 @@ class ChatDetailViewModel(
         // 捕获 chatDraftDao 到局部变量，避免 lambda 闭包捕获 this（ViewModel），
         // 从而防止 ViewModel 被 applicationScope 中的挂起引用阻止 GC 回收。
         val draftDao = chatDraftDao
-        val tokenMgr = tokenManager
         if (draftsFeatureEnabled && draftOwnerUserId.isNotBlank() && draftChatId.isNotBlank()) {
             com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
                 withContext(NonCancellable) {
                     // Soft-purge/logout may destroy Room or switch owner before this runs.
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = draftOwnerUserId,
-                            liveToken = tokenMgr.getToken(),
-                            liveUserId = tokenMgr.getUserId(),
-                        )
+                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(draftOwnerUserId)
                     ) {
                         return@withContext
                     }

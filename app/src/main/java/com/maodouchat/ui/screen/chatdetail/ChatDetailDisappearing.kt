@@ -54,10 +54,8 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
     viewModelScope.launch {
         try {
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                    liveToken = tokenManager.getToken(),
-                    liveUserId = tokenManager.getUserId(),
-                )
+                expectedUserId = ownerUserId,
+            )
             ) {
                 _uiState.update {
                     it.copy(
@@ -73,10 +71,8 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
             ChatNetworkRepository().updateDisappearingMessages(liveToken, chatId, normalized).fold(
                 onSuccess = { response ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                            liveToken = tokenManager.getToken(),
-                            liveUserId = tokenManager.getUserId(),
-                        )
+                        expectedUserId = ownerUserId,
+                    )
                     ) {
                         return@fold
                     }
