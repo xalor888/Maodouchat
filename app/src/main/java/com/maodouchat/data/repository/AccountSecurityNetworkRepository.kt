@@ -110,7 +110,8 @@ internal class AccountSecurityNetworkRepository(
      * 目前只有「动态默认可见性」在客户端有入口，其余由服务端/其他端维护。
      * 把 5 个都透传会让调用方以为能改别的，其实是给了一个改不动的旋钮。
      */
-    suspend fun privacy(token: String): Result<com.maodouchat.network.UserPrivacyDto> = privacyApi(token)
+    suspend fun privacy(token: String? = null): Result<com.maodouchat.network.UserPrivacyDto> =
+        privacyApi(token ?: currentAccessToken())
 
     suspend fun updateDefaultPostVisibility(
         token: String,

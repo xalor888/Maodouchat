@@ -3,7 +3,6 @@ package com.maodouchat.ui.screen.explore
 import kotlin.math.min
 import com.maodouchat.data.repository.NearbyNetworkRepository
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenManager
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import kotlinx.coroutines.flow.update
@@ -457,7 +456,6 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
         return false
     }
 
-    private val tokenManager = TokenManager.getInstance(application)
     private val _uiState = MutableStateFlow(NearbyUiState())
     val uiState: StateFlow<NearbyUiState> = _uiState.asStateFlow()
 
@@ -486,9 +484,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadStatus() {
         if (!nearbyAllowed()) return
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(items = emptyList(), isLoading = false, errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -502,8 +499,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                     _uiState.update { it.copy(isLoading = false) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                NearbyNetworkRepository().status(liveToken).onSuccess { status ->
+                NearbyNetworkRepository().status().onSuccess { status ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = ownerUserId,
                     )
@@ -531,9 +527,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
 
     fun enableSharing() {
         if (!nearbyAllowed()) return
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update {
                 it.copy(isLoading = false, errorMessage = text(R.string.error_session_expired))
             }
@@ -558,8 +553,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                             _uiState.update { it.copy(isLoading = false) }
                             return@fold
                         }
-                        val liveToken = tokenManager.getToken() ?: token
-                        NearbyNetworkRepository().updateLocation(liveToken, location.latitude, location.longitude).fold(
+                        NearbyNetworkRepository().updateLocation(latitude = location.latitude, longitude = location.longitude).fold(
                             onSuccess = { status ->
                                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                     expectedUserId = ownerUserId,
@@ -583,9 +577,8 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun stopSharing() {
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update {
                 it.copy(errorMessage = text(R.string.error_session_expired))
             }
@@ -602,8 +595,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
-            val liveToken = tokenManager.getToken() ?: token
-            NearbyNetworkRepository().stopSharing(liveToken).fold(
+            NearbyNetworkRepository().stopSharing().fold(
                 onSuccess = {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = ownerUserId,
@@ -619,8 +611,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun refresh() {
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val pre = _uiState.value
         val sharingValid = pre.isSharing && pre.expiresAt > System.currentTimeMillis()
         if (!sharingValid) {
@@ -629,7 +620,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
             loadStatus()
             return
         }
-        if (token.isBlank() || ownerUserId.isBlank()) {
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update {
                 it.copy(isLoading = false, errorMessage = text(R.string.error_session_expired))
             }
@@ -649,7 +640,6 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                     if (generation == refreshGeneration) _uiState.update { it.copy(isLoading = false) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
                 if (com.maodouchat.util.LocationProvider.hasLocationPermission(getApplication())) {
                     com.maodouchat.util.LocationProvider.currentLocation(getApplication()).onSuccess { location ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -661,7 +651,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                         // 8.58：POST 前再校验——关闭共享后（stopSharing 已递增代际）跳过广播，
                         // 杜绝在途 refresh 把位置重新广播
                         if (generation != refreshGeneration || !_uiState.value.isSharing) return@onSuccess
-                        NearbyNetworkRepository().updateLocation(liveToken, location.latitude, location.longitude).onSuccess { status ->
+                        NearbyNetworkRepository().updateLocation(latitude = location.latitude, longitude = location.longitude).onSuccess { status ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = ownerUserId,
                             )
@@ -673,7 +663,7 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }
-                NearbyNetworkRepository().nearbyUsers(liveToken, radiusKm = radiusKm).fold(
+                NearbyNetworkRepository().nearbyUsers(radiusKm = radiusKm).fold(
                     onSuccess = { dtos ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,

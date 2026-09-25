@@ -23,14 +23,16 @@ internal class PostNetworkRepository(
         { token, postId -> ApiService.unlikePost(token, postId) },
 ) {
     suspend fun posts(
-        token: String,
+        token: String? = null,
         limit: Int = 40,
         before: Long? = null,
         beforeId: String? = null,
         authorId: String? = null,
-    ): Result<List<PostDto>> = postsApi(token, limit, before, beforeId, authorId)
+    ): Result<List<PostDto>> = postsApi(token ?: currentAccessToken(), limit, before, beforeId, authorId)
 
-    suspend fun like(token: String, postId: String): Result<PostDto> = likeApi(token, postId)
+    suspend fun like(token: String? = null, postId: String): Result<PostDto> =
+        likeApi(token ?: currentAccessToken(), postId)
 
-    suspend fun unlike(token: String, postId: String): Result<PostDto> = unlikeApi(token, postId)
+    suspend fun unlike(token: String? = null, postId: String): Result<PostDto> =
+        unlikeApi(token ?: currentAccessToken(), postId)
 }

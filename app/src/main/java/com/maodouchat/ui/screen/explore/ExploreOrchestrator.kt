@@ -113,13 +113,13 @@ class ExploreOrchestrator(
     )
 
     private fun isCurrentOwner(expectedUserId: String): Boolean =
-        tokenManager.getUserId() == expectedUserId && expectedUserId.isNotBlank()
+        com.maodouchat.session.CurrentSession.snapshot().userId == expectedUserId && expectedUserId.isNotBlank()
 
-    private fun draftOwnerId(): String = tokenManager.getUserId().orEmpty()
+    private fun draftOwnerId(): String = com.maodouchat.session.CurrentSession.ownerUserId()
 
     fun loadPrivacyDefaults() {
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(isVisibilityReady = true) }
             return
@@ -162,7 +162,7 @@ class ExploreOrchestrator(
     }
 
     fun refresh() {
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val session = feedController.currentSession()
         if (session == null) {
             _uiState.update {
@@ -260,7 +260,7 @@ class ExploreOrchestrator(
 
     fun toggleLike(post: PostDto) {
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
             return
@@ -293,7 +293,7 @@ class ExploreOrchestrator(
 
     fun openComments(postId: String) {
         val token = tokenManager.getToken()
-        val commentsOwnerUserId = tokenManager.getUserId().orEmpty()
+        val commentsOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || commentsOwnerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
             return
@@ -376,7 +376,7 @@ class ExploreOrchestrator(
 
     fun sendComment() {
         val token = tokenManager.getToken()
-        val commentOwnerUserId = tokenManager.getUserId().orEmpty()
+        val commentOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || commentOwnerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
             return
@@ -445,7 +445,7 @@ class ExploreOrchestrator(
         val oldest = snapshot.comments.minWithOrNull(
             compareBy<PostCommentDto> { it.createdAt }.thenBy { it.id }
         ) ?: return
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val generation = commentsGeneration
         scope.launch {
             commentsLoadMutex.withLock {
@@ -462,7 +462,7 @@ class ExploreOrchestrator(
                         beforeId = oldest.id
                     ).fold(
                         onSuccess = { older ->
-                            if (commentsGeneration == generation && tokenManager.getUserId() == ownerUserId) {
+                            if (commentsGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == ownerUserId) {
                                 _uiState.update { current ->
                                     if (current.selectedPostId != postId) current else current.copy(
                                         comments = (older + current.comments).distinctBy { it.id },
@@ -495,7 +495,7 @@ class ExploreOrchestrator(
 
     fun toggleCommentLike(comment: PostCommentDto) {
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val postId = _uiState.value.selectedPostId ?: comment.postId
         if (token.isNullOrBlank() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
@@ -527,7 +527,7 @@ class ExploreOrchestrator(
 
     fun deleteComment(comment: PostCommentDto) {
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val postId = _uiState.value.selectedPostId ?: comment.postId
         if (token.isNullOrBlank() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
@@ -562,7 +562,7 @@ class ExploreOrchestrator(
 
     fun saveCommentEdit(comment: PostCommentDto, newText: String) {
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val postId = _uiState.value.selectedPostId ?: comment.postId
         if (token.isNullOrBlank() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
@@ -593,7 +593,7 @@ class ExploreOrchestrator(
 
     fun reportComment(comment: PostCommentDto) {
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
             return
@@ -835,7 +835,7 @@ class ExploreOrchestrator(
         val state = _uiState.value
         val postId = state.postPendingEditId ?: return
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || ownerUserId.isBlank()) return
         val newContent = state.editPostText.trim()
         val visibility = PostVisibility.fromString(state.editPostVisibility)
@@ -865,7 +865,7 @@ class ExploreOrchestrator(
         val post = _uiState.value.posts.firstOrNull { it.id == postId } ?: return
         _uiState.update { it.copy(postPendingDeleteId = null) }
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || ownerUserId.isBlank()) return
         val originalIndex = _uiState.value.posts.indexOfFirst { it.id == postId }
         _uiState.update { state ->
@@ -889,7 +889,7 @@ class ExploreOrchestrator(
 
     fun reportPost(post: PostDto) {
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || ownerUserId.isBlank()) return
         scope.launch {
             publishPostUseCase.report(ownerUserId, token, post.id, "INAPPROPRIATE", null).fold(
@@ -905,7 +905,7 @@ class ExploreOrchestrator(
 
     fun blockPostAuthor(userId: String) {
         val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isNullOrBlank() || ownerUserId.isBlank()) return
         _uiState.update { state ->
             state.copy(posts = state.posts.filterNot { it.author.id == userId })

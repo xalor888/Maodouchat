@@ -25,17 +25,17 @@ internal class NearbyNetworkRepository(
         { token, radiusKm, limit -> ApiService.getNearbyUsers(token, radiusKm, limit) },
 ) {
     /** 当前共享状态（含过期时间）。 */
-    suspend fun status(token: String): Result<NearbyLocationStatusResponse> = statusApi(token)
+    suspend fun status(token: String? = null): Result<NearbyLocationStatusResponse> = statusApi(token ?: currentAccessToken())
 
     /**
      * 上报位置。语义上同时是**开启**与**续期**——服务端两者走同一端点，
      * 调用方不必区分（这也是它们共用一个仓库的原因之一）。
      */
-    suspend fun updateLocation(token: String, latitude: Double, longitude: Double): Result<NearbyLocationStatusResponse> =
-        updateApi(token, latitude, longitude)
+    suspend fun updateLocation(token: String? = null, latitude: Double, longitude: Double): Result<NearbyLocationStatusResponse> =
+        updateApi(token ?: currentAccessToken(), latitude, longitude)
 
-    suspend fun stopSharing(token: String): Result<NearbyLocationStatusResponse> = stopApi(token)
+    suspend fun stopSharing(token: String? = null): Result<NearbyLocationStatusResponse> = stopApi(token ?: currentAccessToken())
 
-    suspend fun nearbyUsers(token: String, radiusKm: Double = 10.0, limit: Int = 50): Result<List<NearbyUserResponse>> =
-        usersApi(token, radiusKm, limit)
+    suspend fun nearbyUsers(token: String? = null, radiusKm: Double = 10.0, limit: Int = 50): Result<List<NearbyUserResponse>> =
+        usersApi(token ?: currentAccessToken(), radiusKm, limit)
 }

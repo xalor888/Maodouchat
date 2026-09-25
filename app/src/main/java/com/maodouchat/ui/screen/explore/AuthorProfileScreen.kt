@@ -62,7 +62,6 @@ import com.maodouchat.R
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.UserDto
-import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
@@ -96,7 +95,6 @@ data class AuthorProfileUiState(
 )
 
 class AuthorProfileViewModel(application: Application) : AndroidViewModel(application) {
-    private val tokenManager = TokenManager.getInstance(application)
     private var loadGeneration = 0L
     private var loadJob: kotlinx.coroutines.Job? = null
     private val loadMoreMutex = Mutex()
@@ -113,9 +111,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
             }
             return
         }
-        val token = tokenManager.getToken().orEmpty()
-        val loadOwnerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || loadOwnerUserId.isBlank()) {
+        val loadOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || loadOwnerUserId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -144,8 +141,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                UserNetworkRepository().user(liveToken, authorId).onSuccess { author ->
+                UserNetworkRepository().user(userId = authorId).onSuccess { author ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = loadOwnerUserId,
                     )
@@ -156,13 +152,13 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                         _uiState.update { it.copy(author = author) }
                     }
                 }.onFailure { error ->
-                    if (loadGeneration == generation && tokenManager.getUserId() == loadOwnerUserId) {
+                    if (loadGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == loadOwnerUserId) {
                         _uiState.update { it.copy(errorMessage = error.message ?: text(R.string.explore_author_load_failed)) }
                     }
                 }
                 // 1.287：加载拉黑状态（决定操作按钮显示「拉黑」还是「解除拉黑」）
-                ModerationNetworkRepository().blockedUserIds(tokenManager.getToken() ?: liveToken).onSuccess { blockedIds ->
-                    if (loadGeneration == generation && tokenManager.getUserId() == loadOwnerUserId) {
+                ModerationNetworkRepository().blockedUserIds().onSuccess { blockedIds ->
+                    if (loadGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == loadOwnerUserId) {
                         _uiState.update { it.copy(isBlocked = authorId in blockedIds) }
                     }
                 }
@@ -176,7 +172,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     return@launch
                 }
                 // 拉作者全部动态
-                PostNetworkRepository().posts(tokenManager.getToken() ?: liveToken, limit = AUTHOR_PAGE_SIZE, authorId = authorId).fold(
+                PostNetworkRepository().posts(limit = AUTHOR_PAGE_SIZE, authorId = authorId).fold(
                     onSuccess = { posts ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = loadOwnerUserId,
@@ -197,7 +193,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                         }
                     },
                     onFailure = { error ->
-                        if (loadGeneration == generation && tokenManager.getUserId() == loadOwnerUserId) {
+                        if (loadGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == loadOwnerUserId) {
                             _uiState.update {
                                 it.copy(isLoading = false, errorMessage = error.message ?: text(R.string.explore_author_load_failed))
                             }
@@ -221,13 +217,13 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
         val snapshot = _uiState.value
         if (snapshot.isLoading || snapshot.isLoadingMore || !snapshot.hasMore || snapshot.posts.isEmpty()) return
         val cursor = ExploreFeedPolicy.oldestCursor(snapshot.posts) ?: return
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val generation = loadGeneration
         viewModelScope.launch {
             loadMoreMutex.withLock {
                 val state = _uiState.value
                 if (loadGeneration != generation || state.isLoadingMore || !state.hasMore) return@withLock
-                val token = tokenManager.getToken()?.takeIf(String::isNotBlank) ?: return@withLock
+                if (!com.maodouchat.session.CurrentSession.hasSession()) return@withLock
                 _uiState.update { it.copy(isLoadingMore = true, errorMessage = null) }
                 try {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -238,14 +234,13 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                         return@withLock
                     }
                     PostNetworkRepository().posts(
-                        token = token,
                         limit = AUTHOR_PAGE_SIZE,
                         before = cursor.createdAt,
                         beforeId = cursor.postId,
                         authorId = authorId
                     ).fold(
                         onSuccess = { posts ->
-                            if (loadGeneration == generation && tokenManager.getUserId() == ownerUserId) {
+                            if (loadGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == ownerUserId) {
                                 _uiState.update {
                                     it.copy(
                                         posts = (it.posts + posts).distinctBy(PostDto::id),
@@ -256,7 +251,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                             }
                         },
                         onFailure = { error ->
-                            if (loadGeneration == generation && tokenManager.getUserId() == ownerUserId) {
+                            if (loadGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == ownerUserId) {
                                 _uiState.update {
                                     it.copy(
                                         isLoadingMore = false,
@@ -278,7 +273,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
 
     /** 1.287：拉黑/解除拉黑（与 ChatDetail.blockContact/unblockContact 同模式）。 */
     fun toggleBlock(authorId: String) {
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (authorId.isBlank() || authorId == ownerUserId) return
         val target = _uiState.value.author ?: return
         if (_uiState.value.isBlocking) return
@@ -287,8 +282,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
             _uiState.update { it.copy(infoMessage = text(R.string.feature_disabled_by_admin)) }
             return
         }
-        val token = tokenManager.getToken().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) {
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -302,11 +296,10 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     _uiState.update { it.copy(isBlocking = false) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                val request = if (wantBlock) ModerationNetworkRepository().blockUser(liveToken, authorId) else AccountSecurityNetworkRepository().unblock(liveToken, authorId)
+                val request = if (wantBlock) ModerationNetworkRepository().blockUser(userId = authorId) else AccountSecurityNetworkRepository().unblock(userId = authorId)
                 request.fold(
                     onSuccess = {
-                        if (tokenManager.getUserId() != ownerUserId) return@fold
+                        if (com.maodouchat.session.CurrentSession.snapshot().userId != ownerUserId) return@fold
                         val message = if (wantBlock) {
                             text(R.string.explore_author_blocked_done, target.name)
                         } else {
@@ -336,9 +329,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun toggleLike(post: PostDto) {
-        val token = tokenManager.getToken().orEmpty()
-        val likeOwnerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || likeOwnerUserId.isBlank()) {
+        val likeOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || likeOwnerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -370,8 +362,8 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                     }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                val result = if (currentPost.likedByMe) PostNetworkRepository().unlike(liveToken, post.id) else PostNetworkRepository().like(liveToken, post.id)
+
+                val result = if (currentPost.likedByMe) PostNetworkRepository().unlike(postId = post.id) else PostNetworkRepository().like(postId = post.id)
                 result.fold(
                     onSuccess = { updated ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -390,7 +382,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                         }
                     },
                     onFailure = { error ->
-                        if (loadGeneration == generation && tokenManager.getUserId() == likeOwnerUserId) {
+                        if (loadGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == likeOwnerUserId) {
                             _uiState.update { state ->
                                 state.copy(
                                     posts = state.posts.map { if (it.id == post.id) currentPost else it },
