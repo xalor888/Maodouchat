@@ -313,6 +313,9 @@ internal fun ChatDetailRoute(
     onOpenCallHistory: (() -> Unit)? = null,
     viewModel: ChatDetailViewModel = viewModel()
 ) {
+    // G335：聊天锁流程 / 联系人入口链收进持有类（各带 Saver，见 ChatDetailChatLockAndContactStates.kt）
+    val chatLock = rememberChatDetailChatLockState()
+    val contactSheets = rememberChatDetailContactSheetState()
     // G335：会话级设置/提醒/定时这一组弹窗收进持有类（带 Saver，见 ChatDetailScheduleState.kt）
     val schedule = rememberChatDetailScheduleState()
     // G335：群通话「类型 → 选成员」流程收进持有类（带 Saver，见 ChatDetailGroupCallState.kt）
@@ -449,24 +452,15 @@ internal fun ChatDetailRoute(
     var selectedMessageIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
     var showGroupInfo by rememberSaveable { mutableStateOf(false) }
-    var showContactActions by rememberSaveable { mutableStateOf(false) }
-    var showContactProfile by rememberSaveable { mutableStateOf(false) }
     // 1.11：发送名片——联系人选择对话框
-    var showContactCardPicker by rememberSaveable { mutableStateOf(false) }
     var showChatOverflow by remember { mutableStateOf(false) }
     // 1.02：临时静音至对话框
-    var showSetChatLock by rememberSaveable { mutableStateOf(false) }
-    var showDisableChatLock by rememberSaveable { mutableStateOf(false) }
-    var showForgotChatLockConfirm by rememberSaveable { mutableStateOf(false) }
     var showAnnouncementBanner by rememberSaveable { mutableStateOf(true) }
     var showAnnouncementDialog by rememberSaveable { mutableStateOf(false) }
     var showSecretChatConfirm by rememberSaveable { mutableStateOf(false) }
     var showLiveLocationDuration by rememberSaveable { mutableStateOf(false) }
     var pendingLiveLocationPermission by rememberSaveable { mutableStateOf(false) }
 
-    var setLockPinDraft by rememberSaveable { mutableStateOf("") }
-    var setLockPinConfirm by rememberSaveable { mutableStateOf("") }
-    var disableLockPinDraft by rememberSaveable { mutableStateOf("") }
     var setLockError by remember { mutableStateOf<String?>(null) }
     var showGifSearch by rememberSaveable { mutableStateOf(false) }
     var showReportContactDialog by rememberSaveable { mutableStateOf(false) }
@@ -1253,27 +1247,27 @@ internal fun ChatDetailRoute(
     }
 
     // G81：设置聊天锁对话框（71 行）抽到 ChatDetailSetChatLockDialog.kt，纯搬移不改判断。
-    if (showSetChatLock) {
+    if (chatLock.showSetChatLock) {
         ChatDetailSetChatLockDialog(
-            pinDraft = setLockPinDraft,
-            pinConfirmDraft = setLockPinConfirm,
+            pinDraft = chatLock.setLockPinDraft,
+            pinConfirmDraft = chatLock.setLockPinConfirm,
             errorMessage = setLockError,
             contactDisplayName = state.contact.displayName,
-            onPinDraftChange = { setLockPinDraft = it },
-            onPinConfirmDraftChange = { setLockPinConfirm = it },
+            onPinDraftChange = { chatLock.setLockPinDraft = it },
+            onPinConfirmDraftChange = { chatLock.setLockPinConfirm = it },
             onErrorMessageChange = { setLockError = it },
-            onDismiss = { showSetChatLock = false },
+            onDismiss = { chatLock.showSetChatLock = false },
             onSaved = { pin -> viewModel.setChatLockPin(pin) },
         )
     }
 
     // G83：解除聊天锁对话框（35 行）抽到 ChatDetailChatSettingsDialogs.kt，纯搬移不改判断。
-    if (showDisableChatLock) {
+    if (chatLock.showDisableChatLock) {
         ChatDisableChatLockDialog(
-            pinDraft = disableLockPinDraft,
+            pinDraft = chatLock.disableLockPinDraft,
             contactDisplayName = state.contact.displayName,
-            onPinDraftChange = { disableLockPinDraft = it },
-            onDismiss = { showDisableChatLock = false },
+            onPinDraftChange = { chatLock.disableLockPinDraft = it },
+            onDismiss = { chatLock.showDisableChatLock = false },
             onRemoveLock = { pin -> viewModel.removeChatLock(pin) },
         )
     }
@@ -1301,14 +1295,14 @@ internal fun ChatDetailRoute(
     }
 
     // G83：联系人操作对话框（45 行）抽到 ChatDetailChatSettingsDialogs.kt，纯搬移不改判断。
-    if (showContactActions && !state.chatIsGroup) {
+    if (contactSheets.showContactActions && !state.chatIsGroup) {
         ChatContactActionsDialog(
             contactDisplayName = state.contact.displayName,
             isContactBlocked = state.isContactBlocked,
             isBlockingContact = state.isBlockingContact,
             isGroup = state.chatIsGroup,
-            onDismiss = { showContactActions = false },
-            onViewProfile = { showContactProfile = true },
+            onDismiss = { contactSheets.showContactActions = false },
+            onViewProfile = { contactSheets.showContactProfile = true },
             onToggleBlock = {
                 if (state.isContactBlocked) viewModel.unblockContact() else viewModel.blockContact()
             },
@@ -1316,27 +1310,27 @@ internal fun ChatDetailRoute(
         )
     }
 
-    if (showContactProfile && !state.chatIsGroup) {
+    if (contactSheets.showContactProfile && !state.chatIsGroup) {
         ContactProfileSheet(
             contact = state.contact,
             isBlocked = state.isContactBlocked,
             isBlocking = state.isBlockingContact,
             hideCalls = state.isSecretChat == true,
-            onDismiss = { showContactProfile = false },
-            onMessage = { showContactProfile = false },
+            onDismiss = { contactSheets.showContactProfile = false },
+            onMessage = { contactSheets.showContactProfile = false },
             onVoiceCall = {
-                showContactProfile = false
+                contactSheets.showContactProfile = false
                 requestVoiceCallPermission(context, pickers.voiceCallPermission::launch, state.contact.id, state.contact.name, onVoiceCall)
             },
             onVideoCall = {
-                showContactProfile = false
+                contactSheets.showContactProfile = false
                 requestVideoCallPermissions(context, pickers.videoCallPermission::launch, state.contact.id, state.contact.name, onVideoCall)
             },
             onToggleBlock = {
                 if (state.isContactBlocked) viewModel.unblockContact() else viewModel.blockContact()
             },
             onReport = {
-                showContactProfile = false
+                contactSheets.showContactProfile = false
                 showReportContactDialog = true
             }
         )
@@ -1398,13 +1392,13 @@ internal fun ChatDetailRoute(
                 state.chat?.groupName.orEmpty().ifBlank { stringResource(R.string.chat_this_chat) }
             },
             onUnlock = { pin, onResult -> viewModel.unlockChatWithPin(pin, onResult) },
-            onForgotPin = { showForgotChatLockConfirm = true }
+            onForgotPin = { chatLock.showForgotChatLockConfirm = true }
         )
         ForgotChatLockConfirmDialog(
-            visible = showForgotChatLockConfirm,
-            onDismiss = { showForgotChatLockConfirm = false },
+            visible = chatLock.showForgotChatLockConfirm,
+            onDismiss = { chatLock.showForgotChatLockConfirm = false },
             onConfirm = {
-                showForgotChatLockConfirm = false
+                chatLock.showForgotChatLockConfirm = false
                 viewModel.forgotChatLockAndClearLocal()
             },
         )
@@ -1608,7 +1602,7 @@ internal fun ChatDetailRoute(
                             if (!state.chatIsGroup) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_contact_actions)) },
-                                    onClick = { showChatOverflow = false; showContactActions = true }
+                                    onClick = { showChatOverflow = false; contactSheets.showContactActions = true }
                                 )
                                 if (state.isSecretChat != true) {
                                     DropdownMenuItem(
@@ -1659,13 +1653,13 @@ internal fun ChatDetailRoute(
                                 onClick = {
                                     showChatOverflow = false
                                     if (state.isChatLocked == true) {
-                                        disableLockPinDraft = ""
-                                        showDisableChatLock = true
+                                        chatLock.disableLockPinDraft = ""
+                                        chatLock.showDisableChatLock = true
                                     } else {
-                                        setLockPinDraft = ""
-                                        setLockPinConfirm = ""
+                                        chatLock.setLockPinDraft = ""
+                                        chatLock.setLockPinConfirm = ""
                                         setLockError = null
-                                        showSetChatLock = true
+                                        chatLock.showSetChatLock = true
                                     }
                                 }
                             )
