@@ -226,7 +226,16 @@ class ClientArchitectureTest {
      * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
      * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
      * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
-     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37 → 33 → 31 → 26 → 22 → 20 → 20）。别把它当成棘轮被放松。
+     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37 → 33 → 31 → 26 → 22 → 20 → 18 → 16 → 14 → 13 → 10）。
+     * 别把它当成棘轮被放松。
+     *
+     * ⚠️ 名单里会**长期留下几个「只做装配」的文件**（`ChatDetailDeps`、`ChatListPorts`、
+     * `ChatRealtimeController`、`GroupDetailViewModel`）：它们不读凭据，只是把 `TokenManager`
+     * **实例**交给非 ui 层的工厂（`conversation/`、`messaging/v2/`、`attachment/`）或
+     * `TokenManagerSessionContextProvider`。判据是文本匹配，分不清「读」与「转交」，
+     * 所以它们会一直计在内。要让它们离场，得把那些工厂的入参从 `TokenManager` 换成
+     * 会话提供者（`SessionContextProvider` / `() -> SessionSnapshot`）——那是非 ui 层的改动，
+     * 不在本棘轮管辖范围，单独一轮做。**不要**为了让数字好看去删工厂需要的东西。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：

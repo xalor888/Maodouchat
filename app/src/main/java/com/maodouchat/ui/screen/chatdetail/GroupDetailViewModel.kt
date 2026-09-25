@@ -47,13 +47,13 @@ class GroupDetailViewModel(
 ) : AndroidViewModel(application) {
 
     val chatId: String = savedStateHandle["chatId"] ?: ""
-    private val tokenManager = TokenManager.getInstance(application)
     private val app = application as MaodouchatApp
     private val signalProtocol = app.signalProtocol
     private val groupMessagingCoordinator = createAndroidGroupMessagingCoordinator(
         app = app,
         signalProtocol = signalProtocol,
-        tokenManager = tokenManager,
+        // `messaging/v2/` 的工厂需要 TokenManager 实例（它自己读会话），属非 ui 层依赖。
+        tokenManager = TokenManager.getInstance(application),
     )
     private val groupSenderKeyMaintenanceCoordinator = GroupSenderKeyMaintenanceCoordinator(
         ensureCoverage = groupMessagingCoordinator::ensureSenderKeyCoverage,
@@ -62,8 +62,8 @@ class GroupDetailViewModel(
         enqueueRetry = groupMessagingCoordinator::enqueueCoverageRetry,
     )
     private val groupLifecycleCoordinator = GroupLifecycleCoordinator(
-        ownerUserId = { tokenManager.getUserId().orEmpty() },
-        token = { tokenManager.getToken().orEmpty() },
+        ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+        token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
         sessionActive = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
@@ -78,25 +78,25 @@ class GroupDetailViewModel(
     )
     private val groupLifecycleService: GroupLifecycleService = DefaultGroupLifecycleService(
         coordinator = groupLifecycleCoordinator,
-        tokenProvider = { tokenManager.getToken().orEmpty() },
+        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
         membershipStore = app.groupMembershipStore,
     )
     private val groupInviteController = GroupInviteController(
-        tokenProvider = { tokenManager.getToken().orEmpty() }
+        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() }
     )
     private val groupAuditController = GroupAuditController(
-        tokenProvider = { tokenManager.getToken().orEmpty() }
+        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() }
     )
     private val groupBotController = GroupBotController(
-        tokenProvider = { tokenManager.getToken().orEmpty() }
+        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() }
     )
     private val groupEncryptionHealthController = GroupEncryptionHealthController(
         maintenanceCoordinator = groupSenderKeyMaintenanceCoordinator,
-        tokenProvider = { tokenManager.getToken().orEmpty() },
+        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
     )
 
-    private val token: String get() = tokenManager.getToken().orEmpty()
-    private val currentUserId: String get() = tokenManager.getUserId().orEmpty()
+    private val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
+    private val currentUserId: String get() = com.maodouchat.session.CurrentSession.ownerUserId()
     /** 8.49：群审计分页游标——服务端已返回的原始条数（offset 语义），与本地去重后的列表长度解耦。 */
     private var auditNextOffset: Int = 0
 
@@ -399,7 +399,7 @@ class GroupDetailViewModel(
     }
 
     private fun isCurrentAuditOwner(expected: String): Boolean =
-        expected.isNotBlank() && tokenManager.getUserId() == expected
+        expected.isNotBlank() && com.maodouchat.session.CurrentSession.snapshot().userId == expected
 
     fun renameGroup(name: String) {
         val trimmed = name.trim()
