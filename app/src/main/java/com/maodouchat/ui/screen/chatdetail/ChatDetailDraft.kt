@@ -15,12 +15,12 @@ import kotlinx.coroutines.withContext
 
 internal fun ChatDetailViewModel.restoreDraft() {
     if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_DRAFTS)) return
-    val ownerUserId = tokenManager.getUserId().orEmpty()
+    val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
     if (!ChatDraftPolicy.canSchedule(ownerUserId, activeChatId)) return
     viewModelScope.launch(Dispatchers.IO) {
         val draft = chatDraftDao.get(ownerUserId, activeChatId)?.text.orEmpty()
         // Account switch between load and UI apply: never inject previous owner's draft.
-        if (!ChatDraftPolicy.shouldWrite(ownerUserId, tokenManager.getUserId())) return@launch
+        if (!ChatDraftPolicy.shouldWrite(ownerUserId, com.maodouchat.session.CurrentSession.snapshot().userId)) return@launch
         if (draft.isNotBlank() && !hasUserEditedInput) {
             _uiState.update { state ->
                 if (!ChatDraftPolicy.shouldApplyRestoredDraft(hasUserEditedInput, state.inputText)) state
@@ -32,7 +32,7 @@ internal fun ChatDetailViewModel.restoreDraft() {
 
 /** 1.162：清空已恢复草稿（本地删除 + 清除标识）。 */
 internal fun ChatDetailViewModel.clearDraftPersistence() {
-    val ownerUserId = tokenManager.getUserId().orEmpty()
+    val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
     if (ownerUserId.isBlank() || activeChatId.isBlank()) return
     draftSaveJob?.cancel()
     viewModelScope.launch(Dispatchers.IO) {
@@ -48,7 +48,7 @@ internal fun ChatDetailViewModel.clearDraftPersistence() {
 
 internal fun ChatDetailViewModel.scheduleDraftPersistence(text: String) {
     if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_DRAFTS)) return
-    val ownerUserId = tokenManager.getUserId().orEmpty()
+    val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
     val targetChatId = activeChatId
     if (!ChatDraftPolicy.canSchedule(ownerUserId, targetChatId)) return
     draftSaveJob?.cancel()
@@ -56,7 +56,7 @@ internal fun ChatDetailViewModel.scheduleDraftPersistence(text: String) {
     draftSaveJob = viewModelScope.launch(Dispatchers.IO) {
         delay(ChatDraftPolicy.SAVE_DELAY_MS)
         if (!ChatDraftPolicy.shouldPersistGeneration(generation, draftGeneration)) return@launch
-        if (!ChatDraftPolicy.shouldWrite(ownerUserId, tokenManager.getUserId())) return@launch
+        if (!ChatDraftPolicy.shouldWrite(ownerUserId, com.maodouchat.session.CurrentSession.snapshot().userId)) return@launch
         // 9.134：persistDraft 此前与 return@launch 同行——恒不可达，防抖保存从未执行，
         // 草稿只在 onCleared 时落盘（进程被杀即丢）
         persistDraft(ownerUserId, targetChatId, text)
@@ -64,7 +64,7 @@ internal fun ChatDetailViewModel.scheduleDraftPersistence(text: String) {
 }
 
 internal suspend fun ChatDetailViewModel.persistDraft(ownerUserId: String, targetChatId: String, text: String) {
-    if (!ChatDraftPolicy.shouldWrite(ownerUserId, tokenManager.getUserId())) return
+    if (!ChatDraftPolicy.shouldWrite(ownerUserId, com.maodouchat.session.CurrentSession.snapshot().userId)) return
     if (ChatDraftPolicy.isClearRequest(text)) {
         chatDraftDao.delete(ownerUserId, targetChatId)
     } else {
@@ -81,7 +81,7 @@ internal suspend fun ChatDetailViewModel.persistDraft(ownerUserId: String, targe
 
 internal fun ChatDetailViewModel.clearDraft() {
     if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_DRAFTS)) return
-    val ownerUserId = tokenManager.getUserId().orEmpty()
+    val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
     val targetChatId = activeChatId
     draftSaveJob?.cancel()
     draftSaveJob = null

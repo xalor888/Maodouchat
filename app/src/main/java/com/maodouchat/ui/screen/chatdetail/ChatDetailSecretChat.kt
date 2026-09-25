@@ -95,7 +95,7 @@ internal fun ChatDetailViewModel.startSecretChat() {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return@launch
         }
-        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+        val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
         val result = ChatNetworkRepository().createChat(
             liveToken,
             listOf(peerId),

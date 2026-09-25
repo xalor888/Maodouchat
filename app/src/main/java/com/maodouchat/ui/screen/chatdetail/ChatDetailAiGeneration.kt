@@ -35,7 +35,7 @@ import android.net.Uri
 internal data class AiRequestSnapshot(val userId: String, val chatId: String)
 
 internal fun ChatDetailViewModel.captureAiRequestSnapshot(): AiRequestSnapshot? {
-    val userId = tokenManager.getUserId().orEmpty()
+    val userId = com.maodouchat.session.CurrentSession.ownerUserId()
     val chatId = activeChatId
     val state = _uiState.value
     if (chatId.isBlank() || state.currentUserId != userId || state.chat?.id != chatId ||

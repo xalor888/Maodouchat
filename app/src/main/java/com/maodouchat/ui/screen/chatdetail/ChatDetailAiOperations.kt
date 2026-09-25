@@ -63,7 +63,7 @@ import kotlinx.serialization.json.Json
     }
 
     internal fun ChatDetailViewModel.executeAiAction(action: PendingAiAction) {
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (ownerUserId.isBlank() || token.isBlank() || activeChatId.isBlank()) {
             _uiState.update {
                 it.copy(groupEncryptionWarning = text(R.string.chat_ai_operation_context_missing))
@@ -169,7 +169,7 @@ import kotlinx.serialization.json.Json
 
     internal suspend fun ChatDetailViewModel.pumpAiOperationQueue() {
         aiOperationQueueMutex.withLock {
-            val ownerUserId = tokenManager.getUserId()?.takeIf(String::isNotBlank) ?: return
+            val ownerUserId = com.maodouchat.session.CurrentSession.snapshot().userId?.takeIf(String::isNotBlank) ?: return
             if (!_uiState.value.aiEnabled || !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)) return
             if (aiOperationRepo.getRunning(ownerUserId, activeChatId) != null) return
             val next = aiOperationRepo.getNextQueued(ownerUserId, activeChatId) ?: return

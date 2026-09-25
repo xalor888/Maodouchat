@@ -56,7 +56,6 @@ import com.maodouchat.data.repository.AiOperationRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.data.repository.ChatNetworkRepository
-import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
 import com.maodouchat.scheduling.ChatScheduleController
@@ -142,7 +141,6 @@ class ChatDetailViewModel(
     private val userRepo get() = deps.userRepo
     internal val chatRepo get() = deps.chatRepo
     internal val chatDraftDao get() = deps.chatDraftDao
-    internal val tokenManager get() = deps.tokenManager
     private val outgoingFacade get() = deps.outgoingFacade
     private val conversationScheduleCoordinator get() = deps.conversationScheduleCoordinator
     private val chatScheduleController get() = deps.chatScheduleController
@@ -154,8 +152,8 @@ class ChatDetailViewModel(
     internal fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
         OwnerSessionPolicy.isCurrent(
             snapshot = session,
-            liveUserId = tokenManager.getUserId(),
-            liveToken = tokenManager.getToken(),
+            liveUserId = com.maodouchat.session.CurrentSession.snapshot().userId,
+            liveToken = com.maodouchat.session.CurrentSession.snapshot().token,
             liveSessionGeneration = MaodouchatApp.currentSessionGeneration(),
             purgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
         )
@@ -373,8 +371,8 @@ class ChatDetailViewModel(
         get() = deps.draftGeneration
         set(value) { deps.draftGeneration = value }
     @Volatile internal var hasUserEditedInput = false
-    internal val currentUserId: String get() = tokenManager.getUserId() ?: "me"
-    internal val token: String get() = tokenManager.getToken() ?: ""
+    internal val currentUserId: String get() = com.maodouchat.session.CurrentSession.snapshot().userId ?: "me"
+    internal val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token ?: ""
 
     internal fun currentGroupRevision(): Long? =
         _uiState.value.chat?.takeIf { it.isGroup }?.memberRevision
@@ -459,7 +457,7 @@ class ChatDetailViewModel(
                             expectedUserId = purgeOwnerUserId,
                         )
                     ) continue
-                    if (tokenManager.getToken().isNullOrBlank()) continue
+                    if (com.maodouchat.session.CurrentSession.snapshot().token.isNullOrBlank()) continue
                     if (_uiState.value.disappearingMessageSeconds <= 0) continue
                     purgeExpiredLocalMessages()
                 }
@@ -468,11 +466,11 @@ class ChatDetailViewModel(
     }
 
     internal fun observeAiOperations() {
-        val ownerUserId = tokenManager.getUserId()?.takeIf(String::isNotBlank) ?: return
+        val ownerUserId = com.maodouchat.session.CurrentSession.snapshot().userId?.takeIf(String::isNotBlank) ?: return
         aiOperationRepo.observeActionable(ownerUserId, activeChatId)
             .onEach { operations ->
                 // Drop if logout/switch happened while Room Flow was still open.
-                if (tokenManager.getUserId().orEmpty() != ownerUserId) return@onEach
+                if (com.maodouchat.session.CurrentSession.ownerUserId() != ownerUserId) return@onEach
                 _uiState.update { state ->
                     state.copy(
                         aiOperations = operations.map { operation ->
@@ -494,7 +492,7 @@ class ChatDetailViewModel(
             }
             .launchIn(viewModelScope)
         viewModelScope.launch(Dispatchers.IO) {
-            if (tokenManager.getUserId().orEmpty() != ownerUserId) return@launch
+            if (com.maodouchat.session.CurrentSession.ownerUserId() != ownerUserId) return@launch
             aiOperationRepo.recoverInterrupted(ownerUserId, activeChatId)
             aiOperationRepo.pruneTerminal()
             // AI 本地缓存保留期清理：总结缓存 90 天，已完成任务 90 天
@@ -601,7 +599,7 @@ class ChatDetailViewModel(
     internal fun observeAttachmentTransfers() {
         app.database.attachmentTransferDao().observeAllAccounts()
             .onEach { allTransfers ->
-                val liveOwnerUserId = tokenManager.getUserId().orEmpty()
+                val liveOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
                 if (liveOwnerUserId.isBlank()) return@onEach
                 val visibleMessageIds = _uiState.value.messages.mapTo(hashSetOf()) { it.id }
                 // Only this account's rows — SQLCipher wipe is primary isolation, this is defense-in-depth mid-switch.
@@ -790,7 +788,7 @@ class ChatDetailViewModel(
                     _uiState.update { it.copy(isLoading = false) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+                val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
                 val cachedChat = chatRepo.getChatById(chatId)
                 val chatsResult = ChatNetworkRepository().chats(liveToken)
                 // getChats can outlive logout/switch — do not invalidate SK / cache / paint meta for next owner.
@@ -963,7 +961,7 @@ class ChatDetailViewModel(
         ) {
             return
         }
-        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+        val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
         if (liveToken.isBlank()) return
         groupLifecycleService.fetchGroupMembers(chatId).onSuccess { members ->
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -1031,7 +1029,7 @@ class ChatDetailViewModel(
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
+                val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
                 ChatNetworkRepository().updateChatSettings(
                     liveToken,
                     chatId,
@@ -1067,7 +1065,7 @@ class ChatDetailViewModel(
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
+                val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
                 ChatNetworkRepository().updateChatSettings(
                     liveToken,
                     chatId,
@@ -1773,7 +1771,7 @@ class ChatDetailViewModel(
         lastCapturePeerNotifyAt = now
         if (activeChatId.isBlank()) return
         if (_uiState.value.chat?.isGroup == true) return
-        val label = tokenManager.getUserId()?.take(8) ?: "me"
+        val label = com.maodouchat.session.CurrentSession.snapshot().userId?.take(8) ?: "me"
         val content = com.maodouchat.util.CaptureAlertPolicy.format(label, "screenshot")
         // Reuse sticker/nudge-like inline send pipeline (E2EE TEXT envelope).
         sendInlineContent(content, MessageType.TEXT, content)
@@ -2040,7 +2038,7 @@ class ChatDetailViewModel(
         preparationJob.invokeOnCompletion { error ->
             attachmentPreparationJobs.remove(messageId, preparationJob)
             if (error != null) {
-                if (tokenManager.getUserId() != attachOwnerUserId) return@invokeOnCompletion
+                if (com.maodouchat.session.CurrentSession.snapshot().userId != attachOwnerUserId) return@invokeOnCompletion
                 _uiState.update {
                     it.copy(
                         isSending = false,
@@ -2207,7 +2205,7 @@ class ChatDetailViewModel(
                     afterDurableCommit = { conversation, _ ->
                         try {
                             maybeForwardBotInbox(
-                                liveToken = tokenManager.getToken().orEmpty(),
+                                liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty(),
                                 chatId = conversation.conversationId,
                                 plaintext = plaintext,
                                 isGroup = conversation.isGroup,
@@ -2432,7 +2430,7 @@ class ChatDetailViewModel(
         draftSaveJob?.cancel()
         draftSaveJob = null
         realtimeController.clear()
-        val draftOwnerUserId = tokenManager.getUserId().orEmpty()
+        val draftOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val draftChatId = activeChatId
         val draftText = _uiState.value.inputText
         // 8.49 修复：与 scheduleDraftPersistence/clearDraft/restoreDraft 一致检查 CHAT_DRAFTS
@@ -2470,8 +2468,7 @@ class ChatDetailViewModel(
         markReadJob?.cancel()
         markReadJob = null
         val currentChatId = activeChatId
-        val readOwnerUserId = tokenManager.getUserId().orEmpty()
-        val readTokenManager = tokenManager
+        val readOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val readIsSecret = _uiState.value.isSecretChat == true
         val readGroupRevision = _uiState.value.chat?.memberRevision
             ?.takeIf { _uiState.value.chat?.isGroup == true }
@@ -2481,8 +2478,8 @@ class ChatDetailViewModel(
             MaodouchatApp.instance.applicationScope.launch {
                 try {
                     withContext(NonCancellable) {
-                        val liveToken = readTokenManager.getToken()
-                        val liveUserId = readTokenManager.getUserId()
+                        val liveToken = com.maodouchat.session.CurrentSession.snapshot().token
+                        val liveUserId = com.maodouchat.session.CurrentSession.snapshot().userId
                         if (liveToken.isNullOrBlank() || liveUserId != readOwnerUserId) return@withContext
                         if (!DisappearingMessagePolicy.shouldSkipReadReceipts(readIsSecret)) {
                             messagingOutbox.enqueueReadReceipt(

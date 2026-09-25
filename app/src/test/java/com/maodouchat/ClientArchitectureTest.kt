@@ -216,7 +216,7 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**20 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**21 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -226,7 +226,7 @@ class ClientArchitectureTest {
      * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
      * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
      * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
-     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37 → 33 → 31 → 26 → 22 → 20）。别把它当成棘轮被放松。
+     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37 → 33 → 31 → 26 → 22 → 20 → 20）。别把它当成棘轮被放松。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
@@ -247,6 +247,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/ChatListLoadCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListMutationCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
+        "com/maodouchat/ui/screen/chatlist/ChatListViewModel.kt",
         "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
         "com/maodouchat/ui/screen/explore/AuthorProfileScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreNearbyScreen.kt",
@@ -271,7 +272,10 @@ class ClientArchitectureTest {
                 val rel = file.relativeTo(appMain).path.replace('\\', '/')
                 when {
                     Regex("""\bApiService\b|\bApiEndpointClients\b""").containsMatchIn(body) -> api += rel
-                    Regex("""\bTokenManager\b""").containsMatchIn(body) -> token += rel
+                    // G332：判据原先只认类型名 `TokenManager`，于是**通过属性名读凭据**的文件被漏掉
+                    // （实测漏了 `ChatDetailViewModel` 一族：它把 `tokenManager` 以小写属性暴露给 18 个
+                    // 扩展文件，自己一次类型名都不写）。现在同时认 `tokenManager.xxx` 的调用形态。
+                    Regex("""\bTokenManager\b|\btokenManager\.\w+""").containsMatchIn(body) -> token += rel
                 }
             }
             return api to token
@@ -324,7 +328,7 @@ class ClientArchitectureTest {
         // 棘轮方向不变：从这里开始只许降。上调的原因是必要的 import，不是往里堆逻辑。
 
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2786,
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2545,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2542,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
@@ -389,7 +393,7 @@ class ClientArchitectureTest {
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2786,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2545,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2542,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。

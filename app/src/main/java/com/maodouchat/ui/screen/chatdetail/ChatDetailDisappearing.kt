@@ -67,7 +67,7 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
                 }
                 return@launch
             }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+            val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
             ChatNetworkRepository().updateDisappearingMessages(liveToken, chatId, normalized).fold(
                 onSuccess = { response ->
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(

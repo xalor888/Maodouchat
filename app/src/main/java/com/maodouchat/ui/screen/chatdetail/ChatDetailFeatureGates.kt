@@ -20,7 +20,7 @@ internal fun ChatDetailViewModel.votePoll(pollId: String, optionIndex: Int) {
     if (!requireGroupPlay()) return
     if (pollId.isBlank()) return
     viewModelScope.launch {
-        val token = tokenManager.getToken().orEmpty()
+        val token = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
         if (token.isBlank()) return@launch
         GroupPollNetworkRepository().votePoll(token, pollId, listOf(optionIndex)).fold(
             onSuccess = {
@@ -93,8 +93,8 @@ internal fun ChatDetailViewModel.requireGroupPlay(): Boolean {
                 _uiState.update { it.copy(sealedSenderReady = false, sealedSenderExpiresInSec = 0L) }
                 return@launch
             }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            val ownerUserId = tokenManager.getUserId().orEmpty()
+            val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
             if (liveToken.isBlank() || ownerUserId.isBlank()) return@launch
             val ownerDeviceId = signalProtocol.getDeviceId()
             val cert = try {
@@ -122,7 +122,7 @@ internal fun ChatDetailViewModel.sendBotCallback(messageId: String, botUserId: S
     if (data.isBlank() || messageId.isBlank() || botUserId.isBlank()) return
     viewModelScope.launch {
         try {
-            val tok = tokenManager.getToken().orEmpty()
+            val tok = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
             if (tok.isBlank()) return@launch
             val chatId = _uiState.value.chat?.id ?: return@launch
             val ok = BotNetworkRepository().postBotCallback(

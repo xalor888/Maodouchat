@@ -283,7 +283,7 @@ internal class ChatDetailDeps(
         )
     }
     internal val conversationScheduleCoordinator = ConversationScheduleCoordinator(
-        ownerUserId = { tokenManager.getUserId().orEmpty() },
+        ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
         backend = AndroidConversationScheduleBackend(application),
     )
     internal val chatScheduleController = ChatScheduleController(
@@ -307,8 +307,8 @@ internal class ChatDetailDeps(
         tokenManager = tokenManager,
     )
     internal val groupLifecycleCoordinator = GroupLifecycleCoordinator(
-        ownerUserId = { tokenManager.getUserId().orEmpty() },
-        token = { tokenManager.getToken().orEmpty() },
+        ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+        token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
         sessionActive = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
@@ -324,14 +324,14 @@ internal class ChatDetailDeps(
     internal val groupLifecycleService: com.maodouchat.group.GroupLifecycleService by lazy {
         com.maodouchat.group.DefaultGroupLifecycleService(
             coordinator = groupLifecycleCoordinator,
-            tokenProvider = { tokenManager.getToken().orEmpty().ifBlank { host.token } },
+            tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
             membershipStore = host.app.groupMembershipStore,
         )
     }
     internal val conversationForwardCoordinator by lazy {
         ConversationForwardCoordinator(
-            ownerUserId = { tokenManager.getUserId().orEmpty() },
-            token = { tokenManager.getToken().orEmpty() },
+            ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+            token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
             sessionActive = { ownerUserId ->
                 com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,
