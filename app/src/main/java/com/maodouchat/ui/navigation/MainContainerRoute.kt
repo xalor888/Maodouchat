@@ -62,7 +62,7 @@ import com.maodouchat.R
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.screen.chatdetail.ChatDetailScreen
@@ -232,7 +232,7 @@ internal fun MainContainer(navController: NavHostController) {
                         onOpenAbout = { navController.navigate(Routes.SETTINGS_ABOUT) },
                         // 1.116：我的动态 → 作者主页（当前用户）
                         onOpenMyPosts = {
-                            val myUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId().orEmpty()
+                            val myUserId = CurrentSession.ownerUserId()
                             if (myUserId.isNotBlank()) {
                                 navController.navigate(Routes.authorProfile(myUserId)) { launchSingleTop = true }
                             }

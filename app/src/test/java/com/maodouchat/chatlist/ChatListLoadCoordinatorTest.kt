@@ -35,7 +35,7 @@ class ChatListLoadCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         val cached = mutableListOf<List<Chat>>()
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -63,7 +63,7 @@ class ChatListLoadCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         var fetchCount = 0
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -96,7 +96,7 @@ class ChatListLoadCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         val coordinator = buildCoordinator(
             uiState = uiState,
             tokenManager = tokenManager,
@@ -124,7 +124,7 @@ class ChatListLoadCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         val missed = listOf(
             MissedCall(
                 id = "m1",

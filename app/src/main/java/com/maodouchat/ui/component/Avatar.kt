@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.theme.AvatarGradients
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.OnlineGreen
@@ -67,7 +67,7 @@ fun Avatar(
     val context = LocalContext.current
     Box(modifier = modifier) {
         if (!avatarUrl.isNullOrBlank()) {
-            val ownerUserId = TokenManager.getInstance(context).getUserId().orEmpty()
+            val ownerUserId = CurrentSession.ownerUserId()
             val isolatedCacheKey = "$ownerUserId:$avatarUrl"
             // 有头像图片
             AsyncImage(

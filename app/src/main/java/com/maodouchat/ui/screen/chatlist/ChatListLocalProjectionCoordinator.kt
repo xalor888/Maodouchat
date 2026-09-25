@@ -5,7 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.data.local.LikeQueryPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Message
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +26,6 @@ import kotlinx.coroutines.withContext
 internal class ChatListLocalProjectionCoordinator(
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<ChatListUiState>,
-    private val tokenManager: TokenManager,
     private val ownerUserId: () -> String,
     private val observeDraftsForOwner: (ownerUserId: String) -> Flow<List<ChatDraftEntity>>,
     private val getRecentMessages: suspend (chatId: String, limit: Int) -> List<Message>,
@@ -63,7 +62,7 @@ internal class ChatListLocalProjectionCoordinator(
             } catch (_: Exception) {
                 emptySet()
             }
-            if (tokenManager.getUserId().orEmpty() != owner) return@launch
+            if (CurrentSession.ownerUserId() != owner) return@launch
             if (changed != uiState.value.identityChangedUserIds) {
                 uiState.update { it.copy(identityChangedUserIds = changed) }
             }
@@ -81,7 +80,7 @@ internal class ChatListLocalProjectionCoordinator(
             } catch (_: Exception) {
                 emptySet()
             }
-            if (tokenManager.getUserId().orEmpty() != owner) return@launch
+            if (CurrentSession.ownerUserId() != owner) return@launch
             uiState.update { it.copy(lockedChatIds = ids) }
         }
     }
@@ -91,7 +90,7 @@ internal class ChatListLocalProjectionCoordinator(
         if (owner.isBlank()) return
         scope.launch(ioDispatcher) {
             val ids = uiState.value.chats.filter { it.isSecret }.map { it.id }.toSet()
-            if (tokenManager.getUserId().orEmpty() != owner) return@launch
+            if (CurrentSession.ownerUserId() != owner) return@launch
             uiState.update { it.copy(secretChatIds = ids) }
         }
     }
@@ -108,7 +107,7 @@ internal class ChatListLocalProjectionCoordinator(
         // Debounce + single-flight: rapid typing must not apply a slower older LIKE result.
         messageSearchJob = scope.launch {
             delay(searchDebounceMs)
-            val searchOwnerUserId = tokenManager.getUserId().orEmpty()
+            val searchOwnerUserId = CurrentSession.ownerUserId()
             if (searchOwnerUserId.isBlank()) {
                 uiState.update { it.copy(messageMatchedChatIds = emptySet()) }
                 return@launch
@@ -128,13 +127,13 @@ internal class ChatListLocalProjectionCoordinator(
                 }
                 // Drop if user kept typing past this snapshot or account switched mid-search.
                 if (uiState.value.searchQuery != clipped) return@launch
-                if (tokenManager.getUserId().orEmpty() != searchOwnerUserId) return@launch
+                if (CurrentSession.ownerUserId() != searchOwnerUserId) return@launch
                 uiState.update { it.copy(messageMatchedChatIds = matchedIds.toSet()) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 if (uiState.value.searchQuery != clipped) return@launch
-                if (tokenManager.getUserId().orEmpty() != searchOwnerUserId) return@launch
+                if (CurrentSession.ownerUserId() != searchOwnerUserId) return@launch
                 Log.w(TAG, "list message search failed", error)
                 uiState.update {
                     it.copy(
@@ -152,7 +151,7 @@ internal class ChatListLocalProjectionCoordinator(
         scope.launch {
             observeDraftsForOwner(owner).collect { drafts ->
                 // Drop if process-local session switched while Flow was still open.
-                if (tokenManager.getUserId().orEmpty() != owner) return@collect
+                if (CurrentSession.ownerUserId() != owner) return@collect
                 uiState.update { state -> state.copy(drafts = drafts.associateBy(ChatDraftEntity::chatId)) }
             }
         }
@@ -167,7 +166,7 @@ internal class ChatListLocalProjectionCoordinator(
                 .map { state -> state.chats.map { it.id } to state.chats.map { it.lastMessageTime } }
                 .distinctUntilChanged()
                 .collect { (chatIds, _) ->
-                    if (tokenManager.getUserId().orEmpty() != owner) return@collect
+                    if (CurrentSession.ownerUserId() != owner) return@collect
                     val chatsById = uiState.value.chats.associateBy { it.id }
                     val receipts = chatIds.associateWith { chatId ->
                         val latest = runCatching {
@@ -179,7 +178,7 @@ internal class ChatListLocalProjectionCoordinator(
                             isGroup = chatsById[chatId]?.isGroup == true,
                         )
                     }.filterValues { it != null }.mapValues { it.value!! }
-                    if (tokenManager.getUserId().orEmpty() != owner) return@collect
+                    if (CurrentSession.ownerUserId() != owner) return@collect
                     uiState.update { it.copy(receiptsByChat = receipts) }
                 }
         }

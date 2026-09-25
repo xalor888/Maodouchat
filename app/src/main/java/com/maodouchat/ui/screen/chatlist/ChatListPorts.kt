@@ -13,6 +13,8 @@ import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.repository.AnnouncementNetworkRepository
 import com.maodouchat.data.repository.ChatNetworkRepository
+import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.MissedCallRepository
@@ -23,7 +25,6 @@ import com.maodouchat.messaging.v2.MessagingV2Outbox
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.ChatSettingsResponse
-import com.maodouchat.network.TokenManager
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.notification.MessageNotificationService
@@ -115,7 +116,7 @@ internal object AndroidChatListPorts {
         val messageStore = LocalMessageStore(database.messageDao(), database)
         val missedCallRepository = MissedCallRepository(database.missedCallDao())
         val scheduleCoordinator = ConversationScheduleCoordinator(
-            ownerUserId = { tokenManager.getUserId().orEmpty() },
+            ownerUserId = { CurrentSession.ownerUserId() },
             backend = AndroidConversationScheduleBackend(application),
         )
         val conversationLocalStateCoordinator = createAndroidConversationLocalStateCoordinator(

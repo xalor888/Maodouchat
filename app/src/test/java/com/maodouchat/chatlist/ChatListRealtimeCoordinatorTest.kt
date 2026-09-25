@@ -232,7 +232,7 @@ class ChatListRealtimeCoordinatorTest {
         onClearMarkedUnreadAfterOpen: (Chat) -> Unit = {},
         onRequestBacklogSync: () -> Unit = {},
     ): ChatListRealtimeCoordinator {
-    com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenValue to tokenUserId }
+    com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenValue, tokenUserId) }
         val notificationCenter = mockk<NotificationCenterRepository>(relaxed = true)
         return ChatListRealtimeCoordinator(
             scope = scope,

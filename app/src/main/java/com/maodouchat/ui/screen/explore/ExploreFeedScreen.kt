@@ -156,7 +156,7 @@ fun ExploreScreen(
     // 1.192：只看带图片的动态
     var showOnlyMedia by rememberSaveable { mutableStateOf(false) }
     var composerExpanded by rememberSaveable { mutableStateOf(false) }
-    val currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId().orEmpty()
+    val currentUserId = com.maodouchat.session.CurrentSession.ownerUserId()
     val filteredPosts = remember(uiState.posts, feedSearch, showOnlyMine, showOnlyMedia) {
         val mine = if (showOnlyMine) { post: PostDto ->
             post.isMine || post.author.id == currentUserId
@@ -498,7 +498,7 @@ fun ExploreScreen(
             onSend = viewModel::sendComment,
             onDismiss = viewModel::closeComments,
             // 1.00：删除自己的评论
-            currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId().orEmpty(),
+            currentUserId = com.maodouchat.session.CurrentSession.ownerUserId(),
             onDeleteComment = viewModel::deleteComment,
             // 1.52：评论点赞
             onToggleLike = viewModel::toggleCommentLike,

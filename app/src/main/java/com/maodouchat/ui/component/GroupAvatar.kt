@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.theme.AvatarGradients
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.SurfaceVariant
@@ -49,7 +49,7 @@ fun GroupAvatar(
     size: Dp = 48.dp
 ) {
     val context = LocalContext.current
-    val ownerUserId = TokenManager.getInstance(context).getUserId().orEmpty()
+    val ownerUserId = CurrentSession.ownerUserId()
     val motionSettings = LocalMotionSettings.current
 
     val displayParticipants = participants.take(4)

@@ -244,7 +244,6 @@ class ChatListViewModel private constructor(
     private val archiveSuggestionCoordinator = ChatListArchiveSuggestionCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        tokenManager = tokenManager,
         ownerUserId = { currentUserIdStr },
         ownerSession = { ownerSession(it) },
         isOwnerSessionCurrent = { isOwnerSessionCurrent(it) },
@@ -274,7 +273,6 @@ class ChatListViewModel private constructor(
     private val localProjectionCoordinator = ChatListLocalProjectionCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        tokenManager = tokenManager,
         ownerUserId = { currentUserIdStr },
         observeDraftsForOwner = ports.observeDraftsForOwner,
         getRecentMessages = { chatId, limit -> messageRepo.getRecentMessages(chatId, limit) },

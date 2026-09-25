@@ -71,7 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import kotlinx.coroutines.delay
@@ -111,7 +111,7 @@ fun PostDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId().orEmpty()
+    val currentUserId = CurrentSession.ownerUserId()
     // 1.101：发送新评论后自动滚动到底部（分页加载不触发——它在头部插入，末条 id 不变）
     val commentListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val commentListScope = androidx.compose.runtime.rememberCoroutineScope()

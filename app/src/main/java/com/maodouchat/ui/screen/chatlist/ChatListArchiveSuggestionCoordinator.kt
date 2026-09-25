@@ -4,7 +4,7 @@ import android.util.Log
 import com.maodouchat.ai.AiArchiveSuggestion
 import com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity
 import com.maodouchat.data.model.Chat
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -24,7 +24,6 @@ import kotlinx.coroutines.withContext
 internal class ChatListArchiveSuggestionCoordinator(
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<ChatListUiState>,
-    private val tokenManager: TokenManager,
     private val ownerUserId: () -> String,
     private val ownerSession: (ownerUserId: String) -> OwnerSessionSnapshot,
     private val isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean,
@@ -39,7 +38,7 @@ internal class ChatListArchiveSuggestionCoordinator(
 
     fun start() {
         scope.launch {
-            val userId = tokenManager.getUserId().orEmpty()
+            val userId = CurrentSession.ownerUserId()
             if (userId.isBlank()) return@launch
             val ids = try {
                 withContext(ioDispatcher) { loadDismissedIds(userId) }
@@ -115,7 +114,7 @@ internal class ChatListArchiveSuggestionCoordinator(
         dismissArchiveSuggestion(chat.id)
     }
 
-    private fun dismissalOwnerId(): String = tokenManager.getUserId().orEmpty()
+    private fun dismissalOwnerId(): String = CurrentSession.ownerUserId()
 
     private fun persistDismissal(chatId: String) {
         val userId = dismissalOwnerId()

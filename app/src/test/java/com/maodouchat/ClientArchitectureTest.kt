@@ -216,7 +216,7 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**46 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**37 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -226,7 +226,7 @@ class ClientArchitectureTest {
      * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
      * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
      * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
-     * （G328c 全程：98 → 61 → 55 → 48 → 46）。别把它当成棘轮被放松。
+     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37）。别把它当成棘轮被放松。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
@@ -236,16 +236,11 @@ class ClientArchitectureTest {
     )
 
     private val frozenUiTokenReaders: Set<String> = setOf(
-        "com/maodouchat/ui/component/Avatar.kt",
-        "com/maodouchat/ui/component/GroupAvatar.kt",
         "com/maodouchat/ui/component/MediaInteractiveCards.kt",
-        "com/maodouchat/ui/component/OwnerScopedImageKeys.kt",
         "com/maodouchat/ui/navigation/CallNavigation.kt",
-        "com/maodouchat/ui/navigation/MainContainerRoute.kt",
         "com/maodouchat/ui/navigation/NavGraph.kt",
         "com/maodouchat/ui/screen/call/CallViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatExportController.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatRealtimeController.kt",
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt",
@@ -254,9 +249,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
         "com/maodouchat/ui/screen/chatlist/ChatFolderController.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListAnnouncementCoordinator.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListArchiveSuggestionCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListLoadCoordinator.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListLocalProjectionCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListMutationCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListUnreadBatchCoordinator.kt",
@@ -267,10 +260,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/contacts/JoinGroupInviteScreen.kt",
         "com/maodouchat/ui/screen/contacts/MyQrCodeViewModel.kt",
         "com/maodouchat/ui/screen/explore/AuthorProfileScreen.kt",
-        "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreNearbyScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
-        "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPlayViewModelSupport.kt",
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
         "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt",

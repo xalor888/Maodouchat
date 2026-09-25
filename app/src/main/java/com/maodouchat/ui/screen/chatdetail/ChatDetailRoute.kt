@@ -1102,7 +1102,7 @@ internal fun ChatDetailRoute(
     }
     val secretPagePayload = rememberSecretPageWatermarkPayload(
         isSecretChat = state.isSecretChat == true,
-        userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
+        userId = com.maodouchat.session.CurrentSession.ownerUserId(),
         chatId = state.chat?.id,
         deviceHint = android.provider.Settings.Secure.getString(
             context.contentResolver,

@@ -46,7 +46,7 @@ class ChatListAnnouncementCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         val raw = """
             {"announcements":[
               {"id":"a1","title":"T","content":"C","level":"INFO","startsAt":0,"expiresAt":2000000,"status":"ACTIVE","acked":false},
@@ -86,7 +86,7 @@ class ChatListAnnouncementCoordinatorTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.getToken() } returns "tok"
         every { tokenManager.getUserId() } returns "me"
-        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         var ackCount = 0
         val coordinator = ChatListAnnouncementCoordinator(
             scope = this,

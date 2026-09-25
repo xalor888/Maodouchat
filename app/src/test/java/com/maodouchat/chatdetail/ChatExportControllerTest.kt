@@ -49,7 +49,7 @@ class ChatExportControllerTest {
 
         every { tokenManager.getUserId() } returns "user_me"
 
-        com.maodouchat.security.BackgroundSessionGate.sessionOverride = { tokenManager.getToken() to tokenManager.getUserId() }
+        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         every { tokenManager.getToken() } returns "valid_token"
 
         controller = ChatExportController(

@@ -2,7 +2,7 @@ package com.maodouchat.ui.component
 
 import android.content.Context
 import coil.request.ImageRequest
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.watermark.FrequencyWatermark
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.watermark.SecretWatermarkTransformation
@@ -34,7 +34,7 @@ object OwnerScopedImageKeys {
         sizeHeight: Int? = null
     ): String? {
         if (data == null) return null
-        val owner = TokenManager.getInstance(context).getUserId().orEmpty()
+        val owner = CurrentSession.ownerUserId()
         val raw = when (data) {
             is String -> data
             else -> data.toString()
