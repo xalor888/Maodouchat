@@ -1456,3 +1456,34 @@ random 辅助（传递性死代码，以前测不出来）。
 `MaodouJson.forwardCompatible` 与 app 的 `ApiService.json` **不是同一个配置**，换过去会改线上报文格式
 （`encodeDefaults=true` / `explicitNulls=false`），那不是重构是改协议；`NetworkResult` 与在用的
 `kotlin.Result` 并行；`Clock`/`DispatcherProvider` 要等 DI 装配；`core:session` 是会话重构的目标形状。
+
+### 第八轮（2026-09-25 续）：把「ui 读会话令牌」从 48 收到 7，并按性质分类
+
+`frozenUiTokenReaders` 49 → **7**（全程 98 → 61 → 55 → 48 → 46 → 37 → 33 → 31 → 26 → 22 → 20 → 18 → 16 → 14 → 13 → 10 → 7）。
+手法统一为两条：**身份/有没有会话**走 `com.maodouchat.session.CurrentSession`；
+**凭据**由 `data/repository` 的薄仓库自持（`currentAccessToken()`，`token: String? = null` 默认，
+显式传仍优先——后台批次用捕获的令牌是有意选择）。这条约定连同理由写进了记忆文件与门禁 KDoc。
+
+本段涉及的仓库/用例（都按同一约定改）：`NearbyNetworkRepository`、`PinStarNetworkRepository`、
+`ChatNetworkRepository`（chats/updateChatSettings/updateDisappearing/deleteChat/createChat）、
+`ChatFolderNetworkRepository`、`ModerationNetworkRepository`（全部方法）、
+`NotificationSettingsNetworkRepository`、`ClientPrefsNetworkRepository`、
+`AccountSecurityNetworkRepository`（changePassword/privacy）、`ContactNetworkRepository`、
+`AnnouncementNetworkRepository`、`PushNetworkRepository`、`PostNetworkRepository`、
+`UserNetworkRepository`（user/currentUser）；`explore/` 下的 `LoadFeedUseCase`、
+`PublishPostUseCase`、`ToggleLikeUseCase`、`CommentPostUseCase`、`MediaUploadQueue`。
+
+**判据修准（一次真实的漏检修复）**：判据原先只认类型名 `TokenManager`，于是
+`ChatDetailViewModel` 一族**从来没被这条门禁抓到过**——它们以小写属性 `tokenManager`
+读凭据、还把它分给 18 个扩展文件，自己一次类型名都不写。现在同时认 `tokenManager.xxx`。
+修完后按新口径重测的第一次数字是 **21**（比修之前多），那不是棘轮被放松，是补上了漏检。
+
+**剩下 7 个已逐条分类**（写进判据 KDoc）：只做装配 4 个（`ChatDetailDeps`、`ChatListPorts`、
+`ChatRealtimeController`、`GroupDetailViewModel`）、会话拥有者 1 个（`LoginViewModel`）、
+凭据交给协议层 1 个（`IdentityVerificationController`）、仍需继续拆 1 个（`SettingsViewModel`，
+27 处取令牌 + 22 处取身份，且热点上限零余量）。
+
+**三次返工都记在提交里**（都是我的批量脚本，不是产品代码）：`f-string` 里写双反斜杠导致
+「残留 0 处」的假报告；宽松正则删掉「取令牌」行却没动紧随的守卫，编译报 `Unresolved reference 'token'`；
+固定缩进写回 `val liveToken = token` 时有一处在更深作用域，被 pre-push 的 `SuspiciousIndentation`
+拦下（修完**单独跑了 lint**，没有用单测代替 lint）。
