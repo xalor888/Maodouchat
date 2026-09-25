@@ -1509,3 +1509,44 @@ random 辅助（传递性死代码，以前测不出来）。
 **流程上的修正**（比这次 bug 更重要）：把「仪器测试靠 CI」当默认，等于把行为回归的发现推迟一整轮 CI。
 本机有 AVD，**改动触及交互/状态流转时应本地跑 `:app:connectedDebugAndroidTest`**（全量 183 例约 1.5 分钟）。
 这条已写进记忆文件的验证口径，并替换掉那份错误结论。
+
+### 第十轮（2026-09-25 续）：用户报「页面不适配状态栏」→ 真机复现，抓到两个真机才可见的缺陷
+
+**用户反馈**：「很多页面又开始不适配状态栏了，状态栏把页面挡住了，高度都不对，还有你这个模拟器测试好草率」。
+两条都成立，处理如下。
+
+**1. 状态栏遮挡（已修 + 已加门禁）**
+把 debug 包装到本机 AVD（`maodou_test`）+ 起本地 H2 服务端（`SEED_DEMO_USERS`）登录后逐页截图，
+复现：**设置 → 安全中心**首屏第一行「Devices, E2EE, and app lock at a glance」画在状态栏底下。
+根因：`AccountSecurityScreen` 根布局是 `Column(verticalScroll(...).imePadding())`——`enableEdgeToEdge()` 下
+整屏页面必须自己消费系统栏 inset，而本页既没有 `TopAppBar`（M3 顶栏自带）也没有任何 inset 修饰符。
+**这是长期缺陷，不是这几天改出来的**（`git log -S statusBarsPadding` 显示该文件从未有过），但确实是这次才被发现。
+修法：`Modifier.safeDrawingPadding().verticalScroll(...)`（一次覆盖状态栏 + 手势条 + IME），
+并删掉两个从未使用的 import；文件行数守住在热点上限内（884）。
+**加门禁** `every nav destination consumes system bar insets`：遍历导航目的地，解析其最外层
+`*Screen/*Route/*Pane`，要求出现 Scaffold/TopAppBar/statusBarsPadding/safeDrawingPadding/WindowInsets 之一；
+例外只登记**间接**目的地两条（`ChatDetailListPaneRoute`、`IncomingCallRoute`）并写明被转发者。
+理由写进判据：这条对应的是**真机可见、而单元与语义测试都看不见**的缺陷。
+
+**2. 打开任一聊天闪退（已修 + 已补真机测试）**
+真机点进会话 → `Maodouchat keeps stopping`：
+
+    NullPointerException: Parameter specified as non-null is null:
+      ScheduledMessageController.<init>, parameter uiState
+      at ChatDetailDeps.<init>(ChatDetailDeps.kt:503)
+
+根因是**初始化顺序**：`private val deps = ChatDetailDeps(application, host = this)` 声明在 `_uiState` 之前，
+Deps 构造时读 `host._uiState` 得到 null → 非空参数直接抛。这是上一轮「装配搬进 ChatDetailDeps」时引入的：
+代码搬对了，**位置**搬错了。修法是把整块移到 `_uiState`/`uiState` 之后，并在原地写明原因与表现。
+**补防回归测试** `ChatDetailScreenDataTest`（androidTest 2 例）：直接构造真实 VM +
+用带 chatId 的 VM 组合**真实 `ChatDetailRoute`** 并等顶栏与输入框出现。
+
+**3. 「模拟器测试草率」这条的根因与修正**
+不是测试数量不够，而是**测试覆盖的路径不对**：语义测试不渲染系统栏、也不经真实装配，
+所以上面两个缺陷都能全绿通过。已做的修正：本机 AVD 跑真机主流程并**逐页看截图**、
+把「本机有 AVD、交互类改动必须本地跑 `connectedDebugAndroidTest`」写进记忆文件，
+并把这两个缺陷各自变成一条**可自动化的判据**（inset 门禁 / 真实装配路径测试）。
+
+**4. 一个会误导本地排查的坑（记下来）**
+`ChatListScreenDataTest` 假设设备**没有登录态**（无会话 → 展示本地播种的会话）。本机调试登录过之后，
+这 4 例会红；`connectedDebugAndroidTest` 结束会卸载 APK，数据随之消失，重跑即恢复。
