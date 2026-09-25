@@ -313,6 +313,8 @@ internal fun ChatDetailRoute(
     onOpenCallHistory: (() -> Unit)? = null,
     viewModel: ChatDetailViewModel = viewModel()
 ) {
+    // G335：搜索状态族收进持有类（带 Saver，保存语义不变——见 ChatDetailSearchState.kt）
+    val search = rememberChatDetailSearchState()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val motion = LocalMotionSettings.current
     val listState = rememberLazyListState()
@@ -418,13 +420,7 @@ internal fun ChatDetailRoute(
     // G335：这一族「弹层当前操作哪条消息」的状态收进持有类（见 ChatDetailMessageActionState）。
     val messageActions = remember { ChatDetailMessageActionState() }
     var editDraft by rememberSaveable { mutableStateOf("") }
-    var showSearchBar by rememberSaveable { mutableStateOf(false) }
     var showDateJumpDialog by rememberSaveable { mutableStateOf(false) }
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    var searchIndex by rememberSaveable { mutableIntStateOf(0) }
-    var searchMode by rememberSaveable { mutableStateOf(ChatSearchMode.KEYWORD) }
-    var searchScope by rememberSaveable { mutableStateOf(ChatSearchScope.ALL) }
-    var searchWindow by rememberSaveable { mutableStateOf(ChatSearchWindow.ALL) }
     val chatAiSurfacesVisible = com.maodouchat.ai.AiEntryPolicy.shouldShowAiSurfaces(
         chatAiEnabled = state.aiEnabled,
         consentAccepted = com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(context),
@@ -435,8 +431,8 @@ internal fun ChatDetailRoute(
         )
     )
     androidx.compose.runtime.LaunchedEffect(chatAiSurfacesVisible) {
-        if (!chatAiSurfacesVisible && searchMode == ChatSearchMode.SEMANTIC) {
-            searchMode = ChatSearchMode.KEYWORD
+        if (!chatAiSurfacesVisible && search.searchMode == ChatSearchMode.SEMANTIC) {
+            search.searchMode = ChatSearchMode.KEYWORD
             viewModel.clearSemanticSearch()
         }
     }
@@ -594,26 +590,26 @@ internal fun ChatDetailRoute(
         state.messages.filter { it.id in selectedMessageIds }
     }
     val messageSelectionMode = selectedMessageIds.isNotEmpty()
-    BackHandler(enabled = showChatOverflow || messageSelectionMode || showSearchBar) {
+    BackHandler(enabled = showChatOverflow || messageSelectionMode || search.showSearchBar) {
         when {
             showChatOverflow -> showChatOverflow = false
             messageSelectionMode -> selectedMessageIds = emptySet()
-            showSearchBar -> showSearchBar = false
+            search.showSearchBar -> search.showSearchBar = false
         }
     }
     val searchDocuments = remember(state.messages) { buildChatSearchDocuments(state.messages) }
-    val localSearchResults = remember(searchQuery, searchScope, searchWindow, searchDocuments) {
+    val localSearchResults = remember(search.searchQuery, search.searchScope, search.searchWindow, searchDocuments) {
         searchChatDocuments(
             documents = searchDocuments,
-            query = searchQuery,
-            scope = searchScope,
-            window = searchWindow,
+            query = search.searchQuery,
+            scope = search.searchScope,
+            window = search.searchWindow,
             currentUserId = state.currentUserId
         )
     }
-    val semanticCandidates = remember(showSearchBar, searchMode, searchScope, searchWindow, searchDocuments) {
-        if (showSearchBar && searchMode == ChatSearchMode.SEMANTIC) {
-            semanticSearchCandidates(searchDocuments, searchScope, searchWindow, currentUserId = state.currentUserId)
+    val semanticCandidates = remember(search.showSearchBar, search.searchMode, search.searchScope, search.searchWindow, searchDocuments) {
+        if (search.showSearchBar && search.searchMode == ChatSearchMode.SEMANTIC) {
+            semanticSearchCandidates(searchDocuments, search.searchScope, search.searchWindow, currentUserId = state.currentUserId)
         } else {
             emptyList()
         }
@@ -621,16 +617,16 @@ internal fun ChatDetailRoute(
     val semanticSearchResults = remember(
         state.semanticSearchResultIds,
         state.semanticSearchQuery,
-        searchQuery,
+        search.searchQuery,
         state.messages
     ) {
-        if (state.semanticSearchQuery != searchQuery.trim()) {
+        if (state.semanticSearchQuery != search.searchQuery.trim()) {
             emptyList()
         } else {
             state.semanticSearchResultIds.mapNotNull(messagesById::get)
         }
     }
-    val searchResults = if (searchMode == ChatSearchMode.SEMANTIC) semanticSearchResults else localSearchResults
+    val searchResults = if (search.searchMode == ChatSearchMode.SEMANTIC) semanticSearchResults else localSearchResults
 
     // 8.48：禁言到期重组触发器（到期写入后提示条随重组消失）
     var muteTick by remember { mutableLongStateOf(0L) }
@@ -1013,8 +1009,8 @@ internal fun ChatDetailRoute(
         )
     )
 
-    LaunchedEffect(searchResults, searchIndex) {
-        val target = searchResults.getOrNull(searchIndex) ?: return@LaunchedEffect
+    LaunchedEffect(searchResults, search.searchIndex) {
+        val target = searchResults.getOrNull(search.searchIndex) ?: return@LaunchedEffect
         val targetIndex = reversedChatItems.indexOfFirst { it is ChatItem.Msg && it.message.id == target.id }
         if (targetIndex >= 0) {
             chatListScroller.scrollToItem(listState, targetIndex)
@@ -1056,13 +1052,13 @@ internal fun ChatDetailRoute(
         viewModel.consumeNavigationTarget()
     }
 
-    LaunchedEffect(searchMode, searchScope, searchWindow) {
-        searchIndex = 0
+    LaunchedEffect(search.searchMode, search.searchScope, search.searchWindow) {
+        search.searchIndex = 0
     }
 
     LaunchedEffect(searchResults.size) {
-        if (searchResults.isEmpty()) searchIndex = 0
-        else if (searchIndex >= searchResults.size) searchIndex = searchResults.lastIndex
+        if (searchResults.isEmpty()) search.searchIndex = 0
+        else if (search.searchIndex >= searchResults.size) search.searchIndex = searchResults.lastIndex
     }
 
     LaunchedEffect(showGroupInfo, state.chat?.id) {
@@ -1110,7 +1106,7 @@ internal fun ChatDetailRoute(
         state = state,
         viewModel = viewModel,
         searchResults = searchResults,
-        showSearchBar = showSearchBar,
+        showSearchBar = search.showSearchBar,
         showAiSummaryScopeDialog = showAiSummaryScopeDialog,
         onDismissAiSummaryScope = { showAiSummaryScopeDialog = false },
         showConversationProfile = showConversationProfile,
@@ -1711,7 +1707,7 @@ internal fun ChatDetailRoute(
                             }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_search_action)) },
-                                onClick = { showChatOverflow = false; showSearchBar = !showSearchBar }
+                                onClick = { showChatOverflow = false; search.showSearchBar = !search.showSearchBar }
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_jump_date)) },
@@ -1865,16 +1861,16 @@ internal fun ChatDetailRoute(
                 )
             }
             AnimatedVisibility(
-                visible = showSearchBar,
+                visible = search.showSearchBar,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
                 ChatSearchBar(
-                    query = searchQuery,
-                    mode = searchMode,
-                    scope = searchScope,
-                    window = searchWindow,
-                    resultIndex = searchIndex,
+                    query = search.searchQuery,
+                    mode = search.searchMode,
+                    scope = search.searchScope,
+                    window = search.searchWindow,
+                    resultIndex = search.searchIndex,
                     resultCount = searchResults.size,
                     semanticCandidateCount = semanticCandidates.size,
                     isSemanticSearching = state.isSemanticSearching,
@@ -1883,37 +1879,37 @@ internal fun ChatDetailRoute(
                     semanticSearchError = state.semanticSearchError,
                     aiEnabled = chatAiSurfacesVisible,
                     onQueryChange = { query ->
-                        searchQuery = query
-                        searchIndex = 0
-                        if (searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
+                        search.searchQuery = query
+                        search.searchIndex = 0
+                        if (search.searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
                     },
                     onModeChange = { mode ->
-                        searchMode = mode
-                        searchIndex = 0
+                        search.searchMode = mode
+                        search.searchIndex = 0
                         viewModel.clearSemanticSearch()
                     },
                     onScopeChange = { scope ->
-                        searchScope = scope
-                        searchIndex = 0
-                        if (searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
+                        search.searchScope = scope
+                        search.searchIndex = 0
+                        if (search.searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
                     },
                     onWindowChange = { window ->
-                        searchWindow = window
-                        searchIndex = 0
-                        if (searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
+                        search.searchWindow = window
+                        search.searchIndex = 0
+                        if (search.searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
                     },
                     onSemanticSearch = {
-                        searchIndex = 0
-                        viewModel.requestSemanticSearch(searchQuery, semanticCandidates.map(Message::id))
+                        search.searchIndex = 0
+                        viewModel.requestSemanticSearch(search.searchQuery, semanticCandidates.map(Message::id))
                     },
-                    onNextResult = { searchIndex = (searchIndex + 1) % searchResults.size },
+                    onNextResult = { search.searchIndex = (search.searchIndex + 1) % searchResults.size },
                     onClose = {
-                        showSearchBar = false
-                        searchQuery = ""
-                        searchIndex = 0
-                        searchMode = ChatSearchMode.KEYWORD
-                        searchScope = ChatSearchScope.ALL
-                        searchWindow = ChatSearchWindow.ALL
+                        search.showSearchBar = false
+                        search.searchQuery = ""
+                        search.searchIndex = 0
+                        search.searchMode = ChatSearchMode.KEYWORD
+                        search.searchScope = ChatSearchScope.ALL
+                        search.searchWindow = ChatSearchWindow.ALL
                         viewModel.clearSemanticSearch()
                     }
                 )
@@ -1989,8 +1985,8 @@ internal fun ChatDetailRoute(
                         messageSelectionMode = messageSelectionMode,
                         animatingMessageId = particles.animatingMessageId,
                         searchResults = searchResults,
-                        searchIndex = searchIndex,
-                        showSearchBar = showSearchBar,
+                        searchIndex = search.searchIndex,
+                        showSearchBar = search.showSearchBar,
                         localSafetyEnabled = localSafetyEnabled,
                         navigationHighlightMessageId = navigationHighlightMessageId,
                         dismissedSafetyMessageIds = dismissedSafetyMessageIds,
