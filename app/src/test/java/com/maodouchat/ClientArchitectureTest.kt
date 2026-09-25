@@ -542,6 +542,73 @@ class ClientArchitectureTest {
             .takeIf { it.isNotEmpty() }
     }.getOrNull()
 
+    // ─── 2e2. core 模块的采纳状态（不是目标状态） ───
+
+    /**
+     * 每个 core 模块**今天**有没有被生产代码用到——把「未采纳」变成一条会红的断言，
+     * 而不是一句写在文档里的话。
+     *
+     * 为什么要这条：`settings.gradle.kts` 里列着 9 个 core 模块，但其中四个
+     * （util/serialization/network/session）**零生产引用**，只被 `:core:testing` 的
+     * testImplementation 引用。审计把这类「声明了却没用的架构」列为问题——
+     * 当时处理的是 8 个连源码都没有的空壳（已删）；这四个有真实内容且带契约测试，
+     * 删了等于把已设计好的边界和那份契约一起丢掉，所以选择**登记**：
+     * 状态写在这里，改它就等于改架构决定，测试会逼着改的人一起更新文档。
+     *
+     * 判据是「零 / 非零」，不是精确条数——精确条数会让每次正常使用都红，
+     * 那样的门禁只会被绕过。实测条数（G332 当时）：crypto 44、realtime 23、model 5，
+     * 其余四个 0。重新测量：
+     * `for m in util serialization network session realtime model crypto; do
+     *    grep -rn "com\.maodouchat\.core\.$m" app/src core domain server/src | grep -v "^core/$m/";
+     *  done`
+     */
+    private val coreModulesWithZeroProductionUse: Set<String> = setOf(
+        "util",
+        "serialization",
+        "network",
+        "session",
+    )
+
+    @Test
+    fun `core modules are either adopted by production code or explicitly registered as not yet`() {
+        val coreDir = File(repoRoot, "core")
+        // `testing` 不在判据内：它不是「给生产代码用的契约」，而是**契约的测试模块**，
+        // 消费者是 CI 的测试任务（`gradlew :core:testing:test`），零生产引用是它的正常状态。
+        val modules = coreDir.listFiles { f: File -> f.isDirectory }
+            ?.map { it.name }
+            ?.filterNot { it == "testing" }
+            ?.sorted()
+            ?: error("找不到 core/ 目录")
+        val scanRoots = listOf("app/src", "core", "domain", "server/src").map { File(repoRoot, it) }
+        val nowUnused = mutableListOf<String>()
+        val nowUsed = mutableListOf<String>()
+        modules.forEach { m ->
+            val marker = "com.maodouchat.core.$m"
+            val hits = scanRoots.filter { it.exists() }.sumOf { root ->
+                ktFilesUnder(root)
+                    .filterNot { it.path.contains("/core/$m/") }
+                    .count { it.readText().contains(marker) }
+            }
+            if (hits == 0) nowUnused += m else nowUsed += m
+        }
+
+        val newlyUnused = nowUnused.filterNot { it in coreModulesWithZeroProductionUse }
+        assertEquals(
+            emptyList(),
+            newlyUnused,
+            "有 core 模块**变得**没人用了——要么把它删掉（连同契约测试），要么在" +
+                "coreModulesWithZeroProductionUse 里登记并说明为什么留着。实际=$newlyUnused",
+        )
+        val newlyUsed = coreModulesWithZeroProductionUse.filter { it in nowUsed }
+        assertEquals(
+            emptyList(),
+            newlyUsed,
+            "有 core 模块**开始被生产代码采纳**（好事）——请把它从" +
+                "coreModulesWithZeroProductionUse 删掉，并把它的采纳方式写进 settings.gradle.kts 的模块清单。" +
+                "实际=$newlyUsed",
+        )
+    }
+
     // ─── 3. GroupPlayPolicy 不得有同名重复文件 ───
 
     @Test
