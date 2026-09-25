@@ -313,6 +313,8 @@ internal fun ChatDetailRoute(
     onOpenCallHistory: (() -> Unit)? = null,
     viewModel: ChatDetailViewModel = viewModel()
 ) {
+    // G335：AI 面板与杂项弹层开关收进持有类（带 Saver，见 ChatDetailAiPanelState.kt）
+    val aiPanels = rememberChatDetailAiPanelState()
     // G335：聊天锁流程 / 联系人入口链收进持有类（各带 Saver，见 ChatDetailChatLockAndContactStates.kt）
     val chatLock = rememberChatDetailChatLockState()
     val contactSheets = rememberChatDetailContactSheetState()
@@ -462,9 +464,6 @@ internal fun ChatDetailRoute(
     var pendingLiveLocationPermission by rememberSaveable { mutableStateOf(false) }
 
     var setLockError by remember { mutableStateOf<String?>(null) }
-    var showGifSearch by rememberSaveable { mutableStateOf(false) }
-    var showReportContactDialog by rememberSaveable { mutableStateOf(false) }
-    var showAiSummaryScopeDialog by rememberSaveable { mutableStateOf(false) }
     // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
     val particles = remember { ChatDetailParticleState() }
     var navigationHighlightMessageId by remember { mutableStateOf<String?>(null) }
@@ -632,7 +631,7 @@ internal fun ChatDetailRoute(
         onFilePicked = { viewModel.sendFile(it) },
         onGifPicked = {
             viewModel.sendGif(it)
-            showGifSearch = false
+            aiPanels.showGifSearch = false
         },
         onRecordPermissionGranted = { viewModel.startRecording() },
         onVoiceCallGranted = { onVoiceCall(state.contact.id, state.contact.name) },
@@ -813,14 +812,11 @@ internal fun ChatDetailRoute(
     )
 
     // B4 本地 AI 聚合：会话画像 / 本周周报（仅非密聊会话，密聊不参与避免落可搜索缓存）
-    var showConversationProfile by rememberSaveable { mutableStateOf(false) }
     // G335：AI 三块结果的「值/加载中/失败」收进持有类（见 ChatDetailAiResultState.kt）
     val aiResults = remember { ChatDetailAiResultState() }
-    var showWeeklyReport by rememberSaveable { mutableStateOf(false) }
     // 8.47：消息分类（纯本地词典统计）
-    var showMessageClassify by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(showMessageClassify, state.chat?.id) {
-        if (!showMessageClassify) return@LaunchedEffect
+    LaunchedEffect(aiPanels.showMessageClassify, state.chat?.id) {
+        if (!aiPanels.showMessageClassify) return@LaunchedEffect
         val chatId = state.chat?.id ?: return@LaunchedEffect
         aiResults.classifyLoading = true
         aiResults.classifyFailed = false
@@ -848,8 +844,8 @@ internal fun ChatDetailRoute(
             Toast.makeText(context, context.getString(R.string.chat_ai_emotion_reply_failed), Toast.LENGTH_SHORT).show()
         }
     }
-    LaunchedEffect(showConversationProfile, state.chat?.id) {
-        if (!showConversationProfile) return@LaunchedEffect
+    LaunchedEffect(aiPanels.showConversationProfile, state.chat?.id) {
+        if (!aiPanels.showConversationProfile) return@LaunchedEffect
         val chatId = state.chat?.id ?: return@LaunchedEffect
         aiResults.conversationProfileLoading = true
         aiResults.conversationProfileFailed = false
@@ -864,8 +860,8 @@ internal fun ChatDetailRoute(
         }
         aiResults.conversationProfileLoading = false
     }
-    LaunchedEffect(showWeeklyReport, state.chat?.id) {
-        if (!showWeeklyReport) return@LaunchedEffect
+    LaunchedEffect(aiPanels.showWeeklyReport, state.chat?.id) {
+        if (!aiPanels.showWeeklyReport) return@LaunchedEffect
         val chatId = state.chat?.id ?: return@LaunchedEffect
         aiResults.weeklyReportLoading = true
         aiResults.weeklyReportFailed = false
@@ -1093,20 +1089,20 @@ internal fun ChatDetailRoute(
         viewModel = viewModel,
         searchResults = searchResults,
         showSearchBar = search.showSearchBar,
-        showAiSummaryScopeDialog = showAiSummaryScopeDialog,
-        onDismissAiSummaryScope = { showAiSummaryScopeDialog = false },
-        showConversationProfile = showConversationProfile,
-        onDismissConversationProfile = { showConversationProfile = false },
+        showAiSummaryScopeDialog = aiPanels.showAiSummaryScopeDialog,
+        onDismissAiSummaryScope = { aiPanels.showAiSummaryScopeDialog = false },
+        showConversationProfile = aiPanels.showConversationProfile,
+        onDismissConversationProfile = { aiPanels.showConversationProfile = false },
         conversationProfile = aiResults.conversationProfile,
         conversationProfileLoading = aiResults.conversationProfileLoading,
         conversationProfileFailed = aiResults.conversationProfileFailed,
-        showWeeklyReport = showWeeklyReport,
-        onDismissWeeklyReport = { showWeeklyReport = false },
+        showWeeklyReport = aiPanels.showWeeklyReport,
+        onDismissWeeklyReport = { aiPanels.showWeeklyReport = false },
         weeklyReport = aiResults.weeklyReport,
         weeklyReportLoading = aiResults.weeklyReportLoading,
         weeklyReportFailed = aiResults.weeklyReportFailed,
-        showMessageClassify = showMessageClassify,
-        onDismissMessageClassify = { showMessageClassify = false },
+        showMessageClassify = aiPanels.showMessageClassify,
+        onDismissMessageClassify = { aiPanels.showMessageClassify = false },
         chatClassifications = aiResults.chatClassifications,
         classifyLoading = aiResults.classifyLoading,
         classifyFailed = aiResults.classifyFailed,
@@ -1272,14 +1268,14 @@ internal fun ChatDetailRoute(
         )
     }
 
-    if (showGifSearch) {
+    if (aiPanels.showGifSearch) {
         GifSearchDialog(
             onPickUri = { uri, gifId ->
                 if (gifId != null) {
                     com.maodouchat.util.GifSearchPreferences.recordRecent(context, gifId)
                 }
                 viewModel.sendGif(uri)
-                showGifSearch = false
+                aiPanels.showGifSearch = false
             },
             onBrowseFiles = { pickers.gif.launch(arrayOf("image/gif")) },
             onRequestPermission = {
@@ -1290,7 +1286,7 @@ internal fun ChatDetailRoute(
                 }
                 pickers.gifMediaPermission.launch(permission)
             },
-            onDismiss = { showGifSearch = false }
+            onDismiss = { aiPanels.showGifSearch = false }
         )
     }
 
@@ -1306,7 +1302,7 @@ internal fun ChatDetailRoute(
             onToggleBlock = {
                 if (state.isContactBlocked) viewModel.unblockContact() else viewModel.blockContact()
             },
-            onReport = { showReportContactDialog = true },
+            onReport = { aiPanels.showReportContactDialog = true },
         )
     }
 
@@ -1331,18 +1327,18 @@ internal fun ChatDetailRoute(
             },
             onReport = {
                 contactSheets.showContactProfile = false
-                showReportContactDialog = true
+                aiPanels.showReportContactDialog = true
             }
         )
     }
 
-    if (showReportContactDialog) {
+    if (aiPanels.showReportContactDialog) {
         ReportDialog(
             title = stringResource(R.string.chat_report_user),
-            onDismiss = { showReportContactDialog = false },
+            onDismiss = { aiPanels.showReportContactDialog = false },
             onReport = { reason, description ->
                 viewModel.reportContact(reason, description)
-                showReportContactDialog = false
+                aiPanels.showReportContactDialog = false
             }
         )
     }
@@ -2228,10 +2224,10 @@ internal fun ChatDetailRoute(
                         schedule.showScheduleDialog = true
                     }
                 },
-                onOpenConversationProfile = { showConversationProfile = true },
-                onOpenWeeklyReport = { showWeeklyReport = true },
+                onOpenConversationProfile = { aiPanels.showConversationProfile = true },
+                onOpenWeeklyReport = { aiPanels.showWeeklyReport = true },
                 onEmotionReply = { aiResults.emotionReplyRequested = true },
-                onOpenMessageClassify = { showMessageClassify = true },
+                onOpenMessageClassify = { aiPanels.showMessageClassify = true },
                 isSecretChat = secretActive,
                 contactCardTargets = state.forwardTargets,
                 onLoadForwardTargets = { viewModel.loadForwardTargets() },
@@ -2330,7 +2326,7 @@ internal fun ChatDetailRoute(
                             }
                     }
                 },
-                onSendGif = { showGifSearch = true },
+                onSendGif = { aiPanels.showGifSearch = true },
                 onSendSticker = { viewModel.sendSticker(it) },
                 onSendLocation = {
                     if (com.maodouchat.util.LocationProvider.hasLocationPermission(context)) viewModel.sendCurrentLocation()
@@ -2363,7 +2359,7 @@ internal fun ChatDetailRoute(
                 aiReplyStreamErrorCode = state.aiReplyStreamErrorCode,
                 onAiRewrite = { mode, targetLanguage -> viewModel.requestAiRewrite(mode, targetLanguage) },
                 onAiSuggestReplies = { tone -> viewModel.requestAiSuggestions(tone) },
-                onAiSummarize = { showAiSummaryScopeDialog = true },
+                onAiSummarize = { aiPanels.showAiSummaryScopeDialog = true },
                 onOpenAiSummaryHistory = { viewModel.openAiSummaryHistory() },
                 onOpenAiTasks = { state.chat?.id?.let(onOpenAiTasks) },
                 onAiSuggestionClick = { viewModel.applyAiSuggestion(it) },
