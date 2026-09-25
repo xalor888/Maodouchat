@@ -28,24 +28,24 @@ internal class TotpNetworkRepository(
         { token, code -> ApiService.regenerateTotpCodes(token, code) },
 ) {
     /** 是否已启用（`getOrDefault(false)` 的调用点由调用方自己决定默认值）。 */
-    suspend fun status(token: String): Result<Boolean> = statusApi(token)
+    suspend fun status(token: String? = null): Result<Boolean> = statusApi(token ?: currentAccessToken())
 
     /**
      * 服务端**原始**状态体（历史接口 `getTotpStatus` 返回的是 JSON 文本，由调用方解析 `enabled`）。
      * 与 [status] 并存不是重复：两者对应服务端两个不同端点，返回形态也不同。
      */
-    suspend fun statusRaw(token: String): Result<String> = statusRawApi(token)
+    suspend fun statusRaw(token: String? = null): Result<String> = statusRawApi(token ?: currentAccessToken())
 
     /** 开始绑定，返回 provisioning secret（供二维码/手动输入）。 */
-    suspend fun setup(token: String): Result<String> = setupApi(token)
+    suspend fun setup(token: String? = null): Result<String> = setupApi(token ?: currentAccessToken())
 
     /** 确认绑定，返回 8 个恢复码（明文仅此一次）。 */
-    suspend fun confirm(token: String, code: String): Result<List<String>> = confirmApi(token, code)
+    suspend fun confirm(token: String? = null, code: String): Result<List<String>> = confirmApi(token ?: currentAccessToken(), code)
 
     /** 关闭 2FA（需当前有效验证码）。 */
-    suspend fun disable(token: String, code: String): Result<String> = disableApi(token, code)
+    suspend fun disable(token: String? = null, code: String): Result<String> = disableApi(token ?: currentAccessToken(), code)
 
     /** 重新生成恢复码（旧码全部作废）。 */
-    suspend fun regenerateBackupCodes(token: String, code: String): Result<List<String>> =
-        regenerateApi(token, code)
+    suspend fun regenerateBackupCodes(token: String? = null, code: String): Result<List<String>> =
+        regenerateApi(token ?: currentAccessToken(), code)
 }

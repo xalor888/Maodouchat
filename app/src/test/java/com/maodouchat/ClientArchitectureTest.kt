@@ -216,7 +216,7 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**37 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**33 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -226,17 +226,17 @@ class ClientArchitectureTest {
      * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
      * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
      * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
-     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37）。别把它当成棘轮被放松。
+     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37 → 33）。别把它当成棘轮被放松。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
     // 41（G328c 开工）→ 30 → 23 → 22 → 17 → 0，共 17 批、约 90 处调用。
     // 反向断言仍在：这里若被改回非空，等于放松棘轮。
     private val frozenUiApiCallers: Set<String> = setOf(
+
     )
 
     private val frozenUiTokenReaders: Set<String> = setOf(
-        "com/maodouchat/ui/component/MediaInteractiveCards.kt",
         "com/maodouchat/ui/navigation/CallNavigation.kt",
         "com/maodouchat/ui/navigation/NavGraph.kt",
         "com/maodouchat/ui/screen/call/CallViewModel.kt",
@@ -264,14 +264,11 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
         "com/maodouchat/ui/screen/groupplay/GroupPlayViewModelSupport.kt",
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
-        "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt",
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt",
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacyViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsGeneralSettingsViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsModerationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsReports.kt",
-        "com/maodouchat/ui/screen/settings/SettingsTotpSection.kt",
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt",
     )
 

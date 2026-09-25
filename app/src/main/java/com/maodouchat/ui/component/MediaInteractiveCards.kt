@@ -32,7 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.R
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.OnSurface
@@ -95,9 +95,8 @@ internal fun InteractivePollCard(
     LaunchedEffect(pollId) {
         if (pollId.isBlank()) return@LaunchedEffect
         loading = true
-        val token = TokenManager.getInstance(context).getToken().orEmpty()
-        if (token.isNotBlank()) {
-            val result = withContext(Dispatchers.IO) { GroupPollNetworkRepository().fetchPoll(token, pollId) }
+        if (CurrentSession.hasSession()) {
+            val result = withContext(Dispatchers.IO) { GroupPollNetworkRepository().fetchPoll(pollId = pollId) }
             result.onSuccess { applyServerJson(it) }
         }
         loading = false
@@ -134,10 +133,9 @@ internal fun InteractivePollCard(
                                 onVote(pollId, index)
                                 scope.launch {
                                     kotlinx.coroutines.delay(350)
-                                    val token = TokenManager.getInstance(context).getToken().orEmpty()
-                                    if (token.isNotBlank()) {
+                                    if (CurrentSession.hasSession()) {
                                         val result = withContext(Dispatchers.IO) {
-                                            GroupPollNetworkRepository().fetchPoll(token, pollId)
+                                            GroupPollNetworkRepository().fetchPoll(pollId = pollId)
                                         }
                                         result.onSuccess { applyServerJson(it) }
                                     }

@@ -39,39 +39,39 @@ internal class BotNetworkRepository(
         },
 ) {
     /** 服务端原始列表 JSON（调用方自行解析，见类注释）。 */
-    suspend fun listBots(token: String): Result<String> = listBotsApi(token)
+    suspend fun listBots(token: String? = null): Result<String> = listBotsApi(token ?: currentAccessToken())
 
-    suspend fun createBot(token: String, name: String, username: String, description: String? = null): Result<String> =
-        createBotApi(token, name, username, description)
+    suspend fun createBot(token: String? = null, name: String, username: String, description: String? = null): Result<String> =
+        createBotApi(token ?: currentAccessToken(), name, username, description)
 
-    suspend fun deleteBot(token: String, botId: String): Result<String> = deleteBotApi(token, botId)
+    suspend fun deleteBot(token: String? = null, botId: String): Result<String> = deleteBotApi(token ?: currentAccessToken(), botId)
 
-    suspend fun regenerateToken(token: String, botId: String): Result<String> = regenerateTokenApi(token, botId)
+    suspend fun regenerateToken(token: String? = null, botId: String): Result<String> = regenerateTokenApi(token ?: currentAccessToken(), botId)
 
-    suspend fun setEnabled(token: String, botId: String, enabled: Boolean): Result<String> =
-        setEnabledApi(token, botId, enabled)
+    suspend fun setEnabled(token: String? = null, botId: String, enabled: Boolean): Result<String> =
+        setEnabledApi(token ?: currentAccessToken(), botId, enabled)
 
-    suspend fun setWebhook(token: String, botId: String, url: String?): Result<String> =
-        setWebhookApi(token, botId, url)
+    suspend fun setWebhook(token: String? = null, botId: String, url: String?): Result<String> =
+        setWebhookApi(token ?: currentAccessToken(), botId, url)
 
-    suspend fun openDirectChat(token: String, botId: String): Result<ChatDto> = openDirectChatApi(token, botId)
+    suspend fun openDirectChat(token: String? = null, botId: String): Result<ChatDto> = openDirectChatApi(token ?: currentAccessToken(), botId)
 
     /** 把机器人邀请进某个会话。 */
-    suspend fun inviteToChat(token: String, chatId: String, botId: String): Result<String> =
-        inviteToChatApi(token, chatId, botId)
+    suspend fun inviteToChat(token: String? = null, chatId: String, botId: String): Result<String> =
+        inviteToChatApi(token ?: currentAccessToken(), chatId, botId)
 
     /** 某会话内机器人的可用指令（服务端原始 JSON 文本）。 */
-    suspend fun chatCommands(token: String, chatId: String): Result<String> = chatCommandsApi(token, chatId)
+    suspend fun chatCommands(token: String? = null, chatId: String): Result<String> = chatCommandsApi(token ?: currentAccessToken(), chatId)
 
     /** 往机器人收件箱投递（`/` 指令或自由文本）。 */
-    suspend fun postInbox(token: String, chatId: String, text: String, botId: String? = null): Result<String> =
-        postInboxApi(token, chatId, text, botId)
+    suspend fun postInbox(token: String? = null, chatId: String, text: String, botId: String? = null): Result<String> =
+        postInboxApi(token ?: currentAccessToken(), chatId, text, botId)
     /** 回传机器人按钮的 callback（群玩法的交互入口）。 */
     suspend fun postBotCallback(
-        token: String,
+        token: String? = null,
         chatId: String,
         messageId: String,
         botUserId: String,
         callbackData: String,
-    ): Result<Boolean> = botCallbackApi(token, chatId, messageId, botUserId, callbackData)
+    ): Result<Boolean> = botCallbackApi(token ?: currentAccessToken(), chatId, messageId, botUserId, callbackData)
 }

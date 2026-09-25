@@ -35,7 +35,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.security.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
@@ -61,7 +60,6 @@ import org.json.JSONObject
 @Composable
 internal fun SettingsTotpSection(userId: String) {
     val context = LocalContext.current
-    val tokenManager = com.maodouchat.network.TokenManager.getInstance(context)
     // G228b：资源读取提升到 composable 作用域——onClick 等非 @Composable 回调里
     // 不能用 stringResource()，只能在组合时取好值再用。
     val disableTotpTitle = stringResource(R.string.settings_totp_disable)
@@ -94,11 +92,10 @@ internal fun SettingsTotpSection(userId: String) {
     LaunchedEffect(userId) {
         val ownerUserId = userId
         if (ownerUserId.isBlank()) return@LaunchedEffect
-        val token = tokenManager.getToken().orEmpty()
-        if (token.isBlank() || !isCurrentTotpOwner(ownerUserId)) return@LaunchedEffect
+        if (!isCurrentTotpOwner(ownerUserId)) return@LaunchedEffect
         totpBusy = true
         try {
-            com.maodouchat.data.repository.TotpNetworkRepository().statusRaw(token).fold(
+            com.maodouchat.data.repository.TotpNetworkRepository().statusRaw().fold(
                 onSuccess = { raw ->
                     if (!isCurrentTotpOwner(ownerUserId)) return@fold
                     runCatching { org.json.JSONObject(raw).optBoolean("enabled", false) }
@@ -119,11 +116,10 @@ internal fun SettingsTotpSection(userId: String) {
     LaunchedEffect(userId) {
         val ownerUserId = userId
         if (ownerUserId.isBlank()) return@LaunchedEffect
-        val token = tokenManager.getToken().orEmpty()
-        if (token.isBlank() || !isCurrentTotpOwner(ownerUserId)) return@LaunchedEffect
+        if (!isCurrentTotpOwner(ownerUserId)) return@LaunchedEffect
         totpBusy = true
         try {
-            com.maodouchat.data.repository.TotpNetworkRepository().statusRaw(token).fold(
+            com.maodouchat.data.repository.TotpNetworkRepository().statusRaw().fold(
                 onSuccess = { raw ->
                     if (!isCurrentTotpOwner(ownerUserId)) return@fold
                     runCatching { org.json.JSONObject(raw).optBoolean("enabled", false) }
@@ -214,8 +210,7 @@ internal fun SettingsTotpSection(userId: String) {
                             onClick = {
                                 if (totpBusy) return@Button
                                 val ownerUserId = userId
-                                val token = tokenManager.getToken().orEmpty()
-                                if (token.isBlank() || !isCurrentTotpOwner(ownerUserId)) {
+                                if (!isCurrentTotpOwner(ownerUserId)) {
                                     totpMessage = sessionExpiredMessage
                                     return@Button
                                 }
@@ -223,7 +218,7 @@ internal fun SettingsTotpSection(userId: String) {
                                 totpBusy = true
                                 totpScope.launch {
                                     try {
-                                        val result = com.maodouchat.data.repository.TotpNetworkRepository().confirm(token, code)
+                                        val result = com.maodouchat.data.repository.TotpNetworkRepository().confirm(code = code)
                                         if (!isCurrentTotpOwner(ownerUserId)) return@launch
                                         result.onSuccess {
                                             totpEnabled = true
@@ -248,15 +243,14 @@ internal fun SettingsTotpSection(userId: String) {
                             onClick = {
                                 if (totpBusy) return@Button
                                 val ownerUserId = userId
-                                val token = tokenManager.getToken().orEmpty()
-                                if (token.isBlank() || !isCurrentTotpOwner(ownerUserId)) {
+                                if (!isCurrentTotpOwner(ownerUserId)) {
                                     totpMessage = sessionExpiredMessage
                                     return@Button
                                 }
                                 totpBusy = true
                                 totpScope.launch {
                                     try {
-                                        val result = com.maodouchat.data.repository.TotpNetworkRepository().setup(token)
+                                        val result = com.maodouchat.data.repository.TotpNetworkRepository().setup()
                                         if (!isCurrentTotpOwner(ownerUserId)) return@launch
                                         result.onSuccess { raw ->
                                             runCatching { org.json.JSONObject(raw) }
@@ -293,8 +287,7 @@ internal fun SettingsTotpSection(userId: String) {
                                     return@Button
                                 }
                                 val ownerUserId = userId
-                                val token = tokenManager.getToken().orEmpty()
-                                if (token.isBlank() || !isCurrentTotpOwner(ownerUserId)) {
+                                if (!isCurrentTotpOwner(ownerUserId)) {
                                     totpMessage = sessionExpiredMessage
                                     return@Button
                                 }
@@ -309,7 +302,7 @@ internal fun SettingsTotpSection(userId: String) {
                                         totpBusy = true
                                         totpScope.launch {
                                             try {
-                                                val disable = com.maodouchat.data.repository.TotpNetworkRepository().disable(token, code)
+                                                val disable = com.maodouchat.data.repository.TotpNetworkRepository().disable(code = code)
                                                 if (!isCurrentTotpOwner(ownerUserId)) return@launch
                                                 disable.onSuccess {
                                                     totpEnabled = false

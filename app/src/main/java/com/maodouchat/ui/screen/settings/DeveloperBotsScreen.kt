@@ -45,7 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -87,13 +87,12 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
         loading = true
         error = null
         try {
-            val token = TokenManager.getInstance(context).getToken().orEmpty()
-            if (token.isBlank()) {
+            if (!CurrentSession.hasSession()) {
                 error = context.getString(R.string.developer_bots_load_failed)
                 bots = emptyList()
                 return
             }
-            val result = withContext(Dispatchers.IO) { com.maodouchat.data.repository.BotNetworkRepository().listBots(token) }
+            val result = withContext(Dispatchers.IO) { com.maodouchat.data.repository.BotNetworkRepository().listBots() }
             result.onSuccess { raw ->
                 bots = parseBots(raw)
             }.onFailure {
@@ -173,13 +172,12 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                 info = null
                                 scope.launch {
                                     try {
-                                        val token = TokenManager.getInstance(context).getToken().orEmpty()
-                                        if (token.isBlank()) {
+                                        if (!CurrentSession.hasSession()) {
                                             error = context.getString(R.string.developer_bots_create_failed)
                                             return@launch
                                         }
                                         val result = withContext(Dispatchers.IO) {
-                                            com.maodouchat.data.repository.BotNetworkRepository().createBot(token, name.trim(), username.trim())
+                                            com.maodouchat.data.repository.BotNetworkRepository().createBot(name = name.trim(), username = username.trim())
                                         }
                                         result.onSuccess { raw ->
                                             lastToken = extractTokenOnce(raw)
@@ -291,16 +289,14 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                     info = null
                                     scope.launch {
                                         try {
-                                            val token = TokenManager.getInstance(context).getToken().orEmpty()
-                                            if (token.isBlank()) {
+                                            if (!CurrentSession.hasSession()) {
                                                 error = context.getString(R.string.developer_bots_webhook_failed)
                                                 return@launch
                                             }
                                             val result = withContext(Dispatchers.IO) {
                                                 com.maodouchat.data.repository.BotNetworkRepository().setWebhook(
-                                                    token,
-                                                    bot.id,
-                                                    url.ifBlank { null }
+                                                    botId = bot.id,
+                                                    url = url.ifBlank { null }
                                                 )
                                             }
                                             result.onSuccess {
@@ -331,13 +327,12 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                     info = null
                                     scope.launch {
                                         try {
-                                            val token = TokenManager.getInstance(context).getToken().orEmpty()
-                                            if (token.isBlank()) {
+                                            if (!CurrentSession.hasSession()) {
                                                 error = context.getString(R.string.developer_bots_rotate_failed)
                                                 return@launch
                                             }
                                             val result = withContext(Dispatchers.IO) {
-                                                com.maodouchat.data.repository.BotNetworkRepository().regenerateToken(token, bot.id)
+                                                com.maodouchat.data.repository.BotNetworkRepository().regenerateToken(botId = bot.id)
                                             }
                                             result.onSuccess { raw ->
                                                 lastToken = extractTokenOnce(raw)
@@ -373,13 +368,12 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                     info = null
                                     scope.launch {
                                         try {
-                                            val token = TokenManager.getInstance(context).getToken().orEmpty()
-                                            if (token.isBlank()) {
+                                            if (!CurrentSession.hasSession()) {
                                                 error = context.getString(R.string.developer_bots_enable_failed)
                                                 return@launch
                                             }
                                             val result = withContext(Dispatchers.IO) {
-                                                com.maodouchat.data.repository.BotNetworkRepository().setEnabled(token, bot.id, !bot.enabled)
+                                                com.maodouchat.data.repository.BotNetworkRepository().setEnabled(botId = bot.id, enabled = !bot.enabled)
                                             }
                                             result.onSuccess {
                                                 info = context.getString(
@@ -424,13 +418,12 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                     info = null
                                     scope.launch {
                                         try {
-                                            val token = TokenManager.getInstance(context).getToken().orEmpty()
-                                            if (token.isBlank()) {
+                                            if (!CurrentSession.hasSession()) {
                                                 error = context.getString(R.string.developer_bots_open_chat_failed)
                                                 return@launch
                                             }
                                             val result = withContext(Dispatchers.IO) {
-                                                com.maodouchat.data.repository.BotNetworkRepository().openDirectChat(token, bot.id)
+                                                com.maodouchat.data.repository.BotNetworkRepository().openDirectChat(botId = bot.id)
                                             }
                                             result.onSuccess { chat ->
                                                 onOpenChat(chat.id)
@@ -477,12 +470,11 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                         info = null
                         scope.launch {
                             try {
-                                val token = TokenManager.getInstance(context).getToken().orEmpty()
-                                if (token.isBlank()) {
+                                if (!CurrentSession.hasSession()) {
                                     error = context.getString(R.string.developer_bots_delete_failed)
                                     return@launch
                                 }
-                                val result = withContext(Dispatchers.IO) { com.maodouchat.data.repository.BotNetworkRepository().deleteBot(token, bot.id) }
+                                val result = withContext(Dispatchers.IO) { com.maodouchat.data.repository.BotNetworkRepository().deleteBot(botId = bot.id) }
                                 result.onSuccess {
                                     info = context.getString(R.string.developer_bots_deleted)
                                     reload()

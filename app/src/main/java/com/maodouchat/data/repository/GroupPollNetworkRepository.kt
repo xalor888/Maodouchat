@@ -36,7 +36,8 @@ internal class GroupPollNetworkRepository(
     ): Result<String> = createPollApi(token, chatId, question, options, multi, anonymous)
 
     /** 拉单个投票的原始 JSON（供展示层渲染当前票数）。 */
-    suspend fun fetchPoll(token: String, pollId: String): Result<String> = fetchPollApi(token, pollId)
+    suspend fun fetchPoll(token: String? = null, pollId: String): Result<String> =
+        fetchPollApi(token ?: currentAccessToken(), pollId)
 
     /** 投票。`optionIndexes` 是**下标**列表，不是选项 id。 */
     suspend fun votePoll(token: String, pollId: String, optionIndexes: List<Int>): Result<String> =

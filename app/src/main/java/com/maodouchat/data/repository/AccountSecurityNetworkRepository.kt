@@ -87,9 +87,11 @@ internal class AccountSecurityNetworkRepository(
     suspend fun currentUserPublic(token: String): Result<CurrentUserPublicResponse> =
         currentUserPublicApi(token)
 
-    suspend fun blockedUserDetails(token: String): Result<List<UserDto>> = blockedDetailsApi(token)
+    suspend fun blockedUserDetails(token: String? = null): Result<List<UserDto>> =
+        blockedDetailsApi(token ?: currentAccessToken())
 
-    suspend fun unblock(token: String, userId: String): Result<Unit> = unblockApi(token, userId)
+    suspend fun unblock(token: String? = null, userId: String): Result<Unit> =
+        unblockApi(token ?: currentAccessToken(), userId)
 
     /**
      * 改密码。归在本类而不是「设置页仓库」：服务端通常要求旧密码 + 会失效其他会话，

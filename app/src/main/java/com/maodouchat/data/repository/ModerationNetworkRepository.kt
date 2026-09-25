@@ -42,8 +42,8 @@ internal class ModerationNetworkRepository(
             ApiService.createReport(token, targetType, targetId, chatId, messageId, reason, description)
         },
 ) {
-    suspend fun myReports(token: String, limit: Int = 50): Result<List<ReportResponse>> =
-        myReportsApi(token, limit)
+    suspend fun myReports(token: String? = null, limit: Int = 50): Result<List<ReportResponse>> =
+        myReportsApi(token ?: currentAccessToken(), limit)
 
     suspend fun adminReports(token: String, status: String? = null, limit: Int = 100): Result<List<ReportResponse>> =
         adminReportsApi(token, status, limit)

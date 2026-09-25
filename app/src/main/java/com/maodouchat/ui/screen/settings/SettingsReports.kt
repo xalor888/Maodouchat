@@ -69,7 +69,6 @@ import androidx.compose.runtime.setValue
 @OptIn(ExperimentalMaterial3Api::class)
 fun MyReportsScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
-    val tokenManager = remember(context) { com.maodouchat.network.TokenManager.getInstance(context) }
     val scope = rememberCoroutineScope()
     val reports = remember { mutableStateOf<List<com.maodouchat.network.ReportResponse>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
@@ -79,7 +78,7 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
     suspend fun load() {
         isLoading.value = true
         error.value = null
-        com.maodouchat.data.repository.ModerationNetworkRepository().myReports(tokenManager.getToken().orEmpty())
+        com.maodouchat.data.repository.ModerationNetworkRepository().myReports()
             .onSuccess { reports.value = it }
             .onFailure { error.value = loadFailedText }
         isLoading.value = false
@@ -179,7 +178,6 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
 @OptIn(ExperimentalMaterial3Api::class)
 fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
-    val tokenManager = remember(context) { com.maodouchat.network.TokenManager.getInstance(context) }
     val blocked = remember { mutableStateOf<List<com.maodouchat.network.UserDto>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
@@ -198,7 +196,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     suspend fun load() {
         isLoading.value = true
         error.value = null
-        com.maodouchat.data.repository.AccountSecurityNetworkRepository().blockedUserDetails(tokenManager.getToken().orEmpty())
+        com.maodouchat.data.repository.AccountSecurityNetworkRepository().blockedUserDetails()
             .onSuccess { blocked.value = it }
             .onFailure { error.value = blockedLoadFailedText }
         isLoading.value = false
@@ -284,7 +282,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
                             onClick = {
                                 unblockingIds.value = unblockingIds.value + user.id
                                 scope.launch {
-                                    com.maodouchat.data.repository.AccountSecurityNetworkRepository().unblock(tokenManager.getToken().orEmpty(), user.id)
+                                    com.maodouchat.data.repository.AccountSecurityNetworkRepository().unblock(userId = user.id)
                                         .onSuccess { blocked.value = blocked.value.filter { it.id != user.id } }
                                         .onFailure { error.value = unblockFailedText }
                                     unblockingIds.value = unblockingIds.value - user.id
