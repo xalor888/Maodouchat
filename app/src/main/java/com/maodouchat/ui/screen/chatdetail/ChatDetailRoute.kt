@@ -836,36 +836,28 @@ internal fun ChatDetailRoute(
 
     // B4 本地 AI 聚合：会话画像 / 本周周报（仅非密聊会话，密聊不参与避免落可搜索缓存）
     var showConversationProfile by rememberSaveable { mutableStateOf(false) }
-    var conversationProfile by remember { mutableStateOf<com.maodouchat.ai.AiConversationProfile.ConversationProfile?>(null) }
-    var conversationProfileLoading by remember { mutableStateOf(false) }
-    var conversationProfileFailed by remember { mutableStateOf(false) }
+    // G335：AI 三块结果的「值/加载中/失败」收进持有类（见 ChatDetailAiResultState.kt）
+    val aiResults = remember { ChatDetailAiResultState() }
     var showWeeklyReport by rememberSaveable { mutableStateOf(false) }
-    var weeklyReport by remember { mutableStateOf<com.maodouchat.ai.AiWeeklyReport.WeeklyReport?>(null) }
-    var weeklyReportLoading by remember { mutableStateOf(false) }
-    var weeklyReportFailed by remember { mutableStateOf(false) }
-    var emotionReplyRequested by remember { mutableStateOf(false) }
     // 8.47：消息分类（纯本地词典统计）
     var showMessageClassify by rememberSaveable { mutableStateOf(false) }
-    var chatClassifications by remember { mutableStateOf<List<com.maodouchat.data.repository.AiProfileRepository.CategoryCount>>(emptyList()) }
-    var classifyLoading by remember { mutableStateOf(false) }
-    var classifyFailed by remember { mutableStateOf(false) }
     LaunchedEffect(showMessageClassify, state.chat?.id) {
         if (!showMessageClassify) return@LaunchedEffect
         val chatId = state.chat?.id ?: return@LaunchedEffect
-        classifyLoading = true
-        classifyFailed = false
-        chatClassifications = emptyList()
+        aiResults.classifyLoading = true
+        aiResults.classifyFailed = false
+        aiResults.chatClassifications = emptyList()
         // G73：经端口调用，不再自己抓 app 数据库单例
         val result = withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching { viewModel.aiChatClassificationSource.classify(chatId) }
         }
-        classifyLoading = false
-        classifyFailed = result.isFailure
-        result.getOrNull()?.let { chatClassifications = it }
+        aiResults.classifyLoading = false
+        aiResults.classifyFailed = result.isFailure
+        result.getOrNull()?.let { aiResults.chatClassifications = it }
     }
-    LaunchedEffect(emotionReplyRequested, state.chat?.id) {
-        if (!emotionReplyRequested) return@LaunchedEffect
-        emotionReplyRequested = false
+    LaunchedEffect(aiResults.emotionReplyRequested, state.chat?.id) {
+        if (!aiResults.emotionReplyRequested) return@LaunchedEffect
+        aiResults.emotionReplyRequested = false
         val chatId = state.chat?.id ?: return@LaunchedEffect
         // G73：经端口调用，不再自己抓 app 数据库单例
         val reply = withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -881,30 +873,30 @@ internal fun ChatDetailRoute(
     LaunchedEffect(showConversationProfile, state.chat?.id) {
         if (!showConversationProfile) return@LaunchedEffect
         val chatId = state.chat?.id ?: return@LaunchedEffect
-        conversationProfileLoading = true
-        conversationProfileFailed = false
+        aiResults.conversationProfileLoading = true
+        aiResults.conversationProfileFailed = false
         // G73：经 ViewModel 暴露的端口调用，不再自己抓 app 数据库单例
         val built = withContext(kotlinx.coroutines.Dispatchers.IO) {
             viewModel.aiConversationProfileSource.build(chatId)
         }
         if (built.local.messageCount > 0 || !built.narrative.isNullOrBlank()) {
-            conversationProfile = built
+            aiResults.conversationProfile = built
         } else {
-            conversationProfileFailed = true
+            aiResults.conversationProfileFailed = true
         }
-        conversationProfileLoading = false
+        aiResults.conversationProfileLoading = false
     }
     LaunchedEffect(showWeeklyReport, state.chat?.id) {
         if (!showWeeklyReport) return@LaunchedEffect
         val chatId = state.chat?.id ?: return@LaunchedEffect
-        weeklyReportLoading = true
-        weeklyReportFailed = false
+        aiResults.weeklyReportLoading = true
+        aiResults.weeklyReportFailed = false
         // G73：经端口调用，不再自己抓 app 数据库单例
-        weeklyReport = withContext(kotlinx.coroutines.Dispatchers.IO) {
+        aiResults.weeklyReport = withContext(kotlinx.coroutines.Dispatchers.IO) {
             viewModel.aiWeeklyReportSource.generate(chatId)
         }
-        weeklyReportFailed = weeklyReport == null
-        weeklyReportLoading = false
+        aiResults.weeklyReportFailed = aiResults.weeklyReport == null
+        aiResults.weeklyReportLoading = false
     }
 
     LaunchedEffect(secretActive, state.chat?.id) {
@@ -1127,19 +1119,19 @@ internal fun ChatDetailRoute(
         onDismissAiSummaryScope = { showAiSummaryScopeDialog = false },
         showConversationProfile = showConversationProfile,
         onDismissConversationProfile = { showConversationProfile = false },
-        conversationProfile = conversationProfile,
-        conversationProfileLoading = conversationProfileLoading,
-        conversationProfileFailed = conversationProfileFailed,
+        conversationProfile = aiResults.conversationProfile,
+        conversationProfileLoading = aiResults.conversationProfileLoading,
+        conversationProfileFailed = aiResults.conversationProfileFailed,
         showWeeklyReport = showWeeklyReport,
         onDismissWeeklyReport = { showWeeklyReport = false },
-        weeklyReport = weeklyReport,
-        weeklyReportLoading = weeklyReportLoading,
-        weeklyReportFailed = weeklyReportFailed,
+        weeklyReport = aiResults.weeklyReport,
+        weeklyReportLoading = aiResults.weeklyReportLoading,
+        weeklyReportFailed = aiResults.weeklyReportFailed,
         showMessageClassify = showMessageClassify,
         onDismissMessageClassify = { showMessageClassify = false },
-        chatClassifications = chatClassifications,
-        classifyLoading = classifyLoading,
-        classifyFailed = classifyFailed,
+        chatClassifications = aiResults.chatClassifications,
+        classifyLoading = aiResults.classifyLoading,
+        classifyFailed = aiResults.classifyFailed,
     )
 
     if (showDisappearDialog && !state.chatIsGroup && state.isSecretChat != true) {
@@ -2262,7 +2254,7 @@ internal fun ChatDetailRoute(
                 },
                 onOpenConversationProfile = { showConversationProfile = true },
                 onOpenWeeklyReport = { showWeeklyReport = true },
-                onEmotionReply = { emotionReplyRequested = true },
+                onEmotionReply = { aiResults.emotionReplyRequested = true },
                 onOpenMessageClassify = { showMessageClassify = true },
                 isSecretChat = secretActive,
                 contactCardTargets = state.forwardTargets,
