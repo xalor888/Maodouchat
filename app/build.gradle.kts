@@ -297,7 +297,7 @@ dependencies {
     implementation(project(":core:realtime"))
 
     // Compose BOM
-    val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
 
     // Core
@@ -314,8 +314,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-util")
     implementation("androidx.compose.material3:material3")
     // Murexide liquid glass (AndroidLiquidGlass / Kyant backdrop + capsule shapes)
-    implementation("io.github.kyant0:backdrop:2.0.0")
-    implementation("io.github.kyant0:shapes:1.2.0")
+    implementation("io.github.kyant0:backdrop:2.0.1")
+    implementation("io.github.kyant0:shapes:1.2.1")
     // material-icons-extended 已替换为本地图标副本 (ExtendedIcons.kt)，减少 ~1-2MB debug APK
     // 注：本地副本从未落地，缺失的扩展图标（EditNote/ContentCopy/ContactPage 等）导致编译失败；
     // 恢复 material-icons-extended（release 构建 R8 会裁掉未用图标，体积影响仅在 debug APK）。
@@ -327,14 +327,14 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
     // Coil (Image Loading) + Video frame decoder
-    implementation("io.coil-kt:coil-compose:2.5.0")
-    implementation("io.coil-kt:coil-gif:2.5.0")
-    implementation("io.coil-kt:coil-video:2.5.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil-gif:2.7.0")
+    implementation("io.coil-kt:coil-video:2.7.0")
 
     // Room Database
-    implementation("androidx.room:room-runtime:2.8.4")
-    implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
 
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
@@ -348,10 +348,10 @@ dependencies {
     // 且代码中未使用任何 sqlite-ktx Kotlin 扩展函数
 
     // Signal Protocol (libsignal Android AAR includes JNI libraries)
-    implementation("org.signal:libsignal-android:0.41.0")
+    implementation("org.signal:libsignal-android:0.86.5")
 
     // WebRTC (Google's prebuilt) -- 原生库在 :feature_call 动态特性模块中打包
-    implementation("io.getstream:stream-webrtc-android:1.1.1")
+    implementation("io.getstream:stream-webrtc-android:1.3.10")
 
     // 二维码（ZXing core + 集成 CaptureActivity）
     // B1 依赖审计（2026-08-01）：
@@ -359,7 +359,7 @@ dependencies {
     // - zxing-android-embedded 仅用于 ContactSubScreens 的「扫码」UI（ScanContract/ScanOptions，CaptureActivity）。
     //   其 AAR（布局/主题/解码管线）R8 收缩后仍贡献约 300KB；可替换为 com.maodouchat.slim 自定义 QRCodeReader
     //   解码器后移除（需同步修改 ContactSubScreens 扫码调用点）。维持实现以保证扫码功能可用。
-    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.zxing:core:3.5.4")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     // Lifecycle ViewModel Compose
@@ -367,16 +367,16 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     // Background retry jobs
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     // Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
-    implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
     // 9.3xx：保活「音乐播放器」模式（MediaSessionCompat 媒体通知）
-    implementation("androidx.media:media:1.7.0")
+    implementation("androidx.media:media:1.8.0")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
@@ -384,31 +384,31 @@ dependencies {
 
     // Unit test
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:2.4.0")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
-    testImplementation("io.mockk:mockk:1.13.8")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.4.20")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+    testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.json:json:20240303")
     // G173b：Compose UI 测试——12 个抽出的 dialog 此前零 UI 覆盖（只有编译 + JVM + 协议层 E2E）。
     // debugImplementation 里本来就有 ui-test-manifest，缺的就是这条。
-    val composeBomAndroidTest = platform("androidx.compose:compose-bom:2026.05.00")
+    val composeBomAndroidTest = platform("androidx.compose:compose-bom:2026.09.00")
     androidTestImplementation(composeBomAndroidTest)
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
     // 9.291：显式声明 runner——testInstrumentationRunner 指向 AndroidJUnitRunner，但 ext:junit 1.2.1
     // 不再传递引入 androidx.test:runner，导致仪器测试启动即 ClassNotFoundException 崩溃（0 tests）
-    androidTestImplementation("androidx.test:runner:1.6.2")
-    androidTestImplementation("androidx.test:core-ktx:1.6.1")
-    androidTestImplementation("androidx.room:room-testing:2.8.4")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test:core-ktx:1.7.0")
+    androidTestImplementation("androidx.room:room-testing:2.8.5")
     // G33：用 TestListenableWorkerBuilder 驱动**生产** ScheduledMessageWorker（定时路径的终态守卫）
     androidTestImplementation("androidx.work:work-testing:2.9.1")
     // G181b：原注释说「受限网络下 Robolectric 无法运行」。本轮实测
     // repo1.maven.org 上 robolectric-4.11.1.pom 与 android-all-15-*.jar 都是 HTTP 200，
     // 且 G173b 刚从同一仓库拉过 compose ui-test-junit4——所以重新启用并验证。
     // 若日后真的遇到网络问题，把这两行连同 testOptions 一起注掉即可恢复原状。
-    testImplementation("org.robolectric:robolectric:4.11.1")
-    testImplementation("androidx.test:core-ktx:1.5.0")
+    testImplementation("org.robolectric:robolectric:4.17")
+    testImplementation("androidx.test:core-ktx:1.7.0")
     // G181b：Compose UI 测试跑在 JVM 上需要的两件（此前只有 androidTest 有）
-    testImplementation(platform("androidx.compose:compose-bom:2026.05.00"))
+    testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
     testImplementation("androidx.compose.ui:ui-test-junit4")
-    testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("androidx.test.ext:junit:1.3.0")
 }
