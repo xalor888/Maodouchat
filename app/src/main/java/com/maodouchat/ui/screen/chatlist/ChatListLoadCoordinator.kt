@@ -102,9 +102,13 @@ internal class ChatListLoadCoordinator(
             try {
                 if (!com.maodouchat.session.CurrentSession.hasSession() || loadOwnerUserId.isBlank()) {
                     val chats = getAllChats().firstOrNull() ?: emptyList()
+                    // 三次校验：请求还是不是最新的、账号还是不是同一个、
+                    // 以及**会话是不是在等待期间出现了**（出现了就该走远端，别再拿本地兜底）。
+                    // 最后一条原来是 `!token.isNullOrBlank()`——极性是「有令牌才放弃」，
+                    // 改写时我写成了 `!hasSession()`，正好反了（G332 修）。
                     if (requestId != loadChatsRequestId ||
                         com.maodouchat.session.CurrentSession.ownerUserId() != loadOwnerUserId ||
-                        !com.maodouchat.session.CurrentSession.hasSession()
+                        com.maodouchat.session.CurrentSession.hasSession()
                     ) {
                         finishIfCurrent()
                         return@launch
