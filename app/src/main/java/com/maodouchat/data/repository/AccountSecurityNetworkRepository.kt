@@ -97,8 +97,11 @@ internal class AccountSecurityNetworkRepository(
      * 改密码。归在本类而不是「设置页仓库」：服务端通常要求旧密码 + 会失效其他会话，
      * 与 `deleteAccount`/`logoutAll` 是同一族「账号级凭据操作」。
      */
-    suspend fun changePassword(token: String, oldPassword: String, newPassword: String): Result<Unit> =
-        changePasswordApi(token, oldPassword, newPassword)
+    suspend fun changePassword(
+        token: String? = null,
+        oldPassword: String,
+        newPassword: String,
+    ): Result<Unit> = changePasswordApi(token ?: currentAccessToken(), oldPassword, newPassword)
 
     /**
      * 隐私设置（谁能看到在线状态、能不能被搜到、动态默认可见性）。

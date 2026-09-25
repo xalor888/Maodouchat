@@ -20,9 +20,13 @@ internal class NotificationSettingsNetworkRepository(
     private val updateSettingsApi: suspend (String, NotificationSettingsRequest) -> Result<NotificationSettingsResponse> =
         { token, request -> ApiService.updateNotificationSettings(token, request) },
 ) {
-    suspend fun settings(token: String): Result<NotificationSettingsResponse> = getSettingsApi(token)
+    suspend fun settings(token: String? = null): Result<NotificationSettingsResponse> =
+        getSettingsApi(token ?: currentAccessToken())
 
     /** 更新；返回值是**服务端最终保存的**设置（可能与请求不同，比如被后台策略强制）。 */
-    suspend fun updateSettings(token: String, request: NotificationSettingsRequest): Result<NotificationSettingsResponse> =
-        updateSettingsApi(token, request)
+    suspend fun updateSettings(
+        token: String? = null,
+        request: NotificationSettingsRequest,
+    ): Result<NotificationSettingsResponse> =
+        updateSettingsApi(token ?: currentAccessToken(), request)
 }

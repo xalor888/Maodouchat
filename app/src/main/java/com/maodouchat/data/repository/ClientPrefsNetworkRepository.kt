@@ -19,8 +19,11 @@ internal class ClientPrefsNetworkRepository(
     private val putPrefsApi: suspend (String, ClientPrefsUpdateRequest) -> Result<ClientPrefsDto> =
         { token, request -> ApiService.putClientPrefs(token, request) },
 ) {
-    suspend fun prefs(token: String): Result<ClientPrefsDto> = getPrefsApi(token)
+    suspend fun prefs(token: String? = null): Result<ClientPrefsDto> =
+        getPrefsApi(token ?: currentAccessToken())
 
-    suspend fun putPrefs(token: String, request: ClientPrefsUpdateRequest): Result<ClientPrefsDto> =
-        putPrefsApi(token, request)
+    suspend fun putPrefs(
+        token: String? = null,
+        request: ClientPrefsUpdateRequest,
+    ): Result<ClientPrefsDto> = putPrefsApi(token ?: currentAccessToken(), request)
 }

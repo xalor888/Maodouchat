@@ -45,41 +45,43 @@ internal class ModerationNetworkRepository(
     suspend fun myReports(token: String? = null, limit: Int = 50): Result<List<ReportResponse>> =
         myReportsApi(token ?: currentAccessToken(), limit)
 
-    suspend fun adminReports(token: String, status: String? = null, limit: Int = 100): Result<List<ReportResponse>> =
-        adminReportsApi(token, status, limit)
+    suspend fun adminReports(token: String? = null, status: String? = null, limit: Int = 100): Result<List<ReportResponse>> =
+        adminReportsApi(token ?: currentAccessToken(), status, limit)
 
     suspend fun updateReportStatus(
-        token: String,
+        token: String? = null,
         reportId: String,
         status: String,
         resolutionNote: String? = null,
-    ): Result<ReportResponse> = updateReportStatusApi(token, reportId, status, resolutionNote)
+    ): Result<ReportResponse> = updateReportStatusApi(token ?: currentAccessToken(), reportId, status, resolutionNote)
 
     suspend fun applyReportAction(
-        token: String,
+        token: String? = null,
         reportId: String,
         action: String,
         resolutionNote: String? = null,
-    ): Result<ReportResponse> = applyReportActionApi(token, reportId, action, resolutionNote)
+    ): Result<ReportResponse> = applyReportActionApi(token ?: currentAccessToken(), reportId, action, resolutionNote)
 
-    suspend fun moderationRules(token: String): Result<List<ModerationRuleResponse>> = rulesApi(token)
+    suspend fun moderationRules(token: String? = null): Result<List<ModerationRuleResponse>> =
+        rulesApi(token ?: currentAccessToken())
 
     suspend fun updateModerationRule(
-        token: String,
+        token: String? = null,
         ruleId: String,
         request: UpdateModerationRuleRequest,
-    ): Result<ModerationRuleResponse> = updateRuleApi(token, ruleId, request)
+    ): Result<ModerationRuleResponse> = updateRuleApi(token ?: currentAccessToken(), ruleId, request)
 
-    suspend fun riskEvents(token: String, needsReview: Boolean? = null, limit: Int = 100): Result<List<RiskEventResponse>> =
-        riskEventsApi(token, needsReview, limit)
+    suspend fun riskEvents(token: String? = null, needsReview: Boolean? = null, limit: Int = 100): Result<List<RiskEventResponse>> =
+        riskEventsApi(token ?: currentAccessToken(), needsReview, limit)
 
-    suspend fun acknowledgeRiskEvent(token: String, eventId: String): Result<Unit> =
-        acknowledgeRiskApi(token, eventId)
+    suspend fun acknowledgeRiskEvent(token: String? = null, eventId: String): Result<Unit> =
+        acknowledgeRiskApi(token ?: currentAccessToken(), eventId)
 
-    suspend fun blockUser(token: String, userId: String): Result<Unit> = blockUserApi(token, userId)
+    suspend fun blockUser(token: String? = null, userId: String): Result<Unit> = blockUserApi(token ?: currentAccessToken(), userId)
 
     /** 已拉黑的**用户 id 列表**（与 `blockedUserDetails` 的区别：那个返回用户资料）。 */
-    suspend fun blockedUserIds(token: String): Result<List<String>> = blockedIdsApi(token)
+    suspend fun blockedUserIds(token: String? = null): Result<List<String>> =
+        blockedIdsApi(token ?: currentAccessToken())
 
     /**
      * 提交举报。`targetType` 决定后半组的必填项：`USER` 看 `targetId`，
@@ -87,7 +89,7 @@ internal class ModerationNetworkRepository(
      * 所以这里把服务端要求的**七个位置参数**一个不改地透传，不做任何「智能推断」。
      */
     suspend fun createReport(
-        token: String,
+        token: String? = null,
         targetType: String,
         targetId: String,
         chatId: String? = null,
@@ -95,5 +97,5 @@ internal class ModerationNetworkRepository(
         reason: String,
         description: String? = null,
     ): Result<ReportResponse> =
-        createReportApi(token, targetType, targetId, chatId, messageId, reason, description)
+        createReportApi(token ?: currentAccessToken(), targetType, targetId, chatId, messageId, reason, description)
 }

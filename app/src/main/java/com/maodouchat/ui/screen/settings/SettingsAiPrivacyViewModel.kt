@@ -11,7 +11,6 @@ import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.ai.AiWritingStylePolicy
 import com.maodouchat.ai.AiWritingStylePreferences
 import com.maodouchat.network.ClientPrefsUpdateRequest
-import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,7 +48,6 @@ data class AiPrivacySettingsUiState(
 )
 
 class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(application) {
-    private val tokenManager = TokenManager.getInstance(application)
     private val writingStylePushMutex = Mutex()
     private var writingStylePushGeneration = 0L
     private var refreshJob: kotlinx.coroutines.Job? = null
@@ -95,9 +93,8 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
     fun refresh() {
         val generation = ++refreshGeneration
         refreshJob?.cancel()
-        val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -110,10 +107,9 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
                 if (!isCurrentOwner(ownerUserId)) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
                 val localEnabled = AiPrivacyPreferences.userEnabled(getApplication())
                 // Pull multi-device writing-style prefs (non-secret tone hints)
-                ClientPrefsNetworkRepository().prefs(liveToken).onSuccess { remote ->
+                ClientPrefsNetworkRepository().prefs().onSuccess { remote ->
                     if (!isCurrentOwner(ownerUserId)) return@onSuccess
                     if (refreshGeneration == generation && writingStyleRevision == styleRevisionAtStart) {
                         applyRemoteWritingStyle(remote)
@@ -179,9 +175,8 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
         debounceMs: Long = 0L
     ) {
         val generation = ++writingStylePushGeneration
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) return
         viewModelScope.launch {
             try {
                 if (debounceMs > 0L) kotlinx.coroutines.delay(debounceMs)
@@ -189,10 +184,8 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
                     if (generation != writingStylePushGeneration || !isCurrentOwner(ownerUserId)) {
                         return@withLock
                     }
-                    val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
                     ClientPrefsNetworkRepository().putPrefs(
-                        liveToken,
-                        ClientPrefsUpdateRequest(
+                        request = ClientPrefsUpdateRequest(
                             writingStyleEnabled = enabled,
                             writingStylePreset = presetId,
                             writingStyleCustom = customNote
@@ -218,9 +211,8 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
     }
 
     fun setUserAiEnabled(enabled: Boolean) {
-        val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             aiSettingsRevision++
             _uiState.update { it.copy(isSaving = false, errorMessage = text(R.string.error_session_expired)) }
             return
@@ -421,8 +413,7 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
 
     /** 清空本机 AI 授权：清掉 AI 偏好、停止本机 AI 任务通知。 */
     fun revokeLocalConsent() {
-        val token = tokenManager.getToken().orEmpty()
-        val revokeOwnerUserId = tokenManager.getUserId().orEmpty()
+        val revokeOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         val mutationKey = "$revokeOwnerUserId:revoke"
         if (pendingAiMutationKey == mutationKey) return
         val revision = ++aiSettingsRevision
@@ -432,7 +423,7 @@ class AiPrivacySettingsViewModel(application: Application) : AndroidViewModel(ap
         pushWritingStylePrefs(false, AiWritingStylePolicy.Preset.NONE.id, "")
         // 立即停掉本地 AI 任务调度，避免撤销之后还能触发新提醒
         runCatching { AiTaskReminderScheduler.cancelAll(getApplication()) }
-        if (token.isNotBlank() && revokeOwnerUserId.isNotBlank()) {
+        if (com.maodouchat.session.CurrentSession.hasSession() && revokeOwnerUserId.isNotBlank()) {
             if (!isCurrentOwner(revokeOwnerUserId)) return
             pendingAiMutationKey = mutationKey
             _uiState.update { it.copy(isSaving = true, errorMessage = null, infoMessage = null) }

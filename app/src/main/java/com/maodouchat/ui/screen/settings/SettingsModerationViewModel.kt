@@ -62,11 +62,10 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun launchMutation(
         fallbackErrorId: Int,
-        block: suspend (liveToken: String, ownerUserId: String) -> Unit,
+        block: suspend (ownerUserId: String) -> Unit,
     ) {
-        val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -75,8 +74,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
             try {
                 if (!isCurrentOwner(ownerUserId)) return@launch
                 _uiState.update { it.copy(isUpdating = true, errorMessage = null, infoMessage = null) }
-                val liveToken = tokenManager.getToken() ?: token
-                block(liveToken, ownerUserId)
+                block(ownerUserId)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 if (isCurrentOwner(ownerUserId)) {
                     _uiState.update { it.copy(isUpdating = false) }
@@ -120,9 +118,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
     fun loadReports() {
         val generation = ++reportsGeneration
         reportsJob?.cancel()
-        val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             if (reportsGeneration == generation) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = text(R.string.error_session_expired)) }
             }
@@ -136,8 +133,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
                 if (!isCurrentOwner(ownerUserId)) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                com.maodouchat.data.repository.ModerationNetworkRepository().adminReports(liveToken, filter).fold(
+                com.maodouchat.data.repository.ModerationNetworkRepository().adminReports(filter).fold(
                     onSuccess = { reports ->
                         if (reportsGeneration == generation && isCurrentOwner(ownerUserId)) {
                             _uiState.update { it.copy(isLoading = false, reports = reports) }
@@ -174,9 +170,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
     fun loadRiskEvents() {
         val generation = ++riskEventsGeneration
         riskEventsJob?.cancel()
-        val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             if (riskEventsGeneration == generation) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             }
@@ -185,8 +180,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         val job = viewModelScope.launch {
             try {
                 if (!isCurrentOwner(ownerUserId)) return@launch
-                val liveToken = tokenManager.getToken() ?: token
-                com.maodouchat.data.repository.ModerationNetworkRepository().riskEvents(liveToken, needsReview = true).fold(
+                com.maodouchat.data.repository.ModerationNetworkRepository().riskEvents(needsReview = true).fold(
                     onSuccess = { events ->
                         if (riskEventsGeneration == generation && isCurrentOwner(ownerUserId)) {
                             _uiState.update { it.copy(riskEvents = events) }
@@ -217,9 +211,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
     fun loadRules() {
         val generation = ++rulesGeneration
         rulesJob?.cancel()
-        val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             if (rulesGeneration == generation) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             }
@@ -228,8 +221,7 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         val job = viewModelScope.launch {
             try {
                 if (!isCurrentOwner(ownerUserId)) return@launch
-                val liveToken = tokenManager.getToken() ?: token
-                com.maodouchat.data.repository.ModerationNetworkRepository().moderationRules(liveToken).fold(
+                com.maodouchat.data.repository.ModerationNetworkRepository().moderationRules().fold(
                     onSuccess = { rules ->
                         if (rulesGeneration == generation && isCurrentOwner(ownerUserId)) {
                             _uiState.update { it.copy(rules = rules) }
@@ -260,8 +252,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
     fun setRuleEnabled(ruleId: String, enabled: Boolean) {
         rulesGeneration++
         rulesJob?.cancel()
-        launchMutation(R.string.moderation_rule_update_failed) { liveToken, ownerUserId ->
-            com.maodouchat.data.repository.ModerationNetworkRepository().updateModerationRule(liveToken, ruleId, UpdateModerationRuleRequest(enabled = enabled)).fold(
+        launchMutation(R.string.moderation_rule_update_failed) { ownerUserId ->
+            com.maodouchat.data.repository.ModerationNetworkRepository().updateModerationRule(ruleId = ruleId, request = UpdateModerationRuleRequest(enabled = enabled)).fold(
                 onSuccess = { updated ->
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
@@ -289,8 +281,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         )
         rulesGeneration++
         rulesJob?.cancel()
-        launchMutation(R.string.moderation_rule_save_failed) { liveToken, ownerUserId ->
-            com.maodouchat.data.repository.ModerationNetworkRepository().updateModerationRule(liveToken, ruleId, request).fold(
+        launchMutation(R.string.moderation_rule_save_failed) { ownerUserId ->
+            com.maodouchat.data.repository.ModerationNetworkRepository().updateModerationRule(ruleId = ruleId, request = request).fold(
                 onSuccess = { updated ->
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
@@ -313,8 +305,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
     fun acknowledgeRiskEvent(eventId: String) {
         riskEventsGeneration++
         riskEventsJob?.cancel()
-        launchMutation(R.string.moderation_acknowledge_failed) { liveToken, ownerUserId ->
-            com.maodouchat.data.repository.ModerationNetworkRepository().acknowledgeRiskEvent(liveToken, eventId).fold(
+        launchMutation(R.string.moderation_acknowledge_failed) { ownerUserId ->
+            com.maodouchat.data.repository.ModerationNetworkRepository().acknowledgeRiskEvent(eventId = eventId).fold(
                 onSuccess = {
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
@@ -338,8 +330,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         reportsGeneration++
         reportsJob?.cancel()
         _uiState.update { it.copy(isLoading = false) }
-        launchMutation(R.string.moderation_status_update_failed) { liveToken, ownerUserId ->
-            com.maodouchat.data.repository.ModerationNetworkRepository().updateReportStatus(liveToken, reportId, status, note).fold(
+        launchMutation(R.string.moderation_status_update_failed) { ownerUserId ->
+            com.maodouchat.data.repository.ModerationNetworkRepository().updateReportStatus(reportId = reportId, status = status, resolutionNote = note).fold(
                 onSuccess = { updated ->
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {
@@ -364,8 +356,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
         reportsGeneration++
         reportsJob?.cancel()
         _uiState.update { it.copy(isLoading = false) }
-        launchMutation(R.string.moderation_action_failed) { liveToken, ownerUserId ->
-            com.maodouchat.data.repository.ModerationNetworkRepository().applyReportAction(liveToken, reportId, action, note).fold(
+        launchMutation(R.string.moderation_action_failed) { ownerUserId ->
+            com.maodouchat.data.repository.ModerationNetworkRepository().applyReportAction(reportId = reportId, action = action, resolutionNote = note).fold(
                 onSuccess = { updated ->
                     if (!isCurrentOwner(ownerUserId)) return@fold
                     _uiState.update {

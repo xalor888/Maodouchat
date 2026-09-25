@@ -216,7 +216,7 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**18 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**16 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -250,8 +250,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreNearbyScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsAiPrivacyViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsGeneralSettingsViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsModerationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt",

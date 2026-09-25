@@ -81,7 +81,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
         dndEnabled = NotificationPreferences.dndEnabled(application),
         dndStartMinute = NotificationPreferences.dndStartMinute(application),
         dndEndMinute = NotificationPreferences.dndEndMinute(application),
-        pushConfigured = !tokenManager.getToken().isNullOrBlank(),
+        pushConfigured = com.maodouchat.session.CurrentSession.hasSession(),
         pushReady = (application as? com.maodouchat.MaodouchatApp)?.realtimeEventDispatcher?.connectionState?.value == com.maodouchat.core.realtime.RealtimeConnectionState.CONNECTED
     ))
     val uiState: StateFlow<NotificationSettingsUiState> = _uiState.asStateFlow()
@@ -126,7 +126,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     fun refreshPushStatus() {
         _uiState.update {
             it.copy(
-                pushConfigured = !tokenManager.getToken().isNullOrBlank(),
+                pushConfigured = com.maodouchat.session.CurrentSession.hasSession(),
                 pushReady = isRealtimeConnected()
             )
         }
@@ -135,10 +135,9 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     fun refresh() {
         val generation = ++refreshGeneration
         refreshJob?.cancel()
-        val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         refreshPushStatus()
-        if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -151,8 +150,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
                 if (!isCurrentOwner(ownerUserId)) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                NotificationSettingsNetworkRepository().settings(liveToken).fold(
+                NotificationSettingsNetworkRepository().settings().fold(
                     onSuccess = { remote ->
                         if (refreshGeneration != generation || !isCurrentOwner(ownerUserId)) {
                             return@fold
@@ -171,7 +169,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
                                     dndEnabled = remote.dndEnabled,
                                     dndStartMinute = remote.dndStartMinute.coerceIn(0, 1439),
                                     dndEndMinute = remote.dndEndMinute.coerceIn(0, 1439),
-                                    pushConfigured = !tokenManager.getToken().isNullOrBlank(),
+                                    pushConfigured = com.maodouchat.session.CurrentSession.hasSession(),
                                     pushReady = isRealtimeConnected(),
                                     infoMessage = text(R.string.notifications_synced)
                                 )
@@ -354,9 +352,8 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     }
 
     private fun sync() {
-        val token = tokenManager.getToken()
-        val syncOwnerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || syncOwnerUserId.isBlank()) {
+        val syncOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || syncOwnerUserId.isBlank()) {
             syncGeneration++
             _uiState.update {
                 it.copy(isSaving = false, errorMessage = text(R.string.error_session_expired))
@@ -389,8 +386,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
                         dndStartMinute = state.dndStartMinute,
                         dndEndMinute = state.dndEndMinute
                     )
-                    val liveToken = tokenManager.getToken() ?: token
-                    NotificationSettingsNetworkRepository().updateSettings(liveToken, request).fold(
+                    NotificationSettingsNetworkRepository().updateSettings(request = request).fold(
                         onSuccess = { remote ->
                             if (generation != syncGeneration || !isCurrentOwner(syncOwnerUserId)) {
                                 return@fold

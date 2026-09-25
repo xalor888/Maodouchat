@@ -9,7 +9,6 @@ import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.data.repository.ClientPrefsNetworkRepository
 import com.maodouchat.network.ClientPrefsUpdateRequest
-import com.maodouchat.network.TokenManager
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.AppLocaleManager
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +50,6 @@ data class GeneralSettingsUiState(
 
 class GeneralSettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = application.getSharedPreferences("general_settings", Application.MODE_PRIVATE)
-    private val tokenManager = TokenManager.getInstance(application)
     private val clientPrefsPushMutex = Mutex()
     private var prefsRevision = 0L
     private var clientPrefsPullGeneration = 0L
@@ -202,14 +200,12 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         val generation = ++clientPrefsPullGeneration
         clientPrefsPullJob?.cancel()
         val revisionAtStart = prefsRevision
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) return
         val job = viewModelScope.launch {
             try {
                 if (!isCurrentOwner(ownerUserId)) return@launch
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                ClientPrefsNetworkRepository().prefs(liveToken).onSuccess { remote ->
+                ClientPrefsNetworkRepository().prefs().onSuccess { remote ->
                     if (
                         generation == clientPrefsPullGeneration &&
                         prefsRevision == revisionAtStart &&
@@ -266,9 +262,8 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
 
     private fun pushClientPrefs() {
         val generation = ++clientPrefsPushGeneration
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) return
         viewModelScope.launch {
             try {
                 clientPrefsPushMutex.withLock {
@@ -286,8 +281,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
                         linkPreviewEnabled = state.linkPreviewEnabled,
                         unreadPriorityEnabled = state.unreadPriorityEnabled
                     )
-                    val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                    ClientPrefsNetworkRepository().putPrefs(liveToken, request).onFailure { error ->
+                    ClientPrefsNetworkRepository().putPrefs(request = request).onFailure { error ->
                         if (generation == clientPrefsPushGeneration && isCurrentOwner(ownerUserId)) {
                             _uiState.update {
                                 it.copy(infoMessage = error.message ?: text(R.string.error_operation_failed))
@@ -419,9 +413,8 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
         _uiState.update { it.copy(errorMessage = text(R.string.settings_password_mismatch)) }
         return
     }
-    val ownerUserId = tokenManager.getUserId().orEmpty()
-    val token = tokenManager.getToken()
-    if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+    val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+    if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
         passwordChangeMutex.unlock()
         _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
         return
@@ -444,8 +437,7 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                 _uiState.update { it.copy(isSaving = false, errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            AccountSecurityNetworkRepository().changePassword(liveToken, old, new).fold(
+            AccountSecurityNetworkRepository().changePassword(oldPassword = old, newPassword = new).fold(
                 onSuccess = {
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = ownerUserId,
