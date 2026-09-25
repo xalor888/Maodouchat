@@ -21,6 +21,8 @@ internal class ChatNetworkRepository(
         { token, chatId, request -> ApiService.updateChatSettings(token, chatId, request) },
     private val updateDisappearingApi: suspend (String, String, Int) -> Result<com.maodouchat.network.DisappearingMessagesResponse> =
         { token, chatId, seconds -> ApiService.updateDisappearingMessages(token, chatId, seconds) },
+    private val deleteChatApi: suspend (String, String) -> Result<Unit> =
+        { token, chatId -> ApiService.deleteChat(token, chatId) },
 ) {
     suspend fun createChat(
         token: String,
@@ -44,4 +46,6 @@ internal class ChatNetworkRepository(
         seconds: Int,
     ): Result<com.maodouchat.network.DisappearingMessagesResponse> =
         updateDisappearingApi(token, chatId, seconds)
+
+    suspend fun deleteChat(token: String, chatId: String): Result<Unit> = deleteChatApi(token, chatId)
 }

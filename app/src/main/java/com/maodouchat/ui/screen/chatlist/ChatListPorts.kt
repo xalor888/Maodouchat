@@ -11,9 +11,12 @@ import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
+import com.maodouchat.data.repository.AnnouncementNetworkRepository
+import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.MissedCallRepository
+import com.maodouchat.data.repository.PushNetworkRepository
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.data.repository.SecretChatRepository
 import com.maodouchat.messaging.v2.MessagingV2Outbox
@@ -121,6 +124,11 @@ internal object AndroidChatListPorts {
             scheduleCoordinator = scheduleCoordinator,
         )
         val outbox: MessagingV2Outbox = app.messagingV2Outbox
+        // G328c：下面这七处调用此前直接打 ApiService；现在统一经 data 层仓库。
+        // 三个都是无状态的薄包装，只在这次装配里用到，所以是局部值而不是字段。
+        val chatNetwork = ChatNetworkRepository()
+        val announcements = AnnouncementNetworkRepository()
+        val push = PushNetworkRepository()
         return ChatListPorts(
             tokenManager = tokenManager,
             chatRepository = chatRepository,
@@ -136,10 +144,10 @@ internal object AndroidChatListPorts {
             chatReadEvents = MaodouchatApp.chatReadEvents,
             chatMessageSentEvents = MaodouchatApp.chatMessageSentEvents,
             withRoomTransaction = { block -> database.withTransaction { block() } },
-            fetchRemoteChats = { token -> ApiService.getChats(token) },
-            fetchActiveAnnouncements = { token -> ApiService.getActiveAnnouncements(token) },
-            ackAnnouncementRemote = { token, id -> ApiService.ackAnnouncement(token, id) },
-            fetchPushVerifyKeyRaw = { token -> ApiService.getPushVerifyKey(token) },
+            fetchRemoteChats = { token -> chatNetwork.chats(token) },
+            fetchActiveAnnouncements = { token -> announcements.active(token) },
+            ackAnnouncementRemote = { token, id -> announcements.ack(token, id) },
+            fetchPushVerifyKeyRaw = { token -> push.verifyKey(token) },
             applyPushVerifyKey = { raw ->
                 when (val action = parsePushVerifyKeyPayload(raw)) {
                     PushVerifyKeyAction.Clear -> PushVerifyPrefs.clearKey(application)
@@ -148,11 +156,11 @@ internal object AndroidChatListPorts {
                 }
             },
             updateChatSettingsRemote = { token, chatId, request ->
-                ApiService.updateChatSettings(token, chatId, request)
+                chatNetwork.updateChatSettings(token, chatId, request)
             },
-            deleteChatRemote = { token, chatId -> ApiService.deleteChat(token, chatId) },
+            deleteChatRemote = { token, chatId -> chatNetwork.deleteChat(token, chatId) },
             createChatRemote = { token, peerIds, isGroup, groupName, chatType ->
-                ApiService.createChat(token, peerIds, isGroup, groupName, chatType)
+                chatNetwork.createChat(token, peerIds, isGroup, groupName, chatType)
             },
             touchSecretChat = { chatId ->
                 SecretChatRepository(database.secretChatDao()).touch(chatId)
