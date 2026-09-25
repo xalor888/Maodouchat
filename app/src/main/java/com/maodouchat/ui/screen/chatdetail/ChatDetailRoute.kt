@@ -10,8 +10,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
@@ -653,101 +651,39 @@ internal fun ChatDetailRoute(
     var pendingSpoiler by remember { mutableStateOf(false) }
     var pendingImageConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
     var pendingVideoConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
-    // Photo Picker (PickVisualMedia) on some AVDs finishes MainActivity and lands on the launcher.
-    // GetContent stays in our task and is enough for IMAGE/VIDEO send confirmation.
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            pendingImageConfirm = PendingImageSend(it, pendingViewOnce, pendingSpoiler)
-        }
-        pendingViewOnce = false
-        pendingSpoiler = false
-    }
-
-    val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        // 0.69：视频改为先预览确认（与图片一致），确认后才发送
-        uri?.let {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            pendingVideoConfirm = PendingImageSend(it, pendingViewOnce, pendingSpoiler)
-        }
-        pendingViewOnce = false
-        pendingSpoiler = false
-    }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            viewModel.sendFile(it)
-        }
-    }
-
-    val gifPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+    // G331：9 个 ActivityResult 入口搬进 `ChatDetailPickers.kt`（连带它们各自的
+    // 「为什么选这个 contract」注释）。这里只留接线。
+    val pickers = rememberChatDetailPickers(
+        messages = ChatDetailPermissionMessages(
+            record = chatPermissionRecordMsg,
+            voiceCall = chatPermissionVoiceCallMsg,
+            videoCall = chatPermissionVideoCallMsg,
+            location = chatPermissionLocationMsg,
+        ),
+        onImagePicked = { uri ->
+            pendingImageConfirm = PendingImageSend(uri, pendingViewOnce, pendingSpoiler)
+            pendingViewOnce = false
+            pendingSpoiler = false
+        },
+        onVideoPicked = { uri ->
+            pendingVideoConfirm = PendingImageSend(uri, pendingViewOnce, pendingSpoiler)
+            pendingViewOnce = false
+            pendingSpoiler = false
+        },
+        onFilePicked = { viewModel.sendFile(it) },
+        onGifPicked = {
             viewModel.sendGif(it)
             showGifSearch = false
-        }
-    }
-
-    val gifMediaPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { /* GifSearchDialog reloads when recomposed after grant */ }
-
-    val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) viewModel.startRecording()
-        else Toast.makeText(context, chatPermissionRecordMsg, Toast.LENGTH_SHORT).show()
-    }
-
-    val voiceCallPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) onVoiceCall(state.contact.id, state.contact.name)
-        else Toast.makeText(context, chatPermissionVoiceCallMsg, Toast.LENGTH_SHORT).show()
-    }
-
-    val videoCallPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        val hasAudio = grants[Manifest.permission.RECORD_AUDIO] == true ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val hasCamera = grants[Manifest.permission.CAMERA] == true ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        if (hasAudio && hasCamera) onVideoCall(state.contact.id, state.contact.name)
-        else Toast.makeText(context, chatPermissionVideoCallMsg, Toast.LENGTH_SHORT).show()
-    }
-
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        val granted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true ||
-            com.maodouchat.util.LocationProvider.hasLocationPermission(context)
-        if (granted) {
+        },
+        onRecordPermissionGranted = { viewModel.startRecording() },
+        onVoiceCallGranted = { onVoiceCall(state.contact.id, state.contact.name) },
+        onVideoCallGranted = { onVideoCall(state.contact.id, state.contact.name) },
+        onLocationGranted = {
             if (pendingLiveLocationPermission) showLiveLocationDuration = true
             else viewModel.sendCurrentLocation()
-        } else {
-            Toast.makeText(context, chatPermissionLocationMsg, Toast.LENGTH_SHORT).show()
-        }
-        pendingLiveLocationPermission = false
-    }
+            pendingLiveLocationPermission = false
+        },
+    )
 
     // 粒子动效入口：提前在 @Composable 上下文中抓取 palette，避免在本地函数里调用
     val palette = LocalChatPalette.current
@@ -1396,14 +1332,14 @@ internal fun ChatDetailRoute(
                 viewModel.sendGif(uri)
                 showGifSearch = false
             },
-            onBrowseFiles = { gifPickerLauncher.launch(arrayOf("image/gif")) },
+            onBrowseFiles = { pickers.gif.launch(arrayOf("image/gif")) },
             onRequestPermission = {
                 val permission = if (android.os.Build.VERSION.SDK_INT >= 33) {
                     Manifest.permission.READ_MEDIA_IMAGES
                 } else {
                     Manifest.permission.READ_EXTERNAL_STORAGE
                 }
-                gifMediaPermissionLauncher.launch(permission)
+                pickers.gifMediaPermission.launch(permission)
             },
             onDismiss = { showGifSearch = false }
         )
@@ -1435,11 +1371,11 @@ internal fun ChatDetailRoute(
             onMessage = { showContactProfile = false },
             onVoiceCall = {
                 showContactProfile = false
-                requestVoiceCallPermission(context, voiceCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVoiceCall)
+                requestVoiceCallPermission(context, pickers.voiceCallPermission::launch, state.contact.id, state.contact.name, onVoiceCall)
             },
             onVideoCall = {
                 showContactProfile = false
-                requestVideoCallPermissions(context, videoCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVideoCall)
+                requestVideoCallPermissions(context, pickers.videoCallPermission::launch, state.contact.id, state.contact.name, onVideoCall)
             },
             onToggleBlock = {
                 if (state.isContactBlocked) viewModel.unblockContact() else viewModel.blockContact()
@@ -1697,8 +1633,8 @@ internal fun ChatDetailRoute(
                             IconButton(onClick = { viewModel.showSafetyCodeDialog() }) { Icon(Icons.Outlined.Security, contentDescription = stringResource(R.string.chat_safety_code), tint = if (state.identityWarning == null) Primary else UnreadRed, modifier = Modifier.size(26.dp)) }
                         }
                         if (state.isSecretChat != true) {
-                            IconButton(onClick = { requestVoiceCallPermission(context, voiceCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVoiceCall) }) { Icon(Icons.Outlined.Call, contentDescription = stringResource(R.string.chat_voice_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
-                            IconButton(onClick = { requestVideoCallPermissions(context, videoCallPermissionLauncher::launch, state.contact.id, state.contact.name, onVideoCall) }) { Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_video_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)) }
+                            IconButton(onClick = { requestVoiceCallPermission(context, pickers.voiceCallPermission::launch, state.contact.id, state.contact.name, onVoiceCall) }) { Icon(Icons.Outlined.Call, contentDescription = stringResource(R.string.chat_voice_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp)) }
+                            IconButton(onClick = { requestVideoCallPermissions(context, pickers.videoCallPermission::launch, state.contact.id, state.contact.name, onVideoCall) }) { Icon(Icons.Outlined.Videocam, contentDescription = stringResource(R.string.chat_video_call), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)) }
                         }
                     }
                     Box {
@@ -2358,7 +2294,7 @@ internal fun ChatDetailRoute(
                     pendingSpoiler = false
                     listScrollScope.launch {
                         kotlinx.coroutines.yield()
-                        runCatching { imagePickerLauncher.launch("image/*") }
+                        runCatching { pickers.image.launch("image/*") }
                             .onFailure {
                                 Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
                             }
@@ -2372,7 +2308,7 @@ internal fun ChatDetailRoute(
                         pendingSpoiler = false
                         listScrollScope.launch {
                             kotlinx.coroutines.yield()
-                            runCatching { imagePickerLauncher.launch("image/*") }
+                            runCatching { pickers.image.launch("image/*") }
                                 .onFailure {
                                     Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
                                 }
@@ -2384,7 +2320,7 @@ internal fun ChatDetailRoute(
                     pendingViewOnce = false
                     listScrollScope.launch {
                         kotlinx.coroutines.yield()
-                        runCatching { imagePickerLauncher.launch("image/*") }
+                        runCatching { pickers.image.launch("image/*") }
                             .onFailure {
                                 Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
                             }
@@ -2432,7 +2368,7 @@ internal fun ChatDetailRoute(
                 onSendVideo = {
                     listScrollScope.launch {
                         kotlinx.coroutines.yield()
-                        runCatching { videoPickerLauncher.launch("video/*") }
+                        runCatching { pickers.video.launch("video/*") }
                             .onFailure {
                                 Toast.makeText(context, context.getString(R.string.chat_video_picker_unavailable), Toast.LENGTH_SHORT).show()
                             }
@@ -2441,7 +2377,7 @@ internal fun ChatDetailRoute(
                 onSendFile = {
                     listScrollScope.launch {
                         kotlinx.coroutines.yield()
-                        runCatching { filePickerLauncher.launch(arrayOf("*/*")) }
+                        runCatching { pickers.file.launch(arrayOf("*/*")) }
                             .onFailure {
                                 Toast.makeText(context, context.getString(R.string.chat_image_picker_unavailable), Toast.LENGTH_SHORT).show()
                             }
@@ -2453,21 +2389,21 @@ internal fun ChatDetailRoute(
                     if (com.maodouchat.util.LocationProvider.hasLocationPermission(context)) viewModel.sendCurrentLocation()
                     else {
                         pendingLiveLocationPermission = false
-                        locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                        pickers.locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                     }
                 },
                 onSendLiveLocation = {
                     if (com.maodouchat.util.LocationProvider.hasLocationPermission(context)) showLiveLocationDuration = true
                     else {
                         pendingLiveLocationPermission = true
-                        locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                        pickers.locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                     }
                 },
                 onRecordStart = {
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                         viewModel.startRecording()
                     } else {
-                        recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        pickers.recordAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
                     }
                 },
                 onRecordStop = { viewModel.stopRecordingAndSend() },
@@ -2600,7 +2536,7 @@ internal fun ChatDetailRoute(
                 pendingSpoiler = spoiler
                 listScrollScope.launch {
                     kotlinx.coroutines.yield()
-                    runCatching { imagePickerLauncher.launch("image/*") }
+                    runCatching { pickers.image.launch("image/*") }
                         .onFailure {
                             Toast.makeText(
                                 context,
@@ -2692,181 +2628,18 @@ internal fun ChatDetailRoute(
         )
     }
 
+    // G332：已读回执面板 176 行搬进 `ChatDetailReadReceiptsSheet.kt`。
     messageForReadReceipts?.let { receiptMessage ->
-        var readReceiptSearch by remember(receiptMessage.id) { mutableStateOf("") }
-        val readCount = state.readReceipts.count { it.readAt != null }
-        val totalCount = state.readReceipts.size
-        val progress = if (totalCount > 0) readCount.toFloat() / totalCount else 0f
-        val q = readReceiptSearch.trim()
-        // 1.68：remember 避免每次重组都全量排序
-        val filteredReadReceipts = remember(readReceiptSearch, state.readReceipts) {
-            val q = readReceiptSearch.trim()
-            if (q.isEmpty()) {
-                // 1.63：未读成员优先展示（readAt==null 排前），便于发现谁还没读
-                state.readReceipts.sortedBy { it.readAt != null }
-            } else {
-                state.readReceipts.filter { receipt ->
-                    receipt.name.contains(q, ignoreCase = true) ||
-                        receipt.userId.contains(q, ignoreCase = true)
-                }.sortedBy { it.readAt != null }
-            }
-        }
-        ModalBottomSheet(
-            onDismissRequest = {
+        ChatDetailReadReceiptsSheet(
+            messageId = receiptMessage.id,
+            receipts = state.readReceipts,
+            isLoading = state.isLoadingReadReceipts,
+            onOpenProfile = onOpenProfile,
+            onDismiss = {
                 messageForReadReceipts = null
                 viewModel.clearReadReceipts()
-            }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.chat_read_details),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (totalCount > 0 && !state.isLoadingReadReceipts) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                            modifier = Modifier.padding(start = 8.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.chat_read_details_ratio, readCount, totalCount),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                        if (totalCount > readCount) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = LocalChatPalette.current.unreadRed.copy(alpha = 0.10f),
-                                modifier = Modifier.padding(start = 6.dp)
-                            ) {
-                                Text(
-                                    stringResource(R.string.chat_read_details_unread, totalCount - readCount),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = LocalChatPalette.current.unreadRed,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                Column(
-                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    if (totalCount > 0 && !state.isLoadingReadReceipts) {
-                        // 顶部进度条
-                        val progressAnim by animateFloatAsState(
-                            targetValue = progress,
-                            animationSpec = spring(dampingRatio = 0.6f, stiffness = 220f),
-                            label = "readProgress"
-                        )
-                        LinearProgressIndicator(
-                            progress = { progressAnim.coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    }
-                    if (state.readReceipts.size >= 5 && !state.isLoadingReadReceipts) {
-                        OutlinedTextField(
-                            value = readReceiptSearch,
-                            onValueChange = { readReceiptSearch = it.take(100) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text(stringResource(R.string.chat_read_details_search_hint)) },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.Search, contentDescription = null, tint = Secondary)
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Primary,
-                                unfocusedBorderColor = Outline,
-                                focusedTextColor = OnSurface,
-                                unfocusedTextColor = OnSurface,
-                                cursorColor = Primary
-                            )
-                        )
-                    }
-                    if (state.isLoadingReadReceipts) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.chat_loading), color = MaterialTheme.colorScheme.secondary)
-                        }
-                    } else if (state.readReceipts.isEmpty()) {
-                        Text(stringResource(R.string.chat_no_read_receipts), color = MaterialTheme.colorScheme.secondary)
-                    } else if (filteredReadReceipts.isEmpty()) {
-                        Text(stringResource(R.string.chat_read_details_search_empty), color = MaterialTheme.colorScheme.secondary)
-                    } else {
-                        filteredReadReceipts.forEach { receipt ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                // 1.59：点击已读/未读成员打开其资料
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 2.dp)
-                                    .clickable(enabled = onOpenProfile != null) {
-                                        onOpenProfile?.invoke(receipt.userId)
-                                    }
-                            ) {
-                                // 1.60：成员头像（Avatar 组件自带 JWT 认证加载，回退首字母）
-                                Avatar(
-                                    name = receipt.name.ifBlank { receipt.userId },
-                                    avatarUrl = receipt.avatar,
-                                    size = AvatarSize.SM
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(receipt.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                                        // 1.65：在线状态小绿点
-                                        if (receipt.isOnline) {
-                                            Spacer(modifier = Modifier.width(5.dp))
-                                            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(OnlineGreen))
-                                        }
-                                    }
-                                    Text(
-                                        text = receipt.readAt?.let { stringResource(R.string.chat_read_at, formatDateTime(context, it)) } ?: stringResource(R.string.chat_unread),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (receipt.readAt != null) Primary else TextHint
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier.size(20.dp).clip(CircleShape)
-                                        .background(if (receipt.readAt != null) OnlineGreen else androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (receipt.readAt != null) {
-                                        Icon(
-                                            imageVector = androidx.compose.material.icons.Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                TextButton(
-                    onClick = {
-                        messageForReadReceipts = null
-                        viewModel.clearReadReceipts()
-                    },
-                    modifier = Modifier.align(Alignment.End)
-                ) { Text(stringResource(R.string.common_done)) }
-            }
-        }
+            },
+        )
     }
 
     // 长按撤回消息确认弹窗（带粒子动效）
