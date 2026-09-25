@@ -32,7 +32,8 @@ internal class ChatNetworkRepository(
         chatType: String? = null,
     ): Result<ChatDto> = createChatApi(token, peerIds, isGroup, groupName, chatType)
 
-    suspend fun chats(token: String): Result<List<ChatDto>> = getChatsApi(token)
+    suspend fun chats(token: String? = null): Result<List<ChatDto>> =
+        getChatsApi(token ?: currentAccessToken())
 
     suspend fun updateChatSettings(
         token: String,

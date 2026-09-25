@@ -28,14 +28,16 @@ internal class UserNetworkRepository(
     },
 ) {
     /** 联系人/自己：按 id 取单个用户（实时在线状态刷新等）。 */
-    suspend fun user(token: String, userId: String): Result<UserDto> = fetchUser(token, userId)
+    suspend fun user(token: String? = null, userId: String): Result<UserDto> =
+        fetchUser(token ?: currentAccessToken(), userId)
 
     /** 全量用户列表（通话页把 userId 映射成名字）。 */
     suspend fun users(token: String, limit: Int = 30, offset: Int = 0): Result<List<UserDto>> =
         fetchUsers(token, limit, offset)
 
     /** 当前登录账号（二维码页要拿自己的 id/name 生成名片）。 */
-    suspend fun currentUser(token: String): Result<UserDto> = fetchCurrentUser(token)
+    suspend fun currentUser(token: String? = null): Result<UserDto> =
+        fetchCurrentUser(token ?: currentAccessToken())
 
     /** 当前账号的公开投影（设置页）。 */
     suspend fun currentUserPublic(token: String): Result<CurrentUserPublicResponse> =

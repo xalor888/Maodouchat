@@ -28,17 +28,17 @@ internal class PinStarNetworkRepository(
     private val toggleStarApi: suspend (String, String) -> Result<StarMessageResponse> =
         { token, messageId -> ApiService.toggleStarMessage(token, messageId) },
 ) {
-    suspend fun pinned(token: String, chatId: String): Result<PinnedMessagesListResponse> =
-        pinnedListApi(token, chatId)
+    suspend fun pinned(token: String? = null, chatId: String): Result<PinnedMessagesListResponse> =
+        pinnedListApi(token ?: currentAccessToken(), chatId)
 
     /** 置顶/取消置顶；返回值里带服务端认定的最终状态。 */
-    suspend fun togglePin(token: String, chatId: String, messageId: String): Result<TogglePinResponse> =
-        togglePinApi(token, chatId, messageId)
+    suspend fun togglePin(token: String? = null, chatId: String, messageId: String): Result<TogglePinResponse> =
+        togglePinApi(token ?: currentAccessToken(), chatId, messageId)
 
     /** 星标列表；`chatId` 为 null = 全部会话（「我的星标」页）。 */
-    suspend fun starred(token: String, chatId: String? = null): Result<List<StarredMessageRefDto>> =
-        starredListApi(token, chatId)
+    suspend fun starred(token: String? = null, chatId: String? = null): Result<List<StarredMessageRefDto>> =
+        starredListApi(token ?: currentAccessToken(), chatId)
 
-    suspend fun toggleStar(token: String, messageId: String): Result<StarMessageResponse> =
-        toggleStarApi(token, messageId)
+    suspend fun toggleStar(token: String? = null, messageId: String): Result<StarMessageResponse> =
+        toggleStarApi(token ?: currentAccessToken(), messageId)
 }

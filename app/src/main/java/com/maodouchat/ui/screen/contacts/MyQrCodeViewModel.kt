@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenManager
 import com.maodouchat.util.QrCodeGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +30,6 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
     // G72：经 AppDatabase.getInstance(context) 这个中立入口取库，不再 import/转型 MaodouchatApp。
     // 装配点只剩 data 层的单例访问，ui 层从此不认识应用类（ClientArchitectureTest 的名单因此能收紧）。
     private val userRepo = UserRepository(com.maodouchat.data.local.AppDatabase.getInstance(application).userDao())
-    private val tokenManager = TokenManager.getInstance(application)
 
     private val _uiState = MutableStateFlow(MyQrCodeUiState())
     val uiState: StateFlow<MyQrCodeUiState> = _uiState.asStateFlow()
@@ -45,8 +43,9 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
     private fun load() {
         viewModelScope.launch {
             try {
-                val token0 = tokenManager.getToken().orEmpty()
-                val userId0 = tokenManager.getUserId().orEmpty()
+                // 「有没有会话」与「当前是谁」都是会话态：读会话层，不读凭据存储（G332）。
+                val token0 = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
+                val userId0 = com.maodouchat.session.CurrentSession.ownerUserId()
                 // G72：加载判定下沉到纯策略（可单测），这里只编排副作用。
                 val precheck = MyQrCodeLoadPolicy.plan(
                     qrEnabled = RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.QR_CODE),
@@ -80,8 +79,7 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
                         expectedUserId = userId,
                     )
                     ) {
-                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                        UserNetworkRepository().currentUser(liveToken).onSuccess { me ->
+                        UserNetworkRepository().currentUser().onSuccess { me ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = userId,
                             )

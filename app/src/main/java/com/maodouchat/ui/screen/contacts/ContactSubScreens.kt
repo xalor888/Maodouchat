@@ -78,7 +78,6 @@ import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ChatDto
-import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
@@ -395,7 +394,7 @@ fun ScanScreen(
                 scope.launch {
                     try {
                         val app = context.applicationContext as com.maodouchat.MaodouchatApp
-                        val currentUserId = TokenManager.getInstance(context).getUserId().orEmpty()
+                        val currentUserId = com.maodouchat.session.CurrentSession.ownerUserId()
                         val currentDeviceId = app.signalProtocol.getDeviceId()
                         val result = withContext(Dispatchers.IO) {
                             val status = when {
@@ -443,16 +442,14 @@ fun ScanScreen(
                 scannedUserFriendMessage = null
                 loading = true
                 // 解析对方资料（用 Composable 内的 CoroutineScope，离开页面会自动取消）
-                val tokenManager = TokenManager.getInstance(context)
-                val token = tokenManager.getToken().orEmpty()
-                val scanOwnerUserId = tokenManager.getUserId().orEmpty()
+                val scanOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
                 scope.launch {
                     try {
                         val app = context.applicationContext as com.maodouchat.MaodouchatApp
                         val userRepo = com.maodouchat.data.repository.UserRepository(app.database.userDao())
                         val cached = userRepo.getUserById(target.userId)
                         if (cached != null) scannedUser = cached
-                        if (token.isBlank() || scanOwnerUserId.isBlank()) {
+                        if (!com.maodouchat.session.CurrentSession.hasSession()) {
                             if (cached == null) {
                                 scannedUserError = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
                             }
@@ -467,10 +464,9 @@ fun ScanScreen(
                             }
                             return@launch
                         }
-                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
                         // 8.38：改用按 id 定向查询——此前全量 getUsers() 在非好友/网络失败时
                         // 会把「有效用户码」误判为「查不到用户」，且无法区分网络错误
-                        com.maodouchat.data.repository.UserNetworkRepository().user(liveToken, target.userId).onSuccess { dto ->
+                        com.maodouchat.data.repository.UserNetworkRepository().user(userId = target.userId).onSuccess { dto ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = scanOwnerUserId,
                             )
@@ -683,10 +679,8 @@ fun ScanScreen(
                                     scannedUserFriendMessage = context.getString(R.string.friend_requests_disabled)
                                     return@TextButton
                                 }
-                                val tokenManager = TokenManager.getInstance(context)
-                                val token = tokenManager.getToken().orEmpty()
-                                val ownerUserId = tokenManager.getUserId().orEmpty()
-                                if (token.isBlank() || ownerUserId.isBlank()) {
+                                val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+                                if (!com.maodouchat.session.CurrentSession.hasSession()) {
                                     scannedUserFriendMessage = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
                                     return@TextButton
                                 }
@@ -701,8 +695,7 @@ fun ScanScreen(
                                             scannedUserFriendMessage = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
                                             return@launch
                                         }
-                                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                                        ContactNetworkRepository().sendFriendRequest(liveToken, user.id).fold(
+                                        ContactNetworkRepository().sendFriendRequest(userId = user.id).fold(
                                             onSuccess = {
                                                 scannedUserFriendMessage = context.getString(R.string.contacts_friend_request_sent)
                                             },

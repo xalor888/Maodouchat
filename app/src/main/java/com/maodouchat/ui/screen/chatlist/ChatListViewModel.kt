@@ -95,7 +95,6 @@ class ChatListViewModel private constructor(
     private val folderController = ChatFolderController(
         context = application,
         scope = viewModelScope,
-        tokenManager = tokenManager,
         uiState = _uiState,
     )
 

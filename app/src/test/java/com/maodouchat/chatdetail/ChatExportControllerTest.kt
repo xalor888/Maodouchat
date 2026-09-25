@@ -54,7 +54,6 @@ class ChatExportControllerTest {
 
         controller = ChatExportController(
             messageRepo = messageRepo,
-            tokenManager = tokenManager,
             uiState = uiState,
             textProvider = { resId, _ -> "text_$resId" },
             context = mockContext,

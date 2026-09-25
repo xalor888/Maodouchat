@@ -3,7 +3,6 @@ package com.maodouchat.ui.screen.chatdetail
 import android.content.Context
 import com.maodouchat.R
 import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.ChatExport
 import com.maodouchat.util.JsonFormat
@@ -23,15 +22,15 @@ import kotlinx.coroutines.withContext
  */
 class ChatExportController(
     private val messageRepo: LocalMessageStore,
-    private val tokenManager: TokenManager,
     private val uiState: MutableStateFlow<ChatDetailUiState>,
     private val textProvider: (Int, Array<out Any>) -> String,
     private val context: Context,
     private val scope: CoroutineScope,
 ) {
     private fun text(id: Int, vararg args: Any): String = textProvider(id, args)
-    private val currentUserId: String get() = tokenManager.getUserId() ?: "me"
-    private val token: String get() = tokenManager.getToken() ?: ""
+    // 会话态（是谁 / 有没有令牌）读会话层；导出本身不发请求，不需要凭据本身。
+    private val currentUserId: String get() = com.maodouchat.session.CurrentSession.snapshot().userId ?: "me"
+    private val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token ?: ""
 
     private var exportJob: Job? = null
 
@@ -61,7 +60,7 @@ class ChatExportController(
                 uiState.update { it.copy(infoMessage = text(R.string.secret_chat_export_blocked)) }
                 return@launch
             }
-            if (tokenManager.getToken().isNullOrBlank()) {
+            if (com.maodouchat.session.CurrentSession.snapshot().token.isNullOrBlank()) {
                 uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
                 return@launch
             }
@@ -78,7 +77,7 @@ class ChatExportController(
                 uiState.update { it.copy(infoMessage = text(R.string.chat_export_empty)) }
                 return@launch
             }
-            val ownerId = tokenManager.getUserId() ?: ""
+            val ownerId = com.maodouchat.session.CurrentSession.snapshot().userId ?: ""
             val participants = chat.participants.associateBy { it.id }
             val chatName = if (chat.isGroup) {
                 chat.groupName?.takeIf { it.isNotBlank() } ?: text(R.string.chat_group)

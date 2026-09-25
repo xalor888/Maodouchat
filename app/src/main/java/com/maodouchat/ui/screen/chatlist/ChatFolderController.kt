@@ -3,7 +3,6 @@ package com.maodouchat.ui.screen.chatlist
 import android.content.Context
 import com.maodouchat.data.repository.ChatFolderNetworkRepository
 import com.maodouchat.network.ChatFolderDto
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.ChatFolder
 import com.maodouchat.util.ChatFolderPolicy
@@ -24,7 +23,6 @@ import kotlinx.coroutines.launch
 class ChatFolderController(
     private val context: Context,
     private val scope: CoroutineScope,
-    private val tokenManager: TokenManager,
     private val uiState: MutableStateFlow<ChatListUiState>,
 ) {
     fun loadFolders() {
@@ -35,16 +33,14 @@ class ChatFolderController(
 
     /** 拉取云端文件夹并与本地合并（云端更新时间更新时优先云端，否则推本地）。 */
     private fun syncFoldersFromCloud() {
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession()) return
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
             )
             ) return@launch
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-            val remoteResult = ChatFolderNetworkRepository().folders(liveToken)
+            val remoteResult = ChatFolderNetworkRepository().folders()
             val remoteError = remoteResult.exceptionOrNull()
             if (remoteError is CancellationException) throw remoteError
             val remote = remoteResult.getOrNull() ?: return@launch
@@ -80,15 +76,13 @@ class ChatFolderController(
     }
 
     private fun pushFoldersToCloud(folders: List<ChatFolder>) {
-        val token = tokenManager.getToken().orEmpty()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isBlank() || ownerUserId.isBlank()) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession()) return
         scope.launch {
             if (!BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
             )
             ) return@launch
-            val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
             val payload = folders.map { folder ->
                 ChatFolderDto(
                     id = folder.id,
@@ -97,7 +91,7 @@ class ChatFolderController(
                     chatIds = folder.chatIds
                 )
             }
-            val result = ChatFolderNetworkRepository().putFolders(liveToken, payload)
+            val result = ChatFolderNetworkRepository().putFolders(folders = payload)
             val error = result.exceptionOrNull()
             if (error is CancellationException) throw error
         }

@@ -521,7 +521,6 @@ internal class ChatDetailDeps(
     )
     internal val chatExportController = ChatExportController(
         messageRepo = messageRepo,
-        tokenManager = tokenManager,
         uiState = host._uiState,
         textProvider = host::text,
         context = application,

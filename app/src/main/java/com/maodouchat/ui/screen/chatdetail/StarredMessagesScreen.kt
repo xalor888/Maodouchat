@@ -77,7 +77,6 @@ import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.PinStarNetworkRepository
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.MessageDto
-import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
@@ -126,9 +125,8 @@ class StarredMessagesViewModel(
     private val app = application as MaodouchatApp
     private val messageRepo = LocalMessageStore(app.database.messageDao(), app.database)
     private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
-    private val tokenManager = TokenManager.getInstance(application)
-    private val token: String get() = tokenManager.getToken().orEmpty()
-    private val currentUserId: String get() = tokenManager.getUserId().orEmpty()
+    private val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
+    private val currentUserId: String get() = com.maodouchat.session.CurrentSession.ownerUserId()
 
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
@@ -143,7 +141,7 @@ class StarredMessagesViewModel(
     }
 
     fun load() {
-        val loadOwnerUserId = tokenManager.getUserId().orEmpty()
+        val loadOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (token.isBlank() || loadOwnerUserId.isBlank()) {
             // Default isLoading=true; blank session must not leave the spinner stuck.
             loadGeneration.incrementAndGet()
@@ -173,13 +171,11 @@ class StarredMessagesViewModel(
                         ) {
                             throw kotlinx.coroutines.CancellationException("starred_session_changed")
                         }
-                        val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
-                        val chats = ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() }
+                        val chats = ChatNetworkRepository().chats().getOrThrow().map { it.toDomainChat() }
                         val chatsById = chats.associateBy { it.id }
                         val chat = chatsById[chatId]
                         val remote = PinStarNetworkRepository().starred(
-                            liveToken,
-                            chatId.takeIf { it.isNotBlank() }
+                            chatId = chatId.takeIf { it.isNotBlank() }
                         ).getOrThrow()
                         val localById = messageRepo.getMessagesByIds(remote.map { it.messageId })
                             .associateBy { it.id }
@@ -292,14 +288,13 @@ class StarredMessagesViewModel(
 
     // 1.91：收藏列表直接取消收藏（乐观移除该行；服务端仍收藏或失败时恢复）
     fun unstarMessage(messageId: String) {
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        val liveToken = tokenManager.getToken().orEmpty()
-        if (liveToken.isBlank() || ownerUserId.isBlank()) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession()) return
         val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
         loadGeneration.incrementAndGet()
         _uiState.update { it.copy(messages = it.messages.filter { m -> m.id != messageId }) }
         viewModelScope.launch {
-            val result = PinStarNetworkRepository().toggleStar(liveToken, messageId)
+            val result = PinStarNetworkRepository().toggleStar(messageId = messageId)
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
             )
@@ -330,9 +325,8 @@ class StarredMessagesViewModel(
 
     // 1.161：清空全部收藏（逐条取消收藏；失败恢复该条）
     fun clearAllStarred() {
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        val liveToken = tokenManager.getToken().orEmpty()
-        if (liveToken.isBlank() || ownerUserId.isBlank()) return
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession()) return
         val all = _uiState.value.messages
         if (all.isEmpty()) return
         loadGeneration.incrementAndGet()
@@ -349,7 +343,7 @@ class StarredMessagesViewModel(
                 ) {
                     return@launch
                 }
-                PinStarNetworkRepository().toggleStar(liveToken, message.id)
+                PinStarNetworkRepository().toggleStar(messageId = message.id)
             }
             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,

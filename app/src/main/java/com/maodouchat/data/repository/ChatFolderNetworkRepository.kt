@@ -20,9 +20,10 @@ internal class ChatFolderNetworkRepository(
     private val putFoldersApi: suspend (String, List<ChatFolderDto>) -> Result<ChatFoldersSyncResponse> =
         { token, folders -> ApiService.putChatFolders(token, folders) },
 ) {
-    suspend fun folders(token: String): Result<ChatFoldersSyncResponse> = foldersApi(token)
+    suspend fun folders(token: String? = null): Result<ChatFoldersSyncResponse> =
+        foldersApi(token ?: currentAccessToken())
 
     /** **全量替换**语义：`folders` 里没有的会被服务端删掉。 */
-    suspend fun putFolders(token: String, folders: List<ChatFolderDto>): Result<ChatFoldersSyncResponse> =
-        putFoldersApi(token, folders)
+    suspend fun putFolders(token: String? = null, folders: List<ChatFolderDto>): Result<ChatFoldersSyncResponse> =
+        putFoldersApi(token ?: currentAccessToken(), folders)
 }
