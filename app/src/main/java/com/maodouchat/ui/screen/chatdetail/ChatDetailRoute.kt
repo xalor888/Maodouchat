@@ -256,7 +256,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /** 8.43：图片发送前预览的待确认项（URI + 单次查看/剧透标记，选取时刻捕获）。 */
-private enum class ParticleAction { DELETE, REVOKE }
+internal enum class ParticleAction { DELETE, REVOKE }
 
 internal data class TranslationLanguageOption(
     val wireValue: String,
@@ -448,8 +448,6 @@ internal fun ChatDetailRoute(
     var replyTarget by remember { mutableStateOf<Message?>(null) }
     var selectedMessageIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
-    var animatingMessageId by remember { mutableStateOf<String?>(null) }
-    var particleAction by remember { mutableStateOf<ParticleAction?>(null) }
     var showGroupInfo by rememberSaveable { mutableStateOf(false) }
     var showGroupCallTypeDialog by rememberSaveable { mutableStateOf(false) }
     var showGroupCallMemberDialog by rememberSaveable { mutableStateOf(false) }
@@ -485,7 +483,8 @@ internal fun ChatDetailRoute(
     var showGifSearch by rememberSaveable { mutableStateOf(false) }
     var showReportContactDialog by rememberSaveable { mutableStateOf(false) }
     var showAiSummaryScopeDialog by rememberSaveable { mutableStateOf(false) }
-    var particleStates by remember { mutableStateOf<List<ParticleState>>(emptyList()) }
+    // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
+    val particles = remember { ChatDetailParticleState() }
     var navigationHighlightMessageId by remember { mutableStateOf<String?>(null) }
     val bubbleBounds = remember { mutableMapOf<String, BubbleBounds>() }
     val configuration = LocalConfiguration.current
@@ -635,10 +634,8 @@ internal fun ChatDetailRoute(
 
     // 8.48：禁言到期重组触发器（到期写入后提示条随重组消失）
     var muteTick by remember { mutableLongStateOf(0L) }
-    var pendingViewOnce by remember { mutableStateOf(false) }
-    var pendingSpoiler by remember { mutableStateOf(false) }
-    var pendingImageConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
-    var pendingVideoConfirm by remember { mutableStateOf<PendingImageSend?>(null) }
+    // G335：发送前待确认项收进持有类（见 ChatDetailTransientStates.kt）
+    val sendPending = remember { ChatDetailSendPendingState() }
     // G331：9 个 ActivityResult 入口搬进 `ChatDetailPickers.kt`（连带它们各自的
     // 「为什么选这个 contract」注释）。这里只留接线。
     val pickers = rememberChatDetailPickers(
@@ -648,16 +645,8 @@ internal fun ChatDetailRoute(
             videoCall = chatPermissionVideoCallMsg,
             location = chatPermissionLocationMsg,
         ),
-        onImagePicked = { uri ->
-            pendingImageConfirm = PendingImageSend(uri, pendingViewOnce, pendingSpoiler)
-            pendingViewOnce = false
-            pendingSpoiler = false
-        },
-        onVideoPicked = { uri ->
-            pendingVideoConfirm = PendingImageSend(uri, pendingViewOnce, pendingSpoiler)
-            pendingViewOnce = false
-            pendingSpoiler = false
-        },
+        onImagePicked = { uri -> sendPending.onPicked(uri, isVideo = false) },
+        onVideoPicked = { uri -> sendPending.onPicked(uri, isVideo = true) },
         onFilePicked = { viewModel.sendFile(it) },
         onGifPicked = {
             viewModel.sendGif(it)
@@ -683,9 +672,11 @@ internal fun ChatDetailRoute(
             androidx.compose.ui.unit.IntSize(220, 56)
         )
         val bubbleColor = if (isOwn) ownBubbleColor else palette.chatBubbleReceived
-        animatingMessageId = message.id
-        particleAction = action
-        particleStates = listOf(ParticleState(message.id, bounds.offset, bounds.size, bubbleColor))
+        particles.start(
+            messageId = message.id,
+            action = action,
+            states = listOf(ParticleState(message.id, bounds.offset, bounds.size, bubbleColor)),
+        )
     }
 
     LaunchedEffect(
@@ -2008,7 +1999,7 @@ internal fun ChatDetailRoute(
                         allItems = reversedChatItems,
                         selectedMessageIds = selectedMessageIds,
                         messageSelectionMode = messageSelectionMode,
-                        animatingMessageId = animatingMessageId,
+                        animatingMessageId = particles.animatingMessageId,
                         searchResults = searchResults,
                         searchIndex = searchIndex,
                         showSearchBar = showSearchBar,
@@ -2278,8 +2269,8 @@ internal fun ChatDetailRoute(
                 onLoadForwardTargets = { viewModel.loadForwardTargets() },
                 onSendContactCard = { userId, name -> viewModel.sendContactCard(userId, name) },
                 onSendImage = {
-                    pendingViewOnce = false
-                    pendingSpoiler = false
+                    sendPending.viewOnce = false
+                    sendPending.spoiler = false
                     listScrollScope.launch {
                         kotlinx.coroutines.yield()
                         runCatching { pickers.image.launch("image/*") }
@@ -2292,8 +2283,8 @@ internal fun ChatDetailRoute(
                     if (state.chat?.isGroup == true) {
                         Toast.makeText(context, context.getString(R.string.view_once_direct_only), Toast.LENGTH_SHORT).show()
                     } else {
-                        pendingViewOnce = true
-                        pendingSpoiler = false
+                        sendPending.viewOnce = true
+                        sendPending.spoiler = false
                         listScrollScope.launch {
                             kotlinx.coroutines.yield()
                             runCatching { pickers.image.launch("image/*") }
@@ -2304,8 +2295,8 @@ internal fun ChatDetailRoute(
                     }
                 },
                 onSendSpoilerImage = {
-                    pendingSpoiler = true
-                    pendingViewOnce = false
+                    sendPending.spoiler = true
+                    sendPending.viewOnce = false
                     listScrollScope.launch {
                         kotlinx.coroutines.yield()
                         runCatching { pickers.image.launch("image/*") }
@@ -2318,8 +2309,8 @@ internal fun ChatDetailRoute(
                 onPasteFromClipboard = {
                     // 8.48 修复：重置阅后即焚/剧透意图——否则上一次取消选图器残留的标志
                     // 会泄漏到后续普通视频/图片发送
-                    pendingViewOnce = false
-                    pendingSpoiler = false
+                    sendPending.viewOnce = false
+                    sendPending.spoiler = false
                     listScrollScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         val resultUri = runCatching {
                             val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -2346,7 +2337,7 @@ internal fun ChatDetailRoute(
                         }.getOrNull()
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                             if (resultUri != null) {
-                                pendingImageConfirm = PendingImageSend(resultUri, false, false)
+                                sendPending.imageConfirm = PendingImageSend(resultUri, false, false)
                             } else {
                                 Toast.makeText(context, context.getString(R.string.chat_clipboard_no_image), Toast.LENGTH_SHORT).show()
                             }
@@ -2515,13 +2506,13 @@ internal fun ChatDetailRoute(
     }
 
     // G79：图片发送前预览（47 行）抽到 ChatDetailSendPreviews.kt，纯搬移不改判断。
-    pendingImageConfirm?.let { pending ->
+    sendPending.imageConfirm?.let { pending ->
         ImageSendPreviewDialog(
             pending = pending,
-            onDismiss = { pendingImageConfirm = null },
+            onDismiss = { sendPending.imageConfirm = null },
             onRechoose = { viewOnce, spoiler ->
-                pendingViewOnce = viewOnce
-                pendingSpoiler = spoiler
+                sendPending.viewOnce = viewOnce
+                sendPending.spoiler = spoiler
                 listScrollScope.launch {
                     kotlinx.coroutines.yield()
                     runCatching { pickers.image.launch("image/*") }
@@ -2541,10 +2532,10 @@ internal fun ChatDetailRoute(
     }
 
     // G79：视频发送前预览（37 行）抽到 ChatDetailSendPreviews.kt，纯搬移不改判断。
-    pendingVideoConfirm?.let { pending ->
+    sendPending.videoConfirm?.let { pending ->
         VideoSendPreviewDialog(
             pending = pending,
-            onDismiss = { pendingVideoConfirm = null },
+            onDismiss = { sendPending.videoConfirm = null },
             onSendVideo = { p -> viewModel.sendVideo(p.uri) },
             onSendSpoilerVideo = { p -> viewModel.sendSpoilerVideo(p.uri) },
             onSendViewOnceVideo = { p -> viewModel.sendViewOnceVideo(p.uri) },
@@ -2752,19 +2743,17 @@ internal fun ChatDetailRoute(
     }
 
     // 粒子删除动效：消息泡碎裂为彩色粒子消散（Telegram 风格）
-    if (animatingMessageId != null && particleStates.isNotEmpty()) {
+    if (particles.animatingMessageId != null && particles.states.isNotEmpty()) {
         ParticleDeleteEffect(
-            particleStates = particleStates,
+            particleStates = particles.states,
             onFinished = {
-                val targetId = animatingMessageId
-                when (particleAction) {
+                val targetId = particles.animatingMessageId
+                when (particles.action) {
                     ParticleAction.DELETE -> targetId?.let { viewModel.deleteMessage(it) }
                     ParticleAction.REVOKE -> targetId?.let { viewModel.revokeMessage(it) }
                     null -> Unit
                 }
-                animatingMessageId = null
-                particleAction = null
-                particleStates = emptyList()
+                particles.clear()
             }
         )
     }
