@@ -52,7 +52,7 @@ dependencies {
 
     // 8.31 运维修复 CRITICAL：数据库连接池（Exposed 0.46 的 Database.connect(url, driver)
     // 不再自动建池，每次事务裸连 DB；HikariCP 提供复用、超时与泄漏检测）
-    implementation("com.zaxxer:HikariCP:5.1.0")
+    implementation("com.zaxxer:HikariCP:7.1.0")
 
     // JWT
     implementation("com.auth0:java-jwt:4.4.0")
