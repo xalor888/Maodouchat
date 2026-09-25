@@ -313,6 +313,8 @@ internal fun ChatDetailRoute(
     onOpenCallHistory: (() -> Unit)? = null,
     viewModel: ChatDetailViewModel = viewModel()
 ) {
+    // G335：会话级设置/提醒/定时这一组弹窗收进持有类（带 Saver，见 ChatDetailScheduleState.kt）
+    val schedule = rememberChatDetailScheduleState()
     // G335：群通话「类型 → 选成员」流程收进持有类（带 Saver，见 ChatDetailGroupCallState.kt）
     val groupCall = rememberChatDetailGroupCallState()
     // G335：搜索状态族收进持有类（带 Saver，保存语义不变——见 ChatDetailSearchState.kt）
@@ -452,14 +454,7 @@ internal fun ChatDetailRoute(
     // 1.11：发送名片——联系人选择对话框
     var showContactCardPicker by rememberSaveable { mutableStateOf(false) }
     var showChatOverflow by remember { mutableStateOf(false) }
-    var showDisappearDialog by rememberSaveable { mutableStateOf(false) }
-    var showQuietHoursDialog by rememberSaveable { mutableStateOf(false) }
     // 1.02：临时静音至对话框
-    var showSilentUntilDialog by rememberSaveable { mutableStateOf(false) }
-    var showReminderList by rememberSaveable { mutableStateOf(false) }
-    var showScheduleDialog by rememberSaveable { mutableStateOf(false) }
-    var showScheduledList by rememberSaveable { mutableStateOf(false) }
-    var rescheduleTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var showSetChatLock by rememberSaveable { mutableStateOf(false) }
     var showDisableChatLock by rememberSaveable { mutableStateOf(false) }
     var showForgotChatLockConfirm by rememberSaveable { mutableStateOf(false) }
@@ -1123,20 +1118,20 @@ internal fun ChatDetailRoute(
         classifyFailed = aiResults.classifyFailed,
     )
 
-    if (showDisappearDialog && !state.chatIsGroup && state.isSecretChat != true) {
+    if (schedule.showDisappearDialog && !state.chatIsGroup && state.isSecretChat != true) {
         DisappearingMessagesDialog(
             selectedSeconds = state.disappearingMessageSeconds,
             isUpdating = state.isUpdatingDisappearing,
             onSelect = { seconds ->
-                showDisappearDialog = false
+                schedule.showDisappearDialog = false
                 viewModel.setDisappearingMessages(seconds)
             },
-            onDismiss = { showDisappearDialog = false }
+            onDismiss = { schedule.showDisappearDialog = false }
         )
     }
 
     // 8.46：会话免打扰时段（本地 per-chat 静音窗）
-    if (showQuietHoursDialog && state.chat?.id?.isNotBlank() == true) {
+    if (schedule.showQuietHoursDialog && state.chat?.id?.isNotBlank() == true) {
         // 9.219：捕获局部 chatId——onPick 回调延迟执行时 state.chat 可能已变空（会话删除竞态）
         val quietChatId = state.chat?.id ?: return
         @Suppress("NAME_SHADOWING")
@@ -1160,35 +1155,35 @@ internal fun ChatDetailRoute(
                     ),
                     Toast.LENGTH_SHORT
                 ).show()
-                showQuietHoursDialog = false
+                schedule.showQuietHoursDialog = false
             },
-            onDismiss = { showQuietHoursDialog = false }
+            onDismiss = { schedule.showQuietHoursDialog = false }
         )
     }
 
     // 1.02：临时静音至（本地，1/8/24 小时）
     // G83：静音至对话框（45 行）抽到 ChatDetailChatSettingsDialogs.kt，纯搬移不改判断。
-    if (showSilentUntilDialog && state.chat?.id?.isNotBlank() == true) {
+    if (schedule.showSilentUntilDialog && state.chat?.id?.isNotBlank() == true) {
         // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
         val chatIdForSilent = state.chat?.id ?: return
         ChatSilentUntilDialog(
             chatId = chatIdForSilent,
-            onDismiss = { showSilentUntilDialog = false },
+            onDismiss = { schedule.showSilentUntilDialog = false },
         )
     }
 
     // 8.48：稍后提醒列表（查看/取消）
     // G82：稍后提醒列表对话框（65 行）抽到 ChatDetailReminderListDialog.kt，纯搬移不改判断。
-    if (showReminderList && state.chat?.id?.isNotBlank() == true) {
+    if (schedule.showReminderList && state.chat?.id?.isNotBlank() == true) {
         // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
         val reminderChatId = state.chat?.id ?: return
-        var reminderList by remember(showReminderList, reminderChatId) {
+        var reminderList by remember(schedule.showReminderList, reminderChatId) {
             mutableStateOf(viewModel.listRemindersForChat(reminderChatId))
         }
         ChatDetailReminderListDialog(
             reminders = reminderList,
             chatId = reminderChatId,
-            onDismiss = { showReminderList = false },
+            onDismiss = { schedule.showReminderList = false },
             onCancelReminder = { id ->
                 viewModel.cancelReminder(id)
                 reminderList = reminderList.filterNot { it.id == id }
@@ -1201,41 +1196,41 @@ internal fun ChatDetailRoute(
         )
     }
 
-    if (showScheduleDialog) {
+    if (schedule.showScheduleDialog) {
         ScheduleSendDialog(
             onPickDelay = { delayMs ->
-                showScheduleDialog = false
+                schedule.showScheduleDialog = false
                 viewModel.scheduleMessage(delayMs)
             },
             onPickAt = { sendAt ->
-                showScheduleDialog = false
+                schedule.showScheduleDialog = false
                 viewModel.scheduleMessageAt(sendAt)
             },
-            onDismiss = { showScheduleDialog = false },
+            onDismiss = { schedule.showScheduleDialog = false },
             // 1.07：重复定时发送（1.21：支持次数上限；1.62：工作日重复）
             onPickRepeat = { intervalMs, repeatCount, weekdaysOnly ->
-                showScheduleDialog = false
+                schedule.showScheduleDialog = false
                 viewModel.scheduleMessageRepeat(intervalMs, repeatCount, weekdaysOnly)
             }
         )
     }
 
-    if (showScheduledList && state.scheduledMessages.isNotEmpty()) {
+    if (schedule.showScheduledList && state.scheduledMessages.isNotEmpty()) {
         ScheduledMessagesListSheet(
             items = state.scheduledMessages,
             onCancel = { viewModel.cancelScheduledMessage(it) },
             onReschedule = { id ->
-                rescheduleTargetId = id
+                schedule.rescheduleTargetId = id
             },
             // 1.168：立即发送
             onSendNow = { viewModel.sendScheduledNow(it) },
             // 1.174：全部取消
             onCancelAll = { viewModel.cancelAllScheduledMessages() },
-            onDismiss = { showScheduledList = false }
+            onDismiss = { schedule.showScheduledList = false }
         )
     }
 
-    rescheduleTargetId?.let { targetId ->
+    schedule.rescheduleTargetId?.let { targetId ->
         // 1.43：重排时可编辑文案（初值取当前待发文案）
         var rescheduleTextDraft by remember(targetId) {
             mutableStateOf(state.scheduledMessages.firstOrNull { it.id == targetId }?.text.orEmpty())
@@ -1245,15 +1240,15 @@ internal fun ChatDetailRoute(
             initialText = rescheduleTextDraft,
             onTextEdited = { rescheduleTextDraft = it },
             onPickDelay = { delayMs ->
-                rescheduleTargetId = null
+                schedule.rescheduleTargetId = null
                 // 1.46：清空编辑框时保留原文（null 表示不改文案）
                 viewModel.rescheduleScheduledMessage(targetId, delayMs, rescheduleTextDraft.takeIf { it.isNotBlank() })
             },
             onPickAt = { sendAt ->
-                rescheduleTargetId = null
+                schedule.rescheduleTargetId = null
                 viewModel.rescheduleScheduledMessageAt(targetId, sendAt, rescheduleTextDraft.takeIf { it.isNotBlank() })
             },
-            onDismiss = { rescheduleTargetId = null }
+            onDismiss = { schedule.rescheduleTargetId = null }
         )
     }
 
@@ -1618,24 +1613,24 @@ internal fun ChatDetailRoute(
                                 if (state.isSecretChat != true) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.disappear_menu)) },
-                                        onClick = { showChatOverflow = false; showDisappearDialog = true }
+                                        onClick = { showChatOverflow = false; schedule.showDisappearDialog = true }
                                     )
                                 }
                             }
                             // 8.46：会话免打扰时段（本地 per-chat 静音窗，单聊/群聊均可用）
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_quiet_hours_menu)) },
-                                onClick = { showChatOverflow = false; showQuietHoursDialog = true }
+                                onClick = { showChatOverflow = false; schedule.showQuietHoursDialog = true }
                             )
                             // 1.02：临时静音至（1/8/24 小时，本地）
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_silent_until_menu)) },
-                                onClick = { showChatOverflow = false; showSilentUntilDialog = true }
+                                onClick = { showChatOverflow = false; schedule.showSilentUntilDialog = true }
                             )
                             // 8.48：稍后提醒列表（查看/取消）
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.message_reminder_list_menu)) },
-                                onClick = { showChatOverflow = false; showReminderList = true }
+                                onClick = { showChatOverflow = false; schedule.showReminderList = true }
                             )
                             // 1.29：通话记录（本地 CallLogStore 历史）
                             DropdownMenuItem(
@@ -1793,15 +1788,15 @@ internal fun ChatDetailRoute(
                 ScheduledMessagesBanner(
                     items = state.scheduledMessages,
                     onCancel = { viewModel.cancelScheduledMessage(it) },
-                    onReschedule = { id -> rescheduleTargetId = id },
-                    onViewAll = { showScheduledList = true }
+                    onReschedule = { id -> schedule.rescheduleTargetId = id },
+                    onViewAll = { schedule.showScheduledList = true }
                 )
             }
             if (!state.chatIsGroup && state.disappearingMessageSeconds > 0) {
                 DisappearingMessagesBanner(
                     seconds = state.disappearingMessageSeconds,
                     onChange = {
-                        if (state.isSecretChat != true) showDisappearDialog = true
+                        if (state.isSecretChat != true) schedule.showDisappearDialog = true
                     }
                 )
             }
@@ -2236,7 +2231,7 @@ internal fun ChatDetailRoute(
                     if (state.inputText.isBlank()) {
                         Toast.makeText(context, context.getString(R.string.schedule_need_text), Toast.LENGTH_SHORT).show()
                     } else {
-                        showScheduleDialog = true
+                        schedule.showScheduleDialog = true
                     }
                 },
                 onOpenConversationProfile = { showConversationProfile = true },
