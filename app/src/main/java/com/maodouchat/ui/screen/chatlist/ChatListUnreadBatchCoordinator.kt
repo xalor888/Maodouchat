@@ -2,7 +2,6 @@ package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -19,7 +18,6 @@ import kotlinx.coroutines.launch
 internal class ChatListUnreadBatchCoordinator(
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<ChatListUiState>,
-    private val tokenManager: TokenManager,
     private val ownerUserId: () -> String,
     private val ownerSession: (ownerUserId: String) -> OwnerSessionSnapshot,
     private val isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean,
@@ -72,8 +70,9 @@ internal class ChatListUnreadBatchCoordinator(
         scope.launch {
             toRead.forEach { chat ->
                 if (!isOwnerSessionCurrent(session)) return@launch
-                val liveToken = tokenManager.getToken().orEmpty()
-                if (liveToken.isBlank()) return@launch
+                // 这里读令牌**只是**为了判断「还在不在登录态」（读到的值从未被使用），
+                // 所以用会话层的判断而不是取凭据（G332）。
+                if (!com.maodouchat.session.CurrentSession.hasSession()) return@launch
                 try {
                     withOwnerRoomWrite(session) {
                         val cached = getCachedChat(chat.id)

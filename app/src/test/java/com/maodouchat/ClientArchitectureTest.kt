@@ -216,7 +216,7 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**22 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**20 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -226,7 +226,7 @@ class ClientArchitectureTest {
      * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
      * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
      * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
-     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37 → 33 → 31 → 26 → 22）。别把它当成棘轮被放松。
+     * （G328c 全程：98 → 61 → 55 → 48 → 46 → 37 → 33 → 31 → 26 → 22 → 20）。别把它当成棘轮被放松。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
@@ -247,8 +247,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/ChatListLoadCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListMutationCoordinator.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListUnreadBatchCoordinator.kt",
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt",
         "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
         "com/maodouchat/ui/screen/explore/AuthorProfileScreen.kt",
         "com/maodouchat/ui/screen/explore/ExploreNearbyScreen.kt",
@@ -356,7 +354,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1038,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 996,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 993,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
         "com/maodouchat/network/WebSocketClient.kt" to 969,
@@ -417,7 +415,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1038,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 996,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 993,
         // G164b：Top-20 排名门禁纳入的 8 个
         "com/maodouchat/network/WebSocketClient.kt" to 969,
         "com/maodouchat/ui/component/MarkdownParser.kt" to 966,

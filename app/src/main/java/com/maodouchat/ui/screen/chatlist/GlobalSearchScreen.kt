@@ -87,7 +87,6 @@ import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.MessageSearchRepository
 import com.maodouchat.network.ApiService
 
-import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -151,7 +150,6 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
     private val app = application as MaodouchatApp
     private val searchRepository = MessageSearchRepository(app.database)
     private val chatRepository = ChatRepository(app.database.chatDao(), app.database.userDao())
-    private val tokenManager = TokenManager.getInstance(application)
     private val _uiState = MutableStateFlow(GlobalSearchUiState())
     val uiState: StateFlow<GlobalSearchUiState> = _uiState.asStateFlow()
 
@@ -297,7 +295,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun refreshIndex() {
-        val indexOwnerUserId = tokenManager.getUserId().orEmpty()
+        val indexOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (
             indexOwnerUserId.isBlank() ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -356,7 +354,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
         // Indexing in progress is not "no hits" — keep the spinner, reschedule from refreshIndex.
         if (_uiState.value.isIndexing) return
         val expectedGeneration = generation
-        val searchOwnerUserId = tokenManager.getUserId().orEmpty()
+        val searchOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (
             searchOwnerUserId.isBlank() ||
             !com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -433,9 +431,8 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             _uiState.update {
                 it.copy(isSearching = true, results = emptyList(), aiSearchCompleted = false, excludedChatCount = 0, error = null)
             }
-            val token = tokenManager.getToken().orEmpty()
-            val searchOwnerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isBlank() || searchOwnerUserId.isBlank()) {
+            val searchOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || searchOwnerUserId.isBlank()) {
                 _uiState.update { it.copy(isSearching = false, error = text(R.string.error_session_expired)) }
                 return@launch
             }
@@ -525,7 +522,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun senderName(document: MessageSearchDocumentEntity): String {
-        if (document.senderId == tokenManager.getUserId()) return text(R.string.chat_me)
+        if (document.senderId == com.maodouchat.session.CurrentSession.snapshot().userId) return text(R.string.chat_me)
         return chatsById[document.chatId]?.participants
             ?.firstOrNull { it.id == document.senderId }
             ?.displayName

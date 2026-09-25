@@ -254,7 +254,6 @@ class ChatListViewModel private constructor(
     private val unreadBatchCoordinator = ChatListUnreadBatchCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        tokenManager = tokenManager,
         ownerUserId = { currentUserIdStr },
         ownerSession = { ownerSession(it) },
         isOwnerSessionCurrent = { isOwnerSessionCurrent(it) },
