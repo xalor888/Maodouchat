@@ -114,12 +114,6 @@ class ChatDetailViewModel(
     }
     internal val app = application as MaodouchatApp
     // G73：AI 能力端口（实现在 data 层，Route 只认端口）
-    /**
-     * G328c：装配已搬到 [ChatDetailDeps]（553 行）。下面这些是**同名转发**——
-     * 调用点（Route / 各 Controller / 测试）一个都不用改，而 VM 里剩下的都是行为。
-     */
-    private val deps = ChatDetailDeps(application, host = this)
-
     internal val aiConversationProfileSource get() = deps.aiConversationProfileSource
     internal val aiChatClassificationSource get() = deps.aiChatClassificationSource
     internal val aiEmotionReplySource get() = deps.aiEmotionReplySource
@@ -379,6 +373,12 @@ class ChatDetailViewModel(
 
     internal val _uiState = MutableStateFlow(ChatDetailUiState())
     val uiState: StateFlow<ChatDetailUiState> = _uiState.asStateFlow()
+    /**
+     * G328c 装配已搬到 [ChatDetailDeps]。⚠️ **必须声明在 `_uiState` 之后**：Deps 构造要读 `host._uiState`，
+     * 声明顺序在前会读到 null → 真机打开任一聊天即崩（NPE: Parameter specified as non-null is null）。
+     */
+    private val deps = ChatDetailDeps(application, host = this)
+
     private val timelineStateController get() = deps.timelineStateController
     internal val searchSelectionStateController get() = deps.searchSelectionStateController
     private val groupSecurityStateController get() = deps.groupSecurityStateController
