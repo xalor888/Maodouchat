@@ -31,7 +31,7 @@ class PublishPostUseCase(
 
     suspend fun publish(
         ownerUserId: String,
-        token: String,
+        token: String? = null,
         content: String,
         imageUrls: List<String>,
         visibility: PostVisibility = PostVisibility.PUBLIC
@@ -44,7 +44,7 @@ class PublishPostUseCase(
         val normalizedVisibility = PostVisibilityPolicy.formatForApi(visibility)
         val result = mutationRepository.publishPost(
             ownerUserId = ownerUserId,
-            token = token,
+            token = token ?: curToken(),
             content = content,
             imageUrls = imageUrls,
             visibility = normalizedVisibility
@@ -58,7 +58,7 @@ class PublishPostUseCase(
 
     suspend fun edit(
         ownerUserId: String,
-        token: String,
+        token: String? = null,
         postId: String,
         content: String,
         visibility: PostVisibility = PostVisibility.PUBLIC
@@ -70,7 +70,7 @@ class PublishPostUseCase(
         val normalizedVisibility = PostVisibilityPolicy.formatForApi(visibility)
         return mutationRepository.editPost(
             ownerUserId = ownerUserId,
-            token = token,
+            token = token ?: curToken(),
             postId = postId,
             content = trimmed,
             visibility = normalizedVisibility
@@ -79,18 +79,21 @@ class PublishPostUseCase(
 
     suspend fun delete(
         ownerUserId: String,
-        token: String,
+        token: String? = null,
         post: PostDto,
         originalIndex: Int = 0
     ): Result<Unit> =
-        mutationRepository.deletePost(ownerUserId, token, post, originalIndex)
+        mutationRepository.deletePost(ownerUserId, token ?: curToken(), post, originalIndex)
 
     suspend fun report(
         ownerUserId: String,
-        token: String,
+        token: String? = null,
         postId: String,
         reason: String,
         description: String? = null
     ): Result<ReportResponse> =
-        mutationRepository.reportPost(ownerUserId, token, postId, reason, description)
+        mutationRepository.reportPost(ownerUserId, token ?: curToken(), postId, reason, description)
+
+    /** 未显式传令牌时取当前会话的（与 `data/repository/SessionTokens.kt` 同一约定）。 */
+    private fun curToken(): String = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
 }

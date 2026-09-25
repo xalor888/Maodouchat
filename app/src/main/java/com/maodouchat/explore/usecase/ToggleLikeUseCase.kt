@@ -9,18 +9,21 @@ class ToggleLikeUseCase(
 ) {
     suspend fun togglePostLike(
         ownerUserId: String,
-        token: String,
+        token: String? = null,
         post: PostDto,
         onOptimisticUpdate: (PostDto) -> Unit = {}
     ): Result<PostDto> =
-        mutationRepository.togglePostLike(ownerUserId, token, post, onOptimisticUpdate)
+        mutationRepository.togglePostLike(ownerUserId, token ?: curToken(), post, onOptimisticUpdate)
 
     suspend fun toggleCommentLike(
         ownerUserId: String,
-        token: String,
+        token: String? = null,
         postId: String,
         comment: PostCommentDto,
         onOptimisticUpdate: (PostCommentDto) -> Unit = {}
     ): Result<PostCommentDto> =
-        mutationRepository.toggleCommentLike(ownerUserId, token, postId, comment, onOptimisticUpdate)
+        mutationRepository.toggleCommentLike(ownerUserId, token ?: curToken(), postId, comment, onOptimisticUpdate)
+
+    /** 未显式传令牌时取当前会话的（与 `data/repository/SessionTokens.kt` 同一约定）。 */
+    private fun curToken(): String = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
 }

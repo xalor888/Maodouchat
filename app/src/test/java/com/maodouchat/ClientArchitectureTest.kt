@@ -216,7 +216,7 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**14 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**13 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -246,7 +246,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/IdentityVerificationController.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
         "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt",
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsModerationViewModel.kt",
         "com/maodouchat/ui/screen/settings/SettingsNotificationViewModel.kt",
@@ -349,7 +348,7 @@ class ClientArchitectureTest {
         // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1038,
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 993,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
@@ -410,7 +409,7 @@ class ClientArchitectureTest {
         // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1038,
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 993,
         // G164b：Top-20 排名门禁纳入的 8 个

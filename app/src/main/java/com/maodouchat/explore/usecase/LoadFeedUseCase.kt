@@ -25,9 +25,12 @@ class LoadFeedUseCase(
         return feedRepository.load(session, cursor = cursor)
     }
 
-    suspend fun loadPostDetail(token: String, postId: String): Result<PostDto> =
-        socialApi.getPost(token, postId)
+    suspend fun loadPostDetail(token: String? = null, postId: String): Result<PostDto> =
+        socialApi.getPost(token ?: curToken(), postId)
 
-    suspend fun loadLikers(token: String, postId: String, limit: Int = 50): Result<List<UserDto>> =
-        socialApi.getPostLikers(token, postId, limit).map { it.likers }
+    suspend fun loadLikers(token: String? = null, postId: String, limit: Int = 50): Result<List<UserDto>> =
+        socialApi.getPostLikers(token ?: curToken(), postId, limit).map { it.likers }
+
+    /** 未显式传令牌时取当前会话的（与 `data/repository/SessionTokens.kt` 同一约定）。 */
+    private fun curToken(): String = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
 }

@@ -40,10 +40,10 @@ interface MediaUploadQueue {
     val itemsFlow: StateFlow<Map<String, UploadItem>>
 
     fun enqueue(id: String, ownerUserId: String, base64Data: String, maxRetries: Int = 3)
-    fun startUpload(id: String, token: String): Job?
-    fun retry(id: String, token: String): Job?
+    fun startUpload(id: String, token: String? = null): Job?
+    fun retry(id: String, token: String? = null): Job?
     fun cancel(id: String)
-    suspend fun discardUploaded(token: String, ownerUserId: String, url: String): Result<Unit>
+    suspend fun discardUploaded(token: String? = null, ownerUserId: String, url: String): Result<Unit>
     fun clear()
 }
 
@@ -78,7 +78,8 @@ class DefaultMediaUploadQueue(
         }
     }
 
-    override fun startUpload(id: String, token: String): Job? {
+    override fun startUpload(id: String, token: String?): Job? {
+        val token = token ?: com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
         val item = _itemsFlow.value[id] ?: return null
         if (item.status == UploadStatus.UPLOADING) {
             return activeJobs[id]
@@ -164,7 +165,8 @@ class DefaultMediaUploadQueue(
         return job
     }
 
-    override fun retry(id: String, token: String): Job? {
+    override fun retry(id: String, token: String?): Job? {
+        val token = token ?: com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
         val item = _itemsFlow.value[id] ?: return null
         _itemsFlow.update { current ->
             current + (id to item.copy(status = UploadStatus.QUEUED, errorMessage = null))
@@ -180,7 +182,8 @@ class DefaultMediaUploadQueue(
         }
     }
 
-    override suspend fun discardUploaded(token: String, ownerUserId: String, url: String): Result<Unit> {
+    override suspend fun discardUploaded(token: String?, ownerUserId: String, url: String): Result<Unit> {
+        val token = token ?: com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
         if (!sessionGateCheck(ownerUserId, token)) {
             return Result.failure(IllegalStateException("Session invalid"))
         }

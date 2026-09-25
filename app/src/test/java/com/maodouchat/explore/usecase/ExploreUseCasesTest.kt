@@ -158,10 +158,10 @@ class ExploreUseCasesTest {
     private class FakeMediaUploadQueue : MediaUploadQueue {
         override val itemsFlow: StateFlow<Map<String, UploadItem>> = MutableStateFlow(emptyMap())
         override fun enqueue(id: String, ownerUserId: String, base64Data: String, maxRetries: Int) {}
-        override fun startUpload(id: String, token: String) = null
-        override fun retry(id: String, token: String) = null
+        override fun startUpload(id: String, token: String?) = null
+        override fun retry(id: String, token: String?) = null
         override fun cancel(id: String) {}
-        override suspend fun discardUploaded(token: String, ownerUserId: String, url: String) = Result.success(Unit)
+        override suspend fun discardUploaded(token: String?, ownerUserId: String, url: String) = Result.success(Unit)
         override fun clear() {}
     }
 
