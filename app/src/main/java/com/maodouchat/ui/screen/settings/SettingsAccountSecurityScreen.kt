@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -53,8 +54,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -161,8 +160,9 @@ fun AccountSecurityScreen(
     var totpMessage by remember(state.userId) { mutableStateOf<String?>(null) }
     val totpScope = rememberCoroutineScope()
 
-
-    Column(modifier = Modifier.verticalScroll(rememberScrollState()).imePadding()) {
+    // G333：本页整屏且没有 TopAppBar，必须自己消费系统栏 inset——此前只有 `imePadding()`，
+    // 真机上首屏内容画在状态栏底下（「Devices, E2EE…」被时钟盖住）。safeDrawing 含状态栏+手势条+IME。
+    Column(modifier = Modifier.safeDrawingPadding().verticalScroll(rememberScrollState())) {
         Spacer(modifier = Modifier.height(8.dp))
         SecurityStatusCard(
             e2eeReady = e2eeReady,

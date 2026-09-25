@@ -216,7 +216,7 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**7 个**）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**6 个**）：多用于给图片 URL 加鉴权头，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -247,9 +247,8 @@ class ClientArchitectureTest {
      * 3. **凭据要交给协议层**（1）：`IdentityVerificationController`——
      *    `signalProtocol.getRemoteDeviceSafetyStates(token, …)`，发请求的是 crypto/signal 那条链；
      *    要让 ui 不碰令牌，得先让协议层自己取凭据。
-     * 4. **真的还该继续拆**（1）：`SettingsViewModel`（27 处取令牌 + 22 处取身份）。
-     *    它在热点上限里零余量，且这些读取与「POST 前后各校验一次会话」的流程绑在一起，
-     *    要逐条对照着改，属单独一轮。
+     * 4. ~~真的还该继续拆~~：`SettingsViewModel` 已在 G332 拆完（27 处取令牌 + 22 处取身份全部收进
+     *    会话层，仓库改自持凭据，文件 1223 → 1194 行并同步收紧上限）——所以现在名单只剩上面三类 6 个。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
@@ -266,7 +265,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/IdentityVerificationController.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
-        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt",
     )
 
     @Test
@@ -354,7 +352,7 @@ class ClientArchitectureTest {
         // 1100+ 行源文件全部在监。
         "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1223,
+        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1194,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
         "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -417,7 +415,7 @@ class ClientArchitectureTest {
             // 1100+ 行源文件全部在监。
             "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1223,
+            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1194,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
             "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -603,6 +601,78 @@ class ClientArchitectureTest {
             "有 core 模块**开始被生产代码采纳**（好事）——请把它从" +
                 "coreModulesWithZeroProductionUse 删掉，并把它的采纳方式写进 settings.gradle.kts 的模块清单。" +
                 "实际=$newlyUsed",
+        )
+    }
+
+    // ─── 2f. 整屏目的地必须消费系统栏 inset（G333） ───
+
+    /**
+     * 每个导航目的地最外层那个 Screen/Route/Pane，必须自己处理系统栏 inset。
+     *
+     * 为什么要这条：`MainActivity` 调了 `enableEdgeToEdge()`，所以**每个整屏页面都得自己
+     * 消费状态栏/手势条 inset**；靠父级 `Scaffold` 兜底是不成立的（导航宿主不给 inset）。
+     * 实测踩到过：`AccountSecurityScreen` 的根布局只有 `verticalScroll + imePadding`，
+     * 真机上首屏内容直接画在状态栏底下（「Devices, E2EE…」被时钟盖住）——**单元测试与
+     * 语义测试都发现不了**，因为它们不渲染系统栏。
+     *
+     * 判据：文件里出现 `Scaffold(` / `TopAppBar(` / `statusBarsPadding` / `safeDrawingPadding` /
+     * `windowInsetsPadding` / `WindowInsets` 之一即算处理过（Material3 的 `TopAppBar` 自带
+     * 状态栏 inset，所以「有顶栏」也是一种正确处理）。
+     *
+     * 例外只登记**间接**目的地（判据只解析一层：目的地里若只是转发给另一个 Screen，
+     * 真正渲染的那个 Screen 在别处处理 inset）。目前两条，都逐字查过被转发的那个：
+     * `ChatDetailListPaneRoute` → `AdaptiveLayout`（两栏时列表页/详情页各自带顶栏），
+     * `IncomingCallRoute` → `IncomingCallScreen` → `CallScreen.kt`（那里有 `statusBarsPadding`）。
+     * 这条**不是**风格偏好——它对应的是一次真机可见的 bug。
+     */
+    private val destinationsAllowedWithoutInsets: Map<String, String> = mapOf(
+        "app/src/main/java/com/maodouchat/ui/navigation/MainContainerRoute.kt" to
+            "ChatDetailListPaneRoute 只是把 listPane/detailPane 交给 ChatListScreen / ChatDetailRoute，两者各自带 inset",
+        "app/src/main/java/com/maodouchat/ui/navigation/CallNavigation.kt" to
+            "IncomingCallRoute 转发给 CallScreen.kt 的来电界面，那里有 statusBarsPadding",
+    )
+
+    @Test
+    fun `every nav destination consumes system bar insets`() {
+        val navDirs = listOf(
+            File(appMain, "com/maodouchat/navigation"),
+            File(appMain, "com/maodouchat/ui/navigation"),
+        )
+        val navFiles = navDirs.filter { it.isDirectory }.flatMap { ktFilesUnder(it) }
+        // 函数名 → 定义文件（跨模块按短名解析）
+        val where = mutableMapOf<String, File>()
+        ktFilesUnder(appMain).forEach { f ->
+            val text = stripComments(f.readText())
+            Regex("""(?:internal |private )?fun ([A-Za-z_]\w*)\(""").findAll(text).forEach { m ->
+                where.putIfAbsent(m.groupValues[1], f)
+            }
+        }
+        val insetMarkers = listOf(
+            "Scaffold(", "TopAppBar(", "statusBarsPadding", "safeDrawingPadding",
+            "windowInsetsPadding", "WindowInsets",
+        )
+        val offenders = mutableListOf<String>()
+        navFiles.forEach { nav ->
+            val text = stripComments(nav.readText())
+            Regex("""composable\(\s*(?:route\s*=\s*)?[A-Za-z_][\w.]*\s*\)\s*\{""").findAll(text).forEach { m ->
+                val seg = text.substring(m.range.last, minOf(text.length, m.range.last + 800))
+                val target = Regex("""([A-Za-z_]\w*(?:Screen|Route|Pane))\s*\(""").find(seg)?.groupValues?.get(1)
+                    ?: return@forEach
+                val file = where[target] ?: return@forEach
+                val body = stripComments(file.readText())
+                if (insetMarkers.any { body.contains(it) }) return@forEach
+                val rel = file.relativeTo(repoRoot).path.replace('\\', '/')
+                if (destinationsAllowedWithoutInsets.containsKey(rel)) return@forEach
+                offenders += "$target（$rel）"
+            }
+        }
+        assertEquals(
+            emptyList(),
+            offenders.distinct().sorted(),
+            "整屏目的地没有消费系统栏 inset——`enableEdgeToEdge()` 下内容会画到状态栏底下" +
+                "（真机可见，单元测试看不到）。加 `Modifier.safeDrawingPadding()` 或" +
+                "`statusBarsPadding()`，或加一个带 inset 的 `TopAppBar`；确实不需要的请登记到" +
+                "destinationsAllowedWithoutInsets 并写明理由。实际=",
         )
     }
 

@@ -9,7 +9,6 @@ import com.maodouchat.R
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.UserDto
 import com.maodouchat.network.DeviceInfoDto
-import com.maodouchat.network.TokenManager
 import com.maodouchat.util.ImagePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,7 +38,6 @@ class SettingsViewModel @JvmOverloads constructor(
     /** G328c：账号/设备/拉黑这类**命令式**端点走 data 层仓库（ui 不再直接调 ApiService）。 */
     private val accountApi get() = com.maodouchat.data.repository.AccountSecurityNetworkRepository()
 
-    internal val tokenManager = TokenManager.getInstance(application)
     private val app = application as MaodouchatApp
     private var profileSaveJob: Job? = null
     private var avatarUploadJob: Job? = null
@@ -92,7 +90,7 @@ class SettingsViewModel @JvmOverloads constructor(
         update()
     }
 
-    private fun currentLoadedPrivacy() = loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }
+    private fun currentLoadedPrivacy() = loadedPrivacy?.takeIf { it.ownerUserId == com.maodouchat.session.CurrentSession.snapshot().userId }
 
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -225,9 +223,8 @@ class SettingsViewModel @JvmOverloads constructor(
             return
         }
         profileSaveJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val profileOwnerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || profileOwnerUserId.isBlank()) {
+            val profileOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || profileOwnerUserId.isBlank()) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
@@ -239,8 +236,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.updateProfile(liveToken, status = status).fold(
+                accountApi.updateProfile(status = status).fold(
                     onSuccess = { user ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = profileOwnerUserId,
@@ -285,9 +281,8 @@ class SettingsViewModel @JvmOverloads constructor(
         val name = _uiState.value.editName.trim()
         if (name.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.settings_nickname_empty)) }; return }
         profileSaveJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val profileOwnerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || profileOwnerUserId.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }; return@launch }
+            val profileOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || profileOwnerUserId.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }; return@launch }
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -296,8 +291,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.updateProfile(liveToken, name = name).fold(
+                accountApi.updateProfile(name = name).fold(
                     onSuccess = { user ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = profileOwnerUserId,
@@ -323,7 +317,7 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun uploadAvatar(uri: Uri) {
         if (avatarUploadJob?.isActive == true) return
-        val uploadOwnerUserId = tokenManager.getUserId().orEmpty()
+        val uploadOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (uploadOwnerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
@@ -340,16 +334,15 @@ class SettingsViewModel @JvmOverloads constructor(
                         expectedUserId = uploadOwnerUserId,
                     )
                     ) {
-                        if (tokenManager.getUserId() == uploadOwnerUserId) {
+                        if (com.maodouchat.session.CurrentSession.snapshot().userId == uploadOwnerUserId) {
                             _uiState.update {
                                 it.copy(isUploading = false, errorMessage = text(R.string.error_session_expired))
                             }
                         }
                         return@launch
                     }
-                    val token = tokenManager.getToken()
-                    if (token.isNullOrBlank()) { _uiState.update { it.copy(isUploading = false, errorMessage = text(R.string.error_session_expired)) }; return@launch }
-                    accountApi.uploadAvatar(token, base64).fold(
+                    if (!com.maodouchat.session.CurrentSession.hasSession()) { _uiState.update { it.copy(isUploading = false, errorMessage = text(R.string.error_session_expired)) }; return@launch }
+                    accountApi.uploadAvatar(base64Data = base64).fold(
                         onSuccess = { url ->
                             if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                                 expectedUserId = uploadOwnerUserId,
@@ -373,7 +366,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 }
                 throw error
             } catch (_: Exception) {
-                if (tokenManager.getUserId() == uploadOwnerUserId) {
+                if (com.maodouchat.session.CurrentSession.snapshot().userId == uploadOwnerUserId) {
                     _uiState.update {
                         it.copy(isUploading = false, errorMessage = text(R.string.settings_image_process_failed))
                     }
@@ -383,14 +376,14 @@ class SettingsViewModel @JvmOverloads constructor(
     }
 
     fun openPrivacy() {
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (loadedPrivacy?.ownerUserId != ownerUserId) loadPrivacy()
         _uiState.update { it.copy(showPrivacyDialog = true) }
     }
 
     fun closePrivacy() {
         if (_uiState.value.isSavingPrivacy) return
-        val baseline = loadedPrivacy?.takeIf { it.ownerUserId == tokenManager.getUserId() }
+        val baseline = loadedPrivacy?.takeIf { it.ownerUserId == com.maodouchat.session.CurrentSession.snapshot().userId }
         dirtyPrivacyFields.clear()
         _uiState.update {
             it.copy(
@@ -465,9 +458,8 @@ class SettingsViewModel @JvmOverloads constructor(
     fun loadBlockedUsers() {
         blockedUsersLoadJob?.cancel()
         blockedUsersLoadJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
                 _uiState.update {
                     it.copy(isLoadingBlockedUsers = false, errorMessage = text(R.string.error_session_expired))
                 }
@@ -479,15 +471,14 @@ class SettingsViewModel @JvmOverloads constructor(
                     expectedUserId = ownerUserId,
                 )
                 ) {
-                    if (tokenManager.getUserId() == ownerUserId) {
+                    if (com.maodouchat.session.CurrentSession.snapshot().userId == ownerUserId) {
                         _uiState.update {
                             it.copy(isLoadingBlockedUsers = false, errorMessage = text(R.string.error_session_expired))
                         }
                     }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.blockedUserDetails(liveToken).fold(
+                accountApi.blockedUserDetails().fold(
                     onSuccess = { users ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
@@ -513,9 +504,8 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun removeAvatar() {
         if (avatarUploadJob?.isActive == true || _uiState.value.userAvatar.isNullOrBlank()) return
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        val token = tokenManager.getToken()
-        if (ownerUserId.isBlank() || token.isNullOrBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (ownerUserId.isBlank() || !com.maodouchat.session.CurrentSession.hasSession()) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -529,8 +519,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.removeAvatar(liveToken).fold(
+                accountApi.removeAvatar().fold(
                     onSuccess = {
                         if (!isCurrentOwner(ownerUserId)) return@fold
                         _uiState.update {
@@ -564,9 +553,8 @@ class SettingsViewModel @JvmOverloads constructor(
     fun unblockUser(userId: String) {
         if (blockedUsersMutationJob?.isActive == true) return
         blockedUsersMutationJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || ownerUserId.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }; return@launch }
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }; return@launch }
             _uiState.update { it.copy(isUpdatingBlockedUsers = true, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -575,8 +563,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.unblock(liveToken, userId).fold(
+                accountApi.unblock(userId = userId).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
@@ -609,9 +596,8 @@ class SettingsViewModel @JvmOverloads constructor(
     fun loadMyDevices() {
         devicesLoadJob?.cancel()
         devicesLoadJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val userId = tokenManager.getUserId()
-            if (token.isNullOrBlank() || userId.isNullOrBlank()) {
+            val userId = com.maodouchat.session.CurrentSession.snapshot().userId
+            if (!com.maodouchat.session.CurrentSession.hasSession() || userId.isNullOrBlank()) {
                 _uiState.update {
                     it.copy(isLoadingDevices = false, errorMessage = text(R.string.error_session_expired))
                 }
@@ -624,15 +610,14 @@ class SettingsViewModel @JvmOverloads constructor(
                     expectedUserId = userId,
                 )
                 ) {
-                    if (tokenManager.getUserId() == userId) {
+                    if (com.maodouchat.session.CurrentSession.snapshot().userId == userId) {
                         _uiState.update {
                             it.copy(isLoadingDevices = false, errorMessage = text(R.string.error_session_expired))
                         }
                     }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.devices(liveToken, userId, currentDeviceId).fold(
+                accountApi.devices(userId = userId, currentDeviceId = currentDeviceId).fold(
                     onSuccess = { devices ->
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = userId,
@@ -664,9 +649,8 @@ class SettingsViewModel @JvmOverloads constructor(
     fun removeMyDevice(deviceId: Int) {
         if (deviceMutationJob?.isActive == true) return
         deviceMutationJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
@@ -684,8 +668,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     _uiState.update { it.copy(removingDeviceId = null, errorMessage = text(R.string.error_session_expired)) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.removeDevice(liveToken, deviceId).fold(
+                accountApi.removeDevice(deviceId = deviceId).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
@@ -724,9 +707,8 @@ class SettingsViewModel @JvmOverloads constructor(
             return
         }
         deviceMutationJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
@@ -740,8 +722,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     _uiState.update { it.copy(renamingDeviceId = null, errorMessage = text(R.string.error_session_expired)) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.renameDevice(liveToken, deviceId, trimmed).fold(
+                accountApi.renameDevice(deviceId = deviceId, deviceName = trimmed).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
@@ -774,9 +755,8 @@ class SettingsViewModel @JvmOverloads constructor(
     fun confirmMyDevice(deviceId: Int) {
         if (deviceMutationJob?.isActive == true) return
         deviceMutationJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
@@ -803,8 +783,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 ) {
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.confirmDevice(liveToken, deviceId, approverDeviceId, approvalSignature).fold(
+                accountApi.confirmDevice(deviceId = deviceId, approverDeviceId = approverDeviceId, signature = approvalSignature).fold(
                     onSuccess = {
                         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
                             expectedUserId = ownerUserId,
@@ -970,7 +949,7 @@ class SettingsViewModel @JvmOverloads constructor(
         if (accountMutationJob?.isActive == true) return
         // 9.140：快照当前账号并带归属校验 purge——此前无 expectedOwnerUserId，
         // 按钮点击到协程体执行之间换号会把新账号会话一并清掉
-        val ownerUserId = tokenManager.getUserId().orEmpty()
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         accountMutationJob = viewModelScope.launch {
             withContext(NonCancellable) {
                 app.secureSessionManager.purgeLocalSession(
@@ -993,9 +972,8 @@ class SettingsViewModel @JvmOverloads constructor(
      */
     fun logoutAllDevices() {
         if (accountMutationJob?.isActive == true) return
-        val token = tokenManager.getToken()
-        val ownerUserId = tokenManager.getUserId().orEmpty()
-        if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
         }
@@ -1009,8 +987,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     _uiState.update { it.copy(isLoggingOutAll = false, errorMessage = text(R.string.error_session_expired)) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.logoutAll(liveToken).fold(
+                accountApi.logoutAll().fold(
                     onSuccess = {
                         if (!isCurrentOwner(ownerUserId)) return@fold
                         withContext(NonCancellable) {
@@ -1047,9 +1024,8 @@ class SettingsViewModel @JvmOverloads constructor(
             return
         }
         accountMutationJob = viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val deleteOwnerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || deleteOwnerUserId.isBlank()) {
+            val deleteOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || deleteOwnerUserId.isBlank()) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
@@ -1063,8 +1039,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     _uiState.update { it.copy(isDeletingAccount = false, errorMessage = text(R.string.error_session_expired)) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken() ?: token
-                accountApi.deleteAccount(liveToken, password).fold(
+                accountApi.deleteAccount(password = password).fold(
                     onSuccess = {
                         if (!isCurrentOwner(deleteOwnerUserId)) return@fold
                         val purged = withContext(kotlinx.coroutines.NonCancellable) {
@@ -1114,12 +1089,10 @@ class SettingsViewModel @JvmOverloads constructor(
     /** 加载公开个人主页 URL */
     fun loadPublicProfileUrl() {
         viewModelScope.launch {
-            val token = tokenManager.getToken()
-            if (token.isNullOrBlank()) return@launch
-            val ownerUserId = tokenManager.getUserId().orEmpty()
+            if (!com.maodouchat.session.CurrentSession.hasSession()) return@launch
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
             if (!isCurrentOwner(ownerUserId)) return@launch
-            val liveToken = tokenManager.getToken() ?: token
-            accountApi.currentUserPublic(liveToken).onSuccess { resp ->
+            accountApi.currentUserPublic().onSuccess { resp ->
                 if (!isCurrentOwner(ownerUserId)) return@onSuccess
                 _uiState.update {
                     it.copy(
@@ -1162,22 +1135,20 @@ class SettingsViewModel @JvmOverloads constructor(
             return
         }
         viewModelScope.launch {
-            val token = tokenManager.getToken()
-            val ownerUserId = tokenManager.getUserId().orEmpty()
-            if (token.isNullOrBlank() || ownerUserId.isBlank()) {
+            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
                 if (!isCurrentOwner(ownerUserId)) return@launch
-                val liveToken = tokenManager.getToken() ?: token
                 // 8.37 修复：此前两分支的 Result 被当表达式语句丢弃、无条件 success——
                 // 用户名重复/非法/网络失败被吞掉还显示「已更新」。改为真实返回。
                 val result = if (username.isBlank()) {
-                    accountApi.clearUsername(liveToken).map { username }
+                    accountApi.clearUsername().map { username }
                 } else {
-                    accountApi.setUsername(liveToken, username).map { it.username ?: username }
+                    accountApi.setUsername(username = username).map { it.username ?: username }
                 }
                 result.onSuccess {
                     if (!isCurrentOwner(ownerUserId)) return@onSuccess

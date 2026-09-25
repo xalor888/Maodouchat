@@ -55,37 +55,53 @@ internal class AccountSecurityNetworkRepository(
     private val changePasswordApi: suspend (String, String, String) -> Result<Unit> =
         { token, oldPassword, newPassword -> ApiService.changePassword(token, oldPassword, newPassword) },
 ) {
-    suspend fun updateProfile(token: String, name: String? = null, status: String? = null): Result<UserDto> =
-        updateProfileApi(token, name, status)
+    suspend fun updateProfile(
+        token: String? = null,
+        name: String? = null,
+        status: String? = null,
+    ): Result<UserDto> = updateProfileApi(token ?: currentAccessToken(), name, status)
 
-    suspend fun uploadAvatar(token: String, base64Data: String): Result<String> =
-        uploadAvatarApi(token, base64Data)
+    suspend fun uploadAvatar(token: String? = null, base64Data: String): Result<String> =
+        uploadAvatarApi(token ?: currentAccessToken(), base64Data)
 
-    suspend fun removeAvatar(token: String): Result<Unit> = removeAvatarApi(token)
+    suspend fun removeAvatar(token: String? = null): Result<Unit> =
+        removeAvatarApi(token ?: currentAccessToken())
 
-    suspend fun setUsername(token: String, username: String): Result<SetUsernameResponse> =
-        setUsernameApi(token, username)
+    suspend fun setUsername(token: String? = null, username: String): Result<SetUsernameResponse> =
+        setUsernameApi(token ?: currentAccessToken(), username)
 
-    suspend fun clearUsername(token: String): Result<Unit> = clearUsernameApi(token)
+    suspend fun clearUsername(token: String? = null): Result<Unit> =
+        clearUsernameApi(token ?: currentAccessToken())
 
-    suspend fun devices(token: String, userId: String, currentDeviceId: Int? = null): Result<List<DeviceInfoDto>> =
-        getDevicesApi(token, userId, currentDeviceId)
+    suspend fun devices(
+        token: String? = null,
+        userId: String,
+        currentDeviceId: Int? = null,
+    ): Result<List<DeviceInfoDto>> = getDevicesApi(token ?: currentAccessToken(), userId, currentDeviceId)
 
-    suspend fun renameDevice(token: String, deviceId: Int, deviceName: String): Result<Unit> =
-        renameDeviceApi(token, deviceId, deviceName)
+    suspend fun renameDevice(
+        token: String? = null,
+        deviceId: Int,
+        deviceName: String,
+    ): Result<Unit> = renameDeviceApi(token ?: currentAccessToken(), deviceId, deviceName)
 
-    suspend fun removeDevice(token: String, deviceId: Int): Result<Unit> = removeDeviceApi(token, deviceId)
+    suspend fun removeDevice(token: String? = null, deviceId: Int): Result<Unit> =
+        removeDeviceApi(token ?: currentAccessToken(), deviceId)
 
-    suspend fun confirmDevice(token: String, deviceId: Int, approverDeviceId: Int, signature: String): Result<Unit> =
-        confirmDeviceApi(token, deviceId, approverDeviceId, signature)
+    suspend fun confirmDevice(
+        token: String? = null,
+        deviceId: Int,
+        approverDeviceId: Int,
+        signature: String,
+    ): Result<Unit> = confirmDeviceApi(token ?: currentAccessToken(), deviceId, approverDeviceId, signature)
 
-    suspend fun logoutAll(token: String): Result<Unit> = logoutAllApi(token)
+    suspend fun logoutAll(token: String? = null): Result<Unit> = logoutAllApi(token ?: currentAccessToken())
 
-    suspend fun deleteAccount(token: String, password: String): Result<DeleteAccountResponse> =
-        deleteAccountApi(token, password)
+    suspend fun deleteAccount(token: String? = null, password: String): Result<DeleteAccountResponse> =
+        deleteAccountApi(token ?: currentAccessToken(), password)
 
-    suspend fun currentUserPublic(token: String): Result<CurrentUserPublicResponse> =
-        currentUserPublicApi(token)
+    suspend fun currentUserPublic(token: String? = null): Result<CurrentUserPublicResponse> =
+        currentUserPublicApi(token ?: currentAccessToken())
 
     suspend fun blockedUserDetails(token: String? = null): Result<List<UserDto>> =
         blockedDetailsApi(token ?: currentAccessToken())
