@@ -16,8 +16,8 @@ internal class AnnouncementNetworkRepository(
         { token, id -> ApiService.ackAnnouncement(token, id) },
 ) {
     /** 当前生效的公告（原始 JSON）。 */
-    suspend fun active(token: String): Result<String> = activeApi(token)
+    suspend fun active(token: String? = null): Result<String> = activeApi(token ?: currentAccessToken())
 
     /** 回执某条公告（原始 JSON）。 */
-    suspend fun ack(token: String, announcementId: String): Result<String> = ackApi(token, announcementId)
+    suspend fun ack(token: String? = null, announcementId: String): Result<String> = ackApi(token ?: currentAccessToken(), announcementId)
 }

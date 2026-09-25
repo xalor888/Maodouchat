@@ -107,7 +107,6 @@ fun AccountSecurityScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val securityToken = remember(context) { com.maodouchat.network.TokenManager.getInstance(context).getToken().orEmpty() }
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val appLockUnavailableMsg = stringResource(R.string.settings_app_lock_unavailable)
@@ -218,7 +217,6 @@ fun AccountSecurityScreen(
             if (showTotpSetupDialog) {
                 TotpSetupDialog(
                     context = context,
-                    token = securityToken,
                     onDismiss = { showTotpSetupDialog = false }
                 )
             }

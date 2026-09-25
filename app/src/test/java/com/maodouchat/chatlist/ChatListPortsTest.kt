@@ -46,7 +46,7 @@ class ChatListPortsTest {
                 Result.success(emptyList())
             },
             fetchActiveAnnouncements = { Result.success("[]") },
-            ackAnnouncementRemote = { _, _ -> Result.success(Unit) },
+            ackAnnouncementRemote = { _ -> Result.success(Unit) },
             fetchPushVerifyKeyRaw = { Result.success("{}") },
             applyPushVerifyKey = {},
             updateChatSettingsRemote = { _, _, _ ->

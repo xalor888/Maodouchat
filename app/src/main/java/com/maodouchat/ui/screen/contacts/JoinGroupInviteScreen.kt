@@ -57,7 +57,7 @@ fun JoinGroupInviteScreen(
         val tokenManager = TokenManager.getInstance(context)
         val ownerUserId = tokenManager.getUserId().orEmpty()
         val useCase = JoinGroupInviteUseCase(
-            tokenProvider = { tokenManager.getToken().orEmpty() },
+            tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
             userIdProvider = { tokenManager.getUserId().orEmpty() },
             sessionGate = {
                 BackgroundSessionGate.mayContinue(

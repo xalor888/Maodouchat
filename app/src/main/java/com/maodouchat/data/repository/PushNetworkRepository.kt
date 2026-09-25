@@ -13,5 +13,5 @@ internal class PushNetworkRepository(
     private val verifyKeyApi: suspend (String) -> Result<String> = { token -> ApiService.getPushVerifyKey(token) },
 ) {
     /** 服务端下发的最新推送校验密钥（原始 JSON）。 */
-    suspend fun verifyKey(token: String): Result<String> = verifyKeyApi(token)
+    suspend fun verifyKey(token: String? = null): Result<String> = verifyKeyApi(token ?: currentAccessToken())
 }

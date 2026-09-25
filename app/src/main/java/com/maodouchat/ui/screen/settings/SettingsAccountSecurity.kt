@@ -487,7 +487,6 @@ internal fun PasswordField(label: String, value: String, onValueChange: (String)
 @Composable
 internal fun TotpSetupDialog(
     context: android.content.Context,
-    token: String,
     onDismiss: () -> Unit
 ) {
     var secret by remember { mutableStateOf<String?>(null) }
@@ -505,10 +504,10 @@ internal fun TotpSetupDialog(
         if (secret == null) {
             isWorking = true
             // 0.77：先查状态——已启用则不重新 setup，进入恢复码/禁用模式
-            val enabled = com.maodouchat.data.repository.TotpNetworkRepository().status(token).getOrDefault(false)
+            val enabled = com.maodouchat.data.repository.TotpNetworkRepository().status().getOrDefault(false)
             alreadyEnabled = enabled
             if (!enabled) {
-                com.maodouchat.data.repository.TotpNetworkRepository().setup(token)
+                com.maodouchat.data.repository.TotpNetworkRepository().setup()
                     .onSuccess { body ->
                         val obj = runCatching { org.json.JSONObject(body) }.getOrNull()
                         secret = obj?.optString("secret").orEmpty().takeIf { it.isNotBlank() }
@@ -619,7 +618,7 @@ internal fun TotpSetupDialog(
                         isWorking = true
                         error = null
                         scope.launch {
-                            com.maodouchat.data.repository.TotpNetworkRepository().regenerateBackupCodes(token, code.trim())
+                            com.maodouchat.data.repository.TotpNetworkRepository().regenerateBackupCodes(code = code.trim())
                                 .onSuccess { codes ->
                                     backupCodes = codes
                                     code = ""
@@ -636,7 +635,7 @@ internal fun TotpSetupDialog(
                         isWorking = true
                         error = null
                         scope.launch {
-                            com.maodouchat.data.repository.TotpNetworkRepository().confirm(token, code.trim())
+                            com.maodouchat.data.repository.TotpNetworkRepository().confirm(code = code.trim())
                                 .onSuccess { codes ->
                                     backupCodes = codes
                                     code = ""
@@ -656,7 +655,7 @@ internal fun TotpSetupDialog(
                             isWorking = true
                             error = null
                             scope.launch {
-                                com.maodouchat.data.repository.TotpNetworkRepository().disable(token, code.trim())
+                                com.maodouchat.data.repository.TotpNetworkRepository().disable(code = code.trim())
                                     .onSuccess { onDismiss() }
                                     .onFailure { error = context.getString(com.maodouchat.R.string.totp_setup_error) }
                                 isWorking = false

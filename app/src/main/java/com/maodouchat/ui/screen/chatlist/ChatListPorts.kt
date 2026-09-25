@@ -57,9 +57,9 @@ internal class ChatListPorts(
     val chatMessageSentEvents: SharedFlow<MaodouchatApp.Companion.ChatMessageSentEvent>,
     val withRoomTransaction: suspend (block: suspend () -> Boolean) -> Boolean,
     val fetchRemoteChats: suspend (token: String) -> Result<List<ChatDto>>,
-    val fetchActiveAnnouncements: suspend (token: String) -> Result<String>,
-    val ackAnnouncementRemote: suspend (token: String, announcementId: String) -> Result<*>,
-    val fetchPushVerifyKeyRaw: suspend (token: String) -> Result<String>,
+    val fetchActiveAnnouncements: suspend () -> Result<String>,
+    val ackAnnouncementRemote: suspend (announcementId: String) -> Result<*>,
+    val fetchPushVerifyKeyRaw: suspend () -> Result<String>,
     val applyPushVerifyKey: (raw: String) -> Unit,
     val updateChatSettingsRemote: suspend (
         token: String,
@@ -146,9 +146,9 @@ internal object AndroidChatListPorts {
             chatMessageSentEvents = MaodouchatApp.chatMessageSentEvents,
             withRoomTransaction = { block -> database.withTransaction { block() } },
             fetchRemoteChats = { token -> chatNetwork.chats(token) },
-            fetchActiveAnnouncements = { token -> announcements.active(token) },
-            ackAnnouncementRemote = { token, id -> announcements.ack(token, id) },
-            fetchPushVerifyKeyRaw = { token -> push.verifyKey(token) },
+            fetchActiveAnnouncements = { announcements.active() },
+            ackAnnouncementRemote = { id -> announcements.ack(announcementId = id) },
+            fetchPushVerifyKeyRaw = { push.verifyKey() },
             applyPushVerifyKey = { raw ->
                 when (val action = parsePushVerifyKeyPayload(raw)) {
                     PushVerifyKeyAction.Clear -> PushVerifyPrefs.clearKey(application)

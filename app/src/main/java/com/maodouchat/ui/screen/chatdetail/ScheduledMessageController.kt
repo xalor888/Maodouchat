@@ -51,8 +51,7 @@ class ScheduledMessageController(
                 peerUserId = state.contact.id,
                 text = state.inputText.trim(),
                 isGroup = state.chat?.isGroup == true,
-                sessionAvailable = !tokenManager.getToken().isNullOrBlank() &&
-                    !tokenManager.getUserId().isNullOrBlank(),
+                sessionAvailable = com.maodouchat.session.CurrentSession.hasSession(),
                 blocked = state.isContactBlocked,
                 sendAtMillis = sendAtMillis,
                 repeatIntervalMs = repeatIntervalMs,

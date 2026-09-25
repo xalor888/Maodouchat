@@ -56,9 +56,8 @@ class ChatListAnnouncementCoordinatorTest {
         val coordinator = ChatListAnnouncementCoordinator(
             scope = this,
             uiState = uiState,
-            tokenManager = tokenManager,
             fetchActiveAnnouncements = { Result.success(raw) },
-            ackAnnouncementRemote = { _, _ -> error("no") },
+            ackAnnouncementRemote = { _ -> error("no") },
             fetchPushVerifyKeyRaw = { error("no") },
             applyPushVerifyKey = {},
             nowMs = { now },
@@ -91,9 +90,8 @@ class ChatListAnnouncementCoordinatorTest {
         val coordinator = ChatListAnnouncementCoordinator(
             scope = this,
             uiState = uiState,
-            tokenManager = tokenManager,
             fetchActiveAnnouncements = { error("no") },
-            ackAnnouncementRemote = { _, id ->
+            ackAnnouncementRemote = { id ->
                 assertEquals("a1", id)
                 ackCount += 1
                 Result.success("ok")

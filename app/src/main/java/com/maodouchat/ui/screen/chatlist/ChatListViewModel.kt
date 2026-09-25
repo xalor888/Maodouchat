@@ -156,7 +156,6 @@ class ChatListViewModel private constructor(
     private val announcementCoordinator = ChatListAnnouncementCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        tokenManager = tokenManager,
         fetchActiveAnnouncements = ports.fetchActiveAnnouncements,
         ackAnnouncementRemote = ports.ackAnnouncementRemote,
         fetchPushVerifyKeyRaw = ports.fetchPushVerifyKeyRaw,

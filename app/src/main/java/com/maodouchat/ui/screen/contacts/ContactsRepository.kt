@@ -73,12 +73,11 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
         }
 
     override suspend fun loadFriends(session: ContactsSession): ContactsLoadResult {
-        val token = tokenManager.getToken().orEmpty()
-        if (token.isBlank() || !isAuthenticated(session)) {
+        if (!com.maodouchat.session.CurrentSession.hasSession() || !isAuthenticated(session)) {
             return cachedFriends(session, failure = null, sessionMissing = true)
         }
         return try {
-            ContactNetworkRepository().friends(token).fold(
+            ContactNetworkRepository().friends().fold(
                 onSuccess = { dtos ->
                     if (!isCurrent(session)) return ContactsLoadResult(emptyList(), sessionMissing = true)
                     val users = dtos
@@ -106,10 +105,9 @@ internal class AndroidContactsRepository(application: Application) : ContactsRep
         if (query.isBlank() || !isAuthenticated(session)) {
             return ContactsLoadResult(emptyList(), sessionMissing = !isAuthenticated(session))
         }
-        val token = tokenManager.getToken().orEmpty()
-        if (token.isBlank()) return ContactsLoadResult(emptyList(), sessionMissing = true)
+        if (!com.maodouchat.session.CurrentSession.hasSession()) return ContactsLoadResult(emptyList(), sessionMissing = true)
         return try {
-            ContactNetworkRepository().searchUsers(token, query).fold(
+            ContactNetworkRepository().searchUsers(query = query).fold(
                 onSuccess = { dtos ->
                     if (!isCurrent(session)) return ContactsLoadResult(emptyList(), sessionMissing = true)
                     val users = dtos.map { it.toContactUser() }

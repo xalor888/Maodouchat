@@ -38,23 +38,23 @@ internal class ContactNetworkRepository(
     private val joinByInviteApi: suspend (String, String) -> Result<ChatDto> =
         { token, inviteToken -> ApiService.joinGroupByInvite(token, inviteToken) },
 ) {
-    suspend fun friends(token: String): Result<List<UserDto>> = friendsApi(token)
+    suspend fun friends(token: String? = null): Result<List<UserDto>> = friendsApi(token ?: currentAccessToken())
 
     /** 按昵称/用户名搜人（`UserNetworkRepository.user` 是**按 id** 取单个）。 */
-    suspend fun searchUsers(token: String, query: String): Result<List<UserDto>> = searchUsersApi(token, query)
+    suspend fun searchUsers(token: String? = null, query: String): Result<List<UserDto>> = searchUsersApi(token ?: currentAccessToken(), query)
 
-    suspend fun sendFriendRequest(token: String, userId: String, message: String = ""): Result<FriendRequestDto> =
-        sendFriendRequestApi(token, userId, message)
+    suspend fun sendFriendRequest(token: String? = null, userId: String, message: String = ""): Result<FriendRequestDto> =
+        sendFriendRequestApi(token ?: currentAccessToken(), userId, message)
 
-    suspend fun groupInvitations(token: String): Result<List<GroupInvitationDto>> = groupInvitationsApi(token)
+    suspend fun groupInvitations(token: String? = null): Result<List<GroupInvitationDto>> = groupInvitationsApi(token ?: currentAccessToken())
 
-    suspend fun acceptGroupInvitation(token: String, inviteId: String): Result<GroupInviteAcceptResponse> =
-        acceptInviteApi(token, inviteId)
+    suspend fun acceptGroupInvitation(token: String? = null, inviteId: String): Result<GroupInviteAcceptResponse> =
+        acceptInviteApi(token ?: currentAccessToken(), inviteId)
 
-    suspend fun declineGroupInvitation(token: String, inviteId: String): Result<GroupInviteAcceptResponse> =
-        declineInviteApi(token, inviteId)
+    suspend fun declineGroupInvitation(token: String? = null, inviteId: String): Result<GroupInviteAcceptResponse> =
+        declineInviteApi(token ?: currentAccessToken(), inviteId)
 
     /** 用**邀请令牌**直接进群（`inviteToken` 不是 chatId）。 */
-    suspend fun joinGroupByInvite(token: String, inviteToken: String): Result<ChatDto> =
-        joinByInviteApi(token, inviteToken)
+    suspend fun joinGroupByInvite(token: String? = null, inviteToken: String): Result<ChatDto> =
+        joinByInviteApi(token ?: currentAccessToken(), inviteToken)
 }
