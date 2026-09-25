@@ -1487,3 +1487,25 @@ random 辅助（传递性死代码，以前测不出来）。
 「残留 0 处」的假报告；宽松正则删掉「取令牌」行却没动紧随的守卫，编译报 `Unresolved reference 'token'`；
 固定缩进写回 `val liveToken = token` 时有一处在更深作用域，被 pre-push 的 `SuspiciousIndentation`
 拦下（修完**单独跑了 lint**，没有用单测代替 lint）。
+
+### 第九轮（2026-09-25 续）：一次真实回归的定位与修复——以及「本机有模拟器」这个被写错的前提
+
+**回归**：CI 在 `77db26d5` 的 instrumented job 上红了——`ChatListScreenDataTest` 四个用例
+`ComposeTimeoutException`（等 10 秒没等到播种的会话渲染）。同一批其余 152 个用例全绿、日志里没有异常栈。
+
+**定位**（记录了完整路径，因为这次「先看模拟器有没有起来」不是答案）：
+1. 前一个绿的提交（`733672f6`）跑的是同一套用例 → 排除环境抖动，锁定在我的改动里。
+2. **本机其实有模拟器**：`maodou_test` AVD 在 `~/.android/avd`，起得来。此前记忆里写的
+   「本机无模拟器、仪器测试只能靠 CI」是**错的**（那份结论来自更早的一次尝试，之后没复核）。
+3. 本地复现同样四个红；临时诊断用例打印 VM 状态得到
+   `hasSession=false chats=[] isLoading=false error=null`——「列表空 + 错误也空」唯一对应
+   `finishIfCurrent()` 那条提前 return。
+
+**根因**：`ChatListLoadCoordinator` 本地兜底分支的第三条二次校验，原文是
+`!tokenManager.getToken().isNullOrBlank()`（语义：**等待期间会话出现了 → 放弃本地兜底、改走远端**）。
+我改写成 `!CurrentSession.hasSession()`，极性写反成「**没有会话** → 放弃」。无会话场景（正是仪器
+测试的环境）于是恒走提前 return、列表恒空。修法是去掉那个 `!`，并在原地留注释写明判据语义。
+
+**流程上的修正**（比这次 bug 更重要）：把「仪器测试靠 CI」当默认，等于把行为回归的发现推迟一整轮 CI。
+本机有 AVD，**改动触及交互/状态流转时应本地跑 `:app:connectedDebugAndroidTest`**（全量 183 例约 1.5 分钟）。
+这条已写进记忆文件的验证口径，并替换掉那份错误结论。
