@@ -17,7 +17,7 @@
 | 量 | 2026-09-24 实测值 | 怎么测 |
 |----|------------------|--------|
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
-| App JVM 单测（执行数） | 2108 | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
+| App JVM 单测（执行数） | 2129 | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
 | App 仪器测试 | 156（`@Test` 计数） | `grep -rho "@Test" app/src/androidTest --include=*.kt \| wc -l` |
 | Server 单测（执行数） | 578（`@Test` 标注 603，差值是 postgres tag 等未进默认套件的） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
 | core/domain 模块测试（执行数） | 68 | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
@@ -27,9 +27,11 @@
 | `plugins/` 内 import Exposed | **0 个文件**（`StatusPages.kt` 只有全限定名引用，非 import） | `grep -rl org.jetbrains.exposed .../plugins/*.kt` |
 | `repository/`→`plugins/` 反向依赖 | 0 处 | `ServerArchitectureTest.frozenRepositoryDependingOnPlugins`（空 map） |
 | 非 ui 包 import ui | **2 处**（均为合理例外，见门禁白名单） | `ClientArchitectureTest.packages outside ui must not import ui` |
-| ui 直连 `com.maodouchat.network` | **98 个文件**（已冻结，只许降） | `ClientArchitectureTest.frozenUiNetworkImporters` |
+| ui 直连 `ApiService`（真发请求） | **0 个文件**（G328c 完成，空名单 + 反向断言） | `ClientArchitectureTest.frozenUiApiCallers` |
+| ui 读会话令牌 `TokenManager` | **31 个文件**（只许降；修法是让仓库自持凭据，见 `data/repository/SessionTokens.kt`） | `ClientArchitectureTest.frozenUiTokenReaders` |
+| core 模块生产引用 | 在用 3（crypto 44 / realtime 23 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
-| 最热三个文件行数 | `ChatDetailRoute.kt` 3013 / `ChatDetailViewModel.kt` 3071 / `util/GroupPlayPolicy.kt` 1945 | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
+| 最热三个文件行数 | `ChatDetailRoute.kt` 2786 / `ChatDetailViewModel.kt` 2545 / `util/GroupPlayPolicy.kt` 858 | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
 > 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
 > `compileDebugUnitTestKotlin`（JVM 单测）、`compileDebugAndroidTestKotlin`（仪器测试）。
@@ -1395,3 +1397,62 @@ random 辅助（传递性死代码，以前测不出来）。
 同一批提交的 `Android`（单测+lint+打包）与 `Server` 两个作业始终是绿的。重跑后成功。
 这类抖动与代码无关，但值得记下来：看到 instrumented 红时**先看模拟器有没有起来**，
 再怀疑测试。
+
+### 第七轮（2026-09-25 续）：把 ui→network 收尾，并处理「ui 读会话态」
+
+**ui 直连 `ApiService` 清零（24 → 0）**。判据名单从「只许降」改成**空名单 + 反向断言**
+（与 `frozenUiDaoImporters`、`frozenUiAppDatabaseGrabbers` 同形）：改回非空即等于放松棘轮。
+全程两组之和：98 → 61 → 55 → 48 → 46 → 37 → 33 → 31（31 是只剩令牌的那一组）。
+本段新增的仓库：`NearbyNetworkRepository`（附近的人）、`PinStarNetworkRepository`（置顶+星标）、
+`ClientPrefsNetworkRepository`（跨设备偏好对账）、`ChatFolderNetworkRepository`（全量替换语义）、
+`PostNetworkRepository`（动态读取/点赞，作者页与 Feed 共用同一入口）、
+`GroupPollNetworkRepository` / `MediaDownloadNetworkRepository` / `SessionNetworkRepository` /
+`AuthNetworkRepository` / `ContactNetworkRepository` / `NotificationSettingsNetworkRepository`；
+`BotNetworkRepository`、`ModerationNetworkRepository`、`AccountSecurityNetworkRepository`、
+`GroupNetworkRepository` 按域补方法。
+
+**两次归位（记下来，免得下次又按「同属某功能」归类）**：
+`voteGroupPoll` 先塞进 `GroupNetworkRepository`，随即按**失败语义**挪到 `GroupPollNetworkRepository`
+（投票失败是「已关闭/已投过/选项越界」，与「加人/改名」的「无权/已存在」不同族）；
+机器人 callback 归 `BotNetworkRepository` 而不是群仓库。
+
+**真删除（不是重分类）**：`PublicProfileScreen` 的 `apiService: ApiService?` 与
+`tokenManager: TokenManager?` 两个参数**从未被使用**，连同 import 一起删——这个文件因此完全
+离开 network 层。
+
+**`BackgroundSessionGate` 自己读实时会话**：240 处（`ui/` 内 220 处）调用点原本都要写
+`liveToken = tokenManager.getToken(), liveUserId = tokenManager.getUserId()`，而这两个值唯一的
+用途就是交回给门禁判断。多了一个单参重载 `mayContinue(expectedUserId)`；只改写「本来就读实时值」
+的形状（语义严格不变），传捕获值的一律不动。
+**副作用是好事**：门禁改为读进程单例后，13 个单测第一次跑就红了——正是这条门禁在起作用。
+为此加了 `CurrentSession.override`（`internal`，KDoc 写明生产代码不要设置）作为测试注入口。
+
+**`CurrentSession`（`com.maodouchat.session`）**：`snapshot()` / `ownerUserId()` / `hasSession()`。
+头像组件与列表投影要的是**身份**（缓存按账号分目录、投影比对 owner），却因此依赖了整个
+`com.maodouchat.network`。收进会话层后，10 个文件里 9 个彻底不再 import network。
+**这一组不做「改名式搬迁」**：只读令牌那 31 个文件里，「确实要凭据去发请求」的部分
+靠仓库自持凭据解决（见下），而不是把 `tokenManager.getToken()` 换成 `CurrentSession.snapshot().token`
+——那是同一个耦合换了个名字。
+
+**仓库自持凭据**：新增 `data/repository/SessionTokens.kt` 的 `currentAccessToken()`；
+涉及仓库的 `token` 参数改成 `String? = null`，为空时取当前会话令牌，**显式传令牌仍然优先**
+（后台批次用批次开始时捕获的令牌是有意选择）。由此 7 个文件不再碰凭据。
+顺带删掉两处**冗余条件**：`SettingsTotpSection` 的 `if (token.isBlank() || !isCurrentTotpOwner(...))`
+——`isCurrentTotpOwner` 内部就是会话门禁，而门禁在令牌为空时本就返回 false。
+`ChatListAnnouncementCoordinator` 的三个端口原本签名带 `token: String`，而**测试里那三个 lambda
+从来没读过这个参数**（`{ Result.success(raw) }`），是典型的「没人用的位置参数」，签名去掉令牌后
+协调器连 `TokenManager` 字段都不需要了。
+
+**`ChatDetailRoute.kt` 3013 → 2786**：抽出 `ChatDetailPickers.kt`（9 个 ActivityResult 入口，
+连带它们各自的「为什么选这个 contract」注释）与 `ChatDetailReadReceiptsSheet.kt`（176 行的
+已读回执面板，自带搜索状态）。前者把回调改成参数注入、权限文案由调用方给，其余逐字搬；
+后者只做机械改名并复用原类型 `ReadReceiptUi`（没有另造 DTO）。
+**剩下的 ~2786 行主要是「一个巨型状态堆」（约 150 个 `remember`）加弹层接线**——
+继续按块搬只能线性减少行数，真正的解法是把状态收进状态持有类，那是一次跨全文件的改动，单独一轮。
+
+**core 模块的采纳状态**：先复测真实引用，纠正了上一轮的说法——`core:realtime` 其实**在用**
+（`MaodouchatApp` 与 `WebSocketEventBridge`，23 处），零引用的只有 `util`/`serialization`/`network`/`session`。
+新增门禁把「零 / 非零」钉住（两个方向都会红），四个模块的 `build.gradle.kts` 各写明**采纳代价**：
+`MaodouJson.forwardCompatible` 与 app 的 `ApiService.json` **不是同一个配置**，换过去会改线上报文格式
+（`encodeDefaults=true` / `explicitNulls=false`），那不是重构是改协议；`NetworkResult` 与在用的
+`kotlin.Result` 并行；`Clock`/`DispatcherProvider` 要等 DI 装配；`core:session` 是会话重构的目标形状。
