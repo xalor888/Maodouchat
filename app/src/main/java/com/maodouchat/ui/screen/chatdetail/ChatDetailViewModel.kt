@@ -1412,15 +1412,6 @@ class ChatDetailViewModel(
         }
     }
 
-    fun cancelSendMessage(messageId: String) {
-        viewModelScope.launch {
-            commandFacade.cancel(messageId)
-        }
-    }
-
-
-
-
     /**
      * 一键重试当前聊天所有失败/暂停任务；状态栏展示的中转数减为 0 后会自动收起浮窗。
      */
@@ -1689,8 +1680,6 @@ class ChatDetailViewModel(
 
     fun renameGroup(newName: String) = botGroupActionController.renameGroup(newName)
 
-    fun addGroupMember(userId: String) = botGroupActionController.addGroupMember(userId)
-
     fun removeGroupMember(userId: String) = botGroupActionController.removeGroupMember(userId)
 
     private suspend fun invalidateGroupSenderKey(groupId: String, newRevision: Long? = null) {
@@ -1725,7 +1714,6 @@ class ChatDetailViewModel(
     private val chatExportController get() = deps.chatExportController
 
     fun exportChatHistory() = chatExportController.exportChatHistory()
-    fun exportChatAsJson(): String = chatExportController.exportChatAsJson()
     fun clearExportInfo() = chatExportController.clearExportInfo()
 
     private suspend fun maybeForwardBotInbox(
@@ -2057,7 +2045,6 @@ class ChatDetailViewModel(
     fun showSafetyCodeDialog() = identityVerificationController.showSafetyCodeDialog()
     fun dismissSafetyCodeDialog() = identityVerificationController.dismissSafetyCodeDialog()
     fun verifyAndTrustIdentity(deviceId: Int? = null) = identityVerificationController.verifyAndTrustIdentity(deviceId)
-    fun verifyAllDevices() = identityVerificationController.verifyAllDevices()
     private val recipientId get() = deps.recipientId
 
     internal suspend fun hydrateOutgoingChat(
@@ -2109,11 +2096,6 @@ class ChatDetailViewModel(
             updatePeer = true
         )
         return ResolvedOutgoingChat(localized.id, localized, peerId)
-    }
-
-    fun setSilentSend(enabled: Boolean) {
-        if (enabled && !requireSilentSend()) return
-        _uiState.update { it.copy(silentSend = enabled) }
     }
 
     fun toggleSilentSend() {
