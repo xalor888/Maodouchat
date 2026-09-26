@@ -334,7 +334,7 @@ class ClientArchitectureTest {
         // 与 MarkdownParser 是拆出 ChatMarkdown 后的净**下降**）。
         // 棘轮方向不变：从这里开始只许降。上调的原因是必要的 import，不是往里堆逻辑。
 
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2660,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2557,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2542,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
@@ -399,7 +399,7 @@ class ClientArchitectureTest {
         // 「两份相等」这条弱断言（见下方 G165 的说明——真正的外部基线是与 git HEAD 比）。
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2660,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2557,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2542,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
