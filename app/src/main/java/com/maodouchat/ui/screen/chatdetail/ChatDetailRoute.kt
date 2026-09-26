@@ -425,8 +425,9 @@ internal fun ChatDetailRoute(
     val media = rememberChatDetailFullscreenMediaState()
     // G336（第十五批）：会话级弹窗开关族收进持有类（见 ChatDetailDialogState）。
     val dialogs = rememberChatDetailDialogState()
+    // G337（第十六批）：消息引用/导航族收进持有类（见 ChatDetailMessageTargetState）。
+    val targets = rememberChatDetailMessageTargetState()
     val chatSnackbarHostState = remember { SnackbarHostState() }
-    var replyTarget by remember { mutableStateOf<Message?>(null) }
     var showGroupInfo by rememberSaveable { mutableStateOf(false) }
     // 1.11：发送名片——联系人选择对话框
     // 1.02：临时静音至对话框
@@ -434,7 +435,6 @@ internal fun ChatDetailRoute(
     var setLockError by remember { mutableStateOf<String?>(null) }
     // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
     val particles = remember { ChatDetailParticleState() }
-    var navigationHighlightMessageId by remember { mutableStateOf<String?>(null) }
     val bubbleBounds = remember { mutableMapOf<String, BubbleBounds>() }
     val configuration = LocalConfiguration.current
     // 9.205：用主题真实深浅替代系统深浅/palette 身份比较（TG 主题与强制模式下不再误判）
@@ -500,8 +500,8 @@ internal fun ChatDetailRoute(
         val last = state.messages.lastOrNull() ?: return@LaunchedEffect
         if (last.senderId == state.currentUserId) return@LaunchedEffect
         val meta = last.parsedMeta()
-        if (meta.forceReply && replyTarget?.id != last.id) {
-            replyTarget = last
+        if (meta.forceReply && targets.replyTarget?.id != last.id) {
+            targets.replyTarget = last
         }
     }
     val participantNamesById = remember(state.chat?.participants, state.memberNicknameByUser, state.chatIsGroup) {
@@ -636,7 +636,7 @@ internal fun ChatDetailRoute(
             currentUserId = state.currentUserId,
             initialTimelineReady = state.initialTimelineReady,
             navigationTargetMessageId = state.navigationTargetMessageId,
-            navigationHighlightMessageId = navigationHighlightMessageId,
+            navigationHighlightMessageId = targets.navigationHighlightMessageId,
             scrollToItem = { animated -> chatListScroller.scrollToItem(listState, 0, animated = animated) },
         )
     }
@@ -950,11 +950,11 @@ internal fun ChatDetailRoute(
         if (targetIndex >= 0) {
             chatListScroller.scrollToItem(listState, targetIndex)
             // 1.343：搜索当前结果消息闪烁高亮（复用导航高亮机制，便于定位）
-            navigationHighlightMessageId = target.id
+            targets.navigationHighlightMessageId = target.id
             try {
                 kotlinx.coroutines.delay(1_800)
             } finally {
-                if (navigationHighlightMessageId == target.id) navigationHighlightMessageId = null
+                if (targets.navigationHighlightMessageId == target.id) targets.navigationHighlightMessageId = null
             }
         }
     }
@@ -978,11 +978,11 @@ internal fun ChatDetailRoute(
             return@LaunchedEffect
         }
        chatListScroller.scrollToItem(listState, targetIndex)
-       navigationHighlightMessageId = targetId
+       targets.navigationHighlightMessageId = targetId
         try {
             kotlinx.coroutines.delay(1_800)
         } finally {
-            if (navigationHighlightMessageId == targetId) navigationHighlightMessageId = null
+            if (targets.navigationHighlightMessageId == targetId) targets.navigationHighlightMessageId = null
         }
         viewModel.consumeNavigationTarget()
     }
@@ -1921,7 +1921,7 @@ internal fun ChatDetailRoute(
                         searchIndex = search.searchIndex,
                         showSearchBar = search.showSearchBar,
                         localSafetyEnabled = aiSafety.localSafetyEnabled,
-                        navigationHighlightMessageId = navigationHighlightMessageId,
+                        navigationHighlightMessageId = targets.navigationHighlightMessageId,
                         dismissedSafetyMessageIds = aiSafety.dismissedSafetyMessageIds,
                         messagesById = messagesById,
                         resolveSenderName = { msg, isOwn -> resolveSenderName(msg, isOwn) },
@@ -1935,7 +1935,7 @@ internal fun ChatDetailRoute(
                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardTranscriptLabel, transcript))
                             Toast.makeText(context, context.getString(R.string.chat_transcript_copied), Toast.LENGTH_SHORT).show()
                         },
-                        onReplyTo = { msg -> replyTarget = msg },
+                        onReplyTo = { msg -> targets.replyTarget = msg },
                         onDismissSafetyForMessage = { id -> aiSafety.dismissSafetyForMessage(context, id) },
                         onToggleSelection = { drafts.selectedMessageIds = it },
                         onRetryMessage = { msg -> messageActions.messageToRetry = msg },
@@ -2029,7 +2029,7 @@ internal fun ChatDetailRoute(
             }
 
             // 引用中提示
-            replyTarget?.let { target ->
+            targets.replyTarget?.let { target ->
                 ReplyTargetBar(
                     senderName = resolveSenderName(target) ?: "",
                     preview = MessagePreviewText.replyOrQuote(
@@ -2048,7 +2048,7 @@ internal fun ChatDetailRoute(
                         },
                         encryptedPlaceholder = context.getString(R.string.message_preview_encrypted),
                     ).take(60),
-                    onCancel = { replyTarget = null }
+                    onCancel = { targets.replyTarget = null }
                 )
             }
 
@@ -2167,8 +2167,8 @@ internal fun ChatDetailRoute(
                 onValueChange = { viewModel.onInputChange(it) },
                 onSend = {
                     if (state.isSending) return@ComposerPane
-                    viewModel.sendMessage(replyTarget = replyTarget)
-                    replyTarget = null
+                    viewModel.sendMessage(replyTarget = targets.replyTarget)
+                    targets.replyTarget = null
                 },
                 onScheduleSend = {
                     if (state.inputText.isBlank()) {
@@ -2396,7 +2396,7 @@ internal fun ChatDetailRoute(
             onMessageToAnalyzeImage = { messageActions.messageToAnalyzeImage = it },
             onMessageToAnalyzeFile = { messageActions.messageToAnalyzeFile = it },
             onEditDraft = { drafts.editDraft = it },
-            onReplyTarget = { replyTarget = it },
+            onReplyTarget = { targets.replyTarget = it },
             onSelectedMessageIds = { drafts.selectedMessageIds = it },
         )
     }
