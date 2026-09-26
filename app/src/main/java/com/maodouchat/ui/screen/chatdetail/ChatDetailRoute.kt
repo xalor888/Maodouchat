@@ -346,18 +346,8 @@ internal fun ChatDetailRoute(
         onOpenSecretChat(secretId)
     }
 
-    var localSafetyEnabled by remember {
-        mutableStateOf(com.maodouchat.ai.AiPrivacyPreferences.localSafetyEnabled(context))
-    }
-    var dismissedSafetyMessageIds by remember {
-        mutableStateOf(com.maodouchat.ai.AiPrivacyPreferences.dismissedSafetyMessageIds(context))
-    }
-    fun dismissSafetyForMessage(messageId: String) {
-        if (messageId.isBlank() || messageId in dismissedSafetyMessageIds) return
-        val next = dismissedSafetyMessageIds + messageId
-        dismissedSafetyMessageIds = next
-        com.maodouchat.ai.AiPrivacyPreferences.setDismissedSafetyMessageIds(context, next)
-    }
+    // G335（第十二批）：AI 安全提示族收进持有类（见 ChatDetailAiSafetyState.kt）
+    val aiSafety = rememberChatDetailAiSafetyState(context)
     // 9.150：壁纸/字号偏好改为可变状态并在 ON_RESUME 刷新——从设置页改完返回
     // 仍存活的聊天页实例不再持有陈旧背景/字号
     // G335：这三项「必须一起刷新」的不变量收进持有类（见 ChatDetailAppearanceStates.kt）
@@ -391,7 +381,7 @@ internal fun ChatDetailRoute(
     DisposableEffect(lifecycleOwner, viewModel.activeChatId, state.contact.id, state.chatIsGroup) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                localSafetyEnabled = com.maodouchat.ai.AiPrivacyPreferences.localSafetyEnabled(context)
+                aiSafety.refreshFrom(context)
                 // 9.150：刷新外观偏好（设置页修改后返回即时生效）
                 appearance.refreshFrom(context)
                 // 8.32 修复 F2：回到前台恢复 activeChatId（MainActivity.onPause 已清空），
@@ -1951,9 +1941,9 @@ internal fun ChatDetailRoute(
                         searchResults = searchResults,
                         searchIndex = search.searchIndex,
                         showSearchBar = search.showSearchBar,
-                        localSafetyEnabled = localSafetyEnabled,
+                        localSafetyEnabled = aiSafety.localSafetyEnabled,
                         navigationHighlightMessageId = navigationHighlightMessageId,
-                        dismissedSafetyMessageIds = dismissedSafetyMessageIds,
+                        dismissedSafetyMessageIds = aiSafety.dismissedSafetyMessageIds,
                         messagesById = messagesById,
                         resolveSenderName = { msg, isOwn -> resolveSenderName(msg, isOwn) },
                         viewModel = viewModel,
@@ -1967,7 +1957,7 @@ internal fun ChatDetailRoute(
                             Toast.makeText(context, context.getString(R.string.chat_transcript_copied), Toast.LENGTH_SHORT).show()
                         },
                         onReplyTo = { msg -> replyTarget = msg },
-                        onDismissSafetyForMessage = { id -> dismissSafetyForMessage(id) },
+                        onDismissSafetyForMessage = { id -> aiSafety.dismissSafetyForMessage(context, id) },
                         onToggleSelection = { drafts.selectedMessageIds = it },
                         onRetryMessage = { msg -> messageActions.messageToRetry = msg },
                         onMessageActions = { msg -> messageActions.messageToActions = msg },
