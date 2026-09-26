@@ -688,7 +688,7 @@ Gate：截断、哈希错、签名错、空间不足、权限恢复、多 Widget
 
 - [ ] 建立启动、聊天列表、长时间线、图片列表、数据库和内存基准。
 - [ ] 所有主流程支持大字体、TalkBack、触控目标、RTL、中英文和动态颜色。
-- [ ] 固定格式控件使用稳定尺寸，避免消息状态和进度造成布局跳动。
+- [x] 固定格式控件使用稳定尺寸，避免消息状态和进度造成布局跳动（2026-09-26：`TextMessageBubble` 翻译行、`MediaVoiceBubble` 语音转写行的进度圈由条件 `if + Spacer(6.dp)` 改为恒定 20dp 占位 `Box`，转圈出现/消失时气泡宽度不再跳变；其余已稳定：`MessageStatusIcon` 恒 14dp 容器、`FileTransferActions` 恒 32dp 行、媒体传输进度为居中覆盖层不影响布局、`LinearProgressIndicator` 为 `fillMaxWidth`）。
 - [ ] 建立截图基线覆盖浅色、深色、手机、平板和横屏。
 - [ ] 避免超大 state 导致全屏重组；用稳定 selector 和分页投影。
 

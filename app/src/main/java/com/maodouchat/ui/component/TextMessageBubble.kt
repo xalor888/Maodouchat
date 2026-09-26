@@ -556,9 +556,9 @@ internal fun TextBubble(
                         .background(if (isOwnMessage) LocalChatBubbleColor.current.copy(alpha = 0.58f) else palette.chatInputBackground)
                         .padding(horizontal = 10.dp, vertical = 7.dp)
                 ) {
-                    if (isTranslating) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = if (isOwnMessage) LocalSentBubbleContent.current else Primary)
-                        Spacer(modifier = Modifier.width(6.dp))
+                    // 稳定尺寸：翻译进度占位恒为 20dp（14dp 转圈 + 6dp 间距），翻译开始/结束时气泡宽度不再跳变
+                    Box(Modifier.width(20.dp), contentAlignment = Alignment.CenterStart) {
+                        if (isTranslating) CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = if (isOwnMessage) LocalSentBubbleContent.current else Primary)
                     }
                     Text(
                         text = translationText?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_translating),
