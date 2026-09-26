@@ -421,8 +421,8 @@ internal fun ChatDetailRoute(
             viewModel.clearSemanticSearch()
         }
     }
-    var fullScreenImage by remember { mutableStateOf<Message?>(null) }
-    var fullScreenVideo by remember { mutableStateOf<Message?>(null) }
+    // G335（第十四批）：全屏媒体查看状态族收进持有类（见 ChatDetailFullscreenMediaState）。
+    val media = rememberChatDetailFullscreenMediaState()
     // 0.83：清空本机聊天记录确认
     var showClearHistoryConfirm by remember { mutableStateOf(false) }
     val chatSnackbarHostState = remember { SnackbarHostState() }
@@ -1930,8 +1930,8 @@ internal fun ChatDetailRoute(
                         viewModel = viewModel,
                         onBubblePlaced = { id, bounds -> bubbleBounds[id] = bounds },
                         onBubbleRemoved = { id -> bubbleBounds.remove(id) },
-                        onShowFullscreenImage = { fullScreenImage = it },
-                        onShowFullscreenVideo = { fullScreenVideo = it },
+                        onShowFullscreenImage = { media.fullScreenImage = it },
+                        onShowFullscreenVideo = { media.fullScreenVideo = it },
                         onCopyTranscript = { transcript ->
                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardTranscriptLabel, transcript))
@@ -2645,19 +2645,19 @@ internal fun ChatDetailRoute(
     )
 
     // G76：全屏图片/视频查看器（207 行）抽到 ChatDetailFullscreenMedia.kt，纯搬移不改判断。
-    fullScreenImage?.let { msg ->
+    media.fullScreenImage?.let { msg ->
         FullscreenImageDialog(
             msg = msg,
             isSecretChat = state.isSecretChat == true,
-            onDismiss = { fullScreenImage = null },
+            onDismiss = { media.fullScreenImage = null },
         )
     }
 
-    fullScreenVideo?.let { msg ->
+    media.fullScreenVideo?.let { msg ->
         FullscreenVideoDialog(
             msg = msg,
             isSecretChat = state.isSecretChat == true,
-            onDismiss = { fullScreenVideo = null },
+            onDismiss = { media.fullScreenVideo = null },
         )
     }
 
