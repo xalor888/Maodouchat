@@ -1660,9 +1660,6 @@ class ChatDetailViewModel(
             .forEach { requestMediaAttachment(it.id) }
     }
 
-    fun loadGroupReadCount(messageId: String, force: Boolean = false) =
-        readReceiptCoordinator.loadCount(messageId, force)
-
     private fun refreshBlockState(contactId: String = _uiState.value.contact.id) =
         moderationController.refreshBlockState(contactId)
 
