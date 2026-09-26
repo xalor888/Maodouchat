@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.maodouchat.ui.component.ParticleState
@@ -70,5 +71,24 @@ internal class ChatDetailParticleState {
         animatingMessageId = null
         action = null
         states = emptyList()
+    }
+}
+
+/**
+ * 8.48：**群禁言到期重组触发器**——禁言提示条只读 `state.myMutedUntil`（ViewModel 层），
+ * 但禁言到期那一刻没有任何状态变化，重组不会发生，提示条就赖在那里不消失。
+ *
+ * 解法：到期时刻写一次这个 tick，读它的那个作用域被动重组，提示条重新计算
+ * `remaining` 发现已过期就消失了。它不该跨进程存活（重建后提示条按
+ * `state.myMutedUntil` 重新算，tick 值本身无意义），所以不做 Saver，原来就是
+ * 普通 `remember {}`。
+ */
+internal class ChatDetailMuteExpiryState {
+    /** 禁言到期写入的时间戳；读它只为建立重组依赖。 */
+    var muteTick by mutableLongStateOf(0L)
+
+    /** 禁言到期时调用（重组触发）。 */
+    fun markExpired() {
+        muteTick = System.currentTimeMillis()
     }
 }

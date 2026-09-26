@@ -146,7 +146,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.DisposableEffect
@@ -573,8 +572,8 @@ internal fun ChatDetailRoute(
     }
     val searchResults = if (search.searchMode == ChatSearchMode.SEMANTIC) semanticSearchResults else localSearchResults
 
-    // 8.48：禁言到期重组触发器（到期写入后提示条随重组消失）
-    var muteTick by remember { mutableLongStateOf(0L) }
+    // 8.48：禁言到期重组触发器收进持有类（见 ChatDetailTransientStates.kt）
+    val muteExpiry = remember { ChatDetailMuteExpiryState() }
     // G335：发送前待确认项收进持有类（见 ChatDetailTransientStates.kt）
     val sendPending = remember { ChatDetailSendPendingState() }
     // G331：9 个 ActivityResult 入口搬进 `ChatDetailPickers.kt`（连带它们各自的
@@ -2092,11 +2091,11 @@ internal fun ChatDetailRoute(
                     val wait = until - System.currentTimeMillis()
                     if (wait > 0L) {
                         kotlinx.coroutines.delay(wait + 500L)
-                        muteTick = System.currentTimeMillis()
+                        muteExpiry.markExpired()
                     }
                 }
-                // 读取 muteTick 建立重组依赖（到期写入后提示条随重组消失）
-                val recomposeOnExpiry = muteTick
+                // 读取 muteExpiry.muteTick 建立重组依赖（到期写入后提示条随重组消失）
+                val recomposeOnExpiry = muteExpiry.muteTick
                 val remaining = state.myMutedUntil - System.currentTimeMillis()
                 if (remaining > 0L) {
                     Row(
