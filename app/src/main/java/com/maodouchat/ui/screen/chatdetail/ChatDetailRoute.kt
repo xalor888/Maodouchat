@@ -360,16 +360,8 @@ internal fun ChatDetailRoute(
     }
     // 9.150：壁纸/字号偏好改为可变状态并在 ON_RESUME 刷新——从设置页改完返回
     // 仍存活的聊天页实例不再持有陈旧背景/字号
-    var chatWallpaperPreset by remember {
-        mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getWallpaper(context))
-    }
-    // 自定义图片壁纸（本地 URI）：设置页选择图片后，聊天背景优先显示图片
-    var customWallpaperUri by remember {
-        mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getCustomWallpaperUri(context))
-    }
-    var chatFontScale by remember {
-        mutableStateOf(com.maodouchat.util.ChatAppearancePreferences.getFontScale(context))
-    }
+    // G335：这三项「必须一起刷新」的不变量收进持有类（见 ChatDetailAppearanceStates.kt）
+    val appearance = rememberChatDetailAppearanceState(context)
     LaunchedEffect(viewModel.activeChatId, state.contact.id, state.chatIsGroup) {
         val peer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
         when {
@@ -401,9 +393,7 @@ internal fun ChatDetailRoute(
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 localSafetyEnabled = com.maodouchat.ai.AiPrivacyPreferences.localSafetyEnabled(context)
                 // 9.150：刷新外观偏好（设置页修改后返回即时生效）
-                chatWallpaperPreset = com.maodouchat.util.ChatAppearancePreferences.getWallpaper(context)
-                customWallpaperUri = com.maodouchat.util.ChatAppearancePreferences.getCustomWallpaperUri(context)
-                chatFontScale = com.maodouchat.util.ChatAppearancePreferences.getFontScale(context)
+                appearance.refreshFrom(context)
                 // 8.32 修复 F2：回到前台恢复 activeChatId（MainActivity.onPause 已清空），
                 // 使「打开中的聊天」重新享有消息不弹通知/不计未读的语义。
                 val resumePeer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
@@ -466,18 +456,18 @@ internal fun ChatDetailRoute(
     // 9.205：用主题真实深浅替代系统深浅/palette 身份比较（TG 主题与强制模式下不再误判）
     val isDarkChat = com.maodouchat.ui.theme.LocalDarkTheme.current
     val themeChatPalette = LocalChatPalette.current
-    val chatBackgroundColor = remember(chatWallpaperPreset, isDarkChat, themeChatPalette) {
+    val chatBackgroundColor = remember(appearance.wallpaperPreset, isDarkChat, themeChatPalette) {
         com.maodouchat.util.ChatAppearancePolicy.resolveBackground(
-            preset = chatWallpaperPreset,
+            preset = appearance.wallpaperPreset,
             isDark = isDarkChat,
             fallback = themeChatPalette.chatBackground
         )
     }
     val baseDensity = LocalDensity.current
-    val scaledDensity = remember(baseDensity, chatFontScale) {
+    val scaledDensity = remember(baseDensity, appearance.fontScale) {
         androidx.compose.ui.unit.Density(
             density = baseDensity.density,
-            fontScale = (baseDensity.fontScale * chatFontScale.multiplier).coerceIn(0.85f, 1.6f)
+            fontScale = (baseDensity.fontScale * appearance.fontScale.multiplier).coerceIn(0.85f, 1.6f)
         )
     }
     val sensitiveAuthTitle = stringResource(R.string.sensitive_auth_title)
@@ -1702,7 +1692,7 @@ internal fun ChatDetailRoute(
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().layerBackdrop(chatLiquidBackdrop).background(chatBackgroundColor)) {
             // 自定义图片壁纸（本地 URI，按账号隔离）：绘制在聊天内容之下，无壁纸时不引入额外层
-            customWallpaperUri?.let { uri ->
+            appearance.customWallpaperUri?.let { uri ->
                 coil.compose.AsyncImage(
                     model = uri,
                     contentDescription = null,
@@ -1712,7 +1702,7 @@ internal fun ChatDetailRoute(
             }
             // 9.205：TG 风格涂鸦纹理——叠加在默认与颜色壁纸之上（TG 是颜色+图案叠加），
             // 仅当用户选了自定义图片壁纸时不叠加，避免盖住用户自选图片
-            if (customWallpaperUri == null) {
+            if (appearance.customWallpaperUri == null) {
                 // 9.254：TG 式背景纵深——单色底上叠一层自上而下的微暗渐变，平面背景立刻有
                 // 空间感（从当前背景色派生，自定义主题/深浅模式自动跟随）
                 Box(
