@@ -1576,8 +1576,18 @@ Deps 构造时读 `host._uiState` 得到 null → 非空参数直接抛。这是
 | 2 | `ChatDetailSendPendingState` | 4 | 发送前待确认项（viewOnce/spoiler + 待确认项），并收掉重复接线 |
 | 2 | `ChatDetailParticleState` | 3 | 粒子删除动效三段生命周期，收成 `start()`/`clear()` |
 | 3 | `ChatDetailAiResultState` | 10 | 会话画像/周报/分类的「值/加载中/失败」三态 + 三态一起复位的 `reset*()` |
+| 4 | `ChatDetailSecretGateState` | 6 | 密聊门禁 / 设备风险进度 |
+| 5 | `ChatDetailSearchState` | 6 | 搜索状态族（带 Saver，给出 Saver 范式） |
+| 6 | `ChatDetailGroupCallState` | 5 | 群通话「类型 → 选成员」流程 |
+| 7 | `ChatDetailScheduleState` | 7 | 会话级设置 / 提醒 / 定时弹窗族 |
+| 8 | `ChatDetailChatLockAndContactStates` | 9 | 聊天锁流程 + 联系人入口链（各带 Saver） |
+| 9 | `ChatDetailAiPanelState` | 6 | AI 面板与杂项弹层开关 |
+| 10 | `ChatDetailConversationFlowStates`（含草稿/选择集） | 9 | 会话级流程开关 + 草稿 / 选择集 |
+| 11 | `ChatDetailAppearanceStates` | 3 | 外观偏好三件套（壁纸/字号，必须一起刷新的不变量） |
+| 12 | `ChatDetailAiSafetyState` | 2 | AI 安全提示族（本地开关 + 已关闭提示 id 集合，双写逻辑只此一份） |
+| 13 | `ChatDetailScrollState` | 4 | 滚动位置族（是否在底部附近 / 新消息徽标计数 / 自动滚动游标 / 顶部加载更早，决策逻辑逐字搬移） |
 
-行数：2786 → 2774 → 2763 → 2755（每批都同步收紧热点上限，零余量规则）。
+行数：2786 → 2774 → 2763 → 2755 → 2751 → 2747 → 2742 → 2737 → 2731 → 2727 → 2721 → 2701 → 2682（每批都同步收紧热点上限，零余量规则）。
 **没搬的**：`rememberSaveable` 的那一族（43 个）与其余 appearance/搜索/密聊门禁状态——
 普通持有类拿不到 `rememberSaveable` 的保存语义，硬搬会**静默**失去旋转/进程重建恢复；
 要搬得先写 Saver。这条边界写在每个持有类的 KDoc 里。
