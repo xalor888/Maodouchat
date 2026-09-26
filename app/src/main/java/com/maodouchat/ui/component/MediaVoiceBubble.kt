@@ -409,19 +409,24 @@ internal fun VoiceBubble(
                         .padding(horizontal = 10.dp, vertical = 7.dp)
                 ) {
                     Row(verticalAlignment = Alignment.Top) {
-                        if (isTranscribing) {
-                            val pulseAlpha by rememberMotionPulse(
-                                initialValue = 0.45f,
-                                targetValue = 1f,
-                                durationMillis = 800,
-                                label = "voicePulse"
-                            )
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp).graphicsLayer { alpha = pulseAlpha },
-                                strokeWidth = 2.dp,
-                                color = if (isOwnMessage) LocalSentBubbleContent.current else Primary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
+                        // 稳定尺寸：转写进度占位恒为 14dp + 6dp；转写开始/结束时行宽与正文宽度不再跳变
+                        Box(
+                            modifier = Modifier.width(20.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (isTranscribing) {
+                                val pulseAlpha by rememberMotionPulse(
+                                    initialValue = 0.45f,
+                                    targetValue = 1f,
+                                    durationMillis = 800,
+                                    label = "voicePulse"
+                                )
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp).graphicsLayer { alpha = pulseAlpha },
+                                    strokeWidth = 2.dp,
+                                    color = if (isOwnMessage) LocalSentBubbleContent.current else Primary
+                                )
+                            }
                         }
                         Text(
                             text = body,
