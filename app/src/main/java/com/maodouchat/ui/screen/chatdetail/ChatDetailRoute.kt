@@ -147,7 +147,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1095,22 +1094,23 @@ internal fun ChatDetailRoute(
     if (schedule.showReminderList && state.chat?.id?.isNotBlank() == true) {
         // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
         val reminderChatId = state.chat?.id ?: return
-        var reminderList by remember(schedule.showReminderList, reminderChatId) {
-            mutableStateOf(viewModel.listRemindersForChat(reminderChatId))
-        }
+        // G22（第二十二批）：列表数据收进 ChatDetailScheduleState。打开瞬间已在点击处同步加载
+        // （首帧即有数据，与原 remember 初始化一致）；旋转重建 / 打开期间切会话时按 chatId 重载，
+        // 与原 remember(showReminderList, reminderChatId) 的重算语义等价。
+        LaunchedEffect(reminderChatId) { schedule.reminderList = viewModel.listRemindersForChat(reminderChatId) }
         ChatDetailReminderListDialog(
-            reminders = reminderList,
+            reminders = schedule.reminderList,
             chatId = reminderChatId,
-            onDismiss = { schedule.showReminderList = false },
+            onDismiss = { schedule.closeReminderList() },
             onCancelReminder = { id ->
                 viewModel.cancelReminder(id)
-                reminderList = reminderList.filterNot { it.id == id }
+                schedule.reminderList = schedule.reminderList.filterNot { it.id == id }
             },
             onClearAll = { chatId ->
                 viewModel.clearRemindersForChat(chatId)
-                reminderList = emptyList()
+                schedule.reminderList = emptyList()
             },
-            onRemindersChange = { reminderList = it },
+            onRemindersChange = { schedule.reminderList = it },
         )
     }
 
@@ -1138,7 +1138,7 @@ internal fun ChatDetailRoute(
             items = state.scheduledMessages,
             onCancel = { viewModel.cancelScheduledMessage(it) },
             onReschedule = { id ->
-                schedule.rescheduleTargetId = id
+                schedule.beginReschedule(id, state.scheduledMessages.firstOrNull { it.id == id }?.text.orEmpty())
             },
             // 1.168：立即发送
             onSendNow = { viewModel.sendScheduledNow(it) },
@@ -1149,24 +1149,23 @@ internal fun ChatDetailRoute(
     }
 
     schedule.rescheduleTargetId?.let { targetId ->
-        // 1.43：重排时可编辑文案（初值取当前待发文案）
-        var rescheduleTextDraft by remember(targetId) {
-            mutableStateOf(state.scheduledMessages.firstOrNull { it.id == targetId }?.text.orEmpty())
-        }
+        // 1.43：重排时可编辑文案（初值取当前待发文案；状态收进 ChatDetailScheduleState，第二十二批）
         ScheduleSendDialog(
             titleRes = R.string.schedule_reschedule_title,
-            initialText = rescheduleTextDraft,
-            onTextEdited = { rescheduleTextDraft = it },
+            initialText = schedule.rescheduleTextDraft,
+            onTextEdited = { schedule.rescheduleTextDraft = it },
             onPickDelay = { delayMs ->
-                schedule.rescheduleTargetId = null
-                // 1.46：清空编辑框时保留原文（null 表示不改文案）
-                viewModel.rescheduleScheduledMessage(targetId, delayMs, rescheduleTextDraft.takeIf { it.isNotBlank() })
+                // 1.46：清空编辑框时保留原文（null 表示不改文案）；先取草稿再清状态。
+                val text = schedule.rescheduleTextDraft.takeIf { it.isNotBlank() }
+                schedule.clearReschedule()
+                viewModel.rescheduleScheduledMessage(targetId, delayMs, text)
             },
             onPickAt = { sendAt ->
-                schedule.rescheduleTargetId = null
-                viewModel.rescheduleScheduledMessageAt(targetId, sendAt, rescheduleTextDraft.takeIf { it.isNotBlank() })
+                val text = schedule.rescheduleTextDraft.takeIf { it.isNotBlank() }
+                schedule.clearReschedule()
+                viewModel.rescheduleScheduledMessageAt(targetId, sendAt, text)
             },
-            onDismiss = { schedule.rescheduleTargetId = null }
+            onDismiss = { schedule.clearReschedule() }
         )
     }
 
@@ -1548,7 +1547,13 @@ internal fun ChatDetailRoute(
                             // 8.48：稍后提醒列表（查看/取消）
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.message_reminder_list_menu)) },
-                                onClick = { dialogs.showChatOverflow = false; schedule.showReminderList = true }
+                                onClick = {
+                                    dialogs.showChatOverflow = false
+                                    // G22：打开瞬间同步加载列表，首帧即有数据（原 remember 初始化的语义）。
+                                    val chatId = state.chat?.id
+                                    if (chatId.isNullOrBlank()) schedule.showReminderList = true
+                                    else schedule.openReminderList(viewModel.listRemindersForChat(chatId))
+                                }
                             )
                             // 1.29：通话记录（本地 CallLogStore 历史）
                             DropdownMenuItem(
@@ -1706,7 +1711,7 @@ internal fun ChatDetailRoute(
                 ScheduledMessagesBanner(
                     items = state.scheduledMessages,
                     onCancel = { viewModel.cancelScheduledMessage(it) },
-                    onReschedule = { id -> schedule.rescheduleTargetId = id },
+                    onReschedule = { id -> schedule.beginReschedule(id, state.scheduledMessages.firstOrNull { it.id == id }?.text.orEmpty()) },
                     onViewAll = { schedule.showScheduledList = true }
                 )
             }
