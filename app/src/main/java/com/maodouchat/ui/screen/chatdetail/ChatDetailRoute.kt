@@ -422,7 +422,7 @@ internal fun ChatDetailRoute(
         }
     }
     // G335（第十四批）：全屏媒体查看状态族收进持有类（见 ChatDetailFullscreenMediaState）。
-    val media = remember { ChatDetailFullscreenMediaState() }
+    val media = rememberChatDetailFullscreenMediaState()
     // 0.83：清空本机聊天记录确认
     var showClearHistoryConfirm by remember { mutableStateOf(false) }
     val chatSnackbarHostState = remember { SnackbarHostState() }
