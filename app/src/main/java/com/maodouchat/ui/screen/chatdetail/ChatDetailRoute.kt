@@ -152,7 +152,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -426,7 +425,6 @@ internal fun ChatDetailRoute(
     // G337（第十六批）：消息引用/导航族收进持有类（见 ChatDetailMessageTargetState）。
     val targets = rememberChatDetailMessageTargetState()
     val chatSnackbarHostState = remember { SnackbarHostState() }
-    var showGroupInfo by rememberSaveable { mutableStateOf(false) }
     // 1.11：发送名片——联系人选择对话框
     // 1.02：临时静音至对话框
     // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
@@ -990,25 +988,6 @@ internal fun ChatDetailRoute(
     LaunchedEffect(searchResults.size) {
         if (searchResults.isEmpty()) search.searchIndex = 0
         else if (search.searchIndex >= searchResults.size) search.searchIndex = searchResults.lastIndex
-    }
-
-    LaunchedEffect(showGroupInfo, state.chat?.id) {
-        if (showGroupInfo && state.chatIsGroup) viewModel.loadGroupCandidates()
-    }
-
-    // G77：群信息对话框（190 行）抽到 ChatDetailGroupInfoDialog.kt，纯搬移不改判断。
-    // 块内三个 groupInfo* 状态的所有权随之搬走，Route 不再持有。
-    if (showGroupInfo) {
-        ChatDetailGroupInfoDialog(
-            chat = state.chat,
-            currentUserId = state.currentUserId,
-            groupCandidates = state.groupCandidates,
-            isUpdatingGroup = state.isUpdatingGroup,
-            onDismiss = { showGroupInfo = false },
-            onRenameGroup = { name -> viewModel.renameGroup(name) },
-            onAddGroupMember = { userId -> viewModel.addGroupMember(userId) },
-            onRemoveGroupMember = { userId -> viewModel.removeGroupMember(userId) },
-        )
     }
 
     if (state.showSafetyCodeDialog && !state.chatIsGroup) {
