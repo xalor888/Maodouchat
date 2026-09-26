@@ -145,9 +145,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -334,11 +332,9 @@ internal fun ChatDetailRoute(
     // 8.47：滚动合并执行器（B7 帧预算）——高频回底/跳转连点合并同帧请求，
     // 超距跳转瞬时 snap，避免长动画占帧（此前 4 处裸 animateScrollToItem）
     val chatListScroller = com.maodouchat.perf.rememberCoalescedScroller()
-    val isNearBottom by remember {
-        derivedStateOf { listState.firstVisibleItemIndex <= 1 }
-    }
-    var pendingNewMessageCount by remember { mutableIntStateOf(0) }
-    var lastAutoScrollMessageId by remember { mutableStateOf<String?>(null) }
+    // G335（第十三批）：滚动位置族（是否在底部附近 / 新消息徽标计数 / 自动滚动游标 /
+    // 滚动到顶部触发加载更早消息）收进持有类（见 ChatDetailScrollState.kt）
+    val scroll = rememberChatDetailScrollState(listState)
     val context = LocalContext.current
     LaunchedEffect(state.openedSecretChatId) {
         val secretId = state.openedSecretChatId ?: return@LaunchedEffect
@@ -499,13 +495,7 @@ internal fun ChatDetailRoute(
             com.maodouchat.util.VoicePlayer.play(it.id, it.parsedContent(), context)
         }
     }
-    val shouldLoadOlderMessages by remember {
-        derivedStateOf {
-            val layout = listState.layoutInfo
-            val oldestVisibleIndex = layout.visibleItemsInfo.maxOfOrNull { it.index } ?: return@derivedStateOf false
-            layout.totalItemsCount > 0 && oldestVisibleIndex >= layout.totalItemsCount - 6
-        }
-    }
+    // G335（第十三批）：滚动到顶部附近触发加载更早消息，派生量收进 scroll 持有类
     val messagesById = remember(state.messages) { state.messages.associateBy(Message::id) }
     // Bot force-reply: focus composer as reply to latest forced message from peer/bot.
     LaunchedEffect(state.messages.lastOrNull()?.id, state.currentUserId) {
@@ -634,6 +624,7 @@ internal fun ChatDetailRoute(
         )
     }
 
+    // G335（第十三批）：新消息到达时的自动滚动决策收进 scroll 持有类（见 ChatDetailScrollState.onLatestMessage）
     LaunchedEffect(
         state.messages.lastOrNull()?.id,
         state.currentUserId,
@@ -641,33 +632,23 @@ internal fun ChatDetailRoute(
         reversedChatItems.size
     ) {
         val latestMessage = state.messages.lastOrNull() ?: return@LaunchedEffect
-        val latestId = latestMessage.id
-        if (state.navigationTargetMessageId != null || navigationHighlightMessageId != null) {
-            lastAutoScrollMessageId = latestId
-            return@LaunchedEffect
-        }
-        val previousId = lastAutoScrollMessageId
-        lastAutoScrollMessageId = latestId
-        // Open-chat: local seed paints an older tail first; history then prepends newer
-        // bubbles in reverseLayout. Keep index 0 until that merge finishes, otherwise
-        // the viewport stays on yesterday while list preview already shows today.
-        val openingPin = !state.initialTimelineReady || previousId == null
-        if (previousId == latestId && !openingPin) return@LaunchedEffect
-        val shouldStickToBottom = openingPin || isNearBottom || latestMessage.senderId == state.currentUserId
-        if (shouldStickToBottom) {
-            chatListScroller.scrollToItem(listState, 0, animated = !openingPin)
-            pendingNewMessageCount = 0
-        } else if (latestMessage.senderId != state.currentUserId && previousId != latestId) {
-            pendingNewMessageCount += 1
-        }
+        scroll.onLatestMessage(
+            latestId = latestMessage.id,
+            latestSenderId = latestMessage.senderId,
+            currentUserId = state.currentUserId,
+            initialTimelineReady = state.initialTimelineReady,
+            navigationTargetMessageId = state.navigationTargetMessageId,
+            navigationHighlightMessageId = navigationHighlightMessageId,
+            scrollToItem = { animated -> chatListScroller.scrollToItem(listState, 0, animated = animated) },
+        )
     }
 
-    LaunchedEffect(isNearBottom) {
-        if (isNearBottom) pendingNewMessageCount = 0
+    LaunchedEffect(scroll.isNearBottom) {
+        scroll.clearPendingOnNearBottom()
     }
 
-    LaunchedEffect(shouldLoadOlderMessages) {
-        if (shouldLoadOlderMessages) viewModel.loadOlderMessages()
+    LaunchedEffect(scroll.shouldLoadOlderMessages) {
+        if (scroll.shouldLoadOlderMessages) viewModel.loadOlderMessages()
     }
 
     LaunchedEffect(state.fileReadyToOpenUri) {
@@ -1979,7 +1960,7 @@ internal fun ChatDetailRoute(
                 }
 
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = !isNearBottom,
+                    visible = !scroll.isNearBottom,
                     enter = fadeIn(tween(180)) + scaleIn(tween(220), initialScale = 0.86f),
                     exit = fadeOut(tween(140)) + scaleOut(tween(160), targetScale = 0.9f),
                     modifier = Modifier
@@ -1989,7 +1970,7 @@ internal fun ChatDetailRoute(
                     Box {
                         FloatingActionButton(
                             onClick = {
-                                pendingNewMessageCount = 0
+                                scroll.pendingNewMessageCount = 0
                                 chatListScroller.scrollToItem(listState, 0)
                             },
                             containerColor = MaterialTheme.colorScheme.surface,
@@ -2003,7 +1984,7 @@ internal fun ChatDetailRoute(
                                 modifier = Modifier.size(26.dp)
                             )
                         }
-                        if (pendingNewMessageCount > 0) {
+                        if (scroll.pendingNewMessageCount > 0) {
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
@@ -2013,7 +1994,7 @@ internal fun ChatDetailRoute(
                                     .background(UnreadRed, CircleShape)
                             ) {
                                 Text(
-                                    text = if (pendingNewMessageCount > 99) "99+" else pendingNewMessageCount.toString(),
+                                    text = if (scroll.pendingNewMessageCount > 99) "99+" else scroll.pendingNewMessageCount.toString(),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
                                     color = MaterialTheme.colorScheme.onError
                                 )
