@@ -496,17 +496,6 @@
         errorLine1="    modifier: Modifier = Modifier,"
         errorLine2="    ~~~~~~~~">
         <location
-            file="src/main/java/com/maodouchat/ui/component/AnimatedSettingsItem.kt"
-            line="47"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier,"
-        errorLine2="    ~~~~~~~~">
-        <location
             file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListComponents.kt"
             line="313"
             column="5"/>
