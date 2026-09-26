@@ -2315,67 +2315,6 @@ class ChatDetailViewModel(
         _uiState.update { it.copy(infoMessage = null) }
     }
 
-    /** G69：导出拒绝原因 → 用户可见文案（资源字符串只应出现在编排层）。 */
-    private fun exportRejectMessage(reason: ChatExportGuard.RejectReason): String = when (reason) {
-        ChatExportGuard.RejectReason.DISABLED -> text(R.string.chat_export_disabled)
-        ChatExportGuard.RejectReason.NO_SESSION -> text(R.string.error_session_expired)
-        ChatExportGuard.RejectReason.STALE_SESSION -> text(R.string.error_session_expired)
-        ChatExportGuard.RejectReason.LOCKED -> text(R.string.chat_lock_list_preview)
-        ChatExportGuard.RejectReason.SECRET_CHAT -> text(R.string.secret_chat_export_blocked)
-        ChatExportGuard.RejectReason.NO_CHAT -> text(R.string.chat_export_failed)
-        ChatExportGuard.RejectReason.EMPTY -> text(R.string.chat_export_empty)
-        ChatExportGuard.RejectReason.SERIALIZATION_EMPTY -> text(R.string.chat_export_failed)
-    }
-
-    fun exportToUri(context: android.content.Context, uri: android.net.Uri) {
-        // G69：七条导出准入下沉到纯判定（可单测），这里只保留 IO 编排。
-        val exportOwnerUserId = currentUserId
-        val decision = ChatExportGuard.check(
-            state = _uiState.value,
-            exportEnabled = RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_EXPORT),
-            ownerUserId = exportOwnerUserId,
-            token = token,
-            sessionMayContinue = com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = exportOwnerUserId,
-            ),
-            serializedJson = exportChatAsJson(),
-        )
-        if (decision is ChatExportGuard.Decision.Reject) {
-            _uiState.update { it.copy(exportInfoMessage = exportRejectMessage(decision.reason)) }
-            return
-        }
-        val allowed = decision as ChatExportGuard.Decision.Allow
-        val state = _uiState.value
-        val json = exportChatAsJson()
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = exportOwnerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                val written = context.contentResolver.openOutputStream(uri)?.use { out ->
-                    out.write(json.toByteArray(Charsets.UTF_8))
-                    true
-                } ?: false
-                if (written) {
-                    _uiState.update {
-                        it.copy(exportInfoMessage = quantityText(R.plurals.chat_export_success, state.messages.size, state.messages.size))
-                    }
-                } else {
-                    Log.w("ChatDetailViewModel", "exportToUri: openOutputStream returned null")
-                    _uiState.update { it.copy(exportInfoMessage = text(R.string.chat_export_failed)) }
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                Log.w("ChatDetailViewModel", "exportToUri failed", error)
-                _uiState.update { it.copy(exportInfoMessage = text(R.string.chat_export_failed)) }
-            }
-        }
-    }
-
     companion object {
         /** 试听占用的伪 messageId，避免与真实消息播放冲突。 */
         const val VOICE_PREVIEW_MESSAGE_ID: String = "__voice_preview__"
