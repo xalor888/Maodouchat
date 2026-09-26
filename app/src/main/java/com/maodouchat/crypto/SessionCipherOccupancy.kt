@@ -71,6 +71,21 @@ object SessionCipherOccupancy {
         openPeerUserId = peerUserId?.trim()?.takeIf { it.isNotBlank() }
     }
 
+    /**
+     * 标记当前聊天界面变为活跃的时刻（幂等）：backlog 回填用该时间戳判断
+     * 「早于界面打开」的消息不播接收提示音。只有尚未设置时才写入——
+     * ON_RESUME 不得覆盖 ViewModel 在打开聊天时已写入的值。
+     *
+     * 此前该 `if (== 0L) 置值` 逻辑写在 `ChatDetailRoute` 的 ON_RESUME 观察器里，
+     * 直接抓 `MaodouchatApp` 全局单例；挪到这里后 Route 不再直连持久层/全局单例
+     * （`ClientArchitectureTest` 两份直连预算的 Route 条目随之归零）。
+     */
+    fun refreshActiveChatOpenedAtIfUnset() {
+        if (MaodouchatApp.activeChatOpenedAtMs == 0L) {
+            MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()
+        }
+    }
+
     @Synchronized
     fun release(lease: Lease): Boolean {
         if (lease.generation != activeLeaseGeneration) return false
