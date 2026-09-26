@@ -431,8 +431,6 @@ internal fun ChatDetailRoute(
     var showGroupInfo by rememberSaveable { mutableStateOf(false) }
     // 1.11：发送名片——联系人选择对话框
     // 1.02：临时静音至对话框
-
-    var setLockError by remember { mutableStateOf<String?>(null) }
     // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
     val particles = remember { ChatDetailParticleState() }
     val bubbleBounds = remember { mutableMapOf<String, BubbleBounds>() }
@@ -1200,11 +1198,11 @@ internal fun ChatDetailRoute(
         ChatDetailSetChatLockDialog(
             pinDraft = chatLock.setLockPinDraft,
             pinConfirmDraft = chatLock.setLockPinConfirm,
-            errorMessage = setLockError,
+            errorMessage = chatLock.setLockError,
             contactDisplayName = state.contact.displayName,
             onPinDraftChange = { chatLock.setLockPinDraft = it },
             onPinConfirmDraftChange = { chatLock.setLockPinConfirm = it },
-            onErrorMessageChange = { setLockError = it },
+            onErrorMessageChange = { chatLock.setLockError = it },
             onDismiss = { chatLock.showSetChatLock = false },
             onSaved = { pin -> viewModel.setChatLockPin(pin) },
         )
@@ -1607,7 +1605,7 @@ internal fun ChatDetailRoute(
                                     } else {
                                         chatLock.setLockPinDraft = ""
                                         chatLock.setLockPinConfirm = ""
-                                        setLockError = null
+                                        chatLock.setLockError = null
                                         chatLock.showSetChatLock = true
                                     }
                                 }

@@ -15,6 +15,10 @@ import androidx.compose.runtime.setValue
  * 「哪条路径用哪份输入」；收进来后 [reset] 一次清干净——否则取消一次再进来会看到上次输入的 PIN
  * （那既是体验问题，也是隐私问题：**明文 PIN 不该在取消后留在状态里**）。
  *
+ * 第十七批归位：`setLockError`（设置锁对话框的错误文案）——PIN 长度不足 / 两次输入不一致
+ * 时的提示文案，是同一条「设锁」路径的瞬态文案。**不进 Saver**：原来就是
+ * `remember { mutableStateOf(null) }`，转屏重置为 null 的语义保持不变。
+ *
  * 范式：原本逐个 `rememberSaveable` → 持有类自带 [Saver]，
  * 用 [rememberChatDetailChatLockState] 创建，保存语义不变（转屏时输入不丢）。
  */
@@ -33,7 +37,10 @@ internal class ChatDetailChatLockState(
     var setLockPinConfirm by mutableStateOf(setLockPinConfirm)
     var disableLockPinDraft by mutableStateOf(disableLockPinDraft)
 
-    /** 三条路径都收起，并**清掉输入里的明文 PIN**（取消/成功后调用）。 */
+    /** 设置锁对话框的错误文案（第十七批归位；瞬态，不进 Saver）。 */
+    var setLockError by mutableStateOf<String?>(null)
+
+    /** 三条路径都收起，并**清掉输入里的明文 PIN**与错误文案（取消/成功后调用）。 */
     fun reset() {
         showSetChatLock = false
         showDisableChatLock = false
@@ -41,6 +48,7 @@ internal class ChatDetailChatLockState(
         setLockPinDraft = ""
         setLockPinConfirm = ""
         disableLockPinDraft = ""
+        setLockError = null
     }
 
     companion object {
