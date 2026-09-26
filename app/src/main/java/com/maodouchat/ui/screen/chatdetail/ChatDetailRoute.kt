@@ -395,9 +395,8 @@ internal fun ChatDetailRoute(
                     )
                     else -> viewModel.occupySessionCipher(viewModel.activeChatId)
                 }
-                if (com.maodouchat.MaodouchatApp.activeChatOpenedAtMs == 0L) {
-                    com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()
-                }
+                // 8.32 修复 F2 的时间戳写入挪到 SessionCipherOccupancy（if-置值语义逐字等价）；Route 不再直连全局单例。
+                com.maodouchat.crypto.SessionCipherOccupancy.refreshActiveChatOpenedAtIfUnset()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

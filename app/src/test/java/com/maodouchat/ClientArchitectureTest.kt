@@ -334,7 +334,7 @@ class ClientArchitectureTest {
         // 与 MarkdownParser 是拆出 ChatMarkdown 后的净**下降**）。
         // 棘轮方向不变：从这里开始只许降。上调的原因是必要的 import，不是往里堆逻辑。
 
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2677,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2676,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2542,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
@@ -399,7 +399,7 @@ class ClientArchitectureTest {
         // 「两份相等」这条弱断言（见下方 G165 的说明——真正的外部基线是与 git HEAD 比）。
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2677,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2676,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2542,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
@@ -877,6 +877,9 @@ class ClientArchitectureTest {
      * 48 个文件纯粹因为「声明自己不碰单例」而被计成违规。
      * 现在改成在 [stripComments] 之后的源码上计数——真实值是
      * **20 文件 / 83 处**（`@Composable` 口径），与原门禁开工时基本持平。
+     * ChatDetailRoute 状态收口第二十批把 Route 的最后 2 处（ON_RESUME 里的
+     * `activeChatOpenedAtMs` 读写）挪进 crypto 包的 `SessionCipherOccupancy` 后，
+     * 真实值变为 **19 文件 / 81 处**——`ChatDetailRoute.kt` 彻底退出两份预算。
      */
     private val directPersistenceSymbols = listOf("database.", "secretChatDao", "MaodouchatApp")
 
@@ -1078,7 +1081,6 @@ class ClientArchitectureTest {
         "navigation/NavGraph.kt" to 4,
         "screen/call/CallHistoryScreen.kt" to 4,
         "screen/chatdetail/AiTasksScreen.kt" to 9,
-        "screen/chatdetail/ChatDetailRoute.kt" to 2,
         "screen/chatdetail/MediaCenterScreen.kt" to 6,
         "screen/chatdetail/StarredMessagesScreen.kt" to 6,
         "screen/chatlist/GlobalSearchScreen.kt" to 8,
@@ -1114,7 +1116,6 @@ class ClientArchitectureTest {
         "screen/chatdetail/ChatDetailDisappearing.kt" to 3,
         "screen/chatdetail/ChatDetailLiveLocation.kt" to 2,
         "screen/chatdetail/ChatDetailMedia.kt" to 1,
-        "screen/chatdetail/ChatDetailRoute.kt" to 2,
         "screen/chatdetail/ChatDetailViewModel.kt" to 19,
         // G328c：装配搬到 ChatDetailDeps 之后，直连持久层的命中随之搬过去
         // （VM 35→19，deps 17，总数 192→193：多出的 1 是 deps 构造函数里对 VM 的引用被计入）。

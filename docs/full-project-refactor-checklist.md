@@ -1592,8 +1592,9 @@ Deps 构造时读 `host._uiState` 得到 null → 非空参数直接抛。这是
 | 17 | `ChatDetailChatLockState`（第八批持有类归位） | 1 | 聊天锁错误文案 `setLockError` 收进持有类（PIN 长度/两次不一致提示；瞬态不进 Saver，转屏重置为 null 与原 `remember {}` 一致，`reset()` 一并清掉——Route 行数 2680 → 2678，热点上限同步收紧） |
 | 18 | `ChatDetailMuteExpiryState`（新增持有类） | 1 | 禁言到期重组触发器 `muteTick` 收进持有类（到期写一次触发重组、读它只为建立重组依赖；瞬态不进 Saver，转屏重置为 0 与原 `remember {}` 一致；写入封装成 `markExpired()`——Route 行数 2678 → 2677（`mutableLongStateOf` import 一并移除），热点上限同步收紧） |
 | 19 | `ChatDetailBubbleBoundsState`（新增持有类） | 1 | 气泡坐标缓存 `bubbleBounds` 收进持有类（`get`/`set`/`remove` 三个入口与原 `mutableMapOf` 逐字等价；原非快照状态、读写不触发重组，转为持有类语义不变；瞬态不进 Saver——Route 行数 2677 不变，净 0，热点上限维持） |
+| 20 | `SessionCipherOccupancy.refreshActiveChatOpenedAtIfUnset()`（crypto 包 helper） | 1 | ON_RESUME 观察器里最后的 2 处直连 `MaodouchatApp`（`activeChatOpenedAtMs` 的 `if (== 0L)` 置值）收进 crypto 包非 Composable 的 `SessionCipherOccupancy`；Route 里只剩一次全限定调用，`MaodouchatApp` 符号在 Route 中归零——`ClientArchitectureTest` 的 Composable 口径（20 文件/83 处→19 文件/81 处）与 ui 总口径两份预算的 `ChatDetailRoute.kt` 条目同步删除，`ChatDetailRoute.kt` 彻底退出两份预算；Route 行数 2677 → 2676，热点上限两处同步收紧至 2676，零余量。`if-置值` 语义、调用点（ON_RESUME 分支内、与 occupySessionCipher 相同的相对顺序）、`@Volatile` 读写顺序逐字等价 |
 
-行数：2786 → 2774 → 2763 → 2755 → 2751 → 2747 → 2742 → 2737 → 2731 → 2727 → 2721 → 2701 → 2682 → 2682 → 2680 → 2680 → 2678 → 2677 → 2677（第十四批只搬引用、净行数不变；第十五批 3 个开关收成 1 行声明 + 1 行接线，净 −2；第十六批 2 个引用状态收进持有类、净 0；第十七批聊天锁错误文案归位、净 −2；第十八批禁言到期触发器收进持有类、`mutableLongStateOf` import 一并移除、净 −1；第十九批气泡坐标缓存收进持有类、净 0，热点上限维持 2677；每批都同步收紧热点上限，零余量规则）。
+行数：2786 → 2774 → 2763 → 2755 → 2751 → 2747 → 2742 → 2737 → 2731 → 2727 → 2721 → 2701 → 2682 → 2682 → 2680 → 2680 → 2678 → 2677 → 2677 → 2676（第十四批只搬引用、净行数不变；第十五批 3 个开关收成 1 行声明 + 1 行接线，净 −2；第十六批 2 个引用状态收进持有类、净 0；第十七批聊天锁错误文案归位、净 −2；第十八批禁言到期触发器收进持有类、`mutableLongStateOf` import 一并移除、净 −1；第十九批气泡坐标缓存收进持有类、净 0，热点上限维持 2677；第二十批 Route 最后的 2 处 MaodouchatApp 直连收进 crypto 包 helper、净 −1，热点上限收紧至 2676；每批都同步收紧热点上限，零余量规则）。
 **没搬的**：`rememberSaveable` 的那一族（43 个）与其余 appearance/搜索/密聊门禁状态——
 普通持有类拿不到 `rememberSaveable` 的保存语义，硬搬会**静默**失去旋转/进程重建恢复；
 要搬得先写 Saver。这条边界写在每个持有类的 KDoc 里。
