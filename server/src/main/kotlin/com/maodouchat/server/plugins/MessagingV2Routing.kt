@@ -34,7 +34,14 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-private val messagingV2Json = Json { ignoreUnknownKeys = false }
+/**
+ * V2 消息路由的 JSON 编解码器。`ignoreUnknownKeys = true` 是刻意的向前兼容选择：
+ * 新版客户端在请求体里加字段时，旧版服务端不得 400——其余路由（admin/dev/poll 等）
+ * 早已如此，只有这里曾是 `false`（历史遗留的不一致，本轮收敛）。
+ * 保持 `internal` 可见性，供 [com.maodouchat.server.messaging.v2.MessagingV2ForwardCompatTest]
+ * 直接引用同一份配置做兼容性断言。
+ */
+internal val messagingV2Json = Json { ignoreUnknownKeys = true }
 private val messageIdV2 = Regex("^[A-Za-z0-9._:-]{1,100}$")
 private val conversationIdV2 = Regex("^[A-Za-z0-9._:-]{1,50}$")
 private val ciphertextTypeV2 = Regex("^[A-Z0-9_-]{1,32}$")
