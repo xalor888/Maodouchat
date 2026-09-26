@@ -432,7 +432,7 @@ internal fun ChatDetailRoute(
     // 1.02：临时静音至对话框
     // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
     val particles = remember { ChatDetailParticleState() }
-    val bubbleBounds = remember { mutableMapOf<String, BubbleBounds>() }
+    val bubbleBounds = remember { ChatDetailBubbleBoundsState() }
     val configuration = LocalConfiguration.current
     // 9.205：用主题真实深浅替代系统深浅/palette 身份比较（TG 主题与强制模式下不再误判）
     val isDarkChat = com.maodouchat.ui.theme.LocalDarkTheme.current

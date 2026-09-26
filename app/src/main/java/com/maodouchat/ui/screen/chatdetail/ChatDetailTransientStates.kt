@@ -92,3 +92,30 @@ internal class ChatDetailMuteExpiryState {
         muteTick = System.currentTimeMillis()
     }
 }
+
+/**
+ * 第十九批：**气泡坐标缓存**——粒子动效/删除动画播之前，需要拿到目标消息气泡
+ * 在屏幕上的位置。坐标由消息列表项测出来（`onBubblePlaced`/`onBubbleRemoved`
+ * 写），由 `startParticleEffect` 读。
+ *
+ * 归成一族的理由：这张表的写与读是同一个数据的三个入口（get/set/remove），
+ * 原先就是一个裸 `remember { mutableMapOf() }` 散在 Route 里。注意它**不是**
+ * Compose 快照状态：读写都不触发重组，纯粹是布局测量的旁路缓存；换成持有类
+ * 只是把表装进对象里，语义逐字等价。
+ *
+ * 也不进 Saver：进程重建后坐标本来就得重新测量，原来转屏重建它也是从空表
+ * 重新测（普通 `remember {}`）。
+ */
+internal class ChatDetailBubbleBoundsState {
+    private val bounds = mutableMapOf<String, BubbleBounds>()
+
+    operator fun get(messageId: String): BubbleBounds? = bounds[messageId]
+
+    operator fun set(messageId: String, value: BubbleBounds) {
+        bounds[messageId] = value
+    }
+
+    fun remove(messageId: String) {
+        bounds.remove(messageId)
+    }
+}
