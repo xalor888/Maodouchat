@@ -423,14 +423,12 @@ internal fun ChatDetailRoute(
     }
     // G335（第十四批）：全屏媒体查看状态族收进持有类（见 ChatDetailFullscreenMediaState）。
     val media = rememberChatDetailFullscreenMediaState()
-    // 0.83：清空本机聊天记录确认
-    var showClearHistoryConfirm by remember { mutableStateOf(false) }
+    // G336（第十五批）：会话级弹窗开关族收进持有类（见 ChatDetailDialogState）。
+    val dialogs = rememberChatDetailDialogState()
     val chatSnackbarHostState = remember { SnackbarHostState() }
     var replyTarget by remember { mutableStateOf<Message?>(null) }
-    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
     var showGroupInfo by rememberSaveable { mutableStateOf(false) }
     // 1.11：发送名片——联系人选择对话框
-    var showChatOverflow by remember { mutableStateOf(false) }
     // 1.02：临时静音至对话框
 
     var setLockError by remember { mutableStateOf<String?>(null) }
@@ -539,9 +537,9 @@ internal fun ChatDetailRoute(
         state.messages.filter { it.id in drafts.selectedMessageIds }
     }
     val messageSelectionMode = drafts.selectedMessageIds.isNotEmpty()
-    BackHandler(enabled = showChatOverflow || messageSelectionMode || search.showSearchBar) {
+    BackHandler(enabled = dialogs.showChatOverflow || messageSelectionMode || search.showSearchBar) {
         when {
-            showChatOverflow -> showChatOverflow = false
+            dialogs.showChatOverflow -> dialogs.showChatOverflow = false
             messageSelectionMode -> drafts.selectedMessageIds = emptySet()
             search.showSearchBar -> search.showSearchBar = false
         }
@@ -1360,10 +1358,10 @@ internal fun ChatDetailRoute(
             .secretPageBlindWatermark(secretPagePayload)
     ) {
     ClearChatHistoryConfirmDialog(
-        visible = showClearHistoryConfirm,
-        onDismiss = { showClearHistoryConfirm = false },
+        visible = dialogs.showClearHistoryConfirm,
+        onDismiss = { dialogs.showClearHistoryConfirm = false },
         onConfirm = {
-            showClearHistoryConfirm = false
+            dialogs.showClearHistoryConfirm = false
             SensitiveActionGate.confirm(
                 context = context,
                 action = SensitiveAction.CLEAR_CHAT_HISTORY,
@@ -1536,59 +1534,59 @@ internal fun ChatDetailRoute(
                         }
                     }
                     Box {
-                        IconButton(onClick = { showChatOverflow = true }) {
+                        IconButton(onClick = { dialogs.showChatOverflow = true }) {
                             Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.chat_more), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                         }
-                        DropdownMenu(expanded = showChatOverflow, onDismissRequest = { showChatOverflow = false }) {
+                        DropdownMenu(expanded = dialogs.showChatOverflow, onDismissRequest = { dialogs.showChatOverflow = false }) {
                             // 1.155：会话内置顶/取消置顶
                             DropdownMenuItem(
                                 text = { Text(stringResource(if ((state.chat?.pinnedAt ?: 0L) > 0L) R.string.chat_unpin else R.string.chat_pin)) },
-                                onClick = { showChatOverflow = false; viewModel.toggleChatPinned() }
+                                onClick = { dialogs.showChatOverflow = false; viewModel.toggleChatPinned() }
                             )
                             // 1.156：会话内标记未读/已读
                             DropdownMenuItem(
                                 text = { Text(stringResource(if (state.chat?.markedUnread == true) R.string.chat_mark_read else R.string.chat_mark_unread)) },
-                                onClick = { showChatOverflow = false; viewModel.toggleChatMarkedUnread() }
+                                onClick = { dialogs.showChatOverflow = false; viewModel.toggleChatMarkedUnread() }
                             )
                             if (!state.chatIsGroup) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_contact_actions)) },
-                                    onClick = { showChatOverflow = false; contactSheets.showContactActions = true }
+                                    onClick = { dialogs.showChatOverflow = false; contactSheets.showContactActions = true }
                                 )
                                 if (state.isSecretChat != true) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.disappear_menu)) },
-                                        onClick = { showChatOverflow = false; schedule.showDisappearDialog = true }
+                                        onClick = { dialogs.showChatOverflow = false; schedule.showDisappearDialog = true }
                                     )
                                 }
                             }
                             // 8.46：会话免打扰时段（本地 per-chat 静音窗，单聊/群聊均可用）
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_quiet_hours_menu)) },
-                                onClick = { showChatOverflow = false; schedule.showQuietHoursDialog = true }
+                                onClick = { dialogs.showChatOverflow = false; schedule.showQuietHoursDialog = true }
                             )
                             // 1.02：临时静音至（1/8/24 小时，本地）
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_silent_until_menu)) },
-                                onClick = { showChatOverflow = false; schedule.showSilentUntilDialog = true }
+                                onClick = { dialogs.showChatOverflow = false; schedule.showSilentUntilDialog = true }
                             )
                             // 8.48：稍后提醒列表（查看/取消）
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.message_reminder_list_menu)) },
-                                onClick = { showChatOverflow = false; schedule.showReminderList = true }
+                                onClick = { dialogs.showChatOverflow = false; schedule.showReminderList = true }
                             )
                             // 1.29：通话记录（本地 CallLogStore 历史）
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.call_log_title)) },
                                 onClick = {
-                                    showChatOverflow = false
+                                    dialogs.showChatOverflow = false
                                     onOpenCallHistory?.invoke()
                                 }
                             )
                             if (RuntimeFlags.isEnabled(context, RuntimeFlags.NUDGE) && !state.chatIsGroup && state.chat?.isChannel != true && state.isSecretChat != true) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.chat_nudge)) },
-                                    onClick = { showChatOverflow = false; viewModel.sendNudge() }
+                                    onClick = { dialogs.showChatOverflow = false; viewModel.sendNudge() }
                                 )
                             }
                             // Local device PIN gate — works for 1:1 and groups (Room chatId key).
@@ -1602,7 +1600,7 @@ internal fun ChatDetailRoute(
                                     )
                                 },
                                 onClick = {
-                                    showChatOverflow = false
+                                    dialogs.showChatOverflow = false
                                     if (state.isChatLocked == true) {
                                         chatLock.disableLockPinDraft = ""
                                         chatLock.showDisableChatLock = true
@@ -1625,34 +1623,34 @@ internal fun ChatDetailRoute(
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.secret_chat_menu_start)) },
                                     onClick = {
-                                        showChatOverflow = false
+                                        dialogs.showChatOverflow = false
                                         flows.showSecretChatConfirm = true
                                     }
                                 )
                             }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_starred_messages)) },
-                                onClick = { showChatOverflow = false; state.chat?.id?.let(onOpenStarredMessages) }
+                                onClick = { dialogs.showChatOverflow = false; state.chat?.id?.let(onOpenStarredMessages) }
                             )
                             if (!state.chatIsGroup) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.media_center_title)) },
-                                    onClick = { showChatOverflow = false; state.chat?.id?.let(onOpenMediaCenter) }
+                                    onClick = { dialogs.showChatOverflow = false; state.chat?.id?.let(onOpenMediaCenter) }
                                 )
                             }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_search_action)) },
-                                onClick = { showChatOverflow = false; search.showSearchBar = !search.showSearchBar }
+                                onClick = { dialogs.showChatOverflow = false; search.showSearchBar = !search.showSearchBar }
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_jump_date)) },
-                                onClick = { showChatOverflow = false; drafts.showDateJumpDialog = true }
+                                onClick = { dialogs.showChatOverflow = false; drafts.showDateJumpDialog = true }
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.chat_clear_local_history), color = LocalChatPalette.current.unreadRed) },
                                 onClick = {
-                                    showChatOverflow = false
-                                    showClearHistoryConfirm = true
+                                    dialogs.showChatOverflow = false
+                                    dialogs.showClearHistoryConfirm = true
                                 }
                             )
                         }
@@ -1872,7 +1870,7 @@ internal fun ChatDetailRoute(
                         viewModel.loadForwardTargets()
                     },
                     onToggleStar = { ids, shouldStar -> viewModel.toggleStarMessagesBatch(ids, shouldStar) },
-                    onDelete = { showBatchDeleteConfirm = true },
+                    onDelete = { dialogs.showBatchDeleteConfirm = true },
                     onTogglePin = { ids, shouldPin ->
                         viewModel.togglePinMessages(messageIds = ids, shouldPin = shouldPin)
                     },
@@ -2361,12 +2359,12 @@ internal fun ChatDetailRoute(
     )
 
     // G86：批量删除确认对话框（50 行）抽到 ChatDetailBatchDeleteDialog.kt，纯搬移不改判断。
-    if (showBatchDeleteConfirm) {
+    if (dialogs.showBatchDeleteConfirm) {
         ChatDetailBatchDeleteDialog(
             selectedMessages = selectedMessages,
             currentUserId = state.currentUserId,
             onDelete = { ids -> viewModel.deleteMessagesBatch(ids) },
-            onDismiss = { showBatchDeleteConfirm = false },
+            onDismiss = { dialogs.showBatchDeleteConfirm = false },
             onSelectionCleared = { drafts.selectedMessageIds = emptySet() },
         )
     }
