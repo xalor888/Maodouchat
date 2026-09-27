@@ -1704,3 +1704,30 @@ ongoing / `CATEGORY_CALL` 通知都到位、渠道为 `IMPORTANCE_LOW` 且无角
 **仍未覆盖（本项保持 `[~]`）**：Widget 真机加挂/渲染全链（需要真实 launcher 宿主）、
 运行时权限、通知「投递→点击」整链、`AppUpdateDownloadWorker` 真跑 WorkManager。
 
+
+### 第十三轮（2026-09-27，本地工具链侧）：`ui/navigation` 通知中心行点击收口——ui 直连持久层 5 → 0
+
+`SearchCenterDestinations.kt` 的「通知中心行点击」此前把四类行 + 五个 legacy deeplink 的
+「点哪行 → 清哪块托盘 → 去哪」全写在一个 Composable 的 lambda 里，直接触碰
+`MaodouchatApp.emitOpenMissedCalls()`/`emitOpenContacts()`、`notificationCenter.markPostInteractionsRead()`
+与四个通知服务——`frozenUiDirectPersistence` 记 5 处命中，且这段映射**零测试覆盖**。
+
+收口成两层（都在非 ui 层）：
+
+- `com.maodouchat.navigation.NotificationCenterOpenController`：只做决策——输入
+  `NotificationCenterItem`，输出 `Outcome`（`Navigate(route)` / `PopBackStack` / `GoLogin` / `None`）；
+  所有副作用（托盘清理、标记已读、事件发射）以 lambda 注入，不引用 Context/TokenManager/NavController；
+- `com.maodouchat.navigation.NotificationCenterEffects.create(context)`：Android 侧接线，
+  集中原来写在 ui 里的 app 单例/通知服务访问。
+
+UI 侧只剩「Outcome → NavController 动作」映射。行为逐字对齐（登出守卫 8.49、MISSED_CALL/
+FRIEND_REQUEST 无 deeplink 的兜底、`markPostInteractionsRead` 的 runCatching 语义）。
+
+判据：新增 `NotificationCenterOpenControllerTest`（12 例，JVM/Robolectric——期望路由要经
+`Routes.chatDetail` 的 `Uri.encode`）；**负控制**：删掉 legacy「未接来电」分支的
+`emitOpenMissedCalls()` 后**恰好** 1 条红、其余 11 条绿。`ClientArchitectureTest` 的
+`frozenUiDirectPersistence` 同步删除 `navigation/SearchCenterDestinations.kt to 5` 条目
+（棘轮收紧），架构门禁实跑绿。
+
+**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`MainContainerRoute.kt` 6、`NavGraph.kt` 4、
+`CallHistoryScreen.kt` 4、`CallViewModel.kt` 3、`AuthDestinations.kt` 2——按同一范式逐个收。
