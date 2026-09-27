@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 密聊双向提示开关（B2 surface · 双向密聊提示，health 名 sntz）。
@@ -36,6 +37,6 @@ object SecretSessionNoticePrefs {
 
     fun setShowPeerNotice(context: Context, show: Boolean) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit().putBoolean(switch.key(KEY_SHOW_PEER_NOTICE, userId), show).apply()
+        switch.prefs(context).edit { putBoolean(switch.key(KEY_SHOW_PEER_NOTICE, userId), show) }
     }
 }

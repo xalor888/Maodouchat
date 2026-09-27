@@ -1,5 +1,6 @@
 package com.maodouchat.security
 
+import androidx.core.content.edit
 import com.maodouchat.util.RuntimeFlags
 import android.content.Context
 import android.os.Build
@@ -52,17 +53,17 @@ object AppLockManager {
         val accountEnabledKey = key(KEY_ENABLED, userId)
         if (prefs.contains(accountEnabledKey) || !prefs.contains(KEY_ENABLED)) return
         // 迁移只需写入一次，apply() 异步提交足够；commit() 在主线程调用会阻塞 UI
-        prefs.edit()
-            .putBoolean(accountEnabledKey, prefs.getBoolean(KEY_ENABLED, false))
-            .putLong(
+        prefs.edit {
+            putBoolean(accountEnabledKey, prefs.getBoolean(KEY_ENABLED, false))
+            putLong(
                 key(KEY_TIMEOUT_MINUTES, userId),
                 prefs.getLong(KEY_TIMEOUT_MINUTES, DEFAULT_TIMEOUT_MINUTES)
             )
-            .putLong(key(KEY_BACKGROUND_AT, userId), prefs.getLong(KEY_BACKGROUND_AT, 0L))
-            .remove(KEY_ENABLED)
-            .remove(KEY_TIMEOUT_MINUTES)
-            .remove(KEY_BACKGROUND_AT)
-            .apply()
+            putLong(key(KEY_BACKGROUND_AT, userId), prefs.getLong(KEY_BACKGROUND_AT, 0L))
+            remove(KEY_ENABLED)
+            remove(KEY_TIMEOUT_MINUTES)
+            remove(KEY_BACKGROUND_AT)
+        }
     }
 
     fun isAuthenticationAvailable(ctx: Context): Boolean =
@@ -82,10 +83,10 @@ object AppLockManager {
         val userId = userId(ctx)
         if (userId.isBlank()) return false
         if (enabled && !isAuthenticationAvailable(ctx)) return false
-        prefs(ctx).edit()
-            .putBoolean(key(KEY_ENABLED, userId), enabled)
-            .remove(key(KEY_BACKGROUND_AT, userId))
-            .apply()
+        prefs(ctx).edit {
+            putBoolean(key(KEY_ENABLED, userId), enabled)
+            remove(key(KEY_BACKGROUND_AT, userId))
+        }
         authenticatedUserId = userId.takeIf { enabled }
         return true
     }
@@ -103,13 +104,13 @@ object AppLockManager {
         val userId = userId(ctx)
         if (userId.isBlank()) return
         val safeMinutes = minutes.takeIf(ALLOWED_TIMEOUTS::contains) ?: DEFAULT_TIMEOUT_MINUTES
-        prefs(ctx).edit().putLong(key(KEY_TIMEOUT_MINUTES, userId), safeMinutes).apply()
+        prefs(ctx).edit { putLong(key(KEY_TIMEOUT_MINUTES, userId), safeMinutes) }
     }
 
     fun noteBackground(ctx: Context, nowMillis: Long = System.currentTimeMillis()) {
         val userId = userId(ctx)
         if (userId.isBlank() || !isEnabled(ctx)) return
-        prefs(ctx).edit().putLong(key(KEY_BACKGROUND_AT, userId), nowMillis).apply()
+        prefs(ctx).edit { putLong(key(KEY_BACKGROUND_AT, userId), nowMillis) }
     }
 
     fun shouldLock(ctx: Context, nowMillis: Long = System.currentTimeMillis()): Boolean {
@@ -130,7 +131,7 @@ object AppLockManager {
         val userId = userId(ctx)
         if (userId.isBlank()) return
         authenticatedUserId = userId
-        prefs(ctx).edit().remove(key(KEY_BACKGROUND_AT, userId)).apply()
+        prefs(ctx).edit { remove(key(KEY_BACKGROUND_AT, userId)) }
     }
 
     /** Test/process reset hook used when an account is removed from this process. */

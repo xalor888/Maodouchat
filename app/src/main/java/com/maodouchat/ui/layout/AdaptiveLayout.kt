@@ -23,6 +23,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import com.maodouchat.ui.theme.Divider
 import kotlin.math.roundToInt
 
@@ -61,9 +62,9 @@ object AdaptiveLayoutConstants {
     internal fun saveFraction(context: Context, fraction: Float) {
         runCatching {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit()
-                .putFloat(KEY_FRACTION, fraction.coerceIn(MIN_LIST_FRACTION, MAX_LIST_FRACTION))
-                .apply()
+                .edit {
+                putFloat(KEY_FRACTION, fraction.coerceIn(MIN_LIST_FRACTION, MAX_LIST_FRACTION))
+            }
         }
     }
 }

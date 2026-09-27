@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 密聊截屏即焚开关（B2 surface · 截屏即焚，health 名 burnz）。
@@ -32,6 +33,6 @@ object SecretScreenshotBurnPrefs {
 
     fun setPurgeMedia(context: Context, purge: Boolean) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit().putBoolean(switch.key(KEY_PURGE_MEDIA, userId), purge).apply()
+        switch.prefs(context).edit { putBoolean(switch.key(KEY_PURGE_MEDIA, userId), purge) }
     }
 }

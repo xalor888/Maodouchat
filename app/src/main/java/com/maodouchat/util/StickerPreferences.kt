@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /**
@@ -20,7 +21,7 @@ object StickerPreferences {
     fun recordRecent(context: Context, sticker: String) {
         val userId = currentUserId(context) ?: return
         val next = StickerPolicy.pushRecent(getRecent(context), sticker)
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_RECENT, userId), PrefsJsonLists.encode(next)) }
     }
 
     fun getEnabledPackIds(context: Context): List<String> {
@@ -33,15 +34,15 @@ object StickerPreferences {
     fun setEnabledPackIds(context: Context, packIds: List<String>) {
         val userId = currentUserId(context) ?: return
         val normalized = StickerPolicy.normalizeEnabledPackIds(packIds)
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_ENABLED_PACKS, userId), PrefsJsonLists.encode(normalized)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_ENABLED_PACKS, userId), PrefsJsonLists.encode(normalized)) }
     }
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        userScopedPrefs(context, PREFS_NAME).edit()
-            .remove(userScopedKey(KEY_RECENT, userId))
-            .remove(userScopedKey(KEY_ENABLED_PACKS, userId))
-            .apply()
+        userScopedPrefs(context, PREFS_NAME).edit {
+            remove(userScopedKey(KEY_RECENT, userId))
+            remove(userScopedKey(KEY_ENABLED_PACKS, userId))
+        }
     }
 
 

@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 import android.content.Context
 
@@ -29,6 +30,6 @@ object ImageOcrPreferences {
     fun setEnabled(context: Context, enabled: Boolean) {
         val userId = userId(context)
         if (userId.isBlank()) return
-        prefs(context).edit().putBoolean(scopedKey(KEY_ENABLED, userId), enabled).apply()
+        prefs(context).edit { putBoolean(scopedKey(KEY_ENABLED, userId), enabled) }
     }
 }

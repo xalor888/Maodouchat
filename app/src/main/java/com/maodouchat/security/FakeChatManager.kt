@@ -1,5 +1,6 @@
 package com.maodouchat.security
 
+import androidx.core.content.edit
 import com.maodouchat.MainActivity
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.RuntimeFlags
@@ -93,10 +94,10 @@ object FakeChatManager {
             Log.w("FakeChatManager", "refusing to enable fake chat")
             return false
         }
-        prefs(ctx).edit()
-            .putBoolean(key(KEY_ENABLED, userId), enabled)
-            .remove(key(KEY_BACKGROUND_AT, userId))
-            .apply()
+        prefs(ctx).edit {
+            putBoolean(key(KEY_ENABLED, userId), enabled)
+            remove(key(KEY_BACKGROUND_AT, userId))
+        }
         if (!enabled) {
             if (unlockedUserId == userId) unlockedUserId = null
         }
@@ -118,14 +119,14 @@ object FakeChatManager {
         if (pin == "0000" || pin == "1234") return false
         val salt = ByteArray(SALT_BYTES).also { SecureRandom().nextBytes(it) }
         val hash = pbkdf2(pin, salt, PBKDF2_ITERATIONS)
-        prefs(ctx).edit()
-            .putString(
+        prefs(ctx).edit {
+            putString(
                 key(KEY_PIN, userId),
                 "$PBKDF2_ITERATIONS:${Base64.getEncoder().encodeToString(salt)}:${Base64.getEncoder().encodeToString(hash)}"
             )
-            .remove(key(KEY_FAILURES, userId))
-            .remove(key(KEY_LOCKED_UNTIL, userId))
-            .apply()
+            remove(key(KEY_FAILURES, userId))
+            remove(key(KEY_LOCKED_UNTIL, userId))
+        }
         return true
     }
 
@@ -145,9 +146,9 @@ object FakeChatManager {
             // 旧版本明文存储迁移：匹配则升级为哈希，不匹配按失败处理
             val legacyOk = stored == pin
             if (legacyOk) {
-                prefs(ctx).edit()
-                    .remove(key(KEY_PIN, userId))
-                    .apply()
+                prefs(ctx).edit {
+                    remove(key(KEY_PIN, userId))
+                }
                 setPin(ctx, pin)
             }
             legacyOk
@@ -162,7 +163,10 @@ object FakeChatManager {
             edit.apply()
             return false
         }
-        prefs(ctx).edit().remove(key(KEY_FAILURES, userId)).remove(key(KEY_LOCKED_UNTIL, userId)).apply()
+        prefs(ctx).edit {
+            remove(key(KEY_FAILURES, userId))
+            remove(key(KEY_LOCKED_UNTIL, userId))
+        }
         return true
     }
 
@@ -203,7 +207,7 @@ object FakeChatManager {
     fun setRelockOnBackground(ctx: Context, value: Boolean) {
         val userId = userId(ctx)
         if (userId.isBlank()) return
-        prefs(ctx).edit().putBoolean(key(KEY_RELOCK_BACKGROUND, userId), value).apply()
+        prefs(ctx).edit { putBoolean(key(KEY_RELOCK_BACKGROUND, userId), value) }
     }
 
     /** 是否应该用假聊天界面拦截前台（冷启动 / 从后台返回）。无 PIN 时绝不拦截，避免死锁。 */
@@ -225,14 +229,14 @@ object FakeChatManager {
         val userId = userId(ctx)
         if (userId.isBlank()) return
         unlockedUserId = userId
-        prefs(ctx).edit().remove(key(KEY_BACKGROUND_AT, userId)).apply()
+        prefs(ctx).edit { remove(key(KEY_BACKGROUND_AT, userId)) }
     }
 
     /** 退到后台时记录时间戳；若开启了「回前台重锁」则由 shouldShowFake 依据它重新拦截。 */
     fun noteBackground(ctx: Context, nowMillis: Long = System.currentTimeMillis()) {
         val userId = userId(ctx)
         if (userId.isBlank() || !isEnabled(ctx)) return
-        prefs(ctx).edit().putLong(key(KEY_BACKGROUND_AT, userId), nowMillis).apply()
+        prefs(ctx).edit { putLong(key(KEY_BACKGROUND_AT, userId), nowMillis) }
     }
 
     /** 手动锁定（设置页关闭功能时也会隐式调用）。 */
@@ -240,7 +244,7 @@ object FakeChatManager {
         val userId = userId(ctx)
         if (userId.isBlank()) return
         if (unlockedUserId == userId) unlockedUserId = null
-        prefs(ctx).edit().putLong(key(KEY_BACKGROUND_AT, userId), System.currentTimeMillis()).apply()
+        prefs(ctx).edit { putLong(key(KEY_BACKGROUND_AT, userId), System.currentTimeMillis()) }
     }
 
     /** 账号被移除 / 进程会话重置时调用（对齐 AppLockManager.clearAuthenticatedSession）。 */
@@ -260,7 +264,7 @@ object FakeChatManager {
     fun markLauncherIconRestored(ctx: Context) {
         val userId = userId(ctx)
         if (userId.isBlank()) return
-        prefs(ctx).edit().remove(key(KEY_HIDE_ICON, userId)).apply()
+        prefs(ctx).edit { remove(key(KEY_HIDE_ICON, userId)) }
     }
 
     /**
@@ -285,7 +289,7 @@ object FakeChatManager {
             false
         }
         if (restored) {
-            prefs(ctx).edit().remove(key(KEY_HIDE_ICON, userId)).apply()
+            prefs(ctx).edit { remove(key(KEY_HIDE_ICON, userId)) }
         }
     }
 
@@ -313,7 +317,7 @@ object FakeChatManager {
             false
         }.also { success ->
             if (success) {
-                prefs(ctx).edit().putBoolean(key(KEY_HIDE_ICON, userId), hidden).apply()
+                prefs(ctx).edit { putBoolean(key(KEY_HIDE_ICON, userId), hidden) }
             }
         }
     }

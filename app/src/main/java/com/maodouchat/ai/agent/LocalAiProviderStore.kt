@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.maodouchat.network.TokenManager
@@ -37,10 +38,10 @@ object LocalAiProviderStore {
     fun upsertProvider(context: Context, provider: LocalAiProvider): LocalAiProvider {
         val prefs = prefs(context) ?: return provider
         val next = listProviders(context).filterNot { it.id == provider.id } + provider
-        prefs.edit()
-            .putString(scoped(context, KEY_PROVIDERS), encodeProviders(next))
-            .putString(scoped(context, KEY_ACTIVE), provider.id)
-            .apply()
+        prefs.edit {
+            putString(scoped(context, KEY_PROVIDERS), encodeProviders(next))
+            putString(scoped(context, KEY_ACTIVE), provider.id)
+        }
         return provider
     }
 
@@ -56,7 +57,7 @@ object LocalAiProviderStore {
     }
 
     fun setActive(context: Context, id: String) {
-        prefs(context)?.edit()?.putString(scoped(context, KEY_ACTIVE), id)?.apply()
+        prefs(context)?.edit { putString(scoped(context, KEY_ACTIVE), id) }
     }
 
     fun overlayMode(context: Context): AgentOverlayMode {
@@ -65,7 +66,7 @@ object LocalAiProviderStore {
     }
 
     fun setOverlayMode(context: Context, mode: AgentOverlayMode) {
-        prefs(context)?.edit()?.putString(scoped(context, KEY_OVERLAY), mode.name)?.apply()
+        prefs(context)?.edit { putString(scoped(context, KEY_OVERLAY), mode.name) }
     }
 
     fun loadSessions(context: Context): List<AgentSession> {
@@ -74,9 +75,9 @@ object LocalAiProviderStore {
     }
 
     fun saveSessions(context: Context, sessions: List<AgentSession>) {
-        prefs(context)?.edit()
-            ?.putString(scoped(context, KEY_SESSIONS), encodeSessions(sessions.takeLast(12)))
-            ?.apply()
+        prefs(context)?.edit {
+            putString(scoped(context, KEY_SESSIONS), encodeSessions(sessions.takeLast(12)))
+        }
     }
 
     fun newProviderDraft(protocol: LocalAiProtocol = LocalAiProtocol.OPENAI_CHAT_COMPLETIONS): LocalAiProvider {

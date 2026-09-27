@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 import org.json.JSONArray
 import org.json.JSONObject
@@ -20,14 +21,14 @@ object ChatFolderPreferences {
 
     fun setFolders(context: Context, folders: List<ChatFolder>) {
         val userId = currentUserId(context) ?: return
-        userScopedPrefs(context, PREFS_NAME).edit()
-            .putString(userScopedKey(KEY_FOLDERS, userId), encodeFolders(folders))
-            .apply()
+        userScopedPrefs(context, PREFS_NAME).edit {
+            putString(userScopedKey(KEY_FOLDERS, userId), encodeFolders(folders))
+        }
     }
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_FOLDERS, userId)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { remove(userScopedKey(KEY_FOLDERS, userId)) }
     }
 
 

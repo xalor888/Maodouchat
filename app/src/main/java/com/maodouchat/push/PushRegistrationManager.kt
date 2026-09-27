@@ -2,6 +2,7 @@ package com.maodouchat.push
 
 import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
 import java.util.UUID
@@ -41,9 +42,9 @@ object PushRegistrationManager {
         registrationState = RegistrationState.UNKNOWN
         lastRegistrationError = null
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_REGISTRATION_STATE, RegistrationState.UNKNOWN.name)
-            .apply()
+            .edit {
+            putString(KEY_REGISTRATION_STATE, RegistrationState.UNKNOWN.name)
+        }
     }
 
     fun getLastRegistrationError(): String? = lastRegistrationError
@@ -84,10 +85,10 @@ object PushRegistrationManager {
     private fun markKeepAliveReady(context: Context) {
         val now = System.currentTimeMillis()
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putLong(KEY_LAST_REGISTERED_AT, now)
-            .putString(KEY_REGISTRATION_STATE, RegistrationState.REGISTERED.name)
-            .apply()
+            .edit {
+            putLong(KEY_LAST_REGISTERED_AT, now)
+            putString(KEY_REGISTRATION_STATE, RegistrationState.REGISTERED.name)
+        }
         registrationState = RegistrationState.REGISTERED
         lastRegistrationError = null
     }
@@ -98,7 +99,7 @@ object PushRegistrationManager {
         prefs.getString(KEY_DEVICE_ID, null)?.takeIf(String::isNotBlank)?.let { return it }
         val generated = UUID.randomUUID().toString()
         @Suppress("ApplySharedPref")
-        prefs.edit().putString(KEY_DEVICE_ID, generated).commit()
+        prefs.edit(commit = true) { putString(KEY_DEVICE_ID, generated) }
         return generated
     }
 }

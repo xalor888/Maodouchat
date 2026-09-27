@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +34,7 @@ object ChatAppearancePreferences {
 
     fun setWallpaper(context: Context, preset: ChatWallpaperPreset) {
         val userId = currentUserId(context) ?: return
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_WALLPAPER, userId), preset.id).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_WALLPAPER, userId), preset.id) }
     }
 
     /** 自定义图片壁纸的本地 URI（用户选择的图片）；null 表示未设置。 */
@@ -58,13 +59,13 @@ object ChatAppearancePreferences {
             } ?: return null
             target.absoluteFile.toURI().toString()
         }.getOrNull()?.also { stored ->
-            userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_CUSTOM_WALLPAPER, userId), stored).apply()
+            userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_CUSTOM_WALLPAPER, userId), stored) }
         }
     }
 
     fun clearCustomWallpaperUri(context: Context) {
         val userId = currentUserId(context) ?: return
-        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_CUSTOM_WALLPAPER, userId)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { remove(userScopedKey(KEY_CUSTOM_WALLPAPER, userId)) }
         runCatching {
             java.io.File(context.filesDir, "wallpapers/custom_$userId.jpg").delete()
         }
@@ -78,7 +79,7 @@ object ChatAppearancePreferences {
 
     fun setFontScale(context: Context, scale: ChatFontScale) {
         val userId = currentUserId(context) ?: return
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_FONT, userId), scale.id).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_FONT, userId), scale.id) }
     }
 
     /** 聊天气泡颜色 id（见 ChatBubbleColorPalette）。 */
@@ -97,7 +98,7 @@ object ChatAppearancePreferences {
     fun setBubbleColor(context: Context, colorId: String) {
         val userId = currentUserId(context) ?: return
         val normalized = com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(colorId)
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_BUBBLE_COLOR, userId), normalized).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_BUBBLE_COLOR, userId), normalized) }
         _appearanceVersion.value++
     }
 
@@ -110,7 +111,7 @@ object ChatAppearancePreferences {
 
     fun setBubbleShape(context: Context, shapeId: String) {
         val userId = currentUserId(context) ?: return
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_BUBBLE_SHAPE, userId), normalizeBubbleShape(shapeId)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_BUBBLE_SHAPE, userId), normalizeBubbleShape(shapeId)) }
         _appearanceVersion.value++
     }
 
@@ -121,13 +122,13 @@ object ChatAppearancePreferences {
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        userScopedPrefs(context, PREFS_NAME).edit()
-            .remove(userScopedKey(KEY_WALLPAPER, userId))
-            .remove(userScopedKey(KEY_CUSTOM_WALLPAPER, userId))
-            .remove(userScopedKey(KEY_FONT, userId))
-            .remove(userScopedKey(KEY_BUBBLE_COLOR, userId))
-            .remove(userScopedKey(KEY_BUBBLE_SHAPE, userId))
-            .apply()
+        userScopedPrefs(context, PREFS_NAME).edit {
+            remove(userScopedKey(KEY_WALLPAPER, userId))
+            remove(userScopedKey(KEY_CUSTOM_WALLPAPER, userId))
+            remove(userScopedKey(KEY_FONT, userId))
+            remove(userScopedKey(KEY_BUBBLE_COLOR, userId))
+            remove(userScopedKey(KEY_BUBBLE_SHAPE, userId))
+        }
         runCatching {
             java.io.File(context.filesDir, "wallpapers/custom_$userId.jpg").delete()
         }

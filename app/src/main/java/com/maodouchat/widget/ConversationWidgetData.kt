@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.text.format.DateUtils
 import android.widget.RemoteViews
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
@@ -64,10 +65,10 @@ object ConversationWidgetData {
 
     fun saveConfig(context: Context, widgetId: Int, config: WidgetConfig) {
         // 8.40：保存配置即置「已配置」标记——onUpdate 不再无条件抹掉既有实例配置
-        prefs(context).edit()
-            .putString(configKey(widgetId), encodeConfig(config))
-            .putBoolean(configuredKey(widgetId), true)
-            .apply()
+        prefs(context).edit {
+            putString(configKey(widgetId), encodeConfig(config))
+            putBoolean(configuredKey(widgetId), true)
+        }
     }
 
     /** 该实例是否已由配置页保存过配置（未配置 = 全新实例，onUpdate 可清理）。 */
@@ -75,10 +76,10 @@ object ConversationWidgetData {
         prefs(context).getBoolean(configuredKey(widgetId), false)
 
     fun removeWidget(context: Context, widgetId: Int) {
-        prefs(context).edit()
-            .remove(configKey(widgetId))
-            .remove(configuredKey(widgetId))
-            .apply()
+        prefs(context).edit {
+            remove(configKey(widgetId))
+            remove(configuredKey(widgetId))
+        }
     }
 
     fun allWidgetIds(context: Context): List<Int> =
@@ -197,7 +198,7 @@ object ConversationWidgetData {
         val now = System.currentTimeMillis()
         val last = prefs.getLong(KEY_LAST_PUSH_MS, 0L)
         if (now - last < ConversationWidgetContract.PUSH_WINDOW_MS) return
-        prefs.edit().putLong(KEY_LAST_PUSH_MS, now).apply()
+        prefs.edit { putLong(KEY_LAST_PUSH_MS, now) }
         // Android 8+ 后台 startService 抛 IllegalStateException（被吞掉后小组件静默不更新）。
         // refreshAll 在 applicationScope 协程内跑（本地 DB 读取 + RemoteViews 更新），
         // 无需服务进程；进程被杀场景由 AlarmManager 周期同步兜底。

@@ -1,6 +1,7 @@
 package com.maodouchat.update
 
 import android.content.Context
+import androidx.core.content.edit
 
 /** 同一 versionCode 只弹一次；用户点稍后后等下一版再弹。 */
 object AppUpdatePromptStore {
@@ -12,8 +13,8 @@ object AppUpdatePromptStore {
 
     fun markOffered(context: Context, versionCode: Int) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putInt(KEY_OFFERED, versionCode)
-            .apply()
+            .edit {
+            putInt(KEY_OFFERED, versionCode)
+        }
     }
 }

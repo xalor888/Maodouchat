@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 密聊设备核验开关（B2 surface · 设备核验，health 名 dvz）。
@@ -35,9 +36,9 @@ object SecretDeviceVerifyPrefs {
 
     fun setVerifiedFingerprints(context: Context, fingerprints: Set<String>) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit()
-            .putStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), fingerprints.map { it.trim() }.filter { it.isNotBlank() }.toSet())
-            .apply()
+        switch.prefs(context).edit {
+            putStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), fingerprints.map { it.trim() }.filter { it.isNotBlank() }.toSet())
+        }
     }
 
     fun isFingerprintVerified(context: Context, fingerprint: String): Boolean {
@@ -49,8 +50,8 @@ object SecretDeviceVerifyPrefs {
     fun markFingerprintVerified(context: Context, fingerprint: String) {
         if (fingerprint.isBlank()) return
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit()
-            .putStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), verifiedFingerprints(context) + fingerprint.trim())
-            .apply()
+        switch.prefs(context).edit {
+            putStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), verifiedFingerprints(context) + fingerprint.trim())
+        }
     }
 }

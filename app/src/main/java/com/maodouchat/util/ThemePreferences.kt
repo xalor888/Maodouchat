@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,7 +73,7 @@ object ThemePreferences {
             val storedStyle = prefs.getString(KEY_THEME_STYLE, DEFAULT_THEME_STYLE)
             val normalizedStyle = normalizeStyle(storedStyle)
             if (storedStyle != normalizedStyle) {
-                prefs.edit().putString(KEY_THEME_STYLE, normalizedStyle).apply()
+                prefs.edit { putString(KEY_THEME_STYLE, normalizedStyle) }
             }
             _family.value = normalizedStyle
             _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
@@ -93,9 +94,9 @@ object ThemePreferences {
         val normalized = normalize(mode)
         ensureSeeded(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_THEME, normalized)
-            .apply()
+            .edit {
+            putString(KEY_THEME, normalized)
+        }
         // Listener also updates; set immediately for same-thread readers
         _mode.value = normalized
     }
@@ -116,9 +117,9 @@ object ThemePreferences {
         val normalized = normalizeStyle(style)
         ensureSeeded(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_THEME_STYLE, normalized)
-            .apply()
+            .edit {
+            putString(KEY_THEME_STYLE, normalized)
+        }
         _family.value = normalized
     }
 
@@ -139,9 +140,9 @@ object ThemePreferences {
         val normalized = normalizeAccent(accentId)
         ensureSeeded(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_ACCENT, normalized)
-            .apply()
+            .edit {
+            putString(KEY_ACCENT, normalized)
+        }
         _accent.value = normalized
     }
 
@@ -156,10 +157,10 @@ object ThemePreferences {
         val s = startMinutes.coerceIn(0, 23 * 60 + 59)
         val e = endMinutes.coerceIn(0, 23 * 60 + 59)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putInt(KEY_NIGHT_START, s)
-            .putInt(KEY_NIGHT_END, e)
-            .apply()
+            .edit {
+            putInt(KEY_NIGHT_START, s)
+            putInt(KEY_NIGHT_END, e)
+        }
         _nightStart.value = s
         _nightEnd.value = e
     }
@@ -173,9 +174,9 @@ object ThemePreferences {
     fun setOledBlack(context: Context, enabled: Boolean) {
         ensureSeeded(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_OLED_BLACK, enabled)
-            .apply()
+            .edit {
+            putBoolean(KEY_OLED_BLACK, enabled)
+        }
         _oledBlack.value = enabled
     }
 }

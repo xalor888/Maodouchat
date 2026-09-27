@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /**
@@ -21,7 +22,7 @@ class AccountScopedPrefs private constructor(
         prefs.getBoolean(scopedKey(key), default)
 
     fun putBoolean(key: String, value: Boolean) {
-        prefs.edit().putBoolean(scopedKey(key), value).apply()
+        prefs.edit { putBoolean(scopedKey(key), value) }
     }
 
     fun getInt(key: String, default: Int): Int =

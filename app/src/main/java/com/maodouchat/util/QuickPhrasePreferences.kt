@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /**
@@ -29,18 +30,18 @@ object QuickPhrasePreferences {
     fun addPhrase(context: Context, phrase: String) {
         val userId = currentUserId(context) ?: return
         val next = QuickPhrasePolicy.add(getCustomPhrases(context), phrase)
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_PHRASES, userId), PrefsJsonLists.encode(next)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_PHRASES, userId), PrefsJsonLists.encode(next)) }
     }
 
     fun removePhrase(context: Context, phrase: String) {
         val userId = currentUserId(context) ?: return
         val next = QuickPhrasePolicy.remove(getCustomPhrases(context), phrase)
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_PHRASES, userId), PrefsJsonLists.encode(next)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_PHRASES, userId), PrefsJsonLists.encode(next)) }
     }
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_PHRASES, userId)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { remove(userScopedKey(KEY_PHRASES, userId)) }
     }
 
 

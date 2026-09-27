@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,9 +45,9 @@ object ChromePreferences {
     fun setFloatingDockEnabled(context: Context, enabled: Boolean) {
         ensureSeeded(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_FLOATING_DOCK, enabled)
-            .apply()
+            .edit {
+            putBoolean(KEY_FLOATING_DOCK, enabled)
+        }
         _floatingDock.value = enabled
     }
 }

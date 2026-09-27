@@ -2,6 +2,7 @@ package com.maodouchat.security.pin
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.maodouchat.security.pin.PinSecurityPolicy.RateLimiter
 import com.maodouchat.security.pin.PinSecurityPolicy.AuthenticatedSessionCache
 import com.maodouchat.security.pin.PinSecurityPolicy.VerificationOutcome
@@ -46,10 +47,10 @@ class DefaultPinLockRepository(
     override suspend fun setPin(targetId: String, pin: String): Boolean {
         if (!PinSecurityPolicy.isValidPinFormat(pin)) return false
         val encoded = PinSecurityPolicy.encodeStoredHash(pin)
-        prefs.edit()
-            .putString(key(KEY_PIN_HASH, targetId), encoded.formattedString)
-            .putString(key(KEY_PIN_SALT, targetId), encoded.saltHex)
-            .apply()
+        prefs.edit {
+            putString(key(KEY_PIN_HASH, targetId), encoded.formattedString)
+            putString(key(KEY_PIN_SALT, targetId), encoded.saltHex)
+        }
         rateLimiter.reset(targetId)
         return true
     }
@@ -69,10 +70,10 @@ class DefaultPinLockRepository(
                 }
                 if (outcome.needsUpgrade && outcome.upgradedHash != null) {
                     val upgraded = outcome.upgradedHash
-                    prefs.edit()
-                        .putString(key(KEY_PIN_HASH, targetId), upgraded.formattedString)
-                        .putString(key(KEY_PIN_SALT, targetId), upgraded.saltHex)
-                        .apply()
+                    prefs.edit {
+                        putString(key(KEY_PIN_HASH, targetId), upgraded.formattedString)
+                        putString(key(KEY_PIN_SALT, targetId), upgraded.saltHex)
+                    }
                 }
                 true
             }
@@ -87,10 +88,10 @@ class DefaultPinLockRepository(
         rateLimiter.remainingLockoutMs(targetId)
 
     override suspend fun removePin(targetId: String) {
-        prefs.edit()
-            .remove(key(KEY_PIN_HASH, targetId))
-            .remove(key(KEY_PIN_SALT, targetId))
-            .apply()
+        prefs.edit {
+            remove(key(KEY_PIN_HASH, targetId))
+            remove(key(KEY_PIN_SALT, targetId))
+        }
         rateLimiter.reset(targetId)
         sessionCache.invalidate(targetId)
     }

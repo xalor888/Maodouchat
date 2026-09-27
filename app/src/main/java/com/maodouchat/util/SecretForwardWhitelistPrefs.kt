@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 密聊转发白名单开关（B2 surface · 转发白名单，health 名 fwlz）。
@@ -35,9 +36,9 @@ object SecretForwardWhitelistPrefs {
 
     fun setWhitelist(context: Context, targets: Set<String>) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit()
-            .putStringSet(switch.key(KEY_WHITELIST, userId), targets.map { it.trim() }.filter { it.isNotBlank() }.toSet())
-            .apply()
+        switch.prefs(context).edit {
+            putStringSet(switch.key(KEY_WHITELIST, userId), targets.map { it.trim() }.filter { it.isNotBlank() }.toSet())
+        }
     }
 
     fun isForwardAllowed(context: Context, targetId: String): Boolean {

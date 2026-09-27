@@ -2,6 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /** Account-scoped local AI consent and on-device safety preferences. */
@@ -57,9 +58,9 @@ object AiPrivacyPreferences {
 
     fun setDismissedSafetyMessageIds(context: Context, messageIds: Set<String>) {
         val account = account(context) ?: return
-        account.prefs.edit()
-            .putStringSet(scopedKey(KEY_DISMISSED_SAFETY_IDS, account.userId), messageIds.toSet())
-            .apply()
+        account.prefs.edit {
+            putStringSet(scopedKey(KEY_DISMISSED_SAFETY_IDS, account.userId), messageIds.toSet())
+        }
     }
 
     /**
@@ -68,28 +69,28 @@ object AiPrivacyPreferences {
      */
     fun enableAllDefaults(context: Context) {
         val account = account(context) ?: return
-        account.prefs.edit()
-            .putBoolean(scopedKey(KEY_CONSENT, account.userId), true)
-            .putBoolean(scopedKey(KEY_USER_ENABLED, account.userId), true)
-            .putBoolean(scopedKey(KEY_LOCAL_SAFETY, account.userId), true)
-            .putBoolean(scopedKey(KEY_AUTO_TRANSLATE, account.userId), true)
-            .apply()
+        account.prefs.edit {
+            putBoolean(scopedKey(KEY_CONSENT, account.userId), true)
+            putBoolean(scopedKey(KEY_USER_ENABLED, account.userId), true)
+            putBoolean(scopedKey(KEY_LOCAL_SAFETY, account.userId), true)
+            putBoolean(scopedKey(KEY_AUTO_TRANSLATE, account.userId), true)
+        }
         ImageOcrPreferences.setEnabled(context, true)
     }
 
     fun revoke(context: Context) {
         val account = account(context) ?: return
-        account.prefs.edit()
-            .putBoolean(scopedKey(KEY_CONSENT, account.userId), false)
-            .putBoolean(scopedKey(KEY_USER_ENABLED, account.userId), false)
-            .putBoolean(scopedKey(KEY_LOCAL_SAFETY, account.userId), false)
-            .remove(scopedKey(KEY_DISMISSED_SAFETY_IDS, account.userId))
-            .apply()
+        account.prefs.edit {
+            putBoolean(scopedKey(KEY_CONSENT, account.userId), false)
+            putBoolean(scopedKey(KEY_USER_ENABLED, account.userId), false)
+            putBoolean(scopedKey(KEY_LOCAL_SAFETY, account.userId), false)
+            remove(scopedKey(KEY_DISMISSED_SAFETY_IDS, account.userId))
+        }
     }
 
     private fun putBoolean(context: Context, key: String, value: Boolean) {
         val account = account(context) ?: return
-        account.prefs.edit().putBoolean(scopedKey(key, account.userId), value).apply()
+        account.prefs.edit { putBoolean(scopedKey(key, account.userId), value) }
     }
 
     private fun account(context: Context): AccountPreferences? {
