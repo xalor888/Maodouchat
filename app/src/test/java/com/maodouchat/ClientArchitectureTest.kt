@@ -1112,10 +1112,10 @@ class ClientArchitectureTest {
         "screen/call/CallViewModel.kt" to 3,
         "screen/chatdetail/AiTasksScreen.kt" to 9,
         "screen/chatdetail/ChatDetailAiIntents.kt" to 2,
-        "screen/chatdetail/ChatDetailAiResults.kt" to 1,
         "screen/chatdetail/ChatDetailDisappearing.kt" to 3,
         "screen/chatdetail/ChatDetailLiveLocation.kt" to 2,
-        "screen/chatdetail/ChatDetailMedia.kt" to 1,
+        // 第二十九批：AiResults/Media 唯一的命中是各自头部残留的 `import ...MaodouchatApp`
+        //（正文零引用，拆分残留），随死 import 一并删除后两文件归零，条目删除。
         "screen/chatdetail/ChatDetailViewModel.kt" to 19,
         // G328c：装配搬到 ChatDetailDeps 之后，直连持久层的命中随之搬过去
         // （VM 35→19，deps 17，总数 192→193：多出的 1 是 deps 构造函数里对 VM 的引用被计入）。
