@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.theme.LocalChatBubbleColor
@@ -135,7 +136,7 @@ internal fun LocationBubble(
                     .background(if (isOwnMessage) LocalChatBubbleColor.current else palette.chatBubbleReceived)
                     .clickable {
                         val label = android.net.Uri.encode(payload.label)
-                        val uri = android.net.Uri.parse("geo:${payload.latitude},${payload.longitude}?q=${payload.latitude},${payload.longitude}($label)")
+                        val uri = "geo:${payload.latitude},${payload.longitude}?q=${payload.latitude},${payload.longitude}($label)".toUri()
                         runCatching {
                             context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
                         }

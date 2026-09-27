@@ -113,7 +113,7 @@ object MediaCache {
     fun isRemoteAttachmentUri(value: String): Boolean = value.startsWith("maodou-attachment://")
 
     fun isReadableLocalUri(context: Context, value: String): Boolean = runCatching {
-        val uri = Uri.parse(value)
+        val uri = value.toUri()
         when (uri.scheme?.lowercase()) {
             "file" -> File(uri.path ?: return@runCatching false).let { it.isFile && it.length() > 0L }
             "content", "android.resource" -> context.contentResolver.openAssetFileDescriptor(uri, "r")?.use {
@@ -125,7 +125,7 @@ object MediaCache {
 
     fun releasePersistableReadPermission(context: Context, value: String) {
         runCatching {
-            val uri = Uri.parse(value)
+            val uri = value.toUri()
             if (uri.scheme == "content") {
                 context.contentResolver.releasePersistableUriPermission(
                     uri,
@@ -219,7 +219,7 @@ object MediaCache {
     }.getOrDefault(false)
 
     fun preparedAttachmentSourceFile(context: Context, sourceUri: String): File? = runCatching {
-        val uri = Uri.parse(sourceUri)
+        val uri = sourceUri.toUri()
         if (uri.scheme != "file") return@runCatching null
         val file = File(uri.path ?: return@runCatching null)
         val root = File(context.cacheDir, "attachment-sources").canonicalPath + File.separator

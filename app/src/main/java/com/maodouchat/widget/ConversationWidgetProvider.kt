@@ -6,10 +6,10 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.RemoteViews
 import android.widget.Toast
 import androidx.core.app.RemoteInput
+import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.quickreply.QuickReplyPolicy
@@ -133,7 +133,7 @@ class ConversationWidgetProvider : AppWidgetProvider() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID, cleanChatId)
                 putExtra(NotificationIntents.EXTRA_NOTIFICATION_OWNER_USER_ID, ownerUserId)
-                data = Uri.parse("maodouchat-widget://open/$cleanChatId")
+                data = "maodouchat-widget://open/$cleanChatId".toUri()
             }
             val pi = PendingIntent.getActivity(
                 context,

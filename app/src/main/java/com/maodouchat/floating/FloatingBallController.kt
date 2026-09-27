@@ -16,6 +16,7 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import java.lang.ref.WeakReference
@@ -59,7 +60,7 @@ object FloatingBallController {
         runCatching {
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                android.net.Uri.parse("package:${context.packageName}")
+                "package:${context.packageName}".toUri()
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         }

@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.model.Message
@@ -8,7 +9,6 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.ImagePicker
-import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -71,7 +71,7 @@ internal fun ChatDetailViewModel.transcribeVoiceMessage(messageId: String, opera
         }
         val prepared = withContext(Dispatchers.IO) {
             val localMessage = ensureLocalAttachment(message).getOrNull() ?: return@withContext null
-            val voiceUri = runCatching { Uri.parse(localMessage.parsedContent()) }.getOrNull()
+            val voiceUri = runCatching { localMessage.parsedContent().toUri() }.getOrNull()
                 ?: return@withContext null
             val base64 = MediaCache.uriToRawBase64(getApplication(), voiceUri) ?: return@withContext null
             base64 to (localMessage.parsedMeta().fileMimeType ?: "audio/mp4")
@@ -182,7 +182,7 @@ internal fun ChatDetailViewModel.analyzeImageMessage(messageId: String, mode: Ai
                 val localMessage = ensureLocalAttachment(message).getOrThrow()
                 ImagePicker.uriToBase64(
                     context = getApplication(),
-                    uri = Uri.parse(localMessage.parsedContent()),
+                    uri = localMessage.parsedContent().toUri(),
                     maxWidth = 1_024,
                     quality = 72
                 )
@@ -324,7 +324,7 @@ internal fun ChatDetailViewModel.analyzeFileMessage(
         }
         val prepared = withContext(Dispatchers.IO) {
             val localMessage = ensureLocalAttachment(message).getOrNull() ?: return@withContext null
-            val uri = runCatching { Uri.parse(localMessage.parsedContent()) }.getOrNull() ?: return@withContext null
+            val uri = runCatching { localMessage.parsedContent().toUri() }.getOrNull() ?: return@withContext null
             val base64 = MediaCache.uriToRawBase64(getApplication(), uri) ?: return@withContext null
             resolveAiFileInput(localMessage, base64)
         }
@@ -422,7 +422,7 @@ internal data class PreparedAiFile(val base64: String, val fileName: String, val
 internal fun ChatDetailViewModel.resolveAiFileInput(message: Message, base64: String): PreparedAiFile? {
     val metadata = message.parsedMeta()
     val storedName = metadata.fileName?.trim()?.takeIf(String::isNotBlank)
-    val cachedName = runCatching { Uri.parse(message.parsedContent()).lastPathSegment?.substringAfterLast('/') }.getOrNull()
+    val cachedName = runCatching { message.parsedContent().toUri().lastPathSegment?.substringAfterLast('/') }.getOrNull()
     val candidateName = storedName ?: cachedName ?: "document"
     val extension = candidateName.substringAfterLast('.', "").lowercase()
     val canonicalMime = when (extension) {

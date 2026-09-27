@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.net.toUri
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,7 +53,7 @@ object ChatAppearancePreferences {
         return runCatching {
             val dir = java.io.File(context.filesDir, "wallpapers").apply { mkdirs() }
             val target = java.io.File(dir, "custom_$userId.jpg")
-            context.contentResolver.openInputStream(android.net.Uri.parse(sourceUri))?.use { input ->
+            context.contentResolver.openInputStream(sourceUri.toUri())?.use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
             } ?: return null
             target.absoluteFile.toURI().toString()

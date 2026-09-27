@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Build
+import androidx.core.net.toUri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -108,7 +109,7 @@ object VoicePlayer {
                     source.startsWith("content://") -> {
                         // content:// URI 必须用 setDataSource(Context, Uri) 重载，
                         // 否则部分 ROM/API 级别上会因 ContentProvider 权限解析失败而抛 IOException
-                        val uri = android.net.Uri.parse(source)
+                        val uri = source.toUri()
                         val ctx = appContext
                             ?: throw IllegalStateException("VoicePlayer.ensureContext not called")
                         setDataSource(ctx, uri)

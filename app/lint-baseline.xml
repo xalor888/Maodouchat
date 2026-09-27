@@ -72,16 +72,7 @@
             column="6"/>
     </issue>
 
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0"
-        errorLine1="    implementation(&quot;androidx.core:core-ktx:1.12.0&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="308"
-            column="20"/>
-    </issue>
+    
 
     <issue
         id="GradleDependency"
@@ -105,27 +96,9 @@
             column="20"/>
     </issue>
 
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.fragment:fragment-ktx than 1.6.2 is available: 1.9.0"
-        errorLine1="    implementation(&quot;androidx.fragment:fragment-ktx:1.6.2&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="312"
-            column="20"/>
-    </issue>
+    
 
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.navigation:navigation-compose than 2.7.7 is available: 2.10.1"
-        errorLine1="    implementation(&quot;androidx.navigation:navigation-compose:2.7.7&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="331"
-            column="20"/>
-    </issue>
+    
 
     <issue
         id="GradleDependency"
@@ -182,16 +155,7 @@
             column="20"/>
     </issue>
 
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.work:work-runtime-ktx than 2.9.1 is available: 2.11.2"
-        errorLine1="    implementation(&quot;androidx.work:work-runtime-ktx:2.9.1&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="377"
-            column="20"/>
-    </issue>
+    
 
     <issue
         id="GradleDependency"
@@ -270,16 +234,7 @@
             column="31"/>
     </issue>
 
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.work:work-testing than 2.9.1 is available: 2.11.2"
-        errorLine1="    androidTestImplementation(&quot;androidx.work:work-testing:2.9.1&quot;)"
-        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="407"
-            column="31"/>
-    </issue>
+    
 
     <issue
         id="GradleDependency"
@@ -1437,16 +1392,7 @@
             file="src/main/res/mipmap-xxxhdpi/ic_launcher.png"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                Intent(Intent.ACTION_VIEW, Uri.parse(context.getString(R.string.about_source_url)))"
-        errorLine2="                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/settings/AboutScreen.kt"
-            line="166"
-            column="60"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -1602,27 +1548,9 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                    Intent(Intent.ACTION_VIEW, Uri.parse(destination.url))"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/navigation/AppLinkOpener.kt"
-            line="41"
-            column="48"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                    Intent(Intent.ACTION_VIEW, Uri.parse(originalRaw.trim()))"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/navigation/AppLinkOpener.kt"
-            line="43"
-            column="48"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -1701,16 +1629,7 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val sourceUri = Uri.parse(intent.uri)"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/attachment/AttachmentPreparationService.kt"
-            line="33"
-            column="25"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -1756,27 +1675,9 @@
             column="17"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.missedCallDataUri(callId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/CallNotificationService.kt"
-            line="41"
-            column="20"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.incomingCallDataUri(callId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/CallNotificationService.kt"
-            line="110"
-            column="20"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -1789,16 +1690,7 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            context.contentResolver.openInputStream(android.net.Uri.parse(sourceUri))?.use { input ->"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatAppearancePreferences.kt"
-            line="55"
-            column="53"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -1866,93 +1758,21 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val voiceUri = runCatching { Uri.parse(localMessage.parsedContent()) }.getOrNull()"
-        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailAiMediaAnalysis.kt"
-            line="74"
-            column="42"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                    uri = Uri.parse(localMessage.parsedContent()),"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailAiMediaAnalysis.kt"
-            line="185"
-            column="27"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val uri = runCatching { Uri.parse(localMessage.parsedContent()) }.getOrNull() ?: return@withContext null"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailAiMediaAnalysis.kt"
-            line="327"
-            column="37"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="    val cachedName = runCatching { Uri.parse(message.parsedContent()).lastPathSegment?.substringAfterLast(&apos;/&apos;) }.getOrNull()"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailAiMediaAnalysis.kt"
-            line="425"
-            column="36"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        setVideoURI(android.net.Uri.parse(videoContent))"
-        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailFullscreenMedia.kt"
-            line="248"
-            column="37"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val parsed = android.net.Uri.parse(contentUri)"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailIntents.kt"
-            line="64"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                        putExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri.parse(contentUri))"
-        errorLine2="                                                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt"
-            line="2661"
-            column="87"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                                                        onPickUri(Uri.parse(item.uriString), item.id)"
-        errorLine2="                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailTextInputDialogs.kt"
-            line="195"
-            column="67"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2086,71 +1906,17 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            .setData(Uri.parse(&quot;maodouchat-widget://sync&quot;))"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetData.kt"
-            line="223"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                .setData(Uri.parse(ConversationWidgetContract.rowDataUri(&quot;open&quot;, widgetId, rowIndex)))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetData.kt"
-            line="248"
-            column="26"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                .setData(Uri.parse(ConversationWidgetContract.rowDataUri(&quot;reply&quot;, widgetId, rowIndex)))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetData.kt"
-            line="267"
-            column="26"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                .setData(Uri.parse(ConversationWidgetContract.rowDataUri(&quot;read&quot;, widgetId, rowIndex)))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetData.kt"
-            line="282"
-            column="26"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                .setData(Uri.parse(ConversationWidgetContract.rowDataUri(&quot;empty&quot;, widgetId, rowIndex)))"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetData.kt"
-            line="304"
-            column="26"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                data = Uri.parse(&quot;maodouchat-widget://open/$cleanChatId&quot;)"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetProvider.kt"
-            line="122"
-            column="24"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2460,16 +2226,7 @@
             column="17"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                android.net.Uri.parse(&quot;package:${context.packageName}&quot;)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/floating/FloatingBallController.kt"
-            line="62"
-            column="17"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2570,16 +2327,7 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                    uri = Uri.parse(local.parsedContent()),"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/ImageOcrAutoIndexer.kt"
-            line="166"
-            column="27"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2680,16 +2428,7 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            setAddress(Uri.parse(&quot;sip:maodouchat&quot;), TelecomManager.PRESENTATION_ALLOWED)"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/telecom/MaodouchatConnectionService.kt"
-            line="156"
-            column="24"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2702,38 +2441,11 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val uri = Uri.parse(value)"
-        errorLine2="                  ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/MediaCache.kt"
-            line="116"
-            column="19"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val uri = Uri.parse(value)"
-        errorLine2="                      ~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/MediaCache.kt"
-            line="128"
-            column="23"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val uri = Uri.parse(sourceUri)"
-        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/MediaCache.kt"
-            line="222"
-            column="19"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2768,71 +2480,17 @@
             column="22"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            val parsed = Uri.parse(raw)"
-        errorLine2="                         ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/MediaExport.kt"
-            line="23"
-            column="26"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        val uri = android.net.Uri.parse(&quot;geo:${payload.latitude},${payload.longitude}?q=${payload.latitude},${payload.longitude}($label)&quot;)"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/component/MediaLocationStickerBubbles.kt"
-            line="138"
-            column="35"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.chatDataUri(chatId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/MessageNotificationService.kt"
-            line="49"
-            column="20"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                data = Uri.parse(NotificationSlotPolicy.markReadDataUri(chatId))"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/MessageNotificationService.kt"
-            line="104"
-            column="24"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                data = Uri.parse(NotificationSlotPolicy.quickReplyDataUri(chatId))"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/MessageNotificationService.kt"
-            line="130"
-            column="24"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.reminderDataUri(chatId, messageId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/MessageNotificationService.kt"
-            line="195"
-            column="20"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2845,38 +2503,11 @@
             column="27"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val builtinTick = android.net.Uri.parse(&quot;android.resource://${context.packageName}/raw/notify_message&quot;)"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationInfrastructure.kt"
-            line="41"
-            column="27"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationInfrastructure.kt"
-            line="43"
-            column="35"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationInfrastructure.kt"
-            line="47"
-            column="35"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2944,16 +2575,7 @@
             column="26"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                Uri.parse(&quot;package:${context.packageName}&quot;),"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/update/OfficialApkInstaller.kt"
-            line="212"
-            column="17"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -3142,16 +2764,7 @@
             column="22"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.aiTaskDataUri(taskId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/ReminderNotificationService.kt"
-            line="43"
-            column="20"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -3384,93 +2997,21 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                android.media.RingtoneManager.getRingtone(context, android.net.Uri.parse(uri))?.getTitle(context)"
-        errorLine2="                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/settings/SettingsNotification.kt"
-            line="88"
-            column="68"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                android.media.RingtoneManager.getRingtone(context, android.net.Uri.parse(uri))?.getTitle(context)"
-        errorLine2="                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/settings/SettingsNotification.kt"
-            line="106"
-            column="68"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        ringtoneUri?.let { putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.net.Uri.parse(it)) }"
-        errorLine2="                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/settings/SettingsNotification.kt"
-            line="203"
-            column="112"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        groupRingtoneUri?.let { putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.net.Uri.parse(it)) }"
-        errorLine2="                                                                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/settings/SettingsNotification.kt"
-            line="218"
-            column="117"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.announcementDataUri(announcementId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/SocialNotificationService.kt"
-            line="39"
-            column="20"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.friendRequestDataUri(requestId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/SocialNotificationService.kt"
-            line="81"
-            column="20"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.groupInviteDataUri(inviteId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/SocialNotificationService.kt"
-            line="147"
-            column="20"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="            data = Uri.parse(NotificationSlotPolicy.postDataUri(postId))"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/SocialNotificationService.kt"
-            line="205"
-            column="20"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -3725,15 +3266,6 @@
             column="13"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        val uri = android.net.Uri.parse(source)"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/VoicePlayer.kt"
-            line="111"
-            column="35"/>
-    </issue>
+    
 
 </issues>

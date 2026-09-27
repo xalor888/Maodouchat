@@ -5,9 +5,9 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.text.format.DateUtils
 import android.widget.RemoteViews
+import androidx.core.net.toUri
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
@@ -220,7 +220,7 @@ object ConversationWidgetData {
     private fun syncPendingIntent(context: Context): PendingIntent {
         val intent = Intent(context, ConversationWidgetProvider::class.java)
             .setAction(ConversationWidgetContract.ACTION_SYNC_TICK)
-            .setData(Uri.parse("maodouchat-widget://sync"))
+            .setData("maodouchat-widget://sync".toUri())
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
@@ -245,7 +245,7 @@ object ConversationWidgetData {
             // 行点击 → 打开会话（复用 MainActivity 的 EXTRA_OPEN_CHAT_ID 消费路径）
             val open = Intent(context, ConversationWidgetProvider::class.java)
                 .setAction(ConversationWidgetContract.ACTION_OPEN_CHAT)
-                .setData(Uri.parse(ConversationWidgetContract.rowDataUri("open", widgetId, rowIndex)))
+                .setData(ConversationWidgetContract.rowDataUri("open", widgetId, rowIndex).toUri())
                 .putExtra(ConversationWidgetContract.EXTRA_WIDGET_ID, widgetId)
                 .putExtra(ConversationWidgetContract.EXTRA_CHAT_ID, widgetRow.chatId)
                 .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, currentOwner(context))
@@ -264,7 +264,7 @@ object ConversationWidgetData {
             // 由用户在聊天页完成回复（Provider 的 ACTION_REPLY_SENT 处理保留备用）。
             val reply = Intent(context, ConversationWidgetProvider::class.java)
                 .setAction(ConversationWidgetContract.ACTION_OPEN_CHAT)
-                .setData(Uri.parse(ConversationWidgetContract.rowDataUri("reply", widgetId, rowIndex)))
+                .setData(ConversationWidgetContract.rowDataUri("reply", widgetId, rowIndex).toUri())
                 .putExtra(ConversationWidgetContract.EXTRA_WIDGET_ID, widgetId)
                 .putExtra(ConversationWidgetContract.EXTRA_CHAT_ID, widgetRow.chatId)
                 .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, currentOwner(context))
@@ -279,7 +279,7 @@ object ConversationWidgetData {
             // 标记已读
             val read = Intent(context, ConversationWidgetProvider::class.java)
                 .setAction(ConversationWidgetContract.ACTION_MARK_READ)
-                .setData(Uri.parse(ConversationWidgetContract.rowDataUri("read", widgetId, rowIndex)))
+                .setData(ConversationWidgetContract.rowDataUri("read", widgetId, rowIndex).toUri())
                 .putExtra(ConversationWidgetContract.EXTRA_WIDGET_ID, widgetId)
                 .putExtra(ConversationWidgetContract.EXTRA_CHAT_ID, widgetRow.chatId)
                 .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, currentOwner(context))
@@ -301,7 +301,7 @@ object ConversationWidgetData {
             row.setViewVisibility(R.id.widgetRowMarkRead, android.view.View.GONE)
             val open = Intent(context, ConversationWidgetProvider::class.java)
                 .setAction(ConversationWidgetContract.ACTION_OPEN_CHAT)
-                .setData(Uri.parse(ConversationWidgetContract.rowDataUri("empty", widgetId, rowIndex)))
+                .setData(ConversationWidgetContract.rowDataUri("empty", widgetId, rowIndex).toUri())
                 .putExtra(ConversationWidgetContract.EXTRA_WIDGET_ID, widgetId)
             row.setOnClickPendingIntent(
                 R.id.widgetRowRoot,

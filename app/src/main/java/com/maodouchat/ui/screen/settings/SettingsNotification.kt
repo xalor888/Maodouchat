@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import androidx.core.net.toUri
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.security.findActivity
@@ -85,7 +86,7 @@ fun NotificationSettingsScreen(
     val ringtoneTitle = remember(ringtoneUri) {
         ringtoneUri?.let { uri ->
             runCatching {
-                android.media.RingtoneManager.getRingtone(context, android.net.Uri.parse(uri))?.getTitle(context)
+                android.media.RingtoneManager.getRingtone(context, uri.toUri())?.getTitle(context)
             }.getOrNull()
         } ?: ringtoneDefault
     }
@@ -103,7 +104,7 @@ fun NotificationSettingsScreen(
     val groupRingtoneTitle = remember(groupRingtoneUri) {
         groupRingtoneUri?.let { uri ->
             runCatching {
-                android.media.RingtoneManager.getRingtone(context, android.net.Uri.parse(uri))?.getTitle(context)
+                android.media.RingtoneManager.getRingtone(context, uri.toUri())?.getTitle(context)
             }.getOrNull()
         } ?: ringtoneDefault
     }
@@ -200,7 +201,7 @@ fun NotificationSettingsScreen(
                         putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, android.media.RingtoneManager.TYPE_NOTIFICATION)
                         putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TITLE, context.getString(R.string.notifications_ringtone_title))
                         putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                        ringtoneUri?.let { putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.net.Uri.parse(it)) }
+                        ringtoneUri?.let { putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, it.toUri()) }
                     }
                     ringtonePicker.launch(intent)
                 }
@@ -215,7 +216,7 @@ fun NotificationSettingsScreen(
                         putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, android.media.RingtoneManager.TYPE_NOTIFICATION)
                         putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TITLE, context.getString(R.string.notifications_group_ringtone_title))
                         putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                        groupRingtoneUri?.let { putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.net.Uri.parse(it)) }
+                        groupRingtoneUri?.let { putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, it.toUri()) }
                     }
                     groupRingtonePicker.launch(intent)
                 }

@@ -3,8 +3,8 @@ package com.maodouchat.navigation
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
+import androidx.core.net.toUri
 import com.maodouchat.R
 
 /**
@@ -38,9 +38,9 @@ object AppLinkOpener {
         return runCatching {
             val intent = when (destination) {
                 is AppLinkDestination.ExternalUrl ->
-                    Intent(Intent.ACTION_VIEW, Uri.parse(destination.url))
+                    Intent(Intent.ACTION_VIEW, destination.url.toUri())
                 else ->
-                    Intent(Intent.ACTION_VIEW, Uri.parse(originalRaw.trim()))
+                    Intent(Intent.ACTION_VIEW, originalRaw.trim().toUri())
                         .setPackage(context.packageName)
             }
             if (context !is Activity) {

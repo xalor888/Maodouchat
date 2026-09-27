@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
@@ -186,7 +187,7 @@ internal fun ChatDetailMessageActionsSheet(
                                 if (shareFile) {
                                     val fileIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                                         type = fileMime
-                                        putExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri.parse(contentUri))
+                                        putExtra(android.content.Intent.EXTRA_STREAM, contentUri.toUri())
                                         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
                                     val fileChooser = android.content.Intent.createChooser(fileIntent, chatShareMessageTitle)

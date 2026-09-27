@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
 
@@ -38,13 +39,13 @@ internal object NotificationInfrastructure {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // 8.48：用户可选系统通知铃声（RingtoneManager picker）；未选时使用内置消息提示音
         // （9.3xx：此前未选时依赖系统默认铃声，部分厂商渠道建好后无声——现在显式设置内置音效）
-        val builtinTick = android.net.Uri.parse("android.resource://${context.packageName}/raw/notify_message")
+        val builtinTick = "android.resource://${context.packageName}/raw/notify_message".toUri()
         val ringtoneUri = NotificationPreferences.ringtoneUri(context)
-            ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
+            ?.let { runCatching { it.toUri() }.getOrNull() }
             ?: builtinTick
         // 0.72：群聊独立铃声（回退单聊铃声）
         val groupRingtoneUri = NotificationPreferences.groupRingtoneUri(context)
-            ?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() }
+            ?.let { runCatching { it.toUri() }.getOrNull() }
             ?: ringtoneUri
         val attrs = android.media.AudioAttributes.Builder()
             .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
