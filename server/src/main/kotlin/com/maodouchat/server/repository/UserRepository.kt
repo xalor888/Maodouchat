@@ -6,6 +6,7 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.UserPrivacyResponse
 import com.maodouchat.server.model.UserResponse
+import com.maodouchat.server.service.PrivacyService
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
