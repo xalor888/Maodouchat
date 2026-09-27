@@ -94,7 +94,6 @@ import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.ui.component.ZoomableAsyncImage
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
@@ -122,9 +121,9 @@ data class MediaCenterUiState(
 
 class MediaCenterViewModel(application: Application, savedStateHandle: SavedStateHandle) : AndroidViewModel(application) {
     val chatId: String = savedStateHandle["chatId"] ?: ""
-    private val app = application as MaodouchatApp
-    private val repository = LocalMessageStore(app.database.messageDao(), app.database)
-    private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
+    // U02 延伸：仓库入口收进非 ui 的 AppRepositories（不再从 Application 强转后自取 database）。
+    private val repository = com.maodouchat.data.repository.AppRepositories.messages
+    private val chatLockRepo = com.maodouchat.data.repository.AppRepositories.chatLocks
 
     private val tokenManager = com.maodouchat.network.TokenManager.getInstance(application)
     /** Capture at open so logout/account switch cannot paint the next owner's media grid. */
@@ -144,7 +143,7 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                 return@launch
             }
             val caps = try {
-                app.secretConversationController.capabilities(chatId)
+                com.maodouchat.security.SecretChatCapabilities.forChat(chatId)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -275,7 +274,7 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
 
     private suspend fun resolveChatName(): String {
         return try {
-            val entity = app.database.chatDao().getChatById(chatId) ?: return ""
+            val entity = com.maodouchat.data.repository.AppRepositories.chatEntityOrNull(chatId) ?: return ""
             entity.groupName?.takeIf { it.isNotBlank() }
                 ?: entity.participantIds
                     .split(",")
@@ -283,7 +282,7 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
                     .filter { it.isNotBlank() && it != ownerUserId }
                     .firstOrNull()
                     ?.let { peerId ->
-                        app.database.userDao().getUserById(peerId)?.let { u ->
+                        com.maodouchat.data.repository.AppRepositories.users.getUserById(peerId)?.let { u ->
                             u.nickname?.takeIf { it.isNotBlank() } ?: u.name
                         }
                     }

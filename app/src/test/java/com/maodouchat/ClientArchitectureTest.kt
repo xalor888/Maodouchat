@@ -366,7 +366,7 @@ class ClientArchitectureTest {
         // **盲带**里——可以在无人知晓的情况下从 1000 长到 1100，只有越过 1100
         // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1059,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
@@ -430,7 +430,7 @@ class ClientArchitectureTest {
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
         // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1059,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
@@ -740,8 +740,6 @@ class ClientArchitectureTest {
      */
     private val frozenUiAppDatabaseGrabbers: List<String> = listOf(
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt",
-        "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
         "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
         "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
@@ -1097,8 +1095,6 @@ class ClientArchitectureTest {
         // AdminNoticeFeed / TokenExpirySessionPurge / DirectChatRequestHandler，4 → 0，条目删除。
         // U02 延伸：MainContainerRoute 的两个 app 事件收集器收进非 ui 的
         // AppNavigationEvents（含世代过期消费的桥接），直连命中 6 → 0，条目删除。
-        "screen/chatdetail/MediaCenterScreen.kt" to 6,
-        "screen/chatdetail/StarredMessagesScreen.kt" to 6,
         // 死 import 收口（云端侧）：SettingsAccountSecurity.kt 头部残留的
         // `import ...MaodouchatApp`（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零。
         "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
@@ -1129,8 +1125,6 @@ class ClientArchitectureTest {
         "screen/chatdetail/ChatDetailDeps.kt" to 17,
         "screen/chatdetail/ChatExportController.kt" to 2,
         "screen/chatdetail/GroupDetailViewModel.kt" to 2,
-        "screen/chatdetail/MediaCenterScreen.kt" to 6,
-        "screen/chatdetail/StarredMessagesScreen.kt" to 6,
         "screen/chatlist/ChatListPorts.kt" to 25,
         "screen/chatlist/ChatListRealtimeCoordinator.kt" to 3,
         "screen/contacts/ContactsRepository.kt" to 3,
