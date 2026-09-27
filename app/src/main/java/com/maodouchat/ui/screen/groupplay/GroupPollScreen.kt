@@ -45,7 +45,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.GroupPollPolicy
@@ -95,9 +94,10 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
     init {
         if (chatId.isNotBlank()) {
             refresh()
-            val app = getApplication<MaodouchatApp>()
+            // U02 延伸：实时分发器经非 ui 的 AppRuntime 取（同 AppRuntimeInstrumentedTest 覆盖）。
+            val dispatcher = com.maodouchat.session.AppRuntime.realtimeDispatcherOrNull(getApplication())
             viewModelScope.launch {
-                app.realtimeEventDispatcher.groupPlayEvents.collect { event ->
+                dispatcher?.groupPlayEvents?.collect { event ->
                     if (event.chatId == chatId) {
                         refresh()
                     }

@@ -1823,6 +1823,14 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   顺带：ContactSubScreens 887 → 860 行（两份上限 map 收紧），**并且它跌出「前 20」窗口后，
   新面孔 `ChatDetailAiDialogs2`（882 行）按实测值首次纳入监管**——窗口滚动是门禁自己抓出来的。
 
+- **群玩法四屏 + 门禁口径修正（本批）**：`GroupChain/Checkin/Pk/PollScreen` 四屏的
+  `getApplication<MaodouchatApp>().realtimeEventDispatcher` 改经非 ui 的
+  `AppRuntime.realtimeDispatcherOrNull(getApplication())`（8 处归零，生产同对象同序列）；
+  并把直连持久层判据里的 `database.` 从子串升级为模式版 `(?<!android\.)\bdatabase\.`,
+  只认应用库访问——`theme/Motion.kt` 命中的是 `android.database.ContentObserver`（框架 import），
+  属**误报**，归零后条目删除（两份 map 共 10 行）。**控制**：往 Motion.kt 注入真实的
+  `MaodouchatApp.instance.database` → 四条门禁同时红——口径修正没有把门禁弄瞎。
+
 **剩余（同类待收口）**：`navigation/CallNavigation.kt` 9——通话族的结构收口由
 `PolledIncomingBatchPolicy` 专项继续（第一步已落地）；ui 直连持久层清单里其余条目
 均属云端侧 import/拆分批次的范围。
