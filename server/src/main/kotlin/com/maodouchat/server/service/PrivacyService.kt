@@ -1,7 +1,8 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.UserPrivacyResponse
+import com.maodouchat.server.repository.PrivacyUpdateResult
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
