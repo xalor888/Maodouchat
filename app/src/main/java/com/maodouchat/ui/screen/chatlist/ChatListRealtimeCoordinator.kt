@@ -1,7 +1,6 @@
 package com.maodouchat.ui.screen.chatlist
 
 import android.util.Log
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.core.realtime.RealtimeConnectionState
 import com.maodouchat.core.realtime.RealtimeDomainEvent
@@ -33,8 +32,8 @@ internal class ChatListRealtimeCoordinator(
     private val uiState: MutableStateFlow<ChatListUiState>,
     private val realtimeEventDispatcher: RealtimeEventDispatcher,
     private val notificationCenter: NotificationCenterRepository,
-    private val chatReadEvents: SharedFlow<MaodouchatApp.Companion.ChatReadEvent>,
-    private val chatMessageSentEvents: SharedFlow<MaodouchatApp.Companion.ChatMessageSentEvent>,
+    private val chatReadEvents: SharedFlow<com.maodouchat.realtime.ChatReadEvent>,
+    private val chatMessageSentEvents: SharedFlow<com.maodouchat.realtime.ChatMessageSentEvent>,
     private val ownerUserId: () -> String,
     private val ownerSession: () -> OwnerSessionSnapshot,
     private val isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean,

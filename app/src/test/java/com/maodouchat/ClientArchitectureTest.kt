@@ -1125,13 +1125,11 @@ class ClientArchitectureTest {
         "screen/chatdetail/ChatDetailDeps.kt" to 17,
         "screen/chatdetail/ChatExportController.kt" to 2,
         "screen/chatdetail/GroupDetailViewModel.kt" to 2,
-        "screen/chatlist/ChatListPorts.kt" to 25,
-        "screen/chatlist/ChatListRealtimeCoordinator.kt" to 3,
+        "screen/chatlist/ChatListPorts.kt" to 23,
         // 通讯录收口：ContactsRepository 3 → 0（条目删除），ContactsViewModel 10 → 3
         //（剩余 3 处是 `import MaodouchatApp` + 通知中心静态发射 + `as?` 取实时事件分发器，
         // 均非持久层直连）。
         "screen/contacts/ContactsViewModel.kt" to 3,
-        "screen/explore/ExploreViewModel.kt" to 1,
         "screen/login/LoginViewModel.kt" to 2,
         // 死 import 收口：SettingsAccountSecurity.kt 头部残留的 `import ...MaodouchatApp`
         //（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零，条目删除。

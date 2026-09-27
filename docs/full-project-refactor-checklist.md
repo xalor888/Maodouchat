@@ -1869,7 +1869,16 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   上限收紧两处：SettingsViewModel 1194 → 1192、SettingsAccountSecurityScreen 884 → 883。
   判据：架构门禁实跑绿 + `DestinationSmokeTest` 22 例（含 settings 三个目的地）API 36 设备全绿。
 
+- **事件类型迁出 app 类 + 两个尾项（本批）**：`ChatReadEvent`/`ChatMessageSentEvent`
+  从 `MaodouchatApp.Companion` 迁到 `com.maodouchat.realtime`（**类型归属修正**，非符号技巧：
+  发射入口与两条流语义不变；数据类不再依赖 app 的静态默认值，构造点全部显式传
+  `sessionGeneration`）——`ChatListRealtimeCoordinator` 3 → 0、`ChatListPorts` 25 → 23
+  （其类型引用随之变短）；`ExploreViewModel` 的默认 scope 改 `AppRuntime.applicationScope`，
+  1 → 0。判据：`ChatListRealtimeCoordinatorTest`（JVM，构造迁后类型）绿 +
+  `DestinationSmokeTest` 22 例 API 36 全绿 + 架构门禁实跑绿。
+  云端侧同轮已合并：`ContactsViewModel` 10 → 3、`ContactsRepository` 3 → 0（#105）。
+
 **剩余（同类待收口）**：`navigation/CallNavigation.kt` 9（通话族结构收口由
-`PolledIncomingBatchPolicy` 专项继续）；`ChatDetail*` 其余条目（ViewModel/Deps/Ports 等）
-多为「只做装配」的登记豁免或与云端拆分批次重叠，按需让路；`ChatListRealtimeCoordinator` 3 /
-`ContactsViewModel` 10 / `ContactsRepository` 3 / `ExploreViewModel` 1 待下一批。
+`PolledIncomingBatchPolicy` 专项继续，云端已备第一步）；`ContactsViewModel` 3（云端在途）；
+`ChatDetail*` 与 `ChatListPorts` 23 等条目多为「只做装配」的登记豁免或与云端拆分批次重叠，
+按需让路。

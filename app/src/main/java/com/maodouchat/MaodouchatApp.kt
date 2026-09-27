@@ -1,5 +1,7 @@
 package com.maodouchat
 
+import com.maodouchat.realtime.ChatMessageSentEvent
+import com.maodouchat.realtime.ChatReadEvent
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.notification.MessageNotificationService
 import android.app.Application
@@ -556,10 +558,6 @@ class MaodouchatApp : Application() {
          * ChatDetailViewModel 标记消息已读后 emit chatId，
          * ChatListViewModel 收集后将对应聊天的 unreadCount 归零。
          */
-        data class ChatReadEvent(
-            val chatId: String,
-            val sessionGeneration: Long = currentSessionGeneration(),
-        )
         private val _chatReadEvents = kotlinx.coroutines.flow.MutableSharedFlow<ChatReadEvent>(extraBufferCapacity = 16)
         val chatReadEvents = _chatReadEvents.asSharedFlow()
         fun emitChatRead(chatId: String) {
@@ -571,13 +569,6 @@ class MaodouchatApp : Application() {
          * - 发送/附件 finalize：带 previewText + typeWire，列表单调更新时间
          * - delete/revoke 本地成功：forceFromLocal=true，列表从 Room 重算 tail（可清空/回退）
          */
-        data class ChatMessageSentEvent(
-            val chatId: String,
-            val previewText: String = "",
-            val messageTypeWire: String = "TEXT",
-            val forceFromLocal: Boolean = false,
-            val sessionGeneration: Long = currentSessionGeneration(),
-        )
         private val _chatMessageSentEvents =
             kotlinx.coroutines.flow.MutableSharedFlow<ChatMessageSentEvent>(extraBufferCapacity = 16)
         val chatMessageSentEvents = _chatMessageSentEvents.asSharedFlow()

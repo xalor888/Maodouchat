@@ -16,7 +16,7 @@ class ExploreViewModel @JvmOverloads constructor(
     private val feedController: FeedController = FeedController(AndroidFeedRepository(application)),
     private val orchestrator: ExploreOrchestrator = ExploreOrchestrator(
         application = application,
-        scope = com.maodouchat.MaodouchatApp.instance.applicationScope,
+        scope = com.maodouchat.session.AppRuntime.applicationScope,
         feedController = feedController
     )
 ) : AndroidViewModel(application) {
