@@ -14,7 +14,7 @@ import com.maodouchat.server.model.UploadAvatarRequest
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupAuditRepository
-import com.maodouchat.server.repository.GroupInvitationService
+import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.repository.GroupMembershipService
 import com.maodouchat.server.repository.GroupMemberMutationResult
 import com.maodouchat.server.repository.GroupModerationRepository

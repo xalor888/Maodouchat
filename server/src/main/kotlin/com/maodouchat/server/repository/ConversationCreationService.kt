@@ -1,5 +1,7 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.service.GroupInvitationService
+
 import com.maodouchat.server.model.ChatType
 import org.jetbrains.exposed.sql.transactions.transaction
 

@@ -6,6 +6,7 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.DispositionService
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.csvCell

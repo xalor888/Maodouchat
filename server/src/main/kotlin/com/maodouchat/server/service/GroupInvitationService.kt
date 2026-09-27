@@ -1,6 +1,7 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
 import com.maodouchat.server.model.GroupInvitationDto
+import com.maodouchat.server.repository.GroupInvitationRepository
 
 /**
  * B05 子项 2：群邀请创建、轮换、接受、拒绝、撤销与过期的统一入口（domain facade）。
