@@ -806,82 +806,19 @@
             column="41"/>
     </issue>
 
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="            resolver.query(collection, projection, selection, selectionArgs, sortOrder)?.use { cursor ->"
-        errorLine2="                     ~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/GifLibrary.kt"
-            line="32"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="Recycle"
-        message="This `InputStream` should be freed up after use with `#close()`"
-        errorLine1="            context.contentResolver.openInputStream(source)?.use { input ->"
-        errorLine2="                                    ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/MediaExport.kt"
-            line="70"
-            column="37"/>
-    </issue>
+    
 
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="        context.contentResolver.query("
-        errorLine2="                                ~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/ScreenshotBurnDetector.kt"
-            line="121"
-            column="33"/>
-    </issue>
+    
 
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="        context.contentResolver.query("
-        errorLine2="                                ~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/ScreenshotBurnDetector.kt"
-            line="156"
-            column="33"/>
-    </issue>
+    
 
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="        context.contentResolver.query(target, projection.toTypedArray(), null, null, &quot;${MediaStore.Images.Media.DATE_ADDED} DESC&quot;)"
-        errorLine2="                                ~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/ScreenshotDetector.kt"
-            line="121"
-            column="33"/>
-    </issue>
+    
 
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="        context.contentResolver.query(target, projection.toTypedArray(), null, null, &quot;${MediaStore.Video.Media.DATE_ADDED} DESC&quot;)"
-        errorLine2="                                ~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/ScreenshotDetector.kt"
-            line="154"
-            column="33"/>
-    </issue>
+    
 
-    <issue
-        id="Recycle"
-        message="This `Cursor` should be freed up after use with `#close()`"
-        errorLine1="        return context.contentResolver.query(uri, projection, null, null, &quot;$dateColumn DESC&quot;)"
-        errorLine2="                                       ~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/SecureCaptureScrubber.kt"
-            line="91"
-            column="40"/>
-    </issue>
+    
 
     <issue
         id="StaticFieldLeak"

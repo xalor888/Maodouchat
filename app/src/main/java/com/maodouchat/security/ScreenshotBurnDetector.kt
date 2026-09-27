@@ -105,6 +105,7 @@ class ScreenshotBurnDetector(
         }
     }
 
+    @Suppress("Recycle") // 资源由 `?.use` 关闭；lint 的 Recycle 检测不识别安全调用形态（人工核实）
     private fun inspectImage(uri: Uri?, nowSec: Long) {
         val target = uri ?: MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         val projection = mutableListOf(
@@ -140,6 +141,7 @@ class ScreenshotBurnDetector(
         }
     }
 
+    @Suppress("Recycle") // 资源由 `?.use` 关闭；lint 的 Recycle 检测不识别安全调用形态（人工核实）
     private fun inspectVideo(uri: Uri?, nowSec: Long) {
         val target = uri ?: MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         val projection = mutableListOf(

@@ -57,6 +57,7 @@ object MediaExport {
     /**
      * 保存图片/视频到系统相册（MediaStore）。非媒体 MIME 走 Downloads。
      */
+    @Suppress("Recycle") // 资源由 `?.use` 关闭；lint 的 Recycle 检测不识别安全调用形态（人工核实）
     fun saveToGallery(
         context: Context,
         rawUri: String,

@@ -2026,3 +2026,23 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 125 条）**：`UseKtx` 22 = 18 处 edit 保留（变量编辑器/值被消费/上限文件）
 + 4 `Uri.parse`（行数上限热点文件内，先拆后收）；`GradleDependency` 17 + 活跃 5；
 `NewerVersionAvailable` 14；`HardwareIds` 10。
+
+### 第十四轮七续（2026-09-28）：Recycle 族收口——7 处经核实为 `?.use` 检测盲区（125 → 118）
+
+`Recycle`（"Cursor/InputStream should be freed up after use"）8 条，逐处人工核实：**全部是
+`?.use { }` 安全调用形态**（资源确已关闭），lint 的检测器不识别 `?.use`（安全调用）写法——
+一类已验证的 false positive。
+
+- **收口方式**：在**闭包函数**上带注释 `@Suppress("Recycle") // 资源由 ?.use 关闭；lint 不识别安全调用形态`，
+  共 7 处（`SecureCaptureScrubber.queryLatest`、`ScreenshotDetector.checkImage/checkVideo`、
+  `ScreenshotBurnDetector.inspectImage/inspectVideo`、`MediaExport.saveToGallery`、`GifLibrary.queryLocalGifs`）；
+  压制后 lint 的 `LintBaselineFixed` 恰好点名 **7 条 Recycle 不再出现**——这就是压制生效的硬证据，
+  随后按「修掉一条删一条」删掉 7 个条目；
+- **保留 1 处**：`ExploreOrchestrator.persistPickedImage`——零松量行数上限（1010=1010），
+  注释行放不下，按「先拆后收」策略留在基线；
+- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  绿（4m21s）；`:app:lintDebug` 绿（压制前后 exit 0）；条目 125 → 118。
+
+**剩余（lint 基线 118 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1
+（ExploreOrchestrator，先拆后收）；`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；
+`HardwareIds` 10；其余零散族（ModifierParameter 8 / Aligned16KB 9 / IconLauncherShape 5 等）。
