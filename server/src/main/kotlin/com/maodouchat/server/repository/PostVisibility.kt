@@ -1,6 +1,7 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.Posts
+import com.maodouchat.server.service.SocialGraphService
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.selectAll
 
