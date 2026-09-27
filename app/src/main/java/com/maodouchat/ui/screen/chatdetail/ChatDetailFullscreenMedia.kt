@@ -31,6 +31,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import android.widget.Toast
+import androidx.core.net.toUri
 import com.maodouchat.util.RuntimeFlags
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -245,7 +246,7 @@ internal fun FullscreenVideoDialog(
                 factory = {
                     android.widget.VideoView(it).apply {
                         videoViewRef.value = this
-                        setVideoURI(android.net.Uri.parse(videoContent))
+                        setVideoURI(videoContent.toUri())
                         setOnCompletionListener { onDismiss() }
                         setOnErrorListener { _, _, _ -> onDismiss(); true }
                         start()

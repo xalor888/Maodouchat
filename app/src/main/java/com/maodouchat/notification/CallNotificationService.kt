@@ -3,10 +3,10 @@ package com.maodouchat.notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
@@ -38,7 +38,7 @@ object CallNotificationService {
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(NotificationIntents.EXTRA_OPEN_MISSED_CALL, true)
-            data = Uri.parse(NotificationSlotPolicy.missedCallDataUri(callId))
+            data = NotificationSlotPolicy.missedCallDataUri(callId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
@@ -107,7 +107,7 @@ object CallNotificationService {
             putExtra(NotificationIntents.EXTRA_INCOMING_CALL_ID, callId)
             putExtra(NotificationIntents.EXTRA_INCOMING_CALL_VIDEO, isVideo)
             if (senderId.isNotBlank()) putExtra(NotificationIntents.EXTRA_INCOMING_CALL_SENDER_ID, senderId)
-            data = Uri.parse(NotificationSlotPolicy.incomingCallDataUri(callId))
+            data = NotificationSlotPolicy.incomingCallDataUri(callId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(

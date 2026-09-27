@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import androidx.core.net.toUri
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.model.Message
@@ -11,7 +12,6 @@ import com.maodouchat.util.ImagePicker
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import android.content.Context
-import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -161,7 +161,7 @@ class ImageOcrAutoIndexer(
             runCatching {
                 ImagePicker.uriToBase64(
                     context = context,
-                    uri = Uri.parse(local.parsedContent()),
+                    uri = local.parsedContent().toUri(),
                     maxWidth = 1_024,
                     quality = 72
                 )

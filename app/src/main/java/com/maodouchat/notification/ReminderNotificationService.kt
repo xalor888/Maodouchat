@@ -4,10 +4,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
@@ -40,7 +40,7 @@ object ReminderNotificationService {
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(NotificationIntents.EXTRA_OPEN_AI_TASKS_CHAT_ID, chatId)
-            data = Uri.parse(NotificationSlotPolicy.aiTaskDataUri(taskId))
+            data = NotificationSlotPolicy.aiTaskDataUri(taskId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pendingIntent = PendingIntent.getActivity(

@@ -4,10 +4,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
@@ -46,7 +46,7 @@ object MessageNotificationService {
             // Unique data URI so two chatIds whose hashCode() collides still yield distinct
             // PendingIntents (extras are NOT part of PendingIntent identity); without this,
             // FLAG_UPDATE_CURRENT would overwrite one chat's tap target with the other's.
-            data = Uri.parse(NotificationSlotPolicy.chatDataUri(chatId))
+            data = NotificationSlotPolicy.chatDataUri(chatId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         // notify 用真实 chatId 作 tag、id 固定 0：每个会话独立通知槽位；PendingIntent 的唯一性
@@ -101,7 +101,7 @@ object MessageNotificationService {
             val markReadIntent = Intent(context, com.maodouchat.quickreply.NotificationQuickReplyReceiver::class.java).apply {
                 action = com.maodouchat.quickreply.NotificationQuickReplyReceiver.ACTION_MARK_READ
                 putExtra(com.maodouchat.quickreply.NotificationQuickReplyReceiver.EXTRA_CHAT_ID, chatId)
-                data = Uri.parse(NotificationSlotPolicy.markReadDataUri(chatId))
+                data = NotificationSlotPolicy.markReadDataUri(chatId).toUri()
             }
             with(NotificationInfrastructure) { markReadIntent.putNotificationOwner(expectedUserId) }
             val markReadPendingIntent = PendingIntent.getBroadcast(
@@ -127,7 +127,7 @@ object MessageNotificationService {
             val replyIntent = Intent(context, com.maodouchat.quickreply.NotificationQuickReplyReceiver::class.java).apply {
                 action = com.maodouchat.quickreply.NotificationQuickReplyReceiver.ACTION_REPLY
                 putExtra(com.maodouchat.quickreply.NotificationQuickReplyReceiver.EXTRA_CHAT_ID, chatId)
-                data = Uri.parse(NotificationSlotPolicy.quickReplyDataUri(chatId))
+                data = NotificationSlotPolicy.quickReplyDataUri(chatId).toUri()
             }
             with(NotificationInfrastructure) { replyIntent.putNotificationOwner(expectedUserId) }
 
@@ -192,7 +192,7 @@ object MessageNotificationService {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(NotificationIntents.EXTRA_OPEN_CHAT_ID, chatId)
             putExtra(NotificationIntents.EXTRA_OPEN_MESSAGE_ID, messageId)
-            data = Uri.parse(NotificationSlotPolicy.reminderDataUri(chatId, messageId))
+            data = NotificationSlotPolicy.reminderDataUri(chatId, messageId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(

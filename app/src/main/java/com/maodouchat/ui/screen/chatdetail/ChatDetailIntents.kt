@@ -3,11 +3,11 @@ package com.maodouchat.ui.screen.chatdetail
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiOperationError
 
@@ -61,7 +61,7 @@ internal fun aiStreamStatusRes(base: String): Int = when (base) {
 
 internal fun openFile(context: android.content.Context, contentUri: String) {
     runCatching {
-        val parsed = android.net.Uri.parse(contentUri)
+        val parsed = contentUri.toUri()
         val uri = if (parsed.scheme == "file") {
             val file = java.io.File(requireNotNull(parsed.path))
             androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)

@@ -2,6 +2,7 @@ package com.maodouchat.attachment
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.net.toUri
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentKind
@@ -30,7 +31,7 @@ class DefaultAttachmentPreparationService(
         onProgress: (completed: Long, total: Long) -> Unit
     ): Result<PreparedAttachmentResult> = runCatching {
         require(ownerUserId.isNotBlank()) { "attachment_owner_missing" }
-        val sourceUri = Uri.parse(intent.uri)
+        val sourceUri = intent.uri.toUri()
         val messageType = intent.kind.toMessageType()
 
         val described = withContext(Dispatchers.IO) {

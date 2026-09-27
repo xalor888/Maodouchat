@@ -1,9 +1,9 @@
 package com.maodouchat.telecom
 
+import androidx.core.net.toUri
 import com.maodouchat.notification.CallNotificationService
 import android.app.PendingIntent
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.telecom.Connection
 import android.telecom.ConnectionRequest
@@ -153,7 +153,7 @@ internal class MaodouchatConnection(
         setConnectionProperties(PROPERTY_SELF_MANAGED)
         setCallerDisplayName(callerName, TelecomManager.PRESENTATION_ALLOWED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setAddress(Uri.parse("sip:maodouchat"), TelecomManager.PRESENTATION_ALLOWED)
+            setAddress("sip:maodouchat".toUri(), TelecomManager.PRESENTATION_ALLOWED)
         }
         statusHints = StatusHints(callerName, android.graphics.drawable.Icon.createWithResource(applicationContext, applicationContext.applicationInfo.icon), android.os.Bundle())
         setRinging()

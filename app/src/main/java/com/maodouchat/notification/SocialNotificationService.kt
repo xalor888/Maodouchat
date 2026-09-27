@@ -4,10 +4,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
@@ -36,7 +36,7 @@ object SocialNotificationService {
         if (!NotificationInfrastructure.canPostNotifications(context)) return
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            data = Uri.parse(NotificationSlotPolicy.announcementDataUri(announcementId))
+            data = NotificationSlotPolicy.announcementDataUri(announcementId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
@@ -78,7 +78,7 @@ object SocialNotificationService {
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(NotificationIntents.EXTRA_OPEN_CONTACTS, true)
-            data = Uri.parse(NotificationSlotPolicy.friendRequestDataUri(requestId))
+            data = NotificationSlotPolicy.friendRequestDataUri(requestId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
@@ -144,7 +144,7 @@ object SocialNotificationService {
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(NotificationIntents.EXTRA_OPEN_CONTACTS, true)
-            data = Uri.parse(NotificationSlotPolicy.groupInviteDataUri(inviteId))
+            data = NotificationSlotPolicy.groupInviteDataUri(inviteId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(
@@ -202,7 +202,7 @@ object SocialNotificationService {
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(NotificationIntents.EXTRA_OPEN_POST_ID, postId)
-            data = Uri.parse(NotificationSlotPolicy.postDataUri(postId))
+            data = NotificationSlotPolicy.postDataUri(postId).toUri()
         }
         with(NotificationInfrastructure) { tapIntent.putNotificationOwner(expectedUserId) }
         val pi = PendingIntent.getActivity(

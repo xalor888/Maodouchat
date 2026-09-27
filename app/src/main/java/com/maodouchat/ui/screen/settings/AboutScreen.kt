@@ -42,8 +42,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
+import androidx.core.net.toUri
 import androidx.work.WorkInfo
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
@@ -164,7 +164,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                     onClick = {
                         runCatching {
                             context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(context.getString(R.string.about_source_url)))
+                                Intent(Intent.ACTION_VIEW, context.getString(R.string.about_source_url).toUri())
                             )
                         }
                     },

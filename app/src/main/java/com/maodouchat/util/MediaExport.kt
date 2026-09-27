@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import java.io.File
 import java.io.InputStream
 
@@ -20,7 +21,7 @@ object MediaExport {
         if (raw.isBlank()) return null
         if (!MediaCache.isReadableLocalUri(context, raw)) return null
         return runCatching {
-            val parsed = Uri.parse(raw)
+            val parsed = raw.toUri()
             if (parsed.scheme == "file") {
                 val path = parsed.path ?: return@runCatching null
                 val file = File(path)

@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 318
+    private val frozenIssueCount = 265
 
     @Test
     fun `lint baseline can only shrink`() {
@@ -71,10 +71,15 @@ class LintBaselineRatchetTest {
             // 2026-09-27：297 条未被任何代码/脚本/其它 XML 引用的死 string 已删除
             // （逐条全仓核验；唯一被挡下的 `secret_chat_enabled` 与特性开关键同名，保留）。
             "UnusedResources" to 1,
-            "UseKtx" to 209,
+            // 2026-09-27：UseKtx 的 `String.toUri` 一族收口——25 个文件 47 处
+            // `Uri.parse(x)` → `x.toUri()`，同步删掉 44 条对应条目 + 3 条死条目
+            // （AppLinkOpener 迁包后的旧路径 ×2、ChatDetailRoute 抽层后失效 ×1）；
+            // 另有 5 条 GradleDependency 死条目（可用版本号已变，lint 报为 unmatched）一并删除。
+            // 209 → 162，总条目 318 → 265。
+            "UseKtx" to 162,
             // 上面两条是 warning 级的大头；真正卡 CI 的是它：
             "LocalContextGetResourceValueCall" to 0,
-            "GradleDependency" to 22,
+            "GradleDependency" to 17,
             "NewerVersionAvailable" to 14,
             "HardwareIds" to 10,
         )

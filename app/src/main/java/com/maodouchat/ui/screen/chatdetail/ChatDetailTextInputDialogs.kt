@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
@@ -192,7 +193,7 @@ internal fun GifSearchDialog(
                                                     .clip(RoundedCornerShape(10.dp))
                                                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                                                     .clickable {
-                                                        onPickUri(Uri.parse(item.uriString), item.id)
+                                                        onPickUri(item.uriString.toUri(), item.id)
                                                     },
                                                 contentAlignment = Alignment.Center
                                             ) {

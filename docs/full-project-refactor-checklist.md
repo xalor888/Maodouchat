@@ -1934,3 +1934,35 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
 **剩余（lint 基线 318 条）**：`UseKtx` 209（机械现代化，触面广）、
 `GradleDependency` 22 / `NewerVersionAvailable` 14（依赖升级，属另一决策）、
 `HardwareIds` 10、其余零散——按族分批，下一轮可继续。
+
+### 第十四轮续（2026-09-27）：UseKtx `String.toUri` 收口——47 处转换 + 8 条死条目（317 → 265）
+
+同族第二刀：`UseKtx` 209 条里 `String.toUri` 子族共 51 处 `Uri.parse(`（27 文件）全量定位。
+
+- **转换 47 处（25 文件）**：`Uri.parse(x)` → `x.toUri()`（按括号配对逐处解析，非正则替换；
+  47 处全是单行简单表达式，无算子优先级场景）；
+- **跳过的 4 处**：`ChatDetailViewModel`（1）与 `MediaCenterScreen`（3）在**零松量行数上限**
+  名单里（转换会加 import 行）——留给「先拆文件再收」，本批不动；
+- **import 管理**：新增 `androidx.core.net.toUri`；无裸用法的文件删 `android.net.Uri`，
+  4 个文件保留（`AttachmentPreparationService` / `ChatDetailTextInputDialogs` / `MediaExport` /
+  `MediaCache` 仍有 `Uri` 类型引用）；转换后用「用法↔import 一致性」复核脚本逐文件过了一遍
+  （先于编译兜住 3 处漏加 import——转换器删 import 后索引错位，已在脚本层修掉）；
+- **活跃集修正**：lint 报告里的「活跃（未进基线）issue」暴露 3 处**已活但未基线**的 toUri
+  （`AppLinkOpener` 迁包后新路径 ×2、`ChatDetailMessageActionsSheet` 抽层后 ×1）——
+  实测确认**基线匹配不含改名回退**（旧路径条目并不兜住新路径告警）。本批一并修掉，
+  活跃 UseKtx 3 → 0；
+- **基线手术**：删 47 条 UseKtx（44 条对应转换 + 3 条死条目：`AppLinkOpener` 旧路径 ×2、
+  `ChatDetailRoute` 抽层失效 ×1）+ 5 条 GradleDependency 死条目（可用版本号已变，
+  lint `LintBaselineFixed` 恰好点名这 8 条）→ 317 → 265；`frozenIssueCount` 318 → 265
+  （318 有 1 条余量——#113 删后实测 317，按实测收紧），分布 map `UseKtx` 209 → 162、
+  `GradleDependency` 22 → 17；
+- **判据**：`:app:compileDebugKotlin` 绿、`:app:testDebugUnitTest` + `compileDebugAndroidTestKotlin`
+  绿（4m24s）、`:app:lintDebug` 重跑绿（exit 0，活跃 UseKtx 归零）。
+
+**教训（记为下一轮候选）**：基线棘轮只看「基线文件里有多少条」，**看不见从未进基线的
+活跃 issue**——本批的 3 处活跃 toUri 就是这样漏了若干轮。候选补强：CI 在 `lintDebug` 之后
+加一步解析 `lint-results-debug.xml` 的**活跃集守卫**（白名单外活跃数必须为 0）。
+
+**剩余（lint 基线 265 条）**：`UseKtx` 162 = 153 `SharedPreferences.edit` + 4 `Uri.parse`
+（在 2 个行数上限热点文件内，先拆后收）+ 5 bitmap；`GradleDependency` 17 + 活跃 5
+（对应 dependabot 待合并 PR）；`NewerVersionAvailable` 14；`HardwareIds` 10。
