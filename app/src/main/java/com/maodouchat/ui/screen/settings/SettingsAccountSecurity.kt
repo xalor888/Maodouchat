@@ -81,7 +81,6 @@ import com.maodouchat.network.DeviceInfoDto
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.screen.settings.SettingsViewModel
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.security.BackgroundSessionGate
