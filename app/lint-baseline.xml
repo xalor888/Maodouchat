@@ -559,68 +559,7 @@
             file="build.gradle.kts"
             line="67"
             column="27"/>
-    </issue>
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    <issue
-        id="Recycle"
-        message="This `InputStream` should be freed up after use with `#close()`"
-        errorLine1="            application.contentResolver.openInputStream(uri)?.use { input ->"
-        errorLine2="                                        ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt"
-            line="728"
-            column="41"/>
-    </issue>
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    <issue
+    </issue>    <issue
         id="Overdraw"
         message="Possible overdraw: Root element paints background `@color/widget_bg` with a theme that also paints a background (inferred theme is `@style/Theme.Maodouchat`)"
         errorLine1="    android:background=&quot;@color/widget_bg&quot;"

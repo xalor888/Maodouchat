@@ -2127,3 +2127,19 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 88 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
 `IconLauncherShape` 5 + `IconDuplicates` 5（同一组 launcher 图标，资产修复）；其余零散。
+
+### 第十四轮十二续（2026-09-28）：lint 基线死条目——`Recycle` 1 条（88 → 87）
+
+- 基线里 `ExploreOrchestrator.kt:728` 的 `Recycle` 条目（`openInputStream(uri)?.use { input ->`）
+  是死条目：对应代码早已是 `.use {}` 写法（现 713 行附近），lint 不再上报——**只删基线块，不改代码**；
+- **基线手术**：−1 → 88 → 87；`LintBaselineRatchetTest.frozenIssueCount` 88 → 87；
+  分布冻结 map 无需改（`Recycle` 不在冻结分布表内）；
+- 备注：上一轮 PR #130 曾把本条目与 `AutoboxingStateCreation` 4 条打包，
+  但 4 条装箱收口已被 #131 先合并（且 #131 对零松量上限文件 `ExploreFeedScreen` 用了全限定名写法，
+  #130 的 import 写法会撞 `client hotspot files may not grow`），#130 遂关闭，
+  本条目单独重开 PR。
+- **判据**：`:app:testDebugUnitTest`（两条棘轮用例）绿；`:app:lintDebug` 绿。
+
+**剩余（lint 基线 87 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
+`IconLauncherShape` 5 + `IconDuplicates` 5（同一组 launcher 图标，资产修复）；其余零散。
