@@ -87,6 +87,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -150,7 +151,7 @@ fun ExploreScreen(
     var showScrollToTop by remember { mutableStateOf(false) }
     var feedSearch by rememberSaveable { mutableStateOf("") }
     val feedSearchFocus = remember { FocusRequester() }
-    var requestFeedSearchFocus by remember { mutableStateOf(0) }
+    var requestFeedSearchFocus by remember { mutableIntStateOf(0) }
     // 1.109：只看我发布的动态
     var showOnlyMine by rememberSaveable { mutableStateOf(false) }
     // 1.192：只看带图片的动态

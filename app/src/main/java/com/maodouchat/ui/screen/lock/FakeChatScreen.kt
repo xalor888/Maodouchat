@@ -47,6 +47,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -320,7 +321,7 @@ private fun FakePinDialog(
     val context = LocalContext.current
     var pin by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
-    var lockoutMs by remember { mutableStateOf(FakeChatManager.lockoutRemainingMs(context)) }
+    var lockoutMs by remember { mutableLongStateOf(FakeChatManager.lockoutRemainingMs(context)) }
     val wrongPinMsg = stringResource(R.string.fake_chat_wrong_pin)
     val lockoutSeconds = ((lockoutMs + 999L) / 1000L).toInt().coerceAtLeast(1)
     val supportingMsg = if (lockoutMs > 0L) {

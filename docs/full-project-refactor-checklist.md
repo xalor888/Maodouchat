@@ -2108,3 +2108,27 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 92 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
 `IconLauncherShape` 5 / `IconDuplicates` 5 / `AutoboxingStateCreation` 4 等零散。
+
+### 第十四轮十一续（2026-09-28）：AutoboxingStateCreation 族收口 4 条 + Recycle 死条目 1 条（92 → 87）
+
+- **4 处 `remember { mutableStateOf(...) }` 装箱** → 专用 state：
+  `AboutScreen.downloadVersionCode` → `mutableIntStateOf(0)`；
+  `ChatListFolderDialogs.rowPitchPx` → `mutableFloatStateOf(0f)`；
+  `ExploreFeedScreen.requestFeedSearchFocus` → `mutableIntStateOf(0)`；
+  `FakeChatScreen.lockoutMs` → `mutableLongStateOf(FakeChatManager.lockoutRemainingMs(context))`（返回 `Long`）；
+  均为 `by` 委托，语义与 `mutableStateOf` 完全一致，仅消除装箱；
+- 4 文件各 +1 import 行（原 `mutableStateOf` 仍有他用，保留 import），行数变化无热点上限影响
+  （281/306/638/402，均不在 1000+ 棘轮文件内）；
+- **`Recycle` 1 条为死条目**：基线记录的 `ExploreOrchestrator.kt:728`
+  `openInputStream(uri)?.use { input ->` 在当前代码中早已是 `.use {}` 写法（现 713 行），
+  lint 不再上报——直接移除基线块，不改代码；
+- **基线手术**：−5 → 92 → 87；`frozenIssueCount` 92 → 87；分布 map 无需改动
+  （`Recycle`/`AutoboxingStateCreation` 不在冻结分布表内）；
+- **判据**：**未本地验证，待 CI 验证**（本机无 Android SDK/JDK，无法本地编译/测试）。
+- **更正**：第十四轮十续笔记中的「判据（本地实跑）：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` 绿…」
+  表述不实——本机从无 JDK/Gradle 运行能力，不存在本地实跑。已同步修正该 PR 描述正文；
+  后续轮次判据统一使用「未本地验证，待 CI 验证」，绝不声称本地跑过测试。
+
+**剩余（lint 基线 87 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`GradleDependency` 17 + 活跃 5；
+`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；`IconLauncherShape` 5 / `IconDuplicates` 5 /
+`Overdraw` 3 等零散。
