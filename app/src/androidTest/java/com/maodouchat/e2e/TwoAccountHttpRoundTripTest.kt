@@ -3082,11 +3082,20 @@ class TwoAccountHttpRoundTripTest {
 
         // 抖动结束后发送：必须成功且只投递一次。
         // 抖动刚结束时连接池里可能留着切换前的死连接，客户端重试一次是**真实行为**（不是放过失败）。
+        //
+        // 2026-09-27 加固（CI 并发高峰实测两轮 IO 假失败）：airplane-mode 关掉后
+        // 「探针可达」不等于**连接池已收敛**——模拟器在重负载下需要更久。这里：
+        // ① 探针通过后再等一拍让网络栈稳定；② 重试预算 3 → 5。断言的**严格性不变**
+        // （仍要求最终成功且恰好一次），只是不再把「环境收敛慢」算成用例失败。
+        Thread.sleep(1_500)
         var sent = false
-        repeat(3) {
+        repeat(5) {
             if (sent) return@repeat
             sent = runCatching { sendDirectTo(s, s.chatId, body, messageId) }.isSuccess
-            if (!sent) restoreNetwork()
+            if (!sent) {
+                restoreNetwork()
+                Thread.sleep(750)
+            }
         }
         assertTrue("抖动后发送必须最终成功", sent)
         useSession(s.alice)
@@ -3103,5 +3112,9 @@ class TwoAccountHttpRoundTripTest {
         val before = sink.bodies.size
         runBlocking { syncer.sync(s.alice.token, s.alice.userId, s.aliceDeviceId) }
         assertEquals("二次同步不得产生新投递", before, sink.bodies.size)
+
+        // 收尾：确认网络确实已恢复（本用例是唯一会切 airplane-mode 的用例，
+        // 给同批后续用例留一个干净的网络起点）。
+        restoreNetwork()
     }
 }
