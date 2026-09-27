@@ -86,6 +86,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.security.SafetyScanStatus
 
 private data class SafetyScanResult(
     val target: QrCodeGenerator.QrTarget.Safety,
@@ -95,18 +96,7 @@ private data class SafetyScanResult(
         get() = status == SafetyScanStatus.FINGERPRINT_MATCH || status == SafetyScanStatus.CODE_MATCH
 }
 
-private enum class SafetyScanStatus {
-    SESSION_EXPIRED,
-    WRONG_ACCOUNT,
-    WRONG_DEVICE,
-    NO_SESSION,
-    WRONG_DEVICE_QR,
-    FINGERPRINT_MATCH,
-    FINGERPRINT_MISMATCH,
-    INVALID_CODE,
-    CODE_MATCH,
-    CODE_MISMATCH
-}
+// U02 延伸：SafetyScanStatus 已迁到 com.maodouchat.security（qp 核验与 UI 共享同一枚举）。
 
 /**
  * 我的二维码页 — 展示当前用户 Maodouchat 号 + 头像 + 二维码。
@@ -393,37 +383,23 @@ fun ScanScreen(
                 loading = true
                 scope.launch {
                     try {
-                        val app = context.applicationContext as com.maodouchat.MaodouchatApp
+                        // U02 延伸：核验决策收进非 ui 的 QrSafetyScanEvaluator（含 app 单例/信号访问），
+                        // 本处只做「QrTarget → 请求」「状态 → 结果」的映射。
                         val currentUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-                        val currentDeviceId = app.signalProtocol.getDeviceId()
                         val result = withContext(Dispatchers.IO) {
-                            val status = when {
-                                currentUserId.isBlank() -> SafetyScanStatus.SESSION_EXPIRED
-                                target.peerUserId != currentUserId -> SafetyScanStatus.WRONG_ACCOUNT
-                                target.peerDeviceId != currentDeviceId -> SafetyScanStatus.WRONG_DEVICE
-                                else -> {
-                                    val ownerFingerprint = target.ownerIdentityFingerprint
-                                    val peerFingerprint = target.peerIdentityFingerprint
-                                    if (!ownerFingerprint.isNullOrBlank() && !peerFingerprint.isNullOrBlank()) {
-                                        val localPeerFingerprint = app.signalProtocol.getLocalIdentityFingerprint()
-                                        val localOwnerFingerprint = app.signalProtocol.getRemoteIdentityFingerprint(target.ownerUserId, target.ownerDeviceId)
-                                        when {
-                                            localOwnerFingerprint.isNullOrBlank() -> SafetyScanStatus.NO_SESSION
-                                            localPeerFingerprint.normalizedFingerprint() != peerFingerprint.normalizedFingerprint() -> SafetyScanStatus.WRONG_DEVICE_QR
-                                            localOwnerFingerprint.normalizedFingerprint() == ownerFingerprint.normalizedFingerprint() -> SafetyScanStatus.FINGERPRINT_MATCH
-                                            else -> SafetyScanStatus.FINGERPRINT_MISMATCH
-                                        }
-                                    } else {
-                                        val localCode = app.signalProtocol.getSafetyCode(target.ownerUserId, target.ownerDeviceId)
-                                        when {
-                                            localCode.isNullOrBlank() -> SafetyScanStatus.NO_SESSION
-                                            target.safetyCode.isNullOrBlank() -> SafetyScanStatus.INVALID_CODE
-                                            localCode.normalizedSafetyCode() == target.safetyCode.normalizedSafetyCode() -> SafetyScanStatus.CODE_MATCH
-                                            else -> SafetyScanStatus.CODE_MISMATCH
-                                        }
-                                    }
-                                }
-                            }
+                            val status = com.maodouchat.security.QrSafetyScanEvaluator.evaluate(
+                                request = com.maodouchat.security.SafetyScanRequest(
+                                    ownerUserId = target.ownerUserId,
+                                    ownerDeviceId = target.ownerDeviceId,
+                                    peerUserId = target.peerUserId,
+                                    peerDeviceId = target.peerDeviceId,
+                                    ownerIdentityFingerprint = target.ownerIdentityFingerprint,
+                                    peerIdentityFingerprint = target.peerIdentityFingerprint,
+                                    safetyCode = target.safetyCode,
+                                ),
+                                currentUserId = currentUserId,
+                                signal = com.maodouchat.security.SignalIdentityAccess,
+                            )
                             SafetyScanResult(target, status)
                         }
                         safetyScanResult = result
@@ -445,8 +421,8 @@ fun ScanScreen(
                 val scanOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
                 scope.launch {
                     try {
-                        val app = context.applicationContext as com.maodouchat.MaodouchatApp
-                        val userRepo = com.maodouchat.data.repository.UserRepository(app.database.userDao())
+                        // U02 延伸：仓库入口收进非 ui 的 AppRepositories。
+                        val userRepo = com.maodouchat.data.repository.AppRepositories.users
                         val cached = userRepo.getUserById(target.userId)
                         if (cached != null) scannedUser = cached
                         if (!com.maodouchat.session.CurrentSession.hasSession()) {
@@ -768,14 +744,14 @@ fun ScanScreen(
             confirmButton = {
                 if (result.matched) {
                     TextButton(onClick = {
-                        val app = context.applicationContext as com.maodouchat.MaodouchatApp
                         val ownerUserId = result.target.ownerUserId
                         val ownerDeviceId = result.target.ownerDeviceId
                         // markIdentityVerified 内部调用阻塞式 Room 查询（identityTrustDao.getTrustBlocking/upsertTrustBlocking），
                         // 必须在 IO 线程执行，避免主线程磁盘 I/O 导致 UI 卡顿/ANR
+                        // U02 延伸：信号访问收进非 ui 的 SignalIdentityAccess。
                         scope.launch {
                             val ok = withContext(Dispatchers.IO) {
-                                app.signalProtocol.markIdentityVerified(ownerUserId, ownerDeviceId)
+                                com.maodouchat.security.SignalIdentityAccess.markIdentityVerified(ownerUserId, ownerDeviceId)
                             }
                             Toast.makeText(
                                 context,
@@ -876,9 +852,6 @@ private fun decodeQrFromImage(context: android.content.Context, uri: Uri): Strin
         .getOrThrow()
         .text
 }.getOrNull()
-
-private fun String.normalizedSafetyCode(): String = filter { it.isDigit() }
-private fun String.normalizedFingerprint(): String = filter { it.isLetterOrDigit() }.lowercase()
 
 @androidx.compose.ui.tooling.preview.Preview
 @Composable

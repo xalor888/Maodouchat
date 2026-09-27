@@ -336,6 +336,9 @@ class ClientArchitectureTest {
 
         "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2528,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2420,
+        // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
+        // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
@@ -374,7 +377,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
-        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 887,
+        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 884,
     )
 
@@ -401,6 +404,9 @@ class ClientArchitectureTest {
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2528,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2420,
+        // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
+        // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
@@ -434,7 +440,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
-        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 887,
+        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 884,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
@@ -737,7 +743,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt",
         "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
-        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt",
         "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
         "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
     )
@@ -1083,7 +1088,6 @@ class ClientArchitectureTest {
         "screen/chatdetail/AiTasksScreen.kt" to 9,
         "screen/chatdetail/MediaCenterScreen.kt" to 6,
         "screen/chatdetail/StarredMessagesScreen.kt" to 6,
-        "screen/contacts/ContactSubScreens.kt" to 4,
         "screen/groupplay/GroupChainScreen.kt" to 2,
         "screen/groupplay/GroupCheckinScreen.kt" to 2,
         "screen/groupplay/GroupPkScreen.kt" to 2,
@@ -1124,7 +1128,6 @@ class ClientArchitectureTest {
         "screen/chatlist/ChatListPorts.kt" to 25,
         "screen/chatlist/ChatListRealtimeCoordinator.kt" to 3,
         "screen/chatlist/ChatListUiState.kt" to 1,
-        "screen/contacts/ContactSubScreens.kt" to 4,
         "screen/contacts/ContactsRepository.kt" to 3,
         "screen/contacts/ContactsViewModel.kt" to 10,
         "screen/explore/ExploreViewModel.kt" to 1,
