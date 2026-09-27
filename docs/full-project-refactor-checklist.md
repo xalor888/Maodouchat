@@ -2127,3 +2127,23 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 88 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
 `IconLauncherShape` 5 + `IconDuplicates` 5（同一组 launcher 图标，资产修复）；其余零散。
+
+### 第十四轮十二续（2026-09-28）：launcher 圆图标资产修复——10 条（88 → 78）
+
+`IconDuplicates` 5 + `IconLauncherShape` 5 同源：5 个密度的 `ic_launcher_round.png`
+与 `ic_launcher.png` **字节相同**（方形小圆角图标当圆图标用）。
+
+- **修复**：从方形图生成真圆图标——取不透明 bbox 的内切圆（0.98 内缩），4× 超采样
+  LANCZOS 下采样做抗锯齿，乘进 alpha；5 个密度（48/72/96/144/192）全量重生成；
+- **两轮踩坑（都靠 lint 复跑暴露）**：① 首轮 mdpi（48px）仍被判「非圆」——LANCZOS
+  下采样在圆外留下**振铃残值**（alpha 1–24 的环带），lint 按「alpha>0」量形状时把环带算进
+  边界 → 行宽超出圆拟合；② 修法：低值截断（<24 归零）+ 与「硬边圆（r−0.5px）」取 min，
+  环带清零、圆内 AA 保留；复跑后 10 条全消；
+- **基线手术**：−10 → 88 → 78；`frozenIssueCount` 88 → 78；
+- **判据**：像素级核验（四角/四边中点 alpha=0、逐行宽度对圆拟合）；`:app:testDebugUnitTest`
+  + `:app:compileDebugAndroidTestKotlin` 绿（4m20s）；`:app:lintDebug` 绿且
+  `LintBaselineFixed` 恰好点名这 10 条。
+
+**剩余（lint 基线 78 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
+`Overdraw` 3 / `PluralsCandidate` 3 / `UnusedAttribute` 2 等零散。
