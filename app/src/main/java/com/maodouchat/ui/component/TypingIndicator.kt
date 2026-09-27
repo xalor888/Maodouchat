@@ -44,8 +44,8 @@ import com.maodouchat.ui.theme.SurfaceVariant
  */
 @Composable
 fun TypingIndicator(
-    text: String? = null,
     modifier: Modifier = Modifier,
+    text: String? = null,
     dotColor: Color = Primary
 ) {
     val motion = LocalMotionSettings.current

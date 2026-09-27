@@ -422,93 +422,21 @@
             column="27"/>
     </issue>
 
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier,"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListComponents.kt"
-            line="313"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatMessageRow.kt"
-            line="132"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="ModifierParameter"
-        message="Optional Modifier parameter should have a default value of `Modifier`"
-        errorLine1="    modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatMessageRow.kt"
-            line="132"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier,"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/component/EmptyState.kt"
-            line="67"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier,"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt"
-            line="483"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt"
-            line="599"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/component/TextMessageBubble.kt"
-            line="767"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="ModifierParameter"
-        message="Modifier parameter should be the first optional parameter"
-        errorLine1="    modifier: Modifier = Modifier,"
-        errorLine2="    ~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/component/TypingIndicator.kt"
-            line="48"
-            column="5"/>
-    </issue>
+    
 
     <issue
         id="Aligned16KB"

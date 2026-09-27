@@ -112,6 +112,7 @@ internal fun ChatMessageRow(
     onResumeFileTransfer: (String) -> Unit,
     onCancelFileTransfer: (String) -> Unit,
     onRequestMediaAttachment: (String) -> Unit,
+    modifier: Modifier = Modifier,
     onRequestVoiceTranscript: ((String) -> Unit)? = null,
     onCopyVoiceTranscript: ((String) -> Unit)? = null,
     onDismissSafety: (() -> Unit)?,
@@ -128,8 +129,7 @@ internal fun ChatMessageRow(
     /** 1.44：点击消息发送者名称 → 打开其资料。 */
     onSenderClick: ((String) -> Unit)? = null,
     /** 1.51：点击已读状态图标（✓✓）→ 打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null,
-    modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier
+    onStatusClick: ((Message) -> Unit)? = null
 ) {
     val message = state.message
     val motion = LocalMotionSettings.current

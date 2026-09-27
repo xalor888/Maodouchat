@@ -298,6 +298,7 @@ internal fun EmptyChatState(
 @Composable
 internal fun ChatListItem(
     chat: Chat,
+    modifier: Modifier = Modifier,
     draft: ChatDraftEntity? = null,
     typingUserId: String? = null,
     scheduledCount: Int = 0,
@@ -310,7 +311,6 @@ internal fun ChatListItem(
     isSelecting: Boolean = false,
     isSelected: Boolean = false,
     receipt: ChatListReceiptPolicy.Receipt? = null,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     onBadgeClick: (() -> Unit)? = null

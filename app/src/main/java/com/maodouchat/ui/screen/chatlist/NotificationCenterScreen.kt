@@ -479,8 +479,8 @@ private fun NotificationRow(
     item: NotificationCenterItem,
     onClick: () -> Unit,
     onDismiss: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     // 1.284：搜索关键词高亮
     highlightQuery: String = ""
 ) {

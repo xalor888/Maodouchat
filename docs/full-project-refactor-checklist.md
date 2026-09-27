@@ -2069,3 +2069,22 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 110 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`HardwareIds` 10；
 `ModifierParameter` 8；`Aligned16KB` 9（依赖侧）；其余零散。
+
+### 第十四轮九续（2026-09-28）：ModifierParameter 族收口——8 条（110 → 102）
+
+7 个 Composable 签名按 Compose 约定把 `modifier` 移到**第一个可选参数**位置（参数行移动，零行差）：
+
+- `ChatListItem`（modifier 提前到 `chat` 之后）、`EmptyState`、`TypingIndicator`、`NotificationRow`、
+  `StarredMessageRow`、`LinkPreviewSlot`、`ChatMessageRow`（×2 条：位置 + 默认值）；
+- `ChatMessageRow` 的默认值 `androidx.compose.ui.Modifier = androidx.compose.ui.Modifier` 改回
+  `Modifier = Modifier`（文件本就有 import，限定名让 lint 认不出默认值）；
+- **首轮 7/8**：`ChatMessageRow` 的「第一个可选参数」判断我按「required 段之后」放，实际该函数的
+  **首个带默认值的参数在更靠前**（`onRequestVoiceTranscript`）——lint 的提示行复跑暴露后修正；
+- 调用点全为命名实参（编译期 0 破坏）；`TextMessageBubble` 在 1050 行上限内，参数行移动不动行数；
+- **基线手术**：−8 → 110 → 102；`frozenIssueCount` 110 → 102；
+- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  绿；`:app:lintDebug` 绿且 `LintBaselineFixed` 恰好点名这 8 条。
+
+**剩余（lint 基线 102 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`HardwareIds` 10；
+`Aligned16KB` 9（依赖侧）；其余零散。

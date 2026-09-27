@@ -725,8 +725,8 @@ internal fun TextBubble(
 internal fun LinkPreviewSlot(
     messageContent: String,
     isOwnMessage: Boolean,
-    secretChat: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    secretChat: Boolean = false
 ) {
     val context = LocalContext.current
     val userEnabled = remember(LinkPreviewPreferences.version) { LinkPreviewPreferences.isEnabled(context) }

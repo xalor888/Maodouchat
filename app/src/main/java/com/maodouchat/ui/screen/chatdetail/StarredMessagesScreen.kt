@@ -562,13 +562,13 @@ private fun StarredMessageRow(
     message: Message,
     senderName: String,
     chatTitle: String?,
+    modifier: Modifier = Modifier,
     // 1.232：搜索高亮
     searchQuery: String = "",
     // 1.243：长按复制内容
     onCopy: (() -> Unit)? = null,
     onClick: () -> Unit,
-    onUnstar: () -> Unit,
-    modifier: Modifier = Modifier
+    onUnstar: () -> Unit
 ) {
     val context = LocalContext.current
     Row(
