@@ -1850,6 +1850,15 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   判据：编译 + 架构门禁实跑绿 + `DestinationSmokeTest` 22 例（含 aiTasks 目的地，真 VM 渲染）
   在 API 36 设备实跑全绿。
 
+- **媒体中心 + 星标页（本批）**：`MediaCenterScreen` 6 → 0、`StarredMessagesScreen` 6 → 0——
+  两屏同一族：`LocalMessageStore`/`ChatLockRepository` 构造收进 `AppRepositories`
+  （新增 `messages`）、会话名解析走同一对 `chatEntityOrNull`/`users`、密聊能力走
+  `SecretChatCapabilities.forChat`；星标页的「锁定 ∪ 密聊」两组集合收进
+  `ChatVisibilitySets.safeRedactionSets()`（**每组独立容错**：一侧读失败回落空集、
+  取消重抛——与原实现逐字同语义）。MediaCenterScreen 1060 → 1059 行，上限两份 map 收紧；
+  两文件从 `frozenUiAppDatabaseGrabbers` 名单删除。判据：架构门禁实跑绿 +
+  `DestinationSmokeTest` 22 例（含 mediaCenter/starred 两目的地）API 36 设备全绿。
+
 **剩余（同类待收口）**：`navigation/CallNavigation.kt` 9（通话族结构收口由
-`PolledIncomingBatchPolicy` 专项继续）；`MediaCenterScreen` 6 / `StarredMessagesScreen` 6 /
-`ChatDetail*` 族——均属聊天详情拆分目录，与云端侧 import/拆分批次可能重叠，按需让路。
+`PolledIncomingBatchPolicy` 专项继续）；`ChatDetail*` 其余条目（ViewModel/Deps/Ports 等）
+多为「只做装配」的登记豁免或与云端拆分批次重叠，按需让路。

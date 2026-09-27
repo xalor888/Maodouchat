@@ -64,7 +64,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.model.Chat
@@ -122,9 +121,9 @@ class StarredMessagesViewModel(
 
     private val chatId: String = savedStateHandle.get<String>("chatId")?.takeIf { it.isNotBlank() }.orEmpty()
     private val globalScope: Boolean = chatId.isBlank()
-    private val app = application as MaodouchatApp
-    private val messageRepo = LocalMessageStore(app.database.messageDao(), app.database)
-    private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
+    // U02 延伸：仓库入口收进非 ui 的 AppRepositories（不再从 Application 强转后自取 database）。
+    private val messageRepo = com.maodouchat.data.repository.AppRepositories.messages
+    private val chatLockRepo = com.maodouchat.data.repository.AppRepositories.chatLocks
     private val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
     private val currentUserId: String get() = com.maodouchat.session.CurrentSession.ownerUserId()
 
@@ -179,20 +178,10 @@ class StarredMessagesViewModel(
                         ).getOrThrow()
                         val localById = messageRepo.getMessagesByIds(remote.map { it.messageId })
                             .associateBy { it.id }
-                        val lockedChatIds = try {
-                            app.database.chatLockDao().listLockedChatIds().toSet()
-                        } catch (e: kotlinx.coroutines.CancellationException) {
-                            throw e
-                        } catch (_: Exception) {
-                            emptySet()
-                        }
-                        val secretChatIds = try {
-                            app.database.chatDao().listSecretChatIds().toSet()
-                        } catch (e: kotlinx.coroutines.CancellationException) {
-                            throw e
-                        } catch (_: Exception) {
-                            emptySet()
-                        }
+                        // U02 延伸：两组隐藏集合收进非 ui 的 ChatVisibilitySets（每组独立容错语义保留）。
+                        val redactionSets = com.maodouchat.data.repository.ChatVisibilitySets.safeRedactionSets()
+                        val lockedChatIds = redactionSets.locked
+                        val secretChatIds = redactionSets.secret
                         val isSecretScoped = !globalScope && chatId.isNotBlank() && chatId in secretChatIds
                         if (isSecretScoped) {
                             com.maodouchat.security.SecretChatSession.markSurfaceActive(chatId)

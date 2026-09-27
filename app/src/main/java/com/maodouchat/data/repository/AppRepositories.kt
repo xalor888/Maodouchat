@@ -29,6 +29,9 @@ object AppRepositories {
     val chatLocks: ChatLockRepository
         get() = ChatLockRepository(MaodouchatApp.instance.database.chatLockDao())
 
+    val messages: LocalMessageStore
+        get() = MaodouchatApp.instance.let { LocalMessageStore(it.database.messageDao(), it.database) }
+
     /** AI 任务仓库（需要调用方的 Application 做提醒调度；生产环境即 app 单例）。 */
     fun aiTasks(application: android.app.Application): AiTaskRepository =
         AiTaskRepository(MaodouchatApp.instance.database.aiTaskDao(), application)
