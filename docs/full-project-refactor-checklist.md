@@ -1836,6 +1836,15 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   负控制两轮：删 POST_NOTIFICATIONS → 恰好 2 条红；**删 CAMERA 不红**（库清单合并期补回，
   灵敏度边界如实登记）。Q03 的「通知/Widget/深链/权限/前台服务」五维至此均有真机证据。
 
-**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9——通话族的结构收口由
-`PolledIncomingBatchPolicy` 专项继续（第一步已落地）；ui 直连持久层清单里其余条目
-均属云端侧 import/拆分批次的范围。
+- **AI 任务页（本批）**：`AiTasksScreen` 9 → 0——VM 的 `application as MaodouchatApp` +
+  `app.database` 直取收进 `AppRepositories`（`aiTasks(application)` / `chatLocks` /
+  `chatEntityOrNull`——最后一个是**窄口径**单行读，避免 `ChatRepository.getChatById`
+  为装配参与者全表读 users 的额外成本）；提醒清理收进 `com.maodouchat.ai.AiTaskReminderCleanup`
+  （取 id + 逐个取消 + 吞错/取消重抛逐字搬运）；会话能力查询收进新 `SecretChatCapabilities.forChat`
+  （ui 里另有 6 处同款调用，随各自批次迁移）；`markAiTasksRead` 改走 `NotificationCenterAccess`。
+  判据：编译 + 架构门禁实跑绿 + `DestinationSmokeTest` 22 例（含 aiTasks 目的地，真 VM 渲染）
+  在 API 36 设备实跑全绿。
+
+**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9（通话族结构收口由
+`PolledIncomingBatchPolicy` 专项继续）；`MediaCenterScreen` 6 / `StarredMessagesScreen` 6 /
+`ChatDetail*` 族——均属聊天详情拆分目录，与云端侧 import/拆分批次可能重叠，按需让路。
