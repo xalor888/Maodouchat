@@ -1860,6 +1860,16 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   两文件从 `frozenUiAppDatabaseGrabbers` 名单删除。判据：架构门禁实跑绿 +
   `DestinationSmokeTest` 22 例（含 mediaCenter/starred 两目的地）API 36 设备全绿。
 
+- **设置族四文件（本批）**：`SettingsAccountSecurityScreen` 3 → 0、`SettingsViewModel` 2 → 0、
+  `SettingsNotificationViewModel` 3 → 0、`SettingsGeneralSettingsViewModel` 1 → 0——
+  信号能力（`isInitializedFor`/`getLocalIdentityFingerprint`/`deviceId`/`signDeviceConfirmation`）
+  全部走 `SignalIdentityAccess`（本轮补两个方法）；`secureSessionManager` 收进新
+  `SecureSessionAccess.manager`；实时连接态与通知中心分别走 `AppRuntime.realtimeDispatcherOrNull`
+  与 `NotificationCenterAccess`；悬浮球开关的 Context 改 `getApplication()`。
+  上限收紧两处：SettingsViewModel 1194 → 1192、SettingsAccountSecurityScreen 884 → 883。
+  判据：架构门禁实跑绿 + `DestinationSmokeTest` 22 例（含 settings 三个目的地）API 36 设备全绿。
+
 **剩余（同类待收口）**：`navigation/CallNavigation.kt` 9（通话族结构收口由
 `PolledIncomingBatchPolicy` 专项继续）；`ChatDetail*` 其余条目（ViewModel/Deps/Ports 等）
-多为「只做装配」的登记豁免或与云端拆分批次重叠，按需让路。
+多为「只做装配」的登记豁免或与云端拆分批次重叠，按需让路；`ChatListRealtimeCoordinator` 3 /
+`ContactsViewModel` 10 / `ContactsRepository` 3 / `ExploreViewModel` 1 待下一批。

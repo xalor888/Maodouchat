@@ -80,7 +80,9 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
         dndStartMinute = NotificationPreferences.dndStartMinute(application),
         dndEndMinute = NotificationPreferences.dndEndMinute(application),
         pushConfigured = com.maodouchat.session.CurrentSession.hasSession(),
-        pushReady = (application as? com.maodouchat.MaodouchatApp)?.realtimeEventDispatcher?.connectionState?.value == com.maodouchat.core.realtime.RealtimeConnectionState.CONNECTED
+        pushReady = com.maodouchat.session.AppRuntime
+            .realtimeDispatcherOrNull(application)
+            ?.connectionState?.value == com.maodouchat.core.realtime.RealtimeConnectionState.CONNECTED
     ))
     val uiState: StateFlow<NotificationSettingsUiState> = _uiState.asStateFlow()
 
@@ -90,8 +92,9 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
     private fun isRealtimeConnected(): Boolean {
-        val app = getApplication<Application>() as? com.maodouchat.MaodouchatApp
-        return app?.realtimeEventDispatcher?.connectionState?.value == com.maodouchat.core.realtime.RealtimeConnectionState.CONNECTED
+        return com.maodouchat.session.AppRuntime
+            .realtimeDispatcherOrNull(getApplication())
+            ?.connectionState?.value == com.maodouchat.core.realtime.RealtimeConnectionState.CONNECTED
     }
 
     private fun isCurrentOwner(expectedUserId: String): Boolean =
@@ -473,7 +476,7 @@ class NotificationSettingsViewModel(application: Application) : AndroidViewModel
     private fun dismissPostedNotifications() {
         com.maodouchat.notification.NotificationInfrastructure.cancelAll(app)
         com.maodouchat.notification.ReminderNotificationService.cancelAllAiTaskReminders(app)
-        (app as? com.maodouchat.MaodouchatApp)?.notificationCenter?.markAllRead()
+        com.maodouchat.notification.NotificationCenterAccess.repository.markAllRead()
     }
 
     private fun saveLocal(response: NotificationSettingsResponse) {
