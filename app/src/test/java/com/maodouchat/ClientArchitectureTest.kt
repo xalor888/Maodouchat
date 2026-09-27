@@ -1107,7 +1107,9 @@ class ClientArchitectureTest {
         "navigation/CallNavigation.kt" to 9,
         "navigation/MainContainerRoute.kt" to 6,
         "navigation/NavGraph.kt" to 4,
-        "navigation/SearchCenterDestinations.kt" to 5,
+        // U02 延伸：SearchCenterDestinations 的行点击决策/副作用收进非 ui 的
+        // NotificationCenterOpenController（接线 NotificationCenterEffects），
+        // 该文件直连持久层命中 5 → 0，条目删除。
         "screen/call/CallHistoryScreen.kt" to 4,
         "screen/call/CallViewModel.kt" to 3,
         "screen/chatdetail/AiTasksScreen.kt" to 9,
