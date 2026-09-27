@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.service.GroupInvitationService
 import io.ktor.server.routing.Route
 import kotlinx.serialization.json.Json
 

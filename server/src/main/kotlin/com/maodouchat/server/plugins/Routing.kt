@@ -6,6 +6,7 @@ import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.SealedSenderCertificateService
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.AiGatewayService
 import com.maodouchat.server.service.MediaReferenceService

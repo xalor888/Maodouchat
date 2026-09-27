@@ -9,7 +9,7 @@ import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.CreateConversationCommand
 import com.maodouchat.server.repository.CreateConversationOutcome
 import com.maodouchat.server.repository.CreateConversationResult
-import com.maodouchat.server.repository.GroupInvitationService
+import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.BlobStore

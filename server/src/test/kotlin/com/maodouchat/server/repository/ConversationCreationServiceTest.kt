@@ -1,5 +1,7 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.service.GroupInvitationService
+
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
