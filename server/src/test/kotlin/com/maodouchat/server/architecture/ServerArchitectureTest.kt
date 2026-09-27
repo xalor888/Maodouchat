@@ -72,11 +72,10 @@ class ServerArchitectureTest {
      */
     private val frozenServicesDependingOnPlugins: Map<String, Int> = emptyMap()
 
-    /** 物理错放在 `repository/` 的 `*Service.kt`。当前 12 个（应迁往 `service/`）。 */
+    /** 物理错放在 `repository/` 的 `*Service.kt`。当前 11 个（应迁往 `service/`）。 */
     private val frozenServicesInRepositoryPackage: Set<String> = setOf(
         "AccountLifecycleService.kt",
         "BlockService.kt",
-        "ConversationCommandService.kt",
         "ConversationCreationService.kt",
         "CredentialService.kt",
         "FeedQueryService.kt",
