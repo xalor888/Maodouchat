@@ -4,7 +4,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.maodouchat.ui.screen.login.LoginScreen
-import kotlinx.coroutines.launch
+import com.maodouchat.navigation.AppNavigationEvents
 import com.maodouchat.navigation.Routes
 
 /**
@@ -16,13 +16,7 @@ fun NavGraphBuilder.authDestinations(navController: NavHostController) {
         LoginScreen(
             onLoginSuccess = {
                 // Multi-device UX prefs before main chrome paints with stale local theme/lang.
-                com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
-                    runCatching {
-                        com.maodouchat.util.ClientPrefsSync.pullAndApply(
-                            com.maodouchat.MaodouchatApp.instance
-                        )
-                    }
-                }
+                AppNavigationEvents.pullAndApplyClientPrefsAsync()
                 navController.navigate(Routes.MAIN) {
                     popUpTo(Routes.LOGIN) { inclusive = true }
                 }

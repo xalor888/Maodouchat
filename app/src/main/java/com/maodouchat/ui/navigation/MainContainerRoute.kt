@@ -99,7 +99,7 @@ import com.maodouchat.network.PublicUpdatesDto
 import com.maodouchat.update.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import com.maodouchat.update.OfficialApkInstaller
-import com.maodouchat.consumeIfStale
+import com.maodouchat.navigation.AppNavigationEvents
 import com.maodouchat.navigation.MainTab
 import com.maodouchat.navigation.Routes
 
@@ -115,19 +115,19 @@ internal fun MainContainer(navController: NavHostController) {
     // Missed-call tray tap must land on chats inbox (not contacts/explore/settings/archive).
     var openMissedCallsRequest by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
-        com.maodouchat.MaodouchatApp.openMissedCallsEvents.collect { req ->
-            if (consumeIfStale(req, com.maodouchat.MaodouchatApp::consumeOpenMissedCalls)) return@collect
+        AppNavigationEvents.missedCallsEvents().collect { req ->
+            if (AppNavigationEvents.missedCallsIsStale(req)) return@collect
             selectedTab = MainTab.CHATS
             openMissedCallsRequest = req.atMillis
-            com.maodouchat.MaodouchatApp.consumeOpenMissedCalls(req)
+            AppNavigationEvents.consumeMissedCalls(req)
         }
     }
     // Friend-request / contacts deep-link → contacts tab.
     LaunchedEffect(Unit) {
-        com.maodouchat.MaodouchatApp.openContactsEvents.collect { req ->
-            if (consumeIfStale(req, com.maodouchat.MaodouchatApp::consumeOpenContacts)) return@collect
+        AppNavigationEvents.contactsEvents().collect { req ->
+            if (AppNavigationEvents.contactsIsStale(req)) return@collect
             selectedTab = MainTab.CONTACTS
-            com.maodouchat.MaodouchatApp.consumeOpenContacts(req)
+            AppNavigationEvents.consumeContacts(req)
         }
     }
 
