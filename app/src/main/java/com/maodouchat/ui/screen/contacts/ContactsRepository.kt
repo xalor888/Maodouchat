@@ -1,7 +1,6 @@
 package com.maodouchat.ui.screen.contacts
 
 import android.app.Application
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.UserRepository
@@ -44,9 +43,15 @@ class ContactsController(private val repository: ContactsRepository) {
             ?: ContactsLoadResult(emptyList(), sessionMissing = true)
 }
 
-internal class AndroidContactsRepository(application: Application) : ContactsRepository {
-    private val app = application as MaodouchatApp
-    private val userRepository = UserRepository(app.database.userDao())
+/**
+ * Android 实现：[UserRepository] 由构造器注入（B02），不再 `application as MaodouchatApp`
+ * 后自取 `database`。`app` 只以普通 Application/Context 身份传给 FriendCacheStore
+ *（SharedPreferences 级缓存，无持久层直连）。
+ */
+internal class AndroidContactsRepository(
+    private val app: Application,
+    private val userRepository: UserRepository,
+) : ContactsRepository {
 
     override fun currentSession(): ContactsSession? {
         val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()

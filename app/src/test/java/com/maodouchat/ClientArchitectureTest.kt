@@ -730,10 +730,10 @@ class ClientArchitectureTest {
      *
      * G328c：这份名单**不再是空的**——因为判据修好了之后，实测发现它此前在说谎。
      * 旧判据是两条字面量 `contains("as com.maodouchat.MaodouchatApp).database")` 与
-     * `contains("MaodouchatApp.database")`，当场就漏掉一个真实违规：
+     * `contains("MaodouchatApp.database")`，当场就漏掉一个真实违规（当时
      * `ContactsViewModel.kt` 写的是 `(application as MaodouchatApp).database.userDao()`——
-     * 非全限定转型 + 括号，两条字面量都不匹配。换成两条正则后，ui/ 下实测有 9 个文件
-     * 仍在从 app 容器取 `database` 造 DAO/Repository。
+     * 非全限定转型 + 括号，两条字面量都不匹配；该文件现已还债离场）。
+     * 换成两条正则后，ui/ 下实测有 9 个文件仍在从 app 容器取 `database` 造 DAO/Repository。
      *
      * 这 9 个是**真实的待还债**，不是豁免：它们要经 B02「依赖注入装配」改成构造器注入。
      * 棘轮只许降（下面的反向断言会强制：修好一个就必须从名单里删掉）。
@@ -741,8 +741,9 @@ class ClientArchitectureTest {
     private val frozenUiAppDatabaseGrabbers: List<String> = listOf(
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
-        "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
-        "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
+        // 通讯录两文件已还债（AndroidContactsRepository 改构造器注入 UserRepository；
+        // ContactsViewModel 的 3 处 userDao/userRepository 直连改走 AppRepositories.users/userDao），
+        // 名单 4 → 2。
     )
 
     /**
@@ -1127,8 +1128,10 @@ class ClientArchitectureTest {
         "screen/chatdetail/GroupDetailViewModel.kt" to 2,
         "screen/chatlist/ChatListPorts.kt" to 25,
         "screen/chatlist/ChatListRealtimeCoordinator.kt" to 3,
-        "screen/contacts/ContactsRepository.kt" to 3,
-        "screen/contacts/ContactsViewModel.kt" to 10,
+        // 通讯录收口：ContactsRepository 3 → 0（条目删除），ContactsViewModel 10 → 3
+        //（剩余 3 处是 `import MaodouchatApp` + 通知中心静态发射 + `as?` 取实时事件分发器，
+        // 均非持久层直连）。
+        "screen/contacts/ContactsViewModel.kt" to 3,
         "screen/explore/ExploreViewModel.kt" to 1,
         "screen/login/LoginViewModel.kt" to 2,
         // 死 import 收口：SettingsAccountSecurity.kt 头部残留的 `import ...MaodouchatApp`
