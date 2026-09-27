@@ -345,7 +345,7 @@ class ClientArchitectureTest {
         // 纳入棘轮，之后每拆一块就往下调。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 671,
-        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1635,
+        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1618,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
@@ -408,7 +408,7 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 671,
-            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1635,
+            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1618,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
@@ -1110,7 +1110,6 @@ class ClientArchitectureTest {
         // U02 延伸：SearchCenterDestinations 的行点击决策/副作用收进非 ui 的
         // NotificationCenterOpenController（接线 NotificationCenterEffects），
         // 该文件直连持久层命中 5 → 0，条目删除。
-        "screen/call/CallViewModel.kt" to 3,
         "screen/chatdetail/AiTasksScreen.kt" to 9,
         "screen/chatdetail/ChatDetailAiIntents.kt" to 2,
         "screen/chatdetail/ChatDetailDisappearing.kt" to 3,

@@ -1803,6 +1803,13 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   .applyAfterServerChanged`）。两处均为**纯委托**（fire-and-forget / 两步调用），无新行为；
   判据 = 编译 + 架构门禁实跑 + 既有套件（不为「有测试」写空测试，如实登记）。
 
-**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`screen/call/CallViewModel.kt` 3、
-`screen/contacts/ContactSubScreens.kt` 4——通话族/扫码信任链的收口风险更高
-（来电路由的状态机零 E2E），留作专项：先给来电墓碑/轮询路径补行为测试，再动结构。
+- **CallViewModel（本批）**：`screen/call/CallViewModel.kt` 3 → 0——会话世代/实时分发器/
+  应用协程域三处直连收进 `com.maodouchat.session.AppRuntime`（世代是实时映射，非常量；
+  `realtimeDispatcherOrNull` 保留「非本应用实例 → null」原语义）；顺带把 6 处四行的
+  `mayContinue(…)` 格式化折叠为单行，文件 1635 → 1618，热点上限两份 map 同步收紧。
+  判据：`AppRuntimeInstrumentedTest` 5 例（含「bump 后跟随」的常量防呆）+ 负控制 1 轮
+  （世代改常量 → 恰好 2 条红）。
+
+**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`screen/contacts/ContactSubScreens.kt` 4
+——通话族/扫码信任链的收口风险更高（来电路由的状态机零 E2E），留作专项：
+先给来电墓碑/轮询路径补行为测试，再动结构（`PolledIncomingBatchPolicy` 第一步已落地）。
