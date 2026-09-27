@@ -1750,3 +1750,22 @@ FRIEND_REQUEST 无 deeplink 的兜底、`markPostInteractionsRead` 的 runCatchi
 
 **剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`MainContainerRoute.kt` 6、`NavGraph.kt` 4、
 `CallHistoryScreen.kt` 4、`CallViewModel.kt` 3、`AuthDestinations.kt` 2——按同一范式逐个收。
+
+**同族续批（2026-09-27）**：
+
+- **v2（#87）**：`MainContainerRoute` 6 → 0、`AuthDestinations` 2 → 0——两条 app 事件流
+  （未接来电/联系人）与「登录后多端偏好拉取」收进非 ui 的 `AppNavigationEvents`
+  （请求类型经 typealias 暴露，避免把 `MaodouchatApp` 符号带回 ui）。判据：
+  `AppNavigationEventsInstrumentedTest` 4 例（真机）+ 负控制 1 轮（`missedCallsIsStale`
+  恒 false → 恰好 1 条过期分支红）。
+- **v3（本批）**：`NavGraph` 4 → 0——三条 app 级事件流各归其位：
+  管理端公告 → `com.maodouchat.realtime.AdminNoticeFeed`（owner 捕获/实时门禁/空正文过滤）；
+  Token 过期清理 → `com.maodouchat.session.TokenExpirySessionPurge`（归属+世代判定、purge容错、
+  取消重抛）；扫码建私聊 → `com.maodouchat.call.DirectChatRequestHandler`
+  （门禁/建聊/四类结果，含「在途失效静默丢弃」语义）。判据：JVM 测试 8 例
+  （`TokenExpirySessionPurgeTest` 5 + `DirectChatRequestHandlerTest` 3）+ 负控制 1 轮
+  （`shouldHandle` 恒 true → 恰好 4 条反例红、正例绿）；架构门禁实跑绿。
+
+**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`screen/call/CallHistoryScreen.kt` 4、
+`CallViewModel.kt` 3——通话族的收口风险更高（来电路由的状态机零 E2E），留作专项：
+先给来电墓碑/轮询路径补行为测试，再动结构。

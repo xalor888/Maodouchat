@@ -1077,9 +1077,10 @@ class ClientArchitectureTest {
     /** U02 主口径：含 `@Composable` 的文件。只许下降，变多即红。 */
     private val frozenComposableDirectPersistence: Map<String, Int> = mapOf(
         "navigation/CallNavigation.kt" to 9,
+        // U02 延伸：NavGraph 的 4 处（管理端公告/Token 过期清理/扫码建私聊）收进
+        // AdminNoticeFeed / TokenExpirySessionPurge / DirectChatRequestHandler，4 → 0，条目删除。
         // U02 延伸：MainContainerRoute 的两个 app 事件收集器收进非 ui 的
         // AppNavigationEvents（含世代过期消费的桥接），直连命中 6 → 0，条目删除。
-        "navigation/NavGraph.kt" to 4,
         "screen/call/CallHistoryScreen.kt" to 4,
         "screen/chatdetail/AiTasksScreen.kt" to 9,
         "screen/chatdetail/MediaCenterScreen.kt" to 6,
@@ -1107,7 +1108,8 @@ class ClientArchitectureTest {
         // U02 延伸：AuthDestinations 的登录后偏好拉取走 AppNavigationEvents，2 → 0；
         // MainContainerRoute 6 → 0（同上），两条目删除。
         "navigation/CallNavigation.kt" to 9,
-        "navigation/NavGraph.kt" to 4,
+        // U02 延伸：NavGraph 的 4 处（管理端公告/Token 过期清理/扫码建私聊）收进
+        // AdminNoticeFeed / TokenExpirySessionPurge / DirectChatRequestHandler，4 → 0，条目删除。
         // U02 延伸：SearchCenterDestinations 的行点击决策/副作用收进非 ui 的
         // NotificationCenterOpenController（接线 NotificationCenterEffects），
         // 该文件直连持久层命中 5 → 0，条目删除。
