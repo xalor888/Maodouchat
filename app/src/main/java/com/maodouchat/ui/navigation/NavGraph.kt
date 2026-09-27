@@ -1,6 +1,5 @@
 package com.maodouchat.ui.navigation
 
-import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.PublicServerInfoRepository
 import com.maodouchat.data.repository.SessionNetworkRepository
 import com.maodouchat.notification.SocialNotificationService
@@ -76,6 +75,9 @@ import androidx.work.WorkInfo
 import com.maodouchat.navigation.AppLinkRouter
 import com.maodouchat.navigation.MainTab
 import com.maodouchat.navigation.Routes
+import com.maodouchat.realtime.AdminNoticeFeed
+import com.maodouchat.session.TokenExpirySessionPurge
+import com.maodouchat.call.DirectChatRequestHandler
 import com.maodouchat.navigation.callDestinations
 import com.maodouchat.navigation.exploreDestinations
 import com.maodouchat.navigation.groupPlayDestinations
@@ -127,19 +129,9 @@ fun MaodouchatNavGraph(
     }
 
     LaunchedEffect(Unit) {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return@LaunchedEffect
-        app.realtimeEventDispatcher.adminNoticeEvents.collect { event ->
-            if (ownerUserId.isBlank() ||
-                !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-            ) {
-                return@collect
-            }
-            val body = event.text.trim()
-            if (body.isBlank()) return@collect
-            adminBroadcastDialog = (event.title.ifBlank { adminBroadcastDefaultTitle }) to body
+        // U02 延伸：owner 捕获/门禁/空正文过滤已收进非 ui 的 AdminNoticeFeed。
+        AdminNoticeFeed.visibleNotices().collect { event ->
+            adminBroadcastDialog = (event.title.ifBlank { adminBroadcastDefaultTitle }) to event.text.trim()
         }
     }
 
@@ -211,30 +203,11 @@ fun MaodouchatNavGraph(
     }
 
     // Bug #20: 监听 Token 过期事件（401），完整清理本地会话后跳转登录页
+    // U02 延伸：策略判定与 purge 已收进非 ui 的 TokenExpirySessionPurge（含取消重抛语义）。
     LaunchedEffect(Unit) {
         SessionNetworkRepository().tokenExpiredEvents.collectLatest { event ->
-            val app = context.applicationContext as? com.maodouchat.MaodouchatApp
-            if (!com.maodouchat.network.TokenExpiredEventPolicy.shouldHandle(
-                    eventOwnerUserId = event.ownerUserId,
-                    eventSessionGeneration = event.sessionGeneration,
-                    currentOwnerUserId = com.maodouchat.session.CurrentSession.snapshot().userId,
-                    currentSessionGeneration = com.maodouchat.MaodouchatApp.currentSessionGeneration(),
-                )
-            ) return@collectLatest
-            val purged = try {
-                app?.secureSessionManager?.purgeLocalSession(
-                    destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
-                        com.maodouchat.security.LogoutStorePolicy.Reason.TOKEN_EXPIRED
-                    ),
-                    expectedOwnerUserId = event.ownerUserId
-                ) ?: false
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                android.util.Log.e("NavGraph", "Token-expiry session purge failed", error)
-                false
-            }
-            if (!purged) return@collectLatest
+            if (!TokenExpirySessionPurge.shouldHandle(event)) return@collectLatest
+            if (!TokenExpirySessionPurge.purge(event)) return@collectLatest
             navController.navigate(Routes.LOGIN) {
                 popUpTo(0) { inclusive = true }
             }
@@ -261,42 +234,28 @@ fun MaodouchatNavGraph(
     }
 
     // 扫一扫后"和某人创建私聊"
+    // U02 延伸：会话门禁/建聊/错误映射已收进非 ui 的 DirectChatRequestHandler。
     LaunchedEffect(Unit) {
         com.maodouchat.call.CallOrchestrator.directChatRequests.collect { req ->
             if (req.sessionGeneration != com.maodouchat.call.CallOrchestrator.currentSessionGeneration()) {
                 return@collect
             }
-            // 通过 ContactsViewModel 创建/获取 1-on-1 私聊
-            val app = context.applicationContext as com.maodouchat.MaodouchatApp
-        val token = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (token.isBlank() || ownerUserId.isBlank() ||
-                !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-            ) {
-                Toast.makeText(context, sessionExpiredMsg, Toast.LENGTH_SHORT).show()
-                return@collect
-            }
-        val liveToken = token
-            ChatNetworkRepository().createChat(liveToken, listOf(req.userId))
-                .onSuccess { chat ->
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                    )
-                    ) {
-                        return@onSuccess
-                    }
-                    navController.navigate(Routes.chatDetail(chat.id)) { launchSingleTop = true }
-                }
-                .onFailure { error ->
-                    android.util.Log.w("NavGraph", "createChat failed", error)
+            when (val outcome = DirectChatRequestHandler.handle(req)) {
+                DirectChatRequestHandler.Outcome.SessionExpired ->
+                    Toast.makeText(context, sessionExpiredMsg, Toast.LENGTH_SHORT).show()
+
+                DirectChatRequestHandler.Outcome.Dropped -> Unit
+
+                is DirectChatRequestHandler.Outcome.OpenChat ->
+                    navController.navigate(Routes.chatDetail(outcome.chatId)) { launchSingleTop = true }
+
+                is DirectChatRequestHandler.Outcome.Failed ->
                     Toast.makeText(
                         context,
-                        error.message?.takeIf { it.isNotBlank() } ?: createChatFailedMsg,
+                        outcome.message?.takeIf { it.isNotBlank() } ?: createChatFailedMsg,
                         Toast.LENGTH_SHORT
                     ).show()
-                }
+            }
         }
     }
 
