@@ -10,7 +10,6 @@
     <string name="ai_privacy_image_ocr_hint">Recognize text inside images and add it to global search, so text in screenshots becomes searchable. Requires AI processing consent</string>
     <string name="common_share">Share</string>
     <string name="common_clear">Clear</string>
-    <string name="common_selected">Selected</string>
 
     <string name="nav_chats">Chats</string>
     <string name="nav_contacts">Contacts</string>
@@ -332,10 +331,6 @@
     <string name="contacts_block_message">Block %1$s? They will not be able to contact you, and your posts and profile will be hidden from them.</string>
     <string name="contacts_friend_blocked">Blocked %1$s</string>
 
-    <plurals name="chat_export_success">
-        <item quantity="one">Exported %1$d message</item>
-        <item quantity="other">Exported %1$d messages</item>
-    </plurals>
     <string name="chat_export_empty">No messages to export in this chat</string>
     <string name="chat_clear_history_body">Deletes decrypted messages and media for this chat on this device. This cannot be undone. The server only has ciphertext, not a readable backup; the same envelopes cannot be decrypted again. Other devices are not affected.</string>
     <string name="chat_clear_history_done">Local plaintext cleared. There is no readable cloud backup.</string>
@@ -345,7 +340,6 @@
     <string name="chat_permission_video_call">Microphone and camera access are required for video calls</string>
     <string name="chat_permission_location">Location access is required to share your location</string>
     <string name="chat_group_name">Group name</string>
-    <string name="chat_save_group_name">Save group name</string>
     <plurals name="chat_members_count">
         <item quantity="one">%1$d member</item>
         <item quantity="other">%1$d members</item>
@@ -354,11 +348,6 @@
     <string name="chat_remove">Remove</string>
     <string name="chat_add_member">Add members</string>
     <string name="chat_add">Add</string>
-    <string name="chat_candidates_more" tools:ignore="PluralsCandidate">Show %1$d more people to add</string>
-    <string name="chat_candidates_showing_all" tools:ignore="PluralsCandidate">Showing all %1$d people available to add</string>
-    <string name="chat_group_info_search_hint">Search members or people to add</string>
-    <string name="chat_group_info_search_empty">No matching members or candidates</string>
-    <string name="chat_no_candidates">No users available to add</string>
     <string name="chat_contact">Contact</string>
     <string name="chat_blocked_description">This user is blocked. Blocking is mutual: they can no longer message you, view your profile, or call you, and the friendship has been removed. Unblock to restore.</string>
     <string name="chat_block_description">Blocking is mutual: this user will no longer be able to message you, view your profile, or call you, and the friendship will be removed. You also stop receiving their messages.</string>
@@ -2418,11 +2407,6 @@
     
     <string name="notification_admin_broadcast_default_title">System notice</string>
     <string name="notification_admin_broadcast_sender">Admin</string>
-    <string name="media_panel_tab_emoji">Emoji</string>
-    <string name="media_panel_tab_sticker">Stickers</string>
-    <string name="media_panel_tab_gif">GIF</string>
-    <string name="media_panel_sticker_empty">No stickers available</string>
-    <string name="media_panel_gif_empty">No GIFs available</string>
     <string name="chat_export_disabled">Chat export is disabled by admin</string>
     <string name="chat_font_scale_disabled">Chat font size adjustment is disabled by admin</string>
     <string name="chat_wallpaper_disabled">Chat wallpaper is disabled by admin</string>
@@ -2445,17 +2429,6 @@
 
     <!-- Fake chat mode / hide launcher icon (privacy disguise) -->
     <!-- B5 floating ball (system integration) -->
-    <string name="fake_chat_settings_title">Fake Chat</string>
-    <string name="fake_chat_mode">Fake chat mode</string>
-    <string name="fake_chat_mode_subtitle">When enabled, the app shows a harmless chat screen whenever it opens or returns to the foreground. Long-press the top title and enter your PIN to reach the real app</string>
-    <string name="fake_chat_pin_change">Change unlock PIN</string>
-    <string name="fake_chat_pin_change_subtitle">The PIN entered when long-pressing the title on the fake chat screen</string>
-    <string name="fake_chat_relock">Re-lock when returning</string>
-    <string name="fake_chat_relock_subtitle">Ask for the PIN again after every background/foreground cycle; stays unlocked while the process is alive when off</string>
-    <string name="fake_chat_guide_title">How it works</string>
-    <string name="fake_chat_guide_1">1. With fake chat mode on, opening or returning to the app always shows the harmless chat screen; your real chats stay fully hidden</string>
-    <string name="fake_chat_guide_2">2. Long-press the title on the fake chat screen and enter the PIN to reach the real app</string>
-    <string name="fake_chat_guide_3">3. Pair it with “Re-lock when returning” so the app re-hides itself after every background cycle</string>
     <string name="fake_chat_peer_name">Alex</string>
     <string name="fake_chat_peer_status">last seen 5 minutes ago</string>
     <string name="fake_chat_announcement"></string>
@@ -2465,13 +2438,6 @@
     <string name="fake_chat_pin_hint">Enter your unlock PIN</string>
     <string name="fake_chat_wrong_pin">Wrong PIN, please try again</string>
     <string name="fake_chat_pin_lockout">Too many attempts. Try again in %1$d seconds</string>
-    <string name="fake_chat_pin_setup_title">Set unlock PIN</string>
-    <string name="fake_chat_pin_setup_hint">Choose a 4–12 digit PIN. It is stored on this device only. Prefer one different from your screen lock</string>
-    <string name="fake_chat_pin_new">New PIN</string>
-    <string name="fake_chat_pin_confirm">Confirm PIN</string>
-    <string name="fake_chat_pin_mismatch">PINs do not match</string>
-    <string name="fake_chat_pin_invalid">PIN must be 4–12 digits</string>
-    <string name="fake_chat_pin_saved">Unlock PIN saved</string>
     <!-- B1 block · on-demand sticker packs (OnDemandStickerStore) status text, 2026-08-01 -->
     <string name="sticker_store_downloaded">Sticker pack ready</string>
     <string name="sticker_store_download_failed">Sticker pack download failed. Try again later</string>
