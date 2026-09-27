@@ -1137,8 +1137,8 @@ class ClientArchitectureTest {
         "screen/contacts/ContactsViewModel.kt" to 10,
         "screen/explore/ExploreViewModel.kt" to 1,
         "screen/login/LoginViewModel.kt" to 2,
-        // 死 import 收口（云端侧）：SettingsAccountSecurity.kt 头部残留的
-        // `import ...MaodouchatApp`（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零。
+        // 死 import 收口：SettingsAccountSecurity.kt 头部残留的 `import ...MaodouchatApp`
+        //（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零，条目删除。
         "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
         "screen/settings/SettingsGeneralSettingsViewModel.kt" to 1,
         "screen/settings/SettingsNotificationViewModel.kt" to 3,
