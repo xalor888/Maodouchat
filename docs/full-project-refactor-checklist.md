@@ -1813,6 +1813,11 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   ——仓库入口收进 `AppRepositories` / `ChatVisibilitySets.redactedChatIds()` /
   `NotificationCenterAccess.repository`；GlobalSearchScreen 993 → 991 行（上限两份 map 同步收紧），
   并从 `frozenUiAppDatabaseGrabbers` 名单删除（架构门禁实测抓出后补齐）。
+- **两处死 import（本批）**：`ChatListUiState.kt` 1 → 0、`SettingsAccountSecurity.kt` 1 → 0——
+  均为头部残留的 `import ...MaodouchatApp`（前者正文零引用，后者正文仅 KDoc 提及、剥注释后零命中），
+  删 import 即清零；后者 671 → 670 行，热点上限两份 map 同步收紧。
+  判据 = 架构门禁实跑（CI）+ 本地静态复核（门禁计数逻辑逐字复现，含 `Motion.kt` 的
+  `android.database` 误伤对照，确认复核实现与门禁一致）。
 
 - **扫码核验（本批）**：`ContactSubScreens` 4 → 0——扫码核验决策抽成非 ui 的
   `com.maodouchat.security.QrSafetyScanEvaluator`（纯决策 + `SafetySignalPort` 注入，

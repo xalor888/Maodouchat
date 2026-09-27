@@ -347,7 +347,8 @@ class ClientArchitectureTest {
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 671,
+        // 死 import 删除：文件 671 → 670 行，上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 670,
         "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1618,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
@@ -413,7 +414,7 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 979,
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
-                "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 671,
+                "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 670,
             "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1618,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
@@ -1098,7 +1099,8 @@ class ClientArchitectureTest {
         // AppNavigationEvents（含世代过期消费的桥接），直连命中 6 → 0，条目删除。
         "screen/chatdetail/MediaCenterScreen.kt" to 6,
         "screen/chatdetail/StarredMessagesScreen.kt" to 6,
-        "screen/settings/SettingsAccountSecurity.kt" to 1,
+        // 死 import 收口（云端侧）：SettingsAccountSecurity.kt 头部残留的
+        // `import ...MaodouchatApp`（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零。
         "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
     )
 
@@ -1131,12 +1133,12 @@ class ClientArchitectureTest {
         "screen/chatdetail/StarredMessagesScreen.kt" to 6,
         "screen/chatlist/ChatListPorts.kt" to 25,
         "screen/chatlist/ChatListRealtimeCoordinator.kt" to 3,
-        "screen/chatlist/ChatListUiState.kt" to 1,
         "screen/contacts/ContactsRepository.kt" to 3,
         "screen/contacts/ContactsViewModel.kt" to 10,
         "screen/explore/ExploreViewModel.kt" to 1,
         "screen/login/LoginViewModel.kt" to 2,
-        "screen/settings/SettingsAccountSecurity.kt" to 1,
+        // 死 import 收口：SettingsAccountSecurity.kt 头部残留的 `import ...MaodouchatApp`
+        //（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零，条目删除。
         "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
         "screen/settings/SettingsGeneralSettingsViewModel.kt" to 1,
         "screen/settings/SettingsNotificationViewModel.kt" to 3,
