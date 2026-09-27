@@ -17,9 +17,9 @@ import com.maodouchat.conversation.ConversationCreationPort
 import com.maodouchat.conversation.DefaultConversationCreationPort
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
+import com.maodouchat.data.repository.AppRepositories
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.GroupInvitationDto
 import com.maodouchat.network.GroupInviteAcceptResponse
@@ -96,15 +96,16 @@ data class ContactsUiState(
  */
 class ContactsViewModel @JvmOverloads constructor(
     application: Application,
-    private val contactsController: ContactsController = ContactsController(AndroidContactsRepository(application)),
+    private val contactsController: ContactsController = ContactsController(
+        AndroidContactsRepository(application, AppRepositories.users)
+    ),
     private val friendRequestUseCase: FriendRequestUseCase = DefaultFriendRequestUseCase(
         sessionProvider = {
             val snap = com.maodouchat.session.CurrentSession.snapshot()
             Pair(snap.userId, snap.token)
         },
         onFriendAccepted = { newFriend ->
-            val app = application as MaodouchatApp
-            UserRepository(app.database.userDao()).insertUsers(listOf(newFriend))
+            AppRepositories.users.insertUsers(listOf(newFriend))
             FriendCacheStore.add(application, newFriend.id, com.maodouchat.session.CurrentSession.ownerUserId())
         }
     ),
@@ -114,8 +115,7 @@ class ContactsViewModel @JvmOverloads constructor(
             Pair(snap.userId, snap.token)
         },
         setNicknameLocal = { userId, nickname ->
-            val app = application as MaodouchatApp
-            UserRepository(app.database.userDao()).setNickname(userId, nickname)
+            AppRepositories.users.setNickname(userId, nickname)
         },
         onFriendRemoved = { ownerUserId, friendId ->
             FriendCacheStore.remove(application, friendId, ownerUserId)
@@ -135,8 +135,8 @@ class ContactsViewModel @JvmOverloads constructor(
     ),
     private val realtimeSyncCoordinator: ContactsRealtimeSyncCoordinator = DefaultContactsRealtimeSyncCoordinator(
         context = application,
-        userDao = (application as MaodouchatApp).database.userDao(),
-        userRepository = UserRepository(application.database.userDao()),
+        userDao = AppRepositories.userDao,
+        userRepository = AppRepositories.users,
         onNotificationCenterItem = { id, title, subtitle, msg ->
             val uid = com.maodouchat.session.CurrentSession.ownerUserId()
             if (uid.isNotBlank()) {

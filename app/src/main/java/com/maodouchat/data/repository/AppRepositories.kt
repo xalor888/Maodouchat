@@ -1,6 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.data.local.dao.UserDao
 
 /**
  * 应用级仓库访问点（U02 延伸：自 `ui/screen/chatlist/GlobalSearchScreen` 的 app 单例
@@ -25,6 +26,13 @@ object AppRepositories {
 
     val users: UserRepository
         get() = UserRepository(MaodouchatApp.instance.database.userDao())
+
+    /**
+     * 裸 UserDao（通讯录实时同步协调器直接写 Room Flow 源用；其余调用方优先用 [users]）。
+     * 与 [users] 是同一数据库实例的同一 DAO，无双重来源。
+     */
+    val userDao: UserDao
+        get() = MaodouchatApp.instance.database.userDao()
 
     val chatLocks: ChatLockRepository
         get() = ChatLockRepository(MaodouchatApp.instance.database.chatLockDao())
