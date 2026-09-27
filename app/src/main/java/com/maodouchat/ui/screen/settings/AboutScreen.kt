@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -77,7 +78,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var downloadUrl by remember { mutableStateOf<String?>(null) }
     var downloadSha256 by remember { mutableStateOf<String?>(null) }
-    var downloadVersionCode by remember { mutableStateOf(0) }
+    var downloadVersionCode by remember { mutableIntStateOf(0) }
     // 9.209：关于页展示当前连接的服务器身份（第三方模式显示运营方名称）
     val serverIdentity by com.maodouchat.network.ServerIdentity.current.collectAsState()
 

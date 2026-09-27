@@ -150,7 +150,7 @@ fun ExploreScreen(
     var showScrollToTop by remember { mutableStateOf(false) }
     var feedSearch by rememberSaveable { mutableStateOf("") }
     val feedSearchFocus = remember { FocusRequester() }
-    var requestFeedSearchFocus by remember { mutableStateOf(0) }
+    var requestFeedSearchFocus by remember { androidx.compose.runtime.mutableIntStateOf(0) } // 行数上限零松量：不新增 import
     // 1.109：只看我发布的动态
     var showOnlyMine by rememberSaveable { mutableStateOf(false) }
     // 1.192：只看带图片的动态

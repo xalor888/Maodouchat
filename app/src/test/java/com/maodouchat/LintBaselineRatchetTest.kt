@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 92
+    private val frozenIssueCount = 88
 
     @Test
     fun `lint baseline can only shrink`() {
