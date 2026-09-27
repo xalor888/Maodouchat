@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.MaodouchatApp.Companion.ChatMessageSentEvent
-import com.maodouchat.MaodouchatApp.Companion.ChatReadEvent
+import com.maodouchat.realtime.ChatMessageSentEvent
+import com.maodouchat.realtime.ChatReadEvent
 import com.maodouchat.core.realtime.DefaultRealtimeEventDispatcher
 import com.maodouchat.core.realtime.RealtimeConnectionState
 import com.maodouchat.core.realtime.RealtimeDomainEvent
