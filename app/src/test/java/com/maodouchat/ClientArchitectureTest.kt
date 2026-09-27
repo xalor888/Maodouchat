@@ -261,7 +261,6 @@ class ClientArchitectureTest {
     private val frozenUiTokenReaders: Set<String> = setOf(
         "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatRealtimeController.kt",
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/IdentityVerificationController.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
