@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 615
+    private val frozenIssueCount = 318
 
     @Test
     fun `lint baseline can only shrink`() {
@@ -68,7 +68,9 @@ class LintBaselineRatchetTest {
         // 换成 41 条别的新违规，总数不变但性质变了。
         val byRule = issues().groupingBy { it }.eachCount()
         val expected = mapOf(
-            "UnusedResources" to 298,
+            // 2026-09-27：297 条未被任何代码/脚本/其它 XML 引用的死 string 已删除
+            // （逐条全仓核验；唯一被挡下的 `secret_chat_enabled` 与特性开关键同名，保留）。
+            "UnusedResources" to 1,
             "UseKtx" to 209,
             // 上面两条是 warning 级的大头；真正卡 CI 的是它：
             "LocalContextGetResourceValueCall" to 0,
