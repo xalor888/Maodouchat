@@ -1,5 +1,6 @@
 package com.maodouchat.navigation
 
+import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.consumeIfStale
 import com.maodouchat.util.ClientPrefsSync
@@ -45,6 +46,20 @@ object AppNavigationEvents {
 
     fun consumeContacts(request: OpenContactsRequest) {
         MaodouchatApp.consumeOpenContacts(request)
+    }
+
+    // ---- 来电唤醒（FCM/系统通知点击 → 触发待处理 offer 轮询） ----
+
+    /** 原 `MaodouchatApp.incomingCallWakeEvents` 的非 ui 访问点。 */
+    fun incomingCallWakeEvents(): Flow<IncomingCallWake> =
+        MaodouchatApp.incomingCallWakeEvents
+
+    /** 世代过期则消费丢弃并返回 true（调用方直接 return），语义同 [consumeIfStale]。 */
+    fun incomingCallWakeIsStale(wake: IncomingCallWake): Boolean =
+        consumeIfStale(wake, MaodouchatApp::consumeIncomingCallWake)
+
+    fun consumeIncomingCallWake(wake: IncomingCallWake) {
+        MaodouchatApp.consumeIncomingCallWake(wake)
     }
 
     // ---- 登录成功后的多端偏好同步 ----
