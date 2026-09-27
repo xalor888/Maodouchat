@@ -35,7 +35,7 @@ class AppUpdateDownloadWorker(
             },
             onFailure = { error ->
                 val code = error.message.orEmpty()
-                if (AppUpdateDownloadRetryPolicy.isRetryable(code) && runAttemptCount < 3) {
+                if (AppUpdateDownloadRetryPolicy.isRetryable(error) && runAttemptCount < 3) {
                     Result.retry()
                 } else {
                     fail(code.ifBlank { "download_failed" })

@@ -934,7 +934,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 - [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G319c：七个入口全覆盖（含五个屏幕本体）**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（原 G313c 五点实证仍成立——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；**但 G317c 已铺好接缝**：ports 构造器 `private` → `internal`，测试侧现在能 `ChatListViewModel(app, ports)`；且 G317c 已更正我当时的错误推论——那 4 个里 `TokenManager` 有 `getInstance` 入口、`ChatRepository`/`MissedCallRepository` 收 Room DAO **接口**、`NotificationCenterRepository` 收 `Context`，**都并非不可构造，只是没人做过**。剩余仅 fake/内存库工作）与 Call / Settings 的屏幕本体（**G315c 已补**：Call 8 例、Settings 6 例；**G319c 补 Chats 3 例**）；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`。
 - [~] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文（**G325c：零依赖起步**。仓库此前**零截图基建**（无 paparazzi/roborazzi），所以本轮没做像素回归（那需新增构建依赖），改用 `CompositionLocalProvider` 覆盖 `LocalLayoutDirection`(RTL) 与 `LocalConfiguration`(fontScale=2.0)，对 ChatListScreen 与 SettingsScreen 各测两种配置，断言「不崩 + 关键内容仍在」——4 例。**关键是防「配置没生效却空跑」**：每例先捕获生效值并断言，且对捕获值断言本身做了负控制（Rtl 改 Ltr → 红在捕获值断言而非 chip 断言），证明覆盖生效、断言承重。**仍未做**：像素级截图回归、浅/深色、平板尺寸、横屏、中英文）
-- [~] 通知、Widget、深链、权限、前台服务和更新器仪器测试（**G329c：只开了「更新器」一个头**。实测 `app/src/androidTest` 原有子目录只有 crypto/data/e2e/messaging/ui，六项全为零。新增 `update/AppUpdatePromptStoreTest`（4 例，钉住「同一 versionCode 只弹一次、等下一版再弹」这条 UX 契约）与 `update/AppUpdateDownloadSchedulerTest`（5 例，只测 `progressOf`/`errorOf` 两个纯函数；**实测 `androidx.work.WorkInfo` 构造器在测试里可直接调用**，不需要 `work-testing` 依赖）。**其余五项（通知/Widget/深链/权限/前台服务）仍为零**，`AppUpdateDownloadWorker`（真正干下载活的）也未测——它的 `enqueue`/`cancel`/`observe` 要真跑 WorkManager。**2026-09-27 本地工具链侧进展**：新增四片真机契约、共 29 例——`NotificationIntentConsumerInstrumentedTest` 17 例（通知/深链消费 + Telecom 可信路径）+ `CallForegroundServiceInstrumentedTest` 5 例（通话前台服务）+ `ConversationWidgetProviderInstrumentedTest` 3 例（小组件，**抓出并修掉「交互在 API 34+ 全死」的真缺陷**）+ `MessageNotificationServiceInstrumentedTest` 4 例（通知投递→点击整链）；四片各含负控制，Widget 片是双向负控制，见 §第十二轮；权限一项仍为零）
+- [~] 通知、Widget、深链、权限、前台服务和更新器仪器测试（**G329c：只开了「更新器」一个头**。实测 `app/src/androidTest` 原有子目录只有 crypto/data/e2e/messaging/ui，六项全为零。新增 `update/AppUpdatePromptStoreTest`（4 例，钉住「同一 versionCode 只弹一次、等下一版再弹」这条 UX 契约）与 `update/AppUpdateDownloadSchedulerTest`（5 例，只测 `progressOf`/`errorOf` 两个纯函数；**实测 `androidx.work.WorkInfo` 构造器在测试里可直接调用**，不需要 `work-testing` 依赖）。**其余五项（通知/Widget/深链/权限/前台服务）仍为零**，`AppUpdateDownloadWorker`（真正干下载活的）也未测——它的 `enqueue`/`cancel`/`observe` 要真跑 WorkManager。**2026-09-27 本地工具链侧进展**：五片真机契约、共 36 例——`NotificationIntentConsumerInstrumentedTest` 17 例（通知/深链消费 + Telecom 可信路径）+ `CallForegroundServiceInstrumentedTest` 5 例 + `ConversationWidgetProviderInstrumentedTest` 3 例（小组件，**修掉「交互在 API 34+ 全死」缺陷**）+ `MessageNotificationServiceInstrumentedTest` 4 例（通知投递→点击整链）+ `AppUpdateDownloadWorkerInstrumentedTest` 7 例（更新器，**修掉重试分类漏掉瞬态 socket 错误**）；各片含负控制，见 §第十二轮；权限一项仍为零）
 
 ### Q04 双账号、双设备和离线 E2E
 
@@ -1620,7 +1620,7 @@ AI 与隐私/举报/黑名单/服务器/关于、主题编辑器与工作台、�
 它随 CI 的 instrumented job 一起跑，替代了我之前那套「adb 点击 + 人眼看截图」的临时办法
 （不稳定、不进 CI）。**行为级仍未覆盖的**：改密码、群玩法各页、通话流程、媒体/星标页的真实数据路径。
 
-### 第十二轮（2026-09-27，本地工具链侧）：系统集成仪器测试四片——系统入口 Intent 消费（17 例）+ 通话前台服务（5 例）+ 主屏小组件（3 例，并抓出/修掉一个真缺陷）+ 消息通知「投递→点击」整链（4 例）
+### 第十二轮（2026-09-27，本地工具链侧）：系统集成仪器测试五片——系统入口 Intent 消费（17 例）+ 通话前台服务（5 例）+ 主屏小组件（3 例，并抓出/修掉一个真缺陷）+ 消息通知「投递→点击」整链（4 例）+ 更新器 Worker（7 例，附重试分类修复）
 
 `NotificationIntentConsumer` 此前只有**纯 JVM** 的策略/解析测试（`NotificationIntentPolicyTest`、
 `AppLinkRouterTest`）——拿不到真实 `Intent` 的 extras 清除语义、碰不到
@@ -1720,8 +1720,30 @@ ongoing / `CATEGORY_CALL` 通知都到位、渠道为 `IMPORTANCE_LOW` 且无角
 **负控制**：删掉产侧 tapIntent 的 `EXTRA_OPEN_CHAT_ID` 后，**恰好** 1 条（整链例）红、
 其余 3 条仍绿。
 
+**第五片：更新器 Worker（`AppUpdateDownloadWorkerInstrumentedTest`，7 例）——并修掉重试分类缺陷**
+
+此前 `AppUpdateDownloadSchedulerTest` 明确登记了缺口：`enqueue`/`cancel`/`observe`「要真跑
+WorkManager」、干下载活的 Worker 未测。本片两组：
+
+- **A 组（`TestListenableWorkerBuilder` 直驱，零网络依赖）**：缺 URL → `apk_url_missing`；
+  非官方 URL → `apk_not_official`（不可重试）；sha 非法 → `apk_sha256_missing_or_invalid`；
+  versionCode 缺失 → `apk_version_code_missing`。
+- **B 组（真 WorkManager + 生产调度器）**：非官方 URL enqueue → `observe` 流等到 FAILED 且
+  `errorOf` 读出 `apk_not_official`（调度器→Worker→failureData→observe 整链）；会 retry 的
+  任务 cancel 后收敛到 CANCELLED。
+
+**发现并修掉的重试分类缺陷**：对官方域名不可达端口实测得到 `Connection reset`（又一次是
+`connection closed`——同一种失败不同 message），旧策略只枚举 `failed to connect`/`timeout`/
+`Unable to resolve` → 分类为**不可重试** → 更新在瞬态网络错误上**静默放弃**。修法：策略新增
+`isRetryable(Throwable)` **类型优先**（`IOException` 一族一律可重试），非 IO 异常回落文本判据；
+Worker 把异常对象而不是 message 交给策略。JVM 侧同步补两条。
+
+**负控制**：调度器 `cancel()` 改空操作 → **恰好** cancel 例红、其余 6 例绿；重试修复的反证是
+修复前**运行中自然出现**的两次红（`Connection reset` / `connection closed`）。
+
 **仍未覆盖（本项保持 `[~]`）**：Widget 真机加挂/渲染全链（需要真实 launcher 宿主）、
-运行时权限、密聊/PIN 锁会话的通知脱敏分支、`AppUpdateDownloadWorker` 真跑 WorkManager。
+运行时权限、密聊/PIN 锁会话的通知脱敏分支、更新成功路径（需要真实官方 HTTPS 源 + 与当前签名
+一致的 APK，无法在本地/CI 伪造）。
 
 
 ### 第十三轮（2026-09-27，本地工具链侧）：`ui/navigation` 通知中心行点击收口——ui 直连持久层 5 → 0
