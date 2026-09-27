@@ -1,8 +1,10 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
 import com.maodouchat.server.db.EncryptedAttachments
 import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
+import com.maodouchat.server.repository.AttachmentStatus
+import com.maodouchat.server.repository.EncryptedAttachmentRecord
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
