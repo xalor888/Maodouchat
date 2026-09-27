@@ -365,7 +365,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 993,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
         "com/maodouchat/network/WebSocketClient.kt" to 969,
@@ -426,7 +426,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1060,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 993,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
         // G164b：Top-20 排名门禁纳入的 8 个
         "com/maodouchat/network/WebSocketClient.kt" to 969,
         "com/maodouchat/ui/component/MarkdownParser.kt" to 966,
@@ -737,7 +737,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt",
         "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt",
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt",
         "com/maodouchat/ui/screen/contacts/ContactsRepository.kt",
         "com/maodouchat/ui/screen/contacts/ContactsViewModel.kt",
@@ -1084,8 +1083,6 @@ class ClientArchitectureTest {
         "screen/chatdetail/AiTasksScreen.kt" to 9,
         "screen/chatdetail/MediaCenterScreen.kt" to 6,
         "screen/chatdetail/StarredMessagesScreen.kt" to 6,
-        "screen/chatlist/GlobalSearchScreen.kt" to 8,
-        "screen/chatlist/NotificationCenterScreen.kt" to 2,
         "screen/contacts/ContactSubScreens.kt" to 4,
         "screen/groupplay/GroupChainScreen.kt" to 2,
         "screen/groupplay/GroupCheckinScreen.kt" to 2,
@@ -1128,8 +1125,6 @@ class ClientArchitectureTest {
         "screen/chatlist/ChatListPorts.kt" to 25,
         "screen/chatlist/ChatListRealtimeCoordinator.kt" to 3,
         "screen/chatlist/ChatListUiState.kt" to 1,
-        "screen/chatlist/GlobalSearchScreen.kt" to 8,
-        "screen/chatlist/NotificationCenterScreen.kt" to 2,
         "screen/contacts/ContactSubScreens.kt" to 4,
         "screen/contacts/ContactsRepository.kt" to 3,
         "screen/contacts/ContactsViewModel.kt" to 10,
