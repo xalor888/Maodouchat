@@ -79,7 +79,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
 import com.maodouchat.data.model.Chat
@@ -147,9 +146,9 @@ data class GlobalSearchUiState(
 )
 
 class GlobalSearchViewModel(application: Application) : AndroidViewModel(application) {
-    private val app = application as MaodouchatApp
-    private val searchRepository = MessageSearchRepository(app.database)
-    private val chatRepository = ChatRepository(app.database.chatDao(), app.database.userDao())
+    // U02 延伸：仓库入口收进非 ui 的 AppRepositories（不再从 Application 强转后自取 database）。
+    private val searchRepository = com.maodouchat.data.repository.AppRepositories.messageSearch
+    private val chatRepository = com.maodouchat.data.repository.AppRepositories.chats
     private val _uiState = MutableStateFlow(GlobalSearchUiState())
     val uiState: StateFlow<GlobalSearchUiState> = _uiState.asStateFlow()
 
@@ -378,9 +377,8 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                 }
                 recordRecentSearch(query)
                 val (documents, redactedChatCount) = withContext(Dispatchers.IO) {
-                    val locked = app.database.chatLockDao().listLockedChatIds().toSet()
-                    val secret = app.database.chatDao().listSecretChatIds().toSet()
-                    val redacted = locked + secret
+                    // U02 延伸：PIN 锁 ∪ 密聊的隐藏集合收进非 ui 的 ChatVisibilitySets。
+                    val redacted = com.maodouchat.data.repository.ChatVisibilitySets.redactedChatIds()
                     val filterType = _uiState.value.filterType
                     val all = filterToMessageTypes(filterType)?.let { types ->
                         searchRepository.searchByTypes(query, types, limit = 80)
@@ -438,14 +436,14 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             }
             try {
                 val localCandidates = withContext(Dispatchers.IO) {
-                    val locked = app.database.chatLockDao().listLockedChatIds().toSet()
-                    val secret = app.database.chatDao().listSecretChatIds().toSet()
+                    // U02 延伸：隐藏集合收进非 ui 的 ChatVisibilitySets（同文本搜索路径）。
+                    val redacted = com.maodouchat.data.repository.ChatVisibilitySets.redactedChatIds()
                     val filterType = _uiState.value.filterType
                     val docs = filterToMessageTypes(filterType)?.let { types ->
                         searchRepository.searchByTypes(query, types, limit = 80)
                     } ?: searchRepository.search(query, limit = 80)
                     docs
-                        .filterNot { it.chatId in locked || it.chatId in secret }
+                        .filterNot { it.chatId in redacted }
                         .let { applyTypeFilter(it, filterType) }
                 }
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(

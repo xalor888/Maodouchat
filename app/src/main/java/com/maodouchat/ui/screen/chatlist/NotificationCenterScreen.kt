@@ -85,7 +85,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
@@ -102,8 +101,8 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.notification.NotificationCenterType
 
 class NotificationCenterViewModel(application: Application) : AndroidViewModel(application) {
-    private val app = application as MaodouchatApp
-    private val repo: NotificationCenterRepository = app.notificationCenter
+    // U02 延伸：仓库入口收进非 ui 的 NotificationCenterAccess。
+    private val repo: NotificationCenterRepository = com.maodouchat.notification.NotificationCenterAccess.repository
 
     val items = repo.items.stateIn(
         scope = viewModelScope,

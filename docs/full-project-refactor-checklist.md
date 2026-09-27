@@ -1809,6 +1809,10 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   `mayContinue(…)` 格式化折叠为单行，文件 1635 → 1618，热点上限两份 map 同步收紧。
   判据：`AppRuntimeInstrumentedTest` 5 例（含「bump 后跟随」的常量防呆）+ 负控制 1 轮
   （世代改常量 → 恰好 2 条红）。
+- **搜索/通知中心（本批）**：`GlobalSearchScreen` 8 → 0、`NotificationCenterScreen` 2 → 0
+  ——仓库入口收进 `AppRepositories` / `ChatVisibilitySets.redactedChatIds()` /
+  `NotificationCenterAccess.repository`；GlobalSearchScreen 993 → 991 行（上限两份 map 同步收紧），
+  并从 `frozenUiAppDatabaseGrabbers` 名单删除（架构门禁实测抓出后补齐）。
 
 **剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`screen/contacts/ContactSubScreens.kt` 4
 ——通话族/扫码信任链的收口风险更高（来电路由的状态机零 E2E），留作专项：
