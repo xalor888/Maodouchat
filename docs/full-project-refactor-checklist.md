@@ -1905,3 +1905,24 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
 createAndroidGroupMessagingCoordinator 工厂，需新访问器，另起一批）；
 `LoginViewModel` 2（signalProtocol/senderKeyRetryManager 需新访问器，另起一批）；
 `ChatListPorts` 23（只做装配的登记豁免）。
+
+### 第十四轮（2026-09-27，本地工具链侧）：lint 基线棘轮首降——297 条死 string
+
+`LintBaselineRatchetTest` 的基线是一枚「只许缩」的棘轮（615 条冻结），此前从未缩过。
+本轮拿最大的一族开刀：**UnusedResources 298 条，全部是 `R.string`**。
+
+- **逐条核验**（全仓 1814 个文件单遍扫描：kt/java/xml/py/sh/md/kts/json/yml/properties/txt，
+  排除两处 strings.xml 与基线自身）：297 条在任何代码/脚本/文档/其它 XML 里**零出现**；
+  唯一被挡下的 `secret_chat_enabled` 与特性开关键同名（`RuntimeFlags.kt` /
+  服务端 `RuntimeConfigService.kt` 里的字符串常量），保守保留；
+- **双端同删**：`values/strings.xml` 与 `values-en/strings.xml` 各删 297 行
+  （2843 → 2546 条），`check-string-parity.py` 实跑绿（zh=en=2546，only_zh=only_en=0）；
+- **基线同步**：按「修掉一条、删掉一条」删 297 个 `<issue>` 块（615 → 318），
+  总数棘轮 `frozenIssueCount` 615 → 318，**按规则分布**的冻结 map 同步
+  （`UnusedResources` 298 → 1）；
+- **判据**：`:app:lintDebug` 实跑绿（warnings 若不进基线即红——这是「删干净了」的硬证据）、
+  `LintBaselineRatchetTest` 两条用例绿、字符串奇偶校验绿、brand 门禁绿。
+
+**剩余（lint 基线 318 条）**：`UseKtx` 209（机械现代化，触面广）、
+`GradleDependency` 22 / `NewerVersionAvailable` 14（依赖升级，属另一决策）、
+`HardwareIds` 10、其余零散——按族分批，下一轮可继续。
