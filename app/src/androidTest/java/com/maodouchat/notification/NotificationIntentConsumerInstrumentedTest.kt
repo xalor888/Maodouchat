@@ -7,6 +7,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.call.IncomingCallCoordinator
+import com.maodouchat.webrtc.CallType
 import com.maodouchat.navigation.NotificationTarget
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
@@ -16,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -75,11 +78,13 @@ class NotificationIntentConsumerInstrumentedTest {
         tokenManager.clear()
         targets.clear()
         lockFlags.clear()
+        IncomingCallCoordinator.clear()
         clearWakeFlows()
     }
 
     @After
     fun restoreLoggedOut() {
+        IncomingCallCoordinator.clear()
         ApiService.clearSessionTokens()
         tokenManager.clear()
     }
@@ -236,6 +241,80 @@ class NotificationIntentConsumerInstrumentedTest {
         assertEquals("伪造的 Telecom 接听不得置锁屏旗标", emptyList<Boolean>(), lockFlags)
         assertEquals("伪造的 Telecom 接听不得产生目标", emptyList<NotificationTarget?>(), targets)
         assertNull("被拒的 Telecom extras 必须清空", intent.getStringExtra(TelecomHelper.EXTRA_CALL_ID))
+    }
+
+    @Test
+    fun trustedTelecomAnswerEmitsAutoAnswerWakeAndSetsLockScreenFlags() {
+        // 播种 in-process pending call：这是 Telecom 传输可信的唯一来源
+        // （TelecomHelper.isTrustedTransport 只认 peekPending()/前台服务 callId）。
+        IncomingCallCoordinator.setPending(
+            IncomingCallCoordinator.PendingIncomingCall(
+                contactId = "u-peer",
+                contactName = "Peer",
+                callType = CallType.VIDEO,
+                offerSdp = "v=0",
+                callId = "call-9",
+            ),
+        )
+        val intent = Intent(TelecomHelper.ACTION_ANSWER_CALL).apply {
+            putExtra(TelecomHelper.EXTRA_CALL_ID, "call-9")
+            putExtra(TelecomHelper.EXTRA_IS_VIDEO, true)
+        }
+
+        consumer.consume(intent, callingPackage = null, callingActivityPackage = null)
+
+        assertEquals("可信接听必须置锁屏旗标", listOf(true), lockFlags)
+        val wake = latestWake()
+        assertNotNull("可信接听必须发出来电唤醒", wake)
+        assertEquals("call-9", wake!!.callId)
+        assertTrue("8.56：系统 Telecom 接听必须标记自动接听（应用内不再二次点击）", wake.autoAnswer)
+        assertTrue("视频标志必须透传", wake.isVideo)
+        assertNull("被消费的 Telecom extras 必须清空", intent.getStringExtra(TelecomHelper.EXTRA_CALL_ID))
+    }
+
+    @Test
+    fun trustedTelecomIncomingCallTransportWakesWithoutAutoAnswer() {
+        IncomingCallCoordinator.setPending(
+            IncomingCallCoordinator.PendingIncomingCall(
+                contactId = "u-peer",
+                contactName = "Peer",
+                callType = CallType.AUDIO,
+                offerSdp = "v=0",
+                callId = "call-10",
+            ),
+        )
+        val intent = Intent(TelecomHelper.ACTION_INCOMING_CALL).apply {
+            putExtra(TelecomHelper.EXTRA_CALL_ID, "call-10")
+        }
+
+        consumer.consume(intent, callingPackage = null, callingActivityPackage = null)
+
+        val wake = latestWake()
+        assertNotNull(wake)
+        assertEquals("call-10", wake!!.callId)
+        assertFalse("拉起 ≠ 接听：不得标记自动接听", wake.autoAnswer)
+    }
+
+    @Test
+    fun telecomAnswerWithMismatchedPendingCallIdIsStillRejected() {
+        IncomingCallCoordinator.setPending(
+            IncomingCallCoordinator.PendingIncomingCall(
+                contactId = "u-peer",
+                contactName = "Peer",
+                callType = CallType.AUDIO,
+                offerSdp = "v=0",
+                callId = "call-A",
+            ),
+        )
+        val intent = Intent(TelecomHelper.ACTION_ANSWER_CALL).apply {
+            putExtra(TelecomHelper.EXTRA_CALL_ID, "call-B")
+        }
+
+        consumer.consume(intent, callingPackage = null, callingActivityPackage = null)
+
+        assertEquals("错配的 callId 不得置锁屏旗标", emptyList<Boolean>(), lockFlags)
+        assertNull("错配的 callId 不得发出来电唤醒", latestWake())
+        assertNull(intent.getStringExtra(TelecomHelper.EXTRA_CALL_ID))
     }
 
     // ---- 6. 来电/未接通知：唤醒流与清洗 -------------------------------------------
