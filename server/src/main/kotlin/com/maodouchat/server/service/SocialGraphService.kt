@@ -1,8 +1,9 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.Friendships
+import com.maodouchat.server.repository.ConversationVisibility
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and

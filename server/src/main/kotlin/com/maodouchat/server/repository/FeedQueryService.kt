@@ -8,6 +8,7 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.PostCommentResponse
 import com.maodouchat.server.model.PostResponse
 import com.maodouchat.server.model.UserResponse
+import com.maodouchat.server.service.SocialGraphService
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
