@@ -4,7 +4,7 @@ import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.CreateChatRequest
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.JoinGroupInviteRequest
-import com.maodouchat.server.repository.ConversationCommandService
+import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.CreateConversationCommand
 import com.maodouchat.server.repository.CreateConversationOutcome

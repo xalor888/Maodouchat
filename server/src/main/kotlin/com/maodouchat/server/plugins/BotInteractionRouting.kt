@@ -2,7 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AddOwnedBotResult
-import com.maodouchat.server.repository.ConversationCommandService
+import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupMembershipService

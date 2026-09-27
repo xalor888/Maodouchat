@@ -5,7 +5,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateChatSettingsRequest
 import com.maodouchat.server.model.UpdateDisappearingMessagesRequest
 import com.maodouchat.server.model.WsMessage
-import com.maodouchat.server.repository.ConversationCommandService
+import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationSettingsMutationResult
 import com.maodouchat.server.repository.UserRepository
