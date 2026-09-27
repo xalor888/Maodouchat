@@ -25,4 +25,19 @@ object AppRepositories {
 
     val users: UserRepository
         get() = UserRepository(MaodouchatApp.instance.database.userDao())
+
+    val chatLocks: ChatLockRepository
+        get() = ChatLockRepository(MaodouchatApp.instance.database.chatLockDao())
+
+    /** AI 任务仓库（需要调用方的 Application 做提醒调度；生产环境即 app 单例）。 */
+    fun aiTasks(application: android.app.Application): AiTaskRepository =
+        AiTaskRepository(MaodouchatApp.instance.database.aiTaskDao(), application)
+
+    /**
+     * 单行的会话实体读取（与 ui 原先 `app.database.chatDao().getChatById` 同一条查询、
+     * 同一成本）——`ChatRepository.getChatById` 会顺带全表读 users 装配参与者，在
+     * 「只要一个名字」的场景里代价过高，故此处保持窄口径。
+     */
+    suspend fun chatEntityOrNull(chatId: String): com.maodouchat.data.local.entity.ChatEntity? =
+        MaodouchatApp.instance.database.chatDao().getChatById(chatId)
 }

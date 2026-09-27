@@ -738,7 +738,6 @@ class ClientArchitectureTest {
      * 棘轮只许降（下面的反向断言会强制：修好一个就必须从名单里删掉）。
      */
     private val frozenUiAppDatabaseGrabbers: List<String> = listOf(
-        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt",
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt",
         "com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt",
@@ -1097,7 +1096,6 @@ class ClientArchitectureTest {
         // AdminNoticeFeed / TokenExpirySessionPurge / DirectChatRequestHandler，4 → 0，条目删除。
         // U02 延伸：MainContainerRoute 的两个 app 事件收集器收进非 ui 的
         // AppNavigationEvents（含世代过期消费的桥接），直连命中 6 → 0，条目删除。
-        "screen/chatdetail/AiTasksScreen.kt" to 9,
         "screen/chatdetail/MediaCenterScreen.kt" to 6,
         "screen/chatdetail/StarredMessagesScreen.kt" to 6,
         "screen/settings/SettingsAccountSecurity.kt" to 1,
@@ -1118,7 +1116,6 @@ class ClientArchitectureTest {
         // U02 延伸：SearchCenterDestinations 的行点击决策/副作用收进非 ui 的
         // NotificationCenterOpenController（接线 NotificationCenterEffects），
         // 该文件直连持久层命中 5 → 0，条目删除。
-        "screen/chatdetail/AiTasksScreen.kt" to 9,
         "screen/chatdetail/ChatDetailAiIntents.kt" to 2,
         "screen/chatdetail/ChatDetailDisappearing.kt" to 3,
         "screen/chatdetail/ChatDetailLiveLocation.kt" to 2,

@@ -77,7 +77,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.data.repository.AiTaskRepository
@@ -114,9 +113,9 @@ class AiTasksViewModel(
 ) : AndroidViewModel(application) {
 
     val chatId: String = savedStateHandle["chatId"] ?: ""
-    private val app = application as MaodouchatApp
-    private val repository = AiTaskRepository(app.database.aiTaskDao(), application)
-    private val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(app.database.chatLockDao())
+    // U02 延伸：仓库入口收进非 ui 的 AppRepositories（不再从 Application 强转后自取 database）。
+    private val repository = com.maodouchat.data.repository.AppRepositories.aiTasks(application)
+    private val chatLockRepo = com.maodouchat.data.repository.AppRepositories.chatLocks
 
     private val tokenManager = com.maodouchat.network.TokenManager.getInstance(application)
     /** Capture at open so logout/account switch cannot mutate the next owner's tasks. */
@@ -152,7 +151,7 @@ class AiTasksViewModel(
 
     private suspend fun resolveChatName(): String {
         return try {
-            val entity = app.database.chatDao().getChatById(chatId) ?: return ""
+            val entity = com.maodouchat.data.repository.AppRepositories.chatEntityOrNull(chatId) ?: return ""
             entity.groupName?.takeIf { it.isNotBlank() }
                 ?: entity.participantIds
                     .split(",")
@@ -160,7 +159,7 @@ class AiTasksViewModel(
                     .filter { it.isNotBlank() && it != ownerUserId }
                     .firstOrNull()
                     ?.let { peerId ->
-                        app.database.userDao().getUserById(peerId)?.let { u ->
+                        com.maodouchat.data.repository.AppRepositories.users.getUserById(peerId)?.let { u ->
                             u.nickname?.takeIf { it.isNotBlank() } ?: u.name
                         }
                     }
@@ -183,7 +182,7 @@ class AiTasksViewModel(
             }
             return
         }
-        val caps = try { app.secretConversationController.capabilities(chatId) }
+        val caps = try { com.maodouchat.security.SecretChatCapabilities.forChat(chatId) }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (_: Exception) { com.maodouchat.domain.messaging.ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false) }
         val locked = caps.isLocked
@@ -248,7 +247,7 @@ class AiTasksViewModel(
             return
         }
         // 真正开始展示任务时，把通知中心里该会话的 AI_TASK 行标为已读。
-        app.notificationCenter.markAiTasksRead(chatId)
+        com.maodouchat.notification.NotificationCenterAccess.repository.markAiTasksRead(chatId)
         // 8.38：先取消旧订阅——解锁/加锁切换会再次调用 observeTasks，
         // 此前每个 collector 都 launchIn(viewModelScope) 永不清除，导致重复 Room 订阅与
         // 并发状态写入（删除任务时 mutatingTaskIds 竞态窗口变大）
@@ -380,18 +379,8 @@ fun AiTasksScreen(
         if (chatId.isNotBlank()) {
             com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(context.applicationContext, chatId)
             // 8.48 修复：连同 WorkManager 提醒作业一并取消——此前只清托盘，到点仍会弹新通知
-            val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return@LaunchedEffect
-            com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
-                try {
-                    app.database.aiTaskDao().getIdsByChatId(chatId).forEach { taskId ->
-                        com.maodouchat.ai.AiTaskReminderScheduler.cancelTask(app, taskId)
-                    }
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    // 提醒取消失败不阻塞任务页打开
-                }
-            }
+            // U02 延伸：取 id + 逐个取消收进非 ui 的 AiTaskReminderCleanup。
+            com.maodouchat.ai.AiTaskReminderCleanup.cancelForChatAsync(chatId)
         }
     }
 
