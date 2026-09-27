@@ -1394,93 +1394,21 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/AccountFeatureSwitch.kt"
-            line="42"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().putBoolean(key(KEY_ENABLED, userId), enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/AccountFeatureSwitch.kt"
-            line="58"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putBoolean(scopedKey(key), value).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/AccountScopedPrefs.kt"
-            line="24"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="            ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/layout/AdaptiveLayout.kt"
-            line="63"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        account.prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiPrivacyPreferences.kt"
-            line="60"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        account.prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiPrivacyPreferences.kt"
-            line="71"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        account.prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiPrivacyPreferences.kt"
-            line="82"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        account.prefs.edit().putBoolean(scopedKey(key, account.userId), value).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiPrivacyPreferences.kt"
-            line="92"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -1493,38 +1421,11 @@
             column="26"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putBoolean(key(KEY_ENABLED, account), true).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiWritingStylePreferences.kt"
-            line="33"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiWritingStylePreferences.kt"
-            line="39"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiWritingStylePreferences.kt"
-            line="48"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -1537,226 +1438,55 @@
             column="22"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiWritingStylePreferences.kt"
-            line="73"
-            column="9"/>
-    </issue>
+    
+
+    
 
     
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/AppLocaleManager.kt"
-            line="38"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/AppLockManager.kt"
-            line="55"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/AppLockManager.kt"
-            line="85"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().putLong(key(KEY_TIMEOUT_MINUTES, userId), safeMinutes).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/AppLockManager.kt"
-            line="106"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().putLong(key(KEY_BACKGROUND_AT, userId), nowMillis).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/AppLockManager.kt"
-            line="112"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().remove(key(KEY_BACKGROUND_AT, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/AppLockManager.kt"
-            line="133"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/update/AppUpdatePromptStore.kt"
-            line="14"
-            column="9"/>
-    </issue>
-
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs(context).edit().putString(key(liveUserId), trimmed.toString()).apply()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/call/CallLogStore.kt"
-            line="97"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().remove(key(userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/call/CallLogStore.kt"
-            line="103"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs(context).edit().remove(key(uid)).apply()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/call/CallLogStore.kt"
-            line="109"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                prefs(context).edit().putString(key(userId), next.toString()).apply()"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/call/CallLogStore.kt"
-            line="130"
-            column="17"/>
-    </issue>
+    
 
     
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_WALLPAPER, userId), preset.id).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatAppearancePreferences.kt"
-            line="35"
-            column="9"/>
-    </issue>
+    
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_CUSTOM_WALLPAPER, userId), stored).apply()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatAppearancePreferences.kt"
-            line="60"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_CUSTOM_WALLPAPER, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatAppearancePreferences.kt"
-            line="66"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_FONT, userId), scale.id).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatAppearancePreferences.kt"
-            line="80"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_BUBBLE_COLOR, userId), normalized).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatAppearancePreferences.kt"
-            line="99"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_BUBBLE_SHAPE, userId), normalizeBubbleShape(shapeId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatAppearancePreferences.kt"
-            line="112"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatAppearancePreferences.kt"
-            line="123"
-            column="9"/>
-    </issue>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
 
     
 
@@ -1785,126 +1515,17 @@
             column="17"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatFolderPreferences.kt"
-            line="23"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_FOLDERS, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ChatFolderPreferences.kt"
-            line="30"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                prefs(context).edit().putString(key(userId), obj.toString()).apply()"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/ChatQuietHoursStore.kt"
-            line="60"
-            column="17"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                    prefs(context).edit().putString(key(userId), obj.toString()).apply()"
-        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/ChatQuietHoursStore.kt"
-            line="75"
-            column="21"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                prefs(context).edit().putString(key(userId), obj.toString()).apply()"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/ChatQuietHoursStore.kt"
-            line="93"
-            column="17"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().remove(key(userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/ChatQuietHoursStore.kt"
-            line="111"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/ChromePreferences.kt"
-            line="46"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        app.getSharedPreferences(&quot;general_settings&quot;, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/ClientPrefsSync.kt"
-            line="50"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetData.kt"
-            line="67"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetData.kt"
-            line="78"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putLong(KEY_LAST_PUSH_MS, now).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/widget/ConversationWidgetData.kt"
-            line="200"
-            column="9"/>
-    </issue>
+    
 
     
 
@@ -1918,27 +1539,19 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().putInt(storageKey(variant, slot), color.toArgb()).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/CustomThemeStore.kt"
-            line="73"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().remove(storageKey(variant, slot)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/CustomThemeStore.kt"
-            line="78"
-            column="9"/>
-    </issue>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
 
     <issue
         id="UseKtx"
@@ -1962,170 +1575,35 @@
             column="19"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            encryptedPrefs(appContext).edit().remove(PASSPHRASE_KEY).commit()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/data/local/DatabasePassphraseProvider.kt"
-            line="39"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs.edit().remove(key).apply()"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="54"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs.edit().putString(key, text).apply()"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="56"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString(key, normalized).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="63"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs.edit().remove(key).apply()"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="69"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs.edit().putString(key, uris.joinToString(&quot;\n&quot;)).apply()"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="71"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="78"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="88"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                prefs.edit()"
-        errorLine2="                ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="103"
-            column="17"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                prefs.edit()"
-        errorLine2="                ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/explore/repository/DraftRepository.kt"
-            line="126"
-            column="17"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/EmojiRecentPreferences.kt"
-            line="25"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_RECENT, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/EmojiRecentPreferences.kt"
-            line="30"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="96"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="121"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                prefs(ctx).edit()"
-        errorLine2="                ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="148"
-            column="17"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2138,172 +1616,37 @@
             column="24"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().remove(key(KEY_FAILURES, userId)).remove(key(KEY_LOCKED_UNTIL, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="165"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().putBoolean(key(KEY_RELOCK_BACKGROUND, userId), value).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="206"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().remove(key(KEY_BACKGROUND_AT, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="228"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().putLong(key(KEY_BACKGROUND_AT, userId), nowMillis).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="235"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().putLong(key(KEY_BACKGROUND_AT, userId), System.currentTimeMillis()).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="243"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(ctx).edit().remove(key(KEY_HIDE_ICON, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="263"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs(ctx).edit().remove(key(KEY_HIDE_ICON, userId)).apply()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="288"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                prefs(ctx).edit().putBoolean(key(KEY_HIDE_ICON, userId), hidden).apply()"
-        errorLine2="                ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="316"
-            column="17"/>
-    </issue>
+    
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().putBoolean(accountKey(KEY_ENABLED, userId), enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/floating/FloatingBallPreferences.kt"
-            line="27"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/floating/FloatingBallPreferences.kt"
-            line="43"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().putBoolean(KEY_REQUESTED, true).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/floating/FloatingBallPreferences.kt"
-            line="53"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs(context).edit().putStringSet(KEY_IDS, ids).apply()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/data/repository/FriendCacheStore.kt"
-            line="52"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs(context).edit().clear().apply()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/data/repository/FriendCacheStore.kt"
-            line="76"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/GifSearchPreferences.kt"
-            line="22"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_RECENT, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/GifSearchPreferences.kt"
-            line="27"
-            column="9"/>
-    </issue>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
 
     <issue
         id="UseKtx"
@@ -2329,16 +1672,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().putBoolean(scopedKey(KEY_ENABLED, userId), enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/ImageOcrPreferences.kt"
-            line="32"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2351,16 +1685,7 @@
             column="17"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/LinkPreviewPreferences.kt"
-            line="28"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2373,16 +1698,7 @@
             column="38"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/agent/LocalAiProviderStore.kt"
-            line="40"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2395,51 +1711,15 @@
             column="22"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context)?.edit()?.putString(scoped(context, KEY_ACTIVE), id)?.apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/agent/LocalAiProviderStore.kt"
-            line="59"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context)?.edit()?.putString(scoped(context, KEY_OVERLAY), mode.name)?.apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/agent/LocalAiProviderStore.kt"
-            line="68"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context)?.edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/agent/LocalAiProviderStore.kt"
-            line="77"
-            column="9"/>
-    </issue>
+    
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/MediaAutoDownloadPreferences.kt"
-            line="29"
-            column="9"/>
-    </issue>
+    
+
+    
+
+    
 
     
 
@@ -2492,16 +1772,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            runCatching { prefs.edit().remove(key).apply() }"
-        errorLine2="                          ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/data/repository/NotificationCenterRepository.kt"
-            line="404"
-            column="27"/>
-    </issue>
+    
 
     
 
@@ -2509,16 +1780,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            configPrefs.edit().putString(&quot;channel_fingerprint&quot;, fingerprint).apply()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationInfrastructure.kt"
-            line="67"
-            column="13"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2542,16 +1804,7 @@
             column="22"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        account.prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationPreferences.kt"
-            line="154"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2577,115 +1830,25 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/pin/PinLockRepository.kt"
-            line="49"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                    prefs.edit()"
-        errorLine2="                    ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/pin/PinLockRepository.kt"
-            line="72"
-            column="21"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/pin/PinLockRepository.kt"
-            line="90"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/PostLoginGuidePreferences.kt"
-            line="23"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().putString(KEY_MODE, if (mode in ALL_MODES) mode else MODE_FOREGROUND).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/push/PushKeepAliveModeStore.kt"
-            line="45"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/push/PushRegistrationManager.kt"
-            line="43"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/push/PushRegistrationManager.kt"
-            line="86"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString(KEY_DEVICE_ID, generated).commit()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/push/PushRegistrationManager.kt"
-            line="101"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/PushVerifyPrefs.kt"
-            line="22"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/PushVerifyPrefs.kt"
-            line="30"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2709,49 +1872,13 @@
             column="17"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_PHRASES, userId), PrefsJsonLists.encode(next)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/QuickPhrasePreferences.kt"
-            line="32"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_PHRASES, userId), PrefsJsonLists.encode(next)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/QuickPhrasePreferences.kt"
-            line="38"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_PHRASES, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/QuickPhrasePreferences.kt"
-            line="43"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().putBoolean(AccountIsolationKey(KEY_ENABLED, userId), enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/quickreply/QuickReplyPolicy.kt"
-            line="42"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2766,115 +1893,25 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/RuntimeFlags.kt"
-            line="119"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().putBoolean(key(KEY_ENABLED, userId), enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/ScreenSecureManager.kt"
-            line="24"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().remove(key(KEY_ENABLED, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/ScreenSecureManager.kt"
-            line="29"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit().putLong(switch.key(KEY_TIMEOUT_MS, userId), timeoutMs.coerceIn(10_000L, 24L * 60 * 60 * 1000)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/Secret2faGatePrefs.kt"
-            line="37"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit().putLong(switch.key(KEY_LAST_VERIFIED_AT, userId), System.currentTimeMillis()).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/Secret2faGatePrefs.kt"
-            line="49"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit().remove(switch.key(KEY_LAST_VERIFIED_AT, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/Secret2faGatePrefs.kt"
-            line="54"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretAutoDestroyPrefs.kt"
-            line="41"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretDeviceVerifyPrefs.kt"
-            line="38"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretDeviceVerifyPrefs.kt"
-            line="52"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretForwardWhitelistPrefs.kt"
-            line="38"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -2887,115 +1924,21 @@
             column="19"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretNewDeviceRiskPrefs.kt"
-            line="40"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretNewDeviceRiskPrefs.kt"
-            line="55"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit().putBoolean(switch.key(KEY_PURGE_MEDIA, userId), purge).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretScreenshotBurnPrefs.kt"
-            line="35"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit().putBoolean(switch.key(KEY_SHOW_PEER_NOTICE, userId), show).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretSessionNoticePrefs.kt"
-            line="39"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        switch.prefs(context).edit().apply {"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/SecretSimChangePrefs.kt"
-            line="38"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().putBoolean(key(KEY_ENABLED, userId), enabled).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/SensitiveActionGate.kt"
-            line="28"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs(context).edit().remove(key(KEY_ENABLED, userId)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/SensitiveActionGate.kt"
-            line="119"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/ServerAnnouncementNotice.kt"
-            line="29"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putStringSet(ACK_KEY, set).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/network/ServerIdentity.kt"
-            line="72"
-            column="9"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        prefs.edit().putString(KEY_THEME, normalized).apply()"
-        errorLine2="        ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/settings/SettingsGeneralSettingsViewModel.kt"
-            line="96"
-            column="9"/>
-    </issue>
+    
 
     
 
@@ -3013,137 +1956,33 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/StickerPreferences.kt"
-            line="23"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_ENABLED_PACKS, userId), PrefsJsonLists.encode(normalized)).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/StickerPreferences.kt"
-            line="36"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        userScopedPrefs(context, PREFS_NAME).edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/StickerPreferences.kt"
-            line="41"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="                prefs.edit().putString(KEY_THEME_STYLE, normalizedStyle).apply()"
-        errorLine2="                ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ThemePreferences.kt"
-            line="75"
-            column="17"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/ThemePreferences.kt"
-            line="95"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/ThemePreferences.kt"
-            line="118"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/ThemePreferences.kt"
-            line="141"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/ThemePreferences.kt"
-            line="158"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/util/ThemePreferences.kt"
-            line="175"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        return runCatching { prefs.edit().putString(ApiConfig.Prefs.TOKEN_KEY, token).apply() }"
-        errorLine2="                             ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/network/TokenManager.kt"
-            line="90"
-            column="30"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        return runCatching { prefs.edit().putString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, refreshToken).apply() }"
-        errorLine2="                             ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/network/TokenManager.kt"
-            line="124"
-            column="30"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs.edit()"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/network/TokenManager.kt"
-            line="134"
-            column="13"/>
-    </issue>
+    
+
+    
+
+    
 
     <issue
         id="UseKtx"
@@ -3156,27 +1995,9 @@
             column="13"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            prefs.edit()"
-        errorLine2="            ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/network/TokenManager.kt"
-            line="206"
-            column="13"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        runCatching { prefs.edit().putLong(ApiConfig.Prefs.LAST_SYNC_AT_KEY, timestamp).apply() }"
-        errorLine2="                      ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/network/TokenManager.kt"
-            line="239"
-            column="23"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -3189,16 +2010,7 @@
             column="13"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        runCatching { prefs.edit().putLong(backlogSyncKey(chatId), System.currentTimeMillis()).commit() }"
-        errorLine2="                      ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/network/TokenManager.kt"
-            line="322"
-            column="23"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -3233,38 +2045,11 @@
             column="26"/>
     </issue>
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        localPrefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/settings/repository/VersionedSettingsRepository.kt"
-            line="275"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        roamingPrefs.edit()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/settings/repository/VersionedSettingsRepository.kt"
-            line="319"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putFloat(KEY_SPEED, speed).apply()"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/VoicePlayer.kt"
-            line="63"
-            column="13"/>
-    </issue>
+    
 
     
 

@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.ServerIdentity
 
 /**
@@ -27,9 +28,9 @@ object ServerAnnouncementNotice {
 
     fun markShown(context: Context, announcement: String) {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_SHOWN_HASH, hashOf(announcement))
-            .apply()
+            .edit {
+            putString(KEY_SHOWN_HASH, hashOf(announcement))
+        }
     }
 
     private fun hashOf(text: String): String =

@@ -2,6 +2,7 @@ package com.maodouchat.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import net.sqlcipher.database.SQLiteDatabase
@@ -36,7 +37,7 @@ object DatabasePassphraseProvider {
     fun destroyPassphrase(context: Context) {
         val appContext = context.applicationContext
         runCatching {
-            encryptedPrefs(appContext).edit().remove(PASSPHRASE_KEY).commit()
+            encryptedPrefs(appContext).edit(commit = true) { remove(PASSPHRASE_KEY) }
         }
         appContext.deleteSharedPreferences(PREFS_NAME)
     }

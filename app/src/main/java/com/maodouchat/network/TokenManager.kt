@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.maodouchat.session.MutableSessionContextProvider
@@ -87,7 +88,7 @@ class TokenManager private constructor(private val context: Context) {
 
     /** @return true if the value was successfully saved */
     fun saveToken(token: String): Boolean {
-        return runCatching { prefs.edit().putString(ApiConfig.Prefs.TOKEN_KEY, token).apply() }
+        return runCatching { prefs.edit { putString(ApiConfig.Prefs.TOKEN_KEY, token) } }
             .onFailure { Log.w(TAG, "saveToken failed", it) }
             .isSuccess
     }
@@ -121,7 +122,7 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     fun saveRefreshToken(refreshToken: String): Boolean {
-        return runCatching { prefs.edit().putString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, refreshToken).apply() }
+        return runCatching { prefs.edit { putString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, refreshToken) } }
             .onFailure { Log.w(TAG, "saveRefreshToken failed", it) }
             .isSuccess
     }
@@ -131,10 +132,10 @@ class TokenManager private constructor(private val context: Context) {
 
     fun saveTokenExpiries(accessTokenExpiresAt: Long, refreshTokenExpiresAt: Long): Boolean {
         return runCatching {
-            prefs.edit()
-                .putLong(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, accessTokenExpiresAt)
-                .putLong(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, refreshTokenExpiresAt)
-                .apply()
+            prefs.edit {
+                putLong(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, accessTokenExpiresAt)
+                putLong(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, refreshTokenExpiresAt)
+            }
         }
             .onFailure { Log.w(TAG, "saveTokenExpiries failed", it) }
             .isSuccess
@@ -203,10 +204,10 @@ class TokenManager private constructor(private val context: Context) {
     /** @return true if the value was successfully saved */
     fun saveUserId(userId: String): Boolean {
         return runCatching {
-            prefs.edit()
-                .putString(ApiConfig.Prefs.USER_ID_KEY, userId)
-                .putString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, userId)
-                .apply()
+            prefs.edit {
+                putString(ApiConfig.Prefs.USER_ID_KEY, userId)
+                putString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, userId)
+            }
         }
             .onFailure { Log.w(TAG, "saveUserId failed", it) }
             .isSuccess
@@ -236,7 +237,7 @@ class TokenManager private constructor(private val context: Context) {
 
     /** @deprecated Prefer per-chat cursors via [saveLastSyncAtMs]/chatId] / [getLastSyncAtMs]. */
     fun saveLastSyncAtMs(timestamp: Long): Boolean =
-        runCatching { prefs.edit().putLong(ApiConfig.Prefs.LAST_SYNC_AT_KEY, timestamp).apply() }
+        runCatching { prefs.edit { putLong(ApiConfig.Prefs.LAST_SYNC_AT_KEY, timestamp) } }
             .onFailure { Log.w(TAG, "saveLastSyncAtMs failed", it) }
             .isSuccess
 
@@ -319,7 +320,7 @@ class TokenManager private constructor(private val context: Context) {
 
     fun markBacklogSyncAttempted(chatId: String) {
         if (chatId.isBlank()) return
-        runCatching { prefs.edit().putLong(backlogSyncKey(chatId), System.currentTimeMillis()).commit() }
+        runCatching { prefs.edit(commit = true) { putLong(backlogSyncKey(chatId), System.currentTimeMillis()) } }
     }
 
     private fun backlogSyncKey(chatId: String): String =

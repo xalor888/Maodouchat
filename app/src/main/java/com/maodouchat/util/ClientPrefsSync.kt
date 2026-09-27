@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.ai.AiWritingStylePreferences
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ClientPrefsDto
@@ -44,9 +45,9 @@ object ClientPrefsSync {
         val theme = ThemePreferences.normalize(remote.themeMode)
         ThemePreferences.setMode(app, theme)
         app.getSharedPreferences("general_settings", Context.MODE_PRIVATE)
-            .edit()
-            .putString("theme_mode", theme)
-            .apply()
+            .edit {
+            putString("theme_mode", theme)
+        }
 
         val language = when (remote.languageMode.lowercase()) {
             AppLocaleManager.MODE_CHINESE, "zh-cn", "chinese" -> AppLocaleManager.MODE_CHINESE

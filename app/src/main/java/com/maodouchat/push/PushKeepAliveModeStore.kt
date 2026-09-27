@@ -1,6 +1,7 @@
 package com.maodouchat.push
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 后台推送保活模式偏好。
@@ -42,7 +43,7 @@ object PushKeepAliveModeStore {
         PushKeepAlivePolicy.effectiveMode(mode(context))
 
     fun setMode(context: Context, mode: String) {
-        prefs(context).edit().putString(KEY_MODE, if (mode in ALL_MODES) mode else MODE_FOREGROUND).apply()
+        prefs(context).edit { putString(KEY_MODE, if (mode in ALL_MODES) mode else MODE_FOREGROUND) }
         PushKeepAlive.applyMode(context)
     }
 

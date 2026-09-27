@@ -1,6 +1,7 @@
 package com.maodouchat.notification
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.currentUserId
 import org.json.JSONObject
@@ -57,7 +58,7 @@ object ChatQuietHoursStore {
                 // 1.40：保留同条目内已有的临时静音至字段（1.02 语义为「与时段共存」）
                 existing?.optLong("silent_until", 0L)?.takeIf { it > 0L }?.let { entry.put("silent_until", it) }
                 obj.put(chatId, entry)
-                prefs(context).edit().putString(key(userId), obj.toString()).apply()
+                prefs(context).edit { putString(key(userId), obj.toString()) }
             }
         }
     }
@@ -72,7 +73,7 @@ object ChatQuietHoursStore {
                 val obj = JSONObject(raw)
                 if (obj.has(chatId)) {
                     obj.remove(chatId)
-                    prefs(context).edit().putString(key(userId), obj.toString()).apply()
+                    prefs(context).edit { putString(key(userId), obj.toString()) }
                 }
             }
         }
@@ -90,7 +91,7 @@ object ChatQuietHoursStore {
                 val entry = if (existing != null) existing else JSONObject()
                 if (untilMs <= 0) entry.remove("silent_until") else entry.put("silent_until", untilMs)
                 if (entry.length() == 0) obj.remove(chatId) else obj.put(chatId, entry)
-                prefs(context).edit().putString(key(userId), obj.toString()).apply()
+                prefs(context).edit { putString(key(userId), obj.toString()) }
             }
         }
     }
@@ -108,7 +109,7 @@ object ChatQuietHoursStore {
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        prefs(context).edit().remove(key(userId)).apply()
+        prefs(context).edit { remove(key(userId)) }
     }
 
 

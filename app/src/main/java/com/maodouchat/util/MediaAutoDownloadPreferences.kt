@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /**
@@ -27,9 +28,9 @@ object MediaAutoDownloadPreferences {
         val userId = TokenManager.getInstance(context.applicationContext).getUserId()
             ?.takeIf { it.isNotBlank() } ?: return
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(key(userId), normalize(mode))
-            .apply()
+            .edit {
+            putString(key(userId), normalize(mode))
+        }
     }
 
     fun normalizeForWrite(mode: String): String = when (mode) {

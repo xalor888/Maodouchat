@@ -2,6 +2,7 @@ package com.maodouchat.notification
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.maodouchat.util.AccountScopedPrefs
 
 /**
@@ -151,13 +152,13 @@ object NotificationPreferences {
         val account = accountPreferences(context) ?: return
         val safeStart = startMinute.coerceIn(0, 1439)
         val safeEnd = endMinute.coerceIn(0, 1439)
-        account.prefs.edit()
-            .putBoolean(account.scopedKey(KEY_DND_ENABLED), enabled)
-            .putInt(account.scopedKey(KEY_DND_START_MINUTE), safeStart)
-            .putInt(account.scopedKey(KEY_DND_END_MINUTE), safeEnd)
-            .putInt(account.scopedKey(KEY_DND_START), safeStart / 60)
-            .putInt(account.scopedKey(KEY_DND_END), safeEnd / 60)
-            .apply()
+        account.prefs.edit {
+            putBoolean(account.scopedKey(KEY_DND_ENABLED), enabled)
+            putInt(account.scopedKey(KEY_DND_START_MINUTE), safeStart)
+            putInt(account.scopedKey(KEY_DND_END_MINUTE), safeEnd)
+            putInt(account.scopedKey(KEY_DND_START), safeStart / 60)
+            putInt(account.scopedKey(KEY_DND_END), safeEnd / 60)
+        }
     }
 
     fun setTaskRemindersEnabled(context: Context, enabled: Boolean) {

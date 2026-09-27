@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.fragment.app.FragmentActivity
 import com.maodouchat.network.TokenManager
 
@@ -25,7 +26,7 @@ object SensitiveActionGate {
     fun setEnabled(context: Context, enabled: Boolean) {
         val userId = userId(context)
         if (userId.isBlank()) return
-        prefs(context).edit().putBoolean(key(KEY_ENABLED, userId), enabled).apply()
+        prefs(context).edit { putBoolean(key(KEY_ENABLED, userId), enabled) }
     }
 
     fun requiresStepUp(context: Context, action: SensitiveAction): Boolean =
@@ -116,7 +117,7 @@ object SensitiveActionGate {
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        prefs(context).edit().remove(key(KEY_ENABLED, userId)).apply()
+        prefs(context).edit { remove(key(KEY_ENABLED, userId)) }
     }
 
     /**

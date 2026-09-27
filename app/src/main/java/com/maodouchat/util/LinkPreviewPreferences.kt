@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /**
@@ -26,9 +27,9 @@ object LinkPreviewPreferences {
         val userId = TokenManager.getInstance(context.applicationContext).getUserId()
             ?.takeIf { it.isNotBlank() } ?: return
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(key(userId), enabled)
-            .apply()
+            .edit {
+            putBoolean(key(userId), enabled)
+        }
         version++
     }
 

@@ -1,6 +1,7 @@
 package com.maodouchat.data.repository
 
 import android.content.Context
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,9 +48,9 @@ object FriendCacheStore {
     /** 服务端好友列表全量刷新：原子替换缓存（登出清库时调用 clear）。 */
     fun replaceAll(context: Context, ids: Set<String>, ownerUserId: String? = null) {
         val k = key(ownerUserId)
-        prefs(context).edit().putStringSet(k, ids).apply()
+        prefs(context).edit { putStringSet(k, ids) }
         if (k != KEY_IDS) {
-            prefs(context).edit().putStringSet(KEY_IDS, ids).apply()
+            prefs(context).edit { putStringSet(KEY_IDS, ids) }
         }
         memoryCache[k]?.value = ids
         memoryCache[KEY_IDS]?.value = ids
@@ -69,11 +70,11 @@ object FriendCacheStore {
 
     fun clear(context: Context, ownerUserId: String? = null) {
         val k = key(ownerUserId)
-        prefs(context).edit().remove(k).apply()
+        prefs(context).edit { remove(k) }
         memoryCache[k]?.value = emptySet()
         if (k == KEY_IDS || ownerUserId.isNullOrBlank()) {
             memoryCache.clear()
-            prefs(context).edit().clear().apply()
+            prefs(context).edit { clear() }
         }
     }
 }

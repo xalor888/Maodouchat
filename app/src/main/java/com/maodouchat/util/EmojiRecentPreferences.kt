@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /**
@@ -22,12 +23,12 @@ object EmojiRecentPreferences {
         val value = emoji.trim()
         if (value.isEmpty()) return
         val next = (listOf(value) + getRecent(context).filter { it != value }).take(MAX_RECENT)
-        userScopedPrefs(context, PREFS_NAME).edit().putString(userScopedKey(KEY_RECENT, userId), PrefsJsonLists.encode(next)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_RECENT, userId), PrefsJsonLists.encode(next)) }
     }
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        userScopedPrefs(context, PREFS_NAME).edit().remove(userScopedKey(KEY_RECENT, userId)).apply()
+        userScopedPrefs(context, PREFS_NAME).edit { remove(userScopedKey(KEY_RECENT, userId)) }
     }
 
 

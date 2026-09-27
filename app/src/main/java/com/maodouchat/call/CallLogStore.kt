@@ -1,6 +1,7 @@
 package com.maodouchat.call
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.currentUserId
 import org.json.JSONArray
@@ -94,19 +95,19 @@ object CallLogStore {
                 .sortedByDescending { it.optLong("at", 0L) }
                 .take(MAX_ENTRIES)
                 .forEach { trimmed.put(it) }
-            prefs(context).edit().putString(key(liveUserId), trimmed.toString()).apply()
+            prefs(context).edit { putString(key(liveUserId), trimmed.toString()) }
         }
     }
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        prefs(context).edit().remove(key(userId)).apply()
+        prefs(context).edit { remove(key(userId)) }
     }
 
     /** 清空当前账号通话记录。 */
     fun clear(context: Context) {
         currentUserId(context)?.takeIf { it.isNotBlank() }?.let { uid ->
-            prefs(context).edit().remove(key(uid)).apply()
+            prefs(context).edit { remove(key(uid)) }
         }
     }
 
@@ -127,7 +128,7 @@ object CallLogStore {
                 if (obj.optString("id") != entryId) next.put(obj) else removed = true
             }
             if (removed) {
-                prefs(context).edit().putString(key(userId), next.toString()).apply()
+                prefs(context).edit { putString(key(userId), next.toString()) }
             }
         }
         return removed

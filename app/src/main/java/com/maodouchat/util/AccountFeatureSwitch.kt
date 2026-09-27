@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /**
@@ -39,10 +40,10 @@ class AccountFeatureSwitch(
 
     fun setEnabled(context: Context, enabled: Boolean) {
         val userId = userId(context) ?: return
-        prefs(context).edit()
-            .putBoolean(key(KEY_ENABLED, userId), enabled)
-            .putBoolean(key(KEY_USER_SET, userId), true)
-            .apply()
+        prefs(context).edit {
+            putBoolean(key(KEY_ENABLED, userId), enabled)
+            putBoolean(key(KEY_USER_SET, userId), true)
+        }
     }
 
     /** 用户是否显式设置过该开关；未设置时接受服务端默认值。 */
@@ -55,7 +56,7 @@ class AccountFeatureSwitch(
     fun applyServerDefault(context: Context, enabled: Boolean) {
         val userId = userId(context) ?: return
         if (isUserSet(context)) return
-        prefs(context).edit().putBoolean(key(KEY_ENABLED, userId), enabled).apply()
+        prefs(context).edit { putBoolean(key(KEY_ENABLED, userId), enabled) }
     }
 
     fun userId(context: Context): String? = userIdProvider(context)

@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.AccountIsolationPolicy
 
@@ -30,25 +31,25 @@ object AiWritingStylePreferences {
             clear(context)
             return
         }
-        prefs.edit().putBoolean(key(KEY_ENABLED, account), true).apply()
+        prefs.edit { putBoolean(key(KEY_ENABLED, account), true) }
     }
 
     fun setPreset(context: Context, presetId: String) {
         val account = account(context) ?: return
         val preset = AiWritingStylePolicy.Preset.fromId(presetId)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(key(KEY_PRESET, account), preset.id)
-            .apply()
+            .edit {
+            putString(key(KEY_PRESET, account), preset.id)
+        }
     }
 
     fun setCustomNote(context: Context, note: String) {
         val account = account(context) ?: return
         val normalized = AiWritingStylePolicy.normalizeCustomNote(note)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(key(KEY_CUSTOM, account), normalized)
-            .apply()
+            .edit {
+            putString(key(KEY_CUSTOM, account), normalized)
+        }
     }
 
     fun save(context: Context, enabled: Boolean, presetId: String?, customNote: String?) {
@@ -71,11 +72,11 @@ object AiWritingStylePreferences {
     fun clear(context: Context) {
         val account = account(context) ?: return
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(key(KEY_ENABLED, account))
-            .remove(key(KEY_PRESET, account))
-            .remove(key(KEY_CUSTOM, account))
-            .apply()
+            .edit {
+            remove(key(KEY_ENABLED, account))
+            remove(key(KEY_PRESET, account))
+            remove(key(KEY_CUSTOM, account))
+        }
     }
 
     private fun key(base: String, userId: String): String =

@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import androidx.core.content.edit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -69,7 +70,7 @@ object ServerIdentity {
         val prefs = context.applicationContext.getSharedPreferences(ACK_PREF_NAME, android.content.Context.MODE_PRIVATE)
         val set = prefs.getStringSet(ACK_KEY, emptySet()).orEmpty().toMutableSet()
         set.add(normalized)
-        prefs.edit().putStringSet(ACK_KEY, set).apply()
+        prefs.edit { putStringSet(ACK_KEY, set) }
     }
 
     /** 拉取指定地址的服务器身份；网络失败/非 Maodouchat 服务返回 null。 */

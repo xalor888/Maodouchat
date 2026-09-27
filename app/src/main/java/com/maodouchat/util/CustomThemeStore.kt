@@ -3,6 +3,7 @@ package com.maodouchat.util
 import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -70,12 +71,12 @@ object CustomThemeStore {
     }
 
     fun setColor(ctx: Context, variant: String, slot: String, color: Color) {
-        prefs(ctx).edit().putInt(storageKey(variant, slot), color.toArgb()).apply()
+        prefs(ctx).edit { putInt(storageKey(variant, slot), color.toArgb()) }
         _revision.value++
     }
 
     fun clearColor(ctx: Context, variant: String, slot: String) {
-        prefs(ctx).edit().remove(storageKey(variant, slot)).apply()
+        prefs(ctx).edit { remove(storageKey(variant, slot)) }
         _revision.value++
     }
 

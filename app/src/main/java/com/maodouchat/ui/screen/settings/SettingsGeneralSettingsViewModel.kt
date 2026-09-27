@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import androidx.core.content.edit
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -92,7 +93,7 @@ class GeneralSettingsViewModel(application: Application) : AndroidViewModel(appl
         if (_uiState.value.themeMode == normalized) return
         prefsRevision++
         com.maodouchat.util.ThemePreferences.setMode(context, normalized)
-        prefs.edit().putString(KEY_THEME, normalized).apply()
+        prefs.edit { putString(KEY_THEME, normalized) }
         _uiState.update { it.copy(themeMode = normalized) }
         pushClientPrefs()
     }

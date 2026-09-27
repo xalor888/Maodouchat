@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 密聊自动销毁开关（B2 surface · 自动销毁，health 名 ttlz）。
@@ -38,8 +39,8 @@ object SecretAutoDestroyPrefs {
 
     fun setTtlSeconds(context: Context, seconds: Long) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit()
-            .putLong(switch.key(KEY_TTL_SECONDS, userId), seconds.coerceIn(MIN_TTL_SECONDS, MAX_TTL_SECONDS))
-            .apply()
+        switch.prefs(context).edit {
+            putLong(switch.key(KEY_TTL_SECONDS, userId), seconds.coerceIn(MIN_TTL_SECONDS, MAX_TTL_SECONDS))
+        }
     }
 }

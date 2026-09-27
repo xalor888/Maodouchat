@@ -2,6 +2,7 @@ package com.maodouchat.quickreply
 
 import android.content.Context
 import android.os.SystemClock
+import androidx.core.content.edit
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
@@ -39,7 +40,7 @@ object QuickReplyPolicy {
     fun setEnabled(context: Context, enabled: Boolean) {
         val userId = userId(context)
         if (userId.isBlank()) return
-        prefs(context).edit().putBoolean(AccountIsolationKey(KEY_ENABLED, userId), enabled).apply()
+        prefs(context).edit { putBoolean(AccountIsolationKey(KEY_ENABLED, userId), enabled) }
     }
 
     // ---- 同步前置校验（不触库，可在广播线程直接调用） ----

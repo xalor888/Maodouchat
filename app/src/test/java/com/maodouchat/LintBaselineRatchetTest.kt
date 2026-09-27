@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 265
+    private val frozenIssueCount = 130
 
     @Test
     fun `lint baseline can only shrink`() {
@@ -76,7 +76,15 @@ class LintBaselineRatchetTest {
             // （AppLinkOpener 迁包后的旧路径 ×2、ChatDetailRoute 抽层后失效 ×1）；
             // 另有 5 条 GradleDependency 死条目（可用版本号已变，lint 报为 unmatched）一并删除。
             // 209 → 162，总条目 318 → 265。
-            "UseKtx" to 162,
+            //
+            // 2026-09-28：`SharedPreferences.edit` 一族收口——55 个文件 137 处
+            // `.edit().a().b().apply()` → `.edit { a(); b() }`（commit 链 → `edit(commit = true)`；
+            // 137 = 135 处对应基线块 + 2 处 lint 原先未标、邻位转换后转活跃的站点，被活跃守卫当场抓住后一并转），
+            // 按基线 153 条逐条匹配（errorLine1 + 行号就近消歧），保留 18 处不转
+            // （11 处变量编辑器模式 + `check(...commit())` 1 处 + runCatching 返回值被消费的 commit 链 4 处
+            // + GlobalSearchScreen 2 处——零松量行数上限文件，转换要 +1 import 行，先拆后收）。
+            // 162 → 27（= 5 bitmap + 4 处行数上限热点文件内的 Uri.parse + 18 处本批保留），总条目 265 → 130。
+            "UseKtx" to 27,
             // 上面两条是 warning 级的大头；真正卡 CI 的是它：
             "LocalContextGetResourceValueCall" to 0,
             "GradleDependency" to 17,

@@ -1973,3 +1973,42 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 265 条）**：`UseKtx` 162 = 153 `SharedPreferences.edit` + 4 `Uri.parse`
 （在 2 个行数上限热点文件内，先拆后收）+ 5 bitmap；`GradleDependency` 17 + 活跃 5
 （对应 dependabot 待合并 PR）；`NewerVersionAvailable` 14；`HardwareIds` 10。
+
+### 第十四轮五续（2026-09-28）：UseKtx `SharedPreferences.edit` 一族收口——135 处转换（265 → 130）
+
+同族第三刀，也是最大一刀：`UseKtx` 的 `SharedPreferences.edit` 子族共 **153 条基线**，全量逐条处理。
+
+- **转换 137 处（55 文件）**：`.edit().a().b().apply()` → `.edit { a(); b() }`（ktx `edit{}` 尾接 apply，
+  语义不变）；commit 链 → `.edit(commit = true) { }`（保持同步落盘语义，`@Suppress("ApplySharedPref")` 保留）；
+  含 17 段的最长链（`VersionedSettingsRepository`）、可空链（`prefs(ctx)?.edit { }`）、
+  跨行接收者（`.edit()` 单起一行）等形态；其中 2 处（`FriendCacheStore` 51/73）**lint 原先未标**
+  （同文件另外 2 处转换后，lint 的判定把这两处转为活跃）——被**活跃守卫**本地当场抓住，一并转掉；
+- **保留 18 处（不转换，条目留在基线）**：11 处「变量编辑器」模式（`val editor = prefs.edit()` 跨语句使用，
+  转换需重排控制流，另批）、`check(...commit())` 1 处（返回值被消费）、runCatching 返回值被消费的
+  commit 链 4 处（`.onFailure`/`.getOrDefault` 消费 Boolean——转换会把 Boolean 变 Unit）、
+  `GlobalSearchScreen` 2 处（零松量行数上限 991 行=实测，转换要 +1 import 行——按既有「先拆后收」策略跳过，
+  与 `ChatDetailViewModel`/`MediaCenterScreen` 同处理）；
+- **匹配法**：以基线 `errorLine1` 逐条定位 + 行号就近消歧（153/153 命中，含 17 组重复行文本消歧）；
+  commit 链「返回值是否被消费」逐处静态判断（同线 return/赋值、runCatching 闭合后接 `.onFailure`、
+  外层 runCatching 自身被返回/赋值）——负控制：4 处 value-used 若误转，编译期即红（Boolean vs Unit）；
+- **基线手术**：−135（逐条按行号精确移除）→ 265 → 130；`frozenIssueCount` 265 → 130，
+  `UseKtx` 162 → 27；
+- **判据**：`:app:compileDebugKotlin` 绿（34s）；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  + `:app:lintDebug` 绿；活跃守卫（pre-push 第二步）实跑通过。
+
+**教训一（本刀内修正）**：按 (file, errorLine1) **计数**消费基线块，会在「同文本混有转换与保留」时错配
+（`TokenManager` 的 `prefs.edit()` 组：转换 2、保留 4，计数法误删保留块）——恢复基线后改为
+**行号精确移除**（计划表与基线块按序 zip，逐块按记录行号判定）。计数法只适合「整族全转」的场景。
+
+**教训二**：行数上限文件的「零松量」在转换批次里也要先算——`GlobalSearchScreen`（991=991）
+单看链式转换是 0 行差，但 **+1 import 行**就撞上限；测试门禁（`hotspot caps have zero slack` +
+`client hotspot files may not grow`）先于提交抓住了它，本批按策略跳过而非放宽上限。
+
+**教训三（活跃守卫首功）**：转换让 lint 的 SharedPreferences 判定**漂移**——`FriendCacheStore`
+同文件两处转换后，另外两处原先未标的 `edit().apply()` 变成活跃（2 条新活跃、无对应基线块）。
+若没有活跃守卫，这两处会静默漂进「未基线活跃」盲区；守卫在本地 pre-push 第二步拦下
+（退出码 1 逐条点名），当场转掉——这正是第三刀加守卫的理由本身。
+
+**剩余（lint 基线 130 条）**：`UseKtx` 27 = 18 处本刀保留（变量编辑器/值被消费/上限文件）
++ 4 `Uri.parse`（行数上限热点文件内，先拆后收）+ 5 bitmap；`GradleDependency` 17 + 活跃 5；
+`NewerVersionAvailable` 14；`HardwareIds` 10。

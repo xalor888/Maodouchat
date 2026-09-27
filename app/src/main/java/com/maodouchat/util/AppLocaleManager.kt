@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
+import androidx.core.content.edit
 import java.util.Locale
 
 object AppLocaleManager {
@@ -36,9 +37,9 @@ object AppLocaleManager {
     fun setMode(context: Context, mode: String) {
         val normalized = mode.takeIf { it in supportedModes } ?: MODE_SYSTEM
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_LANGUAGE, normalized)
-            .apply()
+            .edit {
+            putString(KEY_LANGUAGE, normalized)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val tags = languageTag(normalized)

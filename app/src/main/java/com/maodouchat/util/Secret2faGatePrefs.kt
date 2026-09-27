@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 密聊双因素门禁开关（B2 surface · 双因素门禁，health 名 2faz）。
@@ -34,7 +35,7 @@ object Secret2faGatePrefs {
 
     fun setGateTimeoutMs(context: Context, timeoutMs: Long) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit().putLong(switch.key(KEY_TIMEOUT_MS, userId), timeoutMs.coerceIn(10_000L, 24L * 60 * 60 * 1000)).apply()
+        switch.prefs(context).edit { putLong(switch.key(KEY_TIMEOUT_MS, userId), timeoutMs.coerceIn(10_000L, 24L * 60 * 60 * 1000)) }
     }
 
     fun isGateOpen(context: Context): Boolean {
@@ -46,11 +47,11 @@ object Secret2faGatePrefs {
 
     fun markVerified(context: Context) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit().putLong(switch.key(KEY_LAST_VERIFIED_AT, userId), System.currentTimeMillis()).apply()
+        switch.prefs(context).edit { putLong(switch.key(KEY_LAST_VERIFIED_AT, userId), System.currentTimeMillis()) }
     }
 
     fun clearGate(context: Context) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit().remove(switch.key(KEY_LAST_VERIFIED_AT, userId)).apply()
+        switch.prefs(context).edit { remove(switch.key(KEY_LAST_VERIFIED_AT, userId)) }
     }
 }

@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 运行时功能开关集中表。
@@ -117,8 +118,8 @@ object RuntimeFlags {
             else -> enabled
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(flag.key, value)
-            .apply()
+            .edit {
+            putBoolean(flag.key, value)
+        }
     }
 }

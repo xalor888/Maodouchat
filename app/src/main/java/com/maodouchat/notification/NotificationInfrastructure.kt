@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
@@ -65,7 +66,7 @@ internal object NotificationInfrastructure {
             nm.deleteNotificationChannel(CHANNEL_AI_TASKS)
         }
         if (storedFingerprint != fingerprint) {
-            configPrefs.edit().putString("channel_fingerprint", fingerprint).apply()
+            configPrefs.edit { putString("channel_fingerprint", fingerprint) }
         }
         fun applySound(channel: NotificationChannel, uri: android.net.Uri?) {
             if (uri != null) channel.setSound(uri, attrs)

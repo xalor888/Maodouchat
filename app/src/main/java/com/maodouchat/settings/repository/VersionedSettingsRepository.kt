@@ -3,6 +3,7 @@ package com.maodouchat.settings.repository
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ClientPrefsDto
 import com.maodouchat.network.ClientPrefsUpdateRequest
@@ -270,16 +271,16 @@ class DefaultVersionedSettingsRepository(
     ): LocalDevicePreferences {
         val current = getLocalPreferences()
         val updated = update(current)
-        localPrefs.edit()
-            .putBoolean("notifications_enabled", updated.notificationsEnabled)
-            .putBoolean("notification_sound_enabled", updated.notificationSoundEnabled)
-            .putBoolean("notification_vibrate_enabled", updated.notificationVibrateEnabled)
-            .putBoolean("badge_count_enabled", updated.badgeCountEnabled)
-            .putBoolean("biometric_unlock_enabled", updated.biometricUnlockEnabled)
-            .putString("active_server_url", updated.activeServerUrl)
-            .putLong("local_cache_max_mb", updated.localCacheMaxMegaBytes)
-            .putBoolean("camouflage_calc", updated.camouflageCalculatorEnabled)
-            .apply()
+        localPrefs.edit {
+            putBoolean("notifications_enabled", updated.notificationsEnabled)
+            putBoolean("notification_sound_enabled", updated.notificationSoundEnabled)
+            putBoolean("notification_vibrate_enabled", updated.notificationVibrateEnabled)
+            putBoolean("badge_count_enabled", updated.badgeCountEnabled)
+            putBoolean("biometric_unlock_enabled", updated.biometricUnlockEnabled)
+            putString("active_server_url", updated.activeServerUrl)
+            putLong("local_cache_max_mb", updated.localCacheMaxMegaBytes)
+            putBoolean("camouflage_calc", updated.camouflageCalculatorEnabled)
+        }
         return updated
     }
 
@@ -314,25 +315,25 @@ class DefaultVersionedSettingsRepository(
     }
 
     private fun saveStoredRoaming(prefs: MultiDevicePreferences) {
-        roamingPrefs.edit()
-            .putString("owner_user_id", prefs.ownerUserId)
-            .putLong("revision", prefs.revision)
-            .putLong("updated_at", prefs.updatedAtEpochMs)
-            .putString("theme_mode", prefs.themeMode)
-            .putString("theme_style", prefs.themeStyle)
-            .putString("accent_color", prefs.accentColor)
-            .putString("language_mode", prefs.languageMode)
-            .putString("chat_wallpaper", prefs.chatWallpaper)
-            .putString("chat_font_scale", prefs.chatFontScale)
-            .putBoolean("link_preview", prefs.linkPreviewEnabled)
-            .putBoolean("unread_priority", prefs.unreadPriorityEnabled)
-            .putBoolean("writing_style_enabled", prefs.writingStyleEnabled)
-            .putString("writing_style_preset", prefs.writingStylePreset)
-            .putString("writing_style_custom", prefs.writingStyleCustom)
-            .putLong("app_lock_timeout", prefs.appLockTimeoutMinutes)
-            .putBoolean("screen_secure", prefs.screenSecureEnabled)
-            .putBoolean("sensitive_gate", prefs.sensitiveGateEnabled)
-            .apply()
+        roamingPrefs.edit {
+            putString("owner_user_id", prefs.ownerUserId)
+            putLong("revision", prefs.revision)
+            putLong("updated_at", prefs.updatedAtEpochMs)
+            putString("theme_mode", prefs.themeMode)
+            putString("theme_style", prefs.themeStyle)
+            putString("accent_color", prefs.accentColor)
+            putString("language_mode", prefs.languageMode)
+            putString("chat_wallpaper", prefs.chatWallpaper)
+            putString("chat_font_scale", prefs.chatFontScale)
+            putBoolean("link_preview", prefs.linkPreviewEnabled)
+            putBoolean("unread_priority", prefs.unreadPriorityEnabled)
+            putBoolean("writing_style_enabled", prefs.writingStyleEnabled)
+            putString("writing_style_preset", prefs.writingStylePreset)
+            putString("writing_style_custom", prefs.writingStyleCustom)
+            putLong("app_lock_timeout", prefs.appLockTimeoutMinutes)
+            putBoolean("screen_secure", prefs.screenSecureEnabled)
+            putBoolean("sensitive_gate", prefs.sensitiveGateEnabled)
+        }
     }
 
     private suspend fun <T> withToken(

@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 密聊 SIM 变更防护开关（B2 surface · SIM 变更防护，health 名 simz）。
@@ -35,12 +36,11 @@ object SecretSimChangePrefs {
         val userId = switch.userId(context) ?: return
         if (simId.isBlank()) return
         val prev = lastSimId(context)
-        switch.prefs(context).edit().apply {
+        switch.prefs(context).edit(commit = true) {
             putString(switch.key(KEY_LAST_SIM_ID, userId), simId.trim())
             if (prev != null && prev != simId.trim()) {
                 putLong(switch.key(KEY_LAST_CHANGE_AT, userId), System.currentTimeMillis())
             }
-            commit()
         }
     }
 

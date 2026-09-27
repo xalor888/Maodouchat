@@ -2,6 +2,7 @@ package com.maodouchat.data.repository
 
 import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.NotificationCenterItemEntity
 import com.maodouchat.data.local.entity.toEntity
@@ -401,7 +402,7 @@ class NotificationCenterRepository(context: Context) {
                     }
                 }
             }
-            runCatching { prefs.edit().remove(key).apply() }
+            runCatching { prefs.edit { remove(key) } }
             if (key == accountItemsKey(userId)) break
         }
     }

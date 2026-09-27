@@ -1,6 +1,7 @@
 package com.maodouchat.floating
 
 import android.content.Context
+import androidx.core.content.edit
 import com.maodouchat.network.TokenManager
 
 /**
@@ -24,7 +25,7 @@ object FloatingBallPreferences {
     fun setEnabled(context: Context, enabled: Boolean) {
         val userId = userId(context)
         if (userId.isBlank()) return
-        prefs(context).edit().putBoolean(accountKey(KEY_ENABLED, userId), enabled).apply()
+        prefs(context).edit { putBoolean(accountKey(KEY_ENABLED, userId), enabled) }
     }
 
     /** 默认位置：右上角 */
@@ -40,17 +41,17 @@ object FloatingBallPreferences {
     fun setPosition(context: Context, xRatio: Float, yRatio: Float) {
         val userId = userId(context)
         if (userId.isBlank()) return
-        prefs(context).edit()
-            .putFloat(accountKey(KEY_POS_X, userId), xRatio)
-            .putFloat(accountKey(KEY_POS_Y, userId), yRatio)
-            .apply()
+        prefs(context).edit {
+            putFloat(accountKey(KEY_POS_X, userId), xRatio)
+            putFloat(accountKey(KEY_POS_Y, userId), yRatio)
+        }
     }
 
     fun wasRequested(context: Context): Boolean =
         prefs(context).getBoolean(KEY_REQUESTED, false)
 
     fun markRequested(context: Context) {
-        prefs(context).edit().putBoolean(KEY_REQUESTED, true).apply()
+        prefs(context).edit { putBoolean(KEY_REQUESTED, true) }
     }
 
     private fun userId(ctx: Context): String =

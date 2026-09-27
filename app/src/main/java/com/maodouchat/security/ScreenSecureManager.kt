@@ -1,5 +1,6 @@
 package com.maodouchat.security
 
+import androidx.core.content.edit
 import com.maodouchat.util.RuntimeFlags
 import android.content.Context
 import com.maodouchat.network.TokenManager
@@ -21,12 +22,12 @@ object ScreenSecureManager {
     fun setEnabled(context: Context, enabled: Boolean) {
         val userId = userId(context)
         if (userId.isBlank()) return
-        prefs(context).edit().putBoolean(key(KEY_ENABLED, userId), enabled).apply()
+        prefs(context).edit { putBoolean(key(KEY_ENABLED, userId), enabled) }
     }
 
     fun clearForUser(context: Context, userId: String) {
         if (userId.isBlank()) return
-        prefs(context).edit().remove(key(KEY_ENABLED, userId)).apply()
+        prefs(context).edit { remove(key(KEY_ENABLED, userId)) }
     }
 
     private fun userId(ctx: Context): String =

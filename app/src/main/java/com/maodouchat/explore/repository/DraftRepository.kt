@@ -1,6 +1,7 @@
 package com.maodouchat.explore.repository
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.maodouchat.explore.policy.ExploreDraftPolicy
 
 data class ExploreDraft(
@@ -51,45 +52,45 @@ class SharedPrefsDraftRepository(
     override fun saveComposerText(ownerUserId: String, text: String) {
         val key = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, ownerUserId) ?: return
         if (text.isEmpty()) {
-            prefs.edit().remove(key).apply()
+            prefs.edit { remove(key) }
         } else {
-            prefs.edit().putString(key, text).apply()
+            prefs.edit { putString(key, text) }
         }
     }
 
     override fun saveVisibility(ownerUserId: String, visibility: String) {
         val key = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_VISIBILITY, ownerUserId) ?: return
         val normalized = ExploreDraftPolicy.normalizeVisibility(visibility)
-        prefs.edit().putString(key, normalized).apply()
+        prefs.edit { putString(key, normalized) }
     }
 
     override fun saveImageUris(ownerUserId: String, uris: List<String>) {
         val key = ExploreDraftPolicy.scopedKey(KEY_DRAFT_IMAGES, ownerUserId) ?: return
         if (uris.isEmpty()) {
-            prefs.edit().remove(key).apply()
+            prefs.edit { remove(key) }
         } else {
-            prefs.edit().putString(key, uris.joinToString("\n")).apply()
+            prefs.edit { putString(key, uris.joinToString("\n")) }
         }
     }
 
     override fun clearComposerDraft(ownerUserId: String) {
         val textKey = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, ownerUserId) ?: return
         val imagesKey = ExploreDraftPolicy.scopedKey(KEY_DRAFT_IMAGES, ownerUserId) ?: return
-        prefs.edit()
-            .remove(textKey)
-            .remove(imagesKey)
-            .apply()
+        prefs.edit {
+            remove(textKey)
+            remove(imagesKey)
+        }
     }
 
     override fun clearAllDrafts(ownerUserId: String) {
         val textKey = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, ownerUserId) ?: return
         val visKey = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_VISIBILITY, ownerUserId) ?: return
         val imagesKey = ExploreDraftPolicy.scopedKey(KEY_DRAFT_IMAGES, ownerUserId) ?: return
-        prefs.edit()
-            .remove(textKey)
-            .remove(visKey)
-            .remove(imagesKey)
-            .apply()
+        prefs.edit {
+            remove(textKey)
+            remove(visKey)
+            remove(imagesKey)
+        }
     }
 
     private fun readComposerText(ownerUserId: String): String {
@@ -100,11 +101,11 @@ class SharedPrefsDraftRepository(
         if (!prefs.getBoolean(MIGRATION_KEY_COMPOSER, false)) {
             val legacy = prefs.getString(ExploreDraftPolicy.KEY_COMPOSER_TEXT, null)
             if (!legacy.isNullOrEmpty()) {
-                prefs.edit()
-                    .putBoolean(MIGRATION_KEY_COMPOSER, true)
-                    .putString(scoped, legacy)
-                    .remove(ExploreDraftPolicy.KEY_COMPOSER_TEXT)
-                    .apply()
+                prefs.edit {
+                    putBoolean(MIGRATION_KEY_COMPOSER, true)
+                    putString(scoped, legacy)
+                    remove(ExploreDraftPolicy.KEY_COMPOSER_TEXT)
+                }
                 return legacy
             }
         }
@@ -123,11 +124,11 @@ class SharedPrefsDraftRepository(
             val legacy = prefs.getString(ExploreDraftPolicy.KEY_VISIBILITY, null)
             if (!legacy.isNullOrEmpty()) {
                 val normalized = ExploreDraftPolicy.normalizeVisibility(legacy)
-                prefs.edit()
-                    .putBoolean(MIGRATION_KEY_VISIBILITY, true)
-                    .putString(scoped, normalized)
-                    .remove(ExploreDraftPolicy.KEY_VISIBILITY)
-                    .apply()
+                prefs.edit {
+                    putBoolean(MIGRATION_KEY_VISIBILITY, true)
+                    putString(scoped, normalized)
+                    remove(ExploreDraftPolicy.KEY_VISIBILITY)
+                }
                 return normalized
             }
         }
