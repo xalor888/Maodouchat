@@ -263,7 +263,7 @@ internal fun GroupInviteRow(
                 maxLines = 1
             )
             Text(
-                stringResource(R.string.contacts_group_invite_row_subtitle, invite.inviterName, invite.memberCount),
+                pluralStringResource(R.plurals.contacts_group_invite_row_subtitle, invite.memberCount, invite.inviterName, invite.memberCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = LocalChatPalette.current.textSecondary,
                 maxLines = 1

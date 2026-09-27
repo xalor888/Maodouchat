@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -325,7 +326,7 @@ private fun FakePinDialog(
     val wrongPinMsg = stringResource(R.string.fake_chat_wrong_pin)
     val lockoutSeconds = ((lockoutMs + 999L) / 1000L).toInt().coerceAtLeast(1)
     val supportingMsg = if (lockoutMs > 0L) {
-        stringResource(R.string.fake_chat_pin_lockout, lockoutSeconds)
+        pluralStringResource(R.plurals.fake_chat_pin_lockout, lockoutSeconds, lockoutSeconds)
     } else if (error) {
         wrongPinMsg
     } else {
