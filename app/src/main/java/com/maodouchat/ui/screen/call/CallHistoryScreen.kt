@@ -107,12 +107,8 @@ fun CallHistoryScreen(
                     if (logs.isNotEmpty()) {
                         TextButton(onClick = {
                             // 1.42：与会话列表未接来电「清空」一致——同时清 CallLogStore + Room 未接记录
-                            val app = context.applicationContext as? com.maodouchat.MaodouchatApp
-                            if (app != null) {
-                                scope.launch {
-                                    com.maodouchat.data.repository.MissedCallRepository(app.database.missedCallDao()).clearAll()
-                                }
-                            }
+                            // U02 延伸：Room 侧收进非 ui 的 MissedCallRoomActions。
+                            scope.launch { com.maodouchat.call.MissedCallRoomActions.clearAll() }
                             CallLogStore.clear(context)
                             revision++
                         }) {
@@ -272,12 +268,8 @@ fun CallHistoryScreen(
                     val removed = CallLogStore.remove(context, entryId)
                     if (removed && target?.state == CallLogStore.State.MISSED) {
                         // 未接来电同 id 记录同步删除，保持会话列表角标/卡片一致（与清空一致走 Room）
-                        val app = context.applicationContext as? com.maodouchat.MaodouchatApp
-                        if (app != null) {
-                            scope.launch {
-                                com.maodouchat.data.repository.MissedCallRepository(app.database.missedCallDao()).delete(entryId)
-                            }
-                        }
+                        // U02 延伸：Room 侧收进非 ui 的 MissedCallRoomActions。
+                        scope.launch { com.maodouchat.call.MissedCallRoomActions.delete(entryId) }
                     }
                     entryMenuId = null
                     revision++
