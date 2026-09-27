@@ -296,7 +296,7 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
+@Composable @Suppress("HardwareIds") // ANDROID_ID 仅作密聊截屏水印 deviceHint，不做设备追踪
 fun MediaCenterScreen(
     onBack: () -> Unit,
     onOpenMessage: (String) -> Unit,
@@ -584,7 +584,7 @@ internal fun MediaCenterCategoryContent(
 }
 
 @OptIn(ExperimentalFoundationApi::class)
-@Composable
+@Composable @Suppress("HardwareIds") // ANDROID_ID 仅作密聊水印载荷 deviceHint，不做设备追踪
 private fun MediaGrid(
     items: List<MediaCenterItem>,
     onOpenMessage: (String) -> Unit,
@@ -664,7 +664,7 @@ private fun MediaGrid(
     }
 }
 
-@Composable
+@Composable @Suppress("HardwareIds") // ANDROID_ID 仅作密聊水印载荷 deviceHint，不做设备追踪
 private fun MediaCenterImageViewer(
     message: Message,
     onDismiss: () -> Unit,

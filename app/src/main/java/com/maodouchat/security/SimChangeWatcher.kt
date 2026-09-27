@@ -30,7 +30,7 @@ class SimChangeWatcher(
     @Volatile private var lastObservedSimId: String? = null
 
     /** 无权限时返回 null（视为无法观察，调用方应保守处理）。 */
-    @SuppressLint("MissingPermission") // 下方已显式检查 READ_PHONE_STATE；lint 误以为需 privileged 权限
+    @SuppressLint("MissingPermission", "HardwareIds") // 前者：下方已显式检查 READ_PHONE_STATE，lint 误以为需 privileged 权限；后者：SIM 序列号/订阅者标识是 SIM 变更检测的本体（用户可在设置关闭）
     fun currentSimId(): String? {
         if (!SecretSimChangePrefs.isEnabled(context)) return null
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager ?: return null

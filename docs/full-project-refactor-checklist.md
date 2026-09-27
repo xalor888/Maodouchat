@@ -2088,3 +2088,25 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 102 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`HardwareIds` 10；
 `Aligned16KB` 9（依赖侧）；其余零散。
+
+### 第十四轮十续（2026-09-28）：HardwareIds 族收口——10 条全部为合法用途（102 → 92）
+
+`HardwareIds`（"Using `getString`/`getSubscriberId` to get device identifiers is not recommended"）10 条，逐处人工核实：
+
+- **8 处 `Settings.Secure.getString(ANDROID_ID)`**：`AiTasksScreen` / `ChatDetailRoute` / `MediaCenterScreen`（×3：`MediaCenterScreen`/`MediaGrid`/`MediaCenterImageViewer`）/ `MediaImageVideoBubbles`（`ImageBubble`/`VideoBubble`）/ `StarredMessagesScreen`——全部作**密聊截屏水印的 `deviceHint`**（`rememberSecretPageWatermarkPayload` / `FrequencyWatermark.buildPayload`），用户可见，不做设备追踪；
+- **2 处 `SimChangeWatcher.currentSimId()`**：`subscriberId` / `simSerialNumber`——是 SIM 变更检测的**本体**（`READ_PHONE_STATE` 已显式检查 + 用户可在设置关闭，无权限返回 null 保守处理）；
+
+- **收口方式**：函数级带注释 `@Suppress("HardwareIds")`（已有 `@SuppressLint` 的函数直接并入同一注解）；
+  `ChatDetailRoute.kt`（2528=2528）与 `MediaCenterScreen.kt`（1059=1059）是**零松量行数上限热点文件**，
+  故 4 处压制全部做在**已有注解行上（零行差）**，行数纹丝不动；
+- **基线手术**：−10（10 个 `HardwareIds` 基线块全量移除）→ 102 → 92；`frozenIssueCount` 102 → 92；
+  `LintBaselineRatchetTest` 的 `"HardwareIds" to 10` → `to 0`；
+- **判据**：未本地验证（本机无 Android SDK/JDK），待 CI 验证：`:app:lintDebug` 绿且 `LintBaselineFixed`
+  恰好点名这 10 条不再出现（硬证据）；热点行数上限测试不受影响（两文件行数未变）。
+
+**剩余（lint 基线 92 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
+`IconLauncherShape` 5；`IconDuplicates` 5；其余零散（`AutoboxingStateCreation` 4 / `PluralsCandidate` 3 /
+`Overdraw` 3 / `UnusedAttribute` 2 / `OldTargetApi` 1 / `AppBundleLocaleChanges` 1 /
+`PictureInPictureIssue` 1 / `ConfigurationScreenWidthHeight` 1 / `ChromeOsAbiSupport` 1 /
+`UnusedResources` 1 / `TypographyDashes` 1）。

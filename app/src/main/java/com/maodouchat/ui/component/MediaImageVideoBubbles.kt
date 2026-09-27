@@ -60,6 +60,7 @@ import com.maodouchat.ui.theme.TextWhite
 
 // ─── ImageBubble ───
 @Composable
+@Suppress("HardwareIds") // ANDROID_ID 仅作密聊截屏水印的 deviceHint（用户可见），不做设备追踪
 internal fun ImageBubble(
     message: Message,
     presentation: MessagePresentation,
@@ -267,6 +268,7 @@ internal fun ImageBubble(
 
 // ─── VideoBubble ───
 @Composable
+@Suppress("HardwareIds") // ANDROID_ID 仅作密聊截屏水印的 deviceHint（用户可见），不做设备追踪
 internal fun VideoBubble(
     message: Message,
     presentation: MessagePresentation,

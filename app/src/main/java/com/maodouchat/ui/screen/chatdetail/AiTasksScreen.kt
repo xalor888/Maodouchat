@@ -362,6 +362,7 @@ class AiTasksViewModel(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("HardwareIds") // ANDROID_ID 仅作密聊截屏水印的 deviceHint（用户可见），不做设备追踪
 fun AiTasksScreen(
     onBack: () -> Unit,
     viewModel: AiTasksViewModel = viewModel()

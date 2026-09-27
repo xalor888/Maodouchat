@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 102
+    private val frozenIssueCount = 92
 
     @Test
     fun `lint baseline can only shrink`() {
@@ -93,7 +93,12 @@ class LintBaselineRatchetTest {
             "LocalContextGetResourceValueCall" to 0,
             "GradleDependency" to 17,
             "NewerVersionAvailable" to 14,
-            "HardwareIds" to 10,
+            // 2026-09-28：HardwareIds 族收口——10 处逐处人工核实均为合法用途：
+            // 8 处 `Settings.Secure.getString(ANDROID_ID)` 作密聊截屏水印的 deviceHint
+            // （用户可见，不做设备追踪），2 处 `SimChangeWatcher` 的 subscriberId/simSerialNumber
+            // 是 SIM 变更检测的本体（READ_PHONE_STATE 已显式检查，用户可在设置关闭）。
+            // 带注释 @Suppress 后删掉 10 条对应基线块。总条目 102 → 92。
+            "HardwareIds" to 0,
         )
         expected.forEach { (rule, n) ->
             assertEquals(n, byRule[rule] ?: 0, "基线里 $rule 的条数应为 $n")

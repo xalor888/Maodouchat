@@ -155,7 +155,7 @@ internal val translationLanguageOptions = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域；lint 无法区分
+@SuppressLint("LocalContextGetResourceValueCall", "HardwareIds") // 前者：资源字符串均在回调/协程内读取，非组合作用域；lint 无法区分；后者：ANDROID_ID 仅作密聊截屏水印 deviceHint，不做设备追踪
 internal fun ChatDetailRoute(
     onBack: () -> Unit = {},
     onVoiceCall: (contactId: String, contactName: String) -> Unit = { _, _ -> },
