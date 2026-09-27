@@ -397,10 +397,7 @@ fun StarredMessagesScreen(
         isSecretChat = state.isSecretChat,
         userId = state.currentUserId,
         chatId = state.secretChatId,
-        deviceHint = android.provider.Settings.Secure.getString(
-            context.contentResolver,
-            android.provider.Settings.Secure.ANDROID_ID
-        )
+        deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )
 
     Box(

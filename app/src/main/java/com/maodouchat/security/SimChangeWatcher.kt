@@ -31,6 +31,7 @@ class SimChangeWatcher(
 
     /** 无权限时返回 null（视为无法观察，调用方应保守处理）。 */
     @SuppressLint("MissingPermission") // 下方已显式检查 READ_PHONE_STATE；lint 误以为需 privileged 权限
+    @Suppress("HardwareIds") // SIM 变更检测必须读 SIM 标识；已由 READ_PHONE_STATE + 功能开关双重门控
     fun currentSimId(): String? {
         if (!SecretSimChangePrefs.isEnabled(context)) return null
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager ?: return null

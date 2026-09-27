@@ -799,10 +799,7 @@ internal fun ChatDetailRoute(
         isSecretChat = state.isSecretChat == true,
         userId = com.maodouchat.session.CurrentSession.ownerUserId(),
         chatId = state.chat?.id,
-        deviceHint = android.provider.Settings.Secure.getString(
-            context.contentResolver,
-            android.provider.Settings.Secure.ANDROID_ID
-        )
+        deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )
 
     LaunchedEffect(searchResults, search.searchIndex) {

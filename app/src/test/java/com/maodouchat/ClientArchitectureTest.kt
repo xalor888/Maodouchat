@@ -333,7 +333,7 @@ class ClientArchitectureTest {
         // 与 MarkdownParser 是拆出 ChatMarkdown 后的净**下降**）。
         // 棘轮方向不变：从这里开始只许降。上调的原因是必要的 import，不是往里堆逻辑。
 
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2528,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2525,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2420,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
@@ -365,7 +365,7 @@ class ClientArchitectureTest {
         // **盲带**里——可以在无人知晓的情况下从 1000 长到 1100，只有越过 1100
         // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1059,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1050,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
@@ -402,7 +402,7 @@ class ClientArchitectureTest {
         // 「两份相等」这条弱断言（见下方 G165 的说明——真正的外部基线是与 git HEAD 比）。
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2528,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2525,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2420,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
@@ -429,7 +429,7 @@ class ClientArchitectureTest {
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
         // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1059,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1050,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
