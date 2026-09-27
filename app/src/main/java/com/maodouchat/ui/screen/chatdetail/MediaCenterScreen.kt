@@ -310,10 +310,7 @@ fun MediaCenterScreen(
         isSecretChat = state.isSecretChat,
         userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
         chatId = viewModel.chatId,
-        deviceHint = android.provider.Settings.Secure.getString(
-            context.contentResolver,
-            android.provider.Settings.Secure.ANDROID_ID
-        )
+        deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )
 
     if (state.isChatLocked == true) {
@@ -598,10 +595,7 @@ private fun MediaGrid(
     val gridSecretPayload = remember(secretChatId, currentUserId) {
         if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
         else {
-            val dh = android.provider.Settings.Secure.getString(
-                context.contentResolver,
-                android.provider.Settings.Secure.ANDROID_ID
-            )
+            val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
             com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
         }
     }
@@ -681,10 +675,7 @@ private fun MediaCenterImageViewer(
     val secretPayload = remember(secretChatId, currentUserId) {
         if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
         else {
-            val dh = android.provider.Settings.Secure.getString(
-                context.contentResolver,
-                android.provider.Settings.Secure.ANDROID_ID
-            )
+            val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
             com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
         }
     }

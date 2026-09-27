@@ -395,10 +395,7 @@ fun AiTasksScreen(
         isSecretChat = state.isSecretChat,
         userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
         chatId = viewModel.chatId,
-        deviceHint = android.provider.Settings.Secure.getString(
-            context.contentResolver,
-            android.provider.Settings.Secure.ANDROID_ID
-        )
+        deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )
 
     if (state.isChatLocked == true) {

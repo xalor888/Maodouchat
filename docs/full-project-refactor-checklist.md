@@ -2088,3 +2088,23 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 102 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`HardwareIds` 10；
 `Aligned16KB` 9（依赖侧）；其余零散。
+
+### 第十四轮十续（2026-09-28）：HardwareIds 族收口——10 条（102 → 92）
+
+- **8 处 `ANDROID_ID` 读取集中化**：`AiTasksScreen` / `ChatDetailRoute` / `MediaCenterScreen`×3 /
+  `StarredMessagesScreen` / `MediaImageVideoBubbles`×2 此前各自内联
+  `Settings.Secure.getString(contentResolver, ANDROID_ID)`（盲水印 deviceHint）——
+  新建 `watermark/DeviceHint.androidId(context)` 一处豁免（KDoc 说明：ANDROID_ID 是按应用
+  作用域、可重置标识，非硬件序列号），8 个调用点改为单行调用；
+- **两个零松量行数上限文件因「集中化」反而变短**：`ChatDetailRoute` 2528 → 2525、
+  `MediaCenterScreen` 1059 → 1050——上限**同步收紧**（两份 map 一起改，方向是「只许降」）；
+- **2 处 SIM 标识读取**（`SimChangeWatcher.currentSimId` 的 `subscriberId`/`simSerialNumber`）：
+  SIM 变更检测必须读 SIM 标识，且已由 READ_PHONE_STATE + 功能开关双重门控——函数上
+  `@Suppress("HardwareIds")` + 一句理由；
+- **基线手术**：−10（按 id 全量移除）→ 102 → 92；`frozenIssueCount` 102 → 92；
+- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  绿（含零松量/收紧方向两条棘轮用例）；`:app:lintDebug` 绿且 `LintBaselineFixed` 恰好点名这 10 条。
+
+**剩余（lint 基线 92 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
+`IconLauncherShape` 5 / `IconDuplicates` 5 / `AutoboxingStateCreation` 4 等零散。

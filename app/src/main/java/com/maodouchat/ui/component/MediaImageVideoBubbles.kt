@@ -163,10 +163,7 @@ internal fun ImageBubble(
                 val secretPayload = remember(secretChatId, currentUserId) {
                     if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
                     else {
-                        val dh = android.provider.Settings.Secure.getString(
-                            context.contentResolver,
-                            android.provider.Settings.Secure.ANDROID_ID
-                        )
+                        val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
                         com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
                     }
                 }
@@ -310,10 +307,7 @@ internal fun VideoBubble(
     val secretPayload = remember(secretChatId, currentUserId) {
         if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
         else {
-            val dh = android.provider.Settings.Secure.getString(
-                context.contentResolver,
-                android.provider.Settings.Secure.ANDROID_ID
-            )
+            val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
             com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
         }
     }

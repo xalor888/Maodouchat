@@ -561,115 +561,25 @@
             column="27"/>
     </issue>
 
-    <issue
-        id="HardwareIds"
-        message="Using `getString` to get device identifiers is not recommended"
-        errorLine1="        deviceHint = android.provider.Settings.Secure.getString("
-        errorLine2="                     ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt"
-            line="411"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getString` to get device identifiers is not recommended"
-        errorLine1="        deviceHint = android.provider.Settings.Secure.getString("
-        errorLine2="                     ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt"
-            line="1108"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getString` to get device identifiers is not recommended"
-        errorLine1="        deviceHint = android.provider.Settings.Secure.getString("
-        errorLine2="                     ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt"
-            line="321"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getString` to get device identifiers is not recommended"
-        errorLine1="            val dh = android.provider.Settings.Secure.getString("
-        errorLine2="                     ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt"
-            line="609"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getString` to get device identifiers is not recommended"
-        errorLine1="            val dh = android.provider.Settings.Secure.getString("
-        errorLine2="                     ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt"
-            line="692"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getString` to get device identifiers is not recommended"
-        errorLine1="                        val dh = android.provider.Settings.Secure.getString("
-        errorLine2="                                 ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/component/MediaImageVideoBubbles.kt"
-            line="166"
-            column="34"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getString` to get device identifiers is not recommended"
-        errorLine1="            val dh = android.provider.Settings.Secure.getString("
-        errorLine2="                     ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/component/MediaImageVideoBubbles.kt"
-            line="313"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getSubscriberId` to get device identifiers is not recommended"
-        errorLine1="        runCatching { tm.subscriberId?.takeIf { it.isNotBlank() }?.let { ids += &quot;sub:$it&quot; } }"
-        errorLine2="                      ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/SimChangeWatcher.kt"
-            line="41"
-            column="23"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getSimSerialNumber` to get device identifiers is not recommended"
-        errorLine1="        runCatching { tm.simSerialNumber?.takeIf { it.isNotBlank() }?.let { ids += &quot;sim:$it&quot; } }"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/SimChangeWatcher.kt"
-            line="42"
-            column="23"/>
-    </issue>
+    
 
-    <issue
-        id="HardwareIds"
-        message="Using `getString` to get device identifiers is not recommended"
-        errorLine1="        deviceHint = android.provider.Settings.Secure.getString("
-        errorLine2="                     ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/StarredMessagesScreen.kt"
-            line="428"
-            column="22"/>
-    </issue>
+    
 
     
 
