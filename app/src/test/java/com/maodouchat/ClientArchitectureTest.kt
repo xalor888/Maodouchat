@@ -356,7 +356,7 @@ class ClientArchitectureTest {
         // 1100+ 行源文件全部在监。
         "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1194,
+        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1192,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
         "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -379,7 +379,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 884,
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
     )
 
     @Test
@@ -422,7 +422,7 @@ class ClientArchitectureTest {
             // 1100+ 行源文件全部在监。
             "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1194,
+            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 1192,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
             "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -442,7 +442,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 884,
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
@@ -1097,7 +1097,6 @@ class ClientArchitectureTest {
         // AppNavigationEvents（含世代过期消费的桥接），直连命中 6 → 0，条目删除。
         // 死 import 收口（云端侧）：SettingsAccountSecurity.kt 头部残留的
         // `import ...MaodouchatApp`（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零。
-        "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
     )
 
     /** 次口径：整个 `ui/`（含 ViewModel / Ports）。同样只许下降。 */
@@ -1133,10 +1132,6 @@ class ClientArchitectureTest {
         "screen/login/LoginViewModel.kt" to 2,
         // 死 import 收口：SettingsAccountSecurity.kt 头部残留的 `import ...MaodouchatApp`
         //（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零，条目删除。
-        "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
-        "screen/settings/SettingsGeneralSettingsViewModel.kt" to 1,
-        "screen/settings/SettingsNotificationViewModel.kt" to 3,
-        "screen/settings/SettingsViewModel.kt" to 2,
     )
 
     @Test

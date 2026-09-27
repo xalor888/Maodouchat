@@ -66,7 +66,6 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.DeviceInfoDto
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.ui.screen.settings.SettingsViewModel
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.security.BackgroundSessionGate
@@ -127,12 +126,12 @@ fun AccountSecurityScreen(
     val e2eeReady = remember(state.userId) {
         val userId = state.userId
         userId.isNotBlank() && runCatching {
-            MaodouchatApp.instance.signalProtocol.isInitializedFor(userId)
+            com.maodouchat.security.SignalIdentityAccess.isInitializedFor(userId)
         }.getOrDefault(false)
     }
     val localFingerprint = remember(e2eeReady, state.userId) {
         if (!e2eeReady) null
-        else runCatching { MaodouchatApp.instance.signalProtocol.getLocalIdentityFingerprint() }.getOrNull()
+        else runCatching { com.maodouchat.security.SignalIdentityAccess.localIdentityFingerprint() }.getOrNull()
     }
     val confirmedDeviceCount = state.devices.count { it.status == "CONFIRMED" }
     var appLockEnabled by remember(state.userId) { mutableStateOf(AppLockManager.isEnabled(context)) }

@@ -458,7 +458,7 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                         }
                         // 9.140：带账号归属校验 purge——此前无 expectedOwnerUserId，
                         // 断连窗口内换号会把新账号的会话一并清掉
-                        (getApplication() as com.maodouchat.MaodouchatApp).secureSessionManager
+                        com.maodouchat.security.SecureSessionAccess.manager
                             .purgeLocalSession(
                                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
                                     com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT

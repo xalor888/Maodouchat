@@ -4,7 +4,6 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.UserDto
@@ -38,7 +37,6 @@ class SettingsViewModel @JvmOverloads constructor(
     /** G328c：账号/设备/拉黑这类**命令式**端点走 data 层仓库（ui 不再直接调 ApiService）。 */
     private val accountApi get() = com.maodouchat.data.repository.AccountSecurityNetworkRepository()
 
-    private val app = application as MaodouchatApp
     private var profileSaveJob: Job? = null
     private var avatarUploadJob: Job? = null
     private var blockedUsersLoadJob: Job? = null
@@ -603,7 +601,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 }
                 return@launch
             }
-            val currentDeviceId = app.signalProtocol.getDeviceId()
+            val currentDeviceId = com.maodouchat.security.SignalIdentityAccess.deviceId()
             _uiState.update { it.copy(isLoadingDevices = true, currentDeviceId = currentDeviceId, errorMessage = null) }
             try {
                 if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -760,7 +758,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
                 return@launch
             }
-            val approverDeviceId = app.signalProtocol.getDeviceId()
+            val approverDeviceId = com.maodouchat.security.SignalIdentityAccess.deviceId()
             val currentDevice = _uiState.value.devices.firstOrNull { it.deviceId == approverDeviceId }
             val targetDevice = _uiState.value.devices.firstOrNull { it.deviceId == deviceId }
             // 9.140：仅当本地列表已加载且明确显示本机未确认时才拦——列表未加载/过期时
@@ -770,7 +768,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 return@launch
             }
             val approvalSignature = targetDevice?.identityKey
-                ?.let { app.signalProtocol.signDeviceConfirmation(deviceId, it) }
+                ?.let { com.maodouchat.security.SignalIdentityAccess.signDeviceConfirmation(deviceId, it) }
             if (approvalSignature.isNullOrBlank()) {
                 _uiState.update { it.copy(errorMessage = text(R.string.settings_device_confirm_proof_failed)) }
                 return@launch
@@ -952,7 +950,7 @@ class SettingsViewModel @JvmOverloads constructor(
         val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         accountMutationJob = viewModelScope.launch {
             withContext(NonCancellable) {
-                app.secureSessionManager.purgeLocalSession(
+                com.maodouchat.security.SecureSessionAccess.manager.purgeLocalSession(
                     destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
                         com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
                     ),
@@ -991,7 +989,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     onSuccess = {
                         if (!isCurrentOwner(ownerUserId)) return@fold
                         withContext(NonCancellable) {
-                            app.secureSessionManager.purgeLocalSession(
+                            com.maodouchat.security.SecureSessionAccess.manager.purgeLocalSession(
                                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
                                     com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
                                 ),
@@ -1043,7 +1041,7 @@ class SettingsViewModel @JvmOverloads constructor(
                     onSuccess = {
                         if (!isCurrentOwner(deleteOwnerUserId)) return@fold
                         val purged = withContext(kotlinx.coroutines.NonCancellable) {
-                            val result = app.secureSessionManager.purgeLocalSession(
+                            val result = com.maodouchat.security.SecureSessionAccess.manager.purgeLocalSession(
                                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
                                     com.maodouchat.security.LogoutStorePolicy.Reason.DELETE_ACCOUNT
                                 ),
@@ -1184,11 +1182,11 @@ class SettingsViewModel @JvmOverloads constructor(
 
     /** B5 悬浮球开关：未授权时 setEnabled 内部会引导到系统悬浮窗授权页。 */
     fun toggleFloatingBall() {
-        val context = app
+        val context = getApplication<Application>()
         setFloatingBallEnabled(!com.maodouchat.floating.FloatingBallController.isEnabled(context))
     }
 
     fun setFloatingBallEnabled(enabled: Boolean) {
-        com.maodouchat.floating.FloatingBallController.setEnabled(app, enabled)
+        com.maodouchat.floating.FloatingBallController.setEnabled(getApplication(), enabled)
     }
 }
