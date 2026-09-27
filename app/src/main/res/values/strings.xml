@@ -10,7 +10,6 @@
     <string name="ai_privacy_image_ocr_hint">自动识别图片中的文字并加入全局搜索，截图里的文字也能搜到。需要已同意 AI 处理</string>
     <string name="common_share">分享</string>
     <string name="common_clear">清除</string>
-    <string name="common_selected">已选择</string>
 
     <string name="nav_chats">聊天</string>
     <string name="nav_contacts">通讯录</string>
@@ -325,9 +324,6 @@
     <string name="contacts_block_message">确定拉黑 %1$s？对方将无法联系你，你的动态与资料也会对其隐藏。</string>
     <string name="contacts_friend_blocked">已拉黑 %1$s</string>
 
-    <plurals name="chat_export_success">
-        <item quantity="other">已导出 %1$d 条消息</item>
-    </plurals>
     <string name="chat_export_empty">当前会话没有可导出的消息</string>
     <string name="chat_clear_history_body">将删除本机该会话已解密的消息和媒体，无法撤销。服务端只有密文，没有明文备份；同一条密文不能再解一次，不会变回可读记录。对方设备不受影响。</string>
     <string name="chat_clear_history_done">已清除本机明文。云端没有可读备份。</string>
@@ -337,7 +333,6 @@
     <string name="chat_permission_video_call">需要麦克风和摄像头权限才能进行视频通话</string>
     <string name="chat_permission_location">需要位置权限才能分享当前位置</string>
     <string name="chat_group_name">群聊名称</string>
-    <string name="chat_save_group_name">保存群名</string>
     <plurals name="chat_members_count">
         <item quantity="other">%1$d 位成员</item>
     </plurals>
@@ -345,11 +340,6 @@
     <string name="chat_remove">移除</string>
     <string name="chat_add_member">添加成员</string>
     <string name="chat_add">添加</string>
-    <string name="chat_candidates_more">展开其余 %1$d 位可添加用户</string>
-    <string name="chat_candidates_showing_all">已显示全部 %1$d 位可添加用户</string>
-    <string name="chat_group_info_search_hint">搜索成员或可添加用户</string>
-    <string name="chat_group_info_search_empty">无匹配成员或候选</string>
-    <string name="chat_no_candidates">暂无可添加用户</string>
     <string name="chat_contact">联系人</string>
     <string name="chat_blocked_description">已屏蔽该用户：双向生效，对方无法再给你发消息、查看你的资料或发起通话，好友关系已解除。取消后恢复正常。</string>
     <string name="chat_block_description">屏蔽为双向生效：对方将无法再给你发消息、查看你的资料或发起通话，好友关系也会解除；你同样收不到对方的消息。</string>
@@ -2411,25 +2401,9 @@
     <string name="ai_semantic_search_disabled">AI 语义搜索已由管理员关闭</string>
     <string name="notification_admin_broadcast_default_title">系统通知</string>
     <string name="notification_admin_broadcast_sender">管理员</string>
-    <string name="media_panel_tab_emoji">表情</string>
-    <string name="media_panel_tab_sticker">贴纸</string>
-    <string name="media_panel_tab_gif">GIF</string>
-    <string name="media_panel_sticker_empty">暂无可用贴纸</string>
-    <string name="media_panel_gif_empty">暂无可用 GIF</string>
 
     <!-- 假聊天模式 / 隐藏桌面图标（隐私伪装） -->
     <!-- B5 悬浮球（系统集成） -->
-    <string name="fake_chat_settings_title">假聊天模式</string>
-    <string name="fake_chat_mode">假聊天模式</string>
-    <string name="fake_chat_mode_subtitle">开启后，打开或回到 App 时先显示一个普通聊天界面，长按顶部标题输入专属密码后才能进入真实聊天</string>
-    <string name="fake_chat_pin_change">修改解锁密码</string>
-    <string name="fake_chat_pin_change_subtitle">长按假聊天界面顶部标题时输入的密码</string>
-    <string name="fake_chat_relock">返回时重新锁定</string>
-    <string name="fake_chat_relock_subtitle">每次退出到后台再回来都需要输入密码；关闭后进程存活期间保持解锁</string>
-    <string name="fake_chat_guide_title">使用说明</string>
-    <string name="fake_chat_guide_1">1. 开启假聊天模式后，每次进入或回到 App 都会先展示普通聊天界面，真实聊天内容完全隐藏</string>
-    <string name="fake_chat_guide_2">2. 长按假聊天界面顶部标题，输入解锁密码进入真实 App</string>
-    <string name="fake_chat_guide_3">3. 建议配合「返回时重新锁定」使用，退到后台后自动重新隐藏</string>
     <string name="fake_chat_peer_name">阿凯</string>
     <string name="fake_chat_peer_status">最近在线 5 分钟前</string>
     <string name="fake_chat_announcement"></string>
@@ -2439,13 +2413,6 @@
     <string name="fake_chat_pin_hint">请输入解锁密码</string>
     <string name="fake_chat_wrong_pin">密码错误，请重试</string>
     <string name="fake_chat_pin_lockout">尝试次数过多，请 %1$d 秒后再试</string>
-    <string name="fake_chat_pin_setup_title">设置解锁密码</string>
-    <string name="fake_chat_pin_setup_hint">设置 4~12 位数字密码，仅保存在本机。建议不要与锁屏密码相同</string>
-    <string name="fake_chat_pin_new">新密码</string>
-    <string name="fake_chat_pin_confirm">确认密码</string>
-    <string name="fake_chat_pin_mismatch">两次输入的密码不一致</string>
-    <string name="fake_chat_pin_invalid">密码需为 4~12 位数字</string>
-    <string name="fake_chat_pin_saved">解锁密码已保存</string>
     <!-- B1 区块 · 按需贴纸包（OnDemandStickerStore）状态文案，2026-08-01 -->
     <string name="sticker_store_downloaded">贴纸包已就绪</string>
     <string name="sticker_store_download_failed">贴纸包下载失败，可稍后重试</string>
