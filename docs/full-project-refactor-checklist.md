@@ -2012,3 +2012,17 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 130 条）**：`UseKtx` 27 = 18 处本刀保留（变量编辑器/值被消费/上限文件）
 + 4 `Uri.parse`（行数上限热点文件内，先拆后收）+ 5 bitmap；`GradleDependency` 17 + 活跃 5；
 `NewerVersionAvailable` 14；`HardwareIds` 10。
+
+### 第十四轮六续（2026-09-28）：UseKtx bitmap 小族收口——5 处（130 → 125）
+
+- **转换 5 处（4 文件）**：`Bitmap.createBitmap(w, h, cfg)` → ktx `createBitmap(w, h, cfg)` ×3
+  （LocalAiFileAnalyzer / QrCodeGenerator / SecretImageWatermark）、
+  `Bitmap.createScaledBitmap(bmp, w, h, true)` → `bmp.scale(w, h)`（filter 默认 true，等价）、
+  `bmp.setPixel(x, y, c)` → `bmp[x, y] = c`（ktx `set` 下标赋值）；
+- **基线手术**：−5（按 (file, errorLine1) 精确匹配，5/5 命中）→ 130 → 125；
+  `frozenIssueCount` 130 → 125，`UseKtx` 27 → 22；
+- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:lintDebug` 绿；活跃守卫绿。
+
+**剩余（lint 基线 125 条）**：`UseKtx` 22 = 18 处 edit 保留（变量编辑器/值被消费/上限文件）
++ 4 `Uri.parse`（行数上限热点文件内，先拆后收）；`GradleDependency` 17 + 活跃 5；
+`NewerVersionAvailable` 14；`HardwareIds` 10。

@@ -3,6 +3,7 @@ package com.maodouchat.watermark
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import androidx.core.graphics.createBitmap
 
 /**
  * 频域盲水印的 Android Bitmap 适配层。
@@ -61,7 +62,7 @@ object SecretImageWatermark {
     }
 
     private fun redraw(src: Bitmap): Bitmap {
-        val out = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+        val out = createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
         Canvas(out).drawBitmap(src, 0f, 0f, Paint(Paint.FILTER_BITMAP_FLAG))
         return out
     }

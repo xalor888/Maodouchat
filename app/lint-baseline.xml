@@ -1674,29 +1674,11 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Bitmap.scale` instead?"
-        errorLine1="                Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/ImagePicker.kt"
-            line="135"
-            column="17"/>
-    </issue>
+    
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX function `createBitmap` instead?"
-        errorLine1="                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)"
-        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/agent/LocalAiFileAnalyzer.kt"
-            line="83"
-            column="38"/>
-    </issue>
+    
 
     
 
@@ -1850,27 +1832,9 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX function `createBitmap` instead?"
-        errorLine1="        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)"
-        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/QrCodeGenerator.kt"
-            line="82"
-            column="19"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `Bitmap.set` instead?"
-        errorLine1="                bmp.setPixel(x, y, if (matrix.get(x, y)) Color.BLACK else Color.WHITE)"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/QrCodeGenerator.kt"
-            line="85"
-            column="17"/>
-    </issue>
+    
 
     
 
@@ -1913,16 +1877,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX function `createBitmap` instead?"
-        errorLine1="        val out = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)"
-        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/watermark/SecretImageWatermark.kt"
-            line="64"
-            column="19"/>
-    </issue>
+    
 
     
 
