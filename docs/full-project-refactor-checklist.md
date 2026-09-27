@@ -1770,9 +1770,6 @@ FRIEND_REQUEST 无 deeplink 的兜底、`markPostInteractionsRead` 的 runCatchi
 `frozenUiDirectPersistence` 同步删除 `navigation/SearchCenterDestinations.kt to 5` 条目
 （棘轮收紧），架构门禁实跑绿。
 
-**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`MainContainerRoute.kt` 6、`NavGraph.kt` 4、
-`CallHistoryScreen.kt` 4、`CallViewModel.kt` 3、`AuthDestinations.kt` 2——按同一范式逐个收。
-
 **同族续批（2026-09-27）**：
 
 - **v2（#87）**：`MainContainerRoute` 6 → 0、`AuthDestinations` 2 → 0——两条 app 事件流
@@ -1788,12 +1785,24 @@ FRIEND_REQUEST 无 deeplink 的兜底、`markPostInteractionsRead` 的 runCatchi
   （`TokenExpirySessionPurgeTest` 5 + `DirectChatRequestHandlerTest` 3）+ 负控制 1 轮
   （`shouldHandle` 恒 true → 恰好 4 条反例红、正例绿）；架构门禁实跑绿。
 
-**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`screen/call/CallHistoryScreen.kt` 4、
-`CallViewModel.kt` 3——通话族的收口风险更高（来电路由的状态机零 E2E），留作专项：
-先给来电墓碑/轮询路径补行为测试，再动结构。**专项第一步已落地（2026-09-27）**：
+**通话族的专项第一步已落地（云端侧，2026-09-27）**：
 `com.maodouchat.call.PolledIncomingBatchPolicy` 把 `IncomingCallObserver` 的 REST 轮询
 决策逐字抽成纯函数（终端信令的墓碑守卫/幽灵响铃取消/双通道去重/8.56 群 mesh 边过滤），
 `PolledIncomingBatchPolicyTest` 14 例钉住语义（hang-up 命中 pending 才记未接墓碑、
 busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或成幽灵则取消、
 过期 offer 不响铃、WS 已处理的不重复导航）；结构收口（CallNavigation 9 → 0、
 把 UI 侧执行接线到该决策）待下一步。
+
+- **通话记录页（#89）**：`CallHistoryScreen` 4 → 0——「清空」与行内「删除」的 Room 未接记录
+  写操作收进 `com.maodouchat.call.MissedCallRoomActions`（app 未初始化静默 no-op、错误照旧传播；
+  `internal repositoryFactory` 测试缝）。判据：`MissedCallRoomActionsTest` 3 例（假 DAO 委派）+
+  负控制 1 轮（`delete()` 改委派 `clearAll()` → 恰好 1 条红）。
+- **设置页两处（本批）**：`SettingsAiPrivacy` 5 → 0（两处「开启 AI 默认能力」的 OCR 索引触发 →
+  `com.maodouchat.ai.ImageOcrIndexing.runOnceAsync`）、`SettingsServer` 5 → 0（两处换服成功分支
+  的 `rebuildImageLoader`+`disconnectRealtime` → `com.maodouchat.network.ServerSwitchEffects
+  .applyAfterServerChanged`）。两处均为**纯委托**（fire-and-forget / 两步调用），无新行为；
+  判据 = 编译 + 架构门禁实跑 + 既有套件（不为「有测试」写空测试，如实登记）。
+
+**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`screen/call/CallViewModel.kt` 3、
+`screen/contacts/ContactSubScreens.kt` 4——通话族/扫码信任链的收口风险更高
+（来电路由的状态机零 E2E），留作专项：先给来电墓碑/轮询路径补行为测试，再动结构。
