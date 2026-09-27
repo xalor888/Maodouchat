@@ -19,6 +19,7 @@ import kotlinx.serialization.json.*
 import com.maodouchat.server.service.LoginAttemptGate
 
 private val loginAuditLogger = org.slf4j.LoggerFactory.getLogger("LoginAudit")
+private val refreshAuditLogger = org.slf4j.LoggerFactory.getLogger("AuthRefreshAudit")
 
 internal fun Route.configureAuthRoutes(
     userRepo: UserRepository,
@@ -340,6 +341,10 @@ put("message", "密码已重置，请使用新密码登录")
             // 单事务：校验封禁/账号存在后再 revoke，避免 peek→consume 窗口烧 refresh
             when (val rotated = authTokenRepo.rotateIfEligible(req.refreshToken.trim())) {
                 is AuthTokenRepository.RotateRefreshResult.InvalidToken -> {
+                    // 2026-09-27：为定位两设备 E2E 的「共享会话 401」抖动加的可观测性——
+                    // 该模式怀疑为 refresh 轮换后的旧 token 重放（服务端反重放会撤销整个会话）。
+                    // 成功路径不打日志（生产高频）；非成功路径各打一行，便于用服务端日志证伪/证实。
+                    refreshAuditLogger.info("refresh rejected: invalid_token")
                     call.respond(HttpStatusCode.Unauthorized, ErrorResponse("登录已过期，请重新登录"))
                     return@post
                 }
@@ -354,6 +359,14 @@ put("message", "密码已重置，请使用新密码登录")
                     return@post
                 }
                 is AuthTokenRepository.RotateRefreshResult.SessionCompromised -> {
+                    // 反重放触发 = 有人拿**已轮换**的 refresh token 再刷新：整会话被撤销。
+                    // 这是安全设计（不放松），但会导致该会话后续所有请求 401——
+                    // 两设备 E2E 的「9 例共享会话 401」若为此因，这行日志就是证据。
+                    refreshAuditLogger.warn(
+                        "refresh token replay: auth session revoked (userId={} sessionId={})",
+                        rotated.userId,
+                        rotated.sessionId,
+                    )
                     disconnectUserSessionsByAuthSessionIds(
                         rotated.userId,
                         setOf(rotated.sessionId),
