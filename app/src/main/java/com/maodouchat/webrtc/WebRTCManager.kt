@@ -198,7 +198,7 @@ class WebRTCManager(
      * 初始化 WebRTC 引擎
      */
     @Synchronized
-    fun initialize() {
+    @Suppress("UnsafeDynamicallyLoadedCode") fun initialize() {
         ensureNotReleased()
         if (peerConnectionFactory != null) return
 

@@ -77,149 +77,149 @@ internal fun ChatListTopBar(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
-        TopAppBar(
-            title = {
-                if (state.selectionMode) {
+    TopAppBar(
+        title = {
+            if (state.selectionMode) {
+                Text(
+                    pluralStringResource(R.plurals.chat_list_selected_count, state.selectedChatIds.size, state.selectedChatIds.size),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        pluralStringResource(R.plurals.chat_list_selected_count, state.selectedChatIds.size, state.selectedChatIds.size),
-                        style = MaterialTheme.typography.titleLarge
+                        if (state.showArchived) stringResource(R.string.chat_archived_title)
+                        else stringResource(R.string.nav_chats)
                     )
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            if (state.showArchived) stringResource(R.string.chat_archived_title)
-                            else stringResource(R.string.nav_chats)
-                        )
-                        // 9.286：第三方服务器提醒——平时不显示服务器名；第三方且未确认时
-                        // 仅一个小感叹号，点开提示后「我知道了」不再显示（按地址隔离）
-                        if (com.maodouchat.network.ServerIdentity.isThirdPartyServer &&
-                            !com.maodouchat.network.ServerIdentity.isWarningAcknowledged(context, com.maodouchat.network.ApiConfig.BASE_URL)
-                        ) {
-                            IconButton(
-                                onClick = { onShowThirdPartyServerDialogChange(true)},
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    Icons.Outlined.WarningAmber,
-                                    contentDescription = stringResource(R.string.home_third_server_title),
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            navigationIcon = {
-                if (state.selectionMode) {
-                    IconButton(onClick = viewModel::exitSelectionMode) {
-                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close))
-                    }
-                }
-            },
-            actions = {
-                if (state.selectionMode) {
-                    // 1.368：多选模式操作条（置顶 / 已读 / 删除）
-                    val hasSelection = state.selectedChatIds.isNotEmpty()
-                    IconButton(
-                        onClick = viewModel::batchTogglePinSelected,
-                        enabled = hasSelection
+                    // 9.286：第三方服务器提醒——平时不显示服务器名；第三方且未确认时
+                    // 仅一个小感叹号，点开提示后「我知道了」不再显示（按地址隔离）
+                    if (com.maodouchat.network.ServerIdentity.isThirdPartyServer &&
+                        !com.maodouchat.network.ServerIdentity.isWarningAcknowledged(context, com.maodouchat.network.ApiConfig.BASE_URL)
                     ) {
-                        Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.chat_pin), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(
-                        onClick = viewModel::batchMarkReadSelected,
-                        enabled = hasSelection
-                    ) {
-                        Icon(Icons.Outlined.DoneAll, contentDescription = stringResource(R.string.chat_mark_read), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(
-                        // 1.373：批量删除先确认（防止误触批量清空）
-                        onClick = { onShowBatchDeleteConfirmChange(true)},
-                        enabled = hasSelection
-                    ) {
-                        Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.chat_delete), tint = if (hasSelection) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } else {
-                    if (state.selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) {
                         IconButton(
-                            onClick = viewModel::markAllUnreadChatsRead,
-                            enabled = state.unreadInFolder(com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) > 0
+                            onClick = { onShowThirdPartyServerDialogChange(true)},
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                Icons.Outlined.DoneAll,
-                                contentDescription = stringResource(R.string.notif_center_mark_all_read)
+                                Icons.Outlined.WarningAmber,
+                                contentDescription = stringResource(R.string.home_third_server_title),
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
-                    IconButton(onClick = onOpenGlobalSearch) {
-                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.global_search_title))
+                }
+            }
+        },
+        navigationIcon = {
+            if (state.selectionMode) {
+                IconButton(onClick = viewModel::exitSelectionMode) {
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.common_close))
+                }
+            }
+        },
+        actions = {
+            if (state.selectionMode) {
+                // 1.368：多选模式操作条（置顶 / 已读 / 删除）
+                val hasSelection = state.selectedChatIds.isNotEmpty()
+                IconButton(
+                    onClick = viewModel::batchTogglePinSelected,
+                    enabled = hasSelection
+                ) {
+                    Icon(Icons.Outlined.PushPin, contentDescription = stringResource(R.string.chat_pin), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(
+                    onClick = viewModel::batchMarkReadSelected,
+                    enabled = hasSelection
+                ) {
+                    Icon(Icons.Outlined.DoneAll, contentDescription = stringResource(R.string.chat_mark_read), tint = if (hasSelection) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(
+                    // 1.373：批量删除先确认（防止误触批量清空）
+                    onClick = { onShowBatchDeleteConfirmChange(true)},
+                    enabled = hasSelection
+                ) {
+                    Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.chat_delete), tint = if (hasSelection) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                if (state.selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) {
+                    IconButton(
+                        onClick = viewModel::markAllUnreadChatsRead,
+                        enabled = state.unreadInFolder(com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) > 0
+                    ) {
+                        Icon(
+                            Icons.Outlined.DoneAll,
+                            contentDescription = stringResource(R.string.notif_center_mark_all_read)
+                        )
                     }
-                    IconButton(onClick = onOpenNotificationCenter) {
-                        Box {
-                            Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.notif_center_title))
-                            if (notifUnread > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.error)
-                                )
-                            }
-                        }
-                    }
-                    IconButton(onClick = { viewModel.setShowArchived(!state.showArchived) }) {
-                        Icon(if (state.showArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, contentDescription = stringResource(R.string.chat_archived_title))
-                    }
-                    if (liquidGlass) {
-                        Box {
-                            IconButton(onClick = { onShowCreateMenuChange(true)}) {
-                                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_empty_action_add))
-                            }
-                            DropdownMenu(
-                                expanded = showCreateMenu,
-                                onDismissRequest = { onShowCreateMenuChange(false)}
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.contacts_add_contact)) },
-                                    onClick = {
-                                        onShowCreateMenuChange(false)
-                                        onNavigateToTab(MainTab.CONTACTS)
-                                    },
-                                    leadingIcon = { Icon(Icons.Outlined.PersonAdd, contentDescription = null) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.contacts_start_group)) },
-                                    onClick = {
-                                        onShowCreateMenuChange(false)
-                                        onNavigateToTab(MainTab.CONTACTS)
-                                    },
-                                    leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.chat_create_channel)) },
-                                    onClick = {
-                                        onShowCreateMenuChange(false)
-                                        onNavigateToTab(MainTab.CONTACTS)
-                                    },
-                                    leadingIcon = { Icon(Icons.Outlined.Campaign, contentDescription = null) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.contacts_scan)) },
-                                    onClick = {
-                                        onShowCreateMenuChange(false)
-                                        onOpenScan()
-                                    },
-                                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
-                                )
-                            }
+                }
+                IconButton(onClick = onOpenGlobalSearch) {
+                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.global_search_title))
+                }
+                IconButton(onClick = onOpenNotificationCenter) {
+                    Box {
+                        Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.notif_center_title))
+                        if (notifUnread > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.error)
+                            )
                         }
                     }
                 }
-            },
-            colors = com.maodouchat.ui.theme.liquidGlassTopAppBarColors()
-        )}
+                IconButton(onClick = { viewModel.setShowArchived(!state.showArchived) }) {
+                    Icon(if (state.showArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, contentDescription = stringResource(R.string.chat_archived_title))
+                }
+                if (liquidGlass) {
+                    Box {
+                        IconButton(onClick = { onShowCreateMenuChange(true)}) {
+                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.chat_empty_action_add))
+                        }
+                        DropdownMenu(
+                            expanded = showCreateMenu,
+                            onDismissRequest = { onShowCreateMenuChange(false)}
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.contacts_add_contact)) },
+                                onClick = {
+                                    onShowCreateMenuChange(false)
+                                    onNavigateToTab(MainTab.CONTACTS)
+                                },
+                                leadingIcon = { Icon(Icons.Outlined.PersonAdd, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.contacts_start_group)) },
+                                onClick = {
+                                    onShowCreateMenuChange(false)
+                                    onNavigateToTab(MainTab.CONTACTS)
+                                },
+                                leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.chat_create_channel)) },
+                                onClick = {
+                                    onShowCreateMenuChange(false)
+                                    onNavigateToTab(MainTab.CONTACTS)
+                                },
+                                leadingIcon = { Icon(Icons.Outlined.Campaign, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.contacts_scan)) },
+                                onClick = {
+                                    onShowCreateMenuChange(false)
+                                    onOpenScan()
+                                },
+                                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        colors = com.maodouchat.ui.theme.liquidGlassTopAppBarColors()
+    )}
 
 /** 悬浮新建按钮（原 `Scaffold(floatingActionButton = { ... })` 的内容）。 */
 @Composable

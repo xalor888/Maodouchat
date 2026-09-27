@@ -506,9 +506,9 @@ private fun ColorPickerDialog(
                 }
                 Spacer(modifier = Modifier.height(14.dp))
                 // RGB 滑杆
-                rgbSlider(R.string.theme_color_red, r, Color.Red) { r = it }
-                rgbSlider(R.string.theme_color_green, g, Color.Green) { g = it }
-                rgbSlider(R.string.theme_color_blue, b, Color.Blue) { b = it }
+                RgbSlider(R.string.theme_color_red, r, Color.Red) { r = it }
+                RgbSlider(R.string.theme_color_green, g, Color.Green) { g = it }
+                RgbSlider(R.string.theme_color_blue, b, Color.Blue) { b = it }
                 Spacer(modifier = Modifier.height(10.dp))
                 // HEX 直接输入
                 var hexInput by remember { mutableStateOf(CustomThemeStore.formatArgb(picked).removePrefix("#")) }
@@ -569,7 +569,7 @@ internal fun parseHexColor(raw: String): Color? {
 }
 
 @Composable
-private fun rgbSlider(labelRes: Int, value: Float, tint: Color, onChange: (Float) -> Unit) {
+private fun RgbSlider(labelRes: Int, value: Float, tint: Color, onChange: (Float) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(labelRes), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(20.dp))
         Slider(

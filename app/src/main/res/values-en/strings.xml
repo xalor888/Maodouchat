@@ -2442,8 +2442,8 @@
     <string name="sticker_store_downloaded">Sticker pack ready</string>
     <string name="sticker_store_download_failed">Sticker pack download failed. Try again later</string>
     <plurals name="sticker_store_partial">
-        <item quantity="one">Sticker pack downloaded: %1$d ok, %2$d failed</item>
-        <item quantity="other">Sticker pack downloaded: %1$d ok, %2$d failed</item>
+        <item quantity="one">Sticker pack downloaded: %1$d OK, %2$d failed</item>
+        <item quantity="other">Sticker pack downloaded: %1$d OK, %2$d failed</item>
     </plurals>
     <string name="sticker_store_remote_title">Remote sticker packs (on demand)</string>
     <string name="sticker_store_remote_refresh">Refresh</string>

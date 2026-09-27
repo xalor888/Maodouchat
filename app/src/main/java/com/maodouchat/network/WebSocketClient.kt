@@ -934,7 +934,7 @@ object WebSocketClient {
     }
 
     private object ManagerHolder {
-        @Volatile
+        @Volatile @Suppress("StaticFieldLeak") // TokenManager 只持有 applicationContext（getInstance 内已转换）
         private var tokenManager: TokenManager? = null
 
         @Volatile

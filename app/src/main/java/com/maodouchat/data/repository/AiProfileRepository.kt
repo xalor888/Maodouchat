@@ -130,7 +130,7 @@ class AiProfileRepository private constructor(private val context: Context) {
         private const val MAX_NARRATIVE_LEN = 6_000
         private const val MAX_REPORT_LEN = 20_000
 
-        @Volatile
+        @Volatile @Suppress("StaticFieldLeak") // 只持有 applicationContext（getInstance 内已转换）
         private var INSTANCE: AiProfileRepository? = null
 
         /**
