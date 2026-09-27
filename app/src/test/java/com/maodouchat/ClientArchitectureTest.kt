@@ -1077,7 +1077,8 @@ class ClientArchitectureTest {
     /** U02 主口径：含 `@Composable` 的文件。只许下降，变多即红。 */
     private val frozenComposableDirectPersistence: Map<String, Int> = mapOf(
         "navigation/CallNavigation.kt" to 9,
-        "navigation/MainContainerRoute.kt" to 6,
+        // U02 延伸：MainContainerRoute 的两个 app 事件收集器收进非 ui 的
+        // AppNavigationEvents（含世代过期消费的桥接），直连命中 6 → 0，条目删除。
         "navigation/NavGraph.kt" to 4,
         "screen/call/CallHistoryScreen.kt" to 4,
         "screen/chatdetail/AiTasksScreen.kt" to 9,
@@ -1103,9 +1104,9 @@ class ClientArchitectureTest {
     // 新控制器本身 0 命中（它只经 messageRepo / intentController 干活，
     // 且刻意不接收 app 单例——两个仓库动作以 lambda 注入）。
     private val frozenUiDirectPersistence: Map<String, Int> = mapOf(
-        "navigation/AuthDestinations.kt" to 2,
+        // U02 延伸：AuthDestinations 的登录后偏好拉取走 AppNavigationEvents，2 → 0；
+        // MainContainerRoute 6 → 0（同上），两条目删除。
         "navigation/CallNavigation.kt" to 9,
-        "navigation/MainContainerRoute.kt" to 6,
         "navigation/NavGraph.kt" to 4,
         "navigation/SearchCenterDestinations.kt" to 5,
         "screen/call/CallHistoryScreen.kt" to 4,
