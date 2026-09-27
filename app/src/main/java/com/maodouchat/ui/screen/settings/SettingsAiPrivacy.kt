@@ -52,7 +52,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.maodouchat.network.AiAuditLogResponse
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import android.widget.Toast
 import com.maodouchat.ui.theme.Error
@@ -171,11 +170,8 @@ fun AiPrivacySettingsScreen(
                             com.maodouchat.ai.ImageOcrPreferences.setEnabled(context, true)
                             autoTranslateEnabled = true
                             com.maodouchat.ai.AiPrivacyPreferences.setAutoTranslateIncoming(context, true)
-                            com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
-                                runCatching {
-                                    com.maodouchat.MaodouchatApp.instance.imageOcrAutoIndexer.runOnce()
-                                }
-                            }
+                            // U02 延伸：OCR 索引触发收进非 ui 的 ImageOcrIndexing。
+                            com.maodouchat.ai.ImageOcrIndexing.runOnceAsync()
                         },
                         enabled = !state.isSaving,
                         modifier = Modifier.fillMaxWidth(),
@@ -242,11 +238,8 @@ fun AiPrivacySettingsScreen(
                         com.maodouchat.ai.ImageOcrPreferences.setEnabled(context, enabled)
                         if (enabled) {
                             // 开启后立即扫描一轮，让已有图片尽快可被搜索
-                            com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
-                                runCatching {
-                                    com.maodouchat.MaodouchatApp.instance.imageOcrAutoIndexer.runOnce()
-                                }
-                            }
+                            // U02 延伸：OCR 索引触发收进非 ui 的 ImageOcrIndexing。
+                            com.maodouchat.ai.ImageOcrIndexing.runOnceAsync()
                         }
                     }
                 )

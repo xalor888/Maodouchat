@@ -43,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -201,8 +200,8 @@ fun ServerSettingsScreen(
                                     }
                                     com.maodouchat.network.ApiConfig.ServerChangeResult.Changed -> {
                                         result = serverSavedText
-                                        com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
-                                        com.maodouchat.MaodouchatApp.instance.disconnectRealtime()
+                                        // U02 延伸：换服后的进程内重建收进非 ui 的 ServerSwitchEffects。
+                                        com.maodouchat.network.ServerSwitchEffects.applyAfterServerChanged()
                                         com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
                                         com.maodouchat.network.ServerIdentity.refreshAsync()
                                         onServerChanged()
@@ -264,8 +263,8 @@ fun ServerSettingsScreen(
                             com.maodouchat.network.ApiConfig.ServerChangeResult.Changed -> {
                                 input = com.maodouchat.network.ApiConfig.BASE_URL
                                 result = serverResetDoneText
-                                com.maodouchat.MaodouchatApp.instance.rebuildImageLoader()
-                                com.maodouchat.MaodouchatApp.instance.disconnectRealtime()
+                                // U02 延伸：换服后的进程内重建收进非 ui 的 ServerSwitchEffects。
+                                com.maodouchat.network.ServerSwitchEffects.applyAfterServerChanged()
                                 com.maodouchat.slim.OnDemandStickerStore.invalidateServerState()
                                 com.maodouchat.network.ServerIdentity.clear()
                                 onServerChanged()

@@ -1093,8 +1093,6 @@ class ClientArchitectureTest {
         "screen/groupplay/GroupPollScreen.kt" to 2,
         "screen/settings/SettingsAccountSecurity.kt" to 1,
         "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
-        "screen/settings/SettingsAiPrivacy.kt" to 5,
-        "screen/settings/SettingsServer.kt" to 5,
         "theme/Motion.kt" to 1,
     )
 
@@ -1143,10 +1141,8 @@ class ClientArchitectureTest {
         "screen/login/LoginViewModel.kt" to 2,
         "screen/settings/SettingsAccountSecurity.kt" to 1,
         "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
-        "screen/settings/SettingsAiPrivacy.kt" to 5,
         "screen/settings/SettingsGeneralSettingsViewModel.kt" to 1,
         "screen/settings/SettingsNotificationViewModel.kt" to 3,
-        "screen/settings/SettingsServer.kt" to 5,
         "screen/settings/SettingsViewModel.kt" to 2,
         "theme/Motion.kt" to 1,
     )
