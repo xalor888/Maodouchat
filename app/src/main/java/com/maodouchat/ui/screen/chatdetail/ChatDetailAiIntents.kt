@@ -6,7 +6,6 @@ import com.maodouchat.domain.messaging.PrivacyAction
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.data.model.Message
@@ -30,7 +29,7 @@ internal fun ChatDetailViewModel.normalizeAiRewriteMode(mode: String?): String {
 internal fun ChatDetailViewModel.isAiAllowed(): Boolean {
     val targetChatId = activeChatId
     val caps = if (targetChatId.isNotBlank()) {
-        getApplication<MaodouchatApp>().secretConversationController.capabilities(targetChatId)
+        com.maodouchat.security.SecretChatCapabilities.forChat(targetChatId)
     } else {
         val isSecret = _uiState.value.isSecretChat == true || _uiState.value.chat?.isSecret == true
         ConversationPrivacyCapabilities(isSecretChat = isSecret, isLocked = false)

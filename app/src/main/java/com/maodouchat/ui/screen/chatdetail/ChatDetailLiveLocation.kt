@@ -4,7 +4,6 @@ import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.model.MessageType
 import kotlinx.coroutines.Dispatchers
@@ -132,7 +131,7 @@ fun ChatDetailViewModel.stopLiveLocationSharing(notifyPeer: Boolean = true) {
         // 8.45：终态更新改走 applicationScope——此前依赖 viewModelScope，在
         // onCleared 路径（viewModelScope 已取消）下终态被丢弃，对端地图持续显示
         // live 位置直到原始过期时间。协程内引用仅用于网络发送，完成后即释放。
-        com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
+        com.maodouchat.session.AppRuntime.applicationScope.launch {
             updateLiveLocationMessage(messageId, terminalPayload)
         }
     }

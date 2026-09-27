@@ -1878,7 +1878,13 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   `DestinationSmokeTest` 22 例 API 36 全绿 + 架构门禁实跑绿。
   云端侧同轮已合并：`ContactsViewModel` 10 → 3、`ContactsRepository` 3 → 0（#105）。
 
-**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9（通话族结构收口由
-`PolledIncomingBatchPolicy` 专项继续，云端已备第一步）；`ContactsViewModel` 3（云端在途）；
-`ChatDetail*` 与 `ChatListPorts` 23 等条目多为「只做装配」的登记豁免或与云端拆分批次重叠，
-按需让路。
+- **聊天详情三小文件（本批）**：`ChatDetailAiIntents` 2 → 0、`ChatDetailDisappearing` 3 → 0、
+  `ChatDetailLiveLocation` 2 → 0——密聊能力读走 `SecretChatCapabilities.forChat`；两个**命令**
+  （`armOnRead`/`purgeExpiredMessages`）收进新 `com.maodouchat.security.SecretConversationActions`
+  （与 Capabilities 的读写分工写进 KDoc）；`applicationScope` 走 `AppRuntime`。
+  判据：架构门禁实跑绿 + chatdetail JVM 测试子集绿（三函数无直接测试覆盖，属纯转发，如实登记）。
+  云端侧同轮：#108 来电观察器执行层迁出 ui（CallNavigation 9 → 0，待合并）。
+
+**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9（云端 #108 已收口，待合并）；
+`ContactsViewModel` 3（云端在途）；`ChatDetail*` 与 `ChatListPorts` 23 等条目多为
+「只做装配」的登记豁免或与云端拆分批次重叠，按需让路。
