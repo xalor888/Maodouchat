@@ -2147,3 +2147,23 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 78 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
 `Overdraw` 3 / `PluralsCandidate` 3 / `UnusedAttribute` 2 等零散。
+
+### 第十四轮十三续（2026-09-28）：PluralsCandidate 族收口——3 条（78 → 75）
+
+三条「%d + 名词」字符串转真 `<plurals>`（i18n 正确性，非仅消警）：
+
+- `contacts_group_invite_row_subtitle`（en: member/members；zh 仅 other）——
+  调用点 `ContactsSearchAndRequests` 改 `pluralStringResource(..., invite.memberCount, invite.inviterName, invite.memberCount)`
+  （选择数用成员数 %2$d，非邀请人名）；
+- `fake_chat_pin_lockout`（en: second/seconds）——`FakeChatScreen` 调用点同步；
+- `theme_import_ok`（en: color/colors）——`ThemeEditorScreen` 两个调用点同步；
+- zh 侧只补 `other`（与仓内既有 plurals 惯例一致：中文 CLDR 无 one）；两处新 import
+  （`pluralStringResource`，FakeChatScreen / ThemeEditorScreen）；
+- **基线手术**：−3 → 78 → 75；`frozenIssueCount` 78 → 75；
+- **判据**：`:app:compileDebugKotlin` 绿；字符串奇偶校验绿（zh=en=2513，plurals 不计入
+  该脚本的 `<string>` 口径）；brand 门禁绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  绿（5m4s）；`:app:lintDebug` 绿且 `LintBaselineFixed` 恰好点名这 3 条。
+
+**剩余（lint 基线 75 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
+`Overdraw` 3 / `UnusedAttribute` 2 等零散。

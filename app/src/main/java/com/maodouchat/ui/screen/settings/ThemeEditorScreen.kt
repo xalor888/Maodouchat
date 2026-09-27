@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -215,9 +216,9 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
     val outcome = importOutcome
     val toastMsg: String? = when {
         outcome == 0 -> stringResource(R.string.theme_import_no_keys)
-        outcome != null && outcome > 0 -> stringResource(R.string.theme_import_ok, outcome)
+        outcome != null && outcome > 0 -> pluralStringResource(R.plurals.theme_import_ok, outcome, outcome)
         exportDone -> stringResource(R.string.theme_export_ok)
-        savedSlotCount != null && savedSlotCount!! > 0 -> stringResource(R.string.theme_import_ok, savedSlotCount!!)
+        savedSlotCount != null && savedSlotCount!! > 0 -> pluralStringResource(R.plurals.theme_import_ok, savedSlotCount!!, savedSlotCount!!)
         else -> null
     }
     LaunchedEffect(toastMsg) {
