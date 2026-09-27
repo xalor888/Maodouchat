@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 130
+    private val frozenIssueCount = 125
 
     @Test
     fun `lint baseline can only shrink`() {
@@ -84,7 +84,11 @@ class LintBaselineRatchetTest {
             // （11 处变量编辑器模式 + `check(...commit())` 1 处 + runCatching 返回值被消费的 commit 链 4 处
             // + GlobalSearchScreen 2 处——零松量行数上限文件，转换要 +1 import 行，先拆后收）。
             // 162 → 27（= 5 bitmap + 4 处行数上限热点文件内的 Uri.parse + 18 处本批保留），总条目 265 → 130。
-            "UseKtx" to 27,
+            //
+            // 2026-09-28：bitmap 小族收口——4 文件 5 处（Bitmap.createBitmap ×3 → ktx `createBitmap`、
+            // createScaledBitmap → `Bitmap.scale`、setPixel → `Bitmap.set` 下标赋值）。
+            // 27 → 22，总条目 130 → 125。
+            "UseKtx" to 22,
             // 上面两条是 warning 级的大头；真正卡 CI 的是它：
             "LocalContextGetResourceValueCall" to 0,
             "GradleDependency" to 17,

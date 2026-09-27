@@ -7,6 +7,7 @@ import android.graphics.Matrix
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 
@@ -132,7 +133,7 @@ object ImagePicker {
                 val ratio = maxWidth.toFloat() / longestSide
                 val newWidth = (originalBitmap.width * ratio).toInt().coerceAtLeast(1)
                 val newHeight = (originalBitmap.height * ratio).toInt().coerceAtLeast(1)
-                Bitmap.createScaledBitmap(originalBitmap, newWidth, newHeight, true)
+                originalBitmap.scale(newWidth, newHeight)
             } else {
                 originalBitmap
             }

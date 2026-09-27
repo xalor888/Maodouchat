@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import androidx.core.graphics.createBitmap
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Base64
@@ -80,7 +81,7 @@ object LocalAiFileAnalyzer {
                             .coerceAtLeast(0.25f)
                         val width = (page.width * scale).toInt().coerceIn(64, MAX_PAGE_WIDTH)
                         val height = (page.height * scale).toInt().coerceIn(64, 2_048)
-                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        val bitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
                         page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                         val jpeg = ByteArrayOutputStream()
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 80, jpeg)
