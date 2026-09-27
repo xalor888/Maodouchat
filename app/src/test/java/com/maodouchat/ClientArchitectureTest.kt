@@ -888,6 +888,18 @@ class ClientArchitectureTest {
     private val directPersistenceSymbols = listOf("database.", "secretChatDao", "MaodouchatApp")
 
     /**
+     * 判据的模式版本：`database.` 只认**应用库访问**——`android.database.ContentObserver`
+     * 这类框架 import 不是直连持久层。实测（2026-09-27）ui/ 下只有 `theme/Motion.kt` 的
+     * ContentObserver import 命中过这个误报；改成负向断言后它归零，条目随之删除。
+     * 其余两个符号仍按子串计（`secretChatDao`/`MaodouchatApp` 不存在同形的框架前缀）。
+     */
+    private val directPersistencePatterns = listOf(
+        Regex("""(?<!android\.)\bdatabase\."""),
+        Regex(Regex.escape("secretChatDao")),
+        Regex(Regex.escape("MaodouchatApp")),
+    )
+
+    /**
      * 剥掉行注释、块注释后的源码（字符串字面量里的双斜线 与 斜线星 不误剥）。
      *
      * 四态：0=代码 1=行注释 2=块注释 3=字符串 4=字符。
@@ -1071,7 +1083,7 @@ class ClientArchitectureTest {
             .map { it.relativeTo(uiRoot).path.replace('\\', '/') to stripComments(it.readText()) }
             .filter { (_, text) -> !onlyComposableFiles || text.contains("@Composable") }
             .map { (path, text) ->
-                path to directPersistenceSymbols.sumOf { Regex(Regex.escape(it)).findAll(text).count() }
+                path to directPersistencePatterns.sumOf { it.findAll(text).count() }
             }
             .filter { (_, hits) -> hits > 0 }
             .toMap()
@@ -1088,13 +1100,8 @@ class ClientArchitectureTest {
         "screen/chatdetail/AiTasksScreen.kt" to 9,
         "screen/chatdetail/MediaCenterScreen.kt" to 6,
         "screen/chatdetail/StarredMessagesScreen.kt" to 6,
-        "screen/groupplay/GroupChainScreen.kt" to 2,
-        "screen/groupplay/GroupCheckinScreen.kt" to 2,
-        "screen/groupplay/GroupPkScreen.kt" to 2,
-        "screen/groupplay/GroupPollScreen.kt" to 2,
         "screen/settings/SettingsAccountSecurity.kt" to 1,
         "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
-        "theme/Motion.kt" to 1,
     )
 
     /** 次口径：整个 `ui/`（含 ViewModel / Ports）。同样只许下降。 */
@@ -1131,17 +1138,12 @@ class ClientArchitectureTest {
         "screen/contacts/ContactsRepository.kt" to 3,
         "screen/contacts/ContactsViewModel.kt" to 10,
         "screen/explore/ExploreViewModel.kt" to 1,
-        "screen/groupplay/GroupChainScreen.kt" to 2,
-        "screen/groupplay/GroupCheckinScreen.kt" to 2,
-        "screen/groupplay/GroupPkScreen.kt" to 2,
-        "screen/groupplay/GroupPollScreen.kt" to 2,
         "screen/login/LoginViewModel.kt" to 2,
         "screen/settings/SettingsAccountSecurity.kt" to 1,
         "screen/settings/SettingsAccountSecurityScreen.kt" to 3,
         "screen/settings/SettingsGeneralSettingsViewModel.kt" to 1,
         "screen/settings/SettingsNotificationViewModel.kt" to 3,
         "screen/settings/SettingsViewModel.kt" to 2,
-        "theme/Motion.kt" to 1,
     )
 
     @Test
