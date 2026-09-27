@@ -20,6 +20,20 @@ import com.maodouchat.settings.repository.SettingsRepository
 import com.maodouchat.ui.screen.settings.SettingsScreen
 import com.maodouchat.settings.repository.SettingsSession
 import com.maodouchat.ui.screen.settings.SettingsViewModel
+import androidx.compose.runtime.Composable
+import com.maodouchat.ui.screen.call.CallScreen
+import com.maodouchat.webrtc.CallState
+import com.maodouchat.ui.screen.explore.ExploreScreen
+import com.maodouchat.ui.screen.explore.ExploreViewModel
+import com.maodouchat.explore.repository.FeedController
+import com.maodouchat.explore.repository.FeedRepository
+import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.ui.screen.explore.ExploreOrchestrator
+import com.maodouchat.explore.repository.FeedSession
+import com.maodouchat.network.PostDto
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.ui.test.onNodeWithContentDescription
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -239,5 +253,141 @@ class ConfigRobustnessTest {
         }
         compose.onNodeWithText(str(R.string.settings_title)).assertExists()
         compose.onNodeWithText(str(R.string.settings_account_security)).assertExists()
+    }
+
+    // ---------- 通用配置外壳：后续屏幕不再各自复制一遍覆盖逻辑 ----------
+
+    /**
+     * 与上面两个专用 setter 同语义的通用版：先按需包 RTL / fontScale 两层
+     * `CompositionLocalProvider`，再渲染 [content]；`captured*` 由调用方在 content 里读。
+     *
+     * 为什么旧的两个 setter 不合并进来：它们是已绿的既有用例的实现，动它们没有收益；
+     * 新用例统一走这里，避免再出现第三、第四份复制。
+     */
+    private fun setContentUnder(
+        direction: LayoutDirection? = null,
+        fontScale: Float? = null,
+        content: @Composable () -> Unit,
+    ) {
+        compose.setContent {
+            var wrapped: @Composable () -> Unit = content
+            if (fontScale != null) {
+                val scaled = Configuration(LocalConfiguration.current).apply {
+                    this.fontScale = fontScale
+                }
+                val inner = wrapped
+                wrapped = { CompositionLocalProvider(LocalConfiguration provides scaled) { inner() } }
+            }
+            if (direction != null) {
+                val inner = wrapped
+                wrapped = { CompositionLocalProvider(LocalLayoutDirection provides direction) { inner() } }
+            }
+            wrapped()
+        }
+        compose.waitForIdle()
+    }
+
+    // ---------- 第三个屏幕：CallScreen（纯数据参数 + 回调，无需 fake VM） ----------
+
+    @Test
+    fun callScreenRendersUnderRtl() {
+        setContentUnder(direction = LayoutDirection.Rtl) {
+            capturedDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+            capturedFontScale = LocalConfiguration.current.fontScale
+            CallScreen(
+                contactName = "alice",
+                isIncoming = true,
+                callState = CallState.RINGING,
+            )
+        }
+
+        assert(capturedDirection == LayoutDirection.Rtl) {
+            "RTL 覆盖未生效：实际捕获到 $capturedDirection"
+        }
+        // 来电响铃的两个按钮（带 contentDescription 的图标）在 RTL 下仍须存在
+        compose.onNodeWithContentDescription(str(R.string.call_accept)).assertExists()
+        compose.onNodeWithContentDescription(str(R.string.call_hang_up)).assertExists()
+    }
+
+    @Test
+    fun callScreenRendersUnderLargeFontScale() {
+        setContentUnder(fontScale = 2.0f) {
+            capturedDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+            capturedFontScale = LocalConfiguration.current.fontScale
+            CallScreen(
+                contactName = "alice",
+                isIncoming = true,
+                callState = CallState.RINGING,
+            )
+        }
+
+        assert(capturedFontScale == 2.0f) {
+            "大字体覆盖未生效：实际捕获到 fontScale=$capturedFontScale"
+        }
+        compose.onNodeWithContentDescription(str(R.string.call_hang_up)).assertExists()
+    }
+
+    // ---------- 第四个屏幕：ExploreScreen（fake FeedRepository 5 方法） ----------
+
+    /** 复刻自 ExploreScreenUiTest（G309c）——logged-in + 空 feed，最小可渲染态。 */
+    private fun fakeFeedRepository(): FeedRepository = object : FeedRepository {
+        override fun currentSession(): FeedSession? = FeedSession("owner-1")
+        override fun isCurrent(session: FeedSession): Boolean = true
+        override suspend fun load(
+            session: FeedSession,
+            cursor: ExploreFeedPolicy.Cursor?,
+        ): Result<List<PostDto>> = Result.success(emptyList())
+        override suspend fun publish(
+            session: FeedSession,
+            content: String,
+            imageUrls: List<String>,
+            visibility: String?,
+        ): Result<PostDto> = Result.failure(NotImplementedError("本测试不需要发布"))
+    }
+
+    private fun buildExploreViewModel(): ExploreViewModel {
+        val feedController = FeedController(fakeFeedRepository())
+        val orchestrator = ExploreOrchestrator(
+            application = application(),
+            scope = CoroutineScope(Dispatchers.Main),
+            feedController = feedController,
+        )
+        return ExploreViewModel(
+            application = application(),
+            feedController = feedController,
+            orchestrator = orchestrator,
+        )
+    }
+
+    @Test
+    fun exploreScreenRendersUnderRtl() {
+        val viewModel = buildExploreViewModel()
+        setContentUnder(direction = LayoutDirection.Rtl) {
+            capturedDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+            capturedFontScale = LocalConfiguration.current.fontScale
+            ExploreScreen(viewModel = viewModel)
+        }
+
+        assert(capturedDirection == LayoutDirection.Rtl) {
+            "RTL 覆盖未生效：实际捕获到 $capturedDirection"
+        }
+        // 顶栏标题 + 空态三件套在 RTL 下仍须渲染
+        compose.onNodeWithText(str(R.string.nav_explore)).assertExists()
+        compose.onNodeWithText(str(R.string.explore_empty_title)).assertExists()
+    }
+
+    @Test
+    fun exploreScreenRendersUnderLargeFontScale() {
+        val viewModel = buildExploreViewModel()
+        setContentUnder(fontScale = 2.0f) {
+            capturedDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+            capturedFontScale = LocalConfiguration.current.fontScale
+            ExploreScreen(viewModel = viewModel)
+        }
+
+        assert(capturedFontScale == 2.0f) {
+            "大字体覆盖未生效：实际捕获到 fontScale=$capturedFontScale"
+        }
+        compose.onNodeWithText(str(R.string.explore_empty_action)).assertExists()
     }
 }
