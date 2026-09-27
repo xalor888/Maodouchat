@@ -167,9 +167,18 @@
         <!-- ===== B5 新增组件（仅追加，未改动既有节点）===== -->
 
         <!-- 主屏小组件：Provider + 实例配置页 + 同步服务（周期由 AlarmManager 驱动，见 ConversationWidgetData.startSync） -->
+        <!-- G338：exported 由 true 收紧为 false。小组件的全部交互（行点击/标记已读/快捷回复/周期同步）
+             都经由**本应用创建**的 PendingIntent 或 AlarmManager 投递——PendingIntent 以创建者身份执行，
+             同 uid 投递不受 exported 限制；生命周期广播 APPWIDGET_UPDATE 由 system_server 发出
+             （AppWidgetServiceImpl.sendBroadcastAsUser，身份为 system uid），系统本就允许送达非导出组件。
+             收紧后第三方应用与 adb shell 的伪造广播在系统层被丢弃（实测：静默丢弃，Provider 未被调用）。
+             事故说明：旧实现 exported=true + 依赖 getSentFromUid 的代码守卫；而 API 34 起
+             getSentFromUid 仅在发送方 BroadcastOptions.setShareIdentityEnabled(true) 时才带真实 uid，
+             本应用自己的投递实测恒为 INVALID_UID(-1)——守卫把**所有**合法投递也一并拒了，
+             小组件交互与周期同步实际全死。判据见 ConversationWidgetProviderInstrumentedTest。 -->
         <receiver
             android:name=".widget.ConversationWidgetProvider"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
