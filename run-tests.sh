@@ -63,6 +63,8 @@ if [ "$run_lint" = 1 ]; then
   echo "═══ Android Lint（CI 门禁） ═══"
   ./gradlew :app:lintDebug --console=plain
   echo "报告：app/build/reports/lint-results-debug.html"
+  echo "═══ 活跃 lint issue 守卫（基线之外零容忍） ═══"
+  python3 scripts/check-lint-active.py app/build/reports/lint-results-debug.xml
   echo ""
 fi
 

@@ -1963,6 +1963,13 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
 活跃 issue**——本批的 3 处活跃 toUri 就是这样漏了若干轮。候选补强：CI 在 `lintDebug` 之后
 加一步解析 `lint-results-debug.xml` 的**活跃集守卫**（白名单外活跃数必须为 0）。
 
+**已落地（同日第三刀）**：候选补强当日实施——`scripts/check-lint-active.py` 接进
+CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四处同一枚脚本：
+活跃集白名单（`GradleDependency` / `NewerVersionAvailable` / `LintBaseline*`）之外零容忍；
+负控制：对含 3 处活跃 UseKtx 的旧报告退出码 1 并逐条点名，缺报告退出码 2。
+配套：31 条活跃 `UnusedResources` 死 string（fake_chat / media_panel / candidates 族）
+同批删除（活跃 UnusedResources 31 → 0）。
+
 **剩余（lint 基线 265 条）**：`UseKtx` 162 = 153 `SharedPreferences.edit` + 4 `Uri.parse`
 （在 2 个行数上限热点文件内，先拆后收）+ 5 bitmap；`GradleDependency` 17 + 活跃 5
 （对应 dependabot 待合并 PR）；`NewerVersionAvailable` 14；`HardwareIds` 10。

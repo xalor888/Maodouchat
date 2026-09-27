@@ -15,6 +15,9 @@
 # 2026-09-24：本 hook 原先还有第一步——「DIRECTION.md 第 0 节与实测一致」
 # （`scripts/sync-direction-numbers.py --check-fast`，约 1 秒）。DIRECTION.md 连同
 # `DirectionDocFreshnessTest` 一并删除后，该步及其修复指引已移除。
+#
+# 2026-09-27：新增第二步「活跃 lint issue 守卫」（scripts/check-lint-active.py）——
+# 基线棘轮只数基线内条数，活跃集此前无人看守（#115 的 3 处活跃 UseKtx 漏了若干轮）。
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -35,6 +38,23 @@ if ! ./gradlew :app:lintDebug --console=plain > /tmp/pre-push-lint.log 2>&1; the
 绕过本 hook——但代价自负：lint 若真有问题，仍是 CI 红一轮。
 
 MSG
+  exit 1
+fi
+
+# 2026-09-27：第二步——活跃 lint issue 守卫。基线棘轮只数「基线内条数」，
+# 从未进基线的活跃 issue 此前无人看守（#115 收口时才发现 3 处活跃 UseKtx 漏了若干轮）。
+echo "pre-push: 活跃 lint issue 守卫…" >&2
+if ! python3 scripts/check-lint-active.py app/build/reports/lint-results-debug.xml > /tmp/pre-push-lint-active.log 2>&1; then
+  cat >&2 <<MSG
+
+✋ 推送被拒绝：基线之外出现活跃 lint issue（基线棘轮看不见这一类）。
+
+日志已存到 /tmp/pre-push-lint-active.log。两条路：
+  1) 修掉；或 2) 确认背这笔债 → 显式加进 app/lint-baseline.xml 并同步
+     LintBaselineRatchetTest 的冻结数（棘轮语义：进基线=接受为债务）。
+
+MSG
+  cat /tmp/pre-push-lint-active.log >&2
   exit 1
 fi
 

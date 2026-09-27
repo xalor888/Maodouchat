@@ -227,6 +227,12 @@ jobs:
       - name: Lint check (catch common bugs)
         run: ./gradlew :app:lintDebug --no-daemon --console=plain
 
+      # 2026-09-27：基线棘轮看不见「从未进基线」的活跃 issue（#115 收口时发现 3 处
+      # 活跃 UseKtx 漏了若干轮）——把活跃集也接进门禁：白名单（依赖更新/信息性提示）
+      # 之外零容忍。与本地 pre-push 第二步、run-tests.sh --lint 同一枚脚本。
+      - name: Active lint issue guard (beyond the baseline)
+        run: python3 scripts/check-lint-active.py app/build/reports/lint-results-debug.xml
+
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --console=plain
 
