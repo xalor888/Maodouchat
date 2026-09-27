@@ -17,6 +17,9 @@ import com.maodouchat.quickreply.SyncVerdict
 
 import kotlinx.coroutines.launch
 
+/** `Process.INVALID_UID`（@hide）的字面值：发送方未 opt-in 分享身份时的 sentFromUid。 */
+private const val INVALID_UID = -1
+
 /**
  * B5 主屏小组件 Provider。
  *
@@ -54,10 +57,20 @@ class ConversationWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        // 发送者校验：小组件 PendingIntent 由系统投递（sendingUid == 本应用或 system），
-        // 第三方应用伪造广播会被拒收（L1 安全加固）。
-        // getSendingUid()（API 26-33）在 SDK 36 中已移除，改为 getSentFromUid()（API 34+）；
-        // 反射依次尝试，保证两个区间都能拿到发送者 UID。
+        // G338：发送者校验（第二道门；第一道是 manifest 的 exported=false）。
+        //
+        // 实测语义（API 36，判据见 ConversationWidgetProviderInstrumentedTest）：
+        // `getSentFromUid()`（API 34+ 取代 getSendingUid）**只在发送方用
+        // BroadcastOptions.setShareIdentityEnabled(true) 显式 opt-in 时才携带真实 uid**；
+        // 本应用自己的 sendBroadcast / PendingIntent（行点击、标记已读、快捷回复）/
+        // AlarmManager 周期同步，实测全部是 INVALID_UID(-1)。旧实现按
+        // 「uid 必须等于自己或 system」判，于是把**所有合法投递**也拒了——小组件交互与
+        // 周期同步在 API 34+ 上实际全死（G338 由仪器测试发现并修复）。
+        //
+        // 现在的判据：能解析出的“真实”第三方 uid 一律拒；-1（未 opt-in）与 null（反射失败）
+        // 依赖 exported=false 的系统级拦截放行——第三方广播进不来（实测：系统静默丢弃，
+        // onReceive 根本不会被调用），合法投递（同 uid / system / PendingIntent 以创建者身份执行）
+        // 才到得了这里。
         val senderUid = runCatching {
             val method = runCatching {
                 javaClass.getMethod("getSentFromUid")
@@ -65,10 +78,11 @@ class ConversationWidgetProvider : AppWidgetProvider() {
                 javaClass.getMethod("getSendingUid")
             }
             method.invoke(this) as? Int
-        }.getOrNull()
-        // 9.139：无法解析发送者 UID 时必须 fail-closed 拒收——此前回退 myUid()
-        // 会让校验恒过，第三方伪造广播在反射失败路径下可绕过发送者校验
-        if (senderUid == null || (senderUid != android.os.Process.myUid() && senderUid != android.os.Process.SYSTEM_UID)) {
+        }.getOrNull() ?: INVALID_UID
+        val isForeignSender = senderUid != INVALID_UID &&
+            senderUid != android.os.Process.myUid() &&
+            senderUid != android.os.Process.SYSTEM_UID
+        if (isForeignSender) {
             return
         }
         when (intent.action) {

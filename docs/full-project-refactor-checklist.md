@@ -934,7 +934,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 
 - [~] Chat、List、Contacts、Explore、Call、Settings 主流程 Compose 测试（**G319c：七个入口全覆盖（含五个屏幕本体）**。此前只有 dialog 层的 `ChatDetailDialogsUiTest`（G173b，12 个 dialog）；G301c 新增两批——`ui/screen/contacts/ContactsRowsUiTest`（**10 例**，覆盖 `ContactItem` 与 `FriendRequestRow` 两个无状态行 composable）与 `ui/screen/explore/ExploreLikersDialogUiTest`（**7 例**，覆盖 Explore 与 PostDetail **共用**的 `LikersDialog`）；G305c 与 G309c 再各加一个**屏幕本体**测试——`ui/screen/contacts/ContactsScreenUiTest`（**5 例**）与 `ui/screen/explore/ExploreScreenUiTest`（**4 例**），两个屏幕都是「显式传 fake VM」直接 `setContent`，**不需要任何依赖注入改造**（详见 G305c/G309c：VM 的 `viewModel` 本就是普通参数，默认值只在省略时才求值）。每例同时断言可见性与行为，文案一律取 `R.string`。**均已在本地 AVD `maodou_test` 实跑**（JUnit XML 逐条核对）；负控制五轮，其中两轮是行为级且**预判完全命中**（Contacts 与 Explore 各一轮：把屏幕的 `onOpenScan`/`onOpenPost` 接线改成空操作，结果只有断言行为的那条红、只断言可见性的那条仍绿）。全量 instrumented **122 tests / 0 failures**（27 skipped 全在 `PersistentSignalStoreRoundTripTest`，真机用例、预先存在）。**仍未做**：Chats（原 G313c 五点实证仍成立——`ChatListScreen.kt` 无无状态行 composable、两个 dialog 组都必填 `viewModel`、`ChatListPorts` 是含 7 个具体协作者的 `internal class`、其中 4 个从未被任何测试构造；**但 G317c 已铺好接缝**：ports 构造器 `private` → `internal`，测试侧现在能 `ChatListViewModel(app, ports)`；且 G317c 已更正我当时的错误推论——那 4 个里 `TokenManager` 有 `getInstance` 入口、`ChatRepository`/`MissedCallRepository` 收 Room DAO **接口**、`NotificationCenterRepository` 收 `Context`，**都并非不可构造，只是没人做过**。剩余仅 fake/内存库工作）与 Call / Settings 的屏幕本体（**G315c 已补**：Call 8 例、Settings 6 例；**G319c 补 Chats 3 例**）；未登录时 Explore 走的是 snackbar 而非内联文案，那条路径因涉及时序未做用例（记为可选项）。故本项保持 `[~]` 不标 `[x]`。
 - [~] 截图覆盖浅/深色、手机/平板、横屏、大字体、RTL、中英文（**G325c：零依赖起步**。仓库此前**零截图基建**（无 paparazzi/roborazzi），所以本轮没做像素回归（那需新增构建依赖），改用 `CompositionLocalProvider` 覆盖 `LocalLayoutDirection`(RTL) 与 `LocalConfiguration`(fontScale=2.0)，对 ChatListScreen 与 SettingsScreen 各测两种配置，断言「不崩 + 关键内容仍在」——4 例。**关键是防「配置没生效却空跑」**：每例先捕获生效值并断言，且对捕获值断言本身做了负控制（Rtl 改 Ltr → 红在捕获值断言而非 chip 断言），证明覆盖生效、断言承重。**仍未做**：像素级截图回归、浅/深色、平板尺寸、横屏、中英文）
-- [~] 通知、Widget、深链、权限、前台服务和更新器仪器测试（**G329c：只开了「更新器」一个头**。实测 `app/src/androidTest` 原有子目录只有 crypto/data/e2e/messaging/ui，六项全为零。新增 `update/AppUpdatePromptStoreTest`（4 例，钉住「同一 versionCode 只弹一次、等下一版再弹」这条 UX 契约）与 `update/AppUpdateDownloadSchedulerTest`（5 例，只测 `progressOf`/`errorOf` 两个纯函数；**实测 `androidx.work.WorkInfo` 构造器在测试里可直接调用**，不需要 `work-testing` 依赖）。**其余五项（通知/Widget/深链/权限/前台服务）仍为零**，`AppUpdateDownloadWorker`（真正干下载活的）也未测——它的 `enqueue`/`cancel`/`observe` 要真跑 WorkManager。**2026-09-27 本地工具链侧进展**：新增两片真机契约——`NotificationIntentConsumerInstrumentedTest` 14 例（通知/深链消费）+ `CallForegroundServiceInstrumentedTest` 5 例（通话前台服务），各含 1 轮负控制，见 §第十二轮；Widget/权限两项仍为零）
+- [~] 通知、Widget、深链、权限、前台服务和更新器仪器测试（**G329c：只开了「更新器」一个头**。实测 `app/src/androidTest` 原有子目录只有 crypto/data/e2e/messaging/ui，六项全为零。新增 `update/AppUpdatePromptStoreTest`（4 例，钉住「同一 versionCode 只弹一次、等下一版再弹」这条 UX 契约）与 `update/AppUpdateDownloadSchedulerTest`（5 例，只测 `progressOf`/`errorOf` 两个纯函数；**实测 `androidx.work.WorkInfo` 构造器在测试里可直接调用**，不需要 `work-testing` 依赖）。**其余五项（通知/Widget/深链/权限/前台服务）仍为零**，`AppUpdateDownloadWorker`（真正干下载活的）也未测——它的 `enqueue`/`cancel`/`observe` 要真跑 WorkManager。**2026-09-27 本地工具链侧进展**：新增三片真机契约——`NotificationIntentConsumerInstrumentedTest` 14 例（通知/深链消费）+ `CallForegroundServiceInstrumentedTest` 5 例（通话前台服务）+ `ConversationWidgetProviderInstrumentedTest` 3 例（小组件，**抓出并修掉「交互在 API 34+ 全死」的真缺陷**；三片各含负控制，Widget 片是双向负控制），见 §第十二轮；权限一项仍为零）
 
 ### Q04 双账号、双设备和离线 E2E
 
@@ -1619,7 +1619,7 @@ AI 与隐私/举报/黑名单/服务器/关于、主题编辑器与工作台、�
 它随 CI 的 instrumented job 一起跑，替代了我之前那套「adb 点击 + 人眼看截图」的临时办法
 （不稳定、不进 CI）。**行为级仍未覆盖的**：改密码、群玩法各页、通话流程、媒体/星标页的真实数据路径。
 
-### 第十二轮（2026-09-27，本地工具链侧）：系统集成仪器测试两片——系统入口 Intent 消费（14 例）+ 通话前台服务（5 例）
+### 第十二轮（2026-09-27，本地工具链侧）：系统集成仪器测试三片——系统入口 Intent 消费（14 例）+ 通话前台服务（5 例）+ 主屏小组件（3 例，并抓出/修掉一个真缺陷）
 
 `NotificationIntentConsumer` 此前只有**纯 JVM** 的策略/解析测试（`NotificationIntentPolicyTest`、
 `AppLinkRouterTest`）——拿不到真实 `Intent` 的 extras 清除语义、碰不到
@@ -1662,6 +1662,30 @@ ongoing / `CATEGORY_CALL` 通知都到位、渠道为 `IMPORTANCE_LOW` 且无角
 **负控制**：删掉 `ACTION_HANG_UP` 的 `requestedCallId != activeCallId` 守卫后，
 **恰好** 1 条（错配忽略）红、其余 4 条仍绿——挂断守卫承重。
 
-**仍未覆盖（本项保持 `[~]`）**：Widget 真实 onReceive（发送者 UID fail-closed 校验）、
+**第三片：主屏小组件（`ConversationWidgetProviderInstrumentedTest`，3 例）——并抓出/修掉一个真缺陷**
+
+缺陷（**fail-closed 的静默全死**）：旧 Provider 在 `exported=true` 下用 `getSentFromUid()`
+做「uid 必须等于本应用或 system」的守卫。实测（API 36）：`getSentFromUid()` **只在发送方
+`BroadcastOptions.setShareIdentityEnabled(true)` 显式 opt-in 时才携带真实 uid**；本应用自己的
+`sendBroadcast`、**PendingIntent（行点击 / 标记已读 / 快捷回复）与 AlarmManager 周期同步**
+全部是 `INVALID_UID(-1)`。结论：小组件**没有任何一条交互能工作**，且不抛异常、不崩溃，
+只能靠真机行为级测试发现。
+
+修复（两层）：
+1. `AndroidManifest.xml`：Provider `android:exported` true → **false**。小组件交互全部经由
+   本应用创建的 PendingIntent（以创建者身份执行，同 uid 不受导出限制）；生命周期广播
+   `APPWIDGET_UPDATE` 由 system_server 发出（`AppWidgetServiceImpl.sendBroadcastAsUser`，
+   身份为 system uid），系统本就允许送达非导出组件。第三方/adb shell 的广播被系统**静默丢弃**
+   （探针实测：`onReceive` 从未被调用）。
+2. `ConversationWidgetProvider.onReceive` 的第二道守卫改为只拒**能解析出的真实第三方 uid**；
+   -1（未 opt-in）与 null（反射失败）依赖导出检查放行。
+
+**双向负控制，预判全中**：
+- 把 `exported` 改回 `true`（守卫保持修复后版本）→ **恰好**伪造例红（shell 广播被投递、
+  -1 被放行、MainActivity 真被拉起）、其余 2 例绿；
+- 把守卫改回旧的严格版（exported 保持 false）→ **恰好**正例红（合法行点击被误杀，
+  即缺陷原状）、其余 2 例绿。
+
+**仍未覆盖（本项保持 `[~]`）**：Widget 真机加挂/渲染全链（需要真实 launcher 宿主）、
 运行时权限、通知「投递→点击」整链、`AppUpdateDownloadWorker` 真跑 WorkManager。
 
