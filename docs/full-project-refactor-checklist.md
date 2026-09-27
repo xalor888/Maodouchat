@@ -1889,3 +1889,19 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
 **剩余（同类待收口）**：`navigation/CallNavigation.kt` 9（云端 #108 已收口，待合并）；
 `ContactsViewModel` 3（云端在途）；`ChatDetail*` 与 `ChatListPorts` 23 等条目多为
 「只做装配」的登记豁免或与云端拆分批次重叠，按需让路。
+
+- **聊天导出控制器 + 通讯录 VM 尾项（本批）**：`ChatExportController` 2 → 0——两处
+  `(context.applicationContext as? MaodouchatApp)?.secretConversationController?.capabilities`
+  改走 `SecretChatCapabilities.forChat`（#109 同款；生产环境 applicationContext 恒为 app
+  实例，`?:` 兜底分支不可达，语义不变）；`ContactsViewModel` 3 → 0——静态
+  `MaodouchatApp.emitNotificationCenterItem` 改走 `NotificationCenterAccess.repository.add`
+  （同一实例同一签名），`app?.realtimeEventDispatcher` 改走
+  `AppRuntime.realtimeDispatcherOrNull(getApplication())`（空判语义一致，先前四屏同款），
+  `import` 与 `private val app` 删除。两文件均不在 `frozenHotspotLineCaps`，无需动上限。
+  判据：棘轮判据脚本本地复算两文件 0 命中；架构门禁待 CI 实跑。
+
+**剩余（同类待收口）**：`ChatDetailViewModel` 19 / `ChatDetailDeps` 17（多为装配豁免，
+与云端拆分批次重叠，按需让路）；`GroupDetailViewModel` 2（`app` 贯穿
+createAndroidGroupMessagingCoordinator 工厂，需新访问器，另起一批）；
+`LoginViewModel` 2（signalProtocol/senderKeyRetryManager 需新访问器，另起一批）；
+`ChatListPorts` 23（只做装配的登记豁免）。

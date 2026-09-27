@@ -16,4 +16,18 @@ object SecretChatCapabilities {
     /** 读该会话的能力（同步读本地状态；调用方负责线程语义）。 */
     fun forChat(chatId: String): ConversationPrivacyCapabilities =
         MaodouchatApp.instance.secretConversationController.capabilities(chatId)
+
+    /**
+     * 与 [forChat] 相同，但 **app 单例不可用（JVM 单测 / 非 app 上下文）时返回 null**——
+     * 保留原实现 `as? MaodouchatApp ?: fallback` 的形状：调用方各自决定兜底
+     * （例如导出控制器回落为「由 chat.isSecret 推导」）。
+     *
+     * 回归记录（2026-09-27）：把 `ChatExportController` 两处直接改成 [forChat] 后，
+     * `ChatExportControllerTest` 两条 JVM 用例立刻红（测试上下文没有 MaodouchatApp 单例）——
+     * 说明这个 null 形状不是可选装饰，是既有语义的一部分。
+     */
+    fun forChatOrNull(chatId: String): ConversationPrivacyCapabilities? =
+        runCatching { MaodouchatApp.instance }.getOrNull()
+            ?.secretConversationController
+            ?.capabilities(chatId)
 }
