@@ -10,6 +10,7 @@ import com.maodouchat.R
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.call.CallActionBus
+import com.maodouchat.session.AppRuntime
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.CallSignalingAdmissionPolicy
 import com.maodouchat.call.CallSignalingIdempotencyStore
@@ -170,7 +171,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             CallActionBus.hangUpRequests.collect { req ->
                 // Drop hang-ups buffered before logout/account switch.
-                if (req.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {
+                if (req.sessionGeneration != AppRuntime.currentSessionGeneration) {
                     return@collect
                 }
                 if (
@@ -262,18 +263,12 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
             if (token.isBlank() || ownerUserId.isBlank()) return@launch
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) {
+            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)) {
                 return@launch
             }
             val liveToken = token
             com.maodouchat.data.repository.UserNetworkRepository().users(liveToken).onSuccess { users ->
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)) {
                     return@onSuccess
                 }
                 val profiles = users.associateBy { it.id }
@@ -932,7 +927,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // 独立管理两个 job：一个死掉不影响另一个；避免"WS  collector 死了但 polling 还活着导致永远不重连"
         if (webSocketJob?.isActive != true) {
             val signalOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            val dispatcher = (app as? com.maodouchat.MaodouchatApp)?.realtimeEventDispatcher
+            val dispatcher = AppRuntime.realtimeDispatcherOrNull(app)
             if (dispatcher != null) {
                 webSocketJob = viewModelScope.launch {
                     dispatcher.allEvents.collect { event ->
@@ -994,10 +989,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     if (liveToken.isBlank()) continue
                     WebRTCSignaling.fetchPending(liveToken)
                         .onSuccess { messages ->
-                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = pollOwnerUserId,
-                            )
-                            ) {
+                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = pollOwnerUserId)) {
                                 return@onSuccess
                             }
                             messages.forEach {
@@ -1016,10 +1008,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
                         .onFailure { error ->
-                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = pollOwnerUserId,
-                            )
-                            ) {
+                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = pollOwnerUserId)) {
                                 return@onFailure
                             }
                             _uiState.update { it.copy(errorMessage = text(R.string.call_fetch_signaling_failed, failureReason(error))) }
@@ -1570,14 +1559,11 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         val hangUpOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (hangUpOwnerUserId.isBlank()) return
         val ticket = outboundSignalingCursor.next(callId, "hang-up")
-        com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
+        AppRuntime.applicationScope.launch {
             // 挂断必须尽量送达：进程/协程取消时仍跑 REST+WS，避免对端幽灵响铃
             withContext(kotlinx.coroutines.NonCancellable) {
                 // Same owner + live token only; never hang-up under a switched account.
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = hangUpOwnerUserId,
-                )
-                ) {
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = hangUpOwnerUserId)) {
                     return@withContext
                 }
                 // 启动时再读一次会话令牌（可能刚 refresh，比上面捕获的更新）；
@@ -1596,10 +1582,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     android.util.Log.w("CallViewModel", "durable hang-up REST failed", error)
                 }
                 // REST 失败或 WS 更快送达时仍尽力推一条（仍要求同一 owner）
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = hangUpOwnerUserId,
-                )
-                ) {
+                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = hangUpOwnerUserId)) {
                     return@withContext
                 }
                 try {

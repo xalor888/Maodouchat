@@ -1803,11 +1803,12 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   .applyAfterServerChanged`）。两处均为**纯委托**（fire-and-forget / 两步调用），无新行为；
   判据 = 编译 + 架构门禁实跑 + 既有套件（不为「有测试」写空测试，如实登记）。
 
-**同族续批（本地工具链侧）**：
-
-- **CallViewModel（本地待合）**：`screen/call/CallViewModel.kt` 3 → 0——会话世代/实时分发器/
-  应用协程域收进 `AppRuntime`；顺带 6 处 `mayContinue(…)` 格式折叠，文件 1635 → 1618、
-  热点上限同步收紧；`AppRuntimeInstrumentedTest` 5 例 + 负控制 1 轮（世代改常量 → 2 条红）。
+- **CallViewModel（本批）**：`screen/call/CallViewModel.kt` 3 → 0——会话世代/实时分发器/
+  应用协程域三处直连收进 `com.maodouchat.session.AppRuntime`（世代是实时映射，非常量；
+  `realtimeDispatcherOrNull` 保留「非本应用实例 → null」原语义）；顺带把 6 处四行的
+  `mayContinue(…)` 格式化折叠为单行，文件 1635 → 1618，热点上限两份 map 同步收紧。
+  判据：`AppRuntimeInstrumentedTest` 5 例（含「bump 后跟随」的常量防呆）+ 负控制 1 轮
+  （世代改常量 → 恰好 2 条红）。
 - **搜索/通知中心（本批）**：`GlobalSearchScreen` 8 → 0、`NotificationCenterScreen` 2 → 0
   ——仓库入口收进 `AppRepositories` / `ChatVisibilitySets.redactedChatIds()` /
   `NotificationCenterAccess.repository`；GlobalSearchScreen 993 → 991 行（上限两份 map 同步收紧），
