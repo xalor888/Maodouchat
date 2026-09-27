@@ -1,4 +1,7 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
+
+import com.maodouchat.server.repository.EncryptedAttachmentRepository
+import com.maodouchat.server.repository.GroupMediaReferenceRepository
 
 /**
  * B07：媒体引用查询门面。GC 用于判断哪些媒体文件仍在引用中；后续头像/动态图片
