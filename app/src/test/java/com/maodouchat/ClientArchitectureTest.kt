@@ -1112,9 +1112,6 @@ class ClientArchitectureTest {
         // U02 延伸：SearchCenterDestinations 的行点击决策/副作用收进非 ui 的
         // NotificationCenterOpenController（接线 NotificationCenterEffects），
         // 该文件直连持久层命中 5 → 0，条目删除。
-        "screen/chatdetail/ChatDetailAiIntents.kt" to 2,
-        "screen/chatdetail/ChatDetailDisappearing.kt" to 3,
-        "screen/chatdetail/ChatDetailLiveLocation.kt" to 2,
         // 第二十九批：AiResults/Media 唯一的命中是各自头部残留的 `import ...MaodouchatApp`
         //（正文零引用，拆分残留），随死 import 一并删除后两文件归零，条目删除。
         "screen/chatdetail/ChatDetailViewModel.kt" to 19,

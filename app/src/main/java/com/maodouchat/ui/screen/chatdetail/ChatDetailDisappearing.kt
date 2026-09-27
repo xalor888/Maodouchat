@@ -27,7 +27,7 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.disappear_group_unsupported)) }
         return
     }
-    val caps = getApplication<com.maodouchat.MaodouchatApp>().secretConversationController.capabilities(chat.id)
+    val caps = com.maodouchat.security.SecretChatCapabilities.forChat(chat.id)
     if (caps.isSecretChat) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_timer_locked)) }
         return
@@ -128,10 +128,9 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
 
 internal suspend fun ChatDetailViewModel.armSecretDisappearing(targetChatId: String, throughId: String?) {
     if (targetChatId.isBlank()) return
-    val app = getApplication<com.maodouchat.MaodouchatApp>()
-    val caps = app.secretConversationController.capabilities(targetChatId)
+    val caps = com.maodouchat.security.SecretChatCapabilities.forChat(targetChatId)
     if (!caps.isSecretChat) return
-    app.secretConversationController.armOnRead(targetChatId)
+    com.maodouchat.security.SecretConversationActions.armOnRead(targetChatId)
 }
 
 internal suspend fun ChatDetailViewModel.applyMessageExpires(messageId: String, expiresAt: Long) {
@@ -152,8 +151,7 @@ internal suspend fun ChatDetailViewModel.applyMessageExpires(messageId: String, 
 }
 
 internal suspend fun ChatDetailViewModel.purgeExpiredLocalMessages(nowMs: Long = System.currentTimeMillis()) {
-    val app = getApplication<com.maodouchat.MaodouchatApp>()
-    app.secretConversationController.purgeExpiredMessages(nowMs)
+    com.maodouchat.security.SecretConversationActions.purgeExpiredMessages(nowMs)
     _uiState.update { s ->
         s.copy(
             messages = s.messages.filter { it.expiresAt == null || it.expiresAt <= 0L || it.expiresAt > nowMs },
