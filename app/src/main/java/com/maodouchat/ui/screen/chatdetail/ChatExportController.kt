@@ -49,13 +49,7 @@ class ChatExportController(
                 return@launch
             }
             val chat = uiState.value.chat ?: return@launch
-            val caps = (context.applicationContext as? com.maodouchat.MaodouchatApp)
-                ?.secretConversationController
-                ?.capabilities(chat.id)
-                ?: com.maodouchat.domain.messaging.ConversationPrivacyCapabilities(
-                    isSecretChat = chat.isSecret || uiState.value.isSecretChat == true,
-                    isLocked = false
-                )
+            val caps = com.maodouchat.security.SecretChatCapabilities.forChat(chat.id)
             if (!com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.EXPORT)) {
                 uiState.update { it.copy(infoMessage = text(R.string.secret_chat_export_blocked)) }
                 return@launch
@@ -119,13 +113,7 @@ class ChatExportController(
         }
         val state = uiState.value
         val chat = state.chat ?: return "{}"
-        val caps = (context.applicationContext as? com.maodouchat.MaodouchatApp)
-            ?.secretConversationController
-            ?.capabilities(chat.id)
-            ?: com.maodouchat.domain.messaging.ConversationPrivacyCapabilities(
-                isSecretChat = chat.isSecret || state.isSecretChat == true,
-                isLocked = false
-            )
+        val caps = com.maodouchat.security.SecretChatCapabilities.forChat(chat.id)
         if (!com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.EXPORT)) {
             return "{}"
         }

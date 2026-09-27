@@ -3,7 +3,6 @@ package com.maodouchat.ui.screen.contacts
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.contacts.ContactsIndexPolicy
 import com.maodouchat.contacts.sync.ContactSyncEvent
@@ -140,7 +139,7 @@ class ContactsViewModel @JvmOverloads constructor(
         onNotificationCenterItem = { id, title, subtitle, msg ->
             val uid = com.maodouchat.session.CurrentSession.ownerUserId()
             if (uid.isNotBlank()) {
-                MaodouchatApp.emitNotificationCenterItem(
+                com.maodouchat.notification.NotificationCenterAccess.repository.add(
                     NotificationCenterItem(
                         id = id,
                         type = NotificationCenterType.FRIEND_REQUEST,
@@ -159,8 +158,6 @@ class ContactsViewModel @JvmOverloads constructor(
     private val groupInviteAcceptor: suspend (inviteId: String) -> Result<GroupInviteAcceptResponse> = { id -> ContactNetworkRepository().acceptGroupInvitation(inviteId = id) },
     private val groupInviteDecliner: suspend (inviteId: String) -> Result<GroupInviteAcceptResponse> = { id -> ContactNetworkRepository().declineGroupInvitation(inviteId = id) }
 ) : AndroidViewModel(application) {
-
-    private val app = application as? MaodouchatApp
 
     private fun text(id: Int, vararg formatArgs: Any): String =
         try {
@@ -194,7 +191,9 @@ class ContactsViewModel @JvmOverloads constructor(
     }
 
     private fun observeRealtimeEvents() {
-        val eventsFlow = app?.realtimeEventDispatcher?.allEvents
+        val eventsFlow = com.maodouchat.session.AppRuntime
+            .realtimeDispatcherOrNull(getApplication())
+            ?.allEvents
         if (eventsFlow != null) {
             realtimeSyncCoordinator.startObserving(
                 viewModelScope,
