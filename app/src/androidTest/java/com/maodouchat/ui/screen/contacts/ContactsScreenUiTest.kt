@@ -1,5 +1,10 @@
 package com.maodouchat.ui.screen.contacts
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import android.content.res.Configuration
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -237,5 +242,63 @@ class ContactsScreenUiTest {
         compose.onNodeWithText(str(R.string.contacts_empty_action_scan)).assertIsDisplayed()
         compose.onNodeWithText(str(R.string.contacts_empty_action_scan)).performClick()
         assert(openScan == 1) { "点「扫一扫」后 onOpenScan 回调应为 1，实际 $openScan" }
+    }
+
+    // ---------- 配置健壮性（G325c/G342 同款纪律：先证配置生效，再证内容仍在） ----------
+
+    /** 被探针捕获到的「实际生效」的配置值——用来证明覆盖真的生效了。 */
+    private var capturedDirection: LayoutDirection? = null
+    private var capturedFontScale: Float? = null
+
+    /**
+     * 与 `ConfigRobustnessTest` 同语义的本地外壳（那边是私有实现；
+     * 按本仓库 androidTest 的既有取舍**复刻**而非抽共享 source set）。
+     */
+    private fun setContactsUnder(
+        direction: LayoutDirection? = null,
+        fontScale: Float? = null,
+        vm: ContactsViewModel,
+    ) {
+        compose.setContent {
+            var content: @androidx.compose.runtime.Composable () -> Unit = {
+                capturedDirection = LocalLayoutDirection.current
+                capturedFontScale = LocalConfiguration.current.fontScale
+                ContactsScreen(viewModel = vm)
+            }
+            if (fontScale != null) {
+                val scaled = Configuration(LocalConfiguration.current).apply { this.fontScale = fontScale }
+                val inner = content
+                content = { CompositionLocalProvider(LocalConfiguration provides scaled) { inner() } }
+            }
+            if (direction != null) {
+                val inner = content
+                content = { CompositionLocalProvider(LocalLayoutDirection provides direction) { inner() } }
+            }
+            content()
+        }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun contactsScreenRendersUnderRtl() {
+        setContactsUnder(direction = LayoutDirection.Rtl, vm = buildScreenViewModel())
+
+        assert(capturedDirection == LayoutDirection.Rtl) {
+            "RTL 覆盖未生效：实际捕获到 $capturedDirection"
+        }
+        // 搜索框占位符（与数据无关）+ 好友名 在 RTL 下仍须渲染
+        compose.onNodeWithText(str(R.string.contacts_search_placeholder)).assertIsDisplayed()
+        compose.onNodeWithText("Alice").assertIsDisplayed()
+    }
+
+    @Test
+    fun contactsScreenRendersUnderLargeFontScale() {
+        setContactsUnder(fontScale = 2.0f, vm = buildScreenViewModel())
+
+        assert(capturedFontScale == 2.0f) {
+            "大字体覆盖未生效：实际捕获到 fontScale=$capturedFontScale"
+        }
+        compose.onNodeWithText(str(R.string.contacts_search_placeholder)).assertIsDisplayed()
+        compose.onNodeWithText("Alice").assertIsDisplayed()
     }
 }
