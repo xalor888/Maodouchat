@@ -57,6 +57,7 @@ enum class EmptyStateType {
  */
 @Composable
 fun EmptyState(
+    modifier: Modifier = Modifier,
     icon: ImageVector? = null,
     title: String,
     subtitle: String? = null,
@@ -64,7 +65,6 @@ fun EmptyState(
     onAction: (() -> Unit)? = null,
     secondaryActionText: String? = null,
     onSecondaryAction: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
     type: EmptyStateType = EmptyStateType.GENERIC
 ) {
     val motion = LocalMotionSettings.current
