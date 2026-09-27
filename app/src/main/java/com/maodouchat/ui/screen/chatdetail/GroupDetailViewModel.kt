@@ -5,13 +5,13 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.data.model.User
 import com.maodouchat.group.DefaultGroupLifecycleService
 import com.maodouchat.group.GroupAuditController
 import com.maodouchat.group.GroupBotController
+import com.maodouchat.group.GroupDetailAccess
 import com.maodouchat.group.GroupEncryptionHealthController
 import com.maodouchat.group.GroupInviteController
 import com.maodouchat.group.GroupLifecycleService
@@ -20,10 +20,8 @@ import com.maodouchat.group.GroupOwnedBotUi
 import com.maodouchat.group.toUi
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
-import com.maodouchat.messaging.v2.createAndroidGroupMessagingCoordinator
 import com.maodouchat.network.GroupAuditLogDto
 import com.maodouchat.network.SenderKeyDistributionStatusDto
-import com.maodouchat.network.TokenManager
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
@@ -47,14 +45,10 @@ class GroupDetailViewModel(
 ) : AndroidViewModel(application) {
 
     val chatId: String = savedStateHandle["chatId"] ?: ""
-    private val app = application as MaodouchatApp
-    private val signalProtocol = app.signalProtocol
-    private val groupMessagingCoordinator = createAndroidGroupMessagingCoordinator(
-        app = app,
-        signalProtocol = signalProtocol,
-        // `messaging/v2/` 的工厂需要 TokenManager 实例（它自己读会话），属非 ui 层依赖。
-        tokenManager = TokenManager.getInstance(application),
-    )
+    // 群消息协调器的 Android 装配收进非 ui 的 GroupDetailAccess（U02 延伸）——
+    // `createAndroidGroupMessagingCoordinator` 的工厂签名要求 app 本体，ui 不再引 app 符号。
+    private val groupMessagingCoordinator =
+        GroupDetailAccess.groupMessagingCoordinator(application)
     private val groupSenderKeyMaintenanceCoordinator = GroupSenderKeyMaintenanceCoordinator(
         ensureCoverage = groupMessagingCoordinator::ensureSenderKeyCoverage,
         redistribute = groupMessagingCoordinator::redistributeNow,
@@ -79,7 +73,7 @@ class GroupDetailViewModel(
     private val groupLifecycleService: GroupLifecycleService = DefaultGroupLifecycleService(
         coordinator = groupLifecycleCoordinator,
         tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
-        membershipStore = app.groupMembershipStore,
+        membershipStore = GroupDetailAccess.groupMembershipStore,
     )
     private val groupInviteController = GroupInviteController(
         tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() }
@@ -113,8 +107,13 @@ class GroupDetailViewModel(
 
     private fun observeRealtimeChanges() {
         val revisionOwnerUserId = currentUserId
+        // ui 不直接依赖 app 单例：实时事件分发器经 AppRuntime 取（非本应用实例 → 不订阅，
+        // 与原 `as MaodouchatApp` 的生产语义一致；测试替身下静默跳过）。
+        val eventsFlow = com.maodouchat.session.AppRuntime
+            .realtimeDispatcherOrNull(getApplication())
+            ?.allEvents ?: return
         viewModelScope.launch {
-            app.realtimeEventDispatcher.allEvents.collect { event ->
+            eventsFlow.collect { event ->
                 if (
                     revisionOwnerUserId.isBlank() ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -125,7 +124,7 @@ class GroupDetailViewModel(
                 }
                 if (event is RealtimeDomainEvent.Presence) {
                     if (event.onlineRevoked || event.statusRevoked) {
-                        app.userRepository.applyRealtimeVisibility(
+                        com.maodouchat.data.repository.AppRepositories.users.applyRealtimeVisibility(
                             userId = event.userId,
                             isOnline = event.isOnline,
                             onlineRevoked = event.onlineRevoked,
@@ -263,7 +262,8 @@ class GroupDetailViewModel(
                         val ownedBots = groupBotController.fetchCandidateBots().getOrDefault(emptyList())
                         val self = members.firstOrNull { it.userId == loadOwnerUserId }
                         val secret = try {
-                            chat?.isSecret == true || app.secretConversationController.capabilities(chatId).isSecretChat
+                            chat?.isSecret == true ||
+                                com.maodouchat.security.SecretChatCapabilities.forChat(chatId).isSecretChat
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (_: Exception) {

@@ -1900,8 +1900,16 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   `import` 与 `private val app` 删除。两文件均不在 `frozenHotspotLineCaps`，无需动上限。
   判据：棘轮判据脚本本地复算两文件 0 命中；架构门禁待 CI 实跑。
 
+- **群详情 VM（本批）**：`GroupDetailViewModel` 2 → 0——`import MaodouchatApp` +
+  `application as MaodouchatApp` 删除：群消息协调器装配（含 Signal 协议实例）与
+  `groupMembershipStore` 收进新 `com.maodouchat.group.GroupDetailAccess`（非 ui 层代装配，
+  工厂签名要求的 app 本体在此传入——生产环境即构造器拿到的 application 本身）；
+  实时分发器走 `AppRuntime.realtimeDispatcherOrNull`（非 app 实例 → 不订阅，四屏同款）；
+  `userRepository` 走 `AppRepositories.users`（同一 UserDao）；密聊能力走
+  `SecretChatCapabilities.forChat`（#109 同款）。文件 960 行不变，两份上限不动。
+  判据：棘轮判据脚本本地复算 0 命中；架构门禁待 CI 实跑。
+
 **剩余（同类待收口）**：`ChatDetailViewModel` 19 / `ChatDetailDeps` 17（多为装配豁免，
-与云端拆分批次重叠，按需让路）；`GroupDetailViewModel` 2（`app` 贯穿
-createAndroidGroupMessagingCoordinator 工厂，需新访问器，另起一批）；
+与云端拆分批次重叠，按需让路）；
 `LoginViewModel` 2（signalProtocol/senderKeyRetryManager 需新访问器，另起一批）；
 `ChatListPorts` 23（只做装配的登记豁免）。

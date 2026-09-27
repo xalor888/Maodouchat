@@ -1118,9 +1118,12 @@ class ClientArchitectureTest {
         // G328c：装配搬到 ChatDetailDeps 之后，直连持久层的命中随之搬过去
         // （VM 35→19，deps 17，总数 192→193：多出的 1 是 deps 构造函数里对 VM 的引用被计入）。
         "screen/chatdetail/ChatDetailDeps.kt" to 17,
-        // 聊天导出收口：ChatExportController 的两处密聊能力直读走
-        // SecretChatCapabilities.forChat（#109 同款），归零、条目删除。
-        "screen/chatdetail/GroupDetailViewModel.kt" to 2,
+        // 群详情 VM 收口：`import MaodouchatApp` + `application as MaodouchatApp` 删除——
+        // 实时分发器走 AppRuntime.realtimeDispatcherOrNull（非 app 实例 → 不订阅）、
+        // userRepository 走 AppRepositories.users（同一 UserDao）、密聊能力走
+        // SecretChatCapabilities.forChat（#109 同款）、群消息协调器装配 +
+        // groupMembershipStore 收进非 ui 的 com.maodouchat.group.GroupDetailAccess，
+        // 2 → 0，条目删除。
         "screen/chatlist/ChatListPorts.kt" to 23,
         // 通讯录收口：ContactsRepository 3 → 0（条目删除），ContactsViewModel 10 → 3
         //（剩余 3 处是 `import MaodouchatApp` + 通知中心静态发射 + `as?` 取实时事件分发器，
