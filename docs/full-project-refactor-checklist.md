@@ -1814,6 +1814,15 @@ busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或�
   `NotificationCenterAccess.repository`；GlobalSearchScreen 993 → 991 行（上限两份 map 同步收紧），
   并从 `frozenUiAppDatabaseGrabbers` 名单删除（架构门禁实测抓出后补齐）。
 
-**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`screen/contacts/ContactSubScreens.kt` 4
-——通话族/扫码信任链的收口风险更高（来电路由的状态机零 E2E），留作专项：
-先给来电墓碑/轮询路径补行为测试，再动结构（`PolledIncomingBatchPolicy` 第一步已落地）。
+- **扫码核验（本批）**：`ContactSubScreens` 4 → 0——扫码核验决策抽成非 ui 的
+  `com.maodouchat.security.QrSafetyScanEvaluator`（纯决策 + `SafetySignalPort` 注入，
+  10 种结论逐字复刻，含「会话过期也先读一次本机 deviceId」的调用顺序）；信号读写收进
+  `SignalIdentityAccess`（port 的生产实现 + `markIdentityVerified`，IO 线程仍由调用点包）；
+  用户档案查询走 `AppRepositories.users`。判据：`QrSafetyScanEvaluatorTest` 11 例
+  （全分支 + 归一化 + 调用顺序）+ 负控制 1 轮（对端指纹条件取反 → 恰好 3 条指纹分支红）。
+  顺带：ContactSubScreens 887 → 860 行（两份上限 map 收紧），**并且它跌出「前 20」窗口后，
+  新面孔 `ChatDetailAiDialogs2`（882 行）按实测值首次纳入监管**——窗口滚动是门禁自己抓出来的。
+
+**剩余（同类待收口）**：`navigation/CallNavigation.kt` 9——通话族的结构收口由
+`PolledIncomingBatchPolicy` 专项继续（第一步已落地）；ui 直连持久层清单里其余条目
+均属云端侧 import/拆分批次的范围。

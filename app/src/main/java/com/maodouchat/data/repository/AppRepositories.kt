@@ -22,4 +22,7 @@ object AppRepositories {
         get() = MaodouchatApp.instance.let { app ->
             ChatRepository(app.database.chatDao(), app.database.userDao())
         }
+
+    val users: UserRepository
+        get() = UserRepository(MaodouchatApp.instance.database.userDao())
 }
