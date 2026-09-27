@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -169,7 +170,7 @@ internal fun ChatListFolderDialogs(
         // 9.233：文件夹拖拽排序（TG 式）——长按拖柄拖动，实时预览目标插入位，松手提交
         val sortedFolders = remember(state.folders) { state.folders.sortedBy { it.sortOrder } }
         var dragFolder by remember { mutableStateOf<Pair<String, Float>?>(null) }
-        var rowPitchPx by remember { mutableStateOf(0f) }
+        var rowPitchPx by remember { mutableFloatStateOf(0f) }
         val localDensity = LocalDensity.current
         val dragIndex = dragFolder?.let { st -> sortedFolders.indexOfFirst { it.id == st.first } } ?: -1
         val previewTarget = if (dragIndex >= 0 && rowPitchPx > 0f) {

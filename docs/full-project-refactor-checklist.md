@@ -2108,3 +2108,22 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 92 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
 `IconLauncherShape` 5 / `IconDuplicates` 5 / `AutoboxingStateCreation` 4 等零散。
+
+### 第十四轮十一续（2026-09-28）：AutoboxingStateCreation 族收口——4 条（92 → 88）
+
+`mutableStateOf(基本类型)` → 专用 state（免装箱）：
+
+- `AboutScreen` 的 `downloadVersionCode`（Int）→ `mutableIntStateOf`；
+- `ChatListFolderDialogs` 的 `rowPitchPx`（Float）→ `mutableFloatStateOf`；
+- `FakeChatScreen` 的 `lockoutMs`（Long）→ `mutableLongStateOf`；
+- `ExploreFeedScreen` 的 `requestFeedSearchFocus`（Int）——该文件零松量行数上限（638=638），
+  新 import 放不下 → **全限定名** `androidx.compose.runtime.mutableIntStateOf(0)`（同行尾注说明），
+  行数不动、上限不动；
+- 三个未上限文件走 import（`mutableFloat/Int/LongStateOf` 按序插在 `mutableStateOf` 之前）；
+- **基线手术**：−4 → 92 → 88；`frozenIssueCount` 92 → 88；
+- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  绿（4m36s）；`:app:lintDebug` 绿且 `LintBaselineFixed` 恰好点名这 4 条。
+
+**剩余（lint 基线 88 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
+`IconLauncherShape` 5 + `IconDuplicates` 5（同一组 launcher 图标，资产修复）；其余零散。
