@@ -1,6 +1,7 @@
 package com.maodouchat.session
 
 import android.app.Application
+import android.content.Context
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -30,4 +31,12 @@ object AppRuntime {
     /** 实时事件分发器；非本应用实例（测试替身等）返回 null。 */
     fun realtimeDispatcherOrNull(application: Application): RealtimeEventDispatcher? =
         (application as? MaodouchatApp)?.realtimeEventDispatcher
+
+    /**
+     * 尝试拉起实时连接（已登录时）；调用方传 applicationContext。
+     * 非 MaodouchatApp 实例（测试替身等）→ 静默 no-op，与原 ui 内联的 `as?` 空判一致。
+     */
+    fun ensureRealtimeConnected(appContext: Context) {
+        (appContext as? MaodouchatApp)?.ensureRealtimeConnected()
+    }
 }
