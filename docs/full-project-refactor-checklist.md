@@ -1790,4 +1790,10 @@ FRIEND_REQUEST 无 deeplink 的兜底、`markPostInteractionsRead` 的 runCatchi
 
 **剩余（同类待收口）**：`navigation/CallNavigation.kt` 9、`screen/call/CallHistoryScreen.kt` 4、
 `CallViewModel.kt` 3——通话族的收口风险更高（来电路由的状态机零 E2E），留作专项：
-先给来电墓碑/轮询路径补行为测试，再动结构。
+先给来电墓碑/轮询路径补行为测试，再动结构。**专项第一步已落地（2026-09-27）**：
+`com.maodouchat.call.PolledIncomingBatchPolicy` 把 `IncomingCallObserver` 的 REST 轮询
+决策逐字抽成纯函数（终端信令的墓碑守卫/幽灵响铃取消/双通道去重/8.56 群 mesh 边过滤），
+`PolledIncomingBatchPolicyTest` 14 例钉住语义（hang-up 命中 pending 才记未接墓碑、
+busy/reject 不记、空 callId 终端丢弃、preferCallId 被终端覆盖或成幽灵则取消、
+过期 offer 不响铃、WS 已处理的不重复导航）；结构收口（CallNavigation 9 → 0、
+把 UI 侧执行接线到该决策）待下一步。
