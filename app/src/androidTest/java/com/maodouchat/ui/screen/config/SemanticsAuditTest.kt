@@ -15,6 +15,26 @@ import androidx.compose.ui.test.onRoot
 import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.maodouchat.settings.repository.SecurityPreferences
+import com.maodouchat.settings.repository.SecurityPreferencesPatch
+import com.maodouchat.settings.repository.SettingsPrivacy
+import com.maodouchat.settings.repository.SettingsPrivacyPatch
+import com.maodouchat.settings.repository.SettingsProfile
+import com.maodouchat.settings.repository.SettingsRepository
+import com.maodouchat.settings.repository.SettingsSession
+import com.maodouchat.ui.screen.settings.SecurityCoordinator
+import com.maodouchat.ui.screen.settings.SettingsScreen
+import com.maodouchat.ui.screen.settings.SettingsViewModel
+import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.explore.repository.FeedController
+import com.maodouchat.explore.repository.FeedRepository
+import com.maodouchat.explore.repository.FeedSession
+import com.maodouchat.network.PostDto
+import com.maodouchat.ui.screen.explore.ExploreOrchestrator
+import com.maodouchat.ui.screen.explore.ExploreScreen
+import com.maodouchat.ui.screen.explore.ExploreViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import com.maodouchat.ui.screen.call.CallScreen
 import com.maodouchat.webrtc.CallState
 import org.junit.Rule
@@ -181,5 +201,100 @@ class SemanticsAuditTest {
             )
         }
         assertClean("call", minClickables = 2)
+    }
+
+    // ---------- 第五、六屏：Settings / Explore（fake 复刻自 ConfigRobustnessTest 与 ExploreScreenUiTest） ----------
+
+    private fun application(): android.app.Application =
+        InstrumentationRegistry.getInstrumentation()
+            .targetContext.applicationContext as android.app.Application
+
+    /** 复刻自 ConfigRobustnessTest（SettingsRepository 7 方法全返回空/成功值）。 */
+    private fun fakeSettingsRepository() = object : SettingsRepository {
+        private val session = SettingsSession("owner-1")
+        override fun currentSession(): SettingsSession? = session
+        override fun isCurrent(session: SettingsSession): Boolean = true
+        override suspend fun loadProfile(session: SettingsSession): Result<SettingsProfile> =
+            Result.success(
+                SettingsProfile(
+                    id = "u1", name = "alice", avatar = null,
+                    status = "", username = null, isModerator = false,
+                )
+            )
+        override suspend fun loadPrivacy(session: SettingsSession): Result<SettingsPrivacy> =
+            Result.success(
+                SettingsPrivacy(
+                    showOnline = true, showStatus = true, searchable = true,
+                    defaultPostVisibility = "PUBLIC", onlineVisibility = "EVERYONE",
+                )
+            )
+        override suspend fun savePrivacy(
+            session: SettingsSession, privacy: SettingsPrivacyPatch,
+        ): Result<SettingsPrivacy> = Result.success(
+            SettingsPrivacy(
+                showOnline = true, showStatus = true, searchable = true,
+                defaultPostVisibility = "PUBLIC", onlineVisibility = "EVERYONE",
+            )
+        )
+        override suspend fun loadSecurityPreferences(
+            session: SettingsSession,
+        ): Result<SecurityPreferences> = Result.success(
+            SecurityPreferences(
+                appLockTimeoutMinutes = 5L, screenSecureEnabled = false, sensitiveGateEnabled = false,
+            )
+        )
+        override suspend fun saveSecurityPreferences(
+            session: SettingsSession,
+            patch: SecurityPreferencesPatch,
+        ): Result<SecurityPreferences> = Result.success(
+            SecurityPreferences(
+                appLockTimeoutMinutes = 5L, screenSecureEnabled = false, sensitiveGateEnabled = false,
+            )
+        )
+    }
+
+    @Test
+    fun settingsScreenSemanticsAreClean() {
+        val repo = fakeSettingsRepository()
+        val vm = SettingsViewModel(
+            application = application(),
+            settingsRepository = repo,
+            securityCoordinator = SecurityCoordinator(repo),
+        )
+        compose.setContent { SettingsScreen(viewModel = vm) }
+        assertClean("settings", minClickables = 3)
+    }
+
+    /** 复刻自 ExploreScreenUiTest（5 方法 FeedRepository，logged-in + 空 feed）。 */
+    private fun fakeFeedRepository(): FeedRepository = object : FeedRepository {
+        override fun currentSession(): FeedSession? = FeedSession("owner-1")
+        override fun isCurrent(session: FeedSession): Boolean = true
+        override suspend fun load(
+            session: FeedSession,
+            cursor: ExploreFeedPolicy.Cursor?,
+        ): Result<List<PostDto>> = Result.success(emptyList())
+        override suspend fun publish(
+            session: FeedSession,
+            content: String,
+            imageUrls: List<String>,
+            visibility: String?,
+        ): Result<PostDto> = Result.failure(NotImplementedError("本测试不需要发布"))
+    }
+
+    @Test
+    fun exploreScreenSemanticsAreClean() {
+        val feedController = FeedController(fakeFeedRepository())
+        val orchestrator = ExploreOrchestrator(
+            application = application(),
+            scope = CoroutineScope(Dispatchers.Main),
+            feedController = feedController,
+        )
+        val vm = ExploreViewModel(
+            application = application(),
+            feedController = feedController,
+            orchestrator = orchestrator,
+        )
+        compose.setContent { ExploreScreen(viewModel = vm) }
+        assertClean("explore", minClickables = 2)
     }
 }
