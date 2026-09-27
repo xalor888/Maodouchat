@@ -2046,3 +2046,26 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 118 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1
 （ExploreOrchestrator，先拆后收）；`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；
 `HardwareIds` 10；其余零散族（ModifierParameter 8 / Aligned16KB 9 / IconLauncherShape 5 等）。
+
+### 第十四轮八续（2026-09-28）：零散小族收口——8 条（118 → 110）
+
+- `SuspiciousIndentation` 1：`ChatListTopBar` 的 `TopAppBar(` 块整体多缩进 4 格（旧编辑残留）——
+  整块回退（143 行纯空白改动，含块尾 `)}`）；
+- `UseOfNonLambdaOffsetOverload` 1：`CapsuleTabBar` 的 `.offset(x = indicatorOffset)` →
+  `.offset { IntOffset(indicatorOffset.roundToPx(), 0) }`（lambda 重载在 Density 接收者内读值；
+  Dp→px 用 `roundToPx()`——首次写成 `IntOffset(Dp, 0)` 被编译期拦下）；
+- `ComposableNaming` 1：`ThemeEditorScreen.rgbSlider` → `RgbSlider`（1 定义 + 3 调用）；
+- `UnsafeDynamicallyLoadedCode` 1：`WebRTCManager.initialize` 的 `System.load(路径)` 是刻意为之
+  （原注释已说明：按同一路径复用句柄，避免 JNI_OnLoad 重复执行 SIGABRT）——**同行** `@Suppress`
+  （零行差，1416 行上限不动）；
+- `StaticFieldLeak` 2：`AiProfileRepository.INSTANCE` 与 `WebSocketClient.ManagerHolder.tokenManager`
+  都只持有 **applicationContext**（两处 getInstance 均已转换）——**同行** `@Suppress` + 一句注释
+  （零行差，969 行上限不动）；
+- `Typos` 2：values-en 的 "Sticker pack downloaded: %1$d ok" → "OK"（en-only，zh 无此串）；
+- **基线手术**：−8（按 6 个 id 全量移除）→ 118 → 110；`frozenIssueCount` 118 → 110；
+- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  绿（5m15s）；`:app:lintDebug` 绿且 `LintBaselineFixed` **恰好点名这 8 条**不再出现（硬证据）。
+
+**剩余（lint 基线 110 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`HardwareIds` 10；
+`ModifierParameter` 8；`Aligned16KB` 9（依赖侧）；其余零散。

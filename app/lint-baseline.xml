@@ -12,21 +12,7 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="SuspiciousIndentation"
-        message="Suspicious indentation: This is indented but is not continuing the previous expression (`val context = androi`...)"
-        errorLine1="        TopAppBar("
-        errorLine2="        ~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListScaffoldChrome.kt"
-            line="80"
-            column="9"/>
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/ChatListScaffoldChrome.kt"
-            line="78"
-            column="5"
-            message="Previous statement here"/>
-    </issue>
+    
 
     <issue
         id="UnusedAttribute"
@@ -423,16 +409,7 @@
             column="24"/>
     </issue>
 
-    <issue
-        id="ComposableNaming"
-        message="Composable functions that return Unit should start with an uppercase letter"
-        errorLine1="private fun rgbSlider(labelRes: Int, value: Float, tint: Color, onChange: (Float) -> Unit) {"
-        errorLine2="            ~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/settings/ThemeEditorScreen.kt"
-            line="572"
-            column="13"/>
-    </issue>
+    
 
     <issue
         id="ConfigurationScreenWidthHeight"
@@ -608,27 +585,9 @@
             file="$GRADLE_USER_HOME/caches/8.14.5/transforms/e5719521cab89a41ec36ddb83f783f00/transformed/android-database-sqlcipher-4.5.4/jni/arm64-v8a/libsqlcipher.so"/>
     </issue>
 
-    <issue
-        id="Typos"
-        message="&quot;ok&quot; is usually capitalized as &quot;OK&quot;"
-        errorLine1="        &lt;item quantity=&quot;one&quot;>Sticker pack downloaded: %1$d ok, %2$d failed&lt;/item>"
-        errorLine2="                                                           ~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="2761"
-            column="60"/>
-    </issue>
+    
 
-    <issue
-        id="Typos"
-        message="&quot;ok&quot; is usually capitalized as &quot;OK&quot;"
-        errorLine1="        &lt;item quantity=&quot;other&quot;>Sticker pack downloaded: %1$d ok, %2$d failed&lt;/item>"
-        errorLine2="                                                             ~~">
-        <location
-            file="src/main/res/values-en/strings.xml"
-            line="2762"
-            column="62"/>
-    </issue>
+    
 
     <issue
         id="PluralsCandidate"
@@ -784,16 +743,7 @@
             column="22"/>
     </issue>
 
-    <issue
-        id="UnsafeDynamicallyLoadedCode"
-        message="Dynamically loading code using `load` is risky, please use `loadLibrary` instead when possible"
-        errorLine1="                            runCatching { System.load(file.absolutePath) }.isSuccess"
-        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/webrtc/WebRTCManager.kt"
-            line="218"
-            column="43"/>
-    </issue>
+    
 
     <issue
         id="Recycle"
@@ -820,27 +770,9 @@
 
     
 
-    <issue
-        id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `AiProfileRepository` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/data/repository/AiProfileRepository.kt"
-            line="133"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="StaticFieldLeak"
-        message="Do not place Android context classes in static fields (static reference to `TokenManager` which has field `context` pointing to `Context`); this is a memory leak"
-        errorLine1="        @Volatile"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/network/WebSocketClient.kt"
-            line="942"
-            column="9"/>
-    </issue>
+    
 
     <issue
         id="AutoboxingStateCreation"
@@ -1227,16 +1159,7 @@
 
 
 
-    <issue
-        id="UseOfNonLambdaOffsetOverload"
-        message="State backed values should use the lambda overload of Modifier.offset"
-        errorLine1="                .offset(x = indicatorOffset)"
-        errorLine2="                 ~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/component/CapsuleTabBar.kt"
-            line="70"
-            column="18"/>
-    </issue>
+    
 
     <issue
         id="TypographyDashes"
