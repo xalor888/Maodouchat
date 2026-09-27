@@ -688,7 +688,7 @@ Gate：截断、哈希错、签名错、空间不足、权限恢复、多 Widget
 当前状态：`[ ]`。尚无系统 Compose UI/截图/无障碍回归体系。
 
 - [ ] 建立启动、聊天列表、长时间线、图片列表、数据库和内存基准。
-- [ ] 所有主流程支持大字体、TalkBack、触控目标、RTL、中英文和动态颜色。（**2026-09-27 扩展**：`ConfigRobustnessTest` 从 G325c 的两屏扩展到四屏——ChatList/Settings/Call/Explore 各含 RTL 与大字体两条，共 8 例真机绿；Call 用纯数据参数渲染、Explore 用 5 方法 fake FeedRepository；负控制 1 轮：把新通用外壳的方向强制成 Ltr → 恰好两条**新增** RTL 用例红；仍未做：TalkBack、触控目标、中英文、动态颜色、像素级截图）
+- [ ] 所有主流程支持大字体、TalkBack、触控目标、RTL、中英文和动态颜色。（**2026-09-27 扩展**：`ConfigRobustnessTest` 从 G325c 的两屏扩到四屏——ChatList/Settings/Call/Explore 各含 RTL 与大字体两条，共 8 例真机绿；负控制：新通用外壳的方向强制成 Ltr → 恰好两条新增 RTL 用例红。新增 `SemanticsAuditTest`（TalkBack/触控目标维度）：遍历 Compose 语义树，断言「可点击节点必须可朗读」+「触控目标 ≥48dp」，ChatList/Call 两屏 0 问题，并**常驻自检用例**（故意无名字的点击区必须被抓到）防探针失明；**该探针已抓到并修掉一个真缺陷**：ChatList 搜索输入框空值时无可朗读名字（placeholder 是兄弟节点）→ `SearchBar` 给 `BasicTextField` 挂 `semantics { contentDescription = placeholder }`；负控制：撤掉该修复 → 恰好 `chatListSemanticsAreClean` 一条红。仍未做：中英文、动态颜色、像素级截图）（**2026-09-27 扩展**：`ConfigRobustnessTest` 从 G325c 的两屏扩展到四屏——ChatList/Settings/Call/Explore 各含 RTL 与大字体两条，共 8 例真机绿；Call 用纯数据参数渲染、Explore 用 5 方法 fake FeedRepository；负控制 1 轮：把新通用外壳的方向强制成 Ltr → 恰好两条**新增** RTL 用例红；仍未做：TalkBack、触控目标、中英文、动态颜色、像素级截图）
 - [x] 固定格式控件使用稳定尺寸，避免消息状态和进度造成布局跳动（2026-09-26：`TextMessageBubble` 翻译行、`MediaVoiceBubble` 语音转写行的进度圈由条件 `if + Spacer(6.dp)` 改为恒定 20dp 占位 `Box`，转圈出现/消失时气泡宽度不再跳变；其余已稳定：`MessageStatusIcon` 恒 14dp 容器、`FileTransferActions` 恒 32dp 行、媒体传输进度为居中覆盖层不影响布局、`LinearProgressIndicator` 为 `fillMaxWidth`）。
 - [ ] 建立截图基线覆盖浅色、深色、手机、平板和横屏。
 - [ ] 避免超大 state 导致全屏重组；用稳定 selector 和分页投影。

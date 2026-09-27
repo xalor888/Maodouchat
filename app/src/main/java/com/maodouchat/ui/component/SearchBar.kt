@@ -30,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -100,6 +102,10 @@ fun SearchBar(
                     }),
                     modifier = Modifier
                         .fillMaxWidth()
+                        // G342：空输入时输入框的可朗读名字来自这里——placeholder 的 Text 是**兄弟**
+                        // 节点、不在输入框的语义里；不给字段挂名字时 TalkBack 读「编辑框，未命名」
+                        // （由 SemanticsAuditProbeTest 在 ChatList 上实测抓到）。
+                        .semantics { contentDescription = resolvedPlaceholder }
                         .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                         .onFocusChanged { isFocused = it.isFocused }
                 )
