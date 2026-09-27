@@ -79,6 +79,7 @@ object SecureCaptureScrubber {
         val dateAdded: Long,
     )
 
+    @Suppress("Recycle") // 资源由 `?.use` 关闭；lint 的 Recycle 检测不识别安全调用形态（人工核实）
     private fun queryLatest(
         context: Context,
         uri: Uri,

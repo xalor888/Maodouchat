@@ -10,6 +10,7 @@ import android.provider.MediaStore
  * 扫描本机 MediaStore 中的 GIF（只读，不上传）。
  */
 object GifLibrary {
+    @Suppress("Recycle") // 资源由 `?.use` 关闭；lint 的 Recycle 检测不识别安全调用形态（人工核实）
     fun queryLocalGifs(context: Context, limit: Int = 200): List<LocalGifItem> {
         val resolver = context.applicationContext.contentResolver
         val collection: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
