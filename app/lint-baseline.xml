@@ -12,30 +12,6 @@
             column="9"/>
     </issue>
 
-    
-
-    <issue
-        id="UnusedAttribute"
-        message="Attribute `targetCellWidth` is only used in API level 31 and higher (current min is 26)"
-        errorLine1="    android:targetCellWidth=&quot;4&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/xml/conversation_widget_info.xml"
-            line="11"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="UnusedAttribute"
-        message="Attribute `targetCellHeight` is only used in API level 31 and higher (current min is 26)"
-        errorLine1="    android:targetCellHeight=&quot;2&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/xml/conversation_widget_info.xml"
-            line="12"
-            column="5"/>
-    </issue>
-
     <issue
         id="AppBundleLocaleChanges"
         message="Found dynamic locale changes, but did not find corresponding Play Core library calls for downloading languages and splitting by language is not disabled in the `bundle` configuration"
