@@ -2,6 +2,8 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.util.RuntimeFlags
 import android.annotation.SuppressLint
@@ -418,7 +420,7 @@ fun StarredMessagesScreen(
         containerColor = LocalChatPalette.current.chatBackground,
         topBar = {
             TopAppBar(
-                title = { Text(title, color = MaterialTheme.colorScheme.onSurface) },
+                title = { Text(title, modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)

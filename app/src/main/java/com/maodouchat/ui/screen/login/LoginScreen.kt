@@ -64,6 +64,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -229,7 +231,7 @@ fun LoginScreen(
                     modifier = Modifier.graphicsLayer {
                         alpha = enterProgress
                         translationY = if (motion.animationsEnabled) (1f - enterProgress) * 12.dp.toPx() else 0f
-                    }
+                    }.semantics { heading() }
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
