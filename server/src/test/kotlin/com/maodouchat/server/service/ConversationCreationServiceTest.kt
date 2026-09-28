@@ -1,6 +1,7 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
-import com.maodouchat.server.service.GroupInvitationService
+import com.maodouchat.server.repository.ConversationCreationRepository
+import com.maodouchat.server.repository.GroupInvitationRepository
 
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.ChatParticipants

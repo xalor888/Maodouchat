@@ -3,12 +3,9 @@ package com.maodouchat.server.service
 import com.maodouchat.server.model.UpdateChatSettingsRequest
 import com.maodouchat.server.repository.ChatSettingsMutationOutcome
 import com.maodouchat.server.repository.ConversationCreationRepository
-import com.maodouchat.server.repository.ConversationCreationService
 import com.maodouchat.server.repository.ConversationLifecycleRepository
-import com.maodouchat.server.repository.ConversationSettingsRepository
-import com.maodouchat.server.repository.CreateConversationCommand
-import com.maodouchat.server.repository.CreateConversationOutcome
 import com.maodouchat.server.repository.CreatedConversation
+import com.maodouchat.server.repository.ConversationSettingsRepository
 import com.maodouchat.server.repository.DisappearingMessagesMutationOutcome
 import com.maodouchat.server.repository.LeaveConversationOutcome
 
