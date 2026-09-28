@@ -2295,3 +2295,19 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `MediaCenterScreen` 1049 行（−1），上限同步收紧 1050 → 1049（两份 map）；
 - **结果**：判据收紧后名单仍为 5（无新读者），`frozenUiTokenReaders` 不变；
 - **判据**：`:app:compileDebugKotlin` 绿；`ClientArchitectureTest` 两条网络棘轮用例绿。
+
+### 依赖升级批次（2026-09-28）：4 项落地 + 6 项诊断归档
+
+- **已合并**（本地逐项对当前 main 复验 + CI 全绿）：#52（JUnit Jupiter 5.10.2 → 6.1.3，
+  core/testing + domain/messaging 测试域）、#46（HikariCP 5.1.0 → 7.1.0，server；
+  复验：server 编译 + 仓储/令牌/双设备子集绿）、#45（server JUnit 6.1.3——分支陈旧 merge-ref
+  导致的假红，刷新后全绿）、#41（playwright-core 1.63.0，npm dev）；
+- **关闭**：#50（与 #52 同组两行，已被覆盖）；
+- **诊断归档（暂不合，原因逐条钉死）**：
+  - #152（gradle-minor-patch 36 项）与 #49/#51：升级后的 AndroidX 产物（navigation-compose 2.10.2、
+    Compose BOM 2026.09 等）在 AAR 元数据要求 **AGP 9.1+**，现 8.13.2——需先做 AGP 9 + Gradle 9
+    工具链迁移（`checkDebugAarMetadata` 报 17 项）；
+  - #43（server-minor-patch 11 项）与 #47/#44：卡在 **libsignal 0.41 → 0.86**（`Curve` API 面变化，
+    `DeviceRegistry`/`SignalKeyRepository` 解析失败）——必须 app + server 同步迁移并做
+    跨版本信封互操作回归；
+- **口径**：上述诊断均以本地 worktree 复现定位，结论写回各 PR 评论。
