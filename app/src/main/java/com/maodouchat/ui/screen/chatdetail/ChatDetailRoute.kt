@@ -95,8 +95,6 @@ import com.maodouchat.ui.component.ParticleDeleteEffect
 import com.maodouchat.ui.component.ParticleState
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.bannerEnter
-import com.maodouchat.ui.theme.composerBarEnter
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
 
@@ -1290,106 +1288,16 @@ internal fun ChatDetailRoute(
                 )
             }
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).imePadding()) {
-            if (state.pinnedMessages.isNotEmpty()) {
-                PinnedMessagesBanner(
-                    pins = state.pinnedMessages,
-                    messages = state.messages,
-                    canManage = MessagePinPolicy.canPin(
-                        isGroup = state.chatIsGroup,
-                        myRole = state.myMemberRole,
-                        messageType = MessageType.TEXT
-                    ),
-                    onOpen = { viewModel.jumpToPinnedMessage(it) },
-                    onUnpin = { viewModel.togglePinMessage(it) },
-                    // 1.49：置顶者显示名
-                    resolvePinnerName = { uid -> participantNamesById[uid] ?: uid },
-                    // 1.53：点击置顶者打开其资料
-                    onPinnerClick = { uid ->
-                        if (onOpenProfile != null) {
-                            onOpenProfile(uid)
-                        } else {
-                            Toast.makeText(context, context.getString(R.string.chat_contact_card_tap_hint), Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                )
-            }
-            // 8.57：群公告会话顶部横幅（可折叠；点开看全文）
-            if (flows.showAnnouncementBanner && state.chatIsGroup) {
-                val announcement = state.chat?.groupAnnouncement?.trim()
-                if (!announcement.isNullOrBlank()) {
-                    GroupAnnouncementBanner(
-                        announcement = announcement,
-                        onOpen = { flows.showAnnouncementDialog = true },
-                        onDismiss = { flows.showAnnouncementBanner = false }
-                    )
-                }
-            }
-            if (state.scheduledMessages.isNotEmpty()) {
-                ScheduledMessagesBanner(
-                    items = state.scheduledMessages,
-                    onCancel = { viewModel.cancelScheduledMessage(it) },
-                    onReschedule = { id -> schedule.beginReschedule(id, state.scheduledMessages.firstOrNull { it.id == id }?.text.orEmpty()) },
-                    onViewAll = { schedule.showScheduledList = true }
-                )
-            }
-            if (!state.chatIsGroup && state.disappearingMessageSeconds > 0) {
-                DisappearingMessagesBanner(
-                    seconds = state.disappearingMessageSeconds,
-                    onChange = {
-                        if (state.isSecretChat != true) schedule.showDisappearDialog = true
-                    }
-                )
-            }
-            AnimatedVisibility(
-                visible = state.isSecretChat == true && com.maodouchat.util.SecretSessionNoticePrefs.isEnabled(context),
-                enter = LocalMotionSettings.current.bannerEnter(),
-                exit = fadeOut()
-            ) {
-                SecretChatBanner(
-                    sealedSenderReady = state.sealedSenderReady,
-                    sealedSenderExpiresInSec = state.sealedSenderExpiresInSec,
-                )
-            }
-            if (state.activeLiveLocationSessionId != null) {
-                LiveLocationSharingBanner(
-                    untilMs = state.activeLiveLocationUntil,
-                    onStop = { viewModel.stopLiveLocationSharing() }
-                )
-            }
-            state.groupEncryptionWarning?.let { warning ->
-                GroupEncryptionWarningBanner(warning = warning)
-            }
-            state.identityWarning?.let { warning ->
-                SecurityWarningBanner(
-                    warning = warning,
-                    sticky = com.maodouchat.crypto.SafetyCodePolicy.isStickyIdentityWarning(state.trustState),
-                    onClick = {
-                        if (RuntimeFlags.isEnabled(context, RuntimeFlags.SAFETY_CODE)) viewModel.showSafetyCodeDialog()
-                    }
-                )
-            }
-            AnimatedVisibility(
-                visible = chatAiSurfacesVisible && (state.isUnreadSummaryLoading || state.unreadAiSummary != null),
-                enter = expandVertically() + LocalMotionSettings.current.composerBarEnter(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                UnreadSummaryBanner(
-                    summary = state.unreadAiSummary,
-                    messageCount = state.unreadAiSummaryCount,
-                    isLoading = state.isUnreadSummaryLoading,
-                    onOpen = { viewModel.openUnreadAiSummary() },
-                    onDismiss = { viewModel.clearUnreadAiSummary() },
-                    // 1.194：复制未读摘要
-                    onCopy = {
-                        val textToCopy = state.unreadAiSummary
-                        if (!textToCopy.isNullOrBlank()) {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_unread_summary), textToCopy))
-                            Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                )
-            }
+            // G344：横幅栈组装抽到 ChatDetailBanners.kt 的 ChatDetailBannerStack，纯搬移不改判断。
+            ChatDetailBannerStack(
+                state = state,
+                viewModel = viewModel,
+                flows = flows,
+                schedule = schedule,
+                participantNamesById = participantNamesById,
+                onOpenProfile = onOpenProfile,
+                chatAiSurfacesVisible = chatAiSurfacesVisible,
+            )
             AnimatedVisibility(
                 visible = search.showSearchBar,
                 enter = expandVertically() + fadeIn(),
