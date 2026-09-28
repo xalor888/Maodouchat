@@ -6,6 +6,7 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.UserPrivacyResponse
 import com.maodouchat.server.model.UserResponse
+import com.maodouchat.server.service.BlockService
 import com.maodouchat.server.service.PrivacyService
 import com.maodouchat.server.service.ProfileService
 import org.jetbrains.exposed.sql.ResultRow

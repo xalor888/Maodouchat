@@ -1,4 +1,4 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.FriendRequests
