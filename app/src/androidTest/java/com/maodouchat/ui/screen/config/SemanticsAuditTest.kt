@@ -365,4 +365,41 @@ class SemanticsAuditTest {
         // 实测 9 个可点击（返回 + 搜索框 + 过滤 chips 等）；阈值取下界 7。
         assertClean("globalsearch", minClickables = 7, minHeadings = 1)
     }
+    // ---------- 第十二~十五屏：助手 / 动态 / 媒体中心 / AI 任务（2026-09-29 扩面） ----------
+
+    @Test
+    fun maodouAgentScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.ai.MaodouAgentScreen(onBack = {})
+        }
+        // 实测 8 个可点击（返回 + 输入/发送 + 建议 chips 等）；阈值取下界 6。
+        assertClean("maodouagent", minClickables = 6)
+    }
+
+    @Test
+    fun momentsScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.explore.MomentsScreen()
+        }
+        // 实测 2 个可点击（返回 + 发动态入口；空态下与 call 同量级）；阈值取下界 2。
+        assertClean("moments", minClickables = 2)
+    }
+
+    @Test
+    fun mediaCenterScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.chatdetail.MediaCenterScreen(onBack = {}, onOpenMessage = {})
+        }
+        // 实测 6 个可点击（返回 + 分类 chips + 空态重试等）；阈值取下界 4。
+        assertClean("mediacenter", minClickables = 4)
+    }
+
+    @Test
+    fun aiTasksScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.chatdetail.AiTasksScreen(onBack = {})
+        }
+        // 实测 2 个可点击（返回 + 筛选/搜索入口；空态下）；阈值取下界 2。
+        assertClean("aitasks", minClickables = 2)
+    }
 }
