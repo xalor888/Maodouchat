@@ -593,4 +593,42 @@ class SemanticsAuditTest {
             kotlinx.coroutines.runBlocking { db.chatDao().deleteAllChats() }
         }
     }
+    // ---------- 第三十二屏：群详情（真 Room 播种群会话 + SavedStateHandle 真 VM） ----------
+
+    @Test
+    fun groupDetailScreenSemanticsAreClean() {
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = com.maodouchat.data.local.AppDatabase.getInstance(ctx)
+        kotlinx.coroutines.runBlocking {
+            db.chatDao().deleteAllChats()
+            db.chatDao().insertChats(
+                listOf(
+                    com.maodouchat.data.local.entity.ChatEntity(
+                        id = "audit-group-1",
+                        isGroup = true,
+                        lastMessage = "hi",
+                        lastMessageTime = 1_000L,
+                    )
+                )
+            )
+        }
+        val vm = com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel(
+            application(),
+            androidx.lifecycle.SavedStateHandle(mapOf("chatId" to "audit-group-1")),
+        )
+        compose.setContent {
+            com.maodouchat.ui.screen.chatdetail.GroupDetailScreen(onBack = {}, viewModel = vm)
+        }
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodes(androidx.compose.ui.test.hasContentDescription(
+                InstrumentationRegistry.getInstrumentation().targetContext.getString(com.maodouchat.R.string.common_back)
+            )).fetchSemanticsNodes().isNotEmpty()
+        }
+        try {
+            // 实测 15 个可点击（4 个屏外未放置被跳过）；阈值取下界 12；标题已加 heading()。
+            assertClean("groupdetail", minClickables = 12, minHeadings = 1)
+        } finally {
+            kotlinx.coroutines.runBlocking { db.chatDao().deleteAllChats() }
+        }
+    }
 }
