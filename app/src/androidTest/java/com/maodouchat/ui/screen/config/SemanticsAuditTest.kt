@@ -78,8 +78,15 @@ class SemanticsAuditTest {
     private fun density(): Float =
         InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
 
-    /** 审计过的可点击节点数——0 说明探针瞎了，结论不可信（防自欺）。 */
+    /** 审计过的可点击节点数——0 说明探针瞎了，结论不可信（防自欺）。只计**已放置**（可见）节点。 */
     private var auditedClickables = 0
+
+    /**
+     * 未放置（0×0 边界）的可点击节点数——懒列表折叠在屏外、动画初帧等。
+     * 它们既触摸不到、TalkBack 也读不到，不构成无障碍问题，探针**跳过两类检查**并单独计数，
+     * 避免把「屏外内容」误报成「坏按钮」。
+     */
+    private var auditedUnplaced = 0
 
     /** 审计到的标题（heading）节点数——供「每屏至少一个标题」断言使用。 */
     private var auditedHeadings = 0
@@ -89,8 +96,11 @@ class SemanticsAuditTest {
         val config = node.config
         if (config.contains(SemanticsProperties.Heading)) auditedHeadings += 1
         val clickable = config.contains(SemanticsActions.OnClick)
-        if (clickable) auditedClickables += 1
-        if (clickable) {
+        val bounds = node.touchBoundsInRoot
+        val placed = bounds.width > 0f && bounds.height > 0f
+        if (clickable && placed) auditedClickables += 1
+        if (clickable && !placed) auditedUnplaced += 1
+        if (clickable && placed) {
             val texts = config.getOrNull(SemanticsProperties.Text)
                 ?.joinToString("|") { it.text }.orEmpty()
             val desc = config.getOrNull(SemanticsProperties.ContentDescription)
@@ -114,8 +124,8 @@ class SemanticsAuditTest {
                 )
             }
             val d = density()
-            val wDp = node.touchBoundsInRoot.width / d
-            val hDp = node.touchBoundsInRoot.height / d
+            val wDp = bounds.width / d
+            val hDp = bounds.height / d
             if (wDp < MIN_TOUCH_DP || hDp < MIN_TOUCH_DP) {
                 out += Issue(
                     "touch-target-too-small",
@@ -131,11 +141,13 @@ class SemanticsAuditTest {
         compose.waitForIdle()
         auditedClickables = 0
         auditedHeadings = 0
+        auditedUnplaced = 0
         val issues = mutableListOf<Issue>()
         compose.onAllNodes(isRoot()).fetchSemanticsNodes().forEach { audit(it, issues) }
         android.util.Log.i(
             "SemanticsAudit",
-            "[$tag] 审计了 $auditedClickables 个可点击节点、$auditedHeadings 个 heading，问题 ${issues.size} 条",
+            "[$tag] 审计了 $auditedClickables 个可点击节点、$auditedHeadings 个 heading、" +
+                "跳过 $auditedUnplaced 个未放置节点，问题 ${issues.size} 条",
         )
         return Triple(auditedClickables, auditedHeadings, issues)
     }
@@ -401,5 +413,60 @@ class SemanticsAuditTest {
         }
         // 实测 2 个可点击（返回 + 筛选/搜索入口；空态下）；阈值取下界 2。
         assertClean("aitasks", minClickables = 2)
+    }
+    // ---------- 第十六~二十一屏：设置族（2026-09-29 扩面二） ----------
+
+    @Test
+    fun accountSecurityScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.AccountSecurityScreen()
+        }
+        // 实测 2 个可点击（首屏返回 + 首个开关行；其余 9 个在屏外未放置，探针跳过）。
+        assertClean("accountsecurity", minClickables = 2)
+    }
+
+    @Test
+    fun generalSettingsScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.GeneralSettingsScreen()
+        }
+        // 实测 22 个可点击（22 个可见 + 39 个屏外未放置被跳过）；阈值取下界 18。
+        assertClean("generalsettings", minClickables = 18)
+    }
+
+    @Test
+    fun notificationSettingsScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.NotificationSettingsScreen()
+        }
+        // 实测 11 个可点击（1 个屏外未放置被跳过）；阈值取下界 9。
+        assertClean("notificationsettings", minClickables = 9)
+    }
+
+    @Test
+    fun moderationScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.ModerationScreen()
+        }
+        // 实测 10 个可点击；阈值取下界 8。
+        assertClean("moderation", minClickables = 8)
+    }
+
+    @Test
+    fun blockedUsersScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.BlockedUsersScreen(onBack = {})
+        }
+        // 实测 2 个可点击（空态：返回 + 空态提示）；阈值取下界 2。
+        assertClean("blockedusers", minClickables = 2)
+    }
+
+    @Test
+    fun aboutScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.AboutScreen()
+        }
+        // 实测 3 个可点击（返回 + 版本行等）；阈值取下界 2。
+        assertClean("about", minClickables = 2)
     }
 }

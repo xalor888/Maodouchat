@@ -417,6 +417,8 @@ internal fun SwitchRow(
                 )
             }
         }
-        androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+        // 行本身是 toggleable 的（整行可点、有名字）；Switch 传 null 避免产生
+        // 第二个「无名可点击」语义节点——TalkBack 用户读行、按行即可。
+        androidx.compose.material3.Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
