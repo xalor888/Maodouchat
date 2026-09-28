@@ -2339,3 +2339,16 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   1 → **0（空名单）**——B02「只做装配」欠债最后一名离场，反向断言（新增即红）继续在；
 - 判据：`:app:compileDebugKotlin` 绿；`ClientArchitectureTest` 绿；`:app:testDebugUnitTest`
   + `:app:compileDebugAndroidTestKotlin` + `:app:lintDebug` 绿。
+
+### 第十三轮续五（2026-09-28）：ChatDetailDeps 持久层收口——persistence 棘轮 17 → 0
+
+- `ChatDetailDeps`（最后一个「只做装配」持久层豁免）的 17 处 `host.app.database.*` 直连
+  全部改走非 ui 的 `chatdetail/ChatDetailDataAccess` 扩展：`messageRepo/chatLockRepo/secretTtlRepo/
+  messageSearchDao/aiSummaryRepo/aiTaskRepo/aiOperationRepo/userRepo/chatRepo/chatDraftDao/
+  readReceiptSource/applyRealtimeVisibility`（各构造与原装配一一对应，行为不变）；
+  `refreshConversationPreview` 与 `emitMessageSent` 走 `ChatDetailAccess`（新增
+  `emitChatListPreviewRefresh`）；`MaodouchatApp` import 随最后一个引用一并删除；
+- **棘轮**：`frozenUiDirectPersistence` 删 `ChatDetailDeps 17` 条目——该 map 现仅剩
+  `LoginViewModel 2`（会话建立者）+ `ChatDetailViewModel 1`（共享 `app` 属性转型行）；
+- 判据：`:app:compileDebugKotlin` 绿；`ClientArchitectureTest` 绿；`:app:testDebugUnitTest`
+  + `:app:compileDebugAndroidTestKotlin` + `:app:lintDebug` 绿。

@@ -30,6 +30,8 @@ object ChatDetailAccess {
 
     fun emitChatRead(chatId: String) = MaodouchatApp.emitChatRead(chatId)
 
+    fun emitChatListPreviewRefresh(chatId: String) = MaodouchatApp.emitChatListPreviewRefresh(chatId)
+
     val attachmentFinalizedEvents get() = MaodouchatApp.attachmentFinalizedEvents
 
     val applicationScope: CoroutineScope get() = MaodouchatApp.instance.applicationScope
