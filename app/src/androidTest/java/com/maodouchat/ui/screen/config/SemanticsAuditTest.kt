@@ -363,6 +363,6 @@ class SemanticsAuditTest {
             )
         }
         // 实测 9 个可点击（返回 + 搜索框 + 过滤 chips 等）；阈值取下界 7。
-        assertClean("globalsearch", minClickables = 7)
+        assertClean("globalsearch", minClickables = 7, minHeadings = 1)
     }
 }
