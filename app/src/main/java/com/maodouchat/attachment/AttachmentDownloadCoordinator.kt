@@ -19,7 +19,7 @@ import kotlinx.coroutines.sync.withLock
 internal class AttachmentDownloadCoordinator(
     context: Context,
     private val messageStore: LocalMessageStore,
-    private val tokenManager: TokenManager,
+    private val tokenManager: TokenManager = TokenManager.getInstance(context),
     private val isSecretChat: suspend (Message) -> Boolean,
     private val onProgress: (messageId: String, completed: Long, total: Long, start: Float, end: Float) -> Unit,
     private val onMessageUpdated: (Message) -> Unit,

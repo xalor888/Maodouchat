@@ -4,7 +4,6 @@ import android.content.Context
 import com.maodouchat.R
 import com.maodouchat.crypto.IdentitySafetyPolicy
 import com.maodouchat.crypto.SignalProtocol
-import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.SecretDeviceVerifyPrefs
@@ -22,14 +21,13 @@ import kotlinx.coroutines.withContext
 class IdentityVerificationController(
     private val context: Context,
     private val scope: CoroutineScope,
-    private val tokenManager: TokenManager,
     private val signalProtocol: SignalProtocol,
     private val resetDirectIdentityForGroup: (ChatDetailUiState) -> ChatDetailUiState,
     private val uiState: MutableStateFlow<ChatDetailUiState>,
     private val text: (Int) -> String,
 ) {
-    private val currentUserId: String get() = tokenManager.getUserId() ?: "me"
-    private val token: String get() = tokenManager.getToken() ?: ""
+    private val currentUserId: String get() = com.maodouchat.session.CurrentSession.snapshot().userId ?: "me"
+    private val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token ?: ""
 
     fun refreshIdentitySafetyState(contactId: String) {
         if (uiState.value.chat?.isGroup == true) {
@@ -57,7 +55,7 @@ class IdentityVerificationController(
                     uiState.update { it.copy(isLoadingDeviceSafety = false) }
                     return@launch
                 }
-                val liveToken = tokenManager.getToken().orEmpty().ifBlank { token }
+                val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty().ifBlank { token }
                 val result = withContext(Dispatchers.IO) {
                     signalProtocol.getRemoteDeviceSafetyStates(liveToken, contactId)
                 }

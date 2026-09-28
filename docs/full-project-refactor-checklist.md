@@ -2311,3 +2311,15 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
     `DeviceRegistry`/`SignalKeyRepository` 解析失败）——必须 app + server 同步迁移并做
     跨版本信封互操作回归；
 - **口径**：上述诊断均以本地 worktree 复现定位，结论写回各 PR 评论。
+
+### 第十三轮续三（2026-09-28）：令牌读者收口——5 → 1
+
+- `ChatRealtimeController` 改收 `SessionContextProvider`（不再持 `TokenManager`）；
+  装配处（`ChatDetailDeps`）走新非 ui 访问口 `session/SessionContexts.provider(application)`；
+- `IdentityVerificationController` 的 `getUserId()/getToken()` 改走 `CurrentSession.snapshot()`；
+- **装配参数自持化**：`AttachmentDownloadCoordinator`、`createAndroidConversationLocalStateCoordinator`、
+  `createAndroidGroupMessagingCoordinator` 三处非 ui 构造器的 `tokenManager` 参数给默认值
+  （`= TokenManager.getInstance(context/app)`），ui 装配点不再传参；
+- 结果：`frozenUiTokenReaders` 5 → 1（仅剩 `LoginViewModel`——登录页本身就是会话的拥有者）；
+- 判据：`:app:compileDebugKotlin` 绿；`ClientArchitectureTest` 网络棘轮用例绿；
+  `:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin` + `:app:lintDebug` 绿。

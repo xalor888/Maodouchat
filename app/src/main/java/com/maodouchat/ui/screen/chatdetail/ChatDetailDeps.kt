@@ -60,7 +60,6 @@ import com.maodouchat.messaging.v2.OutgoingMessageCommand
 import com.maodouchat.messaging.v2.OutgoingMessageResult
 import com.maodouchat.messaging.v2.createAndroidGroupMessagingCoordinator
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
@@ -130,7 +129,6 @@ internal class ChatDetailDeps(
     internal val attachmentDownloadCoordinator = AttachmentDownloadCoordinator(
         context = application,
         messageStore = messageRepo,
-        tokenManager = TokenManager.getInstance(application),
         isSecretChat = { message ->
             host._uiState.value.isSecretChat == true || host.app.secretConversationController.capabilities(message.chatId).isSecretChat
         },
@@ -165,8 +163,7 @@ internal class ChatDetailDeps(
             transferRepository = RoomTransferRepository(host.app),
             preparationService = DefaultAttachmentPreparationService(application),
             messageStore = messageRepo,
-            tokenManager = tokenManager,
-            commandFacade = commandFacade,
+                commandFacade = commandFacade,
             ownerUserId = { host.currentUserId },
             onProgress = { id, completed, total ->
                 host.updateFileTransferProgress(id, completed, total, 0f, 0.35f)
@@ -226,7 +223,6 @@ internal class ChatDetailDeps(
     internal val userRepo = UserRepository(host.app.database.userDao())
     internal val chatRepo = ChatRepository(host.app.database.chatDao(), host.app.database.userDao())
     internal val chatDraftDao = host.app.database.chatDraftDao()
-    internal val tokenManager = TokenManager.getInstance(application)
     internal val outgoingFacade by lazy {
         ChatOutgoingFacade(
             getCachedConversation = chatRepo::getChatById,
@@ -294,7 +290,6 @@ internal class ChatDetailDeps(
     )
     internal val conversationLocalStateCoordinator = createAndroidConversationLocalStateCoordinator(
         app = host.app,
-        tokenManager = tokenManager,
         scheduleCoordinator = conversationScheduleCoordinator,
     )
     internal val voiceRecorder = VoiceRecorder(application)
@@ -304,7 +299,6 @@ internal class ChatDetailDeps(
     internal val groupMessagingCoordinator = createAndroidGroupMessagingCoordinator(
         app = host.app,
         signalProtocol = signalProtocol,
-        tokenManager = tokenManager,
     )
     internal val groupLifecycleCoordinator = GroupLifecycleCoordinator(
         ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
@@ -470,9 +464,9 @@ internal class ChatDetailDeps(
         quantityText = { id, quantity, args -> host.quantityText(id, quantity, *args) },
     )
     internal val realtimeController = ChatRealtimeController(
+        sessionContextProvider = com.maodouchat.session.SessionContexts.provider(application),
         application = application,
         scope = host.viewModelScope,
-        tokenManager = tokenManager,
         ownerUserId = { host.currentUserId },
         token = { host.token },
         activeChatId = { host.activeChatId },
@@ -529,7 +523,6 @@ internal class ChatDetailDeps(
     internal val identityVerificationController = IdentityVerificationController(
         context = application,
         scope = host.viewModelScope,
-        tokenManager = tokenManager,
         signalProtocol = signalProtocol,
         resetDirectIdentityForGroup = groupSecurityStateController::resetDirectIdentityForGroup,
         uiState = host._uiState,
