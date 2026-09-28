@@ -254,6 +254,10 @@ class ClientArchitectureTest {
      *    要让 ui 不碰令牌，得先让协议层自己取凭据。
      * 4. ~~真的还该继续拆~~：`SettingsViewModel` 已在 G332 拆完（27 处取令牌 + 22 处取身份全部收进
      *    会话层，仓库改自持凭据，文件 1223 → 1194 行并同步收紧上限）——所以现在名单只剩上面三类 6 个。
+     *
+     * 2026-09-28 收口后：本名单已到 **1**（仅剩 `LoginViewModel`）——「只做装配」的四个已全部离场
+     * （ChatDetailDeps/ChatListPorts 装配参数自持化、ChatRealtimeController 收 SessionContextProvider、
+     * GroupDetailViewModel 更早已收口），IdentityVerificationController 改走 CurrentSession.snapshot()。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
@@ -747,12 +751,8 @@ class ClientArchitectureTest {
      * 棘轮只许降（下面的反向断言会强制：修好一个就必须从名单里删掉）。
      */
     private val frozenUiAppDatabaseGrabbers: List<String> = listOf(
-        // U02 延伸：ChatDetailViewModel 的 5 处 app.database 直连收进非 ui 的
-        // chatdetail/ChatDetailDataAccess，名单 3 → 2（条目删除）。
-        "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
-        // 通讯录两文件已还债（AndroidContactsRepository 改构造器注入 UserRepository；
-        // ContactsViewModel 的 3 处 userDao/userRepository 直连改走 AppRepositories.users/userDao），
-        // 名单 4 → 2。
+        // 2026-09-28：ChatListPorts 整体迁出 ui（com/maodouchat/chatlist/ChatListPorts.kt，
+        // 装配块随迁）——最后一名还债离场，名单 1 → 0（空名单 + 反向断言：新增即红）。
     )
 
     /**
@@ -1138,7 +1138,6 @@ class ClientArchitectureTest {
         // SecretChatCapabilities.forChat（#109 同款）、群消息协调器装配 +
         // groupMembershipStore 收进非 ui 的 com.maodouchat.group.GroupDetailAccess，
         // 2 → 0，条目删除。
-        "screen/chatlist/ChatListPorts.kt" to 23,
         // 通讯录收口：ContactsRepository 3 → 0（条目删除），ContactsViewModel 10 → 3
         //（剩余 3 处是 `import MaodouchatApp` + 通知中心静态发射 + `as?` 取实时事件分发器，
         // 均非持久层直连）。

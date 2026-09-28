@@ -2323,3 +2323,19 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 结果：`frozenUiTokenReaders` 5 → 1（仅剩 `LoginViewModel`——登录页本身就是会话的拥有者）；
 - 判据：`:app:compileDebugKotlin` 绿；`ClientArchitectureTest` 网络棘轮用例绿；
   `:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin` + `:app:lintDebug` 绿。
+
+### 第十三轮续四（2026-09-28）：ChatListPorts 整体迁出 ui——grabbers 名单清零（1 → 0）
+
+- `ChatListPorts.kt`（232 行：端口数据类 + `AndroidChatListPorts.create` 装配块）从
+  `ui/screen/chatlist/` 迁到非 ui 的 `com/maodouchat/chatlist/`——纯装配/端口，无 ui import（实测）；
+- 随迁依赖收口：`PushVerifyKeyAction` + `parsePushVerifyKeyPayload`（纯 JSON 解析）从
+  `ChatListAnnouncementCoordinator` 抽到非 ui 的 `chatlist/PushVerifyKeyPayload.kt`；
+  `dismissalEntity(...)` 调用改为直接构造 `ArchiveSuggestionDismissalEntity`（data 层实体）；
+- **试过但回退**：`ChatListAnnouncementCoordinator`/`ChatListArchiveSuggestionCoordinator`/
+  `OwnerSessionPolicy` 一起迁不通——前者依赖 `ChatListUiState`（ui）、后者依赖 ui 根包的
+  `OwnerSessionSnapshot`；连带爆炸半径（15 文件 import + 级联）不划算，回退后只留
+  Ports 迁移 + 最小抽取；
+- 棘轮：`frozenUiDirectPersistence` 删 `ChatListPorts 23` 条目；`frozenUiAppDatabaseGrabbers`
+  1 → **0（空名单）**——B02「只做装配」欠债最后一名离场，反向断言（新增即红）继续在；
+- 判据：`:app:compileDebugKotlin` 绿；`ClientArchitectureTest` 绿；`:app:testDebugUnitTest`
+  + `:app:compileDebugAndroidTestKotlin` + `:app:lintDebug` 绿。

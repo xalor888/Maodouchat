@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
+import com.maodouchat.chatlist.AndroidChatListPorts
+import com.maodouchat.chatlist.ChatListPorts
 import com.maodouchat.conversation.ConversationLocalCleanupMode
 import com.maodouchat.conversation.ConversationLocalCleanupSession
 import com.maodouchat.conversation.conversationLocalCleanupSession
