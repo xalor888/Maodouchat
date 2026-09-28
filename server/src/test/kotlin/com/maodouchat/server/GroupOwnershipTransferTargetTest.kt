@@ -7,7 +7,7 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.ConversationCreationRepository
-import com.maodouchat.server.repository.GroupMembershipService
+import com.maodouchat.server.service.GroupMembershipService
 import com.maodouchat.server.repository.GroupMembershipRepository
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq

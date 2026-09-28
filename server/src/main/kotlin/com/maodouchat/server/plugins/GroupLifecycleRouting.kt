@@ -2,7 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateMemberRoleRequest
-import com.maodouchat.server.repository.GroupMembershipService
+import com.maodouchat.server.service.GroupMembershipService
 import com.maodouchat.server.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall

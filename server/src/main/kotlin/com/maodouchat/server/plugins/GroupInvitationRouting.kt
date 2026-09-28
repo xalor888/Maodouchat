@@ -8,7 +8,7 @@ import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.repository.GroupInviteAcceptResult
 import com.maodouchat.server.repository.GroupMemberMutationResult
-import com.maodouchat.server.repository.GroupMembershipService
+import com.maodouchat.server.service.GroupMembershipService
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.FcmPushService
 import io.ktor.http.HttpStatusCode

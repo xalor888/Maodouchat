@@ -4,6 +4,7 @@ import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.BlobStore
+import com.maodouchat.server.service.GroupMembershipService
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.request.*
