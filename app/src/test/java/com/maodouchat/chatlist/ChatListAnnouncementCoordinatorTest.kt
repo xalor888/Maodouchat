@@ -5,8 +5,8 @@ import com.maodouchat.notification.AnnouncementPolicy
 import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.ui.screen.chatlist.ChatListAnnouncementCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
-import com.maodouchat.ui.screen.chatlist.PushVerifyKeyAction
-import com.maodouchat.ui.screen.chatlist.parsePushVerifyKeyPayload
+import com.maodouchat.chatlist.PushVerifyKeyAction
+import com.maodouchat.chatlist.parsePushVerifyKeyPayload
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject

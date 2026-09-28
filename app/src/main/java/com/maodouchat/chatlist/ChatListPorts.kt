@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.chatlist
 
 import android.app.Application
 import androidx.room.withTransaction
@@ -192,7 +192,11 @@ internal object AndroidChatListPorts {
             },
             addArchiveDismissal = { userId, chatId, atMillis ->
                 database.archiveDismissalDao().add(
-                    ChatListArchiveSuggestionCoordinator.dismissalEntity(userId, chatId, atMillis),
+                    com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity(
+                        ownerUserId = userId,
+                        chatId = chatId,
+                        dismissedAtMillis = atMillis,
+                    ),
                 )
             },
             refreshArchiveSuggestions = {
