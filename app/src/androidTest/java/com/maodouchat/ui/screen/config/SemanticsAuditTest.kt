@@ -10,8 +10,8 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
 import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -122,12 +122,12 @@ class SemanticsAuditTest {
         node.children.forEach { audit(it, out) }
     }
 
-    /** @return (审计到的可点击节点数, 问题列表)。 */
+    /** @return (审计到的可点击节点数, 问题列表)。多 root 场景（弹窗/权限对话框）逐个审计。 */
     private fun auditScreen(tag: String): Pair<Int, List<Issue>> {
         compose.waitForIdle()
         auditedClickables = 0
         val issues = mutableListOf<Issue>()
-        audit(compose.onRoot().fetchSemanticsNode(), issues)
+        compose.onAllNodes(isRoot()).fetchSemanticsNodes().forEach { audit(it, issues) }
         android.util.Log.i(
             "SemanticsAudit",
             "[$tag] 审计了 $auditedClickables 个可点击节点，问题 ${issues.size} 条",
@@ -296,5 +296,27 @@ class SemanticsAuditTest {
         )
         compose.setContent { ExploreScreen(viewModel = vm) }
         assertClean("explore", minClickables = 2)
+    }
+
+    // ---------- 第七、八屏：Contacts / Login（真 VM + 真 Application，装配同 ChatListViewModel 款） ----------
+
+    @Test
+    fun contactsScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.contacts.ContactsViewModel(application())
+        compose.setContent {
+            com.maodouchat.ui.screen.contacts.ContactsScreen(viewModel = vm)
+        }
+        // 实测 10 个可点击（权限说明弹窗 + 空态入口 + 顶栏）；阈值取下界 8（探针纪律：先测量再设阈值）。
+        assertClean("contacts", minClickables = 8)
+    }
+
+    @Test
+    fun loginScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.login.LoginViewModel(application())
+        compose.setContent {
+            com.maodouchat.ui.screen.login.LoginScreen(viewModel = vm)
+        }
+        // 实测 8 个可点击；阈值取下界 6。
+        assertClean("login", minClickables = 6)
     }
 }
