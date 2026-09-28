@@ -156,6 +156,7 @@ class ClientArchitectureTest {
      * （见 [stripCommentsAndStringBodies]；`ui must not import data-local daos` 同款做法）；
      * import 行本身也含该前缀，所以一次扫描同时覆盖 import 与 FQ 两种写法。
      * 包名出现在字符串里（日志、文档）不算引用，不会误伤。
+     * 2026-09-28：#165 已合并，本批也收口完毕——门禁彻底落闸：offenders 必须为零，无待修表。
      *
      * 剩下的例外是**架构上正确**的方向，不是倒置：
      * - `MainActivity.kt`：它就是要承载 UI 的入口 Activity；
@@ -174,22 +175,6 @@ class ClientArchitectureTest {
             "导航图注册点必须引用 Composable 屏幕",
     )
 
-    /**
-     * #165（`qca/layering-fq-fixes`）正在修的 3 处 FQ 真违规。
-     *
-     * 本批与 #165 并行：判据收紧后这 3 处会被立即扫出来，但它们是 #165 的文件，
-     * 按「open PR 文件无交集」规则本轮不能动。这里显式冻结为「待修」——**只许删不许加**；
-     * #165 合并后下一轮必须删掉此表（下面的 `fixed` 断言会强制提醒）。
-     */
-    private val pendingLayeringFqOffenders: Map<String, String> = mapOf(
-        "com/maodouchat/ai/agent/AgentToolHost.kt" to
-            "待 #165：VISIBILITY_VALUES 的 FQ 引用（SettingsVisibilityPolicy 已迁出 ui）",
-        "com/maodouchat/crypto/SignalProtocol.kt" to
-            "待 #165：DecryptEnvelopeGate 的 FQ 引用（已抽到 messaging/ 非 ui 包）",
-        "com/maodouchat/explore/policy/ExploreDraftPolicy.kt" to
-            "待 #165：normalizeVisibility 的 FQ 引用（已迁到 settings/ 非 ui 包）",
-    )
-
     @Test
     fun `packages outside ui must not import ui`() {
         val root = File(appMain, "com/maodouchat")
@@ -201,20 +186,12 @@ class ClientArchitectureTest {
             .map { it.relativeTo(appMain).path.replace('\\', '/') }
             .filterNot { it in uiImportAllowedFromOutsideUi.keys }
             .sorted()
-        val unexpected = offenders - pendingLayeringFqOffenders.keys
         assertEquals(
             emptyList(),
-            unexpected,
+            offenders,
             "这些非 ui 包的文件引用了 com.maodouchat.ui.*（import 或全限定名）——分层倒置。" +
                 "纯逻辑请搬到中立包（如 theme/、messaging/、settings/），" +
-                "属于 UI 的文件请搬回 ui/；确实合理的要加进 uiImportAllowedFromOutsideUi 并写明理由。实际=$unexpected",
-        )
-        val fixed = pendingLayeringFqOffenders.keys - offenders.toSet()
-        assertEquals(
-            emptySet<String>(),
-            fixed,
-            "pending 表里的 FQ 违规已消失（好事，多半是 #165 合并了）——" +
-                "请把 pendingLayeringFqOffenders 的对应条目删掉，让门禁彻底落闸。实际=$fixed",
+                "属于 UI 的文件请搬回 ui/；确实合理的要加进 uiImportAllowedFromOutsideUi 并写明理由。实际=$offenders",
         )
     }
 
