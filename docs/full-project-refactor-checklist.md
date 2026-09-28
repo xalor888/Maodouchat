@@ -2468,3 +2468,17 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 依赖全经构造器注入（同 `ChatPinStarController` 一族，12 个 lambda/对象）；
   VM 侧只留委托 + `deps` 装配；热点上限两份 map 同步收紧 2420 → 2343；
 - 与 #170 在 caps 两份 map 同一区块合并冲突——按主线解冲突（2185 + 2343）并重跑全绿。
+
+### 第十三轮续十四（2026-09-29，G346）：`ChatDetailViewModel` 第二个控制器切片——`retrySendMessage` 抽出（2343 → 2275，PR #176）
+
+- 重发失败消息的编排（72 行）逐字抽到新 `ChatRetrySender`：重试准入守卫（归属/状态/类型）
+  走纯函数 `ChatSendGuard.checkRetry`（可单测）；编排只做附件重发分流 → 乐观回 SENDING →
+  出站队列重试 → 结果回填 / 异常回滚（`BackgroundSessionGate` 判活 + 本地持久化回写）；
+- 依赖全经构造器注入（同 `ChatNudgeSender` 一族，10 个 lambda/对象）；附件重发分流回 VM
+  的 `sendEncryptedAttachment`（仍在 VM 内，140 行——下一个待切片）；`toUri` import 随搬移
+  离场（VM 内已无使用者，删 import，行数 −1）；日志 tag 保持 `ChatDetailViewModel` 不变；
+- 等价性：新旧方法体逐行 diff（9 处预期注入替换外）零差异；`token`/`currentUserId` 仍按
+  每次调用求值（lambda），语义不变；
+- 热点上限两份 map 同步收紧 2343 → 2275（零松量）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证（`:app:testDebugUnitTest` 两条
+  棘轮用例 + `:app:compileDebugKotlin`）。
