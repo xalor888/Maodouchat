@@ -1,5 +1,10 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
+import com.maodouchat.server.repository.AddGroupMembersResult
+import com.maodouchat.server.repository.AddOwnedBotResult
+import com.maodouchat.server.repository.GroupMemberMutationResult
+import com.maodouchat.server.repository.GroupMembershipRepository
+import com.maodouchat.server.repository.TransferOwnershipResult
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /**

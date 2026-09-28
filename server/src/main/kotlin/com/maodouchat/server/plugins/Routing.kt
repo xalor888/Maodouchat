@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
+import com.maodouchat.server.service.GroupMembershipService
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.SealedSenderCertificateService
 import com.maodouchat.server.model.*

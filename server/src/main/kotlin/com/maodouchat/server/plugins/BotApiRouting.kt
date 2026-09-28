@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.service.GroupInvitationService
+import com.maodouchat.server.service.GroupMembershipService
 import io.ktor.server.routing.Route
 import kotlinx.serialization.json.Json
 
