@@ -465,6 +465,26 @@ internal class ChatDetailDeps(
         },
         text = { id, args -> host.text(id, *args) },
     )
+    // G349：`sendEncryptedAttachment()` 的附件发送编排抽到 ChatAttachmentSender——
+    // VM 侧只留同签名委托（默认参数保留在 VM）。
+    internal val attachmentSender = ChatAttachmentSender(
+        scope = host.viewModelScope,
+        activeChatId = { host.activeChatId },
+        ownerUserId = { host.currentUserId },
+        token = { host.token },
+        mediaUploadEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.MEDIA_UPLOAD) },
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        mergeMessages = host::mergeMessages,
+        attachmentIntentController = attachmentIntentController,
+        getMessageById = messageRepo::getMessageById,
+        persistMessage = messageRepo::insertMessage,
+        resumeFileTransfer = host::resumeFileTransfer,
+        preparationJobs = attachmentPreparationJobs,
+        currentSessionUserId = { com.maodouchat.session.CurrentSession.snapshot().userId.orEmpty() },
+        attachmentErrorText = host::attachmentErrorText,
+        text = { id, args -> host.text(id, *args) },
+    )
     internal val moderationController = ChatModerationController(
         application = application,
         scope = host.viewModelScope,
