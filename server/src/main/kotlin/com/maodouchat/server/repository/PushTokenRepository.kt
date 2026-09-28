@@ -2,6 +2,7 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.PushTokens
+import com.maodouchat.server.service.isUniqueViolation
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList

@@ -15,6 +15,7 @@ import com.maodouchat.server.messaging.v2.SendMessageV2Result
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.MessageReactionResponse
 import com.maodouchat.server.model.MessageResponse
+import com.maodouchat.server.service.isUniqueViolation
 import java.sql.SQLException
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq

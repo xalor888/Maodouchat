@@ -10,7 +10,7 @@ import com.maodouchat.server.model.PostCommentResponse
 import com.maodouchat.server.model.PostResponse
 import com.maodouchat.server.repository.PostJson
 import com.maodouchat.server.repository.VisibilityPolicy
-import com.maodouchat.server.repository.isUniqueViolation
+import com.maodouchat.server.service.isUniqueViolation
 import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList

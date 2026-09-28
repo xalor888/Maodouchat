@@ -3,9 +3,9 @@ package com.maodouchat.server.service
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.UserResponse
 import com.maodouchat.server.repository.AvatarReplacementResult
-import com.maodouchat.server.repository.MAX_NAME_LENGTH
-import com.maodouchat.server.repository.isUniqueViolation
-import com.maodouchat.server.repository.toPublicUser
+import com.maodouchat.server.service.MAX_NAME_LENGTH
+import com.maodouchat.server.service.isUniqueViolation
+import com.maodouchat.server.service.toPublicUser
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 import org.jetbrains.exposed.sql.and

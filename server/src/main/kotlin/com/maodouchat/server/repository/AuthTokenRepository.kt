@@ -7,6 +7,7 @@ import com.maodouchat.server.db.RefreshTokens
 import org.jetbrains.exposed.sql.count
 import com.maodouchat.server.db.RevokedAccessTokens
 import com.maodouchat.server.db.Users
+import com.maodouchat.server.service.isUniqueViolation
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq

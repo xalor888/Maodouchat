@@ -9,6 +9,7 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.lockUsersInTx
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.service.DisappearingMessagePolicy
+import com.maodouchat.server.service.isUniqueViolation
 import java.util.UUID
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder

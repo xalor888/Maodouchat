@@ -5,7 +5,7 @@ import com.maodouchat.server.db.PostComments
 import com.maodouchat.server.db.PostLikes
 import com.maodouchat.server.db.Posts
 import com.maodouchat.server.repository.PostVisibility
-import com.maodouchat.server.repository.isUniqueViolation
+import com.maodouchat.server.service.isUniqueViolation
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery

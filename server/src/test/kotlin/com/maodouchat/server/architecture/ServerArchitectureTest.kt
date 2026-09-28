@@ -72,10 +72,8 @@ class ServerArchitectureTest {
      */
     private val frozenServicesDependingOnPlugins: Map<String, Int> = emptyMap()
 
-    /** 物理错放在 `repository/` 的 `*Service.kt`。当前 1 个（应迁往 `service/`）。 */
-    private val frozenServicesInRepositoryPackage: Set<String> = setOf(
-        "CredentialService.kt",
-    )
+    /** 物理错放在 `repository/` 的 `*Service.kt`。已归零（最后一块 `CredentialService.kt` 已迁往 `service/`）。 */
+    private val frozenServicesInRepositoryPackage: Set<String> = emptySet()
 
     // ------------------------------------------------------------------
     // 源码文本判决的公共前置：剥注释（G168b）

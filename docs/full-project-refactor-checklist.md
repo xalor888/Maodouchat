@@ -873,6 +873,8 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 
 （2026-09-28 续：`AccountLifecycleService`（432 行 B02 账号注销编排：账号删除与全部关联数据清理，含群主转让/退群/空会话级联/附件孤儿收集）从 `repository/` 迁往 `service/`——package 改名 + 本文件补 1 个 `repository/` 跨包 import（`AccountDeactivationResult`，在 `repository/UserRepository.kt` 顶层声明，public）+ 唯一调用方 `repository/UserRepository`（`private val accountLifecycleService` 构造处）补 `import service.AccountLifecycleService` + `frozenServicesInRepositoryPackage` 2→1。类体逐行未动；`ConversationStateDeletion`/`BotRepository` 仅为注释提及无需改；SQL 边界仍在 `Users` 等 `db` 表与各 repository。现仅剩 `CredentialService.kt`（其顶层 `internal` helper 被 repository 包内调用方使用，迁移需先解耦）。）
 
+（2026-09-28 续：`CredentialService`（269 行 B02 注册/登录/TOTP/改密/邮箱重置凭证子域 + 6 个包内共享顶层 helper：`MAX_NAME_LENGTH`/`DELETED_USER_NAME`/`normalizedEmail`/`toPrivateUser`/`toPublicUser`/`isUniqueViolation`）从 `repository/` 迁往 `service/`——package 改名 + `repository/UserRepository`（类/3 个 helper/`isUniqueViolation` FQ 委托）/`plugins/AuthRouting`（通配符补显式）/`service/ProfileService`/`PostCommandService`/`PostInteractionService`（3 处显式 import 改向）/`service/JobLease`（FQ 改向）改 import + 12 个包内仓储补 `import service.isUniqueViolation` + `frozenServicesInRepositoryPackage` 1→0（空集）。类体逐行未动；成员遮蔽的 5 处（`NearbyRepository`/`FeedQueryService` 的私有 `toPublicUser`、`AccountLifecycleService` 的私有 `DELETED_USER_NAME`、`EmailService` 的私有 `normalizedEmail`、`UserRepository` 的 companion `MAX_NAME_LENGTH` 与成员 `isUniqueViolation`）与 plugins 包自有的 `normalizedEmail` 逐文件核对解析目标，不受影响。）
+
 Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性能通过。
 
 ### B14 应用更新、静态文件、水印与运维工具
@@ -2376,3 +2378,33 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   （FQ 正则 + 白名单扩到 4 个导航注册文件）——三件一起做才能落闸；
 - 判据：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
   + `:app:lintDebug` 绿（含热点上限用例）。
+
+### 第十三轮续七（2026-09-28）：分层门禁 FQ 落闸——theme 纯数据类型迁出 ui、未读角标事件化、门禁判据收紧（PR #166）
+
+- `ui/theme/` 的 4 个纯数据类型（`ThemePaint`/`SentBubbleSpec`/`ChatBubbleColorPalette`/
+  `ChatPalette`）迁到中立 `theme/` 包；`CustomThemeStore`/`ChatAppearancePreferences` 等
+  调用方改新包；
+- `SecureSessionManager` 对 `UnreadBadgeStore` 的直读改事件化（security→ui 事件）；
+- 门禁判据收紧：`packages outside ui must not import ui` 改为在剥注释 + 剥字符串内容后的
+  源码里找 `com.maodouchat.ui.` 前缀（import 行自带该前缀，一次扫描同时覆盖 import 与
+  全限定名两种写法）；白名单扩到 4 个导航注册文件 + MainActivity；
+- `pendingLayeringFqOffenders` 冻结 #165 正在修的 3 处——#165 合并后按 `fixed` 断言的指示
+  删表，门禁彻底落闸（offenders 必须为零）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续八（2026-09-28）：`CredentialService` 从 repository/ 迁往 service/——错放棘轮 1→0（空集）
+
+- `CredentialService`（269 行：注册 / 登录 / TOTP 二因子 / 改密 / 邮箱重置凭证子域）+
+  同文件 6 个包内共享顶层 helper（`MAX_NAME_LENGTH`/`DELETED_USER_NAME`/`normalizedEmail`/
+  `toPrivateUser`/`toPublicUser`/`isUniqueViolation`）从 `repository/` 迁往 `service/`——
+  package 改名，类体逐行未动（跨包引用原本就全限定）；
+- 调用方改 import：`repository/UserRepository`（类 + 3 个 helper + `isUniqueViolation` FQ 委托）/
+  `plugins/AuthRouting`（通配符补显式 import）/`service/ProfileService`/`PostCommandService`/
+  `PostInteractionService`（3 处显式 import 改向）/`service/JobLease`（FQ 改向）+
+  12 个 repository 包内仓储补 `import service.isUniqueViolation`；成员遮蔽的 5 处
+  （`NearbyRepository`/`FeedQueryService` 的私有 `toPublicUser`、`AccountLifecycleService`
+  的私有 `DELETED_USER_NAME`、`EmailService` 的私有 `normalizedEmail`、`UserRepository`
+  的 companion `MAX_NAME_LENGTH` 与成员 `isUniqueViolation`）与 plugins 包自有的
+  `normalizedEmail` 逐文件核对解析目标，不受影响；
+- 棘轮：`frozenServicesInRepositoryPackage` 1→0（空集）——`repository/` 错放 `*Service.kt` 清零；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

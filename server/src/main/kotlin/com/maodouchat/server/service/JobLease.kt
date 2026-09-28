@@ -35,7 +35,7 @@ class JobLease(
                 }
                 true
             }.getOrElse { error ->
-                if (com.maodouchat.server.repository.isUniqueViolation(error)) false else throw error
+                if (com.maodouchat.server.service.isUniqueViolation(error)) false else throw error
             }
         }
         if (row[JobLeases.owner] == ownerId || row[JobLeases.expiresAt] <= now) {

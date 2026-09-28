@@ -8,6 +8,7 @@ import com.maodouchat.server.db.GroupChains
 import com.maodouchat.server.db.GroupCheckins
 import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
+import com.maodouchat.server.service.isUniqueViolation
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.ResultRow

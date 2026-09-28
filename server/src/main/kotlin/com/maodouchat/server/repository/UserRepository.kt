@@ -8,8 +8,12 @@ import com.maodouchat.server.model.UserPrivacyResponse
 import com.maodouchat.server.model.UserResponse
 import com.maodouchat.server.service.AccountLifecycleService
 import com.maodouchat.server.service.BlockService
+import com.maodouchat.server.service.CredentialService
 import com.maodouchat.server.service.PrivacyService
 import com.maodouchat.server.service.ProfileService
+import com.maodouchat.server.service.normalizedEmail
+import com.maodouchat.server.service.toPrivateUser
+import com.maodouchat.server.service.toPublicUser
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
@@ -596,7 +600,7 @@ class UserRepository {
 
 
     fun isUniqueViolation(error: Throwable): Boolean =
-        com.maodouchat.server.repository.isUniqueViolation(error)
+        com.maodouchat.server.service.isUniqueViolation(error)
 
     private companion object {
         private const val MAX_NAME_LENGTH = 50
