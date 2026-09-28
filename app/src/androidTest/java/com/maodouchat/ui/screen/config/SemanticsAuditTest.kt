@@ -431,7 +431,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.GeneralSettingsScreen()
         }
         // 实测 22 个可点击（22 个可见 + 39 个屏外未放置被跳过）；阈值取下界 18。
-        assertClean("generalsettings", minClickables = 18)
+        assertClean("generalsettings", minClickables = 18, minHeadings = 1)
     }
 
     @Test
@@ -440,7 +440,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.NotificationSettingsScreen()
         }
         // 实测 11 个可点击（1 个屏外未放置被跳过）；阈值取下界 9。
-        assertClean("notificationsettings", minClickables = 9)
+        assertClean("notificationsettings", minClickables = 9, minHeadings = 1)
     }
 
     @Test
@@ -449,7 +449,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.ModerationScreen()
         }
         // 实测 10 个可点击；阈值取下界 8。
-        assertClean("moderation", minClickables = 8)
+        assertClean("moderation", minClickables = 8, minHeadings = 1)
     }
 
     @Test
@@ -458,7 +458,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.BlockedUsersScreen(onBack = {})
         }
         // 实测 2 个可点击（空态：返回 + 空态提示）；阈值取下界 2。
-        assertClean("blockedusers", minClickables = 2)
+        assertClean("blockedusers", minClickables = 2, minHeadings = 1)
     }
 
     @Test
@@ -467,7 +467,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.AboutScreen()
         }
         // 实测 3 个可点击（返回 + 版本行等）；阈值取下界 2。
-        assertClean("about", minClickables = 2)
+        assertClean("about", minClickables = 2, minHeadings = 1)
     }
     // ---------- 第二十二~三十屏：其余设置/工具族（2026-09-29 扩面三） ----------
 
@@ -477,7 +477,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.call.CallHistoryScreen(onBack = {}, onCall = { _, _, _ -> })
         }
         // 实测 1 个可点击（仅返回；空态列表无可点行）；阈值取下界 1。
-        assertClean("callhistory", minClickables = 1)
+        assertClean("callhistory", minClickables = 1, minHeadings = 1)
     }
 
     @Test
@@ -522,7 +522,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.WatermarkForensicScreen(onBack = {})
         }
         // 实测 2 个可点击（返回 + 空态/刷新）；阈值取下界 2。
-        assertClean("watermarkforensic", minClickables = 2)
+        assertClean("watermarkforensic", minClickables = 2, minHeadings = 1)
     }
 
     @Test
@@ -531,7 +531,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.AiPrivacySettingsScreen()
         }
         // 实测 9 个可点击（19 个屏外未放置被跳过）；阈值取下界 7。
-        assertClean("aiprivacy", minClickables = 7)
+        assertClean("aiprivacy", minClickables = 7, minHeadings = 1)
     }
 
     @Test
@@ -540,7 +540,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.MyReportsScreen()
         }
         // 实测 2 个可点击（空态）；阈值取下界 2。
-        assertClean("myreports", minClickables = 2)
+        assertClean("myreports", minClickables = 2, minHeadings = 1)
     }
 
     @Test
@@ -549,6 +549,6 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.ServerSettingsScreen()
         }
         // 实测 5 个可点击；阈值取下界 4。
-        assertClean("serversettings", minClickables = 4)
+        assertClean("serversettings", minClickables = 4, minHeadings = 1)
     }
 }
