@@ -37,6 +37,8 @@ import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.material3.AlertDialog
@@ -153,7 +155,7 @@ fun ContactsScreen(
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
-                title = { Text(stringResource(R.string.nav_contacts), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
+                title = { Text(stringResource(R.string.nav_contacts), modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 actions = {
                     // 标题栏搜索图标：点击清空当前搜索框输入（已输入时），否则聚焦体验由下方 SearchBar 承担
                     IconButton(onClick = onOpenScan) {
@@ -650,8 +652,6 @@ fun ContactsScreen(
         }
     }
 }
-
-
 
 
 
