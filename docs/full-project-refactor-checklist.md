@@ -2,36 +2,38 @@
 
 **审计基线日期**：2026-08-29  
 **审计分支**：`main`  
-**已提交基线**：`e3344a53`（当时与 `origin/main` 一致；此后到 2026-09-24 的进度见下方「权威口径」）  
-**工作区状态**：**2026-09-24 实测为干净**（此前这里写的「约 255 个未提交状态项」是 2026-08-29 的快照，早已不成立）。  
+**已提交基线**：`e3344a53`（当时与 `origin/main` 一致；此后到 **2026-09-28** 的进度见下方「权威口径」）  
+**工作区状态**：**2026-09-28 复核为干净**（此前这里写的「约 255 个未提交状态项」是 2026-08-29 的快照，早已不成立）。  
 **目标**：保留产品能力和已经验证的 Messaging V2 协议不变量，重写职责边界、状态所有权、存储、网络、UI 和后端领域实现，最终删除旧入口与兼容实现。
 
 本文是执行清单，不是“功能已经完成”的声明。只有同时满足代码、迁移、测试、删除旧路径和真实 E2E 门槛，条目才允许勾选完成。
 
-## 0. 权威口径（2026-09-24 重新实测）
+## 0. 权威口径（2026-09-28 复核；上一版 2026-09-24）
 
 **这一节是本文所有数字的唯一权威来源。** 正文里的内联数字（尤其是 §G32–G58、§Q0x 那些
 长段落里带日期的数字）是**当时那一轮的日志**，多数已过期，甚至与本文其它段落互相矛盾——
 审计实测确实如此。要引用任何计数，先跑下面一条命令重新测，或引用本节。
 
-| 量 | 2026-09-24 实测值 | 怎么测 |
+| 量 | 2026-09-28 复核值（上一版 09-24） | 怎么测 |
 |----|------------------|--------|
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
-| App JVM 单测（执行数） | 2129 | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
-| App 仪器测试 | 156（`@Test` 计数） | `grep -rho "@Test" app/src/androidTest --include=*.kt \| wc -l` |
-| Server 单测（执行数） | 578（`@Test` 标注 603，差值是 postgres tag 等未进默认套件的） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
-| core/domain 模块测试（执行数） | 68 | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
-| 有测试源文件的模块 | 9 个 | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
-| `settings.gradle.kts` 模块数 | 10（app + 8 core + 1 domain） | `grep -c 'include(' settings.gradle.kts` |
+| App JVM 单测（执行数） | 2173（09-24: 2129） | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
+| App 仪器测试 | 245（`@Test` 计数；09-24: 156） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
+| Server 单测（执行数） | 620（`@Test` 标注 645；09-24: 578/603，差值是 postgres tag 等未进默认套件的） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
+| core/domain 模块测试（执行数） | 68（不变） | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
+| 有测试源文件的模块 | 9 个（不变） | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
+| `settings.gradle.kts` 模块数 | 10（app + 8 core + 1 domain） | `grep -c '":' settings.gradle.kts`（include 块多行写法，旧的 `include(` 计数已失效） |
 | `plugins/` 内 `transaction {` | **0 处** | `grep -rc "transaction {" server/src/main/kotlin/.../plugins/*.kt` |
-| `plugins/` 内 import Exposed | **0 个文件**（`StatusPages.kt` 只有全限定名引用，非 import） | `grep -rl org.jetbrains.exposed .../plugins/*.kt` |
+| `plugins/` 内 import Exposed | **0 个文件**（`StatusPages.kt` 只有全限定名引用，非 import） | `grep -rl "^import org.jetbrains.exposed" .../plugins/*.kt` |
 | `repository/`→`plugins/` 反向依赖 | 0 处 | `ServerArchitectureTest.frozenRepositoryDependingOnPlugins`（空 map） |
-| 非 ui 包 import ui | **2 处**（均为合理例外，见门禁白名单） | `ClientArchitectureTest.packages outside ui must not import ui` |
-| ui 直连 `ApiService`（真发请求） | **0 个文件**（G328c 完成，空名单 + 反向断言） | `ClientArchitectureTest.frozenUiApiCallers` |
-| ui 读会话令牌 `TokenManager` | **31 个文件**（只许降；修法是让仓库自持凭据，见 `data/repository/SessionTokens.kt`） | `ClientArchitectureTest.frozenUiTokenReaders` |
-| core 模块生产引用 | 在用 3（crypto 44 / realtime 23 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
+| 非 ui 包 import ui | **2 处**（白名单：`MainActivity.kt`、`navigation/CallDestinations.kt`，均带理由） | `ClientArchitectureTest.packages outside ui must not import ui` |
+| ui 直连 `ApiService`（真发请求） | **0 个文件**（空名单 + 反向断言） | `ClientArchitectureTest.frozenUiApiCallers` |
+| ui 读会话令牌 `TokenManager` | **5 个文件**（只许降；09-24 曾为 31——令牌自持化批次后大幅下降） | `ClientArchitectureTest.frozenUiTokenReaders` |
+| ui 直连持久层/全局单例命中 | 43 = ChatListPorts 23 + ChatDetailDeps 17 + LoginViewModel 2 + ChatDetailViewModel 1（09-24 曾为 192+；ChatDetailViewModel 本轮 19 → 1） | `ClientArchitectureTest.frozenUiDirectPersistence` |
+| core 模块生产引用 | 在用 3（crypto 44 / realtime 25 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
-| 最热三个文件行数 | `ChatDetailRoute.kt` 2786 / `ChatDetailViewModel.kt` 2545 / `util/GroupPlayPolicy.kt` 858 | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
+| lint 基线条数（只许降） | **55**（本战役起点 615） | `LintBaselineRatchetTest.frozenIssueCount` / `app/lint-baseline.xml` 块数 |
+| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` 2525 / `ChatDetailViewModel.kt` 2420 / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
 > 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
 > `compileDebugUnitTestKotlin`（JVM 单测）、`compileDebugAndroidTestKotlin`（仪器测试）。
