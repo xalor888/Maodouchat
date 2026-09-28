@@ -82,7 +82,6 @@ class ServerArchitectureTest {
         "GroupMembershipService.kt",
         "PostCommandService.kt",
         "PostInteractionService.kt",
-        "ProfileService.kt",
         "UploadSessionService.kt",
     )
 
