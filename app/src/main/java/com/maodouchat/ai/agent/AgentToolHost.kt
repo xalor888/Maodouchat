@@ -742,7 +742,7 @@ object AgentToolHost {
         val token = token(app) ?: return "Error: not signed in"
         // G154c：可见性白名单与隐私设置页共用一份
         val vis = visibility?.trim()?.uppercase()
-            ?.takeIf { com.maodouchat.ui.screen.settings.VISIBILITY_VALUES.contains(it) }
+            ?.takeIf { com.maodouchat.settings.VISIBILITY_VALUES.contains(it) }
         val post = ApiService.createPost(token, body, emptyList(), vis).getOrElse { return fail(it) }
         return "Created post ${post.id}"
     }

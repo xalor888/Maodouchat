@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.settings
 
+import com.maodouchat.settings.VISIBILITY_VALUES
+import com.maodouchat.settings.normalizeVisibility
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

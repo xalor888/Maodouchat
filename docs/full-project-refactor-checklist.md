@@ -2354,3 +2354,25 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `LoginViewModel 2`（会话建立者）+ `ChatDetailViewModel 1`（共享 `app` 属性转型行）；
 - 判据：`:app:compileDebugKotlin` 绿；`ClientArchitectureTest` 绿；`:app:testDebugUnitTest`
   + `:app:compileDebugAndroidTestKotlin` + `:app:lintDebug` 绿。
+
+### 第十三轮续六（2026-09-28）：分层门禁盲区（全限定名）首批收口
+
+**盲区**：`packages outside ui must not import ui` 只认 `import com.maodouchat.ui` 行——
+**全限定名引用整体逃逸**（与令牌读者棘轮同款病）。实测 11 个非 ui 文件以 FQ 形态引用
+`com.maodouchat.ui.*`，其中 6 处是真违规（其余 5 处为导航注册点 + MainActivity，属既有白名单类）。
+
+本批（首批）修掉 3 处真违规：
+
+- `SettingsVisibilityPolicy`（纯策略：`VISIBILITY_VALUES` + `normalizeVisibility`）
+  从 `ui/screen/settings/` 迁到非 ui 的 `com/maodouchat/settings/VisibilityPolicy.kt`；
+  `AgentToolHost` / `ExploreDraftPolicy` 的 FQ 调用改新包；`SettingsViewModel` 单点用 FQ
+  调用（零松量上限 1192 内不动行数）；
+- `DecryptEnvelopeGate`（协议能力端口）从 `ui/screen/chatdetail/ChatDetailDecryptStatus.kt`
+  抽到非 ui 的 `com/maodouchat/messaging/DecryptEnvelopeGate.kt`；`SignalProtocol` 的
+  FQ 对象表达式改 import；
+- **后续批次**：`CustomThemeStore`/`ChatAppearancePreferences`（依赖 `ui/theme` 的
+  `ThemePaint`/`SentBubbleSpec`/`ChatBubbleColorPalette`，须先拆 theme 纯数据类型）、
+  `SecureSessionManager`（读 `UnreadBadgeStore`，须改事件化）、以及**门禁判据本身的收紧**
+  （FQ 正则 + 白名单扩到 4 个导航注册文件）——三件一起做才能落闸；
+- 判据：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  + `:app:lintDebug` 绿（含热点上限用例）。

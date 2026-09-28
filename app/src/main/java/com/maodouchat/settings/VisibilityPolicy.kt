@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.settings
+package com.maodouchat.settings
 
 import com.maodouchat.explore.policy.ExploreDraftPolicy
 
