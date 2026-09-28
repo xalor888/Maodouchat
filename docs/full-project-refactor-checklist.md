@@ -2167,3 +2167,16 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 75 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
 `Overdraw` 3 / `UnusedAttribute` 2 等零散。
+
+### 第十四轮十四续（2026-09-28）：UnusedAttribute 族收口——2 条（75 → 73）
+
+`conversation_widget_info.xml` 的 `targetCellWidth`/`targetCellHeight` 需 API 31+（minSdk 26）：
+- **修法**：资源限定符拆分——`res/xml/conversation_widget_info.xml` 去掉两属性（API <31 用），
+  新建 `res/xml-v31/conversation_widget_info.xml` 完整版（含两属性，API 31+ 生效）；行为零变化，
+  31+ 设备仍得 4x2 目标格，旧设备不再读无效属性；
+- **基线手术**：−2 → 75 → 73；`frozenIssueCount` 75 → 73（`UnusedAttribute` 不在分布冻结 map 内，无需改）；
+- **判据**：`:app:testDebugUnitTest`（两条棘轮用例）绿；`:app:lintDebug` 绿。
+
+**剩余（lint 基线 73 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1（活跃 warning，
+基线豁免有效——PR #133 误删已关闭，证据见其关闭评论）；`GradleDependency` 17 + 活跃 5；
+`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；`Overdraw` 3 等零散。
