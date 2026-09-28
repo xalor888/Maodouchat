@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -26,7 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -49,8 +49,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -378,6 +379,7 @@ private fun AccentColorRow(
             com.maodouchat.ui.theme.ACCENT_OPTIONS.forEach { option ->
                 val selected = current == option.id
                 val color = if (isDark) option.dark else option.light
+                val accentLabel = stringResource(accentLabelRes(option.id))
                 Box(
                     modifier = Modifier
                         .size(34.dp)
@@ -387,6 +389,8 @@ private fun AccentColorRow(
                             if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
                             else Modifier
                         )
+                        // 纯色圆点没有文字——挂本地化颜色名，否则 TalkBack 读「按钮，未命名」。
+                        .semantics { contentDescription = accentLabel }
                         .clickable { onChange(option.id) }
                 )
             }
@@ -457,9 +461,12 @@ private fun OledBlackRow() {
                 color = LocalChatPalette.current.textSecondary
             )
         }
+        val oledLabel = stringResource(R.string.general_oled_black_title)
         androidx.compose.material3.Switch(
             checked = oledBlack,
-            onCheckedChange = { com.maodouchat.util.ThemePreferences.setOledBlack(context, it) }
+            onCheckedChange = { com.maodouchat.util.ThemePreferences.setOledBlack(context, it) },
+            // 只有开关本身可点——挂行标题，避免 TalkBack 读「开关」不带名字。
+            modifier = Modifier.semantics { contentDescription = oledLabel }
         )
     }
 }
@@ -570,7 +577,13 @@ private fun LinkPreviewSwitchRow(
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Switch(checked = enabled, onCheckedChange = onEnabledChange)
+        val switchLabel = stringResource(R.string.general_link_preview_title)
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            // 只有开关本身可点——挂行标题，避免 TalkBack 读「开关」不带名字。
+            modifier = Modifier.semantics { contentDescription = switchLabel }
+        )
     }
 }
 
@@ -597,7 +610,13 @@ private fun UnreadPrioritySwitchRow(
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Switch(checked = enabled, onCheckedChange = onEnabledChange)
+        val switchLabel = stringResource(R.string.general_unread_priority_title)
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            // 只有开关本身可点——挂行标题，避免 TalkBack 读「开关」不带名字。
+            modifier = Modifier.semantics { contentDescription = switchLabel }
+        )
     }
 }
 
@@ -625,7 +644,13 @@ private fun EnterToSendSwitchRow(
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Switch(checked = enabled, onCheckedChange = onEnabledChange)
+        val switchLabel = stringResource(R.string.general_enter_to_send_title)
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            // 只有开关本身可点——挂行标题，避免 TalkBack 读「开关」不带名字。
+            modifier = Modifier.semantics { contentDescription = switchLabel }
+        )
     }
 }
 
@@ -799,6 +824,17 @@ private fun ChatFontScaleRow(
     }
 }
 
+/** 强调色 id → 本地化颜色名（无障碍朗读用）。 */
+private fun accentLabelRes(id: String): Int = when (id) {
+    "blue" -> R.string.general_accent_blue
+    "green" -> R.string.general_accent_green
+    "purple" -> R.string.general_accent_purple
+    "orange" -> R.string.general_accent_orange
+    "pink" -> R.string.general_accent_pink
+    "red" -> R.string.general_accent_red
+    else -> R.string.general_accent_teal
+}
+
 @Composable
 private fun ThemeChoiceChip(
     label: String,
@@ -808,14 +844,18 @@ private fun ThemeChoiceChip(
 ) {
     val backgroundColor by animateColorAsState(if (selected) MaterialTheme.colorScheme.primary else LocalChatPalette.current.chatInputBackground, tween(180), label = "choiceBackground")
     val textColor by animateColorAsState(if (selected) Color.White else MaterialTheme.colorScheme.onSurface, tween(180), label = "choiceText")
-    val scale by animateFloatAsState(if (selected) 1f else 0.98f, tween(180), label = "choiceScale")
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            // 触控目标下限 48dp；clickable 在 padding 之前——原来点击区只有文字本身，
+            // 圆角背景的内边距点了没反应，现在整块可点。
+            // 原 0.98 的未选中缩放会等比缩小 48dp 触控扩展（48×0.98=47.04，探针实测 47dp），
+            // 已移除——选中态仍由背景/文字颜色动画表达。
+            .heightIn(min = 48.dp)
             .background(backgroundColor, RoundedCornerShape(18.dp))
-            .padding(horizontal = 14.dp, vertical = 8.dp)
             .clickable { onClick() }
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         if (leading != null) {
             leading()
