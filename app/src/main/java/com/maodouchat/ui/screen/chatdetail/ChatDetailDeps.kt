@@ -445,6 +445,26 @@ internal class ChatDetailDeps(
         outgoingFacade = outgoingFacade,
         text = { id, args -> host.text(id, *args) },
     )
+    // G346：`retrySendMessage()` 的重发编排抽到 ChatRetrySender，附件重发分流回 VM
+    // 的 `sendEncryptedAttachment`（仍在 VM 内的下一个待切片）。
+    internal val retrySender = ChatRetrySender(
+        scope = host.viewModelScope,
+        ownerUserId = { host.currentUserId },
+        token = { host.token },
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        sessionActive = { ownerUserId ->
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = ownerUserId,
+            )
+        },
+        outgoingFacade = outgoingFacade,
+        persistMessage = messageRepo::insertMessage,
+        sendAttachmentRetry = { uri, type, messageId, message ->
+            host.sendEncryptedAttachment(uri, type, messageId, message)
+        },
+        text = { id, args -> host.text(id, *args) },
+    )
     internal val moderationController = ChatModerationController(
         application = application,
         scope = host.viewModelScope,

@@ -6,7 +6,6 @@ import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.net.Uri
 import android.util.Log
-import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -347,6 +346,7 @@ class ChatDetailViewModel(
     private val readReceiptCoordinator get() = deps.readReceiptCoordinator
     private val pinStarController get() = deps.pinStarController
     private val nudgeSender get() = deps.nudgeSender
+    private val retrySender get() = deps.retrySender
     private val moderationController get() = deps.moderationController
     private val botGroupActionController get() = deps.botGroupActionController
     private val realtimeController get() = deps.realtimeController
@@ -1223,77 +1223,9 @@ class ChatDetailViewModel(
     fun sendNudge() = nudgeSender.sendNudge()
 
     /**
-     * 重发失败的消息
-     * - 将消息状态改回 SENDING，然后重新走发送流程
-     * - TEXT: 直接重新加密发送
-     * - FILE/IMAGE/GIF/VIDEO/VOICE: 恢复持久化对象传输，或从保留的本机源重新加密
+     * 重发失败的消息——编排已抽到 [ChatRetrySender]（G346），纯搬移不改判断。
      */
-    fun retrySendMessage(messageId: String) {
-        // G66：重试准入同样走纯函数（归属、状态、类型三条一起判）
-        val retryOwnerUserId = currentUserId
-        val decision = ChatSendGuard.checkRetry(_uiState.value, messageId, retryOwnerUserId, token)
-        if (decision is ChatSendGuard.RetryDecision.NeedsAttachmentRetry) {
-            return sendEncryptedAttachment(
-                decision.message.parsedContent().toUri(),
-                decision.message.type,
-                messageId,
-                decision.message,
-            )
-        }
-        if (decision is ChatSendGuard.RetryDecision.Reject) {
-            if (decision.reason == ChatSendGuard.RetryRejectReason.NO_SESSION) {
-                _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            }
-            return
-        }
-        // G328c：原先这里是 `!!`——checkRetry 与这次查找之间，撤销/批量删除/服务端投影都可能把消息移走，用户点「重试」会崩。找不到即返回。
-        val failedMsg = _uiState.value.messages.find { it.id == messageId } ?: return
-        val sendingMsg = failedMsg.copy(status = MessageStatus.SENDING)
-        _uiState.update { st -> st.copy(messages = st.messages.map { m -> if (m.id == messageId) sendingMsg else m }) }
-        viewModelScope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    outgoingFacade.retry(
-                        OutgoingMessageCommand(
-                            ownerUserId = retryOwnerUserId,
-                            optimisticMessage = sendingMsg,
-                            body = sendingMsg.content,
-                            type = sendingMsg.type,
-                        ),
-                    )
-                }
-                _uiState.update { state ->
-                    state.copy(messages = state.messages.map { message ->
-                        when {
-                            message.id != messageId -> message
-                            result is OutgoingMessageResult.Staged -> result.message
-                            result is OutgoingMessageResult.Failed -> result.message
-                            else -> message
-                        }
-                    })
-                }
-                if (result is OutgoingMessageResult.Failed) {
-                    Log.w(
-                        "ChatDetailViewModel",
-                        "v2 retry enqueue failed: ${result.error.message}",
-                        result.error,
-                    )
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = retryOwnerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                _uiState.update { st -> st.copy(messages = st.messages.map { m -> if (m.id == messageId) failedMsg else m }) }
-                withContext(Dispatchers.IO) { messageRepo.insertMessage(failedMsg) }
-                Log.w("ChatDetailViewModel", "v2 retry enqueue failed: ${error.message}", error)
-            }
-        }
-    }
+    fun retrySendMessage(messageId: String) = retrySender.retrySendMessage(messageId)
 
     /**
      * 一键重试当前聊天所有失败/暂停任务；状态栏展示的中转数减为 0 后会自动收起浮窗。
