@@ -1,8 +1,9 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
+import com.maodouchat.server.repository.AccountDeactivationResult
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
