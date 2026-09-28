@@ -107,25 +107,26 @@ object AiPrivacyPreferences {
         if (prefs.getBoolean(marker, false)) return
         synchronized(migrationLock) {
             if (prefs.getBoolean(marker, false)) return
-            val editor = prefs.edit()
-            listOf(KEY_CONSENT, KEY_LOCAL_SAFETY).forEach { key ->
-                val target = scopedKey(key, userId)
-                if (!prefs.contains(target) && prefs.contains(key)) {
-                    editor.putBoolean(target, prefs.getBoolean(key, false))
+            prefs.edit {
+                listOf(KEY_CONSENT, KEY_LOCAL_SAFETY).forEach { key ->
+                    val target = scopedKey(key, userId)
+                    if (!prefs.contains(target) && prefs.contains(key)) {
+                        putBoolean(target, prefs.getBoolean(key, false))
+                    }
+                    remove(key)
                 }
-                editor.remove(key)
+                val dismissedTarget = scopedKey(KEY_DISMISSED_SAFETY_IDS, userId)
+                if (!prefs.contains(dismissedTarget) && prefs.contains(KEY_DISMISSED_SAFETY_IDS)) {
+                    putStringSet(
+                        dismissedTarget,
+                        prefs.getStringSet(KEY_DISMISSED_SAFETY_IDS, emptySet())?.toSet().orEmpty()
+                    )
+                }
+                remove(KEY_DISMISSED_SAFETY_IDS)
+                // apply() 异步落盘但同步更新内存缓存，同进程后续 account() 立即读到新值；
+                // 与同文件其他迁移路径一致，避免在主/UI 线程做同步 commit() 导致 jank/ANR。
+                putBoolean(marker, true)
             }
-            val dismissedTarget = scopedKey(KEY_DISMISSED_SAFETY_IDS, userId)
-            if (!prefs.contains(dismissedTarget) && prefs.contains(KEY_DISMISSED_SAFETY_IDS)) {
-                editor.putStringSet(
-                    dismissedTarget,
-                    prefs.getStringSet(KEY_DISMISSED_SAFETY_IDS, emptySet())?.toSet().orEmpty()
-                )
-            }
-            editor.remove(KEY_DISMISSED_SAFETY_IDS)
-            // apply() 异步落盘但同步更新内存缓存，同进程后续 account() 立即读到新值；
-            // 与同文件其他迁移路径一致，避免在主/UI 线程做同步 commit() 导致 jank/ANR。
-            editor.putBoolean(marker, true).apply()
         }
     }
 

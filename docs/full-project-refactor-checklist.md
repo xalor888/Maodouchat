@@ -2205,3 +2205,26 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 `ChromeOsAbiSupport`（x86_64 ABI 未开，非目标平台）、`AppBundleLocaleChanges`（动态语言切换
 需 Play Core 或 per-app locale 迁移评估）、`ConfigurationScreenWidthHeight`（
 `screenWidthDp → containerSize` 换算涉语义差异，且该文件零松量上限）。
+
+### 第十四轮十六续（2026-09-28）：UseKtx「变量编辑器」族收口——10 处（69 → 59）
+
+`SharedPreferences.edit` 最后一块难啃的：`val editor = prefs.edit()...` 跨语句使用模式，
+逐处人工包进 `prefs.edit { }`（编辑器方法去掉 `editor.` 前缀，控制流原样搬入 lambda）：
+
+- 10 处（7 文件）：`AiPrivacyPreferences.migrateLegacy`、`AiWritingStylePreferences.save`、
+  `CustomThemeStore.clearAll`、`FakeChatManager`（失败计数）、`LocalAiProviderStore.deleteProvider`、
+  `NotificationPreferences` 的 setRingtoneUri / setGroupRingtoneUri / setAll / migrateLegacy、
+  `QuickReplyPolicy.rememberSent`；
+- 语义保持：`migrateLegacy` 结尾是 `commit()` → `edit(commit = true) { }`（同步落盘保持）；
+  其余为 `apply()` → `edit { }`；`forEach`/`when` 嵌套内的接收者解析由编译期把关（全部通过）；
+- **保留 1 处**：`TokenManager` 的 `val editor = prefs.edit().clear()`——结尾 `commit()` 的
+  **Boolean 被 `runCatching{}.onFailure{}.getOrDefault(false)` 消费**（提交失败信号），
+  转换会丢信号，留基线并记录原因；
+- **基线手术**：−10 → 69 → 59；`frozenIssueCount` 69 → 59；分布 map `UseKtx` 22 → 12；
+- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  绿（4m18s）；`:app:lintDebug` 绿且 `LintBaselineFixed` 恰好点名这 10 条。
+
+**剩余（lint 基线 59 条）**：`UseKtx` 12 = 8 处保留（变量编辑器 1 + check 1 + 值被消费 commit 4
++ GlobalSearchScreen 2）+ 4 `Uri.parse`（行数上限热点文件内）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
+其余零散与产品决策项（见上）。

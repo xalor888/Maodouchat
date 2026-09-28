@@ -60,13 +60,13 @@ object NotificationPreferences {
     /** 设置/清除自定义铃声（null/空 = 恢复系统默认）。 */
     fun setRingtoneUri(context: Context, uri: String?) {
         val account = accountPreferences(context) ?: return
-        val editor = account.prefs.edit()
-        if (uri.isNullOrBlank()) {
-            editor.remove(account.scopedKey(KEY_RINGTONE_URI))
-        } else {
-            editor.putString(account.scopedKey(KEY_RINGTONE_URI), uri)
+        account.prefs.edit {
+            if (uri.isNullOrBlank()) {
+                remove(account.scopedKey(KEY_RINGTONE_URI))
+            } else {
+                putString(account.scopedKey(KEY_RINGTONE_URI), uri)
+            }
         }
-        editor.apply()
     }
 
     /** 0.72：群聊独立铃声 URI；空 = 回退单聊铃声。 */
@@ -79,13 +79,13 @@ object NotificationPreferences {
     /** 0.72：设置/清除群聊铃声（null/空 = 恢复默认，回退单聊铃声）。 */
     fun setGroupRingtoneUri(context: Context, uri: String?) {
         val account = accountPreferences(context) ?: return
-        val editor = account.prefs.edit()
-        if (uri.isNullOrBlank()) {
-            editor.remove(account.scopedKey(KEY_GROUP_RINGTONE_URI))
-        } else {
-            editor.putString(account.scopedKey(KEY_GROUP_RINGTONE_URI), uri)
+        account.prefs.edit {
+            if (uri.isNullOrBlank()) {
+                remove(account.scopedKey(KEY_GROUP_RINGTONE_URI))
+            } else {
+                putString(account.scopedKey(KEY_GROUP_RINGTONE_URI), uri)
+            }
         }
-        editor.apply()
     }
 
     // ---- 勿扰计划（DND schedule）：分钟级 + 显式开关 ----
@@ -186,20 +186,20 @@ object NotificationPreferences {
         val account = accountPreferences(context) ?: return
         val startMinute = dndStartMinute?.coerceIn(0, 1439) ?: (dndStartHour.coerceIn(0, 23) * 60)
         val endMinute = dndEndMinute?.coerceIn(0, 1439) ?: (dndEndHour.coerceIn(0, 23) * 60)
-        val editor = account.prefs.edit()
-        editor.putBoolean(account.scopedKey(KEY_ENABLE), enableNotifications)
-            .putBoolean(account.scopedKey(KEY_SOUND), soundEnabled)
-            .putBoolean(account.scopedKey(KEY_PREVIEW), previewEnabled)
-            .putBoolean(account.scopedKey(KEY_RINGTONE), ringtoneEnabled)
-            .putInt(account.scopedKey(KEY_DND_START), startMinute / 60)
-            .putInt(account.scopedKey(KEY_DND_END), endMinute / 60)
-            .putBoolean(account.scopedKey(KEY_DND_ENABLED), dndEnabled ?: false)
-            .putInt(account.scopedKey(KEY_DND_START_MINUTE), startMinute)
-            .putInt(account.scopedKey(KEY_DND_END_MINUTE), endMinute)
-        taskRemindersEnabled?.let {
-            editor.putBoolean(account.scopedKey(KEY_TASK_REMINDERS), it)
+        account.prefs.edit {
+            putBoolean(account.scopedKey(KEY_ENABLE), enableNotifications)
+                .putBoolean(account.scopedKey(KEY_SOUND), soundEnabled)
+                .putBoolean(account.scopedKey(KEY_PREVIEW), previewEnabled)
+                .putBoolean(account.scopedKey(KEY_RINGTONE), ringtoneEnabled)
+                .putInt(account.scopedKey(KEY_DND_START), startMinute / 60)
+                .putInt(account.scopedKey(KEY_DND_END), endMinute / 60)
+                .putBoolean(account.scopedKey(KEY_DND_ENABLED), dndEnabled ?: false)
+                .putInt(account.scopedKey(KEY_DND_START_MINUTE), startMinute)
+                .putInt(account.scopedKey(KEY_DND_END_MINUTE), endMinute)
+            taskRemindersEnabled?.let {
+                putBoolean(account.scopedKey(KEY_TASK_REMINDERS), it)
+            }
         }
-        editor.apply()
     }
 
     private fun getBoolean(context: Context, key: String, default: Boolean): Boolean =
@@ -231,71 +231,72 @@ object NotificationPreferences {
         if (prefs.getBoolean(marker, false)) return
         synchronized(migrationLock) {
             if (prefs.getBoolean(marker, false)) return
-            val editor = prefs.edit()
-            BOOLEAN_KEYS.forEach { key ->
-                val target = scopedKey(key, userId)
-                if (!prefs.contains(target) && prefs.contains(key)) {
-                    editor.putBoolean(target, prefs.getBoolean(key, true))
+            prefs.edit(commit = true) {
+                BOOLEAN_KEYS.forEach { key ->
+                    val target = scopedKey(key, userId)
+                    if (!prefs.contains(target) && prefs.contains(key)) {
+                        putBoolean(target, prefs.getBoolean(key, true))
+                    }
+                    remove(key)
                 }
-                editor.remove(key)
-            }
-            INT_KEYS.forEach { key ->
-                val target = scopedKey(key, userId)
-                if (!prefs.contains(target) && prefs.contains(key)) {
-                    editor.putInt(target, prefs.getInt(key, if (key == KEY_DND_START) 22 else 7))
+                INT_KEYS.forEach { key ->
+                    val target = scopedKey(key, userId)
+                    if (!prefs.contains(target) && prefs.contains(key)) {
+                        putInt(target, prefs.getInt(key, if (key == KEY_DND_START) 22 else 7))
+                    }
+                    remove(key)
                 }
-                editor.remove(key)
-            }
-            val enabledTarget = scopedKey(KEY_DND_ENABLED, userId)
-            if (!prefs.contains(enabledTarget) && prefs.contains(KEY_DND_ENABLED)) {
-                editor.putBoolean(enabledTarget, prefs.getBoolean(KEY_DND_ENABLED, false))
-            }
-            editor.remove(KEY_DND_ENABLED)
-            val startHour = when {
-                prefs.contains(scopedKey(KEY_DND_START, userId)) ->
-                    prefs.getInt(scopedKey(KEY_DND_START, userId), 22)
-                prefs.contains(KEY_DND_START) -> prefs.getInt(KEY_DND_START, 22)
-                else -> null
-            }
-            val endHour = when {
-                prefs.contains(scopedKey(KEY_DND_END, userId)) ->
-                    prefs.getInt(scopedKey(KEY_DND_END, userId), 7)
-                prefs.contains(KEY_DND_END) -> prefs.getInt(KEY_DND_END, 7)
-                else -> null
-            }
-            val startMinuteTarget = scopedKey(KEY_DND_START_MINUTE, userId)
-            val endMinuteTarget = scopedKey(KEY_DND_END_MINUTE, userId)
-            if (!prefs.contains(startMinuteTarget)) {
-                when {
-                    prefs.contains(KEY_DND_START_MINUTE) ->
-                        editor.putInt(startMinuteTarget, prefs.getInt(KEY_DND_START_MINUTE, 22 * 60).coerceIn(0, 1439))
-                    startHour != null ->
-                        editor.putInt(startMinuteTarget, DndPreferenceResolve.startMinute(null, startHour))
+                val enabledTarget = scopedKey(KEY_DND_ENABLED, userId)
+                if (!prefs.contains(enabledTarget) && prefs.contains(KEY_DND_ENABLED)) {
+                    putBoolean(enabledTarget, prefs.getBoolean(KEY_DND_ENABLED, false))
                 }
-            }
-            editor.remove(KEY_DND_START_MINUTE)
-            if (!prefs.contains(endMinuteTarget)) {
-                when {
-                    prefs.contains(KEY_DND_END_MINUTE) ->
-                        editor.putInt(endMinuteTarget, prefs.getInt(KEY_DND_END_MINUTE, 7 * 60).coerceIn(0, 1439))
-                    endHour != null ->
-                        editor.putInt(endMinuteTarget, DndPreferenceResolve.endMinute(null, endHour))
+                remove(KEY_DND_ENABLED)
+                val startHour = when {
+                    prefs.contains(scopedKey(KEY_DND_START, userId)) ->
+                        prefs.getInt(scopedKey(KEY_DND_START, userId), 22)
+                    prefs.contains(KEY_DND_START) -> prefs.getInt(KEY_DND_START, 22)
+                    else -> null
                 }
+                val endHour = when {
+                    prefs.contains(scopedKey(KEY_DND_END, userId)) ->
+                        prefs.getInt(scopedKey(KEY_DND_END, userId), 7)
+                    prefs.contains(KEY_DND_END) -> prefs.getInt(KEY_DND_END, 7)
+                    else -> null
+                }
+                val startMinuteTarget = scopedKey(KEY_DND_START_MINUTE, userId)
+                val endMinuteTarget = scopedKey(KEY_DND_END_MINUTE, userId)
+                if (!prefs.contains(startMinuteTarget)) {
+                    when {
+                        prefs.contains(KEY_DND_START_MINUTE) ->
+                            putInt(startMinuteTarget, prefs.getInt(KEY_DND_START_MINUTE, 22 * 60).coerceIn(0, 1439))
+                        startHour != null ->
+                            putInt(startMinuteTarget, DndPreferenceResolve.startMinute(null, startHour))
+                    }
+                }
+                remove(KEY_DND_START_MINUTE)
+                if (!prefs.contains(endMinuteTarget)) {
+                    when {
+                        prefs.contains(KEY_DND_END_MINUTE) ->
+                            putInt(endMinuteTarget, prefs.getInt(KEY_DND_END_MINUTE, 7 * 60).coerceIn(0, 1439))
+                        endHour != null ->
+                            putInt(endMinuteTarget, DndPreferenceResolve.endMinute(null, endHour))
+                    }
+                }
+                remove(KEY_DND_END_MINUTE)
+                if (!prefs.contains(enabledTarget) && !prefs.contains(KEY_DND_ENABLED)) {
+                    putBoolean(
+                        enabledTarget,
+                        DndPreferenceResolve.enabled(
+                            enabledStored = null,
+                            startHourPresent = startHour != null,
+                            endHourPresent = endHour != null,
+                            startHour = startHour ?: 22,
+                            endHour = endHour ?: 7,
+                        ),
+                    )
+                }
+                putBoolean(marker, true)
             }
-            editor.remove(KEY_DND_END_MINUTE)
-            if (!prefs.contains(enabledTarget) && !prefs.contains(KEY_DND_ENABLED)) {
-                editor.putBoolean(
-                    enabledTarget,
-                    DndPreferenceResolve.enabled(
-                        enabledStored = null,
-                        startHourPresent = startHour != null,
-                        endHourPresent = endHour != null,
-                        startHour = startHour ?: 22,
-                        endHour = endHour ?: 7,
-                    ),
-                )
-            }
-            editor.putBoolean(marker, true).commit()
         }
     }
 }

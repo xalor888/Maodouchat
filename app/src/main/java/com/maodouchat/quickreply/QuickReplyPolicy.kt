@@ -131,16 +131,17 @@ object QuickReplyPolicy {
 
     private fun rememberSent(context: Context, key: String, now: Long) {
         val prefs = prefs(context)
-        val editor = prefs.edit().putLong(KEY_DEDUPE_PREFIX + key, now)
         // 裁剪过期键，避免无限增长
         val entries = prefs.all.filterKeys { it.startsWith(KEY_DEDUPE_PREFIX) }
-        if (entries.size > DEDUPE_MAX_KEYS) {
-            val stale = entries.entries
-                .sortedBy { it.value as? Long ?: 0L }
-                .take(entries.size - DEDUPE_MAX_KEYS)
-            stale.forEach { editor.remove(it.key) }
+        prefs.edit {
+            putLong(KEY_DEDUPE_PREFIX + key, now)
+            if (entries.size > DEDUPE_MAX_KEYS) {
+                val stale = entries.entries
+                    .sortedBy { it.value as? Long ?: 0L }
+                    .take(entries.size - DEDUPE_MAX_KEYS)
+                stale.forEach { remove(it.key) }
+            }
         }
-        editor.apply()
     }
 
     private fun userId(ctx: Context): String =

@@ -55,18 +55,18 @@ object AiWritingStylePreferences {
     fun save(context: Context, enabled: Boolean, presetId: String?, customNote: String?) {
         val account = account(context) ?: return
         val snap = AiWritingStylePolicy.normalize(enabled, presetId, customNote)
-        val editor = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
         val eKey = key(KEY_ENABLED, account)
         val pKey = key(KEY_PRESET, account)
         val cKey = key(KEY_CUSTOM, account)
-        if (!snap.enabled) {
-            editor.remove(eKey).remove(pKey).remove(cKey)
-        } else {
-            editor.putBoolean(eKey, true)
-                .putString(pKey, snap.preset.id)
-                .putString(cKey, snap.customNote)
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            if (!snap.enabled) {
+                remove(eKey).remove(pKey).remove(cKey)
+            } else {
+                putBoolean(eKey, true)
+                    .putString(pKey, snap.preset.id)
+                    .putString(cKey, snap.customNote)
+            }
         }
-        editor.apply()
     }
 
     fun clear(context: Context) {
