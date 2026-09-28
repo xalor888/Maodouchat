@@ -445,7 +445,7 @@ internal fun ImageGrid(imageUrls: List<String>) {
                         savingImage = true
                         saveScope.launch {
                             try {
-                                val token = com.maodouchat.network.TokenManager.getInstance(viewerContext).getToken().orEmpty()
+                                val token = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
                                 if (token.isBlank()) {
                                     android.widget.Toast.makeText(viewerContext, R.string.explore_save_failed, android.widget.Toast.LENGTH_SHORT).show()
                                     return@launch
@@ -494,7 +494,7 @@ internal fun ImageGrid(imageUrls: List<String>) {
                         sharingImage = true
                         saveScope.launch {
                             try {
-                                val token = com.maodouchat.network.TokenManager.getInstance(viewerContext).getToken().orEmpty()
+                                val token = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
                                 if (token.isBlank()) return@launch
                                 val file = java.io.File(viewerContext.cacheDir, "post_share_${System.currentTimeMillis()}.jpg")
                                 MediaDownloadNetworkRepository().downloadPostImage(token, imageUrl, file).fold(

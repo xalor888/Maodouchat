@@ -117,9 +117,8 @@ class AiTasksViewModel(
     private val repository = com.maodouchat.data.repository.AppRepositories.aiTasks(application)
     private val chatLockRepo = com.maodouchat.data.repository.AppRepositories.chatLocks
 
-    private val tokenManager = com.maodouchat.network.TokenManager.getInstance(application)
     /** Capture at open so logout/account switch cannot mutate the next owner's tasks. */
-    private val ownerUserId: String = tokenManager.getUserId().orEmpty()
+    private val ownerUserId: String = com.maodouchat.session.CurrentSession.ownerUserId()
     private val _uiState = MutableStateFlow(AiTasksUiState())
     val uiState: StateFlow<AiTasksUiState> = _uiState.asStateFlow()
 
@@ -393,7 +392,7 @@ fun AiTasksScreen(
 
     val secretPagePayload = rememberSecretPageWatermarkPayload(
         isSecretChat = state.isSecretChat,
-        userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
+        userId = com.maodouchat.session.CurrentSession.ownerUserId(),
         chatId = viewModel.chatId,
         deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )

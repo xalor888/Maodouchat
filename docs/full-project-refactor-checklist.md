@@ -2282,3 +2282,16 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；`OldTargetApi` /
 `ChromeOsAbiSupport` / `AppBundleLocaleChanges` / `ConfigurationScreenWidthHeight`
 （4 条产品决策项，暂留）；`UnusedResources` 1（有意保留）等零散。
+
+### 第十三轮续二（2026-09-28）：令牌读者棘轮盲区修复——3 个全限定名读者归零（5 → 5，但判据收紧）
+
+- **盲区**：`ui must not grow its direct network usage` 的文件级预筛要求「先 import
+  `com.maodouchat.network`」，于是**只用全限定名**的读者整体逃逸——实测三个真读者
+  （`AiTasksScreen`、`MediaCenterScreen`、`ExploreComposerCards`，共 7 处
+  `TokenManager.getInstance(...).getUserId()/getToken()`）从未进过名单，而 KDoc 明说
+  「不按 import 行」——措辞与判据不一致；
+- **修复**：删预筛（api 侧无过滤后实测仍 0，安全）；三个文件 7 处改走
+  `CurrentSession.ownerUserId()/snapshot().token`（非 ui 身份读点，语义等价）；
+  `MediaCenterScreen` 1049 行（−1），上限同步收紧 1050 → 1049（两份 map）；
+- **结果**：判据收紧后名单仍为 5（无新读者），`frozenUiTokenReaders` 不变；
+- **判据**：`:app:compileDebugKotlin` 绿；`ClientArchitectureTest` 两条网络棘轮用例绿。
