@@ -91,6 +91,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -175,7 +177,7 @@ fun SettingsScreen(
         TopAppBar(
             title = {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(stringResource(R.string.settings_title), modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
             },
             // 9.4xx：设置页是主 Tab，移除无导航作用的摆设返回按钮
@@ -801,8 +803,6 @@ private fun privacyVisibilityLabel(value: String): String = when (value) {
     "PRIVATE" -> stringResource(R.string.explore_visibility_private)
     else -> stringResource(R.string.explore_visibility_public)
 }
-
-
 
 @Composable
 private fun SettingsGroup(content: @Composable () -> Unit) {

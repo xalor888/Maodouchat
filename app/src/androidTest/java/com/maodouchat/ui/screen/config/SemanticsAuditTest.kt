@@ -270,7 +270,7 @@ class SemanticsAuditTest {
             securityCoordinator = SecurityCoordinator(repo),
         )
         compose.setContent { SettingsScreen(viewModel = vm) }
-        assertClean("settings", minClickables = 3)
+        assertClean("settings", minClickables = 3, minHeadings = 1)
     }
 
     /** 复刻自 ExploreScreenUiTest（5 方法 FeedRepository，logged-in + 空 feed）。 */
@@ -303,7 +303,7 @@ class SemanticsAuditTest {
             orchestrator = orchestrator,
         )
         compose.setContent { ExploreScreen(viewModel = vm) }
-        assertClean("explore", minClickables = 2)
+        assertClean("explore", minClickables = 2, minHeadings = 1)
     }
 
     // ---------- 第七、八屏：Contacts / Login（真 VM + 真 Application，装配同 ChatListViewModel 款） ----------
@@ -315,7 +315,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.contacts.ContactsScreen(viewModel = vm)
         }
         // 实测 10 个可点击（权限说明弹窗 + 空态入口 + 顶栏）；阈值取下界 8（探针纪律：先测量再设阈值）。
-        assertClean("contacts", minClickables = 8)
+        assertClean("contacts", minClickables = 8, minHeadings = 1)
     }
 
     @Test

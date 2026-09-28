@@ -2,6 +2,8 @@
 
 package com.maodouchat.ui.screen.explore
 
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import com.maodouchat.util.RuntimeFlags
 import android.annotation.SuppressLint
 import android.text.format.DateUtils
@@ -237,7 +239,7 @@ fun ExploreScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.nav_explore), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
+                title = { Text(stringResource(R.string.nav_explore), modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface) },
                 actions = {
                     IconButton(onClick = { requestFeedSearchFocus++ }) {
                         Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.contacts_search))
@@ -575,8 +577,6 @@ fun ExploreScreen(
         )
     }
 }
-
-
 
 
 
