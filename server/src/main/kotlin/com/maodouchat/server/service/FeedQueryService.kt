@@ -1,4 +1,4 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
 import com.maodouchat.server.db.CommentLikes
 import com.maodouchat.server.db.Posts
@@ -8,7 +8,9 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.PostCommentResponse
 import com.maodouchat.server.model.PostResponse
 import com.maodouchat.server.model.UserResponse
-import com.maodouchat.server.service.SocialGraphService
+import com.maodouchat.server.repository.PostJson
+import com.maodouchat.server.repository.PostVisibility
+import com.maodouchat.server.repository.VisibilityPolicy
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
