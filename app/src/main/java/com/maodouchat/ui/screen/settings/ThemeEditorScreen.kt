@@ -392,7 +392,7 @@ private fun defaultSlotColor(slot: String, variant: String): Color {
  * 注意 `chat_outBubble` / `chat_outText` 有兜底：发送气泡规格缺失时
  * 分别回落到 `colorScheme.primary` 与 `Color.White`——不兜底会 NPE。
  */
-internal fun slotDefaultColor(paint: com.maodouchat.ui.theme.ThemePaint, slot: String): Color {
+internal fun slotDefaultColor(paint: com.maodouchat.theme.ThemePaint, slot: String): Color {
     return when (slot) {
         "accent" -> paint.colorScheme.primary
         "chat_background" -> paint.chatPalette.chatBackground

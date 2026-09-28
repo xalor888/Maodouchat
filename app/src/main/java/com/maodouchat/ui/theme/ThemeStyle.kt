@@ -7,6 +7,9 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+import com.maodouchat.theme.ChatPalette
+import com.maodouchat.theme.SentBubbleSpec
+import com.maodouchat.theme.ThemePaint
 
 /**
  * 主题风格家族。MAODOU（白底液态玻璃）为品牌默认；TG_* 为 Telegram/Nekogram 扁平主题，
@@ -33,16 +36,6 @@ enum class ThemeFamily(val id: String) {
         val PICKABLE: List<ThemeFamily> = listOf(MAODOU)
     }
 }
-
-/**
- * 主题对「发送气泡」的接管规格：TG 各主题的发送气泡有专属配色（如经典浅色的 #EFFDDE 绿气泡
- * 需配深色文字）。null 表示沿用用户自选气泡色 + 白色文字（品牌默认）。
- */
-data class SentBubbleSpec(
-    val color: Color,
-    val content: Color,
-    val contentSecondary: Color
-)
 
 /** 当前主题的深浅（由主题模式解析后的真实值，非系统深浅）。 */
 val LocalDarkTheme = compositionLocalOf { false }
@@ -100,13 +93,6 @@ val LocalSentBubbleContent = compositionLocalOf { TextWhite }
 
 /** 发送气泡上的次要文字色（时间戳等）。 */
 val LocalSentBubbleContentSecondary = compositionLocalOf { TextWhiteSecondary }
-
-/** 一组完整的主题绘制参数：Material 色板 + 聊天调色板 + 发送气泡规格。 */
-data class ThemePaint(
-    val colorScheme: ColorScheme,
-    val chatPalette: ChatPalette,
-    val sentBubbleSpec: SentBubbleSpec?
-)
 
 // ─── Telegram 经典浅色（Classic） ──────────────────────────────
 private val TgClassicScheme = lightColorScheme(

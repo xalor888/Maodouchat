@@ -2,9 +2,9 @@ package com.maodouchat.ui.screen.settings
 
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
-import com.maodouchat.ui.theme.ChatPalette
-import com.maodouchat.ui.theme.SentBubbleSpec
-import com.maodouchat.ui.theme.ThemePaint
+import com.maodouchat.theme.ChatPalette
+import com.maodouchat.theme.SentBubbleSpec
+import com.maodouchat.theme.ThemePaint
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

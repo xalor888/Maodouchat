@@ -734,12 +734,12 @@ private fun ChatBubbleColorRow(
     onChange: (String) -> Unit
 ) {
     val options = listOf(
-        com.maodouchat.ui.theme.ChatBubbleColorPalette.BLUE to stringResource(R.string.general_chat_bubble_blue),
-        com.maodouchat.ui.theme.ChatBubbleColorPalette.GREEN to stringResource(R.string.general_chat_bubble_green),
-        com.maodouchat.ui.theme.ChatBubbleColorPalette.PURPLE to stringResource(R.string.general_chat_bubble_purple),
-        com.maodouchat.ui.theme.ChatBubbleColorPalette.ORANGE to stringResource(R.string.general_chat_bubble_orange),
-        com.maodouchat.ui.theme.ChatBubbleColorPalette.PINK to stringResource(R.string.general_chat_bubble_pink),
-        com.maodouchat.ui.theme.ChatBubbleColorPalette.TEAL to stringResource(R.string.general_chat_bubble_teal)
+        com.maodouchat.theme.ChatBubbleColorPalette.BLUE to stringResource(R.string.general_chat_bubble_blue),
+        com.maodouchat.theme.ChatBubbleColorPalette.GREEN to stringResource(R.string.general_chat_bubble_green),
+        com.maodouchat.theme.ChatBubbleColorPalette.PURPLE to stringResource(R.string.general_chat_bubble_purple),
+        com.maodouchat.theme.ChatBubbleColorPalette.ORANGE to stringResource(R.string.general_chat_bubble_orange),
+        com.maodouchat.theme.ChatBubbleColorPalette.PINK to stringResource(R.string.general_chat_bubble_pink),
+        com.maodouchat.theme.ChatBubbleColorPalette.TEAL to stringResource(R.string.general_chat_bubble_teal)
     )
     val isDark = com.maodouchat.ui.theme.LocalDarkTheme.current
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
@@ -752,8 +752,8 @@ private fun ChatBubbleColorRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             options.forEach { (id, label) ->
-                val color = if (isDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
-                else com.maodouchat.ui.theme.ChatBubbleColorPalette.light(id)
+                val color = if (isDark) com.maodouchat.theme.ChatBubbleColorPalette.dark(id)
+                else com.maodouchat.theme.ChatBubbleColorPalette.light(id)
                 ThemeChoiceChip(
                     label = label,
                     selected = current == id,
