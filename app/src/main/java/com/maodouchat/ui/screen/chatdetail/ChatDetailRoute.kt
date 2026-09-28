@@ -1298,97 +1298,26 @@ internal fun ChatDetailRoute(
                 onOpenProfile = onOpenProfile,
                 chatAiSurfacesVisible = chatAiSurfacesVisible,
             )
-            AnimatedVisibility(
-                visible = search.showSearchBar,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                ChatSearchBar(
-                    query = search.searchQuery,
-                    mode = search.searchMode,
-                    scope = search.searchScope,
-                    window = search.searchWindow,
-                    resultIndex = search.searchIndex,
-                    resultCount = searchResults.size,
-                    semanticCandidateCount = semanticCandidates.size,
-                    isSemanticSearching = state.isSemanticSearching,
-                    semanticSearchQuery = state.semanticSearchQuery,
-                    semanticSearchResultCount = state.semanticSearchResultIds.size,
-                    semanticSearchError = state.semanticSearchError,
-                    aiEnabled = chatAiSurfacesVisible,
-                    onQueryChange = { query ->
-                        search.searchQuery = query
-                        search.searchIndex = 0
-                        if (search.searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
-                    },
-                    onModeChange = { mode ->
-                        search.searchMode = mode
-                        search.searchIndex = 0
-                        viewModel.clearSemanticSearch()
-                    },
-                    onScopeChange = { scope ->
-                        search.searchScope = scope
-                        search.searchIndex = 0
-                        if (search.searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
-                    },
-                    onWindowChange = { window ->
-                        search.searchWindow = window
-                        search.searchIndex = 0
-                        if (search.searchMode == ChatSearchMode.SEMANTIC) viewModel.clearSemanticSearch()
-                    },
-                    onSemanticSearch = {
-                        search.searchIndex = 0
-                        viewModel.requestSemanticSearch(search.searchQuery, semanticCandidates.map(Message::id))
-                    },
-                    onNextResult = { search.searchIndex = (search.searchIndex + 1) % searchResults.size },
-                    onClose = {
-                        search.showSearchBar = false
-                        search.searchQuery = ""
-                        search.searchIndex = 0
-                        search.searchMode = ChatSearchMode.KEYWORD
-                        search.searchScope = ChatSearchScope.ALL
-                        search.searchWindow = ChatSearchWindow.ALL
-                        viewModel.clearSemanticSearch()
-                    }
-                )
-            }
-            // G84：多选工具条（79 行）抽到 ChatDetailSelectionToolbar.kt，六项派生状态随之内聚。
-            AnimatedVisibility(
-                visible = messageSelectionMode,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                ChatDetailSelectionToolbar(
-                    visible = messageSelectionMode,
-                    selectedMessages = selectedMessages,
-                    allMessages = state.messages,
-                    selectedIds = drafts.selectedMessageIds,
-                    chatIsGroup = state.chatIsGroup,
-                    myMemberRole = state.myMemberRole,
-                    pinnedMessageIds = remember(state.pinnedMessages) { state.pinnedMessages.map { it.messageId }.toSet() },
-                    isSecretChat = state.isSecretChat == true,
-                    preparingAttachmentMessageIds = state.preparingAttachmentMessageIds,
-                    onSelectAll = { drafts.selectedMessageIds = it },
-                    onClearSelection = { drafts.selectedMessageIds = emptySet() },
-                    onForward = { msgs ->
-                        messageActions.messagesToForward = msgs
-                        viewModel.loadForwardTargets()
-                    },
-                    onToggleStar = { ids, shouldStar -> viewModel.toggleStarMessagesBatch(ids, shouldStar) },
-                    onDelete = { dialogs.showBatchDeleteConfirm = true },
-                    onTogglePin = { ids, shouldPin ->
-                        viewModel.togglePinMessages(messageIds = ids, shouldPin = shouldPin)
-                    },
-                    onCopied = { text ->
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, text))
-                        Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
-                    },
-                    onCopyFailed = {
-                        Toast.makeText(context, context.getString(R.string.chat_copy_no_text), Toast.LENGTH_SHORT).show()
-                    },
-                )
-            }
+            // G348：搜索条 + 多选工具条两块抽到 ChatDetailSearchAndSelection.kt，纯搬移不改判断。
+            ChatDetailSearchSection(
+                state = state,
+                viewModel = viewModel,
+                search = search,
+                searchResults = searchResults,
+                semanticCandidates = semanticCandidates,
+                chatAiSurfacesVisible = chatAiSurfacesVisible,
+            )
+            ChatDetailSelectionSection(
+                state = state,
+                viewModel = viewModel,
+                drafts = drafts,
+                messageActions = messageActions,
+                dialogs = dialogs,
+                messageSelectionMode = messageSelectionMode,
+                selectedMessages = selectedMessages,
+                chatClipboardMessageLabel = chatClipboardMessageLabel,
+                chatCopiedMsg = chatCopiedMsg,
+            )
 
             ChatTimelinePane(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
