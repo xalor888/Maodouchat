@@ -431,6 +431,20 @@ internal class ChatDetailDeps(
         persistMessage = messageRepo::insertMessage,
         text = { id, args -> host.text(id, *args) },
     )
+    internal val nudgeSender = ChatNudgeSender(
+        scope = host.viewModelScope,
+        nudgeEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.NUDGE) },
+        activeChatId = { host.activeChatId },
+        chatId = { host.chatId },
+        ownerUserId = { host.currentUserId },
+        token = { host.token },
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        mergeMessages = host::mergeMessages,
+        emitListPreviewForDecrypted = host::emitListPreviewForDecrypted,
+        outgoingFacade = outgoingFacade,
+        text = { id, args -> host.text(id, *args) },
+    )
     internal val moderationController = ChatModerationController(
         application = application,
         scope = host.viewModelScope,
