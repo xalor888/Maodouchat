@@ -11,8 +11,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
-import com.maodouchat.domain.messaging.AttachmentIntent
-import com.maodouchat.domain.messaging.AttachmentKind
 import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.conversation.ConversationLocalCleanupMode
@@ -55,7 +53,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.UUID
 
 class ChatDetailViewModel(
     application: Application,
@@ -347,6 +344,7 @@ class ChatDetailViewModel(
     private val pinStarController get() = deps.pinStarController
     private val nudgeSender get() = deps.nudgeSender
     private val retrySender get() = deps.retrySender
+    private val attachmentSender get() = deps.attachmentSender
     private val moderationController get() = deps.moderationController
     private val botGroupActionController get() = deps.botGroupActionController
     private val realtimeController get() = deps.realtimeController
@@ -1720,135 +1718,9 @@ class ChatDetailViewModel(
         // 旧写法让阅后即焚/剧透遮罩媒体在重发后失去一次性查看保护
         viewOnce: Boolean = existingMessage?.parsedMeta()?.viewOnce == true,
         spoilerMedia: Boolean = existingMessage?.parsedMeta()?.spoilerMedia == true
-    ) {
-        if (_uiState.value.isSending && fixedMessageId == null) return
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MEDIA_UPLOAD)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.media_upload_disabled)) }
-            return
-        }
-
-        require(type in RELIABLE_ATTACHMENT_TYPES)
-        val attachOwnerUserId = currentUserId
-        if (token.isBlank() || attachOwnerUserId.isBlank()) {
-            _uiState.update {
-                it.copy(isSending = false, groupEncryptionWarning = text(R.string.error_session_expired))
-            }
-            return
-        }
-        val messageId = fixedMessageId ?: "m_${UUID.randomUUID()}"
-        val kind = when (type) {
-            MessageType.IMAGE -> AttachmentKind.IMAGE
-            MessageType.VIDEO -> AttachmentKind.VIDEO
-            MessageType.VOICE -> AttachmentKind.VOICE
-            MessageType.FILE -> AttachmentKind.FILE
-            MessageType.GIF -> AttachmentKind.GIF
-            else -> AttachmentKind.FILE
-        }
-        val isGroup = _uiState.value.chat?.isGroup == true
-        val intent = AttachmentIntent(
-            conversationId = activeChatId,
-            kind = kind,
-            uri = uri.toString(),
-            idempotencyKey = messageId,
-            durationMs = voiceDurationMs,
-            viewOnce = viewOnce && !isGroup,
-            spoilerMedia = spoilerMedia
-        )
-
-        val optimistic = existingMessage?.copy(
-            chatId = activeChatId,
-            content = uri.toString(),
-            status = MessageStatus.SENDING,
-            meta = MessageMeta(
-                voiceDurationMs = voiceDurationMs,
-                viewOnce = viewOnce && !isGroup,
-                spoilerMedia = spoilerMedia
-            )
-        ) ?: Message(
-            id = messageId,
-            chatId = activeChatId,
-            senderId = attachOwnerUserId,
-            content = uri.toString(),
-            type = type,
-            timestamp = System.currentTimeMillis(),
-            status = MessageStatus.SENDING,
-            meta = MessageMeta(
-                voiceDurationMs = voiceDurationMs,
-                viewOnce = viewOnce && !isGroup,
-                spoilerMedia = spoilerMedia
-            )
-        )
-
-        _uiState.update {
-            it.copy(
-                messages = mergeMessages(it.messages, listOf(optimistic)),
-                isSending = true,
-                fileTransferProgress = it.fileTransferProgress + (messageId to 0f),
-                preparingAttachmentMessageIds = it.preparingAttachmentMessageIds + messageId,
-                groupEncryptionWarning = null,
-            )
-        }
-
-        val preparationJob = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
-            val result = attachmentIntentController.submit(intent)
-            result.fold(
-                onSuccess = {
-                    val queued = withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) }
-                    _uiState.update { state ->
-                        state.copy(
-                            messages = if (queued != null) {
-                                state.messages.map { current -> if (current.id == messageId) queued else current }
-                            } else state.messages,
-                            isSending = false,
-                            preparingAttachmentMessageIds = state.preparingAttachmentMessageIds - messageId,
-                        )
-                    }
-                    if (existingMessage != null) {
-                        resumeFileTransfer(messageId)
-                    }
-                },
-                onFailure = { error ->
-                    if (error is kotlinx.coroutines.CancellationException) {
-                        _uiState.update {
-                            it.copy(
-                                isSending = false,
-                                preparingAttachmentMessageIds = it.preparingAttachmentMessageIds - messageId
-                            )
-                        }
-                        throw error
-                    }
-                    android.util.Log.w("ChatDetailViewModel", "Attachment preparation failed: $messageId", error)
-                    val failed = (withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) }
-                        ?: existingMessage
-                        ?: optimistic).copy(status = MessageStatus.FAILED)
-                    _uiState.update {
-                        it.copy(
-                            messages = it.messages.map { current -> if (current.id == messageId) failed else current },
-                            isSending = false,
-                            fileTransferProgress = it.fileTransferProgress - messageId,
-                            preparingAttachmentMessageIds = it.preparingAttachmentMessageIds - messageId,
-                            groupEncryptionWarning = attachmentErrorText(error, R.string.chat_attachment_upload_failed)
-                        )
-                    }
-                    withContext(Dispatchers.IO) { messageRepo.insertMessage(failed) }
-                }
-            )
-        }
-        attachmentPreparationJobs[messageId] = preparationJob
-        preparationJob.invokeOnCompletion { error ->
-            attachmentPreparationJobs.remove(messageId, preparationJob)
-            if (error != null) {
-                if (com.maodouchat.session.CurrentSession.snapshot().userId != attachOwnerUserId) return@invokeOnCompletion
-                _uiState.update {
-                    it.copy(
-                        isSending = false,
-                        preparingAttachmentMessageIds = it.preparingAttachmentMessageIds - messageId
-                    )
-                }
-            }
-        }
-        preparationJob.start()
-    }
+    ) = attachmentSender.sendEncryptedAttachment(
+        uri, type, fixedMessageId, existingMessage, voiceDurationMs, viewOnce, spoilerMedia
+    )
 
 
 
