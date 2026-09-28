@@ -75,7 +75,6 @@ class ServerArchitectureTest {
     /** 物理错放在 `repository/` 的 `*Service.kt`。当前 5 个（应迁往 `service/`）。 */
     private val frozenServicesInRepositoryPackage: Set<String> = setOf(
         "AccountLifecycleService.kt",
-        "ConversationCreationService.kt",
         "CredentialService.kt",
         "FeedQueryService.kt",
         "PostCommandService.kt",

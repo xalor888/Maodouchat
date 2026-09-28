@@ -6,9 +6,9 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.JoinGroupInviteRequest
 import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.repository.ConversationQueryRepository
-import com.maodouchat.server.repository.CreateConversationCommand
-import com.maodouchat.server.repository.CreateConversationOutcome
-import com.maodouchat.server.repository.CreateConversationResult
+import com.maodouchat.server.service.CreateConversationCommand
+import com.maodouchat.server.service.CreateConversationOutcome
+import com.maodouchat.server.service.CreateConversationResult
 import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.UserRepository
