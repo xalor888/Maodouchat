@@ -2469,7 +2469,7 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   VM 侧只留委托 + `deps` 装配；热点上限两份 map 同步收紧 2420 → 2343；
 - 与 #170 在 caps 两份 map 同一区块合并冲突——按主线解冲突（2185 + 2343）并重跑全绿。
 
-### 第十三轮续十四（2026-09-29，G346）：`ChatDetailViewModel` 第二个控制器切片——`retrySendMessage` 抽出（2343 → 2275，PR #TBD）
+### 第十三轮续十四（2026-09-29，G346）：`ChatDetailViewModel` 第二个控制器切片——`retrySendMessage` 抽出（2343 → 2275，PR #176）
 
 - 重发失败消息的编排（72 行）逐字抽到新 `ChatRetrySender`：重试准入守卫（归属/状态/类型）
   走纯函数 `ChatSendGuard.checkRetry`（可单测）；编排只做附件重发分流 → 乐观回 SENDING →
