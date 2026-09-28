@@ -551,4 +551,46 @@ class SemanticsAuditTest {
         // 实测 5 个可点击；阈值取下界 4。
         assertClean("serversettings", minClickables = 4, minHeadings = 1)
     }
+
+    // ---------- 第三十一屏：会话详情（主聊天屏，真 Room 播种 + 真 VM） ----------
+
+    @Test
+    fun chatDetailScreenSemanticsAreClean() {
+        // 与 ChatDetailScreenDataTest 同款构造：真 Room 播种 + SavedStateHandle 带 chatId 的真 VM。
+        val ctx = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = com.maodouchat.data.local.AppDatabase.getInstance(ctx)
+        kotlinx.coroutines.runBlocking {
+            db.chatDao().deleteAllChats()
+            db.chatDao().insertChats(
+                listOf(
+                    com.maodouchat.data.local.entity.ChatEntity(
+                        id = "audit-chat-1",
+                        isGroup = false,
+                        lastMessage = "hi",
+                        lastMessageTime = 1_000L,
+                    )
+                )
+            )
+        }
+        val vm = com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel(
+            application(),
+            androidx.lifecycle.SavedStateHandle(mapOf("chatId" to "audit-chat-1")),
+        )
+        compose.setContent {
+            com.maodouchat.ui.screen.chatdetail.ChatDetailRoute(viewModel = vm)
+        }
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodes(androidx.compose.ui.test.hasContentDescription(
+                InstrumentationRegistry.getInstrumentation().targetContext.getString(com.maodouchat.R.string.common_back)
+            )).fetchSemanticsNodes().isNotEmpty()
+        }
+        try {
+            // 实测 11 个可点击（顶栏 6 + 输入区 5；空时间线）；阈值取下界 9。
+            assertClean("chatdetail", minClickables = 9)
+        } finally {
+            // 放在 finally：用例失败（如探针报问题）也必须清干净，否则残留会话行
+            // 会污染后面的 chatlist 审计（本轮实测踩过：超时失败 → 残留行 → chatlist 红）。
+            kotlinx.coroutines.runBlocking { db.chatDao().deleteAllChats() }
+        }
+    }
 }
