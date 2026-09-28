@@ -346,6 +346,7 @@ class ChatDetailViewModel(
     private val mediaStateController get() = deps.mediaStateController
     private val readReceiptCoordinator get() = deps.readReceiptCoordinator
     private val pinStarController get() = deps.pinStarController
+    private val nudgeSender get() = deps.nudgeSender
     private val moderationController get() = deps.moderationController
     private val botGroupActionController get() = deps.botGroupActionController
     private val realtimeController get() = deps.realtimeController
@@ -1219,85 +1220,7 @@ class ChatDetailViewModel(
 
 
     /** Sends a nudge through the same durable encrypted outbox as every other message. */
-    fun sendNudge() {
-        // G68：nudge 守卫与待发意图构造都下沉到纯工厂（可单测），这里只编排副作用。
-        val nudgeOwnerUserId = currentUserId
-        val decision = ChatSendIntentFactory.checkNudge(
-            state = _uiState.value,
-            activeChatId = activeChatId,
-            ownerUserId = nudgeOwnerUserId,
-            token = token,
-            nudgeEnabled = RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.NUDGE),
-        )
-        if (decision is ChatSendIntentFactory.NudgeDecision.Reject) {
-            // 资源字符串只出现在编排层：DISABLED 走 errorMessage，其余走 groupEncryptionWarning
-            val disabled = decision.reason == ChatSendIntentFactory.NudgeRejectReason.DISABLED
-            val message = when (decision.reason) {
-                ChatSendIntentFactory.NudgeRejectReason.SECRET_CHAT -> text(R.string.secret_chat_forward_blocked)
-                ChatSendIntentFactory.NudgeRejectReason.DISABLED -> text(R.string.nudge_disabled)
-                ChatSendIntentFactory.NudgeRejectReason.NO_CHAT -> text(R.string.chat_ws_send_failed)
-                ChatSendIntentFactory.NudgeRejectReason.NO_SESSION -> text(R.string.error_session_expired)
-            }
-            _uiState.update {
-                it.copy(
-                    groupEncryptionWarning = message.takeUnless { disabled } ?: it.groupEncryptionWarning,
-                    errorMessage = message.takeIf { disabled } ?: it.errorMessage,
-                )
-            }
-            return
-        }
-        val contactName = _uiState.value.contact.name.ifBlank { text(R.string.chat_other_person) }
-        val optimistic = ChatSendIntentFactory.build(
-            chatId = ChatSendIntentFactory.effectiveChatId(activeChatId, chatId),
-            senderId = nudgeOwnerUserId,
-            messageId = ChatSendIntentFactory.newMessageId(),
-            timestamp = System.currentTimeMillis(),
-            content = text(R.string.chat_nudge_you_nudged, contactName),
-            type = MessageType.NUDGE,
-            meta = null,
-        )
-        _uiState.update { state ->
-            state.copy(
-                messages = mergeMessages(state.messages, listOf(optimistic)),
-                groupEncryptionWarning = null,
-            )
-        }
-        viewModelScope.launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    outgoingFacade.enqueue(
-                        OutgoingMessageCommand(
-                            ownerUserId = nudgeOwnerUserId,
-                            optimisticMessage = optimistic,
-                            body = optimistic.content,
-                            type = MessageType.NUDGE,
-                        ),
-                    )
-                }
-                when (result) {
-                    is OutgoingMessageResult.Staged -> {
-                        _uiState.update { state ->
-                            state.copy(messages = state.messages.map {
-                                if (it.id == result.message.id) result.message else it
-                            })
-                        }
-                        emitListPreviewForDecrypted(result.message)
-                    }
-                    is OutgoingMessageResult.Failed -> _uiState.update { state ->
-                        state.copy(
-                            messages = state.messages.map {
-                                if (it.id == result.message.id) result.message else it
-                            },
-                            groupEncryptionWarning = result.error.message?.take(120)
-                                ?: text(R.string.chat_send_failed),
-                        )
-                    }
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            }
-        }
-    }
+    fun sendNudge() = nudgeSender.sendNudge()
 
     /**
      * 重发失败的消息
