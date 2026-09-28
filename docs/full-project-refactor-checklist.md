@@ -8,7 +8,7 @@
 
 本文是执行清单，不是“功能已经完成”的声明。只有同时满足代码、迁移、测试、删除旧路径和真实 E2E 门槛，条目才允许勾选完成。
 
-## 0. 权威口径（2026-09-28 复核；上一版 2026-09-24）
+## 0. 权威口径（2026-09-28 复核·三版；上一版 2026-09-24）
 
 **这一节是本文所有数字的唯一权威来源。** 正文里的内联数字（尤其是 §G32–G58、§Q0x 那些
 长段落里带日期的数字）是**当时那一轮的日志**，多数已过期，甚至与本文其它段落互相矛盾——
@@ -18,7 +18,7 @@
 |----|------------------|--------|
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
 | App JVM 单测（执行数） | 2173（09-24: 2129） | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
-| App 仪器测试 | 245（`@Test` 计数；09-24: 156） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
+| App 仪器测试 | **249**（`@Test` 计数；09-24: 156；语义审计扩面 +4） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
 | Server 单测（执行数） | 620（`@Test` 标注 645；09-24: 578/603，差值是 postgres tag 等未进默认套件的） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
 | core/domain 模块测试（执行数） | 68（不变） | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
 | 有测试源文件的模块 | 9 个（不变） | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
@@ -26,14 +26,14 @@
 | `plugins/` 内 `transaction {` | **0 处** | `grep -rc "transaction {" server/src/main/kotlin/.../plugins/*.kt` |
 | `plugins/` 内 import Exposed | **0 个文件**（`StatusPages.kt` 只有全限定名引用，非 import） | `grep -rl "^import org.jetbrains.exposed" .../plugins/*.kt` |
 | `repository/`→`plugins/` 反向依赖 | 0 处 | `ServerArchitectureTest.frozenRepositoryDependingOnPlugins`（空 map） |
-| 非 ui 包 import ui | **2 处**（白名单：`MainActivity.kt`、`navigation/CallDestinations.kt`，均带理由） | `ClientArchitectureTest.packages outside ui must not import ui` |
+| 非 ui 包 import ui | **5 处**（白名单：`MainActivity.kt` + `navigation/` 下 4 个 Destinations 注册文件，均带理由；判据已收紧为「剥注释+剥字符串后的全限定名前缀」扫描，无待修表，offenders 必须为零） | `ClientArchitectureTest.packages outside ui must not import ui` |
 | ui 直连 `ApiService`（真发请求） | **0 个文件**（空名单 + 反向断言） | `ClientArchitectureTest.frozenUiApiCallers` |
-| ui 读会话令牌 `TokenManager` | **5 个文件**（只许降；09-24 曾为 31——令牌自持化批次后大幅下降） | `ClientArchitectureTest.frozenUiTokenReaders` |
-| ui 直连持久层/全局单例命中 | 43 = ChatListPorts 23 + ChatDetailDeps 17 + LoginViewModel 2 + ChatDetailViewModel 1（09-24 曾为 192+；ChatDetailViewModel 本轮 19 → 1） | `ClientArchitectureTest.frozenUiDirectPersistence` |
+| ui 读会话令牌 `TokenManager` | **1 个文件**（仅 `LoginViewModel`——登录页是会话的拥有者；09-24 曾为 31，令牌自持化批次后 5 → 1） | `ClientArchitectureTest.frozenUiTokenReaders` |
+| ui 直连持久层/全局单例命中 | **3 = LoginViewModel 2 + ChatDetailViewModel 1**（09-24 曾为 192+；ChatListPorts 23→0、ChatDetailDeps 17→0 两批已随迁清零） | `ClientArchitectureTest.frozenUiDirectPersistence` |
 | core 模块生产引用 | 在用 3（crypto 44 / realtime 25 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
 | lint 基线条数（只许降） | **53**（本战役起点 615） | `LintBaselineRatchetTest.frozenIssueCount` / `app/lint-baseline.xml` 块数 |
-| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` 2525 / `ChatDetailViewModel.kt` 2420 / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
+| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **2185** / `ChatDetailViewModel.kt` **2343** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；顶栏+横幅栈 2525 → 2185、sendNudge 抽出 2420 → 2343） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
 > 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
 > `compileDebugUnitTestKotlin`（JVM 单测）、`compileDebugAndroidTestKotlin`（仪器测试）。
@@ -2423,3 +2423,48 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 纯新增测试文件，生产代码零改动；与 open PR #168（`ChatDetailRoute.kt`/`ChatDetailTopBar.kt`/
   `ClientArchitectureTest.kt`）无文件交集；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证（server JVM 单测）。
+
+### 第十三轮续十（2026-09-28）：`ChatDetailRoute` 顶栏抽出——2525 → 2277 行（PR #168）
+
+- 全仓最大文件 `ChatDetailRoute.kt`（单 composable）把其中最大一块内联 UI——**顶栏**
+  （`topBar = { FloatingGlassTopBar(...) }`，256 行：标题/状态区、返回、群通话/安全码/
+  语音/视频、溢出菜单 18 项）逐字抽到新文件 `ChatDetailTopBar.kt`（331 行）；
+- 依赖全经参数注入：`state` + 8 个流程持有类（dialogs/schedule/chatLock/flows/search/
+  drafts/contactSheets/groupCall）+ `pickers` + 9 个回调 + `viewModel`（5 个动作）+
+  `headerStatus` + `participantNamesById`——组合期内不新增状态所有权，开关读写语义逐字一致；
+- `ChatDetailRoute.kt` 删 18 个随迁死 import；热点上限两份 map 同步收紧 2525 → 2277；
+- 判据（本机全绿）：`:app:compileDebugKotlin`、`:app:testDebugUnitTest`（2173 例）、
+  `:app:compileDebugAndroidTestKotlin`、`:app:lintDebug` + 活跃 lint 守卫；
+  另在本机模拟器（emulator-5558）跑 `ChatDetailScreenDataTest` + `DestinationSmokeTest`
+  24/24 绿——覆盖 ChatDetailRoute 的真实装配渲染（`ChatDetailRoute(viewModel = viewModel)`）。
+- CI 备注：#166 的 Instrumented 曾报 `DestinationSmokeTest.blockedUsers`
+  `ArrayIndexOutOfBoundsException`（Compose SlotTable `moveSlotGapTo`，activity destroy 期）——
+  同内容 androidTest APK 在上一次运行全绿、且两次 head 的差异只在 JVM 单测源文件，
+  判定为模拟器侧 flake；rerun 后绿，未改任何代码。
+
+### 第十三轮续十一（2026-09-28）：`ChatDetailRoute` 横幅栈抽出——2277 → 2185 行（PR #170）
+
+- 消息列表上方的**横幅栈组装**（置顶/群公告/定时/阅后即焚/密聊/实时位置/群加密警告/
+  安全警告/未读摘要，100 行）逐字抽到 `ChatDetailBanners.kt` 的 `ChatDetailBannerStack`
+  （该文件本就承载 8 个横幅实现，本次补上组装点）；
+- 依赖经参数注入：`state` + `viewModel` + `flows` + `schedule` + `participantNamesById` +
+  `onOpenProfile` + `chatAiSurfacesVisible`；`ChatDetailRoute` 删 2 个随迁死 import；
+- 新函数补 `@SuppressLint("LocalContextGetResourceValueCall")`（与 Route 同款理由：
+  资源字符串均在回调内读取）——本机 lint 活跃守卫首跑就抓到 3 条，未放行；
+- 热点上限两份 map 同步收紧 2277 → 2185。
+
+### 第十三轮续十二（2026-09-29）：语义审计探针扩面四屏（PR #171）
+
+- Q03 无障碍语义审计 **屏覆盖 11 → 15**：新增 `MaodouAgent`（8 可点击）/ `Moments`（2）/
+  `MediaCenter`（6）/ `AiTasks`（2）四屏，构造同 `DestinationSmokeTest`（真 Application + 真 VM）；
+- 四屏在「名字 + 48dp 触控目标」两维实测 **0 问题**——无需补语义或白名单；阈值按下界固化；
+- 本机 emulator-5558 实跑 `SemanticsAuditTest` 14/14 绿；CI instrumented 249 例全绿；
+- 后续：四屏主标题暂未加 `heading()`，与 GlobalSearch 先例一致，待各自拆分批次处理。
+
+### 第十三轮续十三（2026-09-28）：`ChatDetailViewModel` 首个控制器切片——`sendNudge` 抽出（2420 → 2343，PR #172）
+
+- 「拍一拍」编排（78 行）逐字抽到 `ChatNudgeSender`（守卫/待发意图构造本就在纯工厂
+  `ChatSendIntentFactory`，本轮搬走副作用编排：乐观上屏 → 出站队列 → 结果回填 + 列表预览）；
+- 依赖全经构造器注入（同 `ChatPinStarController` 一族，12 个 lambda/对象）；
+  VM 侧只留委托 + `deps` 装配；热点上限两份 map 同步收紧 2420 → 2343；
+- 与 #170 在 caps 两份 map 同一区块合并冲突——按主线解冲突（2185 + 2343）并重跑全绿。
