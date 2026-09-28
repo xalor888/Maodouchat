@@ -481,7 +481,7 @@ internal class ChatDetailDeps(
         persistMessage = messageRepo::insertMessage,
         resumeFileTransfer = host::resumeFileTransfer,
         preparationJobs = attachmentPreparationJobs,
-        currentSessionUserId = { com.maodouchat.session.CurrentSession.snapshot().userId },
+        currentSessionUserId = { com.maodouchat.session.CurrentSession.snapshot().userId.orEmpty() },
         attachmentErrorText = host::attachmentErrorText,
         text = { id, args -> host.text(id, *args) },
     )

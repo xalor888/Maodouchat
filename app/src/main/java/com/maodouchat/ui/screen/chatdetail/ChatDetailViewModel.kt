@@ -36,6 +36,7 @@ import com.maodouchat.ui.OwnerSessionPolicy
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.VoicePlayer
+import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1214,7 +1215,6 @@ class ChatDetailViewModel(
             }
         }
     }
-
 
 
     /** Sends a nudge through the same durable encrypted outbox as every other message. */
