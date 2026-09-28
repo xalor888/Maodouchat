@@ -631,4 +631,48 @@ class SemanticsAuditTest {
             kotlinx.coroutines.runBlocking { db.chatDao().deleteAllChats() }
         }
     }
+
+    // ---------- 第三十三~三十六屏：群玩族（投票/签到/接龙/PK，SavedStateHandle 真 VM） ----------
+
+    private fun groupPlaySavedState() = androidx.lifecycle.SavedStateHandle(mapOf("chatId" to "audit-group-play-1"))
+
+    @Test
+    fun groupPollScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.groupplay.GroupPollViewModel(application(), groupPlaySavedState())
+        compose.setContent {
+            com.maodouchat.ui.screen.groupplay.GroupPollScreen(onBack = {}, viewModel = vm)
+        }
+        // 实测 8 个可点击（返回 + 选项/添加/两个开关行/创建等）；阈值取下界 6；标题已加 heading()。
+        assertClean("grouppoll", minClickables = 6, minHeadings = 1)
+    }
+
+    @Test
+    fun groupCheckinScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.groupplay.GroupCheckinViewModel(application(), groupPlaySavedState())
+        compose.setContent {
+            com.maodouchat.ui.screen.groupplay.GroupCheckinScreen(onBack = {}, viewModel = vm)
+        }
+        // 实测 2 个可点击（返回 + 签到按钮）；阈值取下界 2；标题已加 heading()。
+        assertClean("groupcheckin", minClickables = 2, minHeadings = 1)
+    }
+
+    @Test
+    fun groupChainScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.groupplay.GroupChainViewModel(application(), groupPlaySavedState())
+        compose.setContent {
+            com.maodouchat.ui.screen.groupplay.GroupChainScreen(onBack = {}, viewModel = vm)
+        }
+        // 实测 4 个可点击；阈值取下界 3；标题已加 heading()。
+        assertClean("groupchain", minClickables = 3, minHeadings = 1)
+    }
+
+    @Test
+    fun groupPkScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.groupplay.GroupPkViewModel(application(), groupPlaySavedState())
+        compose.setContent {
+            com.maodouchat.ui.screen.groupplay.GroupPkScreen(onBack = {}, viewModel = vm)
+        }
+        // 实测 4 个可点击；阈值取下界 3；标题已加 heading()。
+        assertClean("grouppk", minClickables = 3, minHeadings = 1)
+    }
 }
