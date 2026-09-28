@@ -211,7 +211,7 @@ class ClientArchitectureTest {
         )
         val fixed = pendingLayeringFqOffenders.keys - offenders.toSet()
         assertEquals(
-            emptyList(),
+            emptySet<String>(),
             fixed,
             "pending 表里的 FQ 违规已消失（好事，多半是 #165 合并了）——" +
                 "请把 pendingLayeringFqOffenders 的对应条目删掉，让门禁彻底落闸。实际=$fixed",
