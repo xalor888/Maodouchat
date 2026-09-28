@@ -10,8 +10,8 @@ import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
+import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentKind
 import com.maodouchat.crypto.DecryptHistoryPolicy
@@ -73,7 +73,7 @@ class ChatDetailViewModel(
     } else {
         com.maodouchat.crypto.SessionCipherOccupancy.acquire(chatId)
     }
-    internal val app = application as MaodouchatApp
+    internal val app = application as com.maodouchat.MaodouchatApp
     // G73：AI 能力端口（实现在 data 层，Route 只认端口）
     internal val aiConversationProfileSource get() = deps.aiConversationProfileSource
     internal val aiChatClassificationSource get() = deps.aiChatClassificationSource
@@ -102,14 +102,14 @@ class ChatDetailViewModel(
     internal val conversationLocalStateCoordinator get() = deps.conversationLocalStateCoordinator
 
     private fun ownerSession(ownerUserId: String = currentUserId): OwnerSessionSnapshot =
-        OwnerSessionSnapshot(ownerUserId, MaodouchatApp.currentSessionGeneration())
+        OwnerSessionSnapshot(ownerUserId, ChatDetailAccess.currentSessionGeneration())
 
     internal fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
         OwnerSessionPolicy.isCurrent(
             snapshot = session,
             liveUserId = com.maodouchat.session.CurrentSession.snapshot().userId,
             liveToken = com.maodouchat.session.CurrentSession.snapshot().token,
-            liveSessionGeneration = MaodouchatApp.currentSessionGeneration(),
+            liveSessionGeneration = ChatDetailAccess.currentSessionGeneration(),
             purgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
         )
 
@@ -218,7 +218,7 @@ class ChatDetailViewModel(
         if (message.type == MessageType.SK_DIST) return
         val chatId = message.chatId.ifBlank { activeChatId }
         if (chatId.isBlank()) return
-        com.maodouchat.MaodouchatApp.emitMessageSent(
+        ChatDetailAccess.emitMessageSent(
             chatId,
             listPreviewTextForMessage(message),
             message.type.name,
@@ -230,12 +230,12 @@ class ChatDetailViewModel(
     internal suspend fun indexSearchableMessage(message: Message) {
         // 密聊消息不落搜索索引（与 ImageOcrAutoIndexer 一致）：即使本地 SQLCipher 已加密，
         // 密聊明文不应进入可搜索缓存，避免密聊内容在全局搜索中可被检索。
-        val caps = app.secretConversationController.capabilities(message.chatId)
+        val caps = com.maodouchat.security.SecretChatCapabilities.forChat(message.chatId)
         if (!com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(caps, com.maodouchat.domain.messaging.PrivacyAction.SEARCH)) {
             return
         }
         try {
-            com.maodouchat.data.repository.MessageSearchRepository(app.database)
+            com.maodouchat.chatdetail.ChatDetailDataAccess.messageSearchRepository()
                 .indexMessage(message)
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
@@ -378,13 +378,13 @@ class ChatDetailViewModel(
             viewModelScope.launch(Dispatchers.IO) {
                 pinSessionCipherPeerFromCache(chatId)
             }
-            com.maodouchat.MaodouchatApp.activeChatOpenedAtMs = System.currentTimeMillis()
+            ChatDetailAccess.markActiveChatOpened(System.currentTimeMillis())
             // Open chat: drop tray notification + mark in-app center rows for this chat.
             runCatching {
                 com.maodouchat.notification.MessageNotificationService.cancelMessage(getApplication(), chatId)
             }
             try {
-                app.notificationCenter.markChatMessagesRead(chatId)
+                com.maodouchat.notification.NotificationCenterAccess.repository.markChatMessagesRead(chatId)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -478,7 +478,7 @@ class ChatDetailViewModel(
             .onEach { state ->
                 if (state.chat == null) return@onEach
                 val effectiveChatId = activeChatId.ifBlank { chatId }
-                if (MaodouchatApp.activeChatId != effectiveChatId) return@onEach
+                if (ChatDetailAccess.activeChatId() != effectiveChatId) return@onEach
                 val currentIds = state.messages.map { it.id to it.status }
                 if (currentIds == lastMessagesSeen) return@onEach
                 lastMessagesSeen = currentIds
@@ -508,13 +508,13 @@ class ChatDetailViewModel(
                     )
                 }
                 viewModelScope.launch(Dispatchers.IO) {
-                    app.database.messageDao().markIncomingReadThrough(
+                    com.maodouchat.chatdetail.ChatDetailDataAccess.markIncomingReadThrough(
                         chatId = effectiveChatId,
                         ownerUserId = ownerUserId,
                         throughTimestamp = watermarkTimestamp,
                         throughMessageId = watermarkId,
                     )
-                    app.database.chatDao().markAllRead(effectiveChatId)
+                    com.maodouchat.chatdetail.ChatDetailDataAccess.markAllRead(effectiveChatId)
                 }
                 markReadJob?.cancel()
                 markReadJob = viewModelScope.launch {
@@ -531,7 +531,7 @@ class ChatDetailViewModel(
                     }
                     try {
                         withContext(Dispatchers.IO) {
-                            app.messagingV2Outbox.enqueueReadReceipt(
+                            ChatDetailAccess.messagingOutbox.enqueueReadReceipt(
                                 conversationId = effectiveChatId,
                                 throughMessageId = watermarkId,
                                 groupRevision = state.chat.memberRevision.takeIf { state.chat.isGroup },
@@ -554,11 +554,11 @@ class ChatDetailViewModel(
     private fun emitChatReadForCurrentChat() {
         val id = activeChatId.ifBlank { chatId }
         if (id.isBlank()) return
-        com.maodouchat.MaodouchatApp.emitChatRead(id)
+        ChatDetailAccess.emitChatRead(id)
     }
 
     internal fun observeAttachmentTransfers() {
-        app.database.attachmentTransferDao().observeAllAccounts()
+        com.maodouchat.chatdetail.ChatDetailDataAccess.observeAllAttachmentTransfers()
             .onEach { allTransfers ->
                 val liveOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
                 if (liveOwnerUserId.isBlank()) return@onEach
@@ -598,7 +598,7 @@ class ChatDetailViewModel(
             try {
                 val effectiveChatId = activeChatId.ifBlank { chatId }
                 val chat = _uiState.value.chat
-                app.messagingV2Outbox.enqueuePlayReceipt(
+                ChatDetailAccess.messagingOutbox.enqueuePlayReceipt(
                     conversationId = effectiveChatId,
                     messageId = messageId,
                     groupRevision = chat?.memberRevision.takeIf { chat?.isGroup == true },
@@ -660,7 +660,7 @@ class ChatDetailViewModel(
         if (observedChatId.isBlank()) return
         val ownerUserId = currentUserId
         viewModelScope.launch {
-            app.messagingV2MutationEvents.events.collect { mutation ->
+            ChatDetailAccess.messagingMutationEvents.events.collect { mutation ->
                 if (
                     mutation.conversationId != observedChatId ||
                     ownerUserId.isBlank() ||
@@ -829,7 +829,7 @@ class ChatDetailViewModel(
                         return@withContext
                     }
                     val messages = messageRepo.getRecentMessages(effectiveChatId, HISTORY_PAGE_SIZE)
-                    val unreadCount = app.database.chatDao().getChatById(effectiveChatId)?.unreadCount ?: 0
+                    val unreadCount = com.maodouchat.chatdetail.ChatDetailDataAccess.chatUnreadCount(effectiveChatId)
                     val readBoundary = messageRepo.getLatestIncomingMessage(effectiveChatId, loadOwnerUserId)?.id
                     // G70：收尾判定（分隔线/阅后即焚/回执）下沉到纯策略，这里只执行
                     val historyPlan = ChatHistoryLoadPolicy.planHistoryLoad(
@@ -851,12 +851,12 @@ class ChatDetailViewModel(
                         armSecretDisappearing(effectiveChatId, readBoundary)
                     } else if (historyPlan.enqueueReadReceipt) {
                         // 不变量：两者同源于 shouldReceipt（ChatHistoryLoadPolicy）。用 `?:` 兜底而非 `!!`：破约时宁可少发一次回执，也别在加载历史时崩。
-                        app.messagingV2Outbox.enqueueReadReceipt(
+                        ChatDetailAccess.messagingOutbox.enqueueReadReceipt(
                             conversationId = effectiveChatId,
                             throughMessageId = historyPlan.readReceiptThroughMessageId ?: effectiveChatId,
                             groupRevision = historyPlan.readReceiptGroupRevision,
                         )
-                        MaodouchatApp.emitChatRead(effectiveChatId)
+                        ChatDetailAccess.emitChatRead(effectiveChatId)
                     }
                 }
                 refreshPinnedMessages(loadOwnerUserId)
@@ -1197,8 +1197,8 @@ class ChatDetailViewModel(
 
     internal fun observeAttachmentFinalizedEvents() {
         viewModelScope.launch {
-            com.maodouchat.MaodouchatApp.attachmentFinalizedEvents.collect { event ->
-                if (event.sessionGeneration != com.maodouchat.MaodouchatApp.currentSessionGeneration()) {
+            ChatDetailAccess.attachmentFinalizedEvents.collect { event ->
+                if (event.sessionGeneration != ChatDetailAccess.currentSessionGeneration()) {
                     return@collect
                 }
                 val message = event.message
@@ -1788,7 +1788,7 @@ class ChatDetailViewModel(
                             isSending = false,
                         )
                     }
-                    MaodouchatApp.emitMessageSent(result.message.chatId, preview, type.name)
+                    ChatDetailAccess.emitMessageSent(result.message.chatId, preview, type.name)
                     completion.complete(true)
                 }
                 is OutgoingMessageResult.Failed -> {
@@ -2271,7 +2271,7 @@ class ChatDetailViewModel(
         try {
             val ownerUserId = currentUserId
             if (ownerUserId.isBlank()) return
-            val dao = app.database.attachmentTransferDao()
+            val dao = com.maodouchat.chatdetail.ChatDetailDataAccess.attachmentTransferDao()
             val transfer = dao.get(messageId, ownerUserId = ownerUserId) ?: return
             // 删除本地密文文件
             transfer.encryptedPath.takeIf { it.isNotBlank() }?.let { path ->
@@ -2318,7 +2318,7 @@ class ChatDetailViewModel(
         // 从而防止 ViewModel 被 applicationScope 中的挂起引用阻止 GC 回收。
         val draftDao = chatDraftDao
         if (draftsFeatureEnabled && draftOwnerUserId.isNotBlank() && draftChatId.isNotBlank()) {
-            com.maodouchat.MaodouchatApp.instance.applicationScope.launch {
+            ChatDetailAccess.applicationScope.launch {
                 withContext(NonCancellable) {
                     // Soft-purge/logout may destroy Room or switch owner before this runs.
                     if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(draftOwnerUserId)
@@ -2350,10 +2350,10 @@ class ChatDetailViewModel(
         val readIsSecret = _uiState.value.isSecretChat == true
         val readGroupRevision = _uiState.value.chat?.memberRevision
             ?.takeIf { _uiState.value.chat?.isGroup == true }
-        val messagingOutbox = app.messagingV2Outbox
+        val messagingOutbox = ChatDetailAccess.messagingOutbox
         releaseSessionCipher()
         if (currentChatId.isNotBlank() && readOwnerUserId.isNotBlank() && finalReadWatermark != null) {
-            MaodouchatApp.instance.applicationScope.launch {
+            ChatDetailAccess.applicationScope.launch {
                 try {
                     withContext(NonCancellable) {
                         val liveToken = com.maodouchat.session.CurrentSession.snapshot().token

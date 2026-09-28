@@ -738,7 +738,8 @@ class ClientArchitectureTest {
      * 棘轮只许降（下面的反向断言会强制：修好一个就必须从名单里删掉）。
      */
     private val frozenUiAppDatabaseGrabbers: List<String> = listOf(
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
+        // U02 延伸：ChatDetailViewModel 的 5 处 app.database 直连收进非 ui 的
+        // chatdetail/ChatDetailDataAccess，名单 3 → 2（条目删除）。
         "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
         // 通讯录两文件已还债（AndroidContactsRepository 改构造器注入 UserRepository；
         // ContactsViewModel 的 3 处 userDao/userRepository 直连改走 AppRepositories.users/userDao），
@@ -1113,7 +1114,12 @@ class ClientArchitectureTest {
         // 该文件直连持久层命中 5 → 0，条目删除。
         // 第二十九批：AiResults/Media 唯一的命中是各自头部残留的 `import ...MaodouchatApp`
         //（正文零引用，拆分残留），随死 import 一并删除后两文件归零，条目删除。
-        "screen/chatdetail/ChatDetailViewModel.kt" to 19,
+        // U02 延伸：会话详情的单例/持久层直连收进非 ui 的 chatdetail/ChatDetailAccess
+        // （会话代际/事件发射/活跃会话时间戳/附件定稿流/后台作用域/outbox/mutation 事件）
+        // 与 ChatDetailDataAccess（markIncomingThrough/markAllRead/传输观察/未读数/DAO），
+        // 19 → 1（剩余 1 是共享 `app` 属性的转型声明行——ChatDetailDeps/AI 扩展仍在用它，
+        // 待 deps 装配批次一并收口）。
+        "screen/chatdetail/ChatDetailViewModel.kt" to 1,
         // G328c：装配搬到 ChatDetailDeps 之后，直连持久层的命中随之搬过去
         // （VM 35→19，deps 17，总数 192→193：多出的 1 是 deps 构造函数里对 VM 的引用被计入）。
         "screen/chatdetail/ChatDetailDeps.kt" to 17,
