@@ -8,7 +8,6 @@ import com.maodouchat.server.db.Posts
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.PostCommentResponse
 import com.maodouchat.server.model.PostResponse
-import com.maodouchat.server.repository.FeedQueryService
 import com.maodouchat.server.repository.PostJson
 import com.maodouchat.server.repository.VisibilityPolicy
 import com.maodouchat.server.repository.isUniqueViolation

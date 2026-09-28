@@ -5,6 +5,7 @@ import com.maodouchat.server.db.Posts
 import com.maodouchat.server.model.PostCommentResponse
 import com.maodouchat.server.model.PostResponse
 import com.maodouchat.server.model.UserResponse
+import com.maodouchat.server.service.FeedQueryService
 import com.maodouchat.server.service.PostCommandService
 import com.maodouchat.server.service.PostInteractionService
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
