@@ -18,5 +18,5 @@ object ExploreDraftPolicy {
      * 这处分歧待决策，见 G179 台账条目。
      */
     fun normalizeVisibility(value: String): String =
-        com.maodouchat.ui.screen.settings.normalizeVisibility(value, "PRIVATE")
+        com.maodouchat.settings.normalizeVisibility(value, "PRIVATE")
 }

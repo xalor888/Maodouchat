@@ -19,6 +19,7 @@ import com.maodouchat.core.model.ConversationId
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import com.maodouchat.data.local.entity.SignalKeyEntity
+import com.maodouchat.messaging.DecryptEnvelopeGate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.IdentityKey
@@ -64,7 +65,7 @@ class SignalProtocol(
     GroupEncryptionHealthService,
     // G328c：解密状态判定的窄端口（把 SignalProtocol 交给 ChatDetailDecryptStatus 时
     // 只需要这 4 个方法，不必暴露整个协议对象）。
-    com.maodouchat.ui.screen.chatdetail.DecryptEnvelopeGate {
+    DecryptEnvelopeGate {
 
     internal val context = SignalProtocolContext(signalKeyDao, identityTrustDao)
     internal val envelopeCodec = SignalEnvelopeCodec()
