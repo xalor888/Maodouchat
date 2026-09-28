@@ -6,7 +6,6 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonElementSerializer
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -105,7 +104,7 @@ class MessagingV2FuzzCompatTest {
             topFields[randomFieldName(random)] = randomJsonValue(random, 3)
         }
         topFields["envelopes"] = JsonArray(fuzzedEnvelopes)
-        return messagingV2Json.encodeToString(JsonElementSerializer, JsonObject(topFields)) to expected
+        return messagingV2Json.encodeToString(JsonElement.serializer(), JsonObject(topFields)) to expected
     }
 
     @Test
@@ -130,7 +129,7 @@ class MessagingV2FuzzCompatTest {
                 fields[randomFieldName(random)] = randomJsonValue(random, 3)
             }
             val decoded = messagingV2Json.decodeFromString<AcknowledgeEnvelopesV2Request>(
-                messagingV2Json.encodeToString(JsonElementSerializer, JsonObject(fields)),
+                messagingV2Json.encodeToString(JsonElement.serializer(), JsonObject(fields)),
             )
             assertEquals(expectedIds, decoded.envelopeIds, "fuzz 迭代 #$i")
         }
