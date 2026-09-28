@@ -549,7 +549,7 @@ internal class ChatDetailDeps(
     )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
-    internal val groupRevisionHandler = ChatGroupRevisionHandler(
+    internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
         ownerUserId = { host.currentUserId },
         activeChatId = { host.activeChatId },
         currentState = host._uiState::value,
