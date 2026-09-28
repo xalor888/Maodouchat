@@ -4,7 +4,6 @@ import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -84,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -932,8 +932,8 @@ private fun LinkList(items: List<MediaCenterItem>, onOpenMessage: (String) -> Un
                 Column(Modifier.weight(1f)) {
                     // 1.320：搜索时高亮匹配域名/链接
                     Text(
-                        if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(Uri.parse(url).host ?: url)
-                        else highlightedText(Uri.parse(url).host ?: url, highlightQuery),
+                        if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(url.toUri().host ?: url)
+                        else highlightedText(url.toUri().host ?: url, highlightQuery),
                         color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                     Text(
@@ -1023,7 +1023,7 @@ private fun openWebLink(context: Context, url: String) {
 
 private fun openLocalContent(context: Context, rawUri: String, mimeType: String?) {
     runCatching {
-        val parsed = Uri.parse(rawUri)
+        val parsed = rawUri.toUri()
         val uri = if (parsed.scheme == "file") {
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", File(requireNotNull(parsed.path)))
         } else parsed

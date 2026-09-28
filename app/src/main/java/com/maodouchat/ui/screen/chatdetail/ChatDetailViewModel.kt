@@ -6,6 +6,7 @@ import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.net.Uri
 import android.util.Log
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -1217,7 +1218,6 @@ class ChatDetailViewModel(
 
 
 
-
     /** Sends a nudge through the same durable encrypted outbox as every other message. */
     fun sendNudge() {
         // G68：nudge 守卫与待发意图构造都下沉到纯工厂（可单测），这里只编排副作用。
@@ -1311,7 +1311,7 @@ class ChatDetailViewModel(
         val decision = ChatSendGuard.checkRetry(_uiState.value, messageId, retryOwnerUserId, token)
         if (decision is ChatSendGuard.RetryDecision.NeedsAttachmentRetry) {
             return sendEncryptedAttachment(
-                Uri.parse(decision.message.parsedContent()),
+                decision.message.parsedContent().toUri(),
                 decision.message.type,
                 messageId,
                 decision.message,
