@@ -469,4 +469,86 @@ class SemanticsAuditTest {
         // 实测 3 个可点击（返回 + 版本行等）；阈值取下界 2。
         assertClean("about", minClickables = 2)
     }
+    // ---------- 第二十二~三十屏：其余设置/工具族（2026-09-29 扩面三） ----------
+
+    @Test
+    fun callHistoryScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.call.CallHistoryScreen(onBack = {}, onCall = { _, _, _ -> })
+        }
+        // 实测 1 个可点击（仅返回；空态列表无可点行）；阈值取下界 1。
+        assertClean("callhistory", minClickables = 1)
+    }
+
+    @Test
+    fun myQrCodeScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.contacts.MyQrCodeScreen()
+        }
+        // 实测 8 个可点击（返回 + 保存/分享等）；阈值取下界 6。
+        assertClean("myqrcode", minClickables = 6)
+    }
+
+    @Test
+    fun scanScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.contacts.ScanScreen()
+        }
+        // 实测本机 4 个可点击（返回 + 手电/相册等）、CI 模拟器 2 个（无摄像头能力降级）；阈值取下界 2。
+        assertClean("scan", minClickables = 2)
+    }
+
+    @Test
+    fun themeEditorScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.ThemeEditorScreen()
+        }
+        // 实测 21 个可点击（色槽/预设/保存等）；阈值取下界 17。
+        assertClean("themeeditor", minClickables = 17)
+    }
+
+    @Test
+    fun themeWorkbenchScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.ThemeWorkbenchScreen()
+        }
+        // 实测 6 个可点击；阈值取下界 5。
+        assertClean("themeworkbench", minClickables = 5)
+    }
+
+    @Test
+    fun watermarkForensicScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.WatermarkForensicScreen(onBack = {})
+        }
+        // 实测 2 个可点击（返回 + 空态/刷新）；阈值取下界 2。
+        assertClean("watermarkforensic", minClickables = 2)
+    }
+
+    @Test
+    fun aiPrivacyScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.AiPrivacySettingsScreen()
+        }
+        // 实测 9 个可点击（19 个屏外未放置被跳过）；阈值取下界 7。
+        assertClean("aiprivacy", minClickables = 7)
+    }
+
+    @Test
+    fun myReportsScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.MyReportsScreen()
+        }
+        // 实测 2 个可点击（空态）；阈值取下界 2。
+        assertClean("myreports", minClickables = 2)
+    }
+
+    @Test
+    fun serverSettingsScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.ServerSettingsScreen()
+        }
+        // 实测 5 个可点击；阈值取下界 4。
+        assertClean("serversettings", minClickables = 4)
+    }
 }
