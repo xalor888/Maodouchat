@@ -2206,25 +2206,27 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 需 Play Core 或 per-app locale 迁移评估）、`ConfigurationScreenWidthHeight`（
 `screenWidthDp → containerSize` 换算涉语义差异，且该文件零松量上限）。
 
-### 第十四轮十六续（2026-09-28）：UseKtx「变量编辑器」族收口——10 处（69 → 59）
-
-`SharedPreferences.edit` 最后一块难啃的：`val editor = prefs.edit()...` 跨语句使用模式，
-逐处人工包进 `prefs.edit { }`（编辑器方法去掉 `editor.` 前缀，控制流原样搬入 lambda）：
-
-- 10 处（7 文件）：`AiPrivacyPreferences.migrateLegacy`、`AiWritingStylePreferences.save`、
-  `CustomThemeStore.clearAll`、`FakeChatManager`（失败计数）、`LocalAiProviderStore.deleteProvider`、
-  `NotificationPreferences` 的 setRingtoneUri / setGroupRingtoneUri / setAll / migrateLegacy、
-  `QuickReplyPolicy.rememberSent`；
-- 语义保持：`migrateLegacy` 结尾是 `commit()` → `edit(commit = true) { }`（同步落盘保持）；
-  其余为 `apply()` → `edit { }`；`forEach`/`when` 嵌套内的接收者解析由编译期把关（全部通过）；
-- **保留 1 处**：`TokenManager` 的 `val editor = prefs.edit().clear()`——结尾 `commit()` 的
-  **Boolean 被 `runCatching{}.onFailure{}.getOrDefault(false)` 消费**（提交失败信号），
-  转换会丢信号，留基线并记录原因；
-- **基线手术**：−10 → 69 → 59；`frozenIssueCount` 69 → 59；分布 map `UseKtx` 22 → 12；
-- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
-  绿（4m18s）；`:app:lintDebug` 绿且 `LintBaselineFixed` 恰好点名这 10 条。
-
 **剩余（lint 基线 59 条）**：`UseKtx` 12 = 8 处保留（变量编辑器 1 + check 1 + 值被消费 commit 4
 + GlobalSearchScreen 2）+ 4 `Uri.parse`（行数上限热点文件内）；`Recycle` 1；
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
 其余零散与产品决策项（见上）。
+
+### 第十四轮十七续（2026-09-28）：UseKtx `Uri.parse` 尾巴收口——4 处（59 → 55）
+
+- 4 处 `Uri.parse(x)` → `x.toUri()`（`androidx.core.net.toUri`），接收方均为非空 `String`
+ （`parsedContent(): String`、`url: String`、`rawUri: String`），与 `Uri.parse` 语义等价；
+- **零松量上限处理**：两处站点都落在 `frozenHotspotLineCaps` 零余量文件内，必须行数零变化——
+  `ChatDetailViewModel.kt` 1 处：`android.net.Uri` 仍被 `sendEncryptedAttachment(uri: Uri)` 需要，
+  故 +1 import 行，删 `sendNudge` 上方 1 个多余空行（四连→三连）抵回，2420 不变；
+  `MediaCenterScreen.kt` 3 处：`android.net.Uri` 不再被引用，删旧 import（−1）+ 加新 import（+1），
+  1050 不变；两处上限（`frozenHotspotLineCaps` 与 `currentCaps` 副本）**均无需改动**；
+- **基线手术**：删 4 条 `String.toUri` 对应条目 → 59 → 55；`frozenIssueCount` 55；`UseKtx` 12 → 8
+  （`issue mix` 分布同步更新；其余规则计数不变）；
+- **判据**：`:app:testDebugUnitTest`（两条棘轮用例）绿；`:app:lintDebug` 绿且 `LintBaselineFixed`
+  恰好点名这 4 条。未本地验证，待 CI 验证。
+
+**剩余（lint 基线 55 条）**：`UseKtx` 8 处保留（变量编辑器 1 + check 1 + 值被消费 commit 4
++ GlobalSearchScreen 2）；`Recycle` 1（活跃 warning，基线豁免有效）；`GradleDependency` 17 +
+活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；`OldTargetApi` /
+`ChromeOsAbiSupport` / `AppBundleLocaleChanges` / `ConfigurationScreenWidthHeight`
+（4 条产品决策项，暂留）等零散。

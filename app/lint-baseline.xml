@@ -1007,16 +1007,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                Uri.parse(decision.message.parsedContent()),"
-        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt"
-            line="1764"
-            column="17"/>
-    </issue>
+    
 
     
 
@@ -1185,38 +1176,11 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        if (highlightQuery.isBlank()) androidx.compose.ui.text.AnnotatedString(Uri.parse(url).host ?: url)"
-        errorLine2="                                                                                               ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt"
-            line="952"
-            column="96"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="                        else highlightedText(Uri.parse(url).host ?: url, highlightQuery),"
-        errorLine2="                                             ~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt"
-            line="953"
-            column="46"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `String.toUri` instead?"
-        errorLine1="        val parsed = Uri.parse(rawUri)"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt"
-            line="1043"
-            column="22"/>
-    </issue>
+    
 
     
 

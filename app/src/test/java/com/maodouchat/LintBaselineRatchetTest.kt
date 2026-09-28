@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 59
+    private val frozenIssueCount = 55
 
     @Test
     fun `lint baseline can only shrink`() {
@@ -93,7 +93,14 @@ class LintBaselineRatchetTest {
             // 包进 `prefs.edit { }`（含 NotificationPreferences 迁移体、跨 forEach/when 的编辑器）；
             // 保留 1 处（TokenManager 的 `val editor = prefs.edit().clear()`——commit 返回值被
             // getOrDefault(false) 消费，转换会丢提交失败信号）。22 → 12，总条目 69 → 59。
-            "UseKtx" to 12,
+            "UseKtx" to 8,
+            // 2026-09-28：`Uri.parse` 尾巴收口——4 处 `Uri.parse(x)` → `x.toUri()`。
+            // 其中 ChatDetailViewModel.kt 1 处（retrySendMessage 附件重发，parsedContent(): String 非空；
+            // 该文件 `uri: Uri` 参数仍需 android.net.Uri，故新增 `import androidx.core.net.toUri` +1 行，
+            // 删 1 个多余空行（sendNudge 上方四连空行→三连）抵回，行数 2420 零变化，两处上限无需动）、
+            // MediaCenterScreen.kt 3 处（链接域名高亮 2 + openLocalContent 1；该文件不再用 android.net.Uri，
+            // 删旧 import +1 新 import，行数 1050 零变化）。基线删 4 条对应条目。
+            // 12 → 8，总条目 59 → 55。
             // 上面两条是 warning 级的大头；真正卡 CI 的是它：
             "LocalContextGetResourceValueCall" to 0,
             "GradleDependency" to 17,
