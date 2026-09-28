@@ -8,7 +8,7 @@
 
 本文是执行清单，不是“功能已经完成”的声明。只有同时满足代码、迁移、测试、删除旧路径和真实 E2E 门槛，条目才允许勾选完成。
 
-## 0. 权威口径（2026-09-28 复核·三版；上一版 2026-09-24）
+## 0. 权威口径（2026-09-29 复核·四版；上一版 2026-09-24）
 
 **这一节是本文所有数字的唯一权威来源。** 正文里的内联数字（尤其是 §G32–G58、§Q0x 那些
 长段落里带日期的数字）是**当时那一轮的日志**，多数已过期，甚至与本文其它段落互相矛盾——
@@ -18,7 +18,7 @@
 |----|------------------|--------|
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
 | App JVM 单测（执行数） | 2173（09-24: 2129） | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
-| App 仪器测试 | **249**（`@Test` 计数；09-24: 156；语义审计扩面 +4） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
+| App 仪器测试 | **265**（`@Test` 计数；09-24: 156；语义审计扩面三批 +19、主聊天屏 +1） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
 | Server 单测（执行数） | 620（`@Test` 标注 645；09-24: 578/603，差值是 postgres tag 等未进默认套件的） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
 | core/domain 模块测试（执行数） | 68（不变） | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
 | 有测试源文件的模块 | 9 个（不变） | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
@@ -33,7 +33,7 @@
 | core 模块生产引用 | 在用 3（crypto 44 / realtime 25 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
 | lint 基线条数（只许降） | **53**（本战役起点 615） | `LintBaselineRatchetTest.frozenIssueCount` / `app/lint-baseline.xml` 块数 |
-| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **2185** / `ChatDetailViewModel.kt` **2343** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；顶栏+横幅栈 2525 → 2185、sendNudge 抽出 2420 → 2343） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
+| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **2114** / `ChatDetailViewModel.kt` **2275** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；Route：顶栏/横幅栈/搜索+多选 2525 → 2114；VM：sendNudge/retrySendMessage 2420 → 2275） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
 > 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
 > `compileDebugUnitTestKotlin`（JVM 单测）、`compileDebugAndroidTestKotlin`（仪器测试）。
@@ -2498,3 +2498,53 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   把 `ignoreUnknownKeys` 改回 `false`，fuzz 用例立刻变红；DTO 全部 public，无需生产代码改动；
 - 纯新增测试文件 + 清单条目更新；与 open PR（#177/#178/#179，均为 app/ 侧）无文件交集；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证（server JVM 单测）。
+
+### 第十三轮续十六（2026-09-29）：语义审计扩面六屏 + 探针跳过未放置节点 + 修掉抓出的真问题（PR #174）
+
+- 扩面（15 → 21）：AccountSecurity / GeneralSettings / NotificationSettings / Moderation /
+  BlockedUsers / About 六屏（真 Application + 真 VM）；
+- **探针改进**：懒列表折叠在屏外的节点会被组成但未放置（0×0 边界），原先被误报为
+  「触控目标过小」——现在跳过并单独计数（日志可见），AccountSecurity 首跑 12 条告警因此清零；
+- **修掉的真问题**（全部由探针抓出）：
+  - `SwitchRow`（通知/通用/AI 共用）内层 Switch 是第二个无名可点击目标 → 行已 toggleable，
+    Switch 传 `onCheckedChange = null`；
+  - 4 个「只有开关可点」的行（OLED/链接预览/未读优先/回车发送）开关无名 → 挂行标题；
+  - `ThemeChoiceChip` 触控 47dp → 根因是未选中的 0.98 缩放把 48dp 触控扩展缩到 47.04dp：
+    移除缩放动画 + clickable 移到 padding 前（整块可点）+ `heightIn(min = 48.dp)`；
+  - 强调色 7 个纯色圆点无名 → 挂本地化颜色名（新增 `general_accent_*` 7 条 × 中英）；
+- 判据：emulator-5558 实跑 `SemanticsAuditTest` 20/20 绿。
+
+### 第十三轮续十七（2026-09-29）：语义审计扩面九屏——屏覆盖 21 → 30（PR #175）
+
+- 新增 CallHistory / MyQrCode / Scan / ThemeEditor / ThemeWorkbench / WatermarkForensic /
+  AiPrivacy / MyReports / ServerSettings 九屏；实测 0 问题（AiPrivacy 的开关行复用共享
+  `SwitchRow`，续十六的修复同时清掉它的 30 条旧告警）；
+- CI 首跑抓出 Scan 屏阈值过紧：本机 4 个可点击、CI 模拟器 2 个（无摄像头能力降级）——
+  阈值 3 → 2，维护侧修复后 CI 绿；
+- 判据：emulator-5558 实跑 29/29 绿；CI instrumented 291 例全绿。
+
+### 第十三轮续十八（2026-09-29）：语义审计补主聊天屏——`ChatDetailRoute`（PR #178）
+
+- 唯一缺失的高频屏补上：真 Room 播种 + `SavedStateHandle(chatId)` 真 VM → 组合真实
+  `ChatDetailRoute`，等返回键出现再审计；实测 11 个可点击、0 问题，阈值取下界 9；
+- **纪律固化**：清理放 `finally`——本轮实测踩过「用例失败残留会话行 → 后续 chatlist
+  审计被污染变红」，注释写进用例；
+- 判据：emulator-5558 实跑 30/30 绿。
+
+### 第十三轮续十九（2026-09-29）：10 屏主标题补 `heading()`——TalkBack 标题导航（PR #177）
+
+- GeneralSettings / NotificationSettings / Moderation / AiPrivacy / MyReports / BlockedUsers /
+  ServerSettings / About / WatermarkForensic / CallHistory 十屏 TopAppBar 主标题加
+  `Modifier.semantics { heading() }`；审计断言同步收紧 `minHeadings = 0 → 1`（先实跑
+  测量、每屏恰好 1 个后再收紧）；
+- AccountSecurity 整屏无 TopAppBar（自定义头部），未纳入，保持 0；
+- 判据：emulator-5558 实跑 29/29 绿（收紧后）。
+
+### 第十三轮续二十（2026-09-29）：`ChatDetailRoute` 搜索条+多选工具条抽出——2185 → 2114（PR #179，G348）
+
+- 搜索条块（54 行）→ `ChatDetailSearchSection`；多选工具条接线块（36 行）→
+  `ChatDetailSelectionSection`，两块逐字搬到 `ChatDetailSearchAndSelection.kt`；
+- 新文件补 `@SuppressLint("LocalContextGetResourceValueCall")`——lint 活跃守卫在
+  pre-push 首跑即抓到 1 条，未放行；
+- 热点上限两份 map 同步收紧 2185 → 2114；与 #176（VM 2275）在 caps 同区块合并冲突——
+  按主线解冲突（Route 2114 + VM 2275）并重跑全绿。
