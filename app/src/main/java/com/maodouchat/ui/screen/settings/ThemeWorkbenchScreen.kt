@@ -55,6 +55,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -116,7 +118,8 @@ fun ThemeWorkbenchScreen(onBack: () -> Unit = {}) {
                     "组件排版工作台",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = activePaint.colorScheme.onSurface
+                    color = activePaint.colorScheme.onSurface,
+                    modifier = Modifier.semantics { heading() }
                 )
             },
             navigationIcon = {

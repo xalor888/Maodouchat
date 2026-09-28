@@ -385,7 +385,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.ai.MaodouAgentScreen(onBack = {})
         }
         // 实测 8 个可点击（返回 + 输入/发送 + 建议 chips 等）；阈值取下界 6。
-        assertClean("maodouagent", minClickables = 6)
+        assertClean("maodouagent", minClickables = 6, minHeadings = 1)
     }
 
     @Test
@@ -394,7 +394,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.explore.MomentsScreen()
         }
         // 实测 2 个可点击（返回 + 发动态入口；空态下与 call 同量级）；阈值取下界 2。
-        assertClean("moments", minClickables = 2)
+        assertClean("moments", minClickables = 2, minHeadings = 1)
     }
 
     @Test
@@ -412,7 +412,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.chatdetail.AiTasksScreen(onBack = {})
         }
         // 实测 2 个可点击（返回 + 筛选/搜索入口；空态下）；阈值取下界 2。
-        assertClean("aitasks", minClickables = 2)
+        assertClean("aitasks", minClickables = 2, minHeadings = 1)
     }
     // ---------- 第十六~二十一屏：设置族（2026-09-29 扩面二） ----------
 
@@ -504,7 +504,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.ThemeEditorScreen()
         }
         // 实测 21 个可点击（色槽/预设/保存等）；阈值取下界 17。
-        assertClean("themeeditor", minClickables = 17)
+        assertClean("themeeditor", minClickables = 17, minHeadings = 1)
     }
 
     @Test
@@ -513,7 +513,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.ThemeWorkbenchScreen()
         }
         // 实测 6 个可点击；阈值取下界 5。
-        assertClean("themeworkbench", minClickables = 5)
+        assertClean("themeworkbench", minClickables = 5, minHeadings = 1)
     }
 
     @Test
@@ -586,7 +586,7 @@ class SemanticsAuditTest {
         }
         try {
             // 实测 11 个可点击（顶栏 6 + 输入区 5；空时间线）；阈值取下界 9。
-            assertClean("chatdetail", minClickables = 9)
+            assertClean("chatdetail", minClickables = 9, minHeadings = 1)
         } finally {
             // 放在 finally：用例失败（如探针报问题）也必须清干净，否则残留会话行
             // 会污染后面的 chatlist 审计（本轮实测踩过：超时失败 → 残留行 → chatlist 红）。

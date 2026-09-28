@@ -26,6 +26,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -112,7 +114,8 @@ FloatingGlassTopBar(
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        // TalkBack 标题导航：会话名是这一屏的标题。
+                        modifier = Modifier.weight(1f, fill = false).semantics { heading() }
                     )
                     if (state.isSecretChat == true) {
                         Spacer(modifier = Modifier.width(4.dp))
