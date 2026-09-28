@@ -42,6 +42,19 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import android.annotation.SuppressLint
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.maodouchat.data.model.MessageType
+import com.maodouchat.ui.theme.LocalMotionSettings
+import com.maodouchat.ui.theme.bannerEnter
+import com.maodouchat.ui.theme.composerBarEnter
+import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.rememberMotionPulse
@@ -479,4 +492,126 @@ internal fun UnreadSummaryBanner(
             }
         }
     }
+}
+
+
+/**
+ * G344：把会话详情页消息列表上方的**横幅栈组装**（置顶/群公告/定时/阅后即焚/密聊/实时位置/
+ * 群加密警告/安全警告/未读摘要）从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）。
+ *
+ * 本文件此前只有单个横幅实现；这里是它们的**组装点**：顺序、出现条件与开关写回
+ * （flows/schedule）逐字保留。依赖全经参数注入，组合期内不新增状态所有权。
+ */
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域；lint 无法区分（同 ChatDetailRoute）
+@Composable
+internal fun ChatDetailBannerStack(
+    state: ChatDetailUiState,
+    viewModel: ChatDetailViewModel,
+    flows: ChatDetailConversationFlowState,
+    schedule: ChatDetailScheduleState,
+    participantNamesById: Map<String, String>,
+    onOpenProfile: ((userId: String) -> Unit)?,
+    chatAiSurfacesVisible: Boolean,
+) {
+    val context = LocalContext.current
+if (state.pinnedMessages.isNotEmpty()) {
+    PinnedMessagesBanner(
+        pins = state.pinnedMessages,
+        messages = state.messages,
+        canManage = MessagePinPolicy.canPin(
+            isGroup = state.chatIsGroup,
+            myRole = state.myMemberRole,
+            messageType = MessageType.TEXT
+        ),
+        onOpen = { viewModel.jumpToPinnedMessage(it) },
+        onUnpin = { viewModel.togglePinMessage(it) },
+        // 1.49：置顶者显示名
+        resolvePinnerName = { uid -> participantNamesById[uid] ?: uid },
+        // 1.53：点击置顶者打开其资料
+        onPinnerClick = { uid ->
+            if (onOpenProfile != null) {
+                onOpenProfile(uid)
+            } else {
+                Toast.makeText(context, context.getString(R.string.chat_contact_card_tap_hint), Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+}
+// 8.57：群公告会话顶部横幅（可折叠；点开看全文）
+if (flows.showAnnouncementBanner && state.chatIsGroup) {
+    val announcement = state.chat?.groupAnnouncement?.trim()
+    if (!announcement.isNullOrBlank()) {
+        GroupAnnouncementBanner(
+            announcement = announcement,
+            onOpen = { flows.showAnnouncementDialog = true },
+            onDismiss = { flows.showAnnouncementBanner = false }
+        )
+    }
+}
+if (state.scheduledMessages.isNotEmpty()) {
+    ScheduledMessagesBanner(
+        items = state.scheduledMessages,
+        onCancel = { viewModel.cancelScheduledMessage(it) },
+        onReschedule = { id -> schedule.beginReschedule(id, state.scheduledMessages.firstOrNull { it.id == id }?.text.orEmpty()) },
+        onViewAll = { schedule.showScheduledList = true }
+    )
+}
+if (!state.chatIsGroup && state.disappearingMessageSeconds > 0) {
+    DisappearingMessagesBanner(
+        seconds = state.disappearingMessageSeconds,
+        onChange = {
+            if (state.isSecretChat != true) schedule.showDisappearDialog = true
+        }
+    )
+}
+AnimatedVisibility(
+    visible = state.isSecretChat == true && com.maodouchat.util.SecretSessionNoticePrefs.isEnabled(context),
+    enter = LocalMotionSettings.current.bannerEnter(),
+    exit = fadeOut()
+) {
+    SecretChatBanner(
+        sealedSenderReady = state.sealedSenderReady,
+        sealedSenderExpiresInSec = state.sealedSenderExpiresInSec,
+    )
+}
+if (state.activeLiveLocationSessionId != null) {
+    LiveLocationSharingBanner(
+        untilMs = state.activeLiveLocationUntil,
+        onStop = { viewModel.stopLiveLocationSharing() }
+    )
+}
+state.groupEncryptionWarning?.let { warning ->
+    GroupEncryptionWarningBanner(warning = warning)
+}
+state.identityWarning?.let { warning ->
+    SecurityWarningBanner(
+        warning = warning,
+        sticky = com.maodouchat.crypto.SafetyCodePolicy.isStickyIdentityWarning(state.trustState),
+        onClick = {
+            if (RuntimeFlags.isEnabled(context, RuntimeFlags.SAFETY_CODE)) viewModel.showSafetyCodeDialog()
+        }
+    )
+}
+AnimatedVisibility(
+    visible = chatAiSurfacesVisible && (state.isUnreadSummaryLoading || state.unreadAiSummary != null),
+    enter = expandVertically() + LocalMotionSettings.current.composerBarEnter(),
+    exit = shrinkVertically() + fadeOut()
+) {
+    UnreadSummaryBanner(
+        summary = state.unreadAiSummary,
+        messageCount = state.unreadAiSummaryCount,
+        isLoading = state.isUnreadSummaryLoading,
+        onOpen = { viewModel.openUnreadAiSummary() },
+        onDismiss = { viewModel.clearUnreadAiSummary() },
+        // 1.194：复制未读摘要
+        onCopy = {
+            val textToCopy = state.unreadAiSummary
+            if (!textToCopy.isNullOrBlank()) {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.chat_unread_summary), textToCopy))
+                Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+}
 }
