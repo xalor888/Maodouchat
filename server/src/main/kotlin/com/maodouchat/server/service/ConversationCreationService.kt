@@ -4,6 +4,8 @@ import com.maodouchat.server.repository.ConversationCreationFailure
 import com.maodouchat.server.repository.ConversationCreationRejected
 import com.maodouchat.server.repository.ConversationCreationRepository
 import com.maodouchat.server.repository.ConversationParticipantValidation
+import com.maodouchat.server.repository.GroupMemberMutationResult
+import com.maodouchat.server.repository.GroupInviteResult
 import com.maodouchat.server.repository.CreatedConversation
 
 import com.maodouchat.server.model.ChatType
