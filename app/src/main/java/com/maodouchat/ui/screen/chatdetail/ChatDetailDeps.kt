@@ -6,7 +6,6 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ai.AiChatClassificationSource
 import com.maodouchat.ai.AiConversationProfileSource
@@ -125,7 +124,7 @@ internal class ChatDetailDeps(
         com.maodouchat.data.local.RoomAiEmotionReplySource(application, host.app.database)
     internal val aiWeeklyReportSource: AiWeeklyReportSource =
         com.maodouchat.data.local.RoomAiWeeklyReportSource(application, host.app.database)
-    internal val messageRepo = LocalMessageStore(host.app.database.messageDao(), host.app.database)
+    internal val messageRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.messageRepo()
     internal val attachmentDownloadCoordinator = AttachmentDownloadCoordinator(
         context = application,
         messageStore = messageRepo,
@@ -170,13 +169,13 @@ internal class ChatDetailDeps(
             },
         )
     }
-    internal val chatLockRepo = com.maodouchat.data.repository.ChatLockRepository(host.app.database.chatLockDao())
-    internal val secretTtlRepo = com.maodouchat.data.repository.SecretChatRepository(host.app.database.secretChatDao())
+    internal val chatLockRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.chatLockRepo()
+    internal val secretTtlRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.secretTtlRepo()
     internal val messageTerminalStore = MessageTerminalStore(
         deleteCachedMedia = { messageId ->
             MediaCache.deleteCachedMediaForMessage(application, messageId)
         },
-        deleteSearchDocument = host.app.database.messageSearchDao()::deleteDocument,
+        deleteSearchDocument = com.maodouchat.chatdetail.ChatDetailDataAccess.messageSearchDao()::deleteDocument,
         deleteLocalMessage = messageRepo::deleteMessage,
         upsertLocalMessage = { message -> messageRepo.applyRevokedMessage(message) }
     )
@@ -201,7 +200,7 @@ internal class ChatDetailDeps(
         },
         indexMessage = host::indexSearchableMessage,
         cleanupAttachment = host::cleanupAttachmentForMessage,
-        refreshConversationPreview = MaodouchatApp::emitChatListPreviewRefresh,
+        refreshConversationPreview = com.maodouchat.chatdetail.ChatDetailAccess::emitChatListPreviewRefresh,
         isOwnerSessionCurrent = { ownerUserId ->
             com.maodouchat.security.BackgroundSessionGate.mayContinue(
                 expectedUserId = ownerUserId,
@@ -217,12 +216,12 @@ internal class ChatDetailDeps(
         ConversationMessageMutationCoordinator(messagingMutationFacade)
     internal val conversationReactionCoordinator =
         ConversationReactionCoordinator(messagingMutationFacade)
-    internal val aiSummaryRepo = AiSummaryRepository(host.app.database.aiSummaryCacheDao())
-    internal val aiTaskRepo = AiTaskRepository(host.app.database.aiTaskDao(), application)
-    internal val aiOperationRepo = AiOperationRepository(host.app.database.aiOperationDao())
-    internal val userRepo = UserRepository(host.app.database.userDao())
-    internal val chatRepo = ChatRepository(host.app.database.chatDao(), host.app.database.userDao())
-    internal val chatDraftDao = host.app.database.chatDraftDao()
+    internal val aiSummaryRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.aiSummaryRepo()
+    internal val aiTaskRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.aiTaskRepo()
+    internal val aiOperationRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.aiOperationRepo()
+    internal val userRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.userRepo()
+    internal val chatRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.chatRepo()
+    internal val chatDraftDao = com.maodouchat.chatdetail.ChatDetailDataAccess.chatDraftDao()
     internal val outgoingFacade by lazy {
         ChatOutgoingFacade(
             getCachedConversation = chatRepo::getChatById,
@@ -358,7 +357,7 @@ internal class ChatDetailDeps(
                 }
             },
             onMessageSent = { targetChatId, preview, type ->
-                MaodouchatApp.emitMessageSent(targetChatId, preview, type.name)
+                com.maodouchat.chatdetail.ChatDetailAccess.emitMessageSent(targetChatId, preview, type.name)
             },
             preview = { type, content -> host.forwardPreview(type, content) },
         )
@@ -409,7 +408,7 @@ internal class ChatDetailDeps(
     internal val mediaStateController = ChatMediaStateController()
     internal val readReceiptCoordinator = ChatReadReceiptCoordinator(
         scope = host.viewModelScope,
-        dao = com.maodouchat.data.local.RoomReadReceiptSource(host.app.database.messagingV2Dao()),
+        dao = com.maodouchat.chatdetail.ChatDetailDataAccess.readReceiptSource(),
         currentUserId = { host.currentUserId },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
@@ -483,7 +482,7 @@ internal class ChatDetailDeps(
             }
         },
         applyRealtimeVisibility = { event ->
-            host.app.database.userDao().applyRealtimeVisibility(
+            com.maodouchat.chatdetail.ChatDetailDataAccess.applyRealtimeVisibility(
                 userId = event.userId,
                 isOnline = event.isOnline,
                 onlineRevoked = event.onlineRevoked,

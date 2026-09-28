@@ -34,4 +34,55 @@ object ChatDetailDataAccess {
 
     fun messageSearchRepository() =
         com.maodouchat.data.repository.MessageSearchRepository(MaodouchatApp.instance.database)
+
+    // ─── 2026-09-28：ChatDetailDeps 装配收口（棘轮 17 → 0）所需的其余 DAO/仓库 ───
+
+    fun messageRepo() = com.maodouchat.data.repository.LocalMessageStore(
+        MaodouchatApp.instance.database.messageDao(),
+        MaodouchatApp.instance.database,
+    )
+
+    fun chatLockRepo() =
+        com.maodouchat.data.repository.ChatLockRepository(MaodouchatApp.instance.database.chatLockDao())
+
+    fun secretTtlRepo() =
+        com.maodouchat.data.repository.SecretChatRepository(MaodouchatApp.instance.database.secretChatDao())
+
+    fun messageSearchDao() = MaodouchatApp.instance.database.messageSearchDao()
+
+    fun aiSummaryRepo() =
+        com.maodouchat.data.repository.AiSummaryRepository(MaodouchatApp.instance.database.aiSummaryCacheDao())
+
+    fun aiTaskRepo() =
+        com.maodouchat.data.repository.AiTaskRepository(MaodouchatApp.instance.database.aiTaskDao(), MaodouchatApp.instance)
+
+    fun aiOperationRepo() =
+        com.maodouchat.data.repository.AiOperationRepository(MaodouchatApp.instance.database.aiOperationDao())
+
+    fun userRepo() =
+        com.maodouchat.data.repository.UserRepository(MaodouchatApp.instance.database.userDao())
+
+    fun chatRepo() = com.maodouchat.data.repository.ChatRepository(
+        MaodouchatApp.instance.database.chatDao(),
+        MaodouchatApp.instance.database.userDao(),
+    )
+
+    fun chatDraftDao() = MaodouchatApp.instance.database.chatDraftDao()
+
+    internal fun readReceiptSource() =
+        com.maodouchat.data.local.RoomReadReceiptSource(MaodouchatApp.instance.database.messagingV2Dao())
+
+    suspend fun applyRealtimeVisibility(
+        userId: String,
+        isOnline: Boolean,
+        onlineRevoked: Boolean,
+        statusRevoked: Boolean,
+        updatedAt: Long,
+    ) = MaodouchatApp.instance.database.userDao().applyRealtimeVisibility(
+        userId = userId,
+        isOnline = isOnline,
+        onlineRevoked = onlineRevoked,
+        statusRevoked = statusRevoked,
+        updatedAt = updatedAt,
+    )
 }

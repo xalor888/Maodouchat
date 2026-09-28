@@ -1129,9 +1129,9 @@ class ClientArchitectureTest {
         // 19 → 1（剩余 1 是共享 `app` 属性的转型声明行——ChatDetailDeps/AI 扩展仍在用它，
         // 待 deps 装配批次一并收口）。
         "screen/chatdetail/ChatDetailViewModel.kt" to 1,
-        // G328c：装配搬到 ChatDetailDeps 之后，直连持久层的命中随之搬过去
-        // （VM 35→19，deps 17，总数 192→193：多出的 1 是 deps 构造函数里对 VM 的引用被计入）。
-        "screen/chatdetail/ChatDetailDeps.kt" to 17,
+        // 2026-09-28：ChatDetailDeps 的 17 处 app.database 直连全部改走非 ui 的
+        // chatdetail/ChatDetailDataAccess（DAI/仓库/传输源/可见性写回），条目删除；
+        // 剩余两文件都是「会话拥有者」性质（LoginViewModel 建会话、ChatDetailViewModel 剩 1 处共享 app 属性转型）。
         // 群详情 VM 收口：`import MaodouchatApp` + `application as MaodouchatApp` 删除——
         // 实时分发器走 AppRuntime.realtimeDispatcherOrNull（非 app 实例 → 不订阅）、
         // userRepository 走 AppRepositories.users（同一 UserDao）、密聊能力走
