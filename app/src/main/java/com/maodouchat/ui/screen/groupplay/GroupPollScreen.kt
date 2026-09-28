@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.groupplay
 import android.app.Application
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -259,7 +262,7 @@ fun GroupPollScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.group_play_poll_title), color = MaterialTheme.colorScheme.onSurface) },
+                title = { Text(stringResource(R.string.group_play_poll_title), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.group_play_back), tint = MaterialTheme.colorScheme.primary)
@@ -312,12 +315,23 @@ fun GroupPollScreen(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { viewModel.addOption() })
                     }
+                    // 无障碍：整行可点（Checkbox 传 null 避免无名第二目标），TalkBack 读行即读选项名。
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = state.multi, onCheckedChange = { viewModel.toggleMulti() })
-                        Text(stringResource(R.string.group_play_poll_multi))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.toggleable(value = state.multi, onValueChange = { viewModel.toggleMulti() })
+                        ) {
+                            Checkbox(checked = state.multi, onCheckedChange = null)
+                            Text(stringResource(R.string.group_play_poll_multi))
+                        }
                         Spacer(Modifier.width(16.dp))
-                        Checkbox(checked = state.anonymous, onCheckedChange = { viewModel.toggleAnonymous() })
-                        Text(stringResource(R.string.group_play_poll_anonymous))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.toggleable(value = state.anonymous, onValueChange = { viewModel.toggleAnonymous() })
+                        ) {
+                            Checkbox(checked = state.anonymous, onCheckedChange = null)
+                            Text(stringResource(R.string.group_play_poll_anonymous))
+                        }
                     }
                     Button(
                         onClick = { viewModel.createPoll() },
