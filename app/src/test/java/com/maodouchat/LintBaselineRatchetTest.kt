@@ -48,7 +48,7 @@ class LintBaselineRatchetTest {
      * 冻结值：加基线那一刻的 issue 条数（G223b，`./gradlew :app:updateLintBaseline` 自报）。
      * 修掉任何一条，就把这个数往下调——**这是被鼓励的方向**。
      */
-    private val frozenIssueCount = 55
+    private val frozenIssueCount = 53
 
     @Test
     fun `lint baseline can only shrink`() {
@@ -101,6 +101,13 @@ class LintBaselineRatchetTest {
             // MediaCenterScreen.kt 3 处（链接域名高亮 2 + openLocalContent 1；该文件不再用 android.net.Uri，
             // 删旧 import +1 新 import，行数 1050 零变化）。基线删 4 条对应条目。
             // 12 → 8，总条目 59 → 55。
+            //
+            // 2026-09-28：零散尾巴收口——`Recycle` 最后 1 条（ExploreOrchestrator.persistPickedImage；
+            // `?.use` 检测盲区已人工核实，按 #124 同式加 `@Suppress("Recycle")`；该文件行数上限 1010
+            // 零松量，注解与函数同行、行数不变）+ `TypographyDashes` 1 条
+            // （settings_username_placeholder "3-50" → "3–50"，与 values-en 的 en dash 对齐）。
+            // 8 → 8（UseKtx 8 条为有意保留：变量编辑器 1 + check 1 + 值被消费 commit 4
+            // + GlobalSearchScreen 2——见上条注释），总条目 55 → 53。
             // 上面两条是 warning 级的大头；真正卡 CI 的是它：
             "LocalContextGetResourceValueCall" to 0,
             "GradleDependency" to 17,

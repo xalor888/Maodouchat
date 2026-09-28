@@ -1428,7 +1428,7 @@
     <string name="settings_set_username">设置用户名</string>
     <string name="settings_username_title">设置用户名</string>
     <string name="settings_username_hint">设置一个唯一的用户名，方便他人通过 chat.mdou.me/u/username 找到你</string>
-    <string name="settings_username_placeholder">输入用户名（3-50位字母、数字、下划线）</string>
+    <string name="settings_username_placeholder">输入用户名（3–50位字母、数字、下划线）</string>
     <string name="settings_username_profile_url">个人主页：%1$s</string>
     <string name="settings_username_too_short">用户名至少需要3个字符</string>
     <string name="settings_username_invalid">用户名只能包含字母、数字、下划线和连字符</string>
