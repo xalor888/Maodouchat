@@ -12,6 +12,12 @@
             column="9"/>
     </issue>
 
+    
+
+    
+
+    
+
     <issue
         id="AppBundleLocaleChanges"
         message="Found dynamic locale changes, but did not find corresponding Play Core library calls for downloading languages and splitting by language is not disabled in the `bundle` configuration"
@@ -23,16 +29,7 @@
             column="9"/>
     </issue>
 
-    <issue
-        id="PictureInPictureIssue"
-        message="An activity in this app supports picture-in-picture and the targetSdkVersion is 31 or above; it is therefore strongly recommended to call both `setAutoEnterEnabled(true)` and `setSourceRectHint(...)`"
-        errorLine1="    &lt;application"
-        errorLine2="     ~~~~~~~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="42"
-            column="6"/>
-    </issue>
+    
 
     
 
@@ -569,38 +566,11 @@
 
     
 
-    <issue
-        id="Overdraw"
-        message="Possible overdraw: Root element paints background `@color/widget_bg` with a theme that also paints a background (inferred theme is `@style/Theme.Maodouchat`)"
-        errorLine1="    android:background=&quot;@color/widget_bg&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/conversation_widget.xml"
-            line="7"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="Overdraw"
-        message="Possible overdraw: Root element paints background `@color/widget_bg` with a theme that also paints a background (inferred theme is `@style/Theme.Maodouchat`)"
-        errorLine1="    android:background=&quot;@color/widget_bg&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/conversation_widget_compact.xml"
-            line="7"
-            column="5"/>
-    </issue>
+    
 
-    <issue
-        id="Overdraw"
-        message="Possible overdraw: Root element paints background `@color/widget_row_bg` with a theme that also paints a background (inferred theme is `@style/Theme.Maodouchat`)"
-        errorLine1="    android:background=&quot;@color/widget_row_bg&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/layout/conversation_widget_row.xml"
-            line="11"
-            column="5"/>
-    </issue>
+    
 
 
 

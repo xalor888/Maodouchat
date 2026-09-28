@@ -371,7 +371,10 @@ fun CallScreen(
                                     val builder = android.app.PictureInPictureParams.Builder()
                                         .setAspectRatio(android.util.Rational(16, 9))
                                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                        builder.setAutoEnterEnabled(false)
+                                        // 同 MainActivity：lint 建议 autoEnter + sourceRectHint（本按钮为显式入口）
+                                        val rect = android.graphics.Rect()
+                                        activity.window.decorView.getGlobalVisibleRect(rect)
+                                        builder.setAutoEnterEnabled(true).setSourceRectHint(rect)
                                     }
                                     activity.enterPictureInPictureMode(builder.build())
                                 }

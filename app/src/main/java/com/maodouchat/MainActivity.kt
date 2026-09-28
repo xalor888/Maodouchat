@@ -368,7 +368,12 @@ class MainActivity : FragmentActivity() {
                 val builder = android.app.PictureInPictureParams.Builder()
                     .setAspectRatio(android.util.Rational(16, 9))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    builder.setAutoEnterEnabled(false)
+                    // lint（PictureInPictureIssue）：targetSdk 31+ 建议 autoEnter + sourceRectHint——
+                    // 前者让系统后续的 HOME 离开自动进 PiP（更顺滑），后者给转场动画源矩形；
+                    // 本次仍显式 enter（本方法在离开时兜底，isInPictureInPictureMode 守卫防重入）。
+                    val rect = android.graphics.Rect()
+                    window.decorView.getGlobalVisibleRect(rect)
+                    builder.setAutoEnterEnabled(true).setSourceRectHint(rect)
                 }
                 enterPictureInPictureMode(builder.build())
             }

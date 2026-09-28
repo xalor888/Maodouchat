@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- B5 主屏小组件 · 标准 4x2 布局（RemoteViews：仅支持经典 View 层级） -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@color/widget_bg"
+    tools:ignore="Overdraw"
     android:padding="10dp">
 
     <!-- 头部：应用名 + 未读总数 -->
