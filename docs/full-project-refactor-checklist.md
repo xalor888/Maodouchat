@@ -2230,3 +2230,18 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；`OldTargetApi` /
 `ChromeOsAbiSupport` / `AppBundleLocaleChanges` / `ConfigurationScreenWidthHeight`
 （4 条产品决策项，暂留）等零散。
+
+### 第十三轮续（2026-09-28）：ChatDetailViewModel 直连收口——19 → 1
+
+- 会话详情对 `MaodouchatApp` 单例与持久层的直连收进两个非 ui 访问口：
+  `chatdetail/ChatDetailAccess`（会话代际 / emitMessageSent / emitChatRead / 活跃会话时间戳 /
+  附件定稿事件流 / 后台作用域 / outbox / mutation 事件）与 `chatdetail/ChatDetailDataAccess`
+  （markIncomingReadThrough / markAllRead / 传输观察 / 未读数 / DAO / MessageSearchRepository）；
+- 另 3 处复用既有访问口：密聊能力走 `SecretChatCapabilities.forChat`、
+  通知中心走 `NotificationCenterAccess.repository`；
+- **保留 1 处**：共享 `app` 属性的转型声明行（`ChatDetailDeps` 装配与 AI 扩展仍在用它，
+  待 deps 装配批次一并收口）；
+- 棘轮：`frozenUiDirectPersistence` 的 VM 条目 19 → 1；`frozenUiAppDatabaseGrabbers`
+  名单 3 → 2（VM 离场）；文件 2420 行 = 上限（零松量不变）；
+- 判据：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  + `:app:lintDebug` 绿；`ClientArchitectureTest` 两条棘轮用例绿。
