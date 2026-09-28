@@ -22,9 +22,9 @@ import com.maodouchat.util.MediaCache
 
 internal fun createAndroidConversationLocalStateCoordinator(
     app: MaodouchatApp,
-    tokenManager: TokenManager,
     scheduleCoordinator: ConversationScheduleCoordinator,
 ): ConversationLocalStateCoordinator {
+    val tokenManager = TokenManager.getInstance(app)
     val database = app.database
     val messageStore = LocalMessageStore(database.messageDao(), database)
     val chatRepository = ChatRepository(database.chatDao(), database.userDao())

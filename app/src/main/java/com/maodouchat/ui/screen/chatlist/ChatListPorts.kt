@@ -18,7 +18,6 @@ import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.MissedCallRepository
 import com.maodouchat.data.repository.PushNetworkRepository
-import com.maodouchat.network.TokenManager
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.data.repository.SecretChatRepository
 import com.maodouchat.messaging.v2.MessagingV2Outbox
@@ -119,7 +118,6 @@ internal object AndroidChatListPorts {
         // 那是非 ui 层的依赖，不在本棘轮管辖范围——这里只做装配，不读凭据。
         val conversationLocalStateCoordinator = createAndroidConversationLocalStateCoordinator(
             app = app,
-            tokenManager = TokenManager.getInstance(application),
             scheduleCoordinator = scheduleCoordinator,
         )
         val outbox: MessagingV2Outbox = app.messagingV2Outbox

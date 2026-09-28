@@ -216,7 +216,8 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**5 个**，令牌自持化批次后由 31 降下来）：多用于给图片 URL 加鉴权头，
+     *    - [frozenUiTokenReaders]（**1 个**，令牌自持化 + 2026-09-28 收口后由 31 一路降下来）：仅剩 LoginViewModel
+     *      （登录页即会话拥有者）；其余读者已改走 CurrentSession / SessionContextProvider，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -263,10 +264,11 @@ class ClientArchitectureTest {
     )
 
     private val frozenUiTokenReaders: Set<String> = setOf(
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt",
-        "com/maodouchat/ui/screen/chatdetail/ChatRealtimeController.kt",
-        "com/maodouchat/ui/screen/chatdetail/IdentityVerificationController.kt",
-        "com/maodouchat/ui/screen/chatlist/ChatListPorts.kt",
+        // 2026-09-28 令牌读者收口（5 → 1）：ChatRealtimeController 改收 SessionContextProvider
+        // （装配走非 ui 的 session/SessionContexts.provider）、IdentityVerificationController
+        // 改走 CurrentSession.snapshot()、ChatDetailDeps/ChatListPorts 的装配参数全部改由
+        // 各非 ui 构造器自持默认值（AttachmentDownloadCoordinator / 两个 conversation 工厂）。
+        // 仅剩 LoginViewModel——登录页本身就是会话的拥有者，读凭据是其职责。
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
     )
 

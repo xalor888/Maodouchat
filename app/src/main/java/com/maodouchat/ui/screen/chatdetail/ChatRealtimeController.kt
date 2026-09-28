@@ -8,7 +8,6 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.network.RealtimeDisconnectPolicy
 import com.maodouchat.network.TypingSignalAction
-import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketErrorKind
 import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.network.WebSocketTransport
@@ -16,7 +15,7 @@ import com.maodouchat.network.resolveTypingSignalAction
 import com.maodouchat.network.resolveUserVisibility
 import com.maodouchat.session.AccountScopedRealtimeConnectionManager
 import com.maodouchat.session.RealtimeConnectionManager
-import com.maodouchat.session.TokenManagerSessionContextProvider
+import com.maodouchat.session.SessionContextProvider
 import com.maodouchat.util.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CoroutineScope
@@ -32,9 +31,9 @@ import com.maodouchat.data.repository.UserNetworkRepository
 internal class ChatRealtimeController(
     private val application: Application,
     private val scope: CoroutineScope,
-    private val tokenManager: TokenManager,
+    private val sessionContextProvider: SessionContextProvider,
     private val realtime: RealtimeConnectionManager = AccountScopedRealtimeConnectionManager(
-        sessionContextProvider = TokenManagerSessionContextProvider(tokenManager),
+        sessionContextProvider = sessionContextProvider,
         transport = WebSocketTransport,
         scope = scope,
     ),
@@ -281,7 +280,7 @@ internal class ChatRealtimeController(
         return realtime.sendTyping(owner, chatId, isTyping)
     }
 
-    private fun currentOwner() = tokenManager.currentSessionContext()
+    private fun currentOwner() = sessionContextProvider.current()
 
     private fun enabled(flag: RuntimeFlags.Flag): Boolean = RuntimeFlags.isEnabled(application, flag)
 }
