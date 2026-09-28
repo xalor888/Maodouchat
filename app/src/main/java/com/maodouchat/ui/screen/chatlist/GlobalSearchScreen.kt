@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.content.Context
@@ -367,8 +369,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             try {
                 delay(180)
                 if (
-                    expectedGeneration != generation ||
-                    _uiState.value.mode != GlobalSearchMode.KEYWORD ||
+                    expectedGeneration != generation || _uiState.value.mode != GlobalSearchMode.KEYWORD ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = searchOwnerUserId,
                     )
@@ -390,8 +391,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
                     visible to redactedHitChats
                 }
                 if (
-                    expectedGeneration != generation ||
-                    _uiState.value.mode != GlobalSearchMode.KEYWORD ||
+                    expectedGeneration != generation || _uiState.value.mode != GlobalSearchMode.KEYWORD ||
                     !com.maodouchat.security.BackgroundSessionGate.mayContinue(
                         expectedUserId = searchOwnerUserId,
                     )
@@ -612,7 +612,7 @@ fun GlobalSearchScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.global_search_title), color = MaterialTheme.colorScheme.onSurface) },
+                title = { Text(stringResource(R.string.global_search_title), modifier = Modifier.semantics { heading() }, color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.onSurface)
