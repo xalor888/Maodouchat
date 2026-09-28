@@ -12,30 +12,6 @@
             column="9"/>
     </issue>
 
-    
-
-    <issue
-        id="UnusedAttribute"
-        message="Attribute `targetCellWidth` is only used in API level 31 and higher (current min is 26)"
-        errorLine1="    android:targetCellWidth=&quot;4&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/xml/conversation_widget_info.xml"
-            line="11"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="UnusedAttribute"
-        message="Attribute `targetCellHeight` is only used in API level 31 and higher (current min is 26)"
-        errorLine1="    android:targetCellHeight=&quot;2&quot;"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/xml/conversation_widget_info.xml"
-            line="12"
-            column="5"/>
-    </issue>
-
     <issue
         id="AppBundleLocaleChanges"
         message="Found dynamic locale changes, but did not find corresponding Play Core library calls for downloading languages and splitting by language is not disabled in the `bundle` configuration"
@@ -517,11 +493,38 @@
 
     
 
-    
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;members&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;contacts_group_invite_row_subtitle&quot;>%1$s invited you (%2$d members)&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-en/strings.xml"
+            line="314"
+            column="5"/>
+    </issue>
 
-    
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;seconds&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;fake_chat_pin_lockout&quot;>Too many attempts. Try again in %1$d seconds&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-en/strings.xml"
+            line="2744"
+            column="5"/>
+    </issue>
 
-    
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;colors&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;theme_import_ok&quot;>Imported %1$d colors&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-en/strings.xml"
+            line="3008"
+            column="5"/>
+    </issue>
 
     <issue
         id="ChromeOsAbiSupport"

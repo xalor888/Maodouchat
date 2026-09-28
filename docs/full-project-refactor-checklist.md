@@ -867,7 +867,7 @@ Gate：token rotate、webhook 重启/死信、顺序幂等、群权限和 Telegr
 - [~] 删除重复 getter、路由事务和敏感配置导出（`knownKeys`/`defaults` 三重复消除；`dayBucketExpression`/`recordAdminAudit`/`isAdminUser`/`csvCell`/`parseAdminIds` 去重；secrets 只存 `ServerConfig`，不导出。**但「路由事务清零」仍不成立**（G4 后）：实测 `AdminEnhanceRouting`=12、`AdminManagementRouting`=6、`AdminDiagnosticsRouting`=4、`AdminBulkRouting`=3、`AdminUsersRouting`=3 处 `transaction {`，全项目 plugins/ 共 **49 处 / 17 个文件**；`AdminExportsRouting.kt` 已清零，`AdminEnhanceRouting.kt`(598 行/12 处) 仍在 route 内直写 Exposed SQL）。
 
 - [~] 管理/运维/开发者 route 面补齐 `route→service→repository` 边界（**本项此前漏列，曾是最大架构缺口**。**G4 已完成第一块**：`AdminExportsRouting.kt` 从 **1110 行 / 26 处 `transaction {` / 直接 import Exposed** 收敛为 **599 行 / 0 处事务 / 0 个 Exposed 导入**，27 个 CSV 导出全部改走 `AdminExportRepository`（唯一 SQL 边界）+ `AdminExportService`（组装与 CSV 编码）。**G5 后剩余缺口**：全项目 `plugins/` 仍有 **37 处 `transaction {`，分布于 16 个文件**，其中 AdminManagementRouting=6、DeveloperRouting=4、AnnouncementRouting=4、AdminDiagnosticsRouting=4、AdminUsersRouting=3、AdminBulkRouting=3；`plugins/` 中仍有 **34 个文件**直接 import Exposed；`AdminUsersRouting.kt:272` 与 `SecretSurfaceRouting.kt:185` 在 handler 内 `new Repository()`。**棘轮已两度下调**：`ServerArchitectureTest` 的精确相等基线 75→49→**37**（文件 18→17→**16**）、Exposed 直连 36→35→**34**，两次都实测「下调之后新增一处违规仍会红」）。
-- [~] 消除反向依赖：`repository/BotRepository.kt:18`→`plugins.isAllowedWebhookAddress`、`repository/RateLimitStatsRepository.kt:4-5`→`plugins.GlobalRateLimiter/RateLimitStats` 为真实倒置；`service/` 另有 3 个文件（`BotWebhookService`/`CallSignalingService`/`OrphanGcJob`）反向依赖 `plugins/`（G5 已把 `MaintenanceRunner` 的 `purgeAdminOperationalData` 迁到 repository 而消掉一条）；另有 12 个 `*Service.kt`（如 `repository/FeedQueryService.kt` 455 行、`repository/AccountLifecycleService.kt` 432 行）物理错放在 `repository/`，破坏「repository=SQL 边界」契约。以上三组均已进入 `ServerArchitectureTest` 棘轮基线。（**2026-09-27 进展**：前两组已归零——实测 `frozenRepositoryDependingOnPlugins`/`frozenServicesDependingOnPlugins` 均为 0 处；`isAllowedWebhookAddress`、`RateLimitStatsProvider`/`RateLimitStats` 已下沉到中立的 `common` 包。第三组开跑：`AttachmentCommitService`（87 行，调用者仅 `EncryptedAttachmentRepository`）从 `repository/` 迁往 `service/`——package 改名 + 调用方补 import + `frozenServicesInRepositoryPackage` 16→15；`service/` 包已有多个直接 `transaction {}` 的先例，风格一致。`MediaReferenceService`（14 行，纯委托门面，调用方为 `Routing` + `service/OrphanGcJob`）迁往 `service/`——15→14。（**2026-09-28 进展**：`GroupInvitationService`（62 行，`GroupInvitationRepository` 的薄委托门面，群邀请状态机统一入口）从 `repository/` 迁往 `service/`——package 改名 + 补 `import GroupInvitationRepository` + 10 处调用方补 import（7 个 plugins 文件、`repository/ConversationCommandService`/`ConversationCreationService`、1 个测试）+ `frozenServicesInRepositoryPackage` 14→13。类体逐行未动，SQL 边界仍在 `repository/GroupInvitationRepository`。）（**2026-09-28 续**：`SocialGraphService`（49 行 B10 社交图查询 `object`，同包唯二调用方 `FeedQueryService`/`PostVisibility`）从 `repository/` 迁往 `service/`——package 改名 + 本文件补 `import ConversationVisibility`（`internal object`，同模块可见）+ 两调用方补 `import service.SocialGraphService` + `frozenServicesInRepositoryPackage` 13→12。类体逐行未动。）（**2026-09-28 续**：`ConversationCommandService`（53 行 B04 会话统一命令门面，薄委托给 `ConversationCreationService`/`LifecycleRepository`/`SettingsRepository`，调用方为 7 个 plugins 文件经 `Routing.kt` 装配）从 `repository/` 迁往 `service/`——package 改名 + 本文件补 11 个 `repository/` 跨包 import（`GroupInvitationService` 已在 service/，冗余 import 删除）+ 7 调用方 import 改向 service + `frozenServicesInRepositoryPackage` 12→11。类体逐行未动，SQL 边界仍在三 repository。）（**2026-09-28 续**：`PrivacyService`（83 行 B02 隐私读写服务，`transaction {}` 直写 `Users` 表）从 `repository/` 迁往 `service/`——package 改名 + 唯一调用方 `repository/UserRepository` 补 `import service.PrivacyService` + `frozenServicesInRepositoryPackage` 11→10。类体逐行未动；`service/` 包已有多个直接 `transaction {}` 的先例，风格一致。）
+- [~] 消除反向依赖：`repository/BotRepository.kt:18`→`plugins.isAllowedWebhookAddress`、`repository/RateLimitStatsRepository.kt:4-5`→`plugins.GlobalRateLimiter/RateLimitStats` 为真实倒置；`service/` 另有 3 个文件（`BotWebhookService`/`CallSignalingService`/`OrphanGcJob`）反向依赖 `plugins/`（G5 已把 `MaintenanceRunner` 的 `purgeAdminOperationalData` 迁到 repository 而消掉一条）；另有 12 个 `*Service.kt`（如 `repository/FeedQueryService.kt` 455 行、`repository/AccountLifecycleService.kt` 432 行）物理错放在 `repository/`，破坏「repository=SQL 边界」契约。以上三组均已进入 `ServerArchitectureTest` 棘轮基线。（**2026-09-27 进展**：前两组已归零——实测 `frozenRepositoryDependingOnPlugins`/`frozenServicesDependingOnPlugins` 均为 0 处；`isAllowedWebhookAddress`、`RateLimitStatsProvider`/`RateLimitStats` 已下沉到中立的 `common` 包。第三组开跑：`AttachmentCommitService`（87 行，调用者仅 `EncryptedAttachmentRepository`）从 `repository/` 迁往 `service/`——package 改名 + 调用方补 import + `frozenServicesInRepositoryPackage` 16→15；`service/` 包已有多个直接 `transaction {}` 的先例，风格一致。`MediaReferenceService`（14 行，纯委托门面，调用方为 `Routing` + `service/OrphanGcJob`）迁往 `service/`——15→14。（**2026-09-28 进展**：`GroupInvitationService`（62 行，`GroupInvitationRepository` 的薄委托门面，群邀请状态机统一入口）从 `repository/` 迁往 `service/`——package 改名 + 补 `import GroupInvitationRepository` + 10 处调用方补 import（7 个 plugins 文件、`repository/ConversationCommandService`/`ConversationCreationService`、1 个测试）+ `frozenServicesInRepositoryPackage` 14→13。类体逐行未动，SQL 边界仍在 `repository/GroupInvitationRepository`。）（**2026-09-28 续**：`SocialGraphService`（49 行 B10 社交图查询 `object`，同包唯二调用方 `FeedQueryService`/`PostVisibility`）从 `repository/` 迁往 `service/`——package 改名 + 本文件补 `import ConversationVisibility`（`internal object`，同模块可见）+ 两调用方补 `import service.SocialGraphService` + `frozenServicesInRepositoryPackage` 13→12。类体逐行未动。）（**2026-09-28 续**：`ConversationCommandService`（53 行 B04 会话统一命令门面，薄委托给 `ConversationCreationService`/`LifecycleRepository`/`SettingsRepository`，调用方为 7 个 plugins 文件经 `Routing.kt` 装配）从 `repository/` 迁往 `service/`——package 改名 + 本文件补 11 个 `repository/` 跨包 import（`GroupInvitationService` 已在 service/，冗余 import 删除）+ 7 调用方 import 改向 service + `frozenServicesInRepositoryPackage` 12→11。类体逐行未动，SQL 边界仍在三 repository。）
 
 Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性能通过。
 
@@ -2148,22 +2148,15 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 `GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
 `Overdraw` 3 / `PluralsCandidate` 3 / `UnusedAttribute` 2 等零散。
 
-### 第十四轮十三续（2026-09-28）：PluralsCandidate 族收口——3 条（78 → 75）
+### 第十四轮十三续（2026-09-28）：UnusedAttribute 族收口——2 条（78 → 76）
 
-三条「%d + 名词」字符串转真 `<plurals>`（i18n 正确性，非仅消警）：
+`conversation_widget_info.xml` 的 `targetCellWidth`/`targetCellHeight` 需 API 31+（minSdk 26）：
+- **修法**：资源限定符拆分——`res/xml/conversation_widget_info.xml` 去掉两属性（API <31 用），
+  新建 `res/xml-v31/conversation_widget_info.xml` 完整版（含两属性，API 31+ 生效）；行为零变化，
+  31+ 设备仍得 4x2 目标格，旧设备不再读无效属性；
+- **基线手术**：−2 → 78 → 76；`frozenIssueCount` 78 → 76（`UnusedAttribute` 不在分布冻结 map 内，无需改）；
+- **判据**：`:app:testDebugUnitTest`（两条棘轮用例）绿；`:app:lintDebug` 绿。
 
-- `contacts_group_invite_row_subtitle`（en: member/members；zh 仅 other）——
-  调用点 `ContactsSearchAndRequests` 改 `pluralStringResource(..., invite.memberCount, invite.inviterName, invite.memberCount)`
-  （选择数用成员数 %2$d，非邀请人名）；
-- `fake_chat_pin_lockout`（en: second/seconds）——`FakeChatScreen` 调用点同步；
-- `theme_import_ok`（en: color/colors）——`ThemeEditorScreen` 两个调用点同步；
-- zh 侧只补 `other`（与仓内既有 plurals 惯例一致：中文 CLDR 无 one）；两处新 import
-  （`pluralStringResource`，FakeChatScreen / ThemeEditorScreen）；
-- **基线手术**：−3 → 78 → 75；`frozenIssueCount` 78 → 75；
-- **判据**：`:app:compileDebugKotlin` 绿；字符串奇偶校验绿（zh=en=2513，plurals 不计入
-  该脚本的 `<string>` 口径）；brand 门禁绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
-  绿（5m4s）；`:app:lintDebug` 绿且 `LintBaselineFixed` 恰好点名这 3 条。
-
-**剩余（lint 基线 75 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
-`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
-`Overdraw` 3 / `UnusedAttribute` 2 等零散。
+**剩余（lint 基线 76 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1（活跃 warning，
+基线豁免有效——PR #133 误删已关闭，证据见其关闭评论）；`GradleDependency` 17 + 活跃 5；
+`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；`Overdraw` 3 / `PluralsCandidate` 3 等零散。
