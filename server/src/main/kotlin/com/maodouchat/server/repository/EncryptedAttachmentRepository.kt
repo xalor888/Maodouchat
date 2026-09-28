@@ -1,6 +1,7 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.service.AttachmentCommitService
+import com.maodouchat.server.service.UploadSessionService
 
 data class EncryptedAttachmentRecord(
     val id: String,
