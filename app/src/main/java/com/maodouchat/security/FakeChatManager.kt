@@ -155,12 +155,13 @@ object FakeChatManager {
         }
         if (!ok) {
             val failures = prefs(ctx).getInt(key(KEY_FAILURES, userId), 0) + 1
-            val edit = prefs(ctx).edit().putInt(key(KEY_FAILURES, userId), failures)
-            if (failures >= MAX_FAILURES) {
-                edit.putLong(key(KEY_LOCKED_UNTIL, userId), now + LOCKOUT_MS)
-                edit.remove(key(KEY_FAILURES, userId))
+            prefs(ctx).edit {
+                putInt(key(KEY_FAILURES, userId), failures)
+                if (failures >= MAX_FAILURES) {
+                    putLong(key(KEY_LOCKED_UNTIL, userId), now + LOCKOUT_MS)
+                    remove(key(KEY_FAILURES, userId))
+                }
             }
-            edit.apply()
             return false
         }
         prefs(ctx).edit {

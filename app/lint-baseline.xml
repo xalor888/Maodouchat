@@ -931,16 +931,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            val editor = prefs.edit()"
-        errorLine2="                         ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiPrivacyPreferences.kt"
-            line="109"
-            column="26"/>
-    </issue>
+    
 
     
 
@@ -948,16 +939,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        val editor = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/AiWritingStylePreferences.kt"
-            line="57"
-            column="22"/>
-    </issue>
+    
 
     
 
@@ -1074,16 +1056,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        val editor = prefs(ctx).edit()"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/util/CustomThemeStore.kt"
-            line="84"
-            column="22"/>
-    </issue>
+    
 
     <issue
         id="UseKtx"
@@ -1126,16 +1099,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            val edit = prefs(ctx).edit().putInt(key(KEY_FAILURES, userId), failures)"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/security/FakeChatManager.kt"
-            line="157"
-            column="24"/>
-    </issue>
+    
 
     
 
@@ -1203,16 +1167,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        val editor = prefs.edit().putString(scoped(context, KEY_PROVIDERS), encodeProviders(next))"
-        errorLine2="                     ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ai/agent/LocalAiProviderStore.kt"
-            line="50"
-            column="22"/>
-    </issue>
+    
 
     
 
@@ -1285,51 +1240,15 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        val editor = account.prefs.edit()"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationPreferences.kt"
-            line="62"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        val editor = account.prefs.edit()"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationPreferences.kt"
-            line="81"
-            column="22"/>
-    </issue>
+    
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        val editor = account.prefs.edit()"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationPreferences.kt"
-            line="188"
-            column="22"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="            val editor = prefs.edit()"
-        errorLine2="                         ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/notification/NotificationPreferences.kt"
-            line="233"
-            column="26"/>
-    </issue>
+    
+
+    
 
     
 
@@ -1365,16 +1284,7 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        val editor = prefs.edit().putLong(KEY_DEDUPE_PREFIX + key, now)"
-        errorLine2="                     ~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/quickreply/QuickReplyPolicy.kt"
-            line="133"
-            column="22"/>
-    </issue>
+    
 
     
 

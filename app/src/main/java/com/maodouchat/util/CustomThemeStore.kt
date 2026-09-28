@@ -82,9 +82,9 @@ object CustomThemeStore {
 
     /** 重置某变体全部覆盖（恢复主题家族默认）。 */
     fun clearAll(ctx: Context, variant: String) {
-        val editor = prefs(ctx).edit()
-        SLOTS.forEach { editor.remove(storageKey(variant, it)) }
-        editor.apply()
+        prefs(ctx).edit {
+            SLOTS.forEach { remove(storageKey(variant, it)) }
+        }
         _revision.value++
     }
 

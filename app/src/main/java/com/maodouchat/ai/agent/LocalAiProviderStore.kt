@@ -48,12 +48,13 @@ object LocalAiProviderStore {
     fun deleteProvider(context: Context, id: String) {
         val prefs = prefs(context) ?: return
         val next = listProviders(context).filterNot { it.id == id }
-        val editor = prefs.edit().putString(scoped(context, KEY_PROVIDERS), encodeProviders(next))
-        val active = prefs.getString(scoped(context, KEY_ACTIVE), null)
-        if (active == id) {
-            editor.putString(scoped(context, KEY_ACTIVE), next.firstOrNull()?.id.orEmpty())
+        prefs.edit {
+            putString(scoped(context, KEY_PROVIDERS), encodeProviders(next))
+            val active = prefs.getString(scoped(context, KEY_ACTIVE), null)
+            if (active == id) {
+                putString(scoped(context, KEY_ACTIVE), next.firstOrNull()?.id.orEmpty())
+            }
         }
-        editor.apply()
     }
 
     fun setActive(context: Context, id: String) {
