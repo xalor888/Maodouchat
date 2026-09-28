@@ -3,12 +3,14 @@
      整行点击 → 打开会话；右侧「回复」支持 RemoteInput 快捷回复；「已读」标记该会话已读。
      快捷回复/已读的 PendingIntent 按 (widgetId, rowIndex) 唯一化，避免跨会话串目标。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widgetRowRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginTop="2dp"
     android:layout_marginBottom="2dp"
     android:background="@color/widget_row_bg"
+    tools:ignore="Overdraw"
     android:clickable="true"
     android:focusable="true"
     android:paddingStart="8dp"

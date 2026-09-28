@@ -2180,3 +2180,28 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
 **剩余（lint 基线 73 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1（活跃 warning，
 基线豁免有效——PR #133 误删已关闭，证据见其关闭评论）；`GradleDependency` 17 + 活跃 5；
 `NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；`Overdraw` 3 等零散。
+### 第十四轮十五续（2026-09-28）：小组件 Overdraw + PiP 收口——4 条（73 → 69）
+
+- `Overdraw` 3（小组件根布局）：RemoteViews 的根背景是**有意的视觉底色**（widget 不继承宿主主题）——
+  三个布局根元素加 `tools:ignore="Overdraw"`（标准做法），不做「去背景」的伪修复；
+- `PictureInPictureIssue` 1（manifest 级）：targetSdk 31+ 的 PiP 建议补 `setAutoEnterEnabled(true)`
+  + `setSourceRectHint(...)`——`MainActivity.onUserLeaveHint` 与 `CallScreen` 显式按钮两处
+  在 API 31+ 分支改为 `setAutoEnterEnabled(true).setSourceRectHint(decorView 可见矩形)`
+  （原先刻意 `false` + 手动 enter；现在两者并存：系统后续 HOME 自动进 PiP，本次显式 enter 兜底，
+  `isInPictureInPictureMode` 守卫防重入）；
+- **与云端 #136 的交汇**：本批原也含 `UnusedAttribute` 2 的 `tools:targetApi` 方案；与 #136 的
+  「按 API 31 拆限定符」（`res/xml-v31/`）冲突，rebase 时**采纳 #136 方案**（更正确：31+ 读全属性、
+  旧设备不读无效属性），本批只保留 Overdraw 3 + PiP 1；
+- **基线手术**：−4 → 73 → 69；`frozenIssueCount` 73 → 69；
+- **判据**：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
+  绿；`:app:lintDebug` 绿且 `LintBaselineFixed` 恰好点名这 4 条。
+
+**剩余（lint 基线 69 条）**：`UseKtx` 22（18 处 edit 保留 + 4 `Uri.parse`）；`Recycle` 1；
+`GradleDependency` 17 + 活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；
+`OldTargetApi` / `ChromeOsAbiSupport` / `AppBundleLocaleChanges` / `ConfigurationScreenWidthHeight`
+（4 条经评估为**产品决策项**，见下）等零散。
+
+**产品决策项（暂留基线，非技术债）**：`OldTargetApi`（targetSdk 36 → 37 需行为回归验证）、
+`ChromeOsAbiSupport`（x86_64 ABI 未开，非目标平台）、`AppBundleLocaleChanges`（动态语言切换
+需 Play Core 或 per-app locale 迁移评估）、`ConfigurationScreenWidthHeight`（
+`screenWidthDp → containerSize` 换算涉语义差异，且该文件零松量上限）。
