@@ -367,7 +367,8 @@ class ClientArchitectureTest {
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2147,
+        // G350：handleGroupRevisionChanged 抽出（2147 → 2035，纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2035,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
@@ -436,7 +437,7 @@ class ClientArchitectureTest {
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 2114,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2147,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 2035,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,

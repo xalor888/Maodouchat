@@ -547,6 +547,34 @@ internal class ChatDetailDeps(
         onGroupRevisionChanged = host::handleGroupRevisionChanged,
         text = { id -> host.text(id) },
     )
+    // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
+    // VM 侧只留同签名委托。
+    internal val groupRevisionHandler = ChatGroupRevisionHandler(
+        ownerUserId = { host.currentUserId },
+        activeChatId = { host.activeChatId },
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        text = { id -> host.text(id) },
+        conversationLocalStateCoordinator = conversationLocalStateCoordinator,
+        realtimeController = realtimeController,
+        semanticSearchGate = semanticSearchGate,
+        aiRewriteGate = aiRewriteGate,
+        aiReplyGate = aiReplyGate,
+        groupAiGate = groupAiGate,
+        manualSummaryGate = manualSummaryGate,
+        semanticSearchJob = { semanticSearchJob },
+        aiRewriteStreamJob = { aiRewriteStreamJob },
+        aiReplyStreamJob = { aiReplyStreamJob },
+        groupAiJob = { groupAiJob },
+        manualSummaryJob = { manualSummaryJob },
+        unreadSummaryJob = { unreadSummaryJob },
+        aiOperationJobs = aiOperationJobs,
+        aiAutoRetryJobs = aiAutoRetryJobs,
+        aiAutoRetryAt = aiAutoRetryAt,
+        groupMessagingCoordinator = groupMessagingCoordinator,
+        reloadChat = host::loadChat,
+        refreshMyMemberRole = host::refreshMyMemberRole,
+    )
     internal val scheduledMessageController = ScheduledMessageController(
         chatScheduleController = chatScheduleController,
         uiState = host._uiState,

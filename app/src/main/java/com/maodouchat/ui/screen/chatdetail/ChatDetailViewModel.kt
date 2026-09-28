@@ -13,8 +13,6 @@ import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
-import com.maodouchat.conversation.ConversationLocalCleanupMode
-import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.messaging.v2.ConversationMessageMutationOutcome
 import com.maodouchat.messaging.v2.ConversationReactionOutcome
 import com.maodouchat.messaging.v2.MessageMutationProjection
@@ -346,6 +344,7 @@ class ChatDetailViewModel(
     private val nudgeSender get() = deps.nudgeSender
     private val retrySender get() = deps.retrySender
     private val attachmentSender get() = deps.attachmentSender
+    private val revisionHandler get() = deps.groupRevisionHandler
     private val moderationController get() = deps.moderationController
     private val botGroupActionController get() = deps.botGroupActionController
     private val realtimeController get() = deps.realtimeController
@@ -914,7 +913,7 @@ class ChatDetailViewModel(
     private suspend fun refreshPinnedMessages(expectedUserId: String) =
         pinStarController.refreshPinnedMessages(expectedUserId)
 
-    private suspend fun refreshMyMemberRole(expectedUserId: String) {
+    internal suspend fun refreshMyMemberRole(expectedUserId: String) {
         if (expectedUserId.isBlank() || chatId.isBlank()) return
         if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
             expectedUserId = expectedUserId,
@@ -1042,119 +1041,8 @@ class ChatDetailViewModel(
         }
     }
 
-    internal suspend fun handleGroupRevisionChanged(event: WebSocketEvent.GroupRevisionChanged) {
-        val revisionOwnerUserId = currentUserId
-        if (
-            revisionOwnerUserId.isBlank() ||
-            revisionOwnerUserId == "me" ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = revisionOwnerUserId,
-            )
-        ) {
-            return
-        }
-        val cleanupSession = conversationLocalCleanupSession(revisionOwnerUserId)
-        val impact = groupRevisionImpact(
-            activeChatId = activeChatId,
-            currentUserId = revisionOwnerUserId,
-            eventChatId = event.chatId,
-            targetUserId = event.targetUserId,
-            reason = event.reason
-        )
-        if (impact == GroupRevisionImpact.IGNORE) return
-        val currentRevision = _uiState.value.chat?.memberRevision ?: -1L
-        val removedFromGroup = impact == GroupRevisionImpact.CURRENT_USER_REMOVED
-        if (shouldInvalidateGroupKey(currentRevision, event.memberRevision, impact)) {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = revisionOwnerUserId,
-            )
-            ) {
-                return
-            }
-            invalidateGroupSenderKey(event.chatId, event.memberRevision)
-        }
-        if (removedFromGroup) {
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = revisionOwnerUserId,
-            )
-            ) {
-                return
-            }
-            realtimeController.clearRemoteTyping()
-            semanticSearchGate.invalidate()
-            aiRewriteGate.invalidate()
-            aiReplyGate.invalidate()
-            groupAiGate.invalidate()
-            manualSummaryGate.invalidate()
-            semanticSearchJob?.cancel()
-            aiRewriteStreamJob?.cancel()
-            aiReplyStreamJob?.cancel()
-            groupAiJob?.cancel()
-            manualSummaryJob?.cancel()
-            unreadSummaryJob?.cancel()
-            aiOperationJobs.values.forEach { it.cancel() }
-            aiOperationJobs.clear()
-            aiAutoRetryJobs.values.forEach { it.cancel() }
-            aiAutoRetryJobs.clear()
-            aiAutoRetryAt.clear()
-            val cleanup = withContext(Dispatchers.IO + NonCancellable) {
-                conversationLocalStateCoordinator.cleanup(
-                    chatId = event.chatId,
-                    expectedSession = cleanupSession,
-                    mode = ConversationLocalCleanupMode.DELETE_CONVERSATION,
-                )
-            }
-            cleanup.failures.forEach { failure ->
-                Log.w(
-                    "ChatDetailViewModel",
-                    "group removal cleanup failed at ${failure.step} for ${event.chatId}",
-                    failure.error,
-                )
-            }
-            if (!cleanup.completed) return
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = revisionOwnerUserId,
-            )
-            ) {
-                return
-            }
-            _uiState.update {
-                it.copy(
-                    chat = null,
-                    chatIsGroup = false,
-                    messages = emptyList(),
-                    isAiWorking = false,
-                    isAiDraftStreaming = false,
-                    isAiReplyStreaming = false,
-                    isSemanticSearching = false,
-                    isUnreadSummaryLoading = false,
-                    groupEncryptionWarning = text(R.string.chat_left_group_key_cleared)
-                )
-            }
-            return
-        }
-        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-            expectedUserId = revisionOwnerUserId,
-        )
-        ) {
-            return
-        }
-        val warning = when (event.reason) {
-            "MEMBER_ADDED", "MEMBER_REMOVED", "MEMBER_LEFT" -> text(R.string.chat_group_members_changed_key)
-            "GROUP_RENAMED" -> text(R.string.chat_group_name_updated)
-            "ROLE_UPDATED" -> text(R.string.chat_group_role_updated)
-            "TITLE_UPDATED" -> text(R.string.chat_group_title_updated)
-            "NICKNAME_UPDATED" -> text(R.string.chat_group_nickname_updated)
-            "ANNOUNCEMENT_UPDATED" -> text(R.string.chat_group_announcement_updated)
-            "MUTE_UPDATED" -> text(R.string.chat_group_mute_updated)
-            else -> text(R.string.chat_group_info_updated)
-        }
-        _uiState.update { it.copy(groupEncryptionWarning = warning) }
-        loadChat()
-        // 8.48：群变更（含禁言/解禁 MUTE_UPDATED）后刷新本机禁言状态提示——
-        // 否则成员在 GroupDetail 被禁言/解禁后，聊天页提示不会更新直到重新进入
-        refreshMyMemberRole(revisionOwnerUserId)
-    }
+    internal suspend fun handleGroupRevisionChanged(event: WebSocketEvent.GroupRevisionChanged) =
+        revisionHandler.handleGroupRevisionChanged(event)
 
     fun onInputChange(text: String) {
         hasUserEditedInput = true
