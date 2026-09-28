@@ -319,4 +319,42 @@ class SemanticsAuditTest {
         // 实测 8 个可点击；阈值取下界 6。
         assertClean("login", minClickables = 6)
     }
+
+    // ---------- 第九、十、十一屏：Starred / NotificationCenter / GlobalSearch（真 VM 直构） ----------
+
+    @Test
+    fun starredMessagesScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.chatdetail.StarredMessagesViewModel(
+            application(), androidx.lifecycle.SavedStateHandle(),
+        )
+        compose.setContent {
+            com.maodouchat.ui.screen.chatdetail.StarredMessagesScreen(onBack = {}, viewModel = vm)
+        }
+        // 实测 2 个可点击（返回 + 列表项）。
+        assertClean("starred", minClickables = 2)
+    }
+
+    @Test
+    fun notificationCenterScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.chatlist.NotificationCenterViewModel(application())
+        compose.setContent {
+            com.maodouchat.ui.screen.chatlist.NotificationCenterScreen(onBack = {}, viewModel = vm)
+        }
+        // 实测 3 个可点击（返回 + 列表项）。
+        assertClean("notifcenter", minClickables = 2)
+    }
+
+    @Test
+    fun globalSearchScreenSemanticsAreClean() {
+        val vm = com.maodouchat.ui.screen.chatlist.GlobalSearchViewModel(application())
+        compose.setContent {
+            com.maodouchat.ui.screen.chatlist.GlobalSearchScreen(
+                onBack = {},
+                onOpenResult = { _, _ -> },
+                viewModel = vm,
+            )
+        }
+        // 实测 9 个可点击（返回 + 搜索框 + 过滤 chips 等）；阈值取下界 7。
+        assertClean("globalsearch", minClickables = 7)
+    }
 }
