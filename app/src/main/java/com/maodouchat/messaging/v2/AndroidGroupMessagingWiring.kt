@@ -12,7 +12,7 @@ import com.maodouchat.network.TokenManager
 internal fun createAndroidGroupMessagingCoordinator(
     app: MaodouchatApp,
     signalProtocol: SignalProtocol,
-    tokenManager: TokenManager,
+    tokenManager: TokenManager = TokenManager.getInstance(app),
 ): GroupMessagingCoordinator = GroupMessagingCoordinator(
     currentSession = {
         val owner = tokenManager.getUserId().orEmpty()
