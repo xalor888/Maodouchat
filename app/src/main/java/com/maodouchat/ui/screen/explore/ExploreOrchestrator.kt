@@ -706,7 +706,7 @@ class ExploreOrchestrator(
         }
     }
 
-    private fun persistPickedImage(uri: Uri): Uri? {
+    @Suppress("Recycle") private fun persistPickedImage(uri: Uri): Uri? { // 资源由 `?.use` 关闭；lint 的 Recycle 检测不识别安全调用形态（人工核实，与 #124 同式）
         return try {
             val dir = File(application.filesDir, "draft_images").apply { mkdirs() }
             val file = File(dir, "img_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(8)}.jpg")

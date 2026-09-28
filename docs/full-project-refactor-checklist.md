@@ -32,7 +32,7 @@
 | ui 直连持久层/全局单例命中 | 43 = ChatListPorts 23 + ChatDetailDeps 17 + LoginViewModel 2 + ChatDetailViewModel 1（09-24 曾为 192+；ChatDetailViewModel 本轮 19 → 1） | `ClientArchitectureTest.frozenUiDirectPersistence` |
 | core 模块生产引用 | 在用 3（crypto 44 / realtime 25 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
-| lint 基线条数（只许降） | **55**（本战役起点 615） | `LintBaselineRatchetTest.frozenIssueCount` / `app/lint-baseline.xml` 块数 |
+| lint 基线条数（只许降） | **53**（本战役起点 615） | `LintBaselineRatchetTest.frozenIssueCount` / `app/lint-baseline.xml` 块数 |
 | 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` 2525 / `ChatDetailViewModel.kt` 2420 / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
 > 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
@@ -2263,3 +2263,22 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   semantics 两个 import 的 +2 行由**冗余空行**抵回，同 #138 先例）；
 - **暂缓**：`GlobalSearchScreen`（991 行上限、无冗余空行可抵）的 heading 待其拆分批次；
 - **判据**：emulator-5558 实跑 `SemanticsAuditTest`（10 用例）绿；CI 的 instrumented job 两次全绿。
+
+### 第十四轮十八续（2026-09-28）：lint 零散尾巴收口——Recycle 盲区 + TypographyDashes（55 → 53）
+
+- `Recycle` 最后 1 条（`ExploreOrchestrator.persistPickedImage`）：`openInputStream(uri)?.use { input ->`
+  人工核实资源确已关闭，属 lint 检测器不识别 `?.use` 安全调用形态的已知盲区（#124 同类）；
+  按 #124 同式加 `@Suppress("Recycle")`——该文件行数上限 1010 **零松量**，
+  注解与函数声明同行、行数 1010 不变（无冗余空行可抵，见 #124 留项说明）；
+- `TypographyDashes` 1 条：`settings_username_placeholder` "3-50" → "3–50"（en dash），
+  与 `values-en` 同名串已用的 "3–50" 对齐；该串仅作设置页用户名输入框 placeholder，无代码解析；
+- **基线手术**：删 2 条对应条目 → 55 → 53；`frozenIssueCount` 55 → 53；
+  `UseKtx` 8 条**有意保留**（变量编辑器 1 + check 1 + 值被消费 commit 4 + GlobalSearchScreen 2，
+  见上轮注释——GlobalSearchScreen 991 零松量、TokenManager 四处丢提交失败信号）；
+  `UnusedResources` 1 条（`secret_chat_enabled` 与 RuntimeFlags 开关键同名）继续保留；
+- **判据**：未本地验证（本机无 Android SDK/JDK），待 CI 验证（`:app:lintDebug` + 两条棘轮用例）。
+
+**剩余（lint 基线 53 条）**：`UseKtx` 8（有意保留）；`GradleDependency` 17 +
+活跃 5；`NewerVersionAvailable` 14；`Aligned16KB` 9（依赖侧）；`OldTargetApi` /
+`ChromeOsAbiSupport` / `AppBundleLocaleChanges` / `ConfigurationScreenWidthHeight`
+（4 条产品决策项，暂留）；`UnusedResources` 1（有意保留）等零散。
