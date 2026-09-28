@@ -6,6 +6,7 @@ import com.maodouchat.server.db.MessagingV2Messages
 import com.maodouchat.server.db.PinnedMessages
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.PinnedMessageResponse
+import com.maodouchat.server.service.isUniqueViolation
 import java.sql.SQLException
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and

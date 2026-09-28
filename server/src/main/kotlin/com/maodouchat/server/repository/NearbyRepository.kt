@@ -6,6 +6,7 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.NearbyLocationStatusResponse
 import com.maodouchat.server.model.NearbyUserResponse
 import com.maodouchat.server.model.UserResponse
+import com.maodouchat.server.service.isUniqueViolation
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq

@@ -1,4 +1,4 @@
-package com.maodouchat.server.repository
+package com.maodouchat.server.service
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.maodouchat.server.config.AdminAccess

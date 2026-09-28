@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import com.maodouchat.server.service.LoginAttemptGate
+import com.maodouchat.server.service.isUniqueViolation
 
 private val loginAuditLogger = org.slf4j.LoggerFactory.getLogger("LoginAudit")
 private val refreshAuditLogger = org.slf4j.LoggerFactory.getLogger("AuthRefreshAudit")

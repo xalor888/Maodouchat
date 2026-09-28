@@ -6,6 +6,7 @@ import com.maodouchat.server.db.Friendships
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.FriendRequestResponse
 import com.maodouchat.server.model.UserResponse
+import com.maodouchat.server.service.isUniqueViolation
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
