@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import com.maodouchat.notification.SocialNotificationService
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.MessageNotificationService
@@ -277,7 +279,7 @@ fun NotificationCenterScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(stringResource(R.string.notif_center_title), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                        Text(stringResource(R.string.notif_center_title), modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
                         if (unreadCount > 0) {
                             Text(
                                 pluralStringResource(R.plurals.notif_center_unread_count, unreadCount, unreadCount),

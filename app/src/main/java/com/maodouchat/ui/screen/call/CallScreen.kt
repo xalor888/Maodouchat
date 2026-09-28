@@ -69,6 +69,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -298,7 +300,7 @@ fun CallScreen(
                     }
                     Spacer(modifier = Modifier.height(24.dp))
                 }
-                Text(contactName, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 24.sp), color = Color.White)
+                Text(contactName, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 24.sp), color = Color.White)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = when {

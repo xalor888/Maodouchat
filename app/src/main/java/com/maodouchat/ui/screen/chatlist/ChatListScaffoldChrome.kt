@@ -38,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
@@ -88,7 +90,8 @@ internal fun ChatListTopBar(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         if (state.showArchived) stringResource(R.string.chat_archived_title)
-                        else stringResource(R.string.nav_chats)
+                        else stringResource(R.string.nav_chats),
+                        modifier = Modifier.semantics { heading() },
                     )
                     // 9.286：第三方服务器提醒——平时不显示服务器名；第三方且未确认时
                     // 仅一个小感叹号，点开提示后「我知道了」不再显示（按地址隔离）

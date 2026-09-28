@@ -81,9 +81,13 @@ class SemanticsAuditTest {
     /** 审计过的可点击节点数——0 说明探针瞎了，结论不可信（防自欺）。 */
     private var auditedClickables = 0
 
-    /** 遍历语义树，收集「可点击但读不出名字」与「触控目标过小」两类问题。 */
+    /** 审计到的标题（heading）节点数——供「每屏至少一个标题」断言使用。 */
+    private var auditedHeadings = 0
+
+    /** 遍历语义树，收集「可点击但读不出名字」「触控目标过小」两类问题，并统计 heading。 */
     private fun audit(node: SemanticsNode, out: MutableList<Issue>) {
         val config = node.config
+        if (config.contains(SemanticsProperties.Heading)) auditedHeadings += 1
         val clickable = config.contains(SemanticsActions.OnClick)
         if (clickable) auditedClickables += 1
         if (clickable) {
@@ -122,23 +126,27 @@ class SemanticsAuditTest {
         node.children.forEach { audit(it, out) }
     }
 
-    /** @return (审计到的可点击节点数, 问题列表)。多 root 场景（弹窗/权限对话框）逐个审计。 */
-    private fun auditScreen(tag: String): Pair<Int, List<Issue>> {
+    /** @return (可点击节点数, heading 数, 问题列表)。多 root 场景（弹窗/权限对话框）逐个审计。 */
+    private fun auditScreen(tag: String): Triple<Int, Int, List<Issue>> {
         compose.waitForIdle()
         auditedClickables = 0
+        auditedHeadings = 0
         val issues = mutableListOf<Issue>()
         compose.onAllNodes(isRoot()).fetchSemanticsNodes().forEach { audit(it, issues) }
         android.util.Log.i(
             "SemanticsAudit",
-            "[$tag] 审计了 $auditedClickables 个可点击节点，问题 ${issues.size} 条",
+            "[$tag] 审计了 $auditedClickables 个可点击节点、$auditedHeadings 个 heading，问题 ${issues.size} 条",
         )
-        return auditedClickables to issues
+        return Triple(auditedClickables, auditedHeadings, issues)
     }
 
-    private fun assertClean(tag: String, minClickables: Int) {
-        val (count, issues) = auditScreen(tag)
+    private fun assertClean(tag: String, minClickables: Int, minHeadings: Int = 0) {
+        val (count, headings, issues) = auditScreen(tag)
         assert(count >= minClickables) {
             "探针可能失明：[$tag] 只审计到 $count 个可点击节点（期望 ≥ $minClickables）"
+        }
+        assert(headings >= minHeadings) {
+            "[$tag] 期望至少 $minHeadings 个 heading 节点（TalkBack 标题导航），实测 $headings"
         }
         assert(issues.isEmpty()) {
             "[$tag] 无障碍问题 ${issues.size} 条：\n" +
@@ -162,7 +170,7 @@ class SemanticsAuditTest {
                 )
             }
         }
-        val (count, issues) = auditScreen("self-check-unnamed")
+        val (count, _, issues) = auditScreen("self-check-unnamed")
         assert(count == 1) { "自检区应只有 1 个可点击节点，实际 $count" }
         assert(issues.size == 1 && issues.single().label == "clickable-without-name") {
             "自检失败：无名字点击区未被识别，实际问题=$issues"
@@ -188,7 +196,7 @@ class SemanticsAuditTest {
             )
         }
         // 实测 12 个可点击（搜索框/文件夹 chips/顶栏图标/重试按钮…）；下界留 10 防装配漂移。
-        assertClean("chatlist", minClickables = 10)
+        assertClean("chatlist", minClickables = 10, minHeadings = 1)
     }
 
     @Test
@@ -200,7 +208,7 @@ class SemanticsAuditTest {
                 callState = CallState.RINGING,
             )
         }
-        assertClean("call", minClickables = 2)
+        assertClean("call", minClickables = 2, minHeadings = 1)
     }
 
     // ---------- 第五、六屏：Settings / Explore（fake 复刻自 ConfigRobustnessTest 与 ExploreScreenUiTest） ----------
@@ -317,7 +325,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.login.LoginScreen(viewModel = vm)
         }
         // 实测 8 个可点击；阈值取下界 6。
-        assertClean("login", minClickables = 6)
+        assertClean("login", minClickables = 6, minHeadings = 1)
     }
 
     // ---------- 第九、十、十一屏：Starred / NotificationCenter / GlobalSearch（真 VM 直构） ----------
@@ -331,7 +339,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.chatdetail.StarredMessagesScreen(onBack = {}, viewModel = vm)
         }
         // 实测 2 个可点击（返回 + 列表项）。
-        assertClean("starred", minClickables = 2)
+        assertClean("starred", minClickables = 2, minHeadings = 1)
     }
 
     @Test
@@ -341,7 +349,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.chatlist.NotificationCenterScreen(onBack = {}, viewModel = vm)
         }
         // 实测 3 个可点击（返回 + 列表项）。
-        assertClean("notifcenter", minClickables = 2)
+        assertClean("notifcenter", minClickables = 2, minHeadings = 1)
     }
 
     @Test
