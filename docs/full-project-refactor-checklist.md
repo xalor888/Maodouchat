@@ -2247,3 +2247,19 @@ CI（`lintDebug` 之后）、`pre-push` 第二步、`run-tests.sh --lint`，四�
   名单 3 → 2（VM 离场）；文件 2420 行 = 上限（零松量不变）；
 - 判据：`:app:compileDebugKotlin` 绿；`:app:testDebugUnitTest` + `:app:compileDebugAndroidTestKotlin`
   + `:app:lintDebug` 绿；`ClientArchitectureTest` 两条棘轮用例绿。
+
+### Q03 续（2026-09-28）：无障碍语义审计扩面 + heading 落地（11 屏 / 8 屏有标题）
+
+G342 探针（名字 + 触控目标）本日扩面并加一维：
+
+- **屏覆盖 6 → 11**：`ContactsScreen`、`LoginScreen`（#140，真 VM 直构）、
+  `StarredMessagesScreen`、`NotificationCenterScreen`、`GlobalSearchScreen`（#141）；
+  实测各屏 0 问题（globalsearch 9 / notifcenter 3 / starred 2 个可点击，阈值取下界）；
+- **多 root 支持**：Contacts 首屏带权限说明弹窗 = 两个 root，`onRoot()` 直接抛
+  「Expected exactly 1 node」——探针改为 `onAllNodes(isRoot())` 逐个审计（弹窗语义一并量到）；
+- **heading 维（TalkBack 标题导航）**：探针新增 heading 统计与 `minHeadings` 断言；
+  8 屏主标题加 `Modifier.semantics { heading() }`（#146 五屏：chatlist/call/login/starred/
+  notifcenter；#147 三屏：settings/explore/contacts——三文件零松量上限内，
+  semantics 两个 import 的 +2 行由**冗余空行**抵回，同 #138 先例）；
+- **暂缓**：`GlobalSearchScreen`（991 行上限、无冗余空行可抵）的 heading 待其拆分批次；
+- **判据**：emulator-5558 实跑 `SemanticsAuditTest`（10 用例）绿；CI 的 instrumented job 两次全绿。
