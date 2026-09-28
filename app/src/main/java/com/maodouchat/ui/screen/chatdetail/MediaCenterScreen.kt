@@ -125,9 +125,8 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
     private val repository = com.maodouchat.data.repository.AppRepositories.messages
     private val chatLockRepo = com.maodouchat.data.repository.AppRepositories.chatLocks
 
-    private val tokenManager = com.maodouchat.network.TokenManager.getInstance(application)
     /** Capture at open so logout/account switch cannot paint the next owner's media grid. */
-    private val ownerUserId: String = tokenManager.getUserId().orEmpty()
+    private val ownerUserId: String = com.maodouchat.session.CurrentSession.ownerUserId()
     private val _uiState = MutableStateFlow(MediaCenterUiState())
     val uiState: StateFlow<MediaCenterUiState> = _uiState.asStateFlow()
 
@@ -308,7 +307,7 @@ fun MediaCenterScreen(
     val context = LocalContext.current
     val secretPagePayload = rememberSecretPageWatermarkPayload(
         isSecretChat = state.isSecretChat,
-        userId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
+        userId = com.maodouchat.session.CurrentSession.ownerUserId(),
         chatId = viewModel.chatId,
         deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )
@@ -463,7 +462,7 @@ internal fun MediaCenterCategoryContent(
                     onPreview = { previewMessage = it },
                     onExportActions = { exportTarget = it },
                     secretChatId = if (state.isSecretChat) viewModel.chatId else null,
-                    currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
+                    currentUserId = com.maodouchat.session.CurrentSession.ownerUserId(),
                 )
                 MediaCenterCategory.FILES -> FileList(
                     items = selectedItems,
@@ -483,7 +482,7 @@ internal fun MediaCenterCategoryContent(
             message = msg,
             onDismiss = { previewMessage = null },
             secretChatId = if (state.isSecretChat) viewModel.chatId else null,
-            currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
+            currentUserId = com.maodouchat.session.CurrentSession.ownerUserId(),
             onSave = {
                 viewModel.saveMessageMedia(msg) { res ->
                     val text = when (res) {

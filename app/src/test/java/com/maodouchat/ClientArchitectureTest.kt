@@ -223,6 +223,10 @@ class ClientArchitectureTest {
      * 两组都**只许降**：搬一个就从对应名单删一行。判据在剥注释后的正文里找符号，
      * 不按 import 行（`com.maodouchat.util.X` 这类全限定名引用也要能被抓到）。
      *
+     * 2026-09-28：文件级预筛（「必须先 import com.maodouchat.network」）已删除——
+     * 它让**只用全限定名**的文件整体逃逸（实测漏了 AiTasksScreen / MediaCenterScreen /
+     * ExploreComposerCards 三个真读者）；三处已改走 `CurrentSession`，判据与上述措辞一致。
+     *
      * ⚠️ 分类是 `when`，**一个文件只进一组**：先看 `ApiService`，再看 `TokenManager`。
      * 所以把某文件的 `ApiService` 调用搬干净、但它仍读令牌时，它会**从 api 名单移到
      * token 名单**——那是一次重分类，不是「token 名单长了」，两组之和才是总违规数
@@ -273,7 +277,10 @@ class ClientArchitectureTest {
             val token = mutableSetOf<String>()
             ktFilesUnder(File(appMain, "com/maodouchat/ui")).forEach { file ->
                 val lines = stripComments(file.readText()).lines()
-                if (lines.none { it.startsWith("import com.maodouchat.network") }) return@forEach
+                // 2026-09-28：去掉「必须先 import com.maodouchat.network」的文件级预筛——
+                // 它让**全限定名读取**的文件整体逃逸（AiTasksScreen/MediaCenterScreen/
+                // ExploreComposerCards 三处实测漏网）。KDoc 本就说「不按 import 行」，
+                // 现在判据与措辞一致：全部 ui 文件按剥注释正文匹配。
                 val body = lines.filterNot { it.startsWith("import ") }.joinToString("\n")
                 val rel = file.relativeTo(appMain).path.replace('\\', '/')
                 when {
@@ -365,7 +372,7 @@ class ClientArchitectureTest {
         // **盲带**里——可以在无人知晓的情况下从 1000 长到 1100，只有越过 1100
         // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1050,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1049,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
@@ -429,7 +436,7 @@ class ClientArchitectureTest {
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
         // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1050,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1049,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
