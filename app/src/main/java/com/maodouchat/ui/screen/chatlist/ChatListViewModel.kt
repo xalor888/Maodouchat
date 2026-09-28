@@ -11,6 +11,8 @@ import com.maodouchat.conversation.ConversationLocalCleanupSession
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
 import com.maodouchat.network.UpdateChatSettingsRequest
+import com.maodouchat.security.SecureSessionAccess
+import com.maodouchat.security.SessionUiResetEvent
 import com.maodouchat.ui.OwnerSessionPolicy
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.util.RuntimeFlags
@@ -330,6 +332,16 @@ class ChatListViewModel private constructor(
         viewModelScope.launch {
             delay(3_000L)
             archiveSuggestionCoordinator.loadArchiveSuggestions()
+        }
+        // 1.55 事件化：登出/切号清理后 SecureSessionManager 经 uiResetEvents 发归零命令
+        //（security 层不再直写本 ui 包的 UnreadBadgeStore 单例）；归零幂等，replay 保证
+        // 清理时本 VM 尚未存活也能在重建后收到。
+        viewModelScope.launch {
+            SecureSessionAccess.manager.uiResetEvents.collect { event ->
+                if (event == SessionUiResetEvent.UNREAD_BADGE) {
+                    UnreadBadgeStore.totalUnread.value = 0
+                }
+            }
         }
         // 1.54：底部导航未读角标——汇总未读数推送到 UnreadBadgeStore
         viewModelScope.launch {

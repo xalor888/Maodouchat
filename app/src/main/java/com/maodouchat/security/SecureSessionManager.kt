@@ -18,7 +18,21 @@ import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
 import com.maodouchat.session.RealtimeConnectionManager
 import com.maodouchat.push.PushRegistrationManager
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.withLock
+
+/**
+ * SecureSessionManager 发出的 UI 侧复位事件（登出 / 切号 / 删号清理时）。
+ *
+ * 方向是 security → ui：security 层只发事件、不直接碰 ui 包的单例；
+ * UI 侧（如 ChatListViewModel）订阅后复位界面态。
+ */
+enum class SessionUiResetEvent {
+    /** 未读角标归零：避免残留上一账号的计数。 */
+    UNREAD_BADGE,
+}
 
 /**
  * Centralized local privacy cleanup for logout and account switches.
@@ -31,6 +45,16 @@ class SecureSessionManager(
     private val realtimeConnectionManager: RealtimeConnectionManager? = null,
     private val onEncryptedDatabaseDestroyed: (() -> Unit)? = null
 ) {
+
+    /**
+     * 会话清理触发的 UI 侧复位事件流。
+     *
+     * `replay = 1`：清理瞬间订阅方可能尚未存活（如已退到登录页、ChatList 尚未重建），
+     * 重进后仍能收到最近一次复位命令；复位语义幂等，重复投递无害。
+     */
+    private val _uiResetEvents =
+        MutableSharedFlow<SessionUiResetEvent>(replay = 1, extraBufferCapacity = 1)
+    val uiResetEvents: SharedFlow<SessionUiResetEvent> = _uiResetEvents.asSharedFlow()
 
     suspend fun purgeLocalSession(
         destroyEncryptedDatabase: Boolean = false,
@@ -247,8 +271,9 @@ class SecureSessionManager(
             } catch (error: Exception) {
                 Log.w(TAG, "Failed to clear chat quiet hours during local purge", error)
             }
-            // 1.55：底部导航未读角标（单例）在登出/切号时归零，避免残留上一账号计数
-            com.maodouchat.ui.screen.chatlist.UnreadBadgeStore.totalUnread.value = 0
+            // 1.55 事件化：底部导航未读角标归零改走 uiResetEvents——security 层不再
+            // 全限定名直写 ui/screen/chatlist 的 UnreadBadgeStore 单例（分层门禁 FQ 盲区收口）。
+            _uiResetEvents.tryEmit(SessionUiResetEvent.UNREAD_BADGE)
             // 8.52：全量通话记录属账号本地数据——登出清理
             try {
                 accountUserId?.takeIf { it.isNotBlank() }?.let { uid ->

@@ -279,7 +279,7 @@ private fun widgetSubtitle(id: String): String = when (id) {
 private fun DraggableWidgetWrapper(
     title: String,
     subtitle: String,
-    paint: com.maodouchat.ui.theme.ThemePaint,
+    paint: com.maodouchat.theme.ThemePaint,
     cardShape: Shape,
     elevation: androidx.compose.ui.unit.Dp,
     scale: Float,
@@ -367,7 +367,7 @@ private fun DraggableWidgetWrapper(
 /** 会话气泡微件预览 */
 @Composable
 private fun ChatBubblePreviewWidget(
-    paint: com.maodouchat.ui.theme.ThemePaint,
+    paint: com.maodouchat.theme.ThemePaint,
     bubbleShape: com.maodouchat.ui.theme.BubbleShapes
 ) {
     Column(
@@ -439,7 +439,7 @@ private fun ChatBubblePreviewWidget(
 /** 联系人名片微件预览 */
 @Composable
 private fun ContactProfileWidget(
-    paint: com.maodouchat.ui.theme.ThemePaint,
+    paint: com.maodouchat.theme.ThemePaint,
     shape: Shape
 ) {
     Row(
@@ -496,7 +496,7 @@ private fun ContactProfileWidget(
 /** 快捷操作面板微件预览 */
 @Composable
 private fun QuickActionsWidget(
-    paint: com.maodouchat.ui.theme.ThemePaint,
+    paint: com.maodouchat.theme.ThemePaint,
     shape: Shape
 ) {
     Row(
@@ -513,7 +513,7 @@ private fun QuickActionsWidget(
 private fun QuickActionButton(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    paint: com.maodouchat.ui.theme.ThemePaint,
+    paint: com.maodouchat.theme.ThemePaint,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -538,7 +538,7 @@ private fun QuickActionButton(
 /** 核心统计概览微件预览 */
 @Composable
 private fun StatsTileWidget(
-    paint: com.maodouchat.ui.theme.ThemePaint,
+    paint: com.maodouchat.theme.ThemePaint,
     shape: Shape
 ) {
     Row(

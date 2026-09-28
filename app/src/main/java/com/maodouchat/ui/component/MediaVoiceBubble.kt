@@ -151,7 +151,7 @@ internal fun VoiceBubble(
                     .captureBubbleBounds(onBoundsMeasured)
                     .width(240.dp)
                     .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
-                    .background(if (isOwnMessage) Brush.linearGradient(com.maodouchat.ui.theme.ChatBubbleColorPalette.gradient(LocalChatBubbleColor.current)) else Brush.linearGradient(listOf(palette.chatBubbleReceived, palette.chatBubbleReceived)))
+                    .background(if (isOwnMessage) Brush.linearGradient(com.maodouchat.theme.ChatBubbleColorPalette.gradient(LocalChatBubbleColor.current)) else Brush.linearGradient(listOf(palette.chatBubbleReceived, palette.chatBubbleReceived)))
                     .then(
                         if (!isOwnMessage) Modifier.border(
                             1.dp,

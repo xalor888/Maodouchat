@@ -41,8 +41,8 @@ fun NavGraphBuilder.chatDestinations(navController: NavHostController) {
         val appearanceVersion by com.maodouchat.util.ChatAppearancePreferences.appearanceVersion.collectAsState()
         val sentColors = remember(chatIdArg, themeSentSpec, bubbleIsDark, appearanceVersion) {
             val id = com.maodouchat.util.ChatAppearancePreferences.getBubbleColor(bubbleCtx)
-            val userColor = if (bubbleIsDark) com.maodouchat.ui.theme.ChatBubbleColorPalette.dark(id)
-            else com.maodouchat.ui.theme.ChatBubbleColorPalette.light(id)
+            val userColor = if (bubbleIsDark) com.maodouchat.theme.ChatBubbleColorPalette.dark(id)
+            else com.maodouchat.theme.ChatBubbleColorPalette.light(id)
             val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
             com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
         }

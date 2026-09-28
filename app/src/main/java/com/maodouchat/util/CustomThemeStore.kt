@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.edit
+import com.maodouchat.theme.SentBubbleSpec
+import com.maodouchat.theme.ThemePaint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -146,8 +148,8 @@ object CustomThemeStore {
     fun applyOverrides(
         ctx: Context,
         variant: String,
-        paint: com.maodouchat.ui.theme.ThemePaint
-    ): com.maodouchat.ui.theme.ThemePaint {
+        paint: ThemePaint
+    ): ThemePaint {
         if (!hasOverrides(ctx, variant)) return paint
         var scheme = paint.colorScheme
         var palette = paint.chatPalette
@@ -189,7 +191,7 @@ object CustomThemeStore {
         val outBubble = getColor(ctx, variant, "chat_outBubble")
         val outText = getColor(ctx, variant, "chat_outText")
         if (outBubble != null || outText != null) {
-            val base = sentSpec ?: com.maodouchat.ui.theme.SentBubbleSpec(
+            val base = sentSpec ?: SentBubbleSpec(
                 color = scheme.primary,
                 content = Color.White,
                 contentSecondary = Color.White.copy(alpha = 0.7f)
@@ -200,6 +202,6 @@ object CustomThemeStore {
                 contentSecondary = outText?.copy(alpha = 0.7f) ?: base.contentSecondary
             )
         }
-        return com.maodouchat.ui.theme.ThemePaint(scheme, palette, sentSpec)
+        return ThemePaint(scheme, palette, sentSpec)
     }
 }

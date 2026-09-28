@@ -139,7 +139,7 @@ class ClientArchitectureTest {
     // ─── 1b. 包级分层：非 ui 包不得 import ui（G328c） ───
 
     /**
-     * 唯一允许「非 ui 包 → ui 包」的两个例外，附理由。
+     * 允许「非 ui 包 → ui 包」的例外，附理由。
      *
      * 这条规则来自审计：此前有 **11 个**非 ui 文件 import `com.maodouchat.ui.*`，
      * 其中真正不合理的是 `notification/` 的通知服务（为了一个常量/一个纯文本函数被迫
@@ -148,15 +148,31 @@ class ClientArchitectureTest {
      * 这些已在同一次提交里逐类修掉：把纯逻辑（端口、契约、正则、文本处理）搬到中立包，
      * 把属于 UI 的文件搬回 ui/。
      *
-     * 剩下的两个是**架构上正确**的方向，不是倒置：
+     * 2026-09-28 收紧：只看 `import` 行存在**全限定名盲区**（与令牌读者棘轮同款病）——
+     * 实测 11 个非 ui 文件以 FQ 形态引用 `com.maodouchat.ui.*`，其中 6 处是真违规
+     * （首批 3 处随 #165 修：SettingsVisibilityPolicy / DecryptEnvelopeGate 迁出 ui；
+     * 本批 3 处：theme 纯数据类型迁到中立 `theme/` 包、SecureSessionManager 改事件化）。
+     * 判据改为在「剥注释 + 剥字符串内容」后的源码里找 `com.maodouchat.ui.` 前缀
+     * （见 [stripCommentsAndStringBodies]；`ui must not import data-local daos` 同款做法）；
+     * import 行本身也含该前缀，所以一次扫描同时覆盖 import 与 FQ 两种写法。
+     * 包名出现在字符串里（日志、文档）不算引用，不会误伤。
+     * 2026-09-28：#165 已合并，本批也收口完毕——门禁彻底落闸：offenders 必须为零，无待修表。
+     *
+     * 剩下的例外是**架构上正确**的方向，不是倒置：
      * - `MainActivity.kt`：它就是要承载 UI 的入口 Activity；
-     * - `navigation/` 下的那些 Destinations 文件：导航图必须引用它注册的 Composable 屏幕。
+     * - `navigation/` 下的 4 个 Destinations 文件：导航图必须引用它注册的 Composable 屏幕。
      *   （含 @Composable 的导航文件仍在 ui/navigation；纯路由契约已抽到 `navigation/`）
      */
     private val uiImportAllowedFromOutsideUi: Map<String, String> = mapOf(
         "com/maodouchat/MainActivity.kt" to "入口 Activity，承载 UI 是其职责",
         "com/maodouchat/navigation/CallDestinations.kt" to
-            "导航图注册点必须引用 Composable 屏幕（IncomingCallRoute 留在 ui/navigation）",
+            "导航图注册点必须引用 Composable 屏幕",
+        "com/maodouchat/navigation/ExploreDestinations.kt" to
+            "导航图注册点必须引用 Composable 屏幕",
+        "com/maodouchat/navigation/GroupPlayDestinations.kt" to
+            "导航图注册点必须引用 Composable 屏幕",
+        "com/maodouchat/navigation/SettingsDestinations.kt" to
+            "导航图注册点必须引用 Composable 屏幕",
     )
 
     @Test
@@ -165,7 +181,7 @@ class ClientArchitectureTest {
         val offenders = ktFilesUnder(File(appMain, "com/maodouchat"))
             .filter { it.relativeTo(root).invariantSeparatorsPath.substringBefore('/') != "ui" }
             .filter { file ->
-                stripComments(file.readText()).lines().any { it.startsWith("import com.maodouchat.ui") }
+                stripCommentsAndStringBodies(file.readText()).contains("com.maodouchat.ui.")
             }
             .map { it.relativeTo(appMain).path.replace('\\', '/') }
             .filterNot { it in uiImportAllowedFromOutsideUi.keys }
@@ -173,8 +189,8 @@ class ClientArchitectureTest {
         assertEquals(
             emptyList(),
             offenders,
-            "这些非 ui 包的文件 import 了 com.maodouchat.ui.*——分层倒置。" +
-                "纯逻辑请搬到中立包（如 navigation/、messaging/、explore/policy），" +
+            "这些非 ui 包的文件引用了 com.maodouchat.ui.*（import 或全限定名）——分层倒置。" +
+                "纯逻辑请搬到中立包（如 theme/、messaging/、settings/），" +
                 "属于 UI 的文件请搬回 ui/；确实合理的要加进 uiImportAllowedFromOutsideUi 并写明理由。实际=$offenders",
         )
     }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.maodouchat.network.TokenManager
+import com.maodouchat.theme.ChatBubbleColorPalette
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,9 +85,9 @@ object ChatAppearancePreferences {
 
     /** 聊天气泡颜色 id（见 ChatBubbleColorPalette）。 */
     fun getBubbleColor(context: Context): String {
-        val userId = currentUserId(context) ?: return com.maodouchat.ui.theme.ChatBubbleColorPalette.GREEN
+        val userId = currentUserId(context) ?: return ChatBubbleColorPalette.GREEN
         val raw = userScopedPrefs(context, PREFS_NAME).getString(userScopedKey(KEY_BUBBLE_COLOR, userId), null)
-        return com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(raw)
+        return ChatBubbleColorPalette.normalize(raw)
     }
 
     /** 用户是否显式自定义过气泡色（主题接管发送气泡配色时用于判断优先级）。 */
@@ -97,7 +98,7 @@ object ChatAppearancePreferences {
 
     fun setBubbleColor(context: Context, colorId: String) {
         val userId = currentUserId(context) ?: return
-        val normalized = com.maodouchat.ui.theme.ChatBubbleColorPalette.normalize(colorId)
+        val normalized = ChatBubbleColorPalette.normalize(colorId)
         userScopedPrefs(context, PREFS_NAME).edit { putString(userScopedKey(KEY_BUBBLE_COLOR, userId), normalized) }
         _appearanceVersion.value++
     }

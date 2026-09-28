@@ -1,6 +1,7 @@
 package com.maodouchat.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import com.maodouchat.theme.SentBubbleSpec
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
