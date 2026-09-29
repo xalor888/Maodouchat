@@ -18,7 +18,7 @@
 |----|------------------|--------|
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
 | App JVM 单测（执行数） | 2173（09-24: 2129） | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
-| App 仪器测试 | **265**（`@Test` 计数；09-24: 156；语义审计扩面三批 +19、主聊天屏 +1） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
+| App 仪器测试 | **275**（`@Test` 计数；09-24: 156；语义审计扩面五批 +30） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
 | Server 单测（执行数） | 620（`@Test` 标注 645；09-24: 578/603，差值是 postgres tag 等未进默认套件的） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
 | core/domain 模块测试（执行数） | 68（不变） | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
 | 有测试源文件的模块 | 9 个（不变） | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
@@ -33,7 +33,7 @@
 | core 模块生产引用 | 在用 3（crypto 44 / realtime 25 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
 | lint 基线条数（只许降） | **53**（本战役起点 615） | `LintBaselineRatchetTest.frozenIssueCount` / `app/lint-baseline.xml` 块数 |
-| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **2114** / `ChatDetailViewModel.kt` **2035** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；Route：顶栏/横幅栈/搜索+多选 2525 → 2114；VM：sendNudge/retrySendMessage/sendEncryptedAttachment/handleGroupRevisionChanged 2420 → 2275 → 2147 → 2035） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
+| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **1077** / `ChatDetailViewModel.kt` **2035** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；Route 本轮系列 2525 → 1077；VM 2420 → 2035） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
 > 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
 > `compileDebugUnitTestKotlin`（JVM 单测）、`compileDebugAndroidTestKotlin`（仪器测试）。
@@ -2606,3 +2606,39 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 生产侧唯一改动：`Sockets.kt` 函数局部 `json` 提升为文件级 `internal val wsJson`（5 处引用点改名，零行为改动；`sendError`/`handleWsMessage` 的 `json: Json` 形参不动，实参改传 `wsJson`）；
 - 与 open PR #191（`refactor/chatdetail-composer-strips`）无文件交集；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续二十七（2026-09-29）：语义审计补群详情屏（`GroupDetailScreen`）+ 标题 heading()（PR #184）
+
+- 真 Room 播种群会话（`isGroup=true`）+ `SavedStateHandle(chatId)` 真 VM → 组合真实
+  `GroupDetailScreen`，等返回键出现再审计；实测 15 个可点击（4 个屏外未放置被跳过）、
+  0 问题；阈值取下界 12；标题补 `heading()`；清理放 `finally`；
+- 判据：emulator-5558 实跑 `SemanticsAuditTest` 31/31 绿。
+
+### 第十三轮续二十八（2026-09-29）：语义审计扩面四屏（群玩族）+ 修掉投票页两个无名 Checkbox（PR #185）
+
+- 新增 GroupPoll / GroupCheckin / GroupChain / GroupPk 四屏（此前无任何测试覆盖）；
+- 探针抓出真问题：GroupPoll 创建表单两个 Checkbox 是独立可点击节点、无名字 →
+  改「整行 toggleable + Checkbox 传 null」标准形态；
+- 四屏标题补 `heading()`；实测可点击 8/2/4/4，阈值取下界 6/2/3/3；
+- CI 首跑抓出 myreports 阈值环境差异（本机 2 / CI 1）——阈值 2 → 1，修复后 CI 绿；
+- 判据：emulator-5558 实跑 35/35 绿。
+
+### 第十三轮续二十九（2026-09-29，G350）：`ChatDetailRoute` 时间线区抽出——2114 → 1987（PR #187）
+
+- `ChatTimelinePane` 的内容（消息列表 + 回底 FAB + 两个空态，135 行）逐字抽到
+  `ChatDetailTimelineSection.kt`；新函数是 **BoxScope 扩展**（align 依赖 Box 作用域，
+  同 `LazyItemScope.ChatDetailTimelineItem` 先例）；参数 21 个；
+- 删 20 个随迁死 import；上限两份 map 收紧 2114 → 1987。
+
+### 第十三轮续三十（2026-09-29，G353）：`ChatDetailRoute` 输入区上方状态条带抽出——1386 → 1246（PR #191）
+
+- 加载指示器 / 引用中提示 / 录音指示器 / 发送前试听条 / 发送中指示器 / 群禁言提示
+  （含到期重组触发）/ AI 操作状态条 / AI 草稿流条 / 恢复草稿面板 / 打字中指示器——
+  139 行逐字抽到 `ChatDetailComposerStrips.kt`；参数 5 个；删 9 个随迁死 import。
+
+### 第十三轮续三十一（2026-09-29，G355）：`ChatDetailRoute` 输入区接线抽出——1246 → 1077（PR #193）
+
+- `ComposerPane` 的接线（176 行：发送/定时/附件/位置/录音/名片回调、AI 面板入口、
+  提及参数装配）逐字抽到 `ChatDetailComposerSection.kt`；参数 11 个；删 7 个随迁死 import；
+- **里程碑**：`ChatDetailRoute.kt` 本轮系列 **2525 → 2277 → 2185 → 2114 → 1987 → 1691 →
+  1386 → 1246 → 1077**（单 composable 只剩装配壳：弹窗簇/门禁链/Scaffold/各 Section 调用）。
