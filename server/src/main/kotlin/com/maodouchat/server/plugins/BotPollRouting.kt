@@ -80,26 +80,22 @@ put("messageId", msgId)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        // emoji 语义映射（对齐 Telegram 骰子）：🎲🎯🎳 6 面、🏀⚽ 5 面、🎰 64 面；显式 sides 优先
-        val diceEmoji = obj["emoji"]?.jsonPrimitive?.content.orEmpty().takeIf { it.isNotBlank() }
-        val sides = (obj["sides"]?.jsonPrimitive?.content?.toIntOrNull()
-            ?: when (diceEmoji) {
-                "🏀", "⚽" -> 5
-                "🎰" -> 64
-                else -> 6
-            }).coerceIn(2, 100)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendDiceFields(obj)) {
+            is BotSendDiceFieldsResult.Ok -> parsed.fields
+            BotSendDiceFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
         if (!com.maodouchat.server.service.RuntimeConfigService.isGroupPlayEnabled()) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("group play disabled"))
         }
-        val value = (1..sides).random()
+        val value = (1..fields.sides).random()
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = "${diceEmoji ?: "🎲"} ${value}/${sides}"
+        val content = buildBotDiceContent(fields.diceEmoji, value, fields.sides)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "TEXT")
         }.getOrDefault(false)
@@ -115,7 +111,7 @@ put("messageId", msgId)
 put("ok", true)
 put("messageId", msgId)
 put("value", value)
-put("sides", sides)
+put("sides", fields.sides)
         }
     )
     }
