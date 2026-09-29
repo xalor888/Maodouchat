@@ -926,7 +926,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [~] **生产 store + 跨重启**也有 on-device 证据：**G18** 新增 `PersistentSignalStoreRoundTripTest`，两个账号都用本仓库 `PersistentSignalProtocolStore`（Room 支撑）跑真 X3DH；并钉住「写穿是真的」（DAO 里确有 identity/session 行、被消费的一次性 PreKey 行已删除）、**跨重启存活**（新实例 + `loadPersistedState()` 仍能解开后续消息），以及三条边界：不回填必须解不出来、损坏行被丢弃且随后大声失败、写路径失败被记录/读路径抛 `SignalStorePersistenceException`、账号作用域隔离。五处探针各自实测变红。**边界**：仍不是 `SignalDirectCipher`/`SignalProtocol.initialize` 的完整装配（真实 SQLCipher、`MaodouchatApp` 单例、群 SenderKey 分发、真实跨进程双设备）。
 - [~] **群消息 SenderKey 真往返**有 on-device 证据：**G19** 新增 `SignalGroupSenderKeyRoundTripTest`，用生产 `SignalGroupSenderKeyManager`/`SignalGroupCipher`/`SignalEnvelopeCodec` 跑通建分发 → 安装 → 加密 → 解回逐字节相同原文（连发两条）；并钉住未安装分发者解不出、跨群重放被拒、未来 epoch 是 `FutureEpoch`、失效后不得再按旧 epoch 加密（原因必须是 `group_sender_key_not_distributed`）、篡改必须收敛成 `DecryptResult.Failed`。**并且修掉一个真实缺陷**：libsignal 把意外的 checked exception 包成 `AssertionError`（extends `Error`），只 `catch (Exception)` 会让被篡改的群信封把 `Error` 抛出方法外——已在 `SignalGroupCipher` 收窄成 `Failed`，由该用例守卫。**边界**：群分发走网络/多设备扇出、`SignalProtocol.initialize` 完整装配、真实跨进程双设备仍未覆盖。
 - [~] **解密契约的畸形输入矩阵**：**G20** 新增 `SignalDecryptInputMatrixTest`，断言每个返回 `DecryptResult` 的入口都**只能**用返回 `DecryptResult` 的方式结束，并把所有逃逸**一次性**报出；同一密文在五个偏移各翻一个 bit（并断言这些坏输入两两不同、也不同于合法输入，防止矩阵静默失效）。用它**复现并修掉**了`decryptParsedMultiDeviceEnvelope` 整条分类链缺失（实测 `InvalidMessageException` 逃逸），并把三个直发入口的分类收敛到一个 `classifyDecryptFailure`（此前各写一份，正是漂移的根源）。**诚实标注**：`decryptContentEnvelope` 上的 `AssertionError` catch 是防御性——探针实测去掉它矩阵仍全绿，保留是为了对齐 G19 在群入口已复现的同类逃逸，不是本路径已被证明会触发。
-- [ ] 协议模型有向前/向后兼容与 fuzz 测试。（2026-09-26 进展：第一块——`MessagingV2Routing` 的 `messagingV2Json` 从 `ignoreUnknownKeys = false` 收敛为 `true`（其余路由早已是 `true`，此前新版客户端给 V2 发未知字段会 400），`internal` 可见性供测试直接引用同一份配置；新增 `MessagingV2ForwardCompatTest` 5 例：未知字段容忍×2、缺失可选字段回默认值、往返稳定、未知包装字段不污染已知字段。**2026-09-29 fuzz 第一块落地（G344）**：新增 `MessagingV2FuzzCompatTest`（4 例）——send/ack 两种请求各 200/100 个固定种子随机 payload（未知字段随机名/随机值/随机嵌套深度，顶层 + 信封内注入；随机名避开全部已知字段名），已知字段恒等断言；另 3 例反证钉住「已知字段类型错仍抛 `SerializationException`」（`ignoreUnknownKeys` 只放行未知键，不吞坏数据）+ 1 例近似字段名（大小写/前后缀之差）仍按未知键处理。其余协议模型（admin/bot 等）的 fuzz 仍缺，本项保持 `[ ]`。**2026-09-29 fuzz 第二块落地（G347）**：新增 `AdminModelsFuzzTest`（7 例）——管理后台一侧 `adminJson`（生产侧 `internal` 配置，测试直接引用同一份）+ 5 个走 `receiveAdminJson` 的请求 DTO（`AdminSessionRequest`/`CreateAnnouncementRequest`/`CreateUserTagRequest`/`AssignUserTagsRequest`/`UpdateUserStatusRequest`）：各 100–150 个固定种子随机 payload（未知字段随机名避开全部 18 个已知字段名、随机值布尔/整数/浮点/字符串/null/数组/嵌套对象深度 ≤ 2、顶层注入），已知字段恒等断言；4 例反证钉住「已知字段类型错仍抛 `SerializationException`」（`password` 收数字、`totpCode` 收对象、`tagIds` 收字符串、`bannedUntil` 收字符串——提权入口坏数据静默通过即安全门洞）+ 1 例近似字段名（`Password`/`password2`/`totpcode`）仍按未知键忽略。bot/其余路由模型的 fuzz 仍缺，本项保持 `[ ]`。）
+- [ ] 协议模型有向前/向后兼容与 fuzz 测试。（2026-09-26 进展：第一块——`MessagingV2Routing` 的 `messagingV2Json` 从 `ignoreUnknownKeys = false` 收敛为 `true`（其余路由早已是 `true`，此前新版客户端给 V2 发未知字段会 400），`internal` 可见性供测试直接引用同一份配置；新增 `MessagingV2ForwardCompatTest` 5 例：未知字段容忍×2、缺失可选字段回默认值、往返稳定、未知包装字段不污染已知字段。**2026-09-29 fuzz 第一块落地（G344）**：新增 `MessagingV2FuzzCompatTest`（4 例）——send/ack 两种请求各 200/100 个固定种子随机 payload（未知字段随机名/随机值/随机嵌套深度，顶层 + 信封内注入；随机名避开全部已知字段名），已知字段恒等断言；另 3 例反证钉住「已知字段类型错仍抛 `SerializationException`」（`ignoreUnknownKeys` 只放行未知键，不吞坏数据）+ 1 例近似字段名（大小写/前后缀之差）仍按未知键处理。其余协议模型（admin/bot 等）的 fuzz 仍缺，本项保持 `[ ]`。**2026-09-29 fuzz 第二块落地（G347）**：新增 `AdminModelsFuzzTest`（7 例）——管理后台一侧 `adminJson`（生产侧 `internal` 配置，测试直接引用同一份）+ 5 个走 `receiveAdminJson` 的请求 DTO（`AdminSessionRequest`/`CreateAnnouncementRequest`/`CreateUserTagRequest`/`AssignUserTagsRequest`/`UpdateUserStatusRequest`）：各 100–150 个固定种子随机 payload（未知字段随机名避开全部 18 个已知字段名、随机值布尔/整数/浮点/字符串/null/数组/嵌套对象深度 ≤ 2、顶层注入），已知字段恒等断言；4 例反证钉住「已知字段类型错仍抛 `SerializationException`」（`password` 收数字、`totpCode` 收对象、`tagIds` 收字符串、`bannedUntil` 收字符串——提权入口坏数据静默通过即安全门洞）+ 1 例近似字段名（`Password`/`password2`/`totpcode`）仍按未知键忽略。**2026-09-29 fuzz 第三块落地（G353，PR #189 已合）**：新增 `RoutingModelsFuzzTest`（8 例）——通用客户端 API 请求 DTO（`RegisterPushTokenRequest`/`SendSignalRequest`/`UpdateProfileRequest`/`SendFriendRequestBody`/`UploadKeysRequest`/`CreateReportRequest`，经 `RouteParsing.receiveJson`/`parseJson` 解码，全站最宽的客户端入口面）：各 100–150 个固定种子随机 payload（未知字段随机名避开全部 32 个已知字段名、随机值布尔/整数/浮点/字符串/null/数组/嵌套对象深度 ≤ 2、顶层注入），已知字段恒等断言；缺省值钉住（空对象→全 null、最小四字段→其余回默认值）；4 例反证钉住「已知字段类型错仍抛 `SerializationException`」（`registrationId` 收字符串/`preKeys` 收对象/`groupMemberIds` 收字符串/`timezoneOffsetMinutes` 收对象——密钥材料/信令入口坏数据静默通过即安全门洞）+ 1 例近似字段名（`DeviceId`/`platform2`）仍按未知键忽略；生产侧唯一改动是 `routingJson` 由 `private` 提为 `internal`（G344/G347 同款纪律）。**2026-09-29 fuzz 第四块落地（G354，PR 待 CI）**：新增 `WsInboundFuzzTest`（5 例）——WS 入站面（`WsMessage` 信封/`TypingPayload`/`OutgoingSignalingPayload`，经 `Sockets.kt` 的 `wsJson` 解码）：各 100–150 个固定种子随机 payload，已知字段恒等断言；缺省值钉住；3 例反证（`isTyping` 收字符串/`groupMemberIds` 收字符串/`epoch` 收对象仍抛 `SerializationException`——通话信令坏数据静默通过即安全门洞）+ 1 例近似字段名；生产侧唯一改动是 `Sockets.kt` 的函数局部 `json` 提升为文件级 `internal val wsJson`（5 处引用点改名，零行为改动）。此后服务端全部 typed DTO 解码入口（messaging-v2/admin/通用路由/WS 入站）fuzz 全覆盖；`devJson`/`pollJson`/`hintJson` 均无 typed DTO 解码用途，bot 路由为手写 JSON 解析无 DTO——本项保持 `[ ]` 待 bot 侧专项评估。）
 
 ### Q02 数据库与迁移
 
@@ -2578,4 +2578,31 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - VM 删 2 个随迁死 import（`ConversationLocalCleanupMode`/`conversationLocalCleanupSession`）；
 - 热点上限两份 map 同步收紧 2147 → 2035（零松量）；
 - 与 open PR #185（groupplay 语义审计）无文件交集；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续二十三（2026-09-29，G351+G352）：`ChatDetailRoute` 上下半区弹窗簇抽出（PR #188，已合）
+
+- 输入区上下半区弹窗簇（601 行净搬移）逐字抽到新 `ChatDetailDialogHosts.kt`（726 行，含 KDoc/构造器）；
+- `ChatDetailRoute.kt` 1987 → 1386 行（纯搬移不改判断）；热点上限两份 map 同步收紧（零松量）；
+- 里程碑：`ChatDetailRoute.kt` 2525 → … → 1386。
+
+### 第十三轮续二十四（2026-09-29）：语义审计扩面五屏（PR #190，已合）
+
+- 新增 Nearby / AuthorProfile / PostDetail / JoinGroupInvite / DeveloperBots 五屏审计（`SemanticsAuditTest`，屏覆盖 35 → 40）；
+- 探针抓出真问题：Nearby「可见性」开关是行内唯一可点目标且无名字 → 挂行标题 contentDescription；
+- 实测可点击：4 / 3 / 3 / 2 / 4，阈值取下界 3/2/2/2/3。
+
+### 第十三轮续二十五（2026-09-29，G353）：通用路由协议模型 fuzz 测试——Q01「其余协议模型 fuzz 仍缺」补上第三块（PR #189，已合）
+
+- 经 `RouteParsing.receiveJson`/`parseJson` 解码的通用客户端 API 请求 DTO（全站最宽的客户端入口面）：`RegisterPushTokenRequest`（150）、`SendSignalRequest`（150）、`UpdateProfileRequest`（100）、`SendFriendRequestBody`（100）、`UploadKeysRequest`（100，含嵌套 `preKeys`）、`CreateReportRequest`（100）——固定种子随机 payload，顶层注入 1–5 个未知字段，已知字段恒等断言；
+- 缺省值钉住 + 4 例反证（坏类型仍抛 `SerializationException`）+ 1 例近似字段名；
+- 生产侧唯一改动：`routingJson` 由 `private` 提为 `internal`（G344/G347 同款纪律）；
+- 自审通过（描述逐条核对、无无关文件）→ CI 绿 + mergeable clean → squash 合并。
+
+### 第十三轮续二十六（2026-09-29，G354）：WS 入站 DTO fuzz 测试——Q01 补上第四块（PR 待 CI）
+
+- `WsMessage` 信封（150）/`TypingPayload`（100）/`OutgoingSignalingPayload`（150，含嵌套 `groupMemberIds`）：固定种子随机 payload，顶层注入 1–5 个未知字段，已知字段恒等断言；
+- 缺省值钉住（最小三字段→其余回默认值）+ 3 例反证（`isTyping`/`groupMemberIds`/`epoch` 坏类型仍抛 `SerializationException`）+ 1 例近似字段名；
+- 生产侧唯一改动：`Sockets.kt` 函数局部 `json` 提升为文件级 `internal val wsJson`（5 处引用点改名，零行为改动；`sendError`/`handleWsMessage` 的 `json: Json` 形参不动，实参改传 `wsJson`）；
+- 与 open PR #191（`refactor/chatdetail-composer-strips`）无文件交集；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
