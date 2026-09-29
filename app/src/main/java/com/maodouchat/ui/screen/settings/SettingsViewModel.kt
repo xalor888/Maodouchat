@@ -6,16 +6,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import com.maodouchat.explore.policy.ExploreDraftPolicy
-import com.maodouchat.settings.repository.SecurityPreferencesPatch
 import com.maodouchat.settings.repository.SettingsRepository
 import com.maodouchat.settings.repository.AndroidSettingsRepository
 import com.maodouchat.settings.model.SettingsUiState
@@ -28,8 +24,6 @@ class SettingsViewModel @JvmOverloads constructor(
     /** G328c：账号/设备/拉黑这类**命令式**端点走 data 层仓库（ui 不再直接调 ApiService）。 */
     private val accountApi get() = com.maodouchat.data.repository.AccountSecurityNetworkRepository()
 
-    private var clientPrefsPullJob: Job? = null
-    private val clientPrefsPushMutex = Mutex()
 
     internal fun text(id: Int, vararg args: Any): String =
         getApplication<Application>().getString(id, *args)
@@ -225,44 +219,25 @@ class SettingsViewModel @JvmOverloads constructor(
     fun clearErrorMessage() { _uiState.update { it.copy(errorMessage = null) } }
 
     /** Push non-secret security UX prefs to multi-device blob. */
+    // G362：安全 UX 客户端偏好推/拉抽到 SettingsSecurityPrefsController（纯搬移不改判断）。
+    private val securityPrefsController by lazy {
+        SettingsSecurityPrefsController(
+            scope = viewModelScope,
+            securityCoordinator = securityCoordinator,
+            settingsRepository = settingsRepository,
+        )
+    }
+
     fun pushSecurityClientPrefs(
         appLockTimeoutMinutes: Long? = null,
         screenSecureEnabled: Boolean? = null,
         sensitiveGateEnabled: Boolean? = null
-    ) {
-        if (appLockTimeoutMinutes == null && screenSecureEnabled == null && sensitiveGateEnabled == null) return
-        viewModelScope.launch {
-            val session = securityCoordinator.currentSession() ?: return@launch
-            clientPrefsPushMutex.withLock {
-                securityCoordinator.push(
-                    session,
-                    SecurityPreferencesPatch(
-                        appLockTimeoutMinutes = appLockTimeoutMinutes,
-                        screenSecureEnabled = screenSecureEnabled,
-                        sensitiveGateEnabled = sensitiveGateEnabled,
-                    ),
-                )
-            }
-        }
-    }
+    ) = securityPrefsController.pushSecurityClientPrefs(appLockTimeoutMinutes, screenSecureEnabled, sensitiveGateEnabled)
 
-    /** Pull security UX prefs when opening the security center (app-lock enable stays local). */
     fun pullSecurityClientPrefs(
         onApplied: (timeoutMinutes: Long, screenSecure: Boolean, sensitiveGate: Boolean) -> Unit = { _, _, _ -> }
-    ) {
-        clientPrefsPullJob?.cancel()
-        clientPrefsPullJob = viewModelScope.launch {
-            val session = securityCoordinator.currentSession() ?: return@launch
-            securityCoordinator.pull(session).onSuccess { remote ->
-                if (!settingsRepository.isCurrent(session)) return@onSuccess
-                val lockTimeout = when (remote.appLockTimeoutMinutes) {
-                    1L, 2L, 5L, 10L, 15L, 30L, 60L, 120L, 240L, 360L -> remote.appLockTimeoutMinutes
-                    else -> 5L
-                }
-                onApplied(lockTimeout, remote.screenSecureEnabled, remote.sensitiveGateEnabled)
-            }
-        }
-    }
+    ) = securityPrefsController.pullSecurityClientPrefs(onApplied)
+
 
     // G359：账号级动作（登出/退出所有设备/注销）抽到 SettingsAccountController（纯搬移不改判断）。
     private val accountController by lazy {
