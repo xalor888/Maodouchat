@@ -161,36 +161,18 @@ put("count", history.size)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val contactName = (obj["name"] ?: obj["firstName"])?.jsonPrimitive?.content.orEmpty().trim().take(80)
-        val phone = (obj["phone"] ?: obj["phoneNumber"])?.jsonPrimitive?.content.orEmpty().trim().take(40)
-        val userId = obj["userId"]?.jsonPrimitive?.content?.take(64).orEmpty()
-        if (chatId.isBlank() || (contactName.isBlank() && userId.isBlank() && phone.isBlank())) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId and contact fields required"))
+        val fields = when (val parsed = parseBotSendContactFields(obj)) {
+            is BotSendContactFieldsResult.Ok -> parsed.fields
+            BotSendContactFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId and contact fields required"))
         }
+        val chatId = fields.chatId
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = buildString {
-            append("👤 ")
-            if (contactName.isNotBlank()) append(contactName)
-            if (phone.isNotBlank()) {
-                if (isNotEmpty() && !endsWith(" ")) append(" ")
-                append(phone)
-            }
-            if (userId.isNotBlank()) {
-                append("\n[contactUser:")
-                append(userId)
-                append("]")
-            }
-            if (phone.isNotBlank()) {
-                append("\n[contactPhone:")
-                append(phone)
-                append("]")
-            }
-        }
+        val content = buildBotContactContent(fields.contactName, fields.phone, fields.userId)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "TEXT")
         }.getOrDefault(false)
