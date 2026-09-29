@@ -83,47 +83,25 @@ put("type", "STICKER")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val duration = (obj["duration"] ?: obj["durationSec"])?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-        val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(200)
-        val b64 = (obj["fileBase64"] ?: obj["voice"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
         // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体——此前可广播无内容的 voice 消息
-        if (chatId.isBlank() || b64.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/voice required"))
+        val fields = when (val r = parseBotSendVoiceFields(obj)) {
+            is BotSendVoiceFieldsResult.Ok -> r.fields
+            BotSendVoiceFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/voice required"))
         }
+        val chatId = fields.chatId
+        val duration = fields.durationSec
+        val caption = fields.caption
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val size = if (b64.isNotBlank()) {
-            runCatching {
-                java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace("\\s".toRegex(), "")).size
-            }.getOrDefault(0)
-        } else 0
-        if (size > 4 * 1024 * 1024) {
+        val size = measureBotVoiceSize(fields.fileBase64)
+        if (size > BOT_VOICE_MAX_BYTES) {
             return@post call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("voice too large (max 4MB)"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = buildString {
-            append("🎤 voice")
-            if (duration > 0) {
-                append(" ")
-                append(duration)
-                append("s")
-            }
-            if (size > 0) {
-                append(" (")
-                append(size)
-                append("B)")
-            }
-            if (caption.isNotBlank()) {
-                append("\n")
-                append(caption)
-            }
-            append("\n[botVoiceSize:")
-            append(size)
-            append("]")
-        }.take(4000)
+        val content = buildBotVoiceContent(duration, caption, size)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "VOICE")
         }.getOrDefault(false)
