@@ -273,10 +273,11 @@ class BotSendDocumentParseFuzzTest {
         val withWhitespace = decodeOf("QU\nJD\r\n ")
         assertTrue(withWhitespace is BotDocumentBytesResult.Ok, "base64 中的空白必须被剔除")
         assertTrue(withWhitespace.bytes.contentEquals("ABC".toByteArray()), "剔除空白后解码必须正确")
-        // 逗号分隔取第一段之后的部分：substringAfter(',') 只保留最后一个逗号之后
-        val multiComma = decodeOf("prefix,with,commas,QUJD")
-        assertTrue(multiComma is BotDocumentBytesResult.Ok, "多逗号时只取最后一个逗号之后")
-        assertTrue(multiComma.bytes.contentEquals("ABC".toByteArray()))
+        // 逗号分隔只认第一个逗号之后（substringAfter 语义）：首个逗号之后仍含逗号 → 非法 base64
+        assertTrue(
+            decodeOf("a,b,QUJD") is BotDocumentBytesResult.InvalidBase64,
+            "首个逗号之后仍含逗号必须报 InvalidBase64",
+        )
         // 非法 base64
         assertTrue(
             decodeOf("!!!not-base64!!!") is BotDocumentBytesResult.InvalidBase64,
