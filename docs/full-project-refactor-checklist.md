@@ -33,7 +33,7 @@
 | core 模块生产引用 | 在用 3（crypto 44 / realtime 25 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
 | lint 基线条数（只许降） | **53**（本战役起点 615） | `LintBaselineRatchetTest.frozenIssueCount` / `app/lint-baseline.xml` 块数 |
-| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **2114** / `ChatDetailViewModel.kt` **2275** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；Route：顶栏/横幅栈/搜索+多选 2525 → 2114；VM：sendNudge/retrySendMessage 2420 → 2275） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
+| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **2114** / `ChatDetailViewModel.kt` **2035** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；Route：顶栏/横幅栈/搜索+多选 2525 → 2114；VM：sendNudge/retrySendMessage/sendEncryptedAttachment/handleGroupRevisionChanged 2420 → 2275 → 2147 → 2035） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
 > 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
 > `compileDebugUnitTestKotlin`（JVM 单测）、`compileDebugAndroidTestKotlin`（仪器测试）。
@@ -477,7 +477,7 @@ Gate：冷进程、离线、旧通知、账号切换、Token 失效和重复回�
 
 ### U01 Chat Detail 状态与用例编排
 
-当前状态：`[~]`。`ConversationCommandFacade` 统一调度消息命令；但 `ChatDetailViewModel` 职责**并未收敛**：实测 3131 行 / 130 个函数（仅 35 个是单行委托）、133 行构造期手写装配约 30 个具体依赖、**18 处直连 `app.database.*` DAO**、**6 处裸 `ApiService.*`**、**8 处 `signalProtocol.*` 原语**、46 处 `viewModelScope.launch`；`currentGroupRevision()`(182 行)、`loadChat()`(178 行)、`sendEncryptedAttachment()`(139 行)、`handleGroupRevisionChanged()`(123 行) 等单体核心未拆。端口接线目前只是薄层。
+当前状态：`[~]`。`ConversationCommandFacade` 统一调度消息命令；但 `ChatDetailViewModel` 职责**并未收敛**：实测 3131 行 / 130 个函数（仅 35 个是单行委托）、133 行构造期手写装配约 30 个具体依赖、**18 处直连 `app.database.*` DAO**、**6 处裸 `ApiService.*`**、**8 处 `signalProtocol.*` 原语**、46 处 `viewModelScope.launch`；`currentGroupRevision()`、`loadChat()` 等单体核心未拆；`sendEncryptedAttachment()`、`handleGroupRevisionChanged()` 已分别由 G349、G350 抽出为独立控制器。端口接线目前只是薄层。
 
 - [x] 建立 `ConversationTimelineStore`、`ComposerController`、`ConversationCommandFacade`（`ConversationCommandFacade` 已接入并调度文本、重试与转发）。
 - [x] 建立 `ConversationRealtimeCoordinator`、`ConversationSecurityController`。
@@ -2548,3 +2548,34 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   pre-push 首跑即抓到 1 条，未放行；
 - 热点上限两份 map 同步收紧 2185 → 2114；与 #176（VM 2275）在 caps 同区块合并冲突——
   按主线解冲突（Route 2114 + VM 2275）并重跑全绿。
+
+### 第十三轮续二十一（2026-09-29，G349）：`ChatDetailViewModel` 第三个控制器切片——`sendEncryptedAttachment` 抽出（2275 → 2147，PR #183）
+
+- 附件加密发送编排（139 行）逐字抽到新 `ChatAttachmentSender`（191 行，含 KDoc/
+  构造器/方法签名）；VM 侧只留同签名委托（默认参数保留在 VM，`ChatDetailMedia.kt`/
+  `ChatDetailVoiceRecording.kt`/`retrySender` 附件分流零改动）；
+- 依赖全经构造器注入（同 `ChatNudgeSender`/`ChatRetrySender` 一族，16 个）：scope/
+  会话身份/令牌/上传开关/状态读写/`mergeMessages`/附件意图控制器/消息读写/
+  `resumeFileTransfer`/准备任务表/属主校验/`attachmentErrorText`/文案；
+- `attachOwnerUserId` 在构造意图与属主校验两处仍为同一次调用求值；日志 tag 保持
+  `ChatDetailViewModel` 不变；`invokeOnCompletion` 属主校验语义逐字一致；
+- 热点上限两份 map 同步收紧 2275 → 2147（零松量）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证（`:app:compileDebugKotlin` +
+  `:app:testDebugUnitTest` 两条棘轮用例）；CI 绿后本轮（循环收 PR）squash 合并。
+
+### 第十三轮续二十二（2026-09-29，G350）：`ChatDetailViewModel` 第四个控制器切片——`handleGroupRevisionChanged` 抽出（2147 → 2035，PR 待开）
+
+- 群修订事件编排（114 行）逐字抽到新 `ChatGroupRevisionHandler`（174 行，含 KDoc/
+  构造器）：准入守卫 → 纯决策 `groupRevisionImpact` → sender key 失效（修订号推进）→
+  被移出群时本地清理（关 AI 门/取消全部任务/删本地会话/状态归零）→ 普通变更警告文案 +
+  重载会话 + 刷新禁言状态；
+- 依赖全经构造器注入（24 个）：会话身份/状态读写/文案/本地状态协调器/实时控制器/
+  5 个 AI 门 + 6 个流任务 Job 引用 + 3 张任务表/sender key 协调器/`loadChat` 回调/
+  `refreshMyMemberRole` 回调（VM 侧 private → internal，仅供装配引用）；
+- 等价性：`invalidateGroupSenderKey` 私有包装逐字内联——属主取入口捕获值（原包装在
+  无挂起点间隙内二次读同一属性，值恒等）；`activeChatId`/任务 Job 均为调用点求值；
+  日志 tag 保持 `ChatDetailViewModel` 不变；
+- VM 删 2 个随迁死 import（`ConversationLocalCleanupMode`/`conversationLocalCleanupSession`）；
+- 热点上限两份 map 同步收紧 2147 → 2035（零松量）；
+- 与 open PR #185（groupplay 语义审计）无文件交集；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
