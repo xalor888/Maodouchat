@@ -19,7 +19,7 @@
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
 | App JVM 单测（执行数） | 2173（09-24: 2129） | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
 | App 仪器测试 | **275**（`@Test` 计数；09-24: 156；语义审计扩面五批 +30） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
-| Server 单测（执行数） | 620（`@Test` 标注 645；09-24: 578/603，差值是 postgres tag 等未进默认套件的） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
+| Server 单测（执行数） | **约 656 执行 / 681 `@Test` 标注**（09-24: 578/603；本日 Q01 fuzz 系列 +36 标注，执行数以默认套件实测为准） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
 | core/domain 模块测试（执行数） | 68（不变） | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
 | 有测试源文件的模块 | 9 个（不变） | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
 | `settings.gradle.kts` 模块数 | 10（app + 8 core + 1 domain） | `grep -c '":' settings.gradle.kts`（include 块多行写法，旧的 `include(` 计数已失效） |
@@ -2714,3 +2714,11 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   clientPrefsPushMutex / clientPrefsPullJob 所有权内聚；
 - VM 删 4 个随迁死 import（Job / Mutex / withLock / SecurityPreferencesPatch）；
 - 上限两份 map 收紧 318 → 293；`SettingsViewModel` 系列至此 **1192 → 293**（七个控制器）。
+
+### 第十三轮续四十一（2026-09-29）：bot `sendDocument` 请求体手写解析收敛为纯函数 + fuzz 钉住（PR #209）
+
+- `/api/bot/sendDocument` 内联解析抽入 `BotSendDocumentParse.kt` 纯函数（处理器只剩调用 +
+  字段映射，逐行等价）；
+- 新增 `BotSendDocumentParseFuzzTest`：随机 payload 未知键忽略恒等断言、缺省值钉住、
+  坏类型大声失败反证、别名与近似字段名、截断上限。
+- §0 复核·六版：Server 单测标注随 Q01 fuzz 系列升至 681。
