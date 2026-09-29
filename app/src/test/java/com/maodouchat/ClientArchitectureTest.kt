@@ -384,7 +384,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 670,
         // G358：SettingsViewModel 拆分后窗口前移——SettingsGeneral 进入前 20，按实测值纳管。
         "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 873,
-        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1561,
+        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1536,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
@@ -451,7 +451,7 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 670,
             "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 873,
-            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1561,
+            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1536,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
