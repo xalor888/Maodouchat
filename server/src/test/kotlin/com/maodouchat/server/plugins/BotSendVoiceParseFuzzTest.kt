@@ -315,9 +315,9 @@ class BotSendVoiceParseFuzzTest {
             buildBotVoiceContent(0, "", 0),
             "时长/体积 0 时段落必须省略",
         )
-        // caption 空白 → 不拼 caption 行
+        // caption 空白 → 不拼 caption 行（byteSize=10>0 时体积段仍按原处理器拼出）
         assertEquals(
-            "🎤 voice 5s\n[botVoiceSize:10]",
+            "🎤 voice 5s (10B)\n[botVoiceSize:10]",
             buildBotVoiceContent(5, "   ", 10),
             "空白 caption 必须不拼行",
         )
