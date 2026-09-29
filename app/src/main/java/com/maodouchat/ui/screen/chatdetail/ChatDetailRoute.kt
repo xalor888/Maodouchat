@@ -10,16 +10,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -35,7 +29,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -63,7 +56,6 @@ import kotlinx.coroutines.withContext
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.component.TypingPresence
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.security.SensitiveAction
@@ -72,7 +64,6 @@ import com.maodouchat.security.findActivity
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.maodouchat.ui.component.ReplyTargetBar
 import com.maodouchat.ui.component.ParticleState
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -1031,144 +1022,13 @@ internal fun ChatDetailRoute(
                 )
             }
 
-            // 加载指示器
-            if (state.isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-
-            // 引用中提示
-            targets.replyTarget?.let { target ->
-                ReplyTargetBar(
-                    senderName = resolveSenderName(target) ?: "",
-                    preview = MessagePreviewText.replyOrQuote(
-                        message = target,
-                        mediaLabel = { type ->
-                            when (type) {
-                                MessageType.IMAGE -> context.getString(R.string.message_preview_image)
-                                MessageType.GIF -> context.getString(R.string.message_preview_gif)
-                                MessageType.STICKER -> context.getString(R.string.message_preview_sticker)
-                                MessageType.VOICE -> context.getString(R.string.message_preview_voice)
-                                MessageType.VIDEO -> context.getString(R.string.message_preview_video)
-                                MessageType.FILE -> context.getString(R.string.message_preview_file)
-                                MessageType.LOCATION -> context.getString(R.string.message_preview_location)
-                                else -> context.getString(R.string.message_preview_encrypted)
-                            }
-                        },
-                        encryptedPlaceholder = context.getString(R.string.message_preview_encrypted),
-                    ).take(60),
-                    onCancel = { targets.replyTarget = null }
-                )
-            }
-
-            // 录音指示器（波形 + 时长）
-            AnimatedVisibility(
-                visible = state.isRecording,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                RecordingIndicator(
-                    elapsedMs = state.recordingElapsedMs,
-                    waveform = state.recordingWaveform,
-                    amplitude = state.recordingAmplitude,
-                )
-            }
-
-            // 发送前试听条
-            AnimatedVisibility(
-                visible = state.voicePreviewPath != null && !state.isRecording,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                VoicePreviewBar(
-                    durationMs = state.voicePreviewDurationMs,
-                    onPlay = { viewModel.playVoicePreview() },
-                    onDiscard = { viewModel.discardVoicePreview() },
-                    onSend = { viewModel.sendVoicePreview() },
-                )
-            }
-
-            // 发送中指示器
-            if (state.isSending) {
-                Box(modifier = Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-
-            // 8.48：群禁言状态提示——被禁言时输入区上方明确显示，而非仅发送失败时提示
-            if (state.chatIsGroup && state.myMutedUntil > 0L) {
-                // 8.48 修复：禁言到期后无状态变化时提示条不消失——到期时刻触发一次重组
-                LaunchedEffect(state.myMutedUntil) {
-                    val until = state.myMutedUntil
-                    val wait = until - System.currentTimeMillis()
-                    if (wait > 0L) {
-                        kotlinx.coroutines.delay(wait + 500L)
-                        muteExpiry.markExpired()
-                    }
-                }
-                // 读取 muteExpiry.muteTick 建立重组依赖（到期写入后提示条随重组消失）
-                val recomposeOnExpiry = muteExpiry.muteTick
-                val remaining = state.myMutedUntil - System.currentTimeMillis()
-                if (remaining > 0L) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.errorContainer)
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.chat_group_muted_until, formatMuteRemaining(context, remaining)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            AnimatedVisibility(
-                visible = state.aiOperations.isNotEmpty(),
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                AiOperationStatusBar(
-                    operations = state.aiOperations,
-                    onRetry = viewModel::retryAiOperation,
-                    onCancel = viewModel::cancelAiOperation,
-                    onDismiss = viewModel::dismissAiOperation
-                )
-            }
-
-            AnimatedVisibility(
-                visible = state.aiDraftOriginal != null,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                AiDraftStreamBar(
-                    preview = state.aiDraftPreview,
-                    isStreaming = state.isAiDraftStreaming,
-                    errorCode = state.aiDraftStreamErrorCode,
-                    onApply = viewModel::applyAiDraftPreview,
-                    onDiscard = viewModel::discardAiDraftPreview,
-                    onRetry = viewModel::retryAiDraftStream,
-                    onCancel = viewModel::cancelAiDraftStream
-                )
-            }
-
-            RestoredDraftPanel(
-                visible = state.hasSavedDraft && state.inputText.isNotBlank(),
-                onClear = {
-                    viewModel.onInputChange("")
-                    viewModel.clearDraftPersistence()
-                },
-            )
-
-            // 打字中微动效指示器 (Murexide / Telegram 风格悬浮指示)
-            TypingPresence(
-                visible = state.typingContact != null,
-                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+            // G353：输入区上方状态条带抽到 ChatDetailComposerStrips.kt，纯搬移不改判断。
+            ChatDetailComposerStrips(
+                state = state,
+                viewModel = viewModel,
+                targets = targets,
+                muteExpiry = muteExpiry,
+                resolveSenderName = { msg -> resolveSenderName(msg) },
             )
 
             // 输入区
