@@ -384,34 +384,25 @@ put("upToId", upTo)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)
-        val duration = (obj["duration"] ?: obj["durationSec"])?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-        val b64 = (obj["videoBase64"] ?: obj["fileBase64"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
-        // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体
-        if (chatId.isBlank() || b64.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/videoBase64 required"))
+        val fields = when (val r = parseBotSendVideoFields(obj)) {
+            is BotSendVideoFieldsResult.Ok -> r.fields
+            BotSendVideoFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/videoBase64 required"))
         }
+        val chatId = fields.chatId
+        val caption = fields.caption
+        val duration = fields.durationSec
+        // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体（parseBotSendVideoFields 已判）
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val size = if (b64.isNotBlank()) {
-            runCatching {
-                java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace("\\s".toRegex(), "")).size
-            }.getOrDefault(0)
-        } else 0
-        if (size > 12 * 1024 * 1024) {
+        val size = measureBotVideoSize(fields.fileBase64)
+        if (size > BOT_VIDEO_MAX_BYTES) {
             return@post call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("video too large (max 12MB)"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = buildString {
-            append("🎬 video")
-            if (duration > 0) { append(" "); append(duration); append("s") }
-            if (size > 0) { append(" ("); append(size); append("B)") }
-            if (caption.isNotBlank()) { append("\n"); append(caption) }
-            append("\n[botVideoSize:"); append(size); append("]")
-        }.take(4000)
+        val content = buildBotVideoContent(duration, caption, size)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "VIDEO")
         }.getOrDefault(false)
