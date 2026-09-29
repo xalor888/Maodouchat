@@ -236,45 +236,27 @@ put("role", "MEMBER")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val fileName = (obj["fileName"] ?: obj["filename"])?.jsonPrimitive?.content.orEmpty().trim().take(120).ifBlank { "document.bin" }
-        val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)
-        val b64 = (obj["fileBase64"] ?: obj["document"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
-        if (chatId.isBlank() || b64.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/fileBase64 required"))
+        val fields = when (val r = parseBotSendDocumentFields(obj)) {
+            is BotSendDocumentFieldsResult.Ok -> r.fields
+            BotSendDocumentFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/fileBase64 required"))
         }
+        val chatId = fields.chatId
+        val fileName = fields.fileName
+        val caption = fields.caption
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val bytes = runCatching {
-            java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace("\\s".toRegex(), ""))
-        }.getOrNull()
-        if (bytes == null || bytes.isEmpty()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid base64"))
-        }
-        if (bytes.size > 8 * 1024 * 1024) {
-            return@post call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("file too large (max 8MB)"))
+        val bytes = when (val r = decodeBotDocumentBytes(fields.fileBase64)) {
+            is BotDocumentBytesResult.Ok -> r.bytes
+            BotDocumentBytesResult.InvalidBase64 ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid base64"))
+            BotDocumentBytesResult.TooLarge ->
+                return@post call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("file too large (max 8MB)"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = buildString {
-            append("📎 ")
-            append(fileName)
-            append(" (")
-            append(bytes.size)
-            append(" bytes)")
-            if (caption.isNotBlank()) {
-                append("\n")
-                append(caption)
-            }
-            // Bot plaintext channel only — not E2EE peer attachment pipeline
-            append("\n[botFileName:")
-            append(fileName)
-            append("]")
-            append("\n[botFileSize:")
-            append(bytes.size)
-            append("]")
-        }.take(4000)
+        val content = buildBotDocumentContent(fileName, caption, bytes.size)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "FILE")
         }.getOrDefault(false)
