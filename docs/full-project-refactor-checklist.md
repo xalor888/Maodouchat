@@ -2722,3 +2722,16 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 新增 `BotSendDocumentParseFuzzTest`：随机 payload 未知键忽略恒等断言、缺省值钉住、
   坏类型大声失败反证、别名与近似字段名、截断上限。
 - §0 复核·六版：Server 单测标注随 Q01 fuzz 系列升至 681。
+
+### 第十三轮续四十二（2026-09-29）：MyQrCode/Scan 两屏补 heading()——零松量文件的死 import 换装（PR #212）
+
+- `ContactSubScreens.kt`（上限 860 零松量）：删 2 个严格死 import（`android.app.Activity` /
+  `PersonAdd`），换装 `semantics`/`heading` 两个 import——净零行数；两屏标题加 `heading()`；
+- 审计断言收紧 `minHeadings = 1`；判据：emulator-5558 实跑 40/40 绿。
+
+### 第十三轮续四十三（2026-09-29）：MediaCenterScreen 补 heading()——同包小助手 + 死 import 抵消（PR #213）
+
+- `ChatDetailScreenHelpers.kt` 新增同包小助手 `Modifier.headingSemantics()`（单调用即用）；
+- `MediaCenterScreen` 删 1 个严格死 import（`LocalMessageStore`）抵消，行数 1049 → 1048，
+  上限两份 map 收紧；审计断言收紧 `minHeadings = 1`；
+- **里程碑**：TalkBack 标题导航在全部有标题的审计屏（40 屏）上落地。
