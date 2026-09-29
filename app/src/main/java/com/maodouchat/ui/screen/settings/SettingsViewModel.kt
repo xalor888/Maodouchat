@@ -6,8 +6,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
-import com.maodouchat.util.ImagePicker
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,8 +33,6 @@ class SettingsViewModel @JvmOverloads constructor(
     /** G328c：账号/设备/拉黑这类**命令式**端点走 data 层仓库（ui 不再直接调 ApiService）。 */
     private val accountApi get() = com.maodouchat.data.repository.AccountSecurityNetworkRepository()
 
-    private var profileSaveJob: Job? = null
-    private var avatarUploadJob: Job? = null
     private var privacySaveJob: Job? = null
     private var loadedPrivacy: LoadedPrivacy? = null
     private val dirtyPrivacyFields = mutableSetOf<PrivacyField>()
@@ -207,165 +203,26 @@ class SettingsViewModel @JvmOverloads constructor(
         onEditStatusChange(preset)
     }
 
-    fun saveStatus() {
-        if (profileSaveJob?.isActive == true) return
-        val status = com.maodouchat.util.CustomStatusPolicy.normalize(_uiState.value.editStatus)
-        if (!com.maodouchat.util.CustomStatusPolicy.isValid(_uiState.value.editStatus)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.status_too_long)) }
-            return
-        }
-        profileSaveJob = viewModelScope.launch {
-            val profileOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!com.maodouchat.session.CurrentSession.hasSession() || profileOwnerUserId.isBlank()) {
-                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-                return@launch
-            }
-            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = profileOwnerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                accountApi.updateProfile(status = status).fold(
-                    onSuccess = { user ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = profileOwnerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update {
-                            it.copy(
-                                userStatus = user.status,
-                                editStatus = user.status,
-                                showStatusDialog = false,
-                                isSaving = false,
-                                successMessage = text(R.string.status_saved)
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(profileOwnerUserId)) return@fold
-                        _uiState.update {
-                            it.copy(
-                                isSaving = false,
-                                errorMessage = text(
-                                    R.string.status_save_failed,
-                                    error.message ?: text(R.string.call_unknown_error)
-                                )
-                            )
-                        }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(profileOwnerUserId)) {
-                    _uiState.update { it.copy(isSaving = false) }
-                }
-                throw error
-            }
-        }
+    // G358：个人资料一族（状态/昵称/头像）抽到 SettingsProfileController（纯搬移不改判断）。
+    private val profileController by lazy {
+        SettingsProfileController(
+            scope = viewModelScope,
+            application = getApplication(),
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            isCurrentOwner = { owner -> isCurrentOwner(owner) },
+        )
     }
 
-    fun saveProfile() {
-        if (profileSaveJob?.isActive == true) return
-        val name = _uiState.value.editName.trim()
-        if (name.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.settings_nickname_empty)) }; return }
-        profileSaveJob = viewModelScope.launch {
-            val profileOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!com.maodouchat.session.CurrentSession.hasSession() || profileOwnerUserId.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }; return@launch }
-            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = profileOwnerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                accountApi.updateProfile(name = name).fold(
-                    onSuccess = { user ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = profileOwnerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update { it.copy(userName = user.name, userAvatar = user.avatar, userStatus = user.status, editName = user.name, isEditing = false, isSaving = false, successMessage = text(R.string.settings_profile_saved)) }
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(profileOwnerUserId)) return@fold
-                        _uiState.update { it.copy(isSaving = false, errorMessage = text(R.string.settings_profile_save_failed, error.message ?: text(R.string.call_unknown_error))) }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(profileOwnerUserId)) {
-                    _uiState.update { it.copy(isSaving = false) }
-                }
-                throw error
-            }
-        }
-    }
+    fun saveStatus() = profileController.saveStatus()
 
-    fun uploadAvatar(uri: Uri) {
-        if (avatarUploadJob?.isActive == true) return
-        val uploadOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (uploadOwnerUserId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-            return
-        }
-        avatarUploadJob = viewModelScope.launch {
-            if (!isCurrentOwner(uploadOwnerUserId)) return@launch
-            _uiState.update { it.copy(isUploading = true) }
-            try {
-                val base64 = withContext(Dispatchers.IO) {
-                    ImagePicker.uriToBase64(getApplication(), uri, maxWidth = 400, quality = 80)
-                }
-                if (base64 != null) {
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = uploadOwnerUserId,
-                    )
-                    ) {
-                        if (com.maodouchat.session.CurrentSession.snapshot().userId == uploadOwnerUserId) {
-                            _uiState.update {
-                                it.copy(isUploading = false, errorMessage = text(R.string.error_session_expired))
-                            }
-                        }
-                        return@launch
-                    }
-                    if (!com.maodouchat.session.CurrentSession.hasSession()) { _uiState.update { it.copy(isUploading = false, errorMessage = text(R.string.error_session_expired)) }; return@launch }
-                    accountApi.uploadAvatar(base64Data = base64).fold(
-                        onSuccess = { url ->
-                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = uploadOwnerUserId,
-                            )
-                            ) {
-                                return@fold
-                            }
-                            _uiState.update { it.copy(userAvatar = url, isUploading = false, successMessage = text(R.string.settings_avatar_updated)) }
-                        },
-                        onFailure = { error ->
-                            if (!isCurrentOwner(uploadOwnerUserId)) return@fold
-                            _uiState.update { it.copy(isUploading = false, errorMessage = text(R.string.settings_upload_failed, error.message ?: text(R.string.call_unknown_error))) }
-                        }
-                    )
-                } else if (isCurrentOwner(uploadOwnerUserId)) {
-                    _uiState.update { it.copy(isUploading = false, errorMessage = text(R.string.settings_image_process_failed)) }
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(uploadOwnerUserId)) {
-                    _uiState.update { it.copy(isUploading = false) }
-                }
-                throw error
-            } catch (_: Exception) {
-                if (com.maodouchat.session.CurrentSession.snapshot().userId == uploadOwnerUserId) {
-                    _uiState.update {
-                        it.copy(isUploading = false, errorMessage = text(R.string.settings_image_process_failed))
-                    }
-                }
-            }
-        }
-    }
+    fun saveProfile() = profileController.saveProfile()
+
+    fun uploadAvatar(uri: Uri) = profileController.uploadAvatar(uri)
+
+    fun removeAvatar() = profileController.removeAvatar()
+
 
     fun openPrivacy() {
         val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
@@ -463,53 +320,6 @@ class SettingsViewModel @JvmOverloads constructor(
     fun unblockUser(userId: String) = blockedUsersController.unblockUser(userId)
 
 
-    fun removeAvatar() {
-        if (avatarUploadJob?.isActive == true || _uiState.value.userAvatar.isNullOrBlank()) return
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (ownerUserId.isBlank() || !com.maodouchat.session.CurrentSession.hasSession()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-            return
-        }
-        avatarUploadJob = viewModelScope.launch {
-            if (!isCurrentOwner(ownerUserId)) return@launch
-            _uiState.update { it.copy(isUploading = true) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                accountApi.removeAvatar().fold(
-                    onSuccess = {
-                        if (!isCurrentOwner(ownerUserId)) return@fold
-                        _uiState.update {
-                            it.copy(
-                                userAvatar = null,
-                                isUploading = false,
-                                successMessage = text(R.string.settings_avatar_removed)
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(ownerUserId)) return@fold
-                        _uiState.update {
-                            it.copy(
-                                isUploading = false,
-                                errorMessage = text(
-                                    R.string.settings_avatar_remove_failed,
-                                    error.message ?: text(R.string.call_unknown_error)
-                                )
-                            )
-                        }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isUploading = false) }
-                throw error
-            }
-        }
-    }
 
 
     // G356：「我的设备」管理抽到 SettingsDeviceController（纯搬移不改判断）。
