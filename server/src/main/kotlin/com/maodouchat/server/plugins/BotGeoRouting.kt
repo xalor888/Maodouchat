@@ -34,38 +34,30 @@ internal fun Route.configureBotGeoRoutes(
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val lat = obj["latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
-            ?: obj["lat"]?.jsonPrimitive?.content?.toDoubleOrNull()
-        val lon = obj["longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
-            ?: obj["lng"]?.jsonPrimitive?.content?.toDoubleOrNull()
-            ?: obj["lon"]?.jsonPrimitive?.content?.toDoubleOrNull()
-        val title = obj["title"]?.jsonPrimitive?.content?.take(80).orEmpty()
-        if (chatId.isBlank() || lat == null || lon == null) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/latitude/longitude required"))
+        val chatId: String
+        val lat: Double
+        val lon: Double
+        val title: String
+        when (val r = parseBotSendLocationFields(obj)) {
+            is BotSendLocationFieldsResult.Ok -> {
+                chatId = r.fields.chatId
+                lat = r.fields.latitude
+                lon = r.fields.longitude
+                title = r.fields.title
+            }
+            BotSendLocationFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/latitude/longitude required"))
+            BotSendLocationFieldsResult.InvalidCoordinates ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid coordinates"))
         }
-        if (lat !in -90.0..90.0 || lon !in -180.0..180.0) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid coordinates"))
-        }
+        // 校验顺序与原处理器一致（必填 → 坐标范围在纯函数里 → 成员检查在处理器里）
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        // Bot plaintext location marker (clients may render map if they parse LOCATION body).
-        val content = buildString {
-            append("📍 ")
-            if (title.isNotBlank()) {
-                append(title)
-                append(" ")
-            }
-            append(String.format(java.util.Locale.US, "%.6f,%.6f", lat, lon))
-            append("\n[location:")
-            append(lat)
-            append(",")
-            append(lon)
-            append("]")
-        }
+        // Bot plaintext location marker（组装逻辑收敛至 buildBotLocationContent，逐字一致）。
+        val content = buildBotLocationContent(lat, lon, title)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "LOCATION")
         }.getOrDefault(false)

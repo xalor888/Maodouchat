@@ -2803,4 +2803,22 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   12MB 边界、内容模板形状 + 4000 截断；
 - 与 open PR（#217 用户自己的 GroupDetail 切片 + dependabot 若干）无文件交集；
 - §0 复核·八版：Server 单测标注随 Q01 fuzz 系列升至 712（697 基准 + 本轮 sendVideo 8）。
+
+### 第十三轮续五十一（2026-09-29）：bot `sendLocation` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七块）
+
+- `/api/bot/sendLocation` 内联解析抽入 `BotSendLocationParse.kt` 纯函数
+  （`parseBotSendLocationFields` / `buildBotLocationContent`，处理器只剩调用 + 字段映射，逐行等价）；
+- 新增 `BotSendLocationParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略恒等断言、
+  必填钉住（chatId/latitude/longitude required）、`latitude`→`lat` 与
+  `longitude`→`lng`→`lon` 别名优先级 + 近似字段名反证、**别名链「穿透」怪语义钉住**
+  （`?:` 接在 `toDoubleOrNull()` 之后：主字段非数字/显式 JSON null 时穿透到别名，
+  整条链取不到数字才 `MissingRequired`——上一轮 sendVideo 的 duration 显式 null 回 0
+  是同一族语义，这里逐字保留）、3 例坏类型大声失败反证（对象/数组型 chatId、latitude、title →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400）、title 缺省→`""` 与 80 截断、
+  坐标范围（纬度 ±90、经度 ±180，`invalid coordinates`，边界值合法）、内容模板形状
+  （`"📍 "` + 可选 title + `%.6f` + `[location:lat,lon]` 行）；
+- 与 open PR（#218 bot sendVideo：`BotMediaRouting.kt` + `BotSendVideoParse*.kt`；#219/#220
+  用户自己的 app 侧 GroupDetail 切片 + dependabot 若干）无代码文件交集；本轮清单改动仅为
+  本账本节**末尾追加**（§0 表格行正被 #218 持有：697→712 未合，本轮 +8 标注暂不改表，
+  待 #218 合并后由下一轮复核到 720）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

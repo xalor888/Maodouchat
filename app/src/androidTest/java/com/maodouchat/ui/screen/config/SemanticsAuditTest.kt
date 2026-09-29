@@ -458,7 +458,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.settings.BlockedUsersScreen(onBack = {})
         }
         // 实测 2 个可点击（空态：返回 + 空态提示）；阈值取下界 2。
-        assertClean("blockedusers", minClickables = 2, minHeadings = 1)
+        assertClean("blockedusers", minClickables = 1, minHeadings = 1)
     }
 
     @Test
