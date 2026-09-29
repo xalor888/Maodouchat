@@ -403,7 +403,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1048,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 319,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
@@ -468,7 +468,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1048,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 319,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
         // G164b：Top-20 排名门禁纳入的 8 个
         "com/maodouchat/network/WebSocketClient.kt" to 969,

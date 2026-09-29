@@ -135,51 +135,22 @@ class GroupDetailViewModel(
     /**
      * 8.64：群审计分页加载下一页（offset = 已加载条数），追加到 auditLogs。
      */
-    fun loadMoreAudit() {
-        if (_uiState.value.isLoadingMoreAudit || !_uiState.value.hasMoreAudit) return
-        val auditOwnerUserId = currentUserId
-        if (auditOwnerUserId.isBlank()) return
-        _uiState.update { it.copy(isLoadingMoreAudit = true) }
-        viewModelScope.launch {
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = auditOwnerUserId,
-                )
-                ) {
-                    _uiState.update { it.copy(isLoadingMoreAudit = false) }
-                    return@launch
-                }
-                val offset = auditNextOffset
-                val page = groupAuditController.fetchAuditLogs(chatId, limit = 100, offset = offset).getOrNull().orEmpty()
-                auditNextOffset = offset + page.size
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = auditOwnerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                _uiState.update { st ->
-                    if (page.isEmpty()) {
-                        st.copy(isLoadingMoreAudit = false, hasMoreAudit = false)
-                    } else {
-                        st.copy(
-                            auditLogs = (st.auditLogs + page).distinctBy { it.id },
-                            isLoadingMoreAudit = false,
-                            hasMoreAudit = page.size >= 100
-                        )
-                    }
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentAuditOwner(auditOwnerUserId)) _uiState.update { it.copy(isLoadingMoreAudit = false) }
-                throw error
-            } catch (error: Exception) {
-                if (isCurrentAuditOwner(auditOwnerUserId)) _uiState.update { it.copy(isLoadingMoreAudit = false, message = error.message?.take(120)) }
-            }
-        }
+    // G370：群审计分页加载抽到 GroupAuditLoadController（纯搬移不改判断）。
+    private val auditLoadController by lazy {
+        GroupAuditLoadController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            chatId = { chatId },
+            ownerUserId = { currentUserId },
+            groupAuditController = groupAuditController,
+            auditOffsetGet = { auditNextOffset },
+            auditOffsetSet = { offset -> auditNextOffset = offset },
+        )
     }
 
-    private fun isCurrentAuditOwner(expected: String): Boolean =
-        expected.isNotBlank() && com.maodouchat.session.CurrentSession.snapshot().userId == expected
+    fun loadMoreAudit() = auditLoadController.loadMoreAudit()
+
 
     // G364：群变更一族抽到 GroupMutationController（纯搬移不改判断）。
     private val mutationController by lazy {
