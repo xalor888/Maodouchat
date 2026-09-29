@@ -284,100 +284,27 @@ class SettingsViewModel @JvmOverloads constructor(
 
 
     /** 加载公开个人主页 URL */
-    fun loadPublicProfileUrl() {
-        viewModelScope.launch {
-            if (!com.maodouchat.session.CurrentSession.hasSession()) return@launch
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!isCurrentOwner(ownerUserId)) return@launch
-            accountApi.currentUserPublic().onSuccess { resp ->
-                if (!isCurrentOwner(ownerUserId)) return@onSuccess
-                _uiState.update {
-                    it.copy(
-                        publicProfileUrl = resp.publicProfileUrl,
-                        userUsername = resp.user?.username
-                    )
-                }
-            }
-        }
+    // G361：用户名一族抽到 SettingsUsernameController（纯搬移不改判断）。
+    private val usernameController by lazy {
+        SettingsUsernameController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            isCurrentOwner = { owner -> isCurrentOwner(owner) },
+        )
     }
 
-    fun openUsernameEditor() {
-        _uiState.update {
-            it.copy(
-                showUsernameDialog = true,
-                editUsername = it.userUsername ?: ""
-            )
-        }
-    }
+    fun loadPublicProfileUrl() = usernameController.loadPublicProfileUrl()
 
-    fun closeUsernameEditor() {
-        _uiState.update { it.copy(showUsernameDialog = false) }
-    }
+    fun openUsernameEditor() = usernameController.openUsernameEditor()
 
-    fun onEditUsernameChange(value: String) {
-        // 只允许字母、数字、下划线、连字符，小写
-        val filtered = value.filter { ch -> ch.isLetterOrDigit() || ch == '_' || ch == '-' }
-            .take(50).lowercase().removePrefix("@")
-        _uiState.update { it.copy(editUsername = filtered) }
-    }
+    fun closeUsernameEditor() = usernameController.closeUsernameEditor()
 
-    fun saveUsername() {
-        val username = _uiState.value.editUsername.trim()
-        if (username.length < 3) {
-            _uiState.update { it.copy(errorMessage = text(R.string.settings_username_too_short)) }
-            return
-        }
-        if (!username.all { it.isLetterOrDigit() || it == '_' || it == '-' }) {
-            _uiState.update { it.copy(errorMessage = text(R.string.settings_username_invalid)) }
-            return
-        }
-        viewModelScope.launch {
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-                return@launch
-            }
-            _uiState.update { it.copy(isSaving = true, errorMessage = null) }
-            try {
-                if (!isCurrentOwner(ownerUserId)) return@launch
-                // 8.37 修复：此前两分支的 Result 被当表达式语句丢弃、无条件 success——
-                // 用户名重复/非法/网络失败被吞掉还显示「已更新」。改为真实返回。
-                val result = if (username.isBlank()) {
-                    accountApi.clearUsername().map { username }
-                } else {
-                    accountApi.setUsername(username = username).map { it.username ?: username }
-                }
-                result.onSuccess {
-                    if (!isCurrentOwner(ownerUserId)) return@onSuccess
-                    _uiState.update {
-                        it.copy(
-                            isSaving = false,
-                            showUsernameDialog = false,
-                            userUsername = username,
-                            successMessage = text(R.string.settings_username_updated)
-                        )
-                    }
-                    loadPublicProfileUrl()
-                }
-                result.onFailure { error ->
-                    if (!isCurrentOwner(ownerUserId)) return@onFailure
-                    _uiState.update {
-                        it.copy(
-                            isSaving = false,
-                            errorMessage = error.message ?: text(R.string.settings_username_update_failed)
-                        )
-                    }
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(ownerUserId)) _uiState.update { it.copy(isSaving = false) }
-                throw e
-            } catch (e: Exception) {
-                if (isCurrentOwner(ownerUserId)) {
-                    _uiState.update { it.copy(isSaving = false, errorMessage = e.message ?: text(R.string.settings_username_update_failed)) }
-                }
-            }
-        }
-    }
+    fun onEditUsernameChange(value: String) = usernameController.onEditUsernameChange(value)
+
+    fun saveUsername() = usernameController.saveUsername()
+
 
     /** B5 悬浮球开关：未授权时 setEnabled 内部会引导到系统悬浮窗授权页。 */
     fun toggleFloatingBall() {
