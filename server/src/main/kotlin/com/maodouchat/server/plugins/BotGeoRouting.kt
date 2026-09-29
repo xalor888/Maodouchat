@@ -196,42 +196,23 @@ put("messageId", msgId)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val lat = obj["latitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
-            ?: obj["lat"]?.jsonPrimitive?.content?.toDoubleOrNull()
-        val lon = obj["longitude"]?.jsonPrimitive?.content?.toDoubleOrNull()
-            ?: obj["lng"]?.jsonPrimitive?.content?.toDoubleOrNull()
-            ?: obj["lon"]?.jsonPrimitive?.content?.toDoubleOrNull()
-        val title = obj["title"]?.jsonPrimitive?.content.orEmpty().trim().take(80)
-        val address = obj["address"]?.jsonPrimitive?.content.orEmpty().trim().take(160)
-        if (chatId.isBlank() || lat == null || lon == null || title.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/latitude/longitude/title required"))
+        val fields = when (val parsed = parseBotSendVenueFields(obj)) {
+            is BotSendVenueFieldsResult.Ok -> parsed.fields
+            BotSendVenueFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/latitude/longitude/title required"))
+            BotSendVenueFieldsResult.InvalidCoordinates ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid coordinates"))
         }
-        if (lat !in -90.0..90.0 || lon !in -180.0..180.0) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid coordinates"))
-        }
+        val chatId = fields.chatId
+        val lat = fields.latitude
+        val lon = fields.longitude
+        val title = fields.title
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = buildString {
-            append("📌 ")
-            append(title)
-            if (address.isNotBlank()) {
-                append("\n")
-                append(address)
-            }
-            append("\n")
-            append(String.format(java.util.Locale.US, "%.6f,%.6f", lat, lon))
-            append("\n[venue:")
-            append(lat)
-            append(",")
-            append(lon)
-            append("|")
-            append(title.replace("|", "/"))
-            append("]")
-        }
+        val content = buildBotVenueContent(lat, lon, title, fields.address)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "LOCATION")
         }.getOrDefault(false)
