@@ -2650,3 +2650,18 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 新增 `BotSendMessageParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略恒等断言、缺省值钉住、6 例反证（已知字段坏类型；`replyToMessageId` 显式 null 沿用原有语义 `JsonNull.content == "null"`，零行为改动钉住）、snake_case 别名 + 近似字段名、截断上限（4000/64/128/8 行）与 `silent` 语义钉住；
 - 与 open PR #193（app 三文件）、#194（清单 §0 表格）无文件交集（本轮清单改动只在 Q01 行与本账本节）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续三十三（2026-09-29，G356）：`SettingsViewModel` 第一个控制器切片——「我的设备」管理抽出（1192 → 981，PR #196）
+
+- `loadMyDevices` / `removeMyDevice` / `renameMyDevice` / `confirmMyDevice`（227 行）逐字抽到
+  `SettingsDeviceController`；两个 Job（devicesLoadJob / deviceMutationJob）所有权内聚；
+- 依赖全经构造器注入（scope / currentState / updateState / textFn / isCurrentOwner /
+  accountApi）；VM 侧只留四个委托 + lazy 装配；调用方签名不变；
+- VM 删 2 个随迁死 import；上限两份 map 收紧 1192 → 981。
+
+### 第十三轮续三十四（2026-09-29，G357）：`SettingsViewModel` 第二个控制器切片——「黑名单」管理抽出（981 → 906，PR #197）
+
+- `loadBlockedUsers` / `unblockUser`（91 行）逐字抽到 `SettingsBlockedUsersController`；
+  两个 Job（blockedUsersLoadJob / blockedUsersMutationJob）所有权内聚；
+- 依赖同上一族的六件套；VM 侧两个委托 + lazy 装配；
+- 上限两份 map 收紧 981 → 906（rebase 到 #196 之后实测）。
