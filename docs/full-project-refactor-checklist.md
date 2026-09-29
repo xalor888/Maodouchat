@@ -2650,3 +2650,20 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 新增 `BotSendMessageParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略恒等断言、缺省值钉住、6 例反证（已知字段坏类型；`replyToMessageId` 显式 null 沿用原有语义 `JsonNull.content == "null"`，零行为改动钉住）、snake_case 别名 + 近似字段名、截断上限（4000/64/128/8 行）与 `silent` 语义钉住；
 - 与 open PR #193（app 三文件）、#194（清单 §0 表格）无文件交集（本轮清单改动只在 Q01 行与本账本节）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续三十三（2026-09-29，G358）：`SettingsViewModel` 第三个控制器切片——「个人资料/头像」管理抽出（906 → 655）
+
+- G356（设备）、G357（黑名单）之后第三个切片：`loadUserInfo` / 昵称编辑三件套 /
+  签名编辑器五件套 / `saveStatus` / `saveProfile` / `uploadAvatar` / `removeAvatar`
+  （12 个方法）逐字抽到新文件 `SettingsProfileController.kt`（312 行）；两个 Job
+ （`profileSaveJob`、`avatarUploadJob`）所有权随之内聚；
+- 替换点（机械、零行为改动）：`viewModelScope.launch` → 注入的 `scope.launch`、
+  `_uiState.update/value` → `updateState/currentState()`、`getApplication()` →
+  注入的 `appContext: Context`（`ImagePicker.uriToBase64` 只需 `Context`）、
+  `loadPublicProfileUrl()`（用户名簇仍在 VM）→ `reloadPublicProfileUrl` 回调；
+  依赖经构造器注入：`settingsRepository`（仅 `loadUserInfo` 用）、`accountApi`；
+  等价性用脚本逐字核对过（6 个成员替换后与原文逐字相等）；
+- `ClientArchitectureTest` 零余量棘轮两处上限同步收紧 906 → 655（实测 `readLines().size`）；
+  新文件 312 行未达 1000 阈值不纳管（G108 先例）；
+- 删 3 个随迁死 import（`ApiService` 早已是死 import、`ImagePicker`、`Dispatchers`）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
