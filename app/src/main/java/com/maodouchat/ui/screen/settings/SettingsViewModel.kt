@@ -6,8 +6,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.UserDto
-import com.maodouchat.network.DeviceInfoDto
 import com.maodouchat.util.ImagePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,8 +39,6 @@ class SettingsViewModel @JvmOverloads constructor(
     private var avatarUploadJob: Job? = null
     private var blockedUsersLoadJob: Job? = null
     private var blockedUsersMutationJob: Job? = null
-    private var devicesLoadJob: Job? = null
-    private var deviceMutationJob: Job? = null
     private var privacySaveJob: Job? = null
     private var loadedPrivacy: LoadedPrivacy? = null
     private val dirtyPrivacyFields = mutableSetOf<PrivacyField>()
@@ -591,232 +587,25 @@ class SettingsViewModel @JvmOverloads constructor(
         }
     }
 
-    fun loadMyDevices() {
-        devicesLoadJob?.cancel()
-        devicesLoadJob = viewModelScope.launch {
-            val userId = com.maodouchat.session.CurrentSession.snapshot().userId
-            if (!com.maodouchat.session.CurrentSession.hasSession() || userId.isNullOrBlank()) {
-                _uiState.update {
-                    it.copy(isLoadingDevices = false, errorMessage = text(R.string.error_session_expired))
-                }
-                return@launch
-            }
-            val currentDeviceId = com.maodouchat.security.SignalIdentityAccess.deviceId()
-            _uiState.update { it.copy(isLoadingDevices = true, currentDeviceId = currentDeviceId, errorMessage = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = userId,
-                )
-                ) {
-                    if (com.maodouchat.session.CurrentSession.snapshot().userId == userId) {
-                        _uiState.update {
-                            it.copy(isLoadingDevices = false, errorMessage = text(R.string.error_session_expired))
-                        }
-                    }
-                    return@launch
-                }
-                accountApi.devices(userId = userId, currentDeviceId = currentDeviceId).fold(
-                    onSuccess = { devices ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = userId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update {
-                            it.copy(
-                                devices = devices.sortedWith(compareByDescending<DeviceInfoDto> { d -> d.isCurrent }.thenBy { d -> d.deviceId }),
-                                isLoadingDevices = false
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(userId)) return@fold
-                        _uiState.update { it.copy(isLoadingDevices = false, errorMessage = error.message ?: text(R.string.settings_device_list_failed)) }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(userId)) {
-                    _uiState.update { it.copy(isLoadingDevices = false) }
-                }
-                throw error
-            }
-        }
+    // G356：「我的设备」管理抽到 SettingsDeviceController（纯搬移不改判断）。
+    private val deviceController by lazy {
+        SettingsDeviceController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            isCurrentOwner = { owner -> isCurrentOwner(owner) },
+        )
     }
 
-    fun removeMyDevice(deviceId: Int) {
-        if (deviceMutationJob?.isActive == true) return
-        deviceMutationJob = viewModelScope.launch {
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-                return@launch
-            }
-            if (deviceId == _uiState.value.currentDeviceId) {
-                _uiState.update { it.copy(errorMessage = text(R.string.settings_cannot_remove_current_device)) }
-                return@launch
-            }
-            _uiState.update { it.copy(removingDeviceId = deviceId, errorMessage = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    // 8.38：门禁失败复位 removingDeviceId
-                    _uiState.update { it.copy(removingDeviceId = null, errorMessage = text(R.string.error_session_expired)) }
-                    return@launch
-                }
-                accountApi.removeDevice(deviceId = deviceId).fold(
-                    onSuccess = {
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update {
-                            it.copy(
-                                devices = it.devices.filterNot { device -> device.deviceId == deviceId },
-                                removingDeviceId = null,
-                                successMessage = text(R.string.settings_device_removed)
-                            )
-                        }
-                        loadMyDevices()
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(ownerUserId)) return@fold
-                        _uiState.update { it.copy(removingDeviceId = null, errorMessage = error.message ?: text(R.string.settings_device_remove_failed)) }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(ownerUserId)) {
-                    _uiState.update { it.copy(removingDeviceId = null) }
-                }
-                throw error
-            }
-        }
-    }
+    fun loadMyDevices() = deviceController.loadMyDevices()
 
-    fun renameMyDevice(deviceId: Int, name: String) {
-        if (deviceMutationJob?.isActive == true) return
-        val trimmed = name.trim()
-        if (trimmed.isBlank() || trimmed.length > 50) {
-            _uiState.update { it.copy(errorMessage = text(R.string.settings_device_name_length)) }
-            return
-        }
-        deviceMutationJob = viewModelScope.launch {
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-                return@launch
-            }
-            _uiState.update { it.copy(renamingDeviceId = deviceId, errorMessage = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    // 8.38：门禁失败复位 renamingDeviceId
-                    _uiState.update { it.copy(renamingDeviceId = null, errorMessage = text(R.string.error_session_expired)) }
-                    return@launch
-                }
-                accountApi.renameDevice(deviceId = deviceId, deviceName = trimmed).fold(
-                    onSuccess = {
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update {
-                            it.copy(
-                                devices = it.devices.map { device -> if (device.deviceId == deviceId) device.copy(deviceName = trimmed) else device },
-                                renamingDeviceId = null,
-                                successMessage = text(R.string.settings_device_name_updated)
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(ownerUserId)) return@fold
-                        _uiState.update { it.copy(renamingDeviceId = null, errorMessage = error.message ?: text(R.string.settings_device_name_failed)) }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(ownerUserId)) {
-                    _uiState.update { it.copy(renamingDeviceId = null) }
-                }
-                throw error
-            }
-        }
-    }
+    fun removeMyDevice(deviceId: Int) = deviceController.removeMyDevice(deviceId)
 
-    fun confirmMyDevice(deviceId: Int) {
-        if (deviceMutationJob?.isActive == true) return
-        deviceMutationJob = viewModelScope.launch {
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-                return@launch
-            }
-            val approverDeviceId = com.maodouchat.security.SignalIdentityAccess.deviceId()
-            val currentDevice = _uiState.value.devices.firstOrNull { it.deviceId == approverDeviceId }
-            val targetDevice = _uiState.value.devices.firstOrNull { it.deviceId == deviceId }
-            // 9.140：仅当本地列表已加载且明确显示本机未确认时才拦——列表未加载/过期时
-            // 不得本地误拦（服务端 APPROVER_NOT_TRUSTED 是权威校验）
-            if (deviceId == approverDeviceId || (currentDevice != null && currentDevice.status != "CONFIRMED")) {
-                _uiState.update { it.copy(errorMessage = text(R.string.settings_approve_from_confirmed_device)) }
-                return@launch
-            }
-            val approvalSignature = targetDevice?.identityKey
-                ?.let { com.maodouchat.security.SignalIdentityAccess.signDeviceConfirmation(deviceId, it) }
-            if (approvalSignature.isNullOrBlank()) {
-                _uiState.update { it.copy(errorMessage = text(R.string.settings_device_confirm_proof_failed)) }
-                return@launch
-            }
-            _uiState.update { it.copy(confirmingDeviceId = deviceId, errorMessage = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                accountApi.confirmDevice(deviceId = deviceId, approverDeviceId = approverDeviceId, signature = approvalSignature).fold(
-                    onSuccess = {
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update {
-                            it.copy(
-                                devices = it.devices.map { device ->
-                                    if (device.deviceId == deviceId) {
-                                        device.copy(status = "CONFIRMED", confirmedAt = System.currentTimeMillis(), confirmedByDeviceId = approverDeviceId)
-                                    } else {
-                                        device
-                                    }
-                                },
-                                confirmingDeviceId = null,
-                                successMessage = text(R.string.settings_device_confirmed)
-                            )
-                        }
-                        loadMyDevices()
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(ownerUserId)) return@fold
-                        _uiState.update { it.copy(confirmingDeviceId = null, errorMessage = error.message ?: text(R.string.settings_device_confirm_failed)) }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(ownerUserId)) {
-                    _uiState.update { it.copy(confirmingDeviceId = null) }
-                }
-                throw error
-            }
-        }
-    }
+    fun renameMyDevice(deviceId: Int, name: String) = deviceController.renameMyDevice(deviceId, name)
+
+    fun confirmMyDevice(deviceId: Int) = deviceController.confirmMyDevice(deviceId)
+
 
     fun savePrivacy() {
         if (privacySaveJob?.isActive == true) return
