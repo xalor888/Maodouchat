@@ -2683,3 +2683,26 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `SettingsAccountController`；accountMutationJob 所有权内聚；
 - 依赖同上一族的六件套；VM 删 1 个随迁死 import（NonCancellable）；
 - 上限两份 map 收紧 716 → 592。
+
+### 第十三轮续三十七（2026-09-29，G360）：`SettingsViewModel` 第五个控制器切片——「隐私设置」一族抽出（592 → 391，PR #203）
+
+- `loadPrivacy` / `openPrivacy` / `closePrivacy` / 五个开关处理器 / `savePrivacy`（约 240 行）
+  含 `trackPrivacyField` 骨架、`currentLoadedPrivacy`、`normalizeVisibility` 逐字抽到
+  `SettingsPrivacyController`；三个字段（privacySaveJob / loadedPrivacy / dirtyPrivacyFields）
+  所有权内聚；
+- VM 的 `init` 经 lazy 装配调用（装配块上移过初始化顺序检查、`loadPrivacy` 转 internal）；
+- VM 删 4 个随迁死 import；上限两份 map 收紧 592 → 391。
+
+### 第十三轮续三十八（2026-09-29，G361）：`SettingsViewModel` 第六个控制器切片——「用户名」一族抽出（391 → 318，PR #205）
+
+- `loadPublicProfileUrl` / `openUsernameEditor` / `closeUsernameEditor` / `onEditUsernameChange` /
+  `saveUsername`（94 行）逐字抽到 `SettingsUsernameController`；
+- VM 删 1 个随迁死 import（withContext）；上限两份 map 收紧 391 → 318；
+- **里程碑**：`SettingsViewModel` 本轮系列 **1192 → 981 → 906 → 716 → 592 → 391 → 318**（六个控制器）。
+
+### 第十三轮续三十九（2026-09-29）：bot `editMessage` 请求体手写解析收敛为纯函数 + fuzz 钉住（PR #204）
+
+- `/api/bot/editMessage` 内联解析抽入 `BotEditMessageParse.kt` 纯函数（处理器只剩调用 +
+  字段映射，逐行等价）；
+- 新增 `BotEditMessageParseFuzzTest`：随机 payload 未知键忽略恒等断言、缺省值钉住、
+  坏类型大声失败反证、别名与近似字段名、截断上限。
