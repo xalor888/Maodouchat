@@ -34,6 +34,10 @@ import java.util.concurrent.CopyOnWriteArrayList
 // 在线用户连接表: userId -> WebSocketSession
 private const val MAX_FRAME_SIZE = 4L * 1024L * 1024L
 
+// internal 而非函数局部 val：WS 入站 DTO fuzz 测试直接引用同一份生产配置（G344/G347/G353 同款纪律）——
+// 若有人把 ignoreUnknownKeys 改回 false，WsInboundFuzzTest 立刻变红。
+internal val wsJson = Json { ignoreUnknownKeys = true }
+
 /**
  * 单帧发送限时（9.226）。弱网/半死连接的 TCP 写缓冲可能长时间写不进去，
  * 没有限时会让一个坏 session 串行阻塞整条群扇出链；超时后按死连接清理。
@@ -104,8 +108,6 @@ fun Application.configureSockets(
         // mask，保持 false 才符合协议。客户端→服务端帧仍由 Ktor 按协议校验并解掩码。
         masking = false
     }
-
-    val json = Json { ignoreUnknownKeys = true }
 
     // WebSocket 消息/打字频率限制：每用户每分钟上限，防止 DoS 和群 fanout 放大
     val wsMessageRateLimiter = BoundedRateLimiter()
@@ -205,7 +207,7 @@ fun Application.configureSockets(
                     return@webSocket
                 }
                 // 状态锁内仅做 DB 上线标记；广播是挂起 I/O，移到锁外（见 PresenceService）。
-                PresenceService.markOnline(userId, json, userRepo)
+                PresenceService.markOnline(userId, wsJson, userRepo)
 
                 // access token 过期/吊销后不能无限使用长连接；含 JWT exp + 空闲周期复检
                 val accessExpiresAtMs = decodedJwt.expiresAt?.time ?: 0L
@@ -281,11 +283,11 @@ fun Application.configureSockets(
                         }
                         val text = frame.readText()
                         try {
-                            val wsMsg = json.decodeFromString<WsMessage>(text)
+                            val wsMsg = wsJson.decodeFromString<WsMessage>(text)
                             handleWsMessage(
                                 wsMsg,
                                 userId,
-                                json,
+                                wsJson,
                                 userRepo,
                                 participantRepository,
                                 conversationQueryRepository,
@@ -299,7 +301,7 @@ fun Application.configureSockets(
                             // 协程取消必须重新抛出，否则结构化并发被破坏（外层 catch 也会吞掉）
                             throw e
                         } catch (e: Exception) {
-                            sendSafe(this, json.encodeToString(WsMessage("ERROR", json.encodeToString(ErrorResponse("消息解析失败")))))
+                            sendSafe(this, wsJson.encodeToString(WsMessage("ERROR", wsJson.encodeToString(ErrorResponse("消息解析失败")))))
                         }
                     }
                 }
@@ -338,7 +340,7 @@ fun Application.configureSockets(
                     // 协程被取消（停机/engine 取消）时 finally 里的挂起调用会立刻抛
                     // CancellationException，离线标记与广播必须在 NonCancellable 下完成。
                     withContext(NonCancellable) {
-                        PresenceService.markOffline(userId, json, userRepo)
+                        PresenceService.markOffline(userId, wsJson, userRepo)
                     }
                 }
             }
