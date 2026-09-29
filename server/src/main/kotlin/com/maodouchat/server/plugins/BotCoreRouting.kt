@@ -174,32 +174,15 @@ put("messageId", msgId)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val messageId = obj["messageId"]?.jsonPrimitive?.content.orEmpty()
-        val text = obj["text"]?.jsonPrimitive?.content.orEmpty().take(4000)
-        val replyMarkup = obj["replyMarkup"]?.jsonObject ?: obj["reply_markup"]?.jsonObject
-        val inlineKeyboardEl = replyMarkup?.get("inlineKeyboard")
-            ?: replyMarkup?.get("inline_keyboard")
+        val parsed = parseBotEditMessage(obj)
+        val messageId = parsed.messageId
+        val text = parsed.text
         if (messageId.isBlank() || text.isBlank()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId/text required"))
         }
         var contentOut = text
-        val keyboardRows = (inlineKeyboardEl as? kotlinx.serialization.json.JsonArray)?.mapNotNull { rowEl ->
-            val row = rowEl as? kotlinx.serialization.json.JsonArray ?: return@mapNotNull null
-            row.mapNotNull { btnEl ->
-                val b = btnEl as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
-                val t = b["text"]?.jsonPrimitive?.content.orEmpty().take(64)
-                val d = (b["callbackData"] ?: b["callback_data"])?.jsonPrimitive?.content.orEmpty().take(128)
-                if (t.isBlank()) null else mapOf("text" to t, "callbackData" to d)
-            }.takeIf { it.isNotEmpty() }
-        }?.filter { !it.isNullOrEmpty() }?.take(8)
-        val forceReplyFlag = run {
-            val fr = replyMarkup?.get("forceReply") ?: replyMarkup?.get("force_reply")
-            when (fr) {
-                is kotlinx.serialization.json.JsonPrimitive -> fr.booleanOrNull == true || fr.content.equals("true", true)
-                is kotlinx.serialization.json.JsonObject -> true
-                else -> false
-            }
-        }
+        val keyboardRows = parsed.keyboardRows
+        val forceReplyFlag = parsed.forceReply
         if (!keyboardRows.isNullOrEmpty() || forceReplyFlag) {
             val metaObj = kotlinx.serialization.json.buildJsonObject {
                 if (!keyboardRows.isNullOrEmpty()) {
