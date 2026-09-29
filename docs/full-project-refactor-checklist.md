@@ -2665,3 +2665,21 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   两个 Job（blockedUsersLoadJob / blockedUsersMutationJob）所有权内聚；
 - 依赖同上一族的六件套；VM 侧两个委托 + lazy 装配；
 - 上限两份 map 收紧 981 → 906（rebase 到 #196 之后实测）。
+
+### 第十三轮续三十五（2026-09-29，G358）：`SettingsViewModel` 第三个控制器切片——「个人资料」一族抽出（906 → 716，PR #200）
+
+- `saveStatus` / `saveProfile` / `uploadAvatar` / `removeAvatar`（239 行）逐字抽到
+  `SettingsProfileController`；两个 Job（profileSaveJob——状态与昵称共用、avatarUploadJob）
+  所有权内聚；
+- 依赖全经构造器注入（scope / application / currentState / updateState / textFn /
+  isCurrentOwner / accountApi）；VM 删 2 个随迁死 import；
+- 窗口前移纳管：拆小后 `SettingsGeneral.kt`（873 行）进入前 20 名且此前未纳管——按实测值
+  加入两份上限表（先纳管，后续再拆）；
+- 与云端 #199 为同一片（重复）——本 PR 先绿先合，已在 #199 留言说明。
+
+### 第十三轮续三十六（2026-09-29，G359）：`SettingsViewModel` 第四个控制器切片——「账号级动作」抽出（716 → 592，PR #201）
+
+- `logout` / `logoutAllDevices` / `deleteAccount`（139 行）逐字抽到
+  `SettingsAccountController`；accountMutationJob 所有权内聚；
+- 依赖同上一族的六件套；VM 删 1 个随迁死 import（NonCancellable）；
+- 上限两份 map 收紧 716 → 592。
