@@ -403,7 +403,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.chatdetail.MediaCenterScreen(onBack = {}, onOpenMessage = {})
         }
         // 实测 6 个可点击（返回 + 分类 chips + 空态重试等）；阈值取下界 4。
-        assertClean("mediacenter", minClickables = 4)
+        assertClean("mediacenter", minClickables = 4, minHeadings = 1)
     }
 
     @Test
