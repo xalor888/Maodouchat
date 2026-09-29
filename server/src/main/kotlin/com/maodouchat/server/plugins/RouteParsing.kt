@@ -6,7 +6,9 @@ import io.ktor.server.request.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
-private val routingJson = Json { ignoreUnknownKeys = true }
+// internal 而非 private：fuzz 测试直接引用同一份生产配置（G344/G347 同款纪律）——
+// 若有人把 ignoreUnknownKeys 改回 false，RoutingModelsFuzzTest 立刻变红。
+internal val routingJson = Json { ignoreUnknownKeys = true }
 private val routingParseLogger = org.slf4j.LoggerFactory.getLogger("RoutingParse")
 
 // 手动 JSON 解析 —— 绕过 Ktor ContentNegotiation 对 receiveNullable / ContentConversion 的歧义。
