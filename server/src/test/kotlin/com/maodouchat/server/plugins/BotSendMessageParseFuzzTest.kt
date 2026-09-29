@@ -202,13 +202,17 @@ class BotSendMessageParseFuzzTest {
                 silentSendEnabled = true,
             )
         }
-        // replyToMessageId 显式 null：JsonNull 不是 JsonPrimitive，同样大声失败（不是静默吞掉）
-        assertFailsWith<IllegalArgumentException>("replyToMessageId 显式 null 必须大声失败") {
+        // replyToMessageId 显式 null：JsonNull 本身是 JsonPrimitive（content == "null"），
+        // ?.jsonPrimitive 不抛——这是搬移前的原有行为（main 上 BotCoreRouting.kt:57 同式），
+        // 2026-09-29 CI 实证：assertFailsWith 在此失败。按"零行为改动"原则钉住原有语义，不改源码。
+        assertEquals(
+            "null",
             parseBotSendMessage(
                 JsonObject(mapOf("replyToMessageId" to JsonNull)),
                 silentSendEnabled = true,
-            )
-        }
+            ).replyToId,
+            "replyToMessageId 显式 null 沿用原有语义（JsonNull.content == \"null\"），不抛",
+        )
     }
 
     @Test
