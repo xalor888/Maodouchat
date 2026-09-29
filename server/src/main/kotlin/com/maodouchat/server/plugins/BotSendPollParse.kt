@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
