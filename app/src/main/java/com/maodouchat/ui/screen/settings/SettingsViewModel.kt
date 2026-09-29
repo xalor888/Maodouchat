@@ -51,6 +51,21 @@ class SettingsViewModel @JvmOverloads constructor(
         "PRIVATE" to text(R.string.explore_visibility_private)
     )
 
+    // G358：「个人资料/头像」管理抽到 SettingsProfileController（纯搬移不改判断）。
+    // 注意：init 的 loadUserInfo() 会访问它，故声明必须在 init 之前（Kotlin 按文本顺序初始化）。
+    private val profileController by lazy {
+        SettingsProfileController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            isCurrentOwner = { owner -> isCurrentOwner(owner) },
+            appContext = getApplication(),
+            settingsRepository = settingsRepository,
+            reloadPublicProfileUrl = { loadPublicProfileUrl() },
+        )
+    }
+
     init {
         loadUserInfo()
         loadPrivacy()
@@ -242,21 +257,6 @@ class SettingsViewModel @JvmOverloads constructor(
     fun loadBlockedUsers() = blockedUsersController.loadBlockedUsers()
 
     fun unblockUser(userId: String) = blockedUsersController.unblockUser(userId)
-
-
-    // G358：「个人资料/头像」管理抽到 SettingsProfileController（纯搬移不改判断）。
-    private val profileController by lazy {
-        SettingsProfileController(
-            scope = viewModelScope,
-            currentState = { _uiState.value },
-            updateState = { transform -> _uiState.update(transform) },
-            textFn = { id, args -> text(id, *args) },
-            isCurrentOwner = { owner -> isCurrentOwner(owner) },
-            appContext = getApplication(),
-            settingsRepository = settingsRepository,
-            reloadPublicProfileUrl = { loadPublicProfileUrl() },
-        )
-    }
 
 
     fun removeAvatar() = profileController.removeAvatar()
