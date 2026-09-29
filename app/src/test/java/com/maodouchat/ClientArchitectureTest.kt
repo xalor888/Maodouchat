@@ -389,7 +389,7 @@ class ClientArchitectureTest {
         // 1100+ 行源文件全部在监。
         "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 981,
+        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 906,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
         "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -455,7 +455,7 @@ class ClientArchitectureTest {
             // 1100+ 行源文件全部在监。
             "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 981,
+            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 906,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
             "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
