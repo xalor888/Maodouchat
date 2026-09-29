@@ -2706,3 +2706,11 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   字段映射，逐行等价）；
 - 新增 `BotEditMessageParseFuzzTest`：随机 payload 未知键忽略恒等断言、缺省值钉住、
   坏类型大声失败反证、别名与近似字段名、截断上限。
+
+### 第十三轮续四十（2026-09-29，G362）：`SettingsViewModel` 第七个控制器切片——安全 UX 偏好推/拉抽出（318 → 293，PR #207）
+
+- `pushSecurityClientPrefs`（含 `clientPrefsPushMutex` 串行化）/ `pullSecurityClientPrefs`
+  （含锁超时白名单回落语义）逐字抽到 `SettingsSecurityPrefsController`；
+  clientPrefsPushMutex / clientPrefsPullJob 所有权内聚；
+- VM 删 4 个随迁死 import（Job / Mutex / withLock / SecurityPreferencesPatch）；
+- 上限两份 map 收紧 318 → 293；`SettingsViewModel` 系列至此 **1192 → 293**（七个控制器）。
