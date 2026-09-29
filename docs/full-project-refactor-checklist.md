@@ -19,7 +19,7 @@
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
 | App JVM 单测（执行数） | 2173（09-24: 2129） | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
 | App 仪器测试 | **275**（`@Test` 计数；09-24: 156；语义审计扩面五批 +30） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
-| Server 单测（执行数） | **约 656 执行 / 681 `@Test` 标注**（09-24: 578/603；本日 Q01 fuzz 系列 +36 标注，执行数以默认套件实测为准） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
+| Server 单测（执行数） | **约 656 执行 / 697 `@Test` 标注**（09-24: 578/603；本日 Q01 fuzz 系列 +52 标注，执行数以默认套件实测为准） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
 | core/domain 模块测试（执行数） | 68（不变） | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
 | 有测试源文件的模块 | 9 个（不变） | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
 | `settings.gradle.kts` 模块数 | 10（app + 8 core + 1 domain） | `grep -c '":' settings.gradle.kts`（include 块多行写法，旧的 `include(` 计数已失效） |
@@ -2735,3 +2735,17 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - `MediaCenterScreen` 删 1 个严格死 import（`LocalMessageStore`）抵消，行数 1049 → 1048，
   上限两份 map 收紧；审计断言收紧 `minHeadings = 1`；
 - **里程碑**：TalkBack 标题导航在全部有标题的审计屏（40 屏）上落地。
+
+### 第十三轮续四十四（2026-09-29）：bot `sendPhoto` 请求体手写解析收敛为纯函数 + fuzz 钉住（PR #215）
+
+- `/api/bot/sendPhoto` 内联解析抽入 `BotSendPhotoParse.kt` 纯函数
+  （`parseBotSendPhotoFields` / `decodeBotPhotoBytes` / `buildBotPhotoContent` +
+  `BOT_PHOTO_MAX_BYTES`，处理器只剩调用 + 字段映射，逐行等价）；
+- 新增 `BotSendPhotoParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略恒等断言、缺省值钉住、
+  `photoBase64`→`photo`→`fileBase64`→`data` 别名优先级 + 近似字段名反证、坏类型大声失败反证、
+  caption 500 截断（sendVoice 是 200，不统一是故意的）、坏 base64/空解码 → null
+  （处理器 400 `invalid base64`，与 sendVoice 的宽容语义故意不同，特意钉住）、
+  data-URI 前缀剥离与空白剔除、5MB 边界、内容模板形状 + 4000 截断；
+- 与 open PR（仅 dependabot 若干）无文件交集（本轮清单改动只在 §0 表格与本账本节）；
+- §0 复核·七版：Server 单测标注随 Q01 fuzz 系列升至 697（681 基准 + sendVoice 8 + 本轮 sendPhoto 8）。
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

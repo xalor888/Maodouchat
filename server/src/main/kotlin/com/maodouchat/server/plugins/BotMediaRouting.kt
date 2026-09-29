@@ -266,38 +266,26 @@ put("size", bytes.size)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)
-        val b64 = (obj["photoBase64"] ?: obj["photo"] ?: obj["fileBase64"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
-        if (chatId.isBlank() || b64.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/photoBase64 required"))
+        val fields = when (val r = parseBotSendPhotoFields(obj)) {
+            is BotSendPhotoFieldsResult.Ok -> r.fields
+            BotSendPhotoFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/photoBase64 required"))
         }
+        val chatId = fields.chatId
+        val caption = fields.caption
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val bytes = runCatching {
-            java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace("\\s".toRegex(), ""))
-        }.getOrNull()
-        if (bytes == null || bytes.isEmpty()) {
+        val bytes = decodeBotPhotoBytes(fields.fileBase64)
+        if (bytes == null) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid base64"))
         }
-        if (bytes.size > 5 * 1024 * 1024) {
+        if (bytes.size > BOT_PHOTO_MAX_BYTES) {
             return@post call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("photo too large (max 5MB)"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = buildString {
-            append("🖼 photo ")
-            append(bytes.size)
-            append("B")
-            if (caption.isNotBlank()) {
-                append("\n")
-                append(caption)
-            }
-            append("\n[botPhotoSize:")
-            append(bytes.size)
-            append("]")
-        }.take(4000)
+        val content = buildBotPhotoContent(caption, bytes.size)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "IMAGE")
         }.getOrDefault(false)
