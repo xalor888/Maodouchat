@@ -16,7 +16,6 @@ import com.maodouchat.group.GroupInviteController
 import com.maodouchat.group.GroupLifecycleService
 import com.maodouchat.group.toUi
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
-import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -429,92 +428,24 @@ class GroupDetailViewModel(
     fun muteAllMembers(mutedUntil: Long) = mutationController.muteAllMembers(mutedUntil)
 
 
-    fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.GROUP_INVITES)) {
-            return
-        }
-        if (chatId.isBlank() || token.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    isLoadingInvite = false,
-                    message = text(R.string.error_session_expired),
-                    feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                        GroupMutationAction.INVITE,
-                        IllegalStateException(text(R.string.error_session_expired))
-                    )
-                )
-            }
-            return
-        }
-        val inviteOwnerUserId = currentUserId
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingInvite = true, message = null, feedback = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = inviteOwnerUserId,
-                )
-                ) {
-                    _uiState.update {
-                        it.copy(
-                            isLoadingInvite = false,
-                            message = text(R.string.error_session_expired),
-                            feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                                GroupMutationAction.INVITE,
-                                IllegalStateException(text(R.string.error_session_expired))
-                            )
-                        )
-                    }
-                    return@launch
-                }
-                val result = if (rotate) {
-                    groupInviteController.rotateInvite(chatId, expiresInSeconds, maxUses)
-                } else {
-                    groupInviteController.fetchInvite(chatId, rotate = false, expiresInSeconds, maxUses)
-                }
-                result.fold(
-                    onSuccess = { res ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = inviteOwnerUserId,
-                        )
-                        ) {
-                            _uiState.update { it.copy(isLoadingInvite = false) }
-                            return@fold
-                        }
-                        pendingRetry = null
-                        val msg = if (rotate) text(R.string.group_detail_invite_refreshed) else null
-                        _uiState.update {
-                            it.copy(
-                                isLoadingInvite = false,
-                                groupInvitePayload = res.payload,
-                                inviteExpiresAt = res.expiresAt,
-                                inviteMaxUses = res.maxUses,
-                                inviteUsedCount = res.usedCount,
-                                inviteRemainingUses = res.remainingUses,
-                                message = msg,
-                                feedback = if (msg != null) {
-                                    GroupMutationFeedbackPolicy.success(GroupMutationAction.INVITE, msg)
-                                } else null
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        val fb = GroupMutationFeedbackPolicy.fromThrowable(GroupMutationAction.INVITE, error)
-                        pendingRetry = { loadGroupInvite(rotate, expiresInSeconds, maxUses) }
-                        _uiState.update {
-                            it.copy(
-                                isLoadingInvite = false,
-                                message = fb.detail ?: text(R.string.group_detail_invite_failed),
-                                feedback = fb.copy(canRetry = true)
-                            )
-                        }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isLoadingInvite = false) }
-                throw error
-            }
-        }
+    // G367：群邀请链接拉取/轮换抽到 GroupInviteLoadController（纯搬移不改判断）。
+    private val inviteLoadController by lazy {
+        GroupInviteLoadController(
+            scope = viewModelScope,
+            application = getApplication(),
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            chatId = { chatId },
+            token = { token },
+            ownerUserId = { currentUserId },
+            pendingRetrySet = { retry -> pendingRetry = retry },
+        )
     }
+
+    fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) =
+        inviteLoadController.loadGroupInvite(rotate, expiresInSeconds, maxUses)
+
 
     // G365：头像上传（AVATAR 变更）并入 GroupMutationController（纯搬移不改判断）。
     fun uploadGroupAvatar(uri: Uri) = mutationController.uploadGroupAvatar(uri)
