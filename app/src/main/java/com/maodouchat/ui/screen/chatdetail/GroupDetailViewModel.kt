@@ -16,8 +16,6 @@ import com.maodouchat.group.GroupInviteController
 import com.maodouchat.group.GroupLifecycleService
 import com.maodouchat.group.toUi
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
-import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
-import com.maodouchat.network.SenderKeyDistributionStatusDto
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -323,7 +321,7 @@ class GroupDetailViewModel(
                             inviteRemainingUses = prevInvite.inviteRemainingUses,
                             isLoadingInvite = prevInvite.isLoadingInvite
                         )
-                        maybeAutoRedistributeSenderKey(next)
+                        senderKeyController.maybeAutoRedistributeSenderKey(next)
                     },
                     onFailure = { error ->
                         val fb = GroupMutationFeedbackPolicy.fromThrowable(GroupMutationAction.LOAD, error)
@@ -523,128 +521,24 @@ class GroupDetailViewModel(
 
 
 
-    fun redistributeSenderKey() {
-        if (chatId.isBlank() || token.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    isUpdating = false,
-                    message = text(R.string.error_session_expired),
-                    feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                        GroupMutationAction.SENDER_KEY,
-                        IllegalStateException(text(R.string.error_session_expired))
-                    )
-                )
-            }
-            return
-        }
-        val redisOwnerUserId = currentUserId
-        viewModelScope.launch {
-            _uiState.update { it.copy(isUpdating = true, message = null, feedback = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = redisOwnerUserId,
-                )
-                ) {
-                    _uiState.update {
-                        it.copy(
-                            isUpdating = false,
-                            message = text(R.string.error_session_expired),
-                            feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                                GroupMutationAction.SENDER_KEY,
-                                IllegalStateException(text(R.string.error_session_expired))
-                            )
-                        )
-                    }
-                    return@launch
-                }
-                val epoch = _uiState.value.memberRevision
-                val outcome = withContext(Dispatchers.IO) {
-                    groupEncryptionHealthController.runManual(chatId, epoch)
-                }
-                when (outcome) {
-                    is GroupSenderKeyMaintenanceOutcome.Ready -> {
-                        pendingRetry = null
-                        _uiState.update {
-                            it.copy(
-                                isUpdating = false,
-                                senderKeyStatus = outcome.status ?: it.senderKeyStatus,
-                                localHasSenderKey = outcome.localHasSenderKey,
-                            )
-                        }
-                        load(text(R.string.group_detail_key_redistributed))
-                    }
-                    is GroupSenderKeyMaintenanceOutcome.Pending -> {
-                        showSenderKeyMaintenanceFailure(
-                            error = outcome.error,
-                            status = outcome.status,
-                            localHasSenderKey = outcome.localHasSenderKey,
-                        )
-                    }
-                    is GroupSenderKeyMaintenanceOutcome.Failed ->
-                        showSenderKeyMaintenanceFailure(outcome.error)
-                    GroupSenderKeyMaintenanceOutcome.Skipped ->
-                        _uiState.update { it.copy(isUpdating = false) }
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isUpdating = false) }
-                throw error
-            }
-        }
+    // G366：sender key 维护一族抽到 SenderKeyMaintenanceController（纯搬移不改判断）。
+    private val senderKeyController by lazy {
+        SenderKeyMaintenanceController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            chatId = { chatId },
+            token = { token },
+            ownerUserId = { currentUserId },
+            groupEncryptionHealthController = groupEncryptionHealthController,
+            onCommitted = { message -> load(message) },
+            pendingRetrySet = { retry -> pendingRetry = retry },
+        )
     }
 
-    private fun maybeAutoRedistributeSenderKey(state: GroupDetailUiState) {
-        if (chatId.isBlank() || token.isBlank()) return
-        val epoch = state.memberRevision
-        if (epoch <= 0L) return
-        viewModelScope.launch {
-            try {
-                val outcome = withContext(Dispatchers.IO) {
-                    groupEncryptionHealthController.runAutomatic(
-                        chatId = chatId,
-                        epoch = epoch,
-                        currentStatus = state.senderKeyStatus,
-                        localHasSenderKeyHint = state.localHasSenderKey,
-                    )
-                }
-                when (outcome) {
-                    is GroupSenderKeyMaintenanceOutcome.Ready -> _uiState.update {
-                        it.copy(
-                            senderKeyStatus = outcome.status ?: it.senderKeyStatus,
-                            localHasSenderKey = outcome.localHasSenderKey,
-                        )
-                    }
-                    is GroupSenderKeyMaintenanceOutcome.Pending -> _uiState.update {
-                        it.copy(
-                            senderKeyStatus = outcome.status ?: it.senderKeyStatus,
-                            localHasSenderKey = outcome.localHasSenderKey,
-                        )
-                    }
-                    is GroupSenderKeyMaintenanceOutcome.Failed,
-                    GroupSenderKeyMaintenanceOutcome.Skipped -> Unit
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            }
-        }
-    }
+    fun redistributeSenderKey() = senderKeyController.redistributeSenderKey()
 
-    private fun showSenderKeyMaintenanceFailure(
-        error: Throwable,
-        status: SenderKeyDistributionStatusDto? = null,
-        localHasSenderKey: Boolean? = null,
-    ) {
-        val feedback = GroupMutationFeedbackPolicy.fromThrowable(GroupMutationAction.SENDER_KEY, error)
-        pendingRetry = { redistributeSenderKey() }
-        _uiState.update {
-            it.copy(
-                isUpdating = false,
-                senderKeyStatus = status ?: it.senderKeyStatus,
-                localHasSenderKey = localHasSenderKey ?: it.localHasSenderKey,
-                message = feedback.detail ?: text(R.string.group_detail_key_redistribute_failed),
-                feedback = feedback.copy(canRetry = true),
-            )
-        }
-    }
 
     fun consumeMessage() {
         pendingRetry = null
