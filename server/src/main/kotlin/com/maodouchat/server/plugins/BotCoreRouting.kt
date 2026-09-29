@@ -51,17 +51,14 @@ internal fun Route.configureBotCoreRoutes(
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val text = obj["text"]?.jsonPrimitive?.content.orEmpty().take(4000)
-        val parseMode = obj["parseMode"]?.jsonPrimitive?.content.orEmpty().uppercase()
-        val replyToId = obj["replyToMessageId"]?.jsonPrimitive?.content?.take(80)
-        val silentRequested = obj["silent"]?.jsonPrimitive?.booleanOrNull == true
-        val silent = silentRequested && com.maodouchat.server.service.RuntimeConfigService.isSilentSendEnabled()
-        val replyMarkup = obj["replyMarkup"]?.jsonObject ?: obj["reply_markup"]?.jsonObject
-        val inlineKeyboardEl = replyMarkup?.get("inlineKeyboard")
-            ?: replyMarkup?.get("inline_keyboard")
+        val req = parseBotSendMessage(
+            obj,
+            silentSendEnabled = com.maodouchat.server.service.RuntimeConfigService.isSilentSendEnabled(),
+        )
+        val chatId = req.chatId
+        val text = req.text
         val msgType = when {
-            parseMode == "MARKDOWN" || parseMode == "MD" -> "MARKDOWN"
+            req.parseMode == "MARKDOWN" || req.parseMode == "MD" -> "MARKDOWN"
             else -> "TEXT"
         }
         if (msgType == "MARKDOWN" && !com.maodouchat.server.service.RuntimeConfigService.isMarkdownEnabled()) {
@@ -82,27 +79,12 @@ internal fun Route.configureBotCoreRoutes(
         // Bots send as system-visible plaintext channel (not E2EE peer).
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        var contentOut = if (!replyToId.isNullOrBlank()) {
+        var contentOut = if (!req.replyToId.isNullOrBlank()) {
             // Lightweight reply marker for bot plaintext channel (client may ignore).
-            text + "\n[replyTo:" + replyToId + "]"
+            text + "\n[replyTo:" + req.replyToId + "]"
         } else text
-        val keyboardRows = (inlineKeyboardEl as? kotlinx.serialization.json.JsonArray)?.mapNotNull { rowEl ->
-            val row = rowEl as? kotlinx.serialization.json.JsonArray ?: return@mapNotNull null
-            row.mapNotNull { btnEl ->
-                val b = btnEl as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
-                val t = b["text"]?.jsonPrimitive?.content.orEmpty().take(64)
-                val d = (b["callbackData"] ?: b["callback_data"])?.jsonPrimitive?.content.orEmpty().take(128)
-                if (t.isBlank()) null else mapOf("text" to t, "callbackData" to d)
-            }.takeIf { it.isNotEmpty() }
-        }?.filter { !it.isNullOrEmpty() }?.take(8)
-        val forceReplyFlag = run {
-            val fr = replyMarkup?.get("forceReply") ?: replyMarkup?.get("force_reply")
-            when (fr) {
-                is kotlinx.serialization.json.JsonPrimitive -> fr.booleanOrNull == true || fr.content.equals("true", true)
-                is kotlinx.serialization.json.JsonObject -> true
-                else -> false
-            }
-        }
+        val keyboardRows = req.keyboardRows
+        val forceReplyFlag = req.forceReply
         if (!keyboardRows.isNullOrEmpty() || forceReplyFlag) {
             val metaObj = kotlinx.serialization.json.buildJsonObject {
                 if (!keyboardRows.isNullOrEmpty()) {
