@@ -95,16 +95,17 @@ put("correctOptionIndex", safeIdx)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val sides = (obj["sides"]?.jsonPrimitive?.content?.toIntOrNull() ?: 6).coerceIn(2, 100)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendDiceCustomFields(obj)) {
+            is BotSendDiceCustomFieldsResult.Ok -> parsed.fields
+            BotSendDiceCustomFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val value = (1..sides).random()
-        val content = "DICE:$sides|$value|bot dice roll"
+        val value = (1..fields.sides).random()
+        val content = buildBotDiceCustomContent(fields.sides, value)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val ok = runCatching {
@@ -121,7 +122,7 @@ put("correctOptionIndex", safeIdx)
         buildJsonObject {
 put("ok", true)
 put("messageId", msgId)
-put("sides", sides)
+put("sides", fields.sides)
 put("value", value)
         }
     )
