@@ -14,14 +14,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import com.maodouchat.explore.policy.ExploreDraftPolicy
 import com.maodouchat.settings.repository.SecurityPreferencesPatch
-import com.maodouchat.settings.repository.SettingsPrivacyPatch
 import com.maodouchat.settings.repository.SettingsRepository
 import com.maodouchat.settings.repository.AndroidSettingsRepository
-import com.maodouchat.settings.model.LoadedPrivacy
-import com.maodouchat.settings.model.PrivacyField
 import com.maodouchat.settings.model.SettingsUiState
 
 class SettingsViewModel @JvmOverloads constructor(
@@ -32,9 +28,6 @@ class SettingsViewModel @JvmOverloads constructor(
     /** G328c：账号/设备/拉黑这类**命令式**端点走 data 层仓库（ui 不再直接调 ApiService）。 */
     private val accountApi get() = com.maodouchat.data.repository.AccountSecurityNetworkRepository()
 
-    private var privacySaveJob: Job? = null
-    private var loadedPrivacy: LoadedPrivacy? = null
-    private val dirtyPrivacyFields = mutableSetOf<PrivacyField>()
     private var clientPrefsPullJob: Job? = null
     private val clientPrefsPushMutex = Mutex()
 
@@ -50,33 +43,40 @@ class SettingsViewModel @JvmOverloads constructor(
         "PRIVATE" to text(R.string.explore_visibility_private)
     )
 
+    private val privacyController by lazy {
+        SettingsPrivacyController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            isCurrentOwner = { owner -> isCurrentOwner(owner) },
+            settingsRepository = settingsRepository,
+        )
+    }
+
     init {
         loadUserInfo()
-        loadPrivacy()
+        privacyController.loadPrivacy()
     }
 
     // G179：回落 PUBLIC（ExploreDraftPolicy 回落 PRIVATE，分歧待决策，详见 SettingsVisibilityPolicy.kt）
-    private fun normalizeVisibility(value: String): String = com.maodouchat.settings.normalizeVisibility(value, "PUBLIC")
+    // G360：隐私设置一族抽到 SettingsPrivacyController（纯搬移不改判断）。
+    fun openPrivacy() = privacyController.openPrivacy()
 
-    /**
-     * 隐私开关公共骨架：保存中直接忽略；与已加载值比对决定脏位增减；
-     * 最后应用 UI 更新。调用方只给字段、是否干净与更新 lambda。
-     */
-    private inline fun trackPrivacyField(
-        vararg fields: PrivacyField,
-        isClean: () -> Boolean,
-        update: () -> Unit,
-    ) {
-        if (_uiState.value.isSavingPrivacy) return
-        if (isClean()) {
-            dirtyPrivacyFields -= fields.toSet()
-        } else {
-            dirtyPrivacyFields += fields.toSet()
-        }
-        update()
-    }
+    fun closePrivacy() = privacyController.closePrivacy()
 
-    private fun currentLoadedPrivacy() = loadedPrivacy?.takeIf { it.ownerUserId == com.maodouchat.session.CurrentSession.snapshot().userId }
+    fun onShowOnlineChange(v: Boolean) = privacyController.onShowOnlineChange(v)
+
+    fun onOnlineVisibilityChange(v: String) = privacyController.onOnlineVisibilityChange(v)
+
+    fun onShowStatusChange(v: Boolean) = privacyController.onShowStatusChange(v)
+
+    fun onSearchableChange(v: Boolean) = privacyController.onSearchableChange(v)
+
+    fun onDefaultVisibilityChange(v: String) = privacyController.onDefaultVisibilityChange(v)
+
+    fun savePrivacy() = privacyController.savePrivacy()
+
 
     private fun isCurrentOwner(expectedUserId: String): Boolean =
         com.maodouchat.security.BackgroundSessionGate.mayContinue(
@@ -130,54 +130,6 @@ class SettingsViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun loadPrivacy() {
-        viewModelScope.launch {
-            val session = settingsRepository.currentSession()
-            if (session == null) {
-                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-                return@launch
-            }
-            if (loadedPrivacy?.ownerUserId != session.ownerUserId) {
-                loadedPrivacy = null
-                dirtyPrivacyFields.clear()
-            }
-            settingsRepository.loadPrivacy(session).fold(
-                onSuccess = { privacy ->
-                    if (!settingsRepository.isCurrent(session)) return@fold
-                    val loaded = LoadedPrivacy(
-                        ownerUserId = session.ownerUserId,
-                        showOnline = privacy.showOnline,
-                        showStatus = privacy.showStatus,
-                        searchable = privacy.searchable,
-                        defaultPostVisibility = normalizeVisibility(privacy.defaultPostVisibility),
-                        onlineVisibility = privacy.onlineVisibility.ifBlank {
-                            if (privacy.showOnline) "everyone" else "nobody"
-                        },
-                    )
-                    loadedPrivacy = loaded
-                    _uiState.update { current ->
-                        current.copy(
-                            showOnline = if (PrivacyField.SHOW_ONLINE in dirtyPrivacyFields) current.showOnline else loaded.showOnline,
-                            onlineVisibility = if (PrivacyField.ONLINE_VISIBILITY in dirtyPrivacyFields) current.onlineVisibility else loaded.onlineVisibility,
-                            showStatus = if (PrivacyField.SHOW_STATUS in dirtyPrivacyFields) current.showStatus else loaded.showStatus,
-                            searchable = if (PrivacyField.SEARCHABLE in dirtyPrivacyFields) current.searchable else loaded.searchable,
-                            defaultPostVisibility = if (PrivacyField.DEFAULT_POST_VISIBILITY in dirtyPrivacyFields) {
-                                current.defaultPostVisibility
-                            } else {
-                                loaded.defaultPostVisibility
-                            },
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    if (!settingsRepository.isCurrent(session)) return@fold
-                    _uiState.update {
-                        it.copy(errorMessage = error.message ?: text(R.string.settings_privacy_load_failed))
-                    }
-                },
-            )
-        }
-    }
 
     fun onEditNameChange(name: String) { _uiState.update { it.copy(editName = name.take(30)) } }
     fun startEditing() { _uiState.update { it.copy(isEditing = true, editName = it.userName) } }
@@ -222,78 +174,6 @@ class SettingsViewModel @JvmOverloads constructor(
     fun removeAvatar() = profileController.removeAvatar()
 
 
-    fun openPrivacy() {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (loadedPrivacy?.ownerUserId != ownerUserId) loadPrivacy()
-        _uiState.update { it.copy(showPrivacyDialog = true) }
-    }
-
-    fun closePrivacy() {
-        if (_uiState.value.isSavingPrivacy) return
-        val baseline = loadedPrivacy?.takeIf { it.ownerUserId == com.maodouchat.session.CurrentSession.snapshot().userId }
-        dirtyPrivacyFields.clear()
-        _uiState.update {
-            it.copy(
-                showPrivacyDialog = false,
-                showOnline = baseline?.showOnline ?: it.showOnline,
-                onlineVisibility = baseline?.onlineVisibility ?: it.onlineVisibility,
-                showStatus = baseline?.showStatus ?: it.showStatus,
-                searchable = baseline?.searchable ?: it.searchable,
-                defaultPostVisibility = baseline?.defaultPostVisibility ?: it.defaultPostVisibility
-            )
-        }
-    }
-
-    fun onShowOnlineChange(v: Boolean) {
-        if (_uiState.value.isSavingPrivacy) return
-        val vis = if (v) {
-            _uiState.value.onlineVisibility.takeUnless { it == "nobody" } ?: "everyone"
-        } else {
-            "nobody"
-        }
-        onOnlineVisibilityChange(vis)
-    }
-
-    fun onOnlineVisibilityChange(v: String) {
-        val normalized = when (v) {
-            "contacts", "nobody" -> v
-            else -> "everyone"
-        }
-        trackPrivacyField(
-            PrivacyField.ONLINE_VISIBILITY, PrivacyField.SHOW_ONLINE,
-            isClean = { currentLoadedPrivacy()?.onlineVisibility == normalized },
-        ) {
-            _uiState.update { it.copy(onlineVisibility = normalized, showOnline = normalized != "nobody") }
-        }
-    }
-
-    fun onShowStatusChange(v: Boolean) {
-        trackPrivacyField(
-            PrivacyField.SHOW_STATUS,
-            isClean = { currentLoadedPrivacy()?.showStatus == v },
-        ) {
-            _uiState.update { it.copy(showStatus = v) }
-        }
-    }
-
-    fun onSearchableChange(v: Boolean) {
-        trackPrivacyField(
-            PrivacyField.SEARCHABLE,
-            isClean = { currentLoadedPrivacy()?.searchable == v },
-        ) {
-            _uiState.update { it.copy(searchable = v) }
-        }
-    }
-
-    fun onDefaultVisibilityChange(v: String) {
-        val normalized = normalizeVisibility(v)
-        trackPrivacyField(
-            PrivacyField.DEFAULT_POST_VISIBILITY,
-            isClean = { currentLoadedPrivacy()?.defaultPostVisibility == normalized },
-        ) {
-            _uiState.update { it.copy(defaultPostVisibility = normalized) }
-        }
-    }
 
     fun openBlockedUsers() {
         _uiState.update { it.copy(showBlockedUsersDialog = true) }
@@ -340,87 +220,6 @@ class SettingsViewModel @JvmOverloads constructor(
     fun confirmMyDevice(deviceId: Int) = deviceController.confirmMyDevice(deviceId)
 
 
-    fun savePrivacy() {
-        if (privacySaveJob?.isActive == true) return
-        privacySaveJob = viewModelScope.launch {
-            val session = settingsRepository.currentSession()
-            val privacyOwnerUserId = session?.ownerUserId.orEmpty()
-            if (session == null) {
-                _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
-                return@launch
-            }
-            _uiState.update { it.copy(isSavingPrivacy = true, errorMessage = null) }
-            // 在 isSavingPrivacy=true 之后才快照，避免并发 toggle 导致保存旧状态
-            val snapshot = _uiState.value
-            val changedFields = dirtyPrivacyFields.toSet()
-            if (changedFields.isEmpty()) {
-                _uiState.update { it.copy(isSavingPrivacy = false, showPrivacyDialog = false) }
-                return@launch
-            }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = privacyOwnerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                settingsRepository.savePrivacy(
-                    session,
-                    SettingsPrivacyPatch(
-                        showOnline = snapshot.showOnline.takeIf { PrivacyField.SHOW_ONLINE in changedFields },
-                        showStatus = snapshot.showStatus.takeIf { PrivacyField.SHOW_STATUS in changedFields },
-                        searchable = snapshot.searchable.takeIf { PrivacyField.SEARCHABLE in changedFields },
-                        defaultPostVisibility = snapshot.defaultPostVisibility.takeIf {
-                            PrivacyField.DEFAULT_POST_VISIBILITY in changedFields
-                        },
-                        onlineVisibility = snapshot.onlineVisibility.takeIf {
-                            PrivacyField.ONLINE_VISIBILITY in changedFields
-                        },
-                    ),
-                ).fold(
-                    onSuccess = { privacy ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = privacyOwnerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        val normalizedVisibility = normalizeVisibility(privacy.defaultPostVisibility)
-                        loadedPrivacy = LoadedPrivacy(
-                            ownerUserId = privacyOwnerUserId,
-                            showOnline = privacy.showOnline,
-                            showStatus = privacy.showStatus,
-                            searchable = privacy.searchable,
-                            defaultPostVisibility = normalizedVisibility,
-                            onlineVisibility = privacy.onlineVisibility.ifBlank { if (privacy.showOnline) "everyone" else "nobody" }
-                        )
-                        dirtyPrivacyFields.clear()
-                        _uiState.update {
-                            it.copy(
-                                showOnline = privacy.showOnline,
-                                onlineVisibility = privacy.onlineVisibility.ifBlank { if (privacy.showOnline) "everyone" else "nobody" },
-                                showStatus = privacy.showStatus,
-                                searchable = privacy.searchable,
-                                defaultPostVisibility = normalizedVisibility,
-                                showPrivacyDialog = false,
-                                isSavingPrivacy = false,
-                                successMessage = text(R.string.settings_privacy_saved)
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(privacyOwnerUserId)) return@fold
-                        _uiState.update { it.copy(isSavingPrivacy = false, errorMessage = error.message ?: text(R.string.settings_privacy_save_failed)) }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(privacyOwnerUserId)) {
-                    _uiState.update { it.copy(isSavingPrivacy = false) }
-                }
-                throw error
-            }
-        }
-    }
 
     fun clearSuccessMessage() { _uiState.update { it.copy(successMessage = null) } }
     fun clearErrorMessage() { _uiState.update { it.copy(errorMessage = null) } }
