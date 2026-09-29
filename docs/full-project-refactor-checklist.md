@@ -2822,3 +2822,22 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本账本节**末尾追加**（§0 表格行正被 #218 持有：697→712 未合，本轮 +8 标注暂不改表，
   待 #218 合并后由下一轮复核到 720）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续五十二（2026-09-29，G369）：`GroupDetailViewModel` 的整页加载抽出（444 → 319，PR #225）
+
+- `load`（145 行：群信息/成员/sender key 状态/审计首页/候选成员/机器人的 IO 拉取与状态写回，
+  含 8.39 审计 limit 修复与 8.48 邀请字段保留修复）逐字抽到 `GroupDetailLoader`；
+- 依赖全经构造器注入（14 个）；自动重分发经 `onAutoRedistribute` 回调既有
+  `SenderKeyMaintenanceController`；loader 显式类型切断类型推断环（同 #186 先例）；
+- **初始化顺序教训**：VM 的 init 会同步调用 `load()`——lazy 声明必须在 init 之前，
+  否则 `by lazy` 委托未初始化即被访问（CI instrumented 实测 NPE；本机 emulator-5558
+  复跑 40/40 后修复）；
+- VM 删 3 个随迁死 import；上限两份 map 收紧 444 → 319。
+
+### 第十三轮续五十三（2026-09-29，G370）：`GroupDetailViewModel` 的审计分页加载抽出（319 → 290，PR #226）
+
+- `loadMoreAudit` + `isCurrentAuditOwner`（45 行）逐字抽到 `GroupAuditLoadController`；
+  `auditNextOffset` 仍由 VM 持有（loader 也写它），经 get/set lambda 共享；
+- 上限两份 map 收紧 319 → 290；
+- **里程碑**：`GroupDetailViewModel` **960 → 800 → 703 → 597 → 528 → 444 → 319 → 290**
+  （五个控制器 + 观察器 + 加载器 + 审计分页）。
