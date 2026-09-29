@@ -382,6 +382,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
         // 死 import 删除：文件 671 → 670 行，上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 670,
+        // G358：SettingsViewModel 拆分后窗口前移——SettingsGeneral 进入前 20，按实测值纳管。
+        "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 873,
         "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1618,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
@@ -389,7 +391,7 @@ class ClientArchitectureTest {
         // 1100+ 行源文件全部在监。
         "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 906,
+        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 716,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
         "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -448,6 +450,7 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 670,
+            "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 873,
             "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1618,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
@@ -455,7 +458,7 @@ class ClientArchitectureTest {
             // 1100+ 行源文件全部在监。
             "com/maodouchat/webrtc/WebRTCManager.kt" to 1416,
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
-            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 906,
+            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 716,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
             "com/maodouchat/ui/component/MarkdownMessage.kt" to 162,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
