@@ -3,7 +3,6 @@ package com.maodouchat.ui.screen.call
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
-import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
@@ -26,7 +25,6 @@ import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.CallReliabilityPolicy
 import com.maodouchat.webrtc.IceReconnectAction
-import com.maodouchat.webrtc.CallNetworkQualityPolicy
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.webrtc.CallIceServer
 import com.maodouchat.webrtc.CallAudioRoute
@@ -102,13 +100,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
 
-    private var durationJob: Job? = null
     /** 通话中 TURN 凭据刷新 job（8.35：短期凭据 1h 过期后热替换 ICE 配置）。 */
-    private var iceRefreshJob: Job? = null
     private var pollingJob: Job? = null
     private var webSocketJob: Job? = null
     private var ringingTimeoutJob: Job? = null
-    private var networkStatsJob: Job? = null
     private var iceReconnectJob: Job? = null
     // 8.56：WebRTC 原生回调线程与主线程并发访问——volatile 保证可见性，避免读到旧值误走重连/重复挂断
     @Volatile
@@ -141,9 +136,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val RINGING_TIMEOUT_MS = 30_000L
-        const val STATS_POLL_INTERVAL_MS = 4_000L
         /** TURN 短期凭据 TTL 1h：每 30 分钟刷新一次，留足余量（8.35）。 */
-        const val ICE_REFRESH_INTERVAL_MS = 30L * 60L * 1_000L
     }
 
     /**
@@ -160,6 +153,19 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun stopForegroundService() {
         callSystemIntegration.stopCallForeground()
+    }
+
+    private val timersController by lazy {
+        CallSessionTimersController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            webRTCManager = { webRTCManager },
+            activeCallSession = { activeCallSession },
+            callSessionGate = callSessionGate,
+            token = { token },
+            onLogAnswered = { writeCallLog(com.maodouchat.call.CallLogStore.State.ANSWERED) },
+        )
     }
 
     init {
@@ -294,8 +300,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     groupReconnectJobs.remove(userId)?.cancel()
                     ringingTimeoutJob?.cancel()
                     _uiState.update { it.copy(callState = CallState.CONNECTED, isInitializing = false) }
-                    startDurationTimer()
-                    startNetworkStatsPolling()
+                    timersController.startDurationTimer()
+                    timersController.startNetworkStatsPolling()
                 }
                 GroupPeerConnectionState.RECONNECTING -> {
                     if (groupReconnectJobs[userId]?.isActive != true) {
@@ -549,8 +555,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     isInitializing = false,
                 )
             }
-            startDurationTimer()
-            startNetworkStatsPolling()
+            timersController.startDurationTimer()
+            timersController.startNetworkStatsPolling()
             return
         }
         val current = _uiState.value
@@ -1393,24 +1399,19 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         callSessionMachine.beginEnding(activeDomainSession)
         callSessionGate.invalidate(activeCallSession)
         val contactId = _uiState.value.contactId
-        durationJob?.cancel()
+        timersController.cancelTimers()
         pollingJob?.cancel()
         webSocketJob?.cancel()
         ringingTimeoutJob?.cancel()
-        networkStatsJob?.cancel()
         iceReconnectJob?.cancel()
-        iceRefreshJob?.cancel()
         groupReconnectJobs.values.forEach(Job::cancel)
         groupReconnectJobs.clear()
         groupInviteTimeoutJobs.values.forEach(Job::cancel)
         groupInviteTimeoutJobs.clear()
-        durationJob = null
         pollingJob = null
         webSocketJob = null
         ringingTimeoutJob = null
-        networkStatsJob = null
         iceReconnectJob = null
-        iceRefreshJob = null
 
         mediaBridge.release()
         pendingOfferSdp = null
@@ -1487,63 +1488,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
      * 定期读取 PeerConnection 的 RTC 统计，估算当前链路质量，结果写入 networkStats。
      * 不阻塞 UI，主观评价值 GOOD/FAIR/POOR。
      */
-    private fun startNetworkStatsPolling() {
-        if (networkStatsJob?.isActive == true) return
-        val session = activeCallSession
-        networkStatsJob = viewModelScope.launch {
-            while (callSessionGate.isCurrent(session) && _uiState.value.callState == CallState.CONNECTED) {
-                val stats = webRTCManager?.getConnectionStatsSnapshot()
-                val mapped = when (
-                    CallNetworkQualityPolicy.fromStats(
-                        rttMs = stats?.rttMs,
-                        packetLossPercent = stats?.packetLossPercent
-                    )
-                ) {
-                    CallNetworkQualityPolicy.Level.GOOD -> NetworkQuality.GOOD
-                    CallNetworkQualityPolicy.Level.FAIR -> NetworkQuality.FAIR
-                    CallNetworkQualityPolicy.Level.POOR -> NetworkQuality.POOR
-                    CallNetworkQualityPolicy.Level.UNKNOWN -> NetworkQuality.UNKNOWN
-                }
-                if (_uiState.value.networkStats != mapped) {
-                    _uiState.update { it.copy(networkStats = mapped) }
-                }
-                delay(STATS_POLL_INTERVAL_MS)
-            }
-        }
-    }
-
-    private fun startDurationTimer() {
-        if (durationJob?.isActive == true) return
-        // 8.52：接通即回写通话记录为「已接」（幂等，ICE 重连恢复再次触发无副作用）
-        writeCallLog(com.maodouchat.call.CallLogStore.State.ANSWERED)
-        // 基于真实 elapsedRealtime 计算已连接秒数，避免 delay(1000) 累积漂移
-        val connectedAtMs = SystemClock.elapsedRealtime()
-        val session = activeCallSession
-        durationJob = viewModelScope.launch {
-            while (callSessionGate.isCurrent(session) && _uiState.value.callState == CallState.CONNECTED) {
-                val elapsedSec = ((SystemClock.elapsedRealtime() - connectedAtMs) / 1000).toInt()
-                val min = elapsedSec / 60
-                val sec = elapsedSec % 60
-                _uiState.update { it.copy(duration = "%02d:%02d".format(min, sec)) }
-                delay(1000)
-            }
-        }
-        // 8.35：TURN 短期凭据 1 小时过期后断线重连会因旧凭据失败——通话中每 30 分钟
-        // 重新获取 ICE 配置并热替换（新 PeerConnection / 重建使用新凭据）
-        iceRefreshJob?.cancel()
-        iceRefreshJob = viewModelScope.launch {
-            while (callSessionGate.isCurrent(session) && _uiState.value.callState == CallState.CONNECTED) {
-                delay(ICE_REFRESH_INTERVAL_MS)
-                if (!callSessionGate.isCurrent(session) || _uiState.value.callState != CallState.CONNECTED) break
-                val manager = webRTCManager ?: continue
-                val liveToken = token
-                if (liveToken.isBlank()) continue
-                val fresh = WebRTCSignaling.fetchIceServers(liveToken).getOrNull() ?: continue
-                manager.refreshIceServers(fresh)
-                _uiState.update { it.copy(iceStunOnly = CallIceServer.isStunOnly(fresh)) }
-            }
-        }
-    }
 
     /**
      * hang-up 走 applicationScope + REST 优先，避免 ViewModel 销毁后 viewModelScope 被取消导致对端一直响铃。
@@ -1603,11 +1547,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // 仍在通话中则必须通知对端；hang-up 用 applicationScope，不依赖即将取消的 viewModelScope
         val shouldNotifyPeer = _uiState.value.callState != CallState.IDLE &&
             _uiState.value.callState != CallState.DISCONNECTED
-        durationJob?.cancel()
+        timersController.cancelTimers()
         pollingJob?.cancel()
         webSocketJob?.cancel()
         ringingTimeoutJob?.cancel()
-        networkStatsJob?.cancel()
         iceReconnectJob?.cancel()
         // 8.46 修复：无条件停止前台服务——若已有挂断在途（endingCall=true），endCall 开头
         // 直接 return，末尾的 stopForegroundService() 被跳过，通话前台通知/服务残留到系统回收。
