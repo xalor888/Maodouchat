@@ -18,7 +18,6 @@ import com.maodouchat.group.toUi
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.network.SenderKeyDistributionStatusDto
-import com.maodouchat.util.ImagePicker
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,8 +29,6 @@ import kotlinx.coroutines.withContext
 import com.maodouchat.group.GroupLifecycleCoordinator
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.group.GroupMutationAction
-import com.maodouchat.group.GroupMutationFeedback
-import com.maodouchat.group.GroupMutationFeedbackKind
 import com.maodouchat.group.GroupMutationFeedbackPolicy
 
 class GroupDetailViewModel(
@@ -409,6 +406,7 @@ class GroupDetailViewModel(
             groupLifecycleService = groupLifecycleService,
             onCommitted = { message -> load(message) },
             pendingRetrySet = { retry -> pendingRetry = retry },
+            application = getApplication(),
         )
     }
 
@@ -520,104 +518,9 @@ class GroupDetailViewModel(
         }
     }
 
-    fun uploadGroupAvatar(uri: Uri) {
-        if (!_uiState.value.canManageGroup) return
-        if (token.isBlank() || chatId.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    isUploadingAvatar = false,
-                    message = text(R.string.error_session_expired),
-                    feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                        GroupMutationAction.AVATAR,
-                        IllegalStateException(text(R.string.error_session_expired))
-                    )
-                )
-            }
-            return
-        }
-        val avatarOwnerUserId = currentUserId
-        viewModelScope.launch {
-            _uiState.update { it.copy(isUploadingAvatar = true, message = null, feedback = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = avatarOwnerUserId,
-                )
-                ) {
-                    _uiState.update {
-                        it.copy(
-                            isUploadingAvatar = false,
-                            message = text(R.string.error_session_expired),
-                            feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                                GroupMutationAction.AVATAR,
-                                IllegalStateException(text(R.string.error_session_expired))
-                            )
-                        )
-                    }
-                    return@launch
-                }
-                val base64 = withContext(Dispatchers.IO) {
-                    ImagePicker.uriToBase64(getApplication(), uri, maxWidth = 800, quality = 84)
-                }
-                if (base64 == null) {
-                    pendingRetry = { uploadGroupAvatar(uri) }
-                    val fb = GroupMutationFeedback(
-                        kind = GroupMutationFeedbackKind.ERROR_RETRYABLE,
-                        action = GroupMutationAction.AVATAR,
-                        detail = text(R.string.settings_image_process_failed),
-                        canRetry = true,
-                        shouldReload = false
-                    )
-                    _uiState.update {
-                        it.copy(isUploadingAvatar = false, message = fb.detail, feedback = fb)
-                    }
-                    return@launch
-                }
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = avatarOwnerUserId,
-                )
-                ) {
-                    _uiState.update {
-                        it.copy(
-                            isUploadingAvatar = false,
-                            message = text(R.string.error_session_expired),
-                            feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                                GroupMutationAction.AVATAR,
-                                IllegalStateException(text(R.string.error_session_expired))
-                            )
-                        )
-                    }
-                    return@launch
-                }
-                groupLifecycleService.uploadAvatar(chatId, base64).fold(
-                    onSuccess = { url ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = avatarOwnerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        pendingRetry = null
-                        _uiState.update { it.copy(groupAvatar = url, isUploadingAvatar = false) }
-                        load(text(R.string.group_detail_avatar_updated))
-                    },
-                    onFailure = { error ->
-                        val fb = GroupMutationFeedbackPolicy.fromThrowable(GroupMutationAction.AVATAR, error)
-                        pendingRetry = { uploadGroupAvatar(uri) }
-                        _uiState.update {
-                            it.copy(
-                                isUploadingAvatar = false,
-                                message = fb.detail ?: text(R.string.group_detail_avatar_failed),
-                                feedback = fb
-                            )
-                        }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isUploadingAvatar = false) }
-                throw error
-            }
-        }
-    }
+    // G365：头像上传（AVATAR 变更）并入 GroupMutationController（纯搬移不改判断）。
+    fun uploadGroupAvatar(uri: Uri) = mutationController.uploadGroupAvatar(uri)
+
 
 
     fun redistributeSenderKey() {
