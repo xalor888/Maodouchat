@@ -675,4 +675,54 @@ class SemanticsAuditTest {
         // 实测 4 个可点击；阈值取下界 3；标题已加 heading()。
         assertClean("grouppk", minClickables = 3, minHeadings = 1)
     }
+    // ---------- 第三十七~四十一屏：探索/联系人补充族（2026-09-29 扩面四） ----------
+
+    @Test
+    fun nearbyScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.explore.NearbyScreen()
+        }
+        // 实测 4 个可点击（返回 + 开关 + 权限/空态动作）；阈值取下界 3。
+        assertClean("nearby", minClickables = 3)
+    }
+
+    @Test
+    fun authorProfileScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.explore.AuthorProfileScreen(authorId = "audit-author-1")
+        }
+        // 实测 3 个可点击（返回 + 关注/发消息等空态动作）；阈值取下界 2。
+        assertClean("authorprofile", minClickables = 2)
+    }
+
+    @Test
+    fun postDetailScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.explore.PostDetailScreen(postId = "audit-post-1")
+        }
+        // 实测 3 个可点击（返回 + 点赞/评论等）；阈值取下界 2。
+        assertClean("postdetail", minClickables = 2)
+    }
+
+    @Test
+    fun joinGroupInviteScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.contacts.JoinGroupInviteScreen(
+                inviteCode = "audit-invite-1",
+                onBack = {},
+                onJoined = {},
+            )
+        }
+        // 实测 2 个可点击（返回 + 重试/加入）；阈值取下界 2。
+        assertClean("joingroupinvite", minClickables = 2)
+    }
+
+    @Test
+    fun developerBotsScreenSemanticsAreClean() {
+        compose.setContent {
+            com.maodouchat.ui.screen.settings.DeveloperBotsScreen(onBack = {})
+        }
+        // 实测 4 个可点击（返回 + 机器人行等）；阈值取下界 3。
+        assertClean("developerbots", minClickables = 3)
+    }
 }

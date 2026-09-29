@@ -64,6 +64,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -164,6 +166,10 @@ fun NearbyScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // 无障碍：开关是这一行唯一的可点目标——挂行标题，TalkBack 读「开关」时带出状态名。
+            val sharingLabel = stringResource(
+                if (state.isSharing) R.string.explore_nearby_visible else R.string.explore_nearby_disabled
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -181,8 +187,7 @@ fun NearbyScreen(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        if (state.isSharing) stringResource(R.string.explore_nearby_visible)
-                        else stringResource(R.string.explore_nearby_disabled),
+                        sharingLabel,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -195,6 +200,7 @@ fun NearbyScreen(
                 Switch(
                     checked = state.isSharing,
                     enabled = !state.isLoading,
+                    modifier = Modifier.semantics { contentDescription = sharingLabel },
                     onCheckedChange = { enabled ->
                         if (!enabled) viewModel.stopSharing()
                         else if (com.maodouchat.util.LocationProvider.hasLocationPermission(context)) viewModel.enableSharing()
