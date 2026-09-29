@@ -37,8 +37,6 @@ class SettingsViewModel @JvmOverloads constructor(
 
     private var profileSaveJob: Job? = null
     private var avatarUploadJob: Job? = null
-    private var blockedUsersLoadJob: Job? = null
-    private var blockedUsersMutationJob: Job? = null
     private var privacySaveJob: Job? = null
     private var loadedPrivacy: LoadedPrivacy? = null
     private val dirtyPrivacyFields = mutableSetOf<PrivacyField>()
@@ -449,52 +447,21 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun closeBlockedUsers() { _uiState.update { it.copy(showBlockedUsersDialog = false) } }
 
-    fun loadBlockedUsers() {
-        blockedUsersLoadJob?.cancel()
-        blockedUsersLoadJob = viewModelScope.launch {
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-                _uiState.update {
-                    it.copy(isLoadingBlockedUsers = false, errorMessage = text(R.string.error_session_expired))
-                }
-                return@launch
-            }
-            _uiState.update { it.copy(isLoadingBlockedUsers = true, errorMessage = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    if (com.maodouchat.session.CurrentSession.snapshot().userId == ownerUserId) {
-                        _uiState.update {
-                            it.copy(isLoadingBlockedUsers = false, errorMessage = text(R.string.error_session_expired))
-                        }
-                    }
-                    return@launch
-                }
-                accountApi.blockedUserDetails().fold(
-                    onSuccess = { users ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update { it.copy(blockedUsers = users, isLoadingBlockedUsers = false) }
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(ownerUserId)) return@fold
-                        _uiState.update { it.copy(isLoadingBlockedUsers = false, errorMessage = error.message ?: text(R.string.settings_blocked_load_failed)) }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(ownerUserId)) {
-                    _uiState.update { it.copy(isLoadingBlockedUsers = false) }
-                }
-                throw error
-            }
-        }
+    // G357：「黑名单」管理抽到 SettingsBlockedUsersController（纯搬移不改判断）。
+    private val blockedUsersController by lazy {
+        SettingsBlockedUsersController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            isCurrentOwner = { owner -> isCurrentOwner(owner) },
+        )
     }
+
+    fun loadBlockedUsers() = blockedUsersController.loadBlockedUsers()
+
+    fun unblockUser(userId: String) = blockedUsersController.unblockUser(userId)
+
 
     fun removeAvatar() {
         if (avatarUploadJob?.isActive == true || _uiState.value.userAvatar.isNullOrBlank()) return
@@ -544,48 +511,6 @@ class SettingsViewModel @JvmOverloads constructor(
         }
     }
 
-    fun unblockUser(userId: String) {
-        if (blockedUsersMutationJob?.isActive == true) return
-        blockedUsersMutationJob = viewModelScope.launch {
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }; return@launch }
-            _uiState.update { it.copy(isUpdatingBlockedUsers = true, errorMessage = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                accountApi.unblock(userId = userId).fold(
-                    onSuccess = {
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                        )
-                        ) {
-                            return@fold
-                        }
-                        _uiState.update {
-                            it.copy(
-                                blockedUsers = it.blockedUsers.filterNot { user -> user.id == userId },
-                                isUpdatingBlockedUsers = false,
-                                successMessage = text(R.string.settings_unblocked)
-                            )
-                        }
-                    },
-                    onFailure = { error ->
-                        if (!isCurrentOwner(ownerUserId)) return@fold
-                        _uiState.update { it.copy(isUpdatingBlockedUsers = false, errorMessage = error.message ?: text(R.string.chat_unblock_failed)) }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                if (isCurrentOwner(ownerUserId)) {
-                    _uiState.update { it.copy(isUpdatingBlockedUsers = false) }
-                }
-                throw error
-            }
-        }
-    }
 
     // G356：「我的设备」管理抽到 SettingsDeviceController（纯搬移不改判断）。
     private val deviceController by lazy {
