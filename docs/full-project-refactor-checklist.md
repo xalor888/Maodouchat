@@ -2771,3 +2771,16 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   VM 持有（load 也用它取状态），经构造器注入共享；pendingRetry 经 set lambda 共享；
 - VM 删 2 个随迁死 import；上限两份 map 收紧 703 → 597；
 - **里程碑**：`GroupDetailViewModel` **960 → 800 → 703 → 597**（三个控制器）。
+
+### 第十三轮续四十八（2026-09-29，G367）：`GroupDetailViewModel` 的群邀请拉取/轮换抽出（597 → 528，PR #220）
+
+- `loadGroupInvite`（86 行：功能开关 → 门禁 → 拉取/轮换 → 状态写回 / 重试登记）逐字抽到
+  `GroupInviteLoadController`；`groupInviteController` 所有权内聚；
+- VM 删 1 个随迁死 import（RuntimeFlags）；上限两份 map 收紧 597 → 528。
+
+### 第十三轮续四十九（2026-09-29，G368）：`GroupDetailViewModel` 的实时事件观察抽出（528 → 444，PR #222）
+
+- `observeRealtimeChanges`（97 行：Presence 可见性写回 / GroupRevision 失效 sender key +
+  重载）逐字抽到 `GroupDetailRealtimeObserver`，在 VM 的 init 处启动（lazy 装配）；
+- VM 删 1 个随迁死 import（RealtimeDomainEvent）；上限两份 map 收紧 528 → 444；
+- **里程碑**：`GroupDetailViewModel` **960 → 800 → 703 → 597 → 528 → 513 → 444**（六个控制器）。
