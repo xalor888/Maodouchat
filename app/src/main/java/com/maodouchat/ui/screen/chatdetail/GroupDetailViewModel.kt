@@ -6,7 +6,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.group.DefaultGroupLifecycleService
 import com.maodouchat.group.GroupAuditController
 import com.maodouchat.group.GroupBotController
@@ -89,108 +88,25 @@ class GroupDetailViewModel(
     private val _uiState = MutableStateFlow(GroupDetailUiState(currentUserId = currentUserId))
     val uiState: StateFlow<GroupDetailUiState> = _uiState.asStateFlow()
 
-    init {
-        load()
-        observeRealtimeChanges()
+    private val realtimeObserver by lazy {
+        GroupDetailRealtimeObserver(
+            scope = viewModelScope,
+            application = getApplication(),
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            chatId = { chatId },
+            ownerUserId = { currentUserId },
+            groupMessagingCoordinator = groupMessagingCoordinator,
+            onRevisionReload = { load() },
+        )
     }
 
-    private fun observeRealtimeChanges() {
-        val revisionOwnerUserId = currentUserId
-        // ui 不直接依赖 app 单例：实时事件分发器经 AppRuntime 取（非本应用实例 → 不订阅，
-        // 与原 `as MaodouchatApp` 的生产语义一致；测试替身下静默跳过）。
-        val eventsFlow = com.maodouchat.session.AppRuntime
-            .realtimeDispatcherOrNull(getApplication())
-            ?.allEvents ?: return
-        viewModelScope.launch {
-            eventsFlow.collect { event ->
-                if (
-                    revisionOwnerUserId.isBlank() ||
-                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = revisionOwnerUserId,
-                    )
-                ) {
-                    return@collect
-                }
-                if (event is RealtimeDomainEvent.Presence) {
-                    if (event.onlineRevoked || event.statusRevoked) {
-                        com.maodouchat.data.repository.AppRepositories.users.applyRealtimeVisibility(
-                            userId = event.userId,
-                            isOnline = event.isOnline,
-                            onlineRevoked = event.onlineRevoked,
-                            statusRevoked = event.statusRevoked,
-                            updatedAt = System.currentTimeMillis()
-                        )
-                    }
-                    _uiState.update { state ->
-                        state.copy(
-                            members = state.members.map { member ->
-                                if (member.userId != event.userId) {
-                                    member
-                                } else {
-                                    val visibility = com.maodouchat.network.resolveUserVisibility(
-                                        currentIsOnline = member.isOnline,
-                                        currentStatus = "",
-                                        currentLastSeen = 0L,
-                                        eventIsOnline = event.isOnline,
-                                        eventLastSeen = event.lastSeen,
-                                        onlineRevoked = event.onlineRevoked,
-                                        statusRevoked = event.statusRevoked
-                                    )
-                                    member.copy(
-                                        isOnline = visibility.isOnline
-                                    )
-                                }
-                            },
-                            candidates = state.candidates.map { candidate ->
-                                if (candidate.id != event.userId) {
-                                    candidate
-                                } else {
-                                    val visibility = com.maodouchat.network.resolveUserVisibility(
-                                        currentIsOnline = candidate.isOnline,
-                                        currentStatus = candidate.status,
-                                        currentLastSeen = candidate.lastSeen,
-                                        eventIsOnline = event.isOnline,
-                                        eventLastSeen = event.lastSeen,
-                                        onlineRevoked = event.onlineRevoked,
-                                        statusRevoked = event.statusRevoked
-                                    )
-                                    candidate.copy(
-                                        isOnline = visibility.isOnline,
-                                        status = visibility.status,
-                                        lastSeen = visibility.lastSeen
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
-                if (event is RealtimeDomainEvent.GroupRevision && event.chatId == chatId) {
-                    if (event.memberRevision > _uiState.value.memberRevision) {
-                        withContext(Dispatchers.IO) {
-                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = revisionOwnerUserId,
-                            )
-                            ) {
-                                return@withContext
-                            }
-                            groupMessagingCoordinator.invalidateSenderKey(
-                                chatId,
-                                revisionOwnerUserId,
-                                event.memberRevision,
-                            )
-                        }
-                    }
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = revisionOwnerUserId,
-                    )
-                    ) {
-                        return@collect
-                    }
-                    load()
-                }
-            }
-        }
+
+    init {
+        load()
+        realtimeObserver.start()
     }
+
 
     /** Last failed mutation params so the error dialog can offer a real retry. */
     private var pendingRetry: (() -> Unit)? = null

@@ -2750,7 +2750,42 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - §0 复核·七版：Server 单测标注随 Q01 fuzz 系列升至 697（681 基准 + sendVoice 8 + 本轮 sendPhoto 8）。
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
 
-### 第十三轮续四十六（2026-09-29）：bot `sendLocation` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七块）
+### 第十三轮续四十五（2026-09-29，G364）：`GroupDetailViewModel` 第一个控制器切片——「群变更」一族抽出（960 → 800，PR #216）
+
+- 10 个公开变更入口（改名 / 公告 / 昵称 / 增删成员 / 角色 / 转让群主 / 头衔 / 单人禁言 /
+  全员禁言）+ `updateGroup` 执行器（约 160 行）逐字抽到 `GroupMutationController`；
+- `pendingRetry` 仍由 VM 持有（load / loadGroupInvite / uploadGroupAvatar /
+  redistributeSenderKey 也写它），经 set lambda 共享；提交成功后经 `onCommitted` 回调 `load`；
+- VM 删 5 个随迁/既有死 import；上限两份 map 收紧 960 → 800。
+
+### 第十三轮续四十六（2026-09-29，G365）：`GroupDetailViewModel` 头像上传并入变更控制器（800 → 703，PR #217）
+
+- `uploadGroupAvatar`（98 行，AVATAR 变更）逐字并入 `GroupMutationController`；控制器新增
+  `application` 依赖（头像转码）；
+- VM 删 3 个随迁死 import；上限两份 map 收紧 800 → 703。
+
+### 第十三轮续四十七（2026-09-29，G366）：`GroupDetailViewModel` 的 sender key 维护一族抽出（703 → 597，PR #219）
+
+- `redistributeSenderKey` / `maybeAutoRedistributeSenderKey` / `showSenderKeyMaintenanceFailure`
+  （122 行）逐字抽到 `SenderKeyMaintenanceController`；`groupEncryptionHealthController` 仍由
+  VM 持有（load 也用它取状态），经构造器注入共享；pendingRetry 经 set lambda 共享；
+- VM 删 2 个随迁死 import；上限两份 map 收紧 703 → 597；
+- **里程碑**：`GroupDetailViewModel` **960 → 800 → 703 → 597**（三个控制器）。
+
+### 第十三轮续四十八（2026-09-29，G367）：`GroupDetailViewModel` 的群邀请拉取/轮换抽出（597 → 528，PR #220）
+
+- `loadGroupInvite`（86 行：功能开关 → 门禁 → 拉取/轮换 → 状态写回 / 重试登记）逐字抽到
+  `GroupInviteLoadController`；`groupInviteController` 所有权内聚；
+- VM 删 1 个随迁死 import（RuntimeFlags）；上限两份 map 收紧 597 → 528。
+
+### 第十三轮续四十九（2026-09-29，G368）：`GroupDetailViewModel` 的实时事件观察抽出（528 → 444，PR #222）
+
+- `observeRealtimeChanges`（97 行：Presence 可见性写回 / GroupRevision 失效 sender key +
+  重载）逐字抽到 `GroupDetailRealtimeObserver`，在 VM 的 init 处启动（lazy 装配）；
+- VM 删 1 个随迁死 import（RealtimeDomainEvent）；上限两份 map 收紧 528 → 444；
+- **里程碑**：`GroupDetailViewModel` **960 → 800 → 703 → 597 → 528 → 513 → 444**（六个控制器）。
+
+### 第十三轮续五十一（2026-09-29）：bot `sendLocation` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七块）
 
 - `/api/bot/sendLocation` 内联解析抽入 `BotSendLocationParse.kt` 纯函数
   （`parseBotSendLocationFields` / `buildBotLocationContent`，处理器只剩调用 + 字段映射，逐行等价）；
