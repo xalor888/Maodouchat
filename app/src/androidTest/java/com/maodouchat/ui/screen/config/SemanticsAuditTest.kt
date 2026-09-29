@@ -486,7 +486,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.contacts.MyQrCodeScreen()
         }
         // 实测 8 个可点击（返回 + 保存/分享等）；阈值取下界 6。
-        assertClean("myqrcode", minClickables = 6)
+        assertClean("myqrcode", minClickables = 6, minHeadings = 1)
     }
 
     @Test
@@ -495,7 +495,7 @@ class SemanticsAuditTest {
             com.maodouchat.ui.screen.contacts.ScanScreen()
         }
         // 实测本机 4 个可点击（返回 + 手电/相册等）、CI 模拟器 2 个（无摄像头能力降级）；阈值取下界 2。
-        assertClean("scan", minClickables = 2)
+        assertClean("scan", minClickables = 2, minHeadings = 1)
     }
 
     @Test
