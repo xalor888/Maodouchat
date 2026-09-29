@@ -97,7 +97,6 @@ import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -343,7 +342,7 @@ fun MediaCenterScreen(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text(stringResource(R.string.media_center_title), color = MaterialTheme.colorScheme.onSurface) },
+                    title = { Text(stringResource(R.string.media_center_title), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.headingSemantics()) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)

@@ -401,7 +401,7 @@ class ClientArchitectureTest {
         // **盲带**里——可以在无人知晓的情况下从 1000 长到 1100，只有越过 1100
         // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1049,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1048,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
@@ -466,7 +466,7 @@ class ClientArchitectureTest {
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
         // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 1050,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1049,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1048,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 960,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,

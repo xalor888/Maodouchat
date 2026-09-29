@@ -17,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -179,3 +181,10 @@ internal fun safetyDetailText(code: String, matched: String?): Pair<Int, String?
         MessageSafetyScanner.CODE_SENSITIVE_DATA -> R.string.chat_safety_sensitive_data to null
         else -> R.string.chat_safety_generic to null
     }
+
+/**
+ * G363：标题语义小助手——给屏级标题挂 `heading()`（TalkBack 标题导航）。
+ * 供零松量上限文件（如 MediaCenterScreen）单 import 使用，避免为两个 semantics import 腾行数。
+ */
+internal fun androidx.compose.ui.Modifier.headingSemantics(): androidx.compose.ui.Modifier =
+    this.semantics { heading() }
