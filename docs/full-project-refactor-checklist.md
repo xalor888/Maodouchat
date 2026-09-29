@@ -19,7 +19,7 @@
 | 工作区脏项 | 0 | `git status --porcelain \| wc -l` |
 | App JVM 单测（执行数） | 2173（09-24: 2129） | `./gradlew :app:testDebugUnitTest` 后读 `app/build/test-results/testDebugUnitTest/*.xml` |
 | App 仪器测试 | **275**（`@Test` 计数；09-24: 156；语义审计扩面五批 +30） | `grep -rho "@Test" app/src/androidTest --include='*.kt' \| wc -l` |
-| Server 单测（执行数） | **约 656 执行 / 697 `@Test` 标注**（09-24: 578/603；本日 Q01 fuzz 系列 +52 标注，执行数以默认套件实测为准） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
+| Server 单测（执行数） | **约 656 执行 / 712 `@Test` 标注**（09-24: 578/603；本日 Q01 fuzz 系列 +67 标注，执行数以默认套件实测为准） | `cd server && ../gradlew test` 后读 `server/build/test-results/test/*.xml` |
 | core/domain 模块测试（执行数） | 68（不变） | `./gradlew test -x :app:test` 后读各模块 `build/test-results/test/*.xml` |
 | 有测试源文件的模块 | 9 个（不变） | `ClientArchitectureTest.modulesWithTests`（G328c 从 5 个增到 9 个） |
 | `settings.gradle.kts` 模块数 | 10（app + 8 core + 1 domain） | `grep -c '":' settings.gradle.kts`（include 块多行写法，旧的 `include(` 计数已失效） |
@@ -2784,3 +2784,23 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   重载）逐字抽到 `GroupDetailRealtimeObserver`，在 VM 的 init 处启动（lazy 装配）；
 - VM 删 1 个随迁死 import（RealtimeDomainEvent）；上限两份 map 收紧 528 → 444；
 - **里程碑**：`GroupDetailViewModel` **960 → 800 → 703 → 597 → 528 → 513 → 444**（六个控制器）。
+
+### 第十三轮续五十（2026-09-29）：bot `sendVideo` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六块）
+
+- `/api/bot/sendVideo` 内联解析抽入 `BotSendVideoParse.kt` 纯函数
+  （`parseBotSendVideoFields` / `measureBotVideoSize` / `buildBotVideoContent` +
+  `BOT_VIDEO_MAX_BYTES`，处理器只剩调用 + 字段映射，逐行等价）；
+- 新增 `BotSendVideoParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略恒等断言 + 体积测量一致、
+  缺省值钉住（caption 缺省→`""`、duration 缺省/非数字→`0`）、
+  `videoBase64`→`fileBase64`→`data` 与 `duration`→`durationSec` 别名优先级 + 近似字段名反证、
+  3 例坏类型大声失败反证（对象/数组型 chatId、videoBase64、caption →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400「参数无效」，不是 500）
+  + 钉住 duration 显式 null → 回 0（`JsonNull` 本就是 `JsonPrimitive`，
+  `.content` 为 `"null"` 字符串，`toIntOrNull() ?: 0`，与原处理器逐字一致——
+  2026-09-29 20:40 修 CI：初版测试误断言为抛错，687 测中 1 红，已修正断言与 KDoc，生产代码零改动）、caption 500 截断、
+  data-URI 前缀剥离与空白剔除、坏 base64 → 量出 0 不报错
+  （宽容语义，与 sendVoice 一致、与 sendPhoto 的 400 `invalid base64` 故意不同，特意钉住）、
+  12MB 边界、内容模板形状 + 4000 截断；
+- 与 open PR（#217 用户自己的 GroupDetail 切片 + dependabot 若干）无文件交集；
+- §0 复核·八版：Server 单测标注随 Q01 fuzz 系列升至 712（697 基准 + 本轮 sendVideo 8）。
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
