@@ -7,7 +7,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.realtime.RealtimeDomainEvent
-import com.maodouchat.data.model.User
 import com.maodouchat.group.DefaultGroupLifecycleService
 import com.maodouchat.group.GroupAuditController
 import com.maodouchat.group.GroupBotController
@@ -15,12 +14,9 @@ import com.maodouchat.group.GroupDetailAccess
 import com.maodouchat.group.GroupEncryptionHealthController
 import com.maodouchat.group.GroupInviteController
 import com.maodouchat.group.GroupLifecycleService
-import com.maodouchat.group.GroupMemberUi
-import com.maodouchat.group.GroupOwnedBotUi
 import com.maodouchat.group.toUi
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
-import com.maodouchat.network.GroupAuditLogDto
 import com.maodouchat.network.SenderKeyDistributionStatusDto
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.util.RuntimeFlags
@@ -32,7 +28,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.group.GroupLifecycleCoordinator
-import com.maodouchat.group.GroupMutationCommit
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.group.GroupMutationAction
 import com.maodouchat.group.GroupMutationFeedback
@@ -401,27 +396,42 @@ class GroupDetailViewModel(
     private fun isCurrentAuditOwner(expected: String): Boolean =
         expected.isNotBlank() && com.maodouchat.session.CurrentSession.snapshot().userId == expected
 
-    fun renameGroup(name: String) {
-        val trimmed = name.trim()
-        updateGroup(
-            action = GroupMutationAction.RENAME,
-            successMessage = text(R.string.chat_group_name_updated),
-            retry = { renameGroup(trimmed) }
-        ) { groupLifecycleService.updateGroupInfo(chatId, name = trimmed, announcement = null, avatar = null) }
+    // G364：群变更一族抽到 GroupMutationController（纯搬移不改判断）。
+    private val mutationController by lazy {
+        GroupMutationController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            textFn = { id, args -> text(id, *args) },
+            chatId = { chatId },
+            token = { token },
+            ownerUserId = { currentUserId },
+            groupLifecycleService = groupLifecycleService,
+            onCommitted = { message -> load(message) },
+            pendingRetrySet = { retry -> pendingRetry = retry },
+        )
     }
 
-    fun updateAnnouncement(announcement: String) {
-        val trimmed = announcement.trim()
-        updateGroup(
-            action = GroupMutationAction.ANNOUNCEMENT,
-            successMessage = if (trimmed.isBlank()) {
-                text(R.string.group_detail_announcement_cleared)
-            } else {
-                text(R.string.chat_group_announcement_updated)
-            },
-            retry = { updateAnnouncement(trimmed) }
-        ) { groupLifecycleService.updateGroupInfo(chatId, name = null, announcement = trimmed, avatar = null) }
-    }
+    fun renameGroup(name: String) = mutationController.renameGroup(name)
+
+    fun updateAnnouncement(announcement: String) = mutationController.updateAnnouncement(announcement)
+
+    fun setMyNickname(nickname: String) = mutationController.setMyNickname(nickname)
+
+    fun addMember(userId: String) = mutationController.addMember(userId)
+
+    fun removeMember(userId: String) = mutationController.removeMember(userId)
+
+    fun updateRole(userId: String, role: String) = mutationController.updateRole(userId, role)
+
+    fun transferOwnership(userId: String) = mutationController.transferOwnership(userId)
+
+    fun updateTitle(userId: String, title: String) = mutationController.updateTitle(userId, title)
+
+    fun updateMemberMute(userId: String, mutedUntil: Long) = mutationController.updateMemberMute(userId, mutedUntil)
+
+    fun muteAllMembers(mutedUntil: Long) = mutationController.muteAllMembers(mutedUntil)
+
 
     fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) {
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.GROUP_INVITES)) {
@@ -609,82 +619,6 @@ class GroupDetailViewModel(
         }
     }
 
-    fun setMyNickname(nickname: String) {
-        val trimmed = nickname.trim()
-        updateGroup(
-            action = GroupMutationAction.NICKNAME,
-            successMessage = text(R.string.chat_group_nickname_updated),
-            retry = { setMyNickname(trimmed) }
-        ) { groupLifecycleService.updateMyNickname(chatId, trimmed) }
-    }
-
-    fun addMember(userId: String) {
-        updateGroup(
-            action = GroupMutationAction.ADD_MEMBER,
-            successMessage = text(R.string.chat_group_member_added_key),
-            retry = { addMember(userId) }
-        ) { groupLifecycleService.addMembers(chatId, listOf(userId)) }
-    }
-
-    fun removeMember(userId: String) {
-        if (userId == currentUserId) return
-        updateGroup(
-            action = GroupMutationAction.REMOVE_MEMBER,
-            successMessage = text(R.string.chat_group_member_removed_key),
-            retry = { removeMember(userId) }
-        ) { groupLifecycleService.removeMember(chatId, userId) }
-    }
-
-    fun updateRole(userId: String, role: String) {
-        updateGroup(
-            action = GroupMutationAction.ROLE,
-            successMessage = text(R.string.chat_group_role_updated),
-            retry = { updateRole(userId, role) }
-        ) { groupLifecycleService.setRole(chatId, userId, role) }
-    }
-
-    fun transferOwnership(userId: String) {
-        if (!_uiState.value.isOwner || userId == currentUserId) return
-        updateGroup(
-            action = GroupMutationAction.TRANSFER_OWNER,
-            successMessage = text(R.string.group_detail_transfer_success),
-            retry = { transferOwnership(userId) }
-        ) { groupLifecycleService.transferOwnership(chatId, userId) }
-    }
-
-    fun updateTitle(userId: String, title: String) {
-        val trimmed = title.trim()
-        updateGroup(
-            action = GroupMutationAction.TITLE,
-            successMessage = text(R.string.chat_group_title_updated),
-            retry = { updateTitle(userId, trimmed) }
-        ) { groupLifecycleService.setTitle(chatId, userId, trimmed) }
-    }
-
-    fun updateMemberMute(userId: String, mutedUntil: Long) {
-        updateGroup(
-            action = GroupMutationAction.MUTE,
-            successMessage = if (mutedUntil > System.currentTimeMillis()) {
-                text(R.string.group_detail_mute_set)
-            } else {
-                text(R.string.group_detail_mute_cleared)
-            },
-            retry = { updateMemberMute(userId, mutedUntil) }
-        ) { groupLifecycleService.setMemberMute(chatId, userId, mutedUntil) }
-    }
-
-    /** 0.99：全员静音（除群主/管理员）。 */
-    fun muteAllMembers(mutedUntil: Long) {
-        updateGroup(
-            action = GroupMutationAction.MUTE,
-            successMessage = if (mutedUntil > System.currentTimeMillis()) {
-                text(R.string.group_detail_mute_all_set)
-            } else {
-                text(R.string.group_detail_mute_all_cleared)
-            },
-            retry = { muteAllMembers(mutedUntil) }
-        ) { groupLifecycleService.setMuteAll(chatId, muted = mutedUntil > System.currentTimeMillis()) }
-    }
 
     fun redistributeSenderKey() {
         if (chatId.isBlank() || token.isBlank()) {
@@ -825,100 +759,6 @@ class GroupDetailViewModel(
         load()
     }
 
-    private fun updateGroup(
-        action: GroupMutationAction,
-        successMessage: String,
-        retry: (() -> Unit)? = null,
-        mutation: suspend () -> GroupMutationCommit
-    ) {
-        if (_uiState.value.isUpdating) return
-        if (chatId.isBlank() || token.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    isUpdating = false,
-                    message = text(R.string.error_session_expired),
-                    feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                        action,
-                        IllegalStateException(text(R.string.error_session_expired))
-                    )
-                )
-            }
-            return
-        }
-        val mutationOwnerUserId = currentUserId
-        viewModelScope.launch {
-            _uiState.update { it.copy(isUpdating = true, message = null, feedback = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = mutationOwnerUserId,
-                )
-                ) {
-                    _uiState.update {
-                        it.copy(
-                            isUpdating = false,
-                            message = text(R.string.error_session_expired),
-                            feedback = GroupMutationFeedbackPolicy.fromThrowable(
-                                action,
-                                IllegalStateException(text(R.string.error_session_expired))
-                            )
-                        )
-                    }
-                    return@launch
-                }
-                val result = withContext(Dispatchers.IO) {
-                    try {
-                        Result.success(mutation())
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (error: Throwable) {
-                        Result.failure(error)
-                    }
-                }
-                result.fold(
-                    onSuccess = { commit ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = mutationOwnerUserId,
-                        )
-                        ) {
-                            _uiState.update { it.copy(isUpdating = false) }
-                            return@fold
-                        }
-                        pendingRetry = null
-                        _uiState.update { state ->
-                            val refreshed = commit.refreshedChat
-                            state.copy(
-                                groupName = refreshed?.groupName ?: state.groupName,
-                                groupAnnouncement = refreshed?.groupAnnouncement ?: state.groupAnnouncement,
-                                groupAvatar = refreshed?.groupAvatar ?: state.groupAvatar,
-                                memberRevision = refreshed?.memberRevision
-                                    ?.takeIf { it > 0L }
-                                    ?: state.memberRevision,
-                                isUpdating = false,
-                                message = successMessage,
-                                feedback = GroupMutationFeedbackPolicy.success(action, successMessage),
-                            )
-                        }
-                        load(successMessage)
-                    },
-                    onFailure = { error ->
-                        val fb = GroupMutationFeedbackPolicy.fromThrowable(action, error)
-                        // Keep error dialog visible; permission/conflict offer explicit reload, not silent wipe.
-                        pendingRetry = if (fb.canRetry) retry else null
-                        _uiState.update {
-                            it.copy(
-                                isUpdating = false,
-                                message = fb.detail ?: text(R.string.group_detail_operation_failed),
-                                feedback = fb
-                            )
-                        }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isUpdating = false) }
-                throw error
-            }
-        }
-    }
 
     fun inviteOwnedBot(botId: String) {
         if (botId.isBlank() || chatId.isBlank() || _uiState.value.isInvitingBot) return
