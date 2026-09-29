@@ -30,26 +30,12 @@ internal fun Route.configureBotPollRoutes(
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val question = obj["question"]?.jsonPrimitive?.content.orEmpty()
-        val optionsEl = obj["options"]
-        val options = when (optionsEl) {
-            is kotlinx.serialization.json.JsonArray -> optionsEl.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()?.trim()?.takeIf { s -> s.isNotBlank() }
-            }
-            else -> emptyList()
+        val fields = when (val parsed = parseBotSendPollFields(obj)) {
+            is BotSendPollFieldsResult.Ok -> parsed.fields
+            BotSendPollFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/question/options(>=2) required"))
         }
-        val multi = obj["multi"]?.jsonPrimitive?.booleanOrNull
-            ?: obj["allowsMultipleAnswers"]?.jsonPrimitive?.booleanOrNull
-            ?: false
-        val anonymous = obj["anonymous"]?.jsonPrimitive?.booleanOrNull
-            ?: obj["isAnonymous"]?.jsonPrimitive?.booleanOrNull
-            ?: true
-        val closesAt = obj["closesAt"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: obj["closeDate"]?.jsonPrimitive?.content?.toLongOrNull()
-        if (chatId.isBlank() || question.isBlank() || options.size < 2) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/question/options(>=2) required"))
-        }
+        val chatId = fields.chatId
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
@@ -59,29 +45,17 @@ internal fun Route.configureBotPollRoutes(
         val poll = com.maodouchat.server.repository.PollRepository.createPoll(
             chatId = chatId,
             creatorId = bot.id,
-            question = question,
-            options = options,
-            multi = multi,
-            anonymous = anonymous,
-            closesAt = closesAt,
+            question = fields.question,
+            options = fields.options,
+            multi = fields.multi,
+            anonymous = fields.anonymous,
+            closesAt = fields.closesAt,
             requireBotDeliverable = true
         ) ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("poll create failed"))
         // Also drop a bot plaintext summary message so chat history shows the poll.
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val summary = buildString {
-            append("📊 ")
-            append(poll.question)
-            poll.options.forEachIndexed { i, o ->
-                append("\n")
-                append(i + 1)
-                append(". ")
-                append(o)
-            }
-            append("\n[poll:")
-            append(poll.id)
-            append("]")
-        }
+        val summary = buildBotPollSummary(poll.question, poll.options, poll.id)
         runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, summary, now, "TEXT")
         }
