@@ -33,25 +33,18 @@ internal fun Route.configureBotMediaRoutes(
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val emoji = (obj["emoji"] ?: obj["sticker"] ?: obj["text"])?.jsonPrimitive?.content.orEmpty().trim().take(16)
-        val pack = obj["pack"]?.jsonPrimitive?.content.orEmpty().trim().take(40)
-        if (chatId.isBlank() || emoji.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/emoji required"))
+        val fields = when (val r = parseBotSendStickerFields(obj)) {
+            is BotSendStickerFieldsResult.Ok -> r.fields
+            BotSendStickerFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/emoji required"))
         }
+        val chatId = fields.chatId
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = buildString {
-            append(emoji)
-            if (pack.isNotBlank()) {
-                append("\n[stickerPack:")
-                append(pack)
-                append("]")
-            }
-        }
+        val content = buildBotStickerContent(fields.emoji, fields.pack)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "STICKER")
         }.getOrDefault(false)
@@ -66,7 +59,7 @@ internal fun Route.configureBotMediaRoutes(
         buildJsonObject {
 put("ok", true)
 put("messageId", msgId)
-put("emoji", emoji)
+put("emoji", fields.emoji)
 put("type", "STICKER")
         }
     )

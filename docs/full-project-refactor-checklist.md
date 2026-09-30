@@ -2842,6 +2842,26 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - **里程碑**：`GroupDetailViewModel` **960 → 800 → 703 → 597 → 528 → 444 → 319 → 290**
   （五个控制器 + 观察器 + 加载器 + 审计分页）。
 
+### 第十三轮续五十四（2026-09-29）：bot `sendSticker` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第八块）
+
+- `/api/bot/sendSticker` 内联解析抽入 `BotSendStickerParse.kt` 纯函数
+  （`parseBotSendStickerFields` / `buildBotStickerContent`，处理器只剩调用 + 字段映射，逐行等价）；
+- 新增 `BotSendStickerParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略恒等断言、
+  `emoji`→`sticker`→`text` 别名优先级（主字段存在即不穿透，哪怕显式 null——`?:` 接在
+  `jsonPrimitive` 之前，与原处理器逐字一致）+ 近似字段名反证、显式 JSON null 走
+  `.content` 得 `"null"` 的怪语义钉住（`isBlank()` 判不住，零行为改动）、`trim()` 后
+  emoji 16 / pack 40 截断、双必填（`chatId/emoji required`，trim 后全空同样判缺）、
+  4 例坏类型大声失败反证（对象/数组型 chatId、emoji、pack、text →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）、
+  内容模板形状（emoji + 可选 `\n[stickerPack:<pack>]`）；
+- 等价性注意：原处理器响应体 `put("emoji", emoji)` 里的局部 `emoji` 随抽取一并搬入
+  `fields`，已改为 `put("emoji", fields.emoji)`——响应回显的值逐字不变；
+- 与 open PR（#222 bot sendLocation：`BotGeoRouting.kt` + `BotSendLocationParse*.kt` +
+  仪器测试一文件 + dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节
+  **末尾追加**（§0 Server 单测标注行暂不改：#222 的 +8 按其条目约定由复核轮刷新，
+  本轮 +8 同理延后，待两个 PR 依次合并后由复核轮一次性复核）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
 ### 第十三轮续五十五（2026-09-30）：bot `forwardMessage`/`copyMessage` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第十四块）
 
 - `/api/bot/forwardMessage` 与 `/api/bot/copyMessage` 逐字相同的内联解析（`fromChatId`/
