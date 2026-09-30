@@ -3398,3 +3398,50 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续七十四（2026-10-01）：bot `sendJsonCard` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第三十四块）
+
+- 端点 `/api/bot/sendJsonCard` 的处理器内联 `chatId` 抽取 + `payload`
+  （`(obj["json"] ?: obj["data"])?.toString()?.take(500).orEmpty()`：**存在性**
+  回退——只有 `json` 键完全缺席才看 `data`；`json` 在但为显式 null 时仍走
+  `json` 分支得字面 `"null"`（`JsonNull.toString()` 即 `"null"`，**不**被
+  `orEmpty` 吞掉）；关键怪语义是 `?.toString()` **不是** `?.jsonPrimitive`——
+  对象/数组型 `json`/`data` **不抛错**、原样序列化（字符串带引号）；
+  `take(500)` 作用于 `toString()` **之后**）+ **双必填**
+  （`chatId.isBlank() || payload.isBlank()`→400 `"chatId/json required"`，文案逐字）
+  收敛为 `parseBotJsonCardFields` 纯函数（`BotSendJsonCardParse.kt`，处理器只剩
+  调用 + 字段映射，逐行等价——特性开关门控（拒绝文案 `"markdown disabled by admin"`）
+  仍在解析之前、必填（纯函数）→ 成员检查（处理器），抽取顺序 chatId→payload、
+  校验顺序不变；响应体逐字不变，下游一行不动）；
+- 内容组装逐字搬移：`buildBotJsonCardContent`（`"```json\n" + payload + "\n```"`，
+  逐字断言；注意处理器原代码里的 `"```json\n$payload\n```"` 即该拼接形式）；
+- 新增 `BotSendJsonCardParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（三分之一 `json` 缺省钉住 `data` 回退、另三分之一 `json`+`data`
+  同时在场钉住 `json` 分支（`data` 被忽略）、其余全字段抽取；
+  `data` 视为已知字段不得参与随机名；五分之一超长载荷钉住 take(500)
+  作用于 `toString()` 之后）+ 双必填语义（chatId 缺/空/纯空白→MissingRequired；
+  payload 缺（json 与 data 均缺席）→MissingRequired；双合法→Ok，
+  字符串 payload 经 toString 带引号；**注意**：json 空字符串 / data 纯空白字符串
+  经 toString 序列化为带引号串（`""`→`\"\"`、`"   "`→`\"   \"`）非空/非空白，
+  按原处理器逐字语义仍判合法——双必填判的是序列化后串的空白性，特意钉住）+ 上限与特殊语义逐字钉住（payload 超长截
+  500 且作用于 toString 之后（含引号）；`json` 显式 null 得字面 `"null"`、
+  不被 orEmpty 吞掉、不判缺；`json` 键在但为 null 时 `data` 不生效；json 缺席
+  回退到 `data`；JSON 数字/布尔经 toString 原样；对象/数组型 json/data 不抛错
+  且原样序列化进模板；字符串带引号进模板；前导空格计入上限）+
+  内容模板逐字断言（`"```json\n" + payload + "\n```"`；围栏行开头/闭合行结尾；
+  markdown 特殊字符原样进模板）+ 坏类型大声失败反证（对象/数组型 chatId →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  对象/数组型 json、data **必须不抛**——`?.toString()` 而非 `?.jsonPrimitive`，
+  原处理器逐字如此）+ 抽取顺序反证（chatId 空白 + json 对象乱值→仍回
+  MissingRequired 而非抛错；chatId 先于 payload 抽取——chatId 坏类型 + json
+  乱值→抛错；chatId 缺席 + json 显式 null→payload 为字面 `"null"` 仍因
+  chatId 判缺）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（#256 sendBanner 本轮已合，开工时无 open qca PR）；
+  与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

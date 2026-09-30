@@ -293,15 +293,16 @@ put("type", "MARKDOWN")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val payload = (obj["json"] ?: obj["data"])?.toString()?.take(500).orEmpty()
-        if (chatId.isBlank() || payload.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/json required"))
+        val fields = when (val parsed = parseBotJsonCardFields(obj)) {
+            is BotJsonCardFieldsResult.Ok -> parsed.fields
+            BotJsonCardFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/json required"))
         }
+        val chatId = fields.chatId
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "```json\n$payload\n```"
+        val content = buildBotJsonCardContent(fields.payload)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
