@@ -90,21 +90,18 @@ put("starred", starred)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val title = obj["title"]?.jsonPrimitive?.content.orEmpty().take(80)
-        val itemsEl = obj["items"] as? kotlinx.serialization.json.JsonArray
-        val items = itemsEl?.mapNotNull {
-            (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.trim()?.take(80)
-        }?.filter { it.isNotBlank() }?.take(20).orEmpty()
-        if (chatId.isBlank() || items.isEmpty()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/items required"))
+        val fields = when (val parsed = parseBotSendChecklistFields(obj)) {
+            is BotSendChecklistFieldsResult.Ok -> parsed.fields
+            BotSendChecklistFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/items required"))
         }
+        val chatId = fields.chatId
+        val title = fields.title
+        val items = fields.items
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val head = if (title.isNotBlank()) "**$title**\n" else ""
-        val bodyMd = items.joinToString("\n") { "- [ ] $it" }
-        val content = head + bodyMd
+        val content = buildBotChecklistContent(title, items)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val ok = runCatching {
