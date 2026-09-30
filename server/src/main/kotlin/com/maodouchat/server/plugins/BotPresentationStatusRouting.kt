@@ -157,14 +157,18 @@ put("serverTime", System.currentTimeMillis())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val title = obj["title"]?.jsonPrimitive?.content.orEmpty().ifBlank { "Countdown" }.take(40)
-        val seconds = (obj["seconds"]?.jsonPrimitive?.content?.toIntOrNull() ?: 60).coerceIn(5, 86400)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendCountdownFields(obj)) {
+            is BotSendCountdownFieldsResult.Ok -> parsed.fields
+            BotSendCountdownFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val title = fields.title
+        val seconds = fields.seconds
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "**$title**\n`T-${seconds}s`"
+        val content = buildBotCountdownContent(title, seconds)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
