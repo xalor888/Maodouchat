@@ -2928,4 +2928,23 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：#227 的 +8、#236 的 +5、#237 的 +5、#238 的 +5 与本轮 +6
   按条目约定由复核轮一次性刷新，待 PR 依次合并后由复核轮复核到 741）；
+
+### 第十三轮续五十九（2026-09-30）：bot `answerCallbackQuery` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第十八块）
+
+- `/api/bot/answerCallbackQuery` 内联在处理器的 `callbackQueryId`（`callbackQueryId`→`id` 别名链，双缺回 `""`，
+  显式 null 得字面 `"null"` 且不穿透到 `id`）/`text` 抽取（`take(200)` 不 trim，缺省纯函数回 `null`）
+  收敛为 `parseBotAnswerCallbackQueryFields` 纯函数（`BotAnswerCallbackQueryParse.kt`，处理器只剩调用 + 字段映射，
+  逐行等价——`logCommand` 仍在处理器里，校验顺序不变，响应体 `text` 的 `?: ""` 回退仍在组装处）；
+- 新增 `BotAnswerCallbackQueryParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  别名链优先级钉住（`callbackQueryId` > `id`；近似字段名 `CallbackQueryId`/`callbackqueryid` 被忽略）+
+  双缺省（`callbackQueryId` 回 `""`、不 400；`text` 纯函数回 `null`）+
+  截断上限钉住（超长截 200、**不 trim** 前导空格计入上限）+
+  显式 JSON null 怪语义钉住（`callbackQueryId` 得字面 `"null"` 不穿透 `id`，`text` 得字面 `"null"`，零行为改动）+
+  3 例坏类型大声失败反证（对象型 `callbackQueryId`、数组型 `id`、对象型 `text` → `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500）；
+- 与 open PR（#227 bot sendSticker：`BotMediaRouting.kt` + `BotSendStickerParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：#227 的 +8 与本轮 +5 按条目约定由复核轮一次性刷新，
+  待 PR 依次合并后由复核轮复核）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
