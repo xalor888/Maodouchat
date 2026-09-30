@@ -249,16 +249,16 @@ put("serverTime", System.currentTimeMillis())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val title = obj["title"]?.jsonPrimitive?.content.orEmpty().ifBlank { "Banner" }.take(40)
-        val text = (obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(240)
-        if (chatId.isBlank() || text.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
+        val fields = when (val parsed = parseBotBannerFields(obj)) {
+            is BotBannerFieldsResult.Ok -> parsed.fields
+            BotBannerFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
         }
+        val chatId = fields.chatId
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "## $title\n$text"
+        val content = buildBotBannerContent(fields.title, fields.text)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
