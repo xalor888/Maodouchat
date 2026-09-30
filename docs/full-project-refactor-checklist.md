@@ -3255,3 +3255,38 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续七十（2026-10-01）：bot `sendMetric`/`sendCompare` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第三十块）
+
+- 两个端点（`/api/bot/sendMetric`、`/api/bot/sendCompare`）的处理器逐字同构
+  （连特性开关门控的拒绝文案都相同：`"markdown_disabled"`），其内联的
+  `chatId` 抽取 + 各文本字段 `(obj[key]?.jsonPrimitive?.content ?: default).take(cap)`
+  存在性回退 + 单必填收敛为 `parseBotMetricCompareFields` 纯函数
+  （`BotSendMetricCompareParse.kt`，各端点传入自己的三组 `(key, default, cap)`：
+  `sendMetric` 为 `label`/`"metric"`/40、`value`/`"0"`/40、`unit`/`""`/20，
+  `sendCompare` 为 `left`/`"A"`/80、`right`/`"B"`/80 + `keyC = null`
+  （第三字段槽恒 `""`，内容组装不消费），处理器只剩调用 + 字段映射，逐行等价——
+  特性开关门控仍在解析之前、必填（纯函数）→ 成员检查（处理器），校验顺序不变；
+  响应体逐字不变，下游一行不动）；
+- 内容组装逐字搬移：`buildBotMetricContent`（`"**" + label + "**  \n`" + value +
+  unit 后缀 + "`"`，unit 非空白才有 `" " + unit` 后缀，markdown 硬换行两个空格逐字保留，
+  拼接写法刻意规避字符串模板内嵌套引号，见 AGENTS.md 2026-09-30 教训）/
+  `buildBotCompareContent`（单行对比表格逐字）；
+- 新增 `BotSendMetricCompareParseFuzzTest`（6 例）：2 端点 × 150 固定种子随机 payload
+  未知键忽略恒等断言（三分之二带首字段钉住其余回默认、另三分之一全字段钉住全量抽取；
+  `sendCompare` 第三槽恒 `""`）+ 单必填语义（chatId 缺/空/纯空白→MissingRequired；
+  其余字段缺省/空白不判缺）+ 存在性回退逐字钉住（键缺席才回默认；显式 JSON null 得字面
+  `"null"` 不回退；**键在但空白原样保留不回默认**——`label` 空白≠`"metric"`、
+  `left` 空白≠`"A"`；不 trim 前导空格计入上限；超长截 cap；JSON 数字经 `.content`
+  照样解析）+ 内容模板逐字断言（metric 有/无 unit、空白 unit 无后缀、compare 表格、
+  label 含 markdown 特殊字符原样进模板）+ 坏类型大声失败反证（对象/数组型 chatId
+  与各已知字段 → `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）
+  + 抽取顺序反证（chatId 空白 + 后续字段坏类型→仍抛错而非回 MissingRequired；
+  chatId 与首字段同时坏类型→抛错，chatId 先抽取）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（#252 sendMentionCard/sendNudgeCard 本轮已合，开工时无 open qca PR）；
+  与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
