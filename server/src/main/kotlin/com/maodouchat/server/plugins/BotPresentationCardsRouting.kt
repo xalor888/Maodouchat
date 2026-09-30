@@ -43,15 +43,17 @@ put("serverTime", System.currentTimeMillis())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val text = (obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(200)
-        if (chatId.isBlank() || text.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
+        val fields = when (val parsed = parseBotSendToastFields(obj)) {
+            is BotSendToastFieldsResult.Ok -> parsed.fields
+            BotSendToastFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
         }
+        val chatId = fields.chatId
+        val text = fields.text
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "TOAST: $text"
+        val content = buildBotToastContent(text)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
