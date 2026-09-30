@@ -2841,3 +2841,23 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 上限两份 map 收紧 319 → 290；
 - **里程碑**：`GroupDetailViewModel` **960 → 800 → 703 → 597 → 528 → 444 → 319 → 290**
   （五个控制器 + 观察器 + 加载器 + 审计分页）。
+
+### 第十三轮续五十五（2026-09-30）：bot `forwardMessage`/`copyMessage` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第十四块）
+
+- `/api/bot/forwardMessage` 与 `/api/bot/copyMessage` 逐字相同的内联解析（`fromChatId`/
+  `chatId`→`toChatId`→`to_chat_id`/`messageId` 抽取 + 三必填）收敛为同一个纯函数
+  `parseBotForwardCopyFields`（`BotForwardCopyParse.kt`，两个处理器只剩调用 + 字段映射，
+  逐行等价——处理器里局部 `val fromChatId/toChatId/messageId` 保留，下游一行不动）；
+- 新增 `BotForwardCopyParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略恒等断言、
+  三必填逐个缺/空白判缺 + 别名满足必填、`fromChatId`→`from_chat_id` 与 `messageId`→`message_id`
+  别名优先级 + `toChatId` 三元链（`chatId` > `toChatId` > `to_chat_id`）+ 近似字段名反证、
+  显式 JSON null 不穿透别名（`JsonNull.content` 为字面 `"null"`，`isBlank()` 判不住，
+  零行为改动）、4 例坏类型大声失败反证（对象/数组型 fromChatId、chatId、messageId、
+  from_chat_id → `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）；
+- 等价性注意：两个处理器的校验顺序刻意不变（功能门 `isMessageForwardingEnabled` 与双成员检查
+  仍在处理器里，纯函数只负责抽取 + 三必填），副作用（仓库/fanout/响应）未动；
+- 与 open PR（#227 bot sendSticker：`BotMediaRouting.kt` + `BotSendStickerParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：#227 的 +8 与本轮 +5 按条目约定由复核轮一次性刷新，
+  待两个 PR 依次合并后由复核轮复核到 725）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

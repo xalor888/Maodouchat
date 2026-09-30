@@ -26,12 +26,14 @@ internal fun Route.configureBotMessageForwardingRoutes(
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val fromChatId = (obj["fromChatId"] ?: obj["from_chat_id"])?.jsonPrimitive?.content.orEmpty()
-        val toChatId = (obj["chatId"] ?: obj["toChatId"] ?: obj["to_chat_id"])?.jsonPrimitive?.content.orEmpty()
-        val messageId = (obj["messageId"] ?: obj["message_id"])?.jsonPrimitive?.content.orEmpty()
-        if (fromChatId.isBlank() || toChatId.isBlank() || messageId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("fromChatId/chatId/messageId required"))
+        val fields = when (val result = parseBotForwardCopyFields(obj)) {
+            is BotForwardCopyFieldsResult.Ok -> result.fields
+            BotForwardCopyFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("fromChatId/chatId/messageId required"))
         }
+        val fromChatId = fields.fromChatId
+        val toChatId = fields.toChatId
+        val messageId = fields.messageId
         if (!conversationParticipantRepo.isParticipant(fromChatId, bot.id) || !conversationParticipantRepo.isParticipant(toChatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot must be in both chats"))
         }
@@ -93,12 +95,14 @@ put("chatId", toChatId)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val fromChatId = (obj["fromChatId"] ?: obj["from_chat_id"])?.jsonPrimitive?.content.orEmpty()
-        val toChatId = (obj["chatId"] ?: obj["toChatId"] ?: obj["to_chat_id"])?.jsonPrimitive?.content.orEmpty()
-        val messageId = (obj["messageId"] ?: obj["message_id"])?.jsonPrimitive?.content.orEmpty()
-        if (fromChatId.isBlank() || toChatId.isBlank() || messageId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("fromChatId/chatId/messageId required"))
+        val fields = when (val result = parseBotForwardCopyFields(obj)) {
+            is BotForwardCopyFieldsResult.Ok -> result.fields
+            BotForwardCopyFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("fromChatId/chatId/messageId required"))
         }
+        val fromChatId = fields.fromChatId
+        val toChatId = fields.toChatId
+        val messageId = fields.messageId
         if (!conversationParticipantRepo.isParticipant(fromChatId, bot.id) || !conversationParticipantRepo.isParticipant(toChatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot must be in both chats"))
         }
