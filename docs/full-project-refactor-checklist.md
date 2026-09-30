@@ -3141,3 +3141,33 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   新增 `BotSendDividerParse*.kt`）；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续六十七（2026-09-30）：bot `sendProgress` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第二十七块）
+
+- `/api/bot/sendProgress` 内联在处理器的 `chatId`/`title`/`percent` 抽取
+  （`title`：`.orEmpty().ifBlank { "Progress" }.take(40)`——缺省/空白回 `"Progress"`，
+  显式 JSON null 得字面 `"null"`（非空白，`ifBlank` 不触发，特意钉住），
+  超长先回退默认再截 40，**不 trim**（前导空格计入上限，原处理器逐字语义）；
+  `percent`：`(obj["percent"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0).coerceIn(0, 100)`——
+  **字符串解析**：JSON 数字经 `.content` 照样解析，缺省/显式 null/非数字串/小数串一律回 `0`，
+  负数钳 `0`、超 100 钳 `100`）+ 单必填（`chatId.isBlank()`→400 `"chatId required"`；
+  `title`/`percent` 非必填）+ 内容组装（进度条 `filled = percent / 10` 整数除法，
+  模板 `"**$title**\n`[$bar]` $percent%"`，`type = "MARKDOWN"`）收敛为
+  `parseBotSendProgressFields` / `buildBotProgressContent` 纯函数（`BotSendProgressParse.kt`，
+  处理器只剩调用 + 字段映射，逐行等价——markdown 总开关检查仍在解析之前、
+  必填（纯函数）→ 成员检查（处理器），校验顺序不变；响应体（含钳制后的 `percent`）逐字不变，
+  下游一行不动）；
+- 新增 `BotSendProgressParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  单必填语义（chatId 缺/空白→400；title 缺/空白**不**判缺回 `"Progress"`；percent 缺省**不**判缺回 `0`）+
+  `title` 怪语义逐字钉住（不 trim 原样保留、前导空格计入 `take(40)`；显式 null 得字面 `"null"`；
+  超长先回退默认再截 40）+ `percent` 钳制逐字钉住（字符串数字照样解析；非数字/空串/小数串/显式 null
+  回 `0`；负数钳 `0`、超 100 钳 `100`；边界 0/100 保留）+ 内容模板逐字断言（10 格进度条，
+  含整数除法 `5/10=0` 与怪语义组合）+ 3 例坏类型大声失败反证（对象型 chatId、数组型 title、
+  对象型 percent → `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（`repeat` 提到模板外拼接，见 AGENTS.md 2026-09-30 教训）；
+- 分支基座为最新 main（#249 sendDivider 已合；#247 sendToast 已就地修好清单冲突并补发 CI）；
+  与 open PR（#247 bot sendToast：`BotPresentationCardsRouting.kt` + `BotSendToastParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集（本轮改 `BotPresentationStatusRouting.kt` +
+  新增 `BotSendProgressParse*.kt`）；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

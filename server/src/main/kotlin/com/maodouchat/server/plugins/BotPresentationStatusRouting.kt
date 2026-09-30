@@ -101,16 +101,18 @@ put("serverTime", System.currentTimeMillis())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val title = obj["title"]?.jsonPrimitive?.content.orEmpty().ifBlank { "Progress" }.take(40)
-        val percent = (obj["percent"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0).coerceIn(0, 100)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendProgressFields(obj)) {
+            is BotSendProgressFieldsResult.Ok -> parsed.fields
+            BotSendProgressFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val title = fields.title
+        val percent = fields.percent
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val filled = percent / 10
-        val bar = "#".repeat(filled) + "-".repeat(10 - filled)
-        val content = "**$title**\n`[$bar]` $percent%"
+        val content = buildBotProgressContent(title, percent)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
