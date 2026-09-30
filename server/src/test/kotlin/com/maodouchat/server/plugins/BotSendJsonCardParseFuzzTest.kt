@@ -158,33 +158,40 @@ class BotSendJsonCardParseFuzzTest {
                 is BotJsonCardFieldsResult.MissingRequired,
             "chatId 纯空白必须判缺",
         )
-        // payload 缺 / 空 / 纯空白 → MissingRequired（chatId 合法）
+        // payload 缺（json 与 data 均缺席）→ MissingRequired（chatId 合法）；
+        // 注意：空 / 纯空白**字符串**经 toString() 序列化为带引号串（`""`→`\"\"`、
+        // `"   "`→`\"   \"`），非空/非空白——原处理器逐字如此：双必填判的是
+        // **序列化后**串的空白性，这两例按原语义仍判合法，特意钉住。
         assertTrue(
             parseOf(JsonObject(mapOf("chatId" to JsonPrimitive("c"))))
                 is BotJsonCardFieldsResult.MissingRequired,
             "json 与 data 均缺席必须判缺",
         )
-        assertTrue(
-            parseOf(
-                JsonObject(
-                    mapOf(
-                        "chatId" to JsonPrimitive("c"),
-                        "json" to JsonPrimitive(""),
-                    ),
+        val emptyStringJson = fieldsOf(
+            JsonObject(
+                mapOf(
+                    "chatId" to JsonPrimitive("c"),
+                    "json" to JsonPrimitive(""),
                 ),
-            ) is BotJsonCardFieldsResult.MissingRequired,
-            "json 空字符串必须判缺",
+            ),
         )
-        assertTrue(
-            parseOf(
-                JsonObject(
-                    mapOf(
-                        "chatId" to JsonPrimitive("c"),
-                        "data" to JsonPrimitive("   "),
-                    ),
+        assertEquals(
+            "\"\"",
+            emptyStringJson.payload,
+            "json 空字符串经 toString 得两引号串，非空仍判合法（原处理器逐字如此）",
+        )
+        val blankStringData = fieldsOf(
+            JsonObject(
+                mapOf(
+                    "chatId" to JsonPrimitive("c"),
+                    "data" to JsonPrimitive("   "),
                 ),
-            ) is BotJsonCardFieldsResult.MissingRequired,
-            "data 纯空白必须判缺",
+            ),
+        )
+        assertEquals(
+            "\"   \"",
+            blankStringData.payload,
+            "data 纯空白字符串经 toString 得引号包裹串，非空白仍判合法（原处理器逐字如此）",
         )
         // 双字段都合法 → Ok
         val okFields = fieldsOf(

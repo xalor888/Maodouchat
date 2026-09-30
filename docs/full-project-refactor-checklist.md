@@ -3420,8 +3420,10 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   同时在场钉住 `json` 分支（`data` 被忽略）、其余全字段抽取；
   `data` 视为已知字段不得参与随机名；五分之一超长载荷钉住 take(500)
   作用于 `toString()` 之后）+ 双必填语义（chatId 缺/空/纯空白→MissingRequired；
-  payload（json 与 data 均缺）/空/纯空白→MissingRequired；双合法→Ok，
-  字符串 payload 经 toString 带引号）+ 上限与特殊语义逐字钉住（payload 超长截
+  payload 缺（json 与 data 均缺席）→MissingRequired；双合法→Ok，
+  字符串 payload 经 toString 带引号；**注意**：json 空字符串 / data 纯空白字符串
+  经 toString 序列化为带引号串（`""`→`\"\"`、`"   "`→`\"   \"`）非空/非空白，
+  按原处理器逐字语义仍判合法——双必填判的是序列化后串的空白性，特意钉住）+ 上限与特殊语义逐字钉住（payload 超长截
   500 且作用于 toString 之后（含引号）；`json` 显式 null 得字面 `"null"`、
   不被 orEmpty 吞掉、不判缺；`json` 键在但为 null 时 `data` 不生效；json 缺席
   回退到 `data`；JSON 数字/布尔经 toString 原样；对象/数组型 json/data 不抛错
