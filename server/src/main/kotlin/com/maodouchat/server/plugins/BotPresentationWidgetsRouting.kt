@@ -205,14 +205,18 @@ put("rows", rows.size)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val label = obj["label"]?.jsonPrimitive?.content.orEmpty().ifBlank { "badge" }.take(40)
-        val value = obj["value"]?.jsonPrimitive?.content.orEmpty().take(80)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendBadgeFields(obj)) {
+            is BotSendBadgeFieldsResult.Ok -> parsed.fields
+            BotSendBadgeFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val label = fields.label
+        val value = fields.value
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "**$label**: `$value`"
+        val content = buildBotBadgeContent(label, value)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {

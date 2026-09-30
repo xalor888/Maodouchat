@@ -3066,3 +3066,30 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   （§0 Server 单测标注行暂不改：#243 的 +6 与本轮 +5 按条目约定由复核轮一次性刷新，
   待 PR 依次合并后由复核轮复核）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+### 第十三轮续六十三（2026-09-30）：bot `sendBadge` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第二十三块）
+
+- `/api/bot/sendBadge` 内联在处理器的 `chatId`/`label`（`.orEmpty().ifBlank { "badge" }.take(40)`：
+  缺省/空白回 `"badge"`，显式 null 得字面 `"null"`（非空白，`ifBlank` 不触发），
+  超长先回退默认再截 40，**不 trim**（前导空格计入上限））/`value`
+  （`.orEmpty().take(80)`：缺省回 `""`——**无默认值**，与 `label` 不同，特意钉住；
+  显式 null 得字面 `"null"`，**不 trim**，超长截 80）
+  + 单必填（`chatId.isBlank()`→400，`label`/`value` 非必填）+ 内容组装
+  （模板 `"**$label**: `$value`"`，`type = "MARKDOWN"`）收敛为
+  `parseBotSendBadgeFields` / `buildBotBadgeContent` 纯函数
+  （`BotSendBadgeParse.kt`，处理器只剩调用 + 字段映射，逐行等价——
+  markdown 总开关检查仍在解析之前、必填（纯函数）→ 成员检查（处理器），校验顺序不变，
+  响应体逐字不变，下游一行不动）；
+- 新增 `BotSendBadgeParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  单必填语义（chatId 缺/空白→400；label 缺/空白**不**判缺回 `"badge"`；
+  value 缺**不**判缺回 `""` 无默认值）+ `label` 怪语义（不 trim 原样保留、前导空格计入
+  `take(40)`；显式 null 得字面 `"null"`；超长截 40）+ `value` 怪语义逐字钉住（缺省回 `""`；
+  不 trim 原样保留、前导空格计入 `take(80)`；显式 null 得字面 `"null"`；超长截 80）+
+  内容模板逐字断言（`"**label**: `value`"`，含默认值/怪语义组合）+
+  3 例坏类型大声失败反证（对象型 chatId、数组型 label、对象型 value →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（`repeat` 提到模板外拼接，见 AGENTS.md 2026-09-30 教训）；
+- 分支基座为最新 main（#242/#243 已合；#245 sendNotice 重建版已开、CI 待收）；
+  与 open PR（#245：`BotPresentationCardsRouting.kt` + `BotSendNoticeParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
