@@ -2948,3 +2948,28 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   待 PR 依次合并后由复核轮复核）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
 
+
+### 第十三轮续六十（2026-09-30）：bot `sendChecklist` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第十九块）
+
+- `/api/bot/sendChecklist` 内联在处理器的 `chatId`/`title`（`.orEmpty().take(80)`、
+  **不 trim**，前导空格计入上限，显式 JSON null 得字面 `"null"`；非必填——空白只影响
+  组装前缀）/`items` 抽取（`as? JsonArray`，元素 `trim()`→`take(80)`→空白剔除→`take(20)`；
+  显式 null 元素得字面 `"null"`；对象/数组元素 `(as? JsonPrimitive)` 静默丢弃不抛错；
+  非数组本体→`emptyList()`→判缺）+ 双必填（`chatId.isBlank() || items.isEmpty()`→400）+
+  内容组装（标题非空 `"**title**\n"` 前缀 + 每项 `"- [ ] item"` 换行拼接，整体无截断）
+  收敛为 `parseBotSendChecklistFields` / `buildBotChecklistContent` 纯函数
+  （`BotSendChecklistParse.kt`，处理器只剩调用 + 字段映射，逐行等价——
+  markdown 开关仍在解析之前、成员检查仍在必填之后，下游一行不动）；
+- 新增 `BotSendChecklistParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  双必填语义（chatId 缺/空白、items 缺/全空白→400；title 缺/空白**不**判缺）+
+  `title` 怪语义（不 trim 原样保留、`take(80)` 前导空格计入上限、显式 null 得字面 `"null"`）+
+  `items` 逐字顺序钉住（`trim()`→`take(80)`→空白剔除→`take(20)`；显式 null 元素得字面
+  `"null"`；对象/数组元素静默丢弃；非数组本体→判缺不抛错）+ 内容模板逐字断言
+  （标题加粗前缀、每项 `- [ ]` 前缀、整体无截断）+
+  2 例坏类型大声失败反证（对象型 chatId、数组型 title → `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500；对象型 items 本体是判缺不是抛错——逐字语义钉住）；
+- 与 open PR（#227 bot sendSticker：`BotMediaRouting.kt` + `BotSendStickerParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：#227 的 +8 与本轮 +5 按条目约定由复核轮一次性刷新，
+  待 PR 依次合并后由复核轮复核）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
