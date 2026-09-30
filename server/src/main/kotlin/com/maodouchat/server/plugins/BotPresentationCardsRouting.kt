@@ -88,14 +88,16 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val key = obj["key"]?.jsonPrimitive?.content.orEmpty().ifBlank { "key" }.take(40)
-        val value = obj["value"]?.jsonPrimitive?.content.orEmpty().take(120)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotKeyValueFields(obj)) {
+            is BotKeyValueFieldsResult.Ok -> parsed.fields
+            BotKeyValueFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "`$key` = **$value**"
+        val content = buildBotKeyValueContent(fields.key, fields.value)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {

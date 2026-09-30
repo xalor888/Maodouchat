@@ -3290,3 +3290,37 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续七十一（2026-10-01）：bot `sendKeyValue` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第三十一块）
+
+- 端点 `/api/bot/sendKeyValue` 的处理器内联 `chatId` 抽取 + `key`
+  （`obj["key"]?.jsonPrimitive?.content.orEmpty().ifBlank { "key" }.take(40)`：空白性
+  默认而非存在性——缺席与空白都得 `"key"`；显式 JSON null 得字面 `"null"` 不触发
+  `ifBlank`，特意钉住）+ `value`
+  （`obj["value"]?.jsonPrimitive?.content.orEmpty().take(120)`：**无默认值**，缺席得
+  `""`、空白原样保留、显式 null 得字面 `"null"`，特意钉住）+ 单必填收敛为
+  `parseBotKeyValueFields` 纯函数（`BotSendKeyValueParse.kt`，处理器只剩调用 +
+  字段映射，逐行等价——特性开关门控（拒绝文案 `"markdown disabled by admin"`）仍在
+  解析之前、必填（纯函数）→ 成员检查（处理器），校验顺序不变；响应体逐字不变，
+  下游一行不动）；
+- 内容组装逐字搬移：`buildBotKeyValueContent`（`` `key` = **value** ``，逐字断言）；
+- 新增 `BotSendKeyValueParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（三分之一全缺省钉住 `key`→`"key"` / `value`→`""`、另三分之一只有 key
+  钉住 value 缺省 `""`、其余三分之一全字段抽取）+ 单必填语义（chatId 缺/空/纯空白→
+  MissingRequired；key/value 缺省/空白不判缺——空白 key 回 `"key"`）+
+  空白性默认值逐字钉住（缺席与空白都得 `"key"`；显式 null 得字面 `"null"` 不触发
+  `ifBlank`；value 无默认缺席得 `""`、空白原样保留；超长截 40/120；前导空格计入上限
+  （key 侧前导空格先触发 `ifBlank`）；JSON 数字经 `.content` 照样解析）+
+  内容模板逐字断言（`key` 缺省/特殊字符原样进模板）+ 坏类型大声失败反证
+  （对象/数组型 chatId 与 key/value → `IllegalArgumentException`，路由层
+  `StatusPages` 映射 400，不是 500）+ 抽取顺序反证（chatId 空白 + key 坏类型→
+  仍抛错而非回 MissingRequired；chatId 先于 key 抽取）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（`repeat` 提到模板外用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（#253 sendMetric/sendCompare 本轮已合，开工时无 open qca PR）；
+  与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
