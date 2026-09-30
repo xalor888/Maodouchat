@@ -2993,3 +2993,27 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   （§0 Server 单测标注行暂不改：#227 的 +8 与本轮 +5 按条目约定由复核轮一次性刷新，
   待 PR 依次合并后由复核轮复核）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续六十（2026-09-30）：bot `sendAlert` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第二十块）
+
+- `/api/bot/sendAlert` 内联在处理器的 `chatId`/`text` 抽取（`text`→`message` 别名链、
+  `take(300)` 不 trim）/`level` 抽取（`.orEmpty().ifBlank { "info" }.take(16)`）+
+  双必填（`chatId`/`text required`，`level` 非必填）+ 内容组装（模板 `"ALERT[$level]: $text"`，
+  `type = "SYSTEM"`）收敛为 `parseBotSendAlertFields` / `buildBotAlertContent` 纯函数
+  （`BotSendAlertParse.kt`，处理器只剩调用 + 字段映射，逐行等价——
+  必填（纯函数）→ 成员检查（处理器），校验顺序不变，响应体 `put("level", …)` 随抽取一并
+  改为 `fields.level`，回显值逐字不变，下游一行不动）；
+- 新增 `BotSendAlertParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  双必填语义（chatId 缺/空白、text 缺/空白→400；`message` 别名满足必填；level 缺/空白
+  **不**判缺，回 `"info"`）+ `text` 怪语义（不 trim 原样保留、`take(300)`；
+  `text`→`message` 别名链 `?:` 接存在性：显式 JSON null 得字面 `"null"` 不穿透到 `message`）+
+  `level` 逐字顺序钉住（`.orEmpty().ifBlank { "info" }.take(16)`：缺省/空白回 `"info"`；
+  显式 null 得字面 `"null"`（非空白，`ifBlank` 不触发）；超长先回退默认再截 16）+
+  内容模板逐字断言（`"ALERT[$level]: $text"`）+
+  4 例坏类型大声失败反证（对象型 chatId、数组型 text、对象型 message 别名、对象型 level →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）；
+- 与 open PR（#227 bot sendSticker：`BotMediaRouting.kt` + `BotSendStickerParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：#227 的 +8 与本轮 +5 按条目约定由复核轮一次性刷新，
+  待 PR 依次合并后由复核轮复核）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
