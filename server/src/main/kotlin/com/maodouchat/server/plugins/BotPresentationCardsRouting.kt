@@ -595,15 +595,17 @@ put("type", "MARKDOWN")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Invite link ready").take(120)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Invite link ready")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "INVITEHINT:$hint"
+        val content = buildBotSendHintContent("INVITEHINT:", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -699,15 +701,17 @@ put("type", "MARKDOWN")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Verify safety code out-of-band").take(120)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Verify safety code out-of-band")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "🔐 $hint"
+        val content = buildBotSendHintContent("🔐 ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -800,15 +804,17 @@ put("serverTime", System.currentTimeMillis())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Scan my QR to connect").take(120)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Scan my QR to connect")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "📷 $hint"
+        val content = buildBotSendHintContent("📷 ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -893,15 +899,17 @@ put("type", "MARKDOWN")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Spoiler media: tap to reveal").take(120)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Spoiler media: tap to reveal")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "🌫️ $hint"
+        val content = buildBotSendHintContent("🌫️ ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -936,15 +944,17 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Auto-download is on for this network").take(120)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Auto-download is on for this network")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "⬇️ $hint"
+        val content = buildBotSendHintContent("⬇️ ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -995,11 +1005,15 @@ put("serverTime", System.currentTimeMillis())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Share a static pin").take(120)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Share a static pin")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        val content = "📍 $hint"
+        val content = buildBotSendHintContent("📍 ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -1034,11 +1048,15 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "File share is available").take(120)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "File share is available")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        val content = "📎 $hint"
+        val content = buildBotSendHintContent("📎 ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -1077,11 +1095,15 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Screen capture protection is active").take(120)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Screen capture protection is active")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        val content = "🛡️ $hint"
+        val content = buildBotSendHintContent("🛡️ ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -1120,11 +1142,15 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Photo send is available").take(120)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Photo send is available")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        val content = "🖼️ $hint"
+        val content = buildBotSendHintContent("🖼️ ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -1159,11 +1185,15 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Video send is available").take(120)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Video send is available")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        val content = "🎬 $hint"
+        val content = buildBotSendHintContent("🎬 ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -1207,11 +1237,15 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "GIF send can be toggled separately from images").take(120)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "GIF send can be toggled separately from images")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        val content = "🎞️ $hint"
+        val content = buildBotSendHintContent("🎞️ ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -1246,11 +1280,15 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val hint = (obj["hint"]?.jsonPrimitive?.content ?: "Blind watermarks embed user id + time for leak forensics").take(120)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotSendHintFields(obj, "Blind watermarks embed user id + time for leak forensics")) {
+            is BotSendHintFieldsResult.Ok -> parsed.fields
+            BotSendHintFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val hint = fields.hint
         if (!participantRepository.isParticipant(chatId, bot.id)) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        val content = "🔏 $hint"
+        val content = buildBotSendHintContent("🔏 ", hint)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
