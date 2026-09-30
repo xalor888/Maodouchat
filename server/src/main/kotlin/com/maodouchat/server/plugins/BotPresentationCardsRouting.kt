@@ -842,15 +842,16 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val name = (obj["name"]?.jsonPrimitive?.content ?: "contact").take(80)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val result = parseBotSendContactCardFields(obj)) {
+            is BotSendContactCardFieldsResult.Ok -> result.fields
+            BotSendContactCardFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "> ~card:$name~"
+        val content = buildBotContactCardContent(fields.name)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {

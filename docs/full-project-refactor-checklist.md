@@ -2882,3 +2882,24 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   （§0 Server 单测标注行暂不改：#227 的 +8、#236 的 +5 与本轮 +5 按条目约定由复核轮一次性刷新，
   待 PR 依次合并后由复核轮复核到 730）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续五十七（2026-09-30）：bot `sendContactCard` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第十六块）
+
+- `/api/bot/sendContactCard` 内联在处理器的 `chatId`/`name` 抽取（`take(80)` 不 trim、
+  缺失回 `"contact"`）+ 单必填（`chatId required`）+ 内容组装（模板 `"> ~card:$name~"`）
+  收敛为 `parseBotSendContactCardFields` / `buildBotContactCardContent` 纯函数
+  （`BotSendContactCardParse.kt`，处理器只剩调用 + 字段映射，逐行等价——
+  功能门 `isMarkdownEnabled` / `isContactCardEnabled` 与成员检查仍在处理器里，
+  校验顺序不变，局部 `val chatId` 保留，下游一行不动）；
+- 新增 `BotSendContactCardParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  内容模板逐字断言、单必填语义（chatId 缺/空白判缺；name 缺/空白不 400，回 `"contact"`）+
+  近似字段名反证、截断上限钉住（超长截 80、**不 trim** 前导空格计入上限）、
+  显式 JSON null 怪语义钉住（name 得字面 `"null"` 而**不是**回 `"contact"`，组装出
+  `"> ~card:null~"`，chatId 得字面 `"null"` 判合法，零行为改动）、
+  2 例坏类型大声失败反证（对象型 chatId、数组型 name → `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500）；
+- 与 open PR（#227 bot sendSticker：`BotMediaRouting.kt` + `BotSendStickerParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：#227 的 +8、#236 的 +5、#237 的 +5 与本轮 +5 按条目约定由复核轮一次性刷新，
+  待 PR 依次合并后由复核轮复核到 735）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
