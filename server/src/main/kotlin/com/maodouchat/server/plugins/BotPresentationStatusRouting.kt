@@ -196,16 +196,18 @@ put("seconds", seconds)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val text = (obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(300)
-        val level = obj["level"]?.jsonPrimitive?.content.orEmpty().ifBlank { "info" }.take(16)
-        if (chatId.isBlank() || text.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
+        val fields = when (val parsed = parseBotSendAlertFields(obj)) {
+            is BotSendAlertFieldsResult.Ok -> parsed.fields
+            BotSendAlertFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
         }
+        val chatId = fields.chatId
+        val text = fields.text
+        val level = fields.level
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "ALERT[$level]: $text"
+        val content = buildBotAlertContent(text, level)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -228,7 +230,7 @@ put("seconds", seconds)
 put("ok", true)
 put("messageId", msgId)
 put("type", "SYSTEM")
-put("level", level)
+put("level", fields.level)
         }
     )
     }
