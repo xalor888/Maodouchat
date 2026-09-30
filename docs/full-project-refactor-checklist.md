@@ -2903,3 +2903,29 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   （§0 Server 单测标注行暂不改：#227 的 +8、#236 的 +5、#237 的 +5 与本轮 +5 按条目约定由复核轮一次性刷新，
   待 PR 依次合并后由复核轮复核到 735）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续五十八（2026-09-30）：bot `sendPollQuiz` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第十七块）
+
+- `/api/bot/sendPollQuiz` 内联在处理器的 `chatId`/`question`（别名 `text`）/`options`/
+  `correctOptionIndex` 抽取 + 三必填（`chatId/question/options required`）+ 内容组装
+  （模板 `"QUIZ:"` + question + `"|"` 分隔、正确选项 `"*"` 标记，整体 `take(2000)`）
+  收敛为 `parseBotSendPollQuizFields` / `buildBotPollQuizContent` 纯函数
+  （`BotSendPollQuizParse.kt`，处理器只剩调用 + 字段映射，逐行等价——
+  群玩法开关 `isGroupPlayEnabled` 仍在解析之前、成员检查仍在必填之后，
+  局部 `val chatId` 保留，`safeIdx` 钳位仍在处理器里逐字 `coerceIn`，下游一行不动）；
+- 新增 `BotSendPollQuizParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  三必填语义（chatId 缺/空白、question 缺/空白、options 缺/不足 2 个→400；恰 2 个通过）+
+  question 别名链怪语义（`?:` 接存在性：显式 JSON null 不穿透到 `text`，得字面 `"null"`；
+  `orEmpty().take(200)` 不 trim，前导空格计入上限）+
+  options 逐字顺序钉住（元素 `trim()`→`take(80)`→空白剔除→`take(10)`；显式 null 元素得字面
+  `"null"`；对象/数组元素 `(as? JsonPrimitive)` 静默丢弃不抛错；非数组本体→`emptyList()`→判缺）+
+  `correctOptionIndex`（缺省/垃圾/浮点/显式 null→0；数字字符串与 JSON 数字都解析；
+  纯函数返回原始值不钳位）+ 内容模板逐字断言（含 `take(2000)`）+
+  3 例坏类型大声失败反证（对象型 chatId、数组型 question、对象型 correctOptionIndex →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  correct 抽取在必填检查之前，chatId 缺失也掩盖不住它的类型错——逐字顺序钉住）；
+- 与 open PR（#227 bot sendSticker：`BotMediaRouting.kt` + `BotSendStickerParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：#227 的 +8、#236 的 +5、#237 的 +5、#238 的 +5 与本轮 +6
+  按条目约定由复核轮一次性刷新，待 PR 依次合并后由复核轮复核到 741）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

@@ -48,24 +48,17 @@ put("enabled", bot.enabled)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val question = (obj["question"] ?: obj["text"])?.jsonPrimitive?.content.orEmpty().take(200)
-        val optionsEl = obj["options"] as? kotlinx.serialization.json.JsonArray
-        val options = optionsEl?.mapNotNull {
-            (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.trim()?.take(80)
-        }?.filter { it.isNotBlank() }?.take(10).orEmpty()
-        val correct = obj["correctOptionIndex"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-        if (chatId.isBlank() || question.isBlank() || options.size < 2) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/question/options required"))
+        val fields = when (val result = parseBotSendPollQuizFields(obj)) {
+            is BotSendPollQuizFieldsResult.Ok -> result.fields
+            BotSendPollQuizFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/question/options required"))
         }
+        val chatId = fields.chatId
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val safeIdx = correct.coerceIn(0, options.lastIndex)
-        val content = buildString {
-            append("QUIZ:").append(question)
-            options.forEachIndexed { i, o -> append("|").append(if (i == safeIdx) "*" else "").append(o) }
-        }.take(2000)
+        val safeIdx = fields.correctOptionIndex.coerceIn(0, fields.options.lastIndex)
+        val content = buildBotPollQuizContent(fields.question, fields.options, safeIdx)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val ok = runCatching {
