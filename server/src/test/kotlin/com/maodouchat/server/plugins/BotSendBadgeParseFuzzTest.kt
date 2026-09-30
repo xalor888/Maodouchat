@@ -224,7 +224,7 @@ class BotSendBadgeParseFuzzTest {
         // 超长截 40（默认值回退在截断之前，这里用非空白长串验证截断本身）
         val long = "y".repeat(100)
         assertEquals(
-            BotSendBadgeFields("c1", long.take(40), "v"),
+            BotSendBadgeFields("c1", long.take(40), "v42"),
             fieldsOf(validBase(label = long)),
             "label 超长必须截断到 40",
         )
@@ -249,20 +249,20 @@ class BotSendBadgeParseFuzzTest {
         // value 不 trim：前导空格原样保留并计入 80 上限
         val leading = "  值"
         assertEquals(
-            BotSendBadgeFields("c1", "badge", leading),
+            BotSendBadgeFields("c1", "在线徽章", leading),
             fieldsOf(validBase(value = leading)),
             "value 不 trim：前导空格原样保留",
         )
         // value 超长截 80
         val long = "z".repeat(200)
         assertEquals(
-            BotSendBadgeFields("c1", "badge", long.take(80)),
+            BotSendBadgeFields("c1", "在线徽章", long.take(80)),
             fieldsOf(validBase(value = long)),
             "value 超长必须截断到 80",
         )
         // value 显式 JSON null → 字面 "null"
         assertEquals(
-            BotSendBadgeFields("c1", "badge", "null"),
+            BotSendBadgeFields("c1", "徽章", "null"),
             fieldsOf(
                 JsonObject(
                     mapOf(
