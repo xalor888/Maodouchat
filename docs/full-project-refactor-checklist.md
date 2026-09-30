@@ -3359,3 +3359,42 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续七十三（2026-10-01）：bot `sendBanner` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第三十三块）
+
+- 端点 `/api/bot/sendBanner` 的处理器内联 `chatId` 抽取 + `title`
+  （`obj["title"]?.jsonPrimitive?.content.orEmpty().ifBlank { "Banner" }.take(40)`：**空白性**
+  默认——缺席与空白都得 `"Banner"`；显式 JSON null 得字面 `"null"` 不触发
+  `ifBlank`；先 `ifBlank` 再 `take(40)`，特意钉住）+ `text`
+  （`(obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(240)`：**存在性**
+  回退——只有 `text` 键完全缺席才看 `message`；`text` 在但为显式 null 时仍走
+  `text` 分支得字面 `"null"`；`text` 空白不回退、直接判缺）+ **双必填**
+  （`chatId.isBlank() || text.isBlank()`→400 `"chatId/text required"`）收敛为
+  `parseBotBannerFields` 纯函数（`BotSendBannerParse.kt`，处理器只剩调用 +
+  字段映射，逐行等价——特性开关门控（拒绝文案 `"markdown disabled by admin"`）仍在
+  解析之前、必填（纯函数）→ 成员检查（处理器），校验顺序不变；响应体逐字不变，
+  下游一行不动）；
+- 内容组装逐字搬移：`buildBotBannerContent`（`"## " + title + "\n" + text`，逐字断言）；
+- 新增 `BotSendBannerParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（三分之一 title 缺省钉住 `title`→`"Banner"`、另三分之一 text 经 `message`
+  回退键传入、其余全字段抽取；`message` 视为已知字段不得参与随机名）+ 双必填语义
+  （chatId 缺/空/纯空白→MissingRequired；text 缺/空/纯空白→MissingRequired；
+  title 缺省/空白不判缺——空白 `title` 回 `"Banner"`）+ 上限、默认与 null 语义逐字钉住
+  （title 截 40 / text 截 240；title 缺席与空白都得 `"Banner"`；title/text 显式 null
+  得字面 `"null"`；text 缺席回退到 `message`；`text` 键在（null 或空白）时 `message`
+  不生效；JSON 数字经 `.content` 照样解析；前导空格计入上限）+
+  内容模板逐字断言（标题行 `"## "` 前缀 + 换行；markdown 特殊字符原样进模板）+
+  坏类型大声失败反证（对象/数组型 chatId、title、text → `IllegalArgumentException`；
+  text 缺席时对象/数组型 message 同样大声失败；text 在时 message 坏类型不被触及——
+  原处理器逐字如此，路由层 `StatusPages` 映射 400，不是 500）+ 抽取顺序反证
+  （chatId 空白 + title 坏类型→仍抛错而非回 MissingRequired；chatId 先于 title、
+  title 先于 text 抽取）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（#255 sendQuoteCard 本轮已合，开工时无 open qca PR）；
+  与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
