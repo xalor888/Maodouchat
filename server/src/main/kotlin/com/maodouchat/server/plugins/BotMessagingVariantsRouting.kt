@@ -157,13 +157,14 @@ put("type", msgType)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val text = (obj["text"] ?: obj["markdown"])?.jsonPrimitive?.content.orEmpty().take(4000)
-        val silentRequested = obj["silent"]?.jsonPrimitive?.booleanOrNull == true
-        val silent = silentRequested && com.maodouchat.server.service.RuntimeConfigService.isSilentSendEnabled()
-        if (chatId.isBlank() || text.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
+        val fields = when (val parsed = parseBotMarkdownFields(obj)) {
+            is BotMarkdownFieldsResult.Ok -> parsed.fields
+            BotMarkdownFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
         }
+        val chatId = fields.chatId
+        val text = fields.text
+        val silent = fields.silentRequested && com.maodouchat.server.service.RuntimeConfigService.isSilentSendEnabled()
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }

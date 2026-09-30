@@ -3445,3 +3445,48 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续七十五（2026-10-01）：bot `sendMarkdown` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第三十五块）
+
+- 端点 `/api/bot/sendMarkdown` 的处理器内联 `chatId` 抽取 + `text`
+  （`(obj["text"] ?: obj["markdown"])?.jsonPrimitive?.content.orEmpty().take(4000)`：
+  **存在性**回退——只有 `text` 键完全缺席才看 `markdown`；`text` 在但为显式 null
+  时仍走 `text` 分支在 `.content` 处抛、**不**回退；`take(4000)` 作用于 `orEmpty()`
+  **之后**（裁的是 content 本身，不是序列化串）；字符串不带引号进模板（与
+  `sendJsonCard` 的 `?.toString()` 怪语义**相反**，特意钉住）+ `silentRequested`
+  （`obj["silent"]?.jsonPrimitive?.booleanOrNull == true`：缺键 / JSON null 得
+  `false`，字符串 `"true"` 按布尔语义得 `true`，对象 / 数组型大声失败）+ **双必填**
+  （`chatId.isBlank() || text.isBlank()`→400 `"chatId/text required"`，文案逐字）
+  收敛为 `parseBotMarkdownFields` 纯函数（`BotSendMarkdownParse.kt`，处理器只剩
+  调用 + 字段映射，逐行等价——特性开关门控（拒绝文案 `"markdown disabled by admin"`）
+  仍在解析之前、必填（纯函数）→ 成员检查（处理器），抽取顺序 chatId→text→silentRequested、
+  校验顺序不变；响应体逐字不变，下游一行不动）；
+  - 与前几批的唯一顺序差异：原处理器把 `silent = silentRequested && isSilentSendEnabled()`
+    的**配置读取**放在必填判断之前，本轮把它随 `silent` 组装留在处理器、移到必填判断之后——
+    `isSilentSendEnabled()` 是无副作用的运行时配置读，移动不可观测，逐行等价成立；
+    纯函数返回 `silentRequested`，真正的静默与否仍由处理器结合配置决定；
+- 新增 `BotSendMarkdownParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（三分之一 `text` 缺省钉住 `markdown` 回退、另三分之一 `text`+`markdown`
+  同时在场钉住 `text` 分支（`markdown` 被忽略）、其余全字段抽取；
+  `markdown`/`silent` 视为已知字段不得参与随机名；mode 2 的一半用例钉住 take(4000)
+  作用于 content 之后）+ 双必填语义（chatId 缺/空/纯空白→MissingRequired；
+  text 与 markdown 均缺席→MissingRequired；text 空/纯空白（判的是裁后空白性）→MissingRequired；
+  text 缺席但 markdown 纯空白→MissingRequired；双合法→Ok）+ 上限与特殊语义逐字钉住
+  （超长裁 4000 恰好、恰好 4000 不动；`text` 显式 null 在 `.content` 处抛不回退；
+  `text` 缺席 + `markdown` 显式 null 同样抛；数字/布尔型 text 经 `JsonPrimitive.content`
+  得 `"5"`/`"true"` **不抛**——与 chatId 同理，特意钉住；数字型 markdown 回退同样不抛）+
+  silent 语义（缺键/JSON null→false；true→true；字符串 `"true"`→true（`booleanOrNull`
+  认 `"true"`）、`"false"`→false；数字 1→false；对象/数组型 silent 大声失败）+
+  坏类型大声失败反证（对象/数组型 chatId、text、回退位 markdown → `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500）+ 抽取顺序反证（chatId 坏类型 + text 乱值→抛错；
+  chatId 缺席 + text 乱值→抛错而非 MissingRequired（抽取抛在必填判断之前）；
+  chatId 纯空白 + text 乱值→仍抛错；chatId 纯空白 + text 合法→MissingRequired 不抛）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（#257 sendJsonCard 本轮已合，开工时无 open qca PR）；
+  与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
