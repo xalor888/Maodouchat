@@ -3112,4 +3112,51 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新，
   待 PR 依次合并后由复核轮复核）；
+### 第十三轮续六十五（2026-09-30）：bot `sendHr` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第二十五块）
+
+- `/api/bot/sendHr` 内联在处理器的 `chatId`/`text`（`note`）抽取（`obj["text"]?.jsonPrimitive?.content.orEmpty().take(200)`：
+  缺省回 `""`（**无默认值**，与 `sendBadge` 的 `label` 不同，特意钉住），显式 JSON null 得字面
+  `"null"`，**不 trim**（前导空格计入 200 上限），超长截 200）+ 单必填
+  （`chatId.isBlank()`→400 `"chatId required"`；`text` 缺省/空白**不**判缺）+
+  内容组装（`note` 非空白 → `"---\n$note\n---"`，空白 → `"---"`，`type = "MARKDOWN"`）
+  收敛为 `parseBotSendHrFields` / `buildBotHrContent` 纯函数（`BotSendHrParse.kt`，
+  处理器只剩调用 + 字段映射，逐行等价——必填（纯函数）→ 成员检查（处理器），
+  校验顺序不变；markdown 总开关检查仍在处理器解析之前；响应体逐字不变，下游一行不动）；
+- 新增 `BotSendHrParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  单必填语义（chatId 缺/空白→400；text 缺/空白不判缺回 `""`/原样保留）+
+  `note` 怪语义逐字钉住（不 trim 原样保留、前导空格计入 `take(200)`；超长截 200；
+  显式 null 得字面 `"null"`）+ 内容模板逐字断言（非空白 `"---\n$note\n---"`、
+  空/全空白 `"---"`，含怪语义组合）+ 2 例坏类型大声失败反证（对象型 chatId、
+  数组型 text → `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（`repeat` 提到模板外拼接，见 AGENTS.md 2026-09-30 教训）；
+- 分支基座为最新 main（#246/#247 账本节已在 main 上按时间顺序排好：续六十三 sendBadge → 续六十四 sendToast）；
+  与 open PR（#247 bot sendToast：`BotPresentationCardsRouting.kt` + `BotSendToastParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新，
+  待 PR 依次合并后由复核轮复核）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+### 第十三轮续六十六（2026-09-30）：bot `sendDivider` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第二十六块）
+
+- `/api/bot/sendDivider` 内联在处理器的 `chatId`/`label`
+  （`.orEmpty().ifBlank { "divider" }.take(40)`：缺省/空白回 `"divider"`，
+  显式 JSON null 得字面 `"null"`（非空白，`ifBlank` 不触发，特意钉住），
+  超长先回退默认再截 40，**不 trim**（前导空格计入上限，原处理器逐字语义））
+  + 单必填（`chatId.isBlank()`→400 `"chatId required"`；`label` 非必填）+ 内容组装
+  （模板 `"---\n**$label**\n---"`，`type = "MARKDOWN"`）收敛为
+  `parseBotSendDividerFields` / `buildBotDividerContent` 纯函数（`BotSendDividerParse.kt`，
+  处理器只剩调用 + 字段映射，逐行等价——markdown 总开关检查仍在解析之前、
+  必填（纯函数）→ 成员检查（处理器），校验顺序不变；响应体逐字不变，下游一行不动）；
+- 新增 `BotSendDividerParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略恒等断言 +
+  单必填语义（chatId 缺/空白→400；label 缺/空白**不**判缺回 `"divider"`）+
+  `label` 怪语义逐字钉住（不 trim 原样保留、前导空格计入 `take(40)`；显式 null 得字面 `"null"`；
+  超长先回退默认再截 40）+ 内容模板逐字断言（`"---\n**$label**\n---"`，含默认值/怪语义组合）+
+  2 例坏类型大声失败反证（对象型 chatId、数组型 label → `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（`repeat` 提到模板外拼接，见 AGENTS.md 2026-09-30 教训）；
+- 分支基座为最新 main（#248 sendHr 已合，本轮开工时仅剩 open qca PR #247）；
+  与 open PR（#247 bot sendToast：`BotPresentationCardsRouting.kt` +
+  `BotPresentationWidgetsRouting.kt` + `BotSendBadgeParse.kt`/`BotSendToastParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集（本轮改 `BotPresentationStatusRouting.kt` +
+  新增 `BotSendDividerParse*.kt`）；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
