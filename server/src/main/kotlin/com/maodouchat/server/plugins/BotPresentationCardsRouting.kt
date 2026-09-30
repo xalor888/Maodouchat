@@ -190,17 +190,16 @@ put("type", "SYSTEM")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val quote = obj["quote"]?.jsonPrimitive?.content.orEmpty().take(200)
-        val by = obj["by"]?.jsonPrimitive?.content.orEmpty().take(40)
-        if (chatId.isBlank() || quote.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/quote required"))
+        val fields = when (val parsed = parseBotQuoteCardFields(obj)) {
+            is BotQuoteCardFieldsResult.Ok -> parsed.fields
+            BotQuoteCardFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/quote required"))
         }
+        val chatId = fields.chatId
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val attribution = if (by.isBlank()) "" else "\n— *$by*"
-        val content = "> $quote$attribution"
+        val content = buildBotQuoteCardContent(fields.quote, fields.by)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {

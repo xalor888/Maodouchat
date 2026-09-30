@@ -3324,3 +3324,38 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续七十二（2026-10-01）：bot `sendQuoteCard` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第三十二块）
+
+- 端点 `/api/bot/sendQuoteCard` 的处理器内联 `chatId` 抽取 + `quote`
+  （`obj["quote"]?.jsonPrimitive?.content.orEmpty().take(200)`：**无默认值**——
+  缺席得 `""`（随后被双必填判缺），空白原样保留（同样判缺）；显式 JSON null
+  得字面 `"null"` 不被 `orEmpty` 吞掉，特意钉住）+ `by`
+  （`obj["by"]?.jsonPrimitive?.content.orEmpty().take(40)`：无默认值、**非必填**——
+  缺席得 `""`、空白原样保留，组装时空白 `by` 直接吞掉署名行）+ **双必填**
+  （`chatId.isBlank() || quote.isBlank()`→400 `"chatId/quote required"`）收敛为
+  `parseBotQuoteCardFields` 纯函数（`BotSendQuoteCardParse.kt`，处理器只剩调用 +
+  字段映射，逐行等价——特性开关门控（拒绝文案 `"markdown disabled by admin"`）仍在
+  解析之前、必填（纯函数）→ 成员检查（处理器），校验顺序不变；响应体逐字不变，
+  下游一行不动）；
+- 内容组装逐字搬移：`buildBotQuoteCardContent`（`"> "` + quote + 署名行
+  `"\n— *by*"`，`by` 空白时无署名行且不留尾随换行，逐字断言）；
+- 新增 `BotSendQuoteCardParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（三分之一 `by` 缺省钉住 `by`→`""`、其余全字段抽取）+ 双必填语义
+  （chatId 缺/空/纯空白→MissingRequired；quote 缺/空/纯空白→MissingRequired；
+  by 缺省/空白不判缺——空白 `by` 原样保留）+ 上限与 null 语义逐字钉住
+  （quote 截 200 / by 截 40；显式 null 得字面 `"null"`；JSON 数字经 `.content`
+  照样解析；前导空格计入上限）+ 内容模板逐字断言（署名行有/无两种形态；
+  markdown 特殊字符原样进模板；无署名时内容以 quote 结尾）+ 坏类型大声失败反证
+  （对象/数组型 chatId 与 quote/by → `IllegalArgumentException`，路由层
+  `StatusPages` 映射 400，不是 500）+ 抽取顺序反证（chatId 空白 + quote 坏类型→
+  仍抛错而非回 MissingRequired；chatId 先于 quote、quote 先于 by 抽取）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（`repeat` 提到模板外用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（#254 sendKeyValue 本轮已合，开工时无 open qca PR）；
+  与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
