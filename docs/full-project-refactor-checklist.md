@@ -3221,3 +3221,37 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续六十九（2026-09-30）：bot `sendMentionCard`/`sendNudgeCard` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第二十九块）
+
+- 两个端点（`/api/bot/sendMentionCard`、`/api/bot/sendNudgeCard`）的处理器逐字同构
+  （仅特性开关门控、`label` 默认文案、内容模板包裹三处不同），其内联的
+  `chatId`/`label` 抽取（`(obj["label"]?.jsonPrimitive?.content ?: obj["text"]?.jsonPrimitive?.content
+  ?: <默认文案>).take(80)`：回退链接存在性，显式 JSON null 得字面 `"null"`（`JsonNull`
+  即 `JsonPrimitive`，`.content` 为 `"null"`）**不继续回退**、**不 trim**（前导空格计入
+  80 上限），超长截 80）+ 单必填（`chatId.isBlank()`→400 `"chatId required"`；
+  `label` 非必填——缺省走回退链、空白原样保留不判缺）+ 内容组装（模板
+  `prefix + label + suffix`，`type = "MARKDOWN"`；`sendMentionCard` 为 `"> @" + label`，
+  `sendNudgeCard` 为 `"> ~nudge:" + label + "~"`）收敛为 `parseBotMentionNudgeFields` /
+  `buildBotMentionNudgeContent` 纯函数（`BotSendMentionNudgeParse.kt`，处理器只剩调用 +
+  字段映射，逐行等价——各端点特性开关门控（markdown 门 + `isMentionsEnabled` /
+  `isNudgeEnabled` 门）仍在解析之前、必填（纯函数）→ 成员检查（处理器），
+  校验顺序不变；响应体逐字不变，下游一行不动）；
+- 新增 `BotSendMentionNudgeParseFuzzTest`（6 例）：2 端点 × 150 固定种子随机 payload
+  未知键忽略恒等断言（每 3 个里 1 个不带 label/text 钉住缺省回默认文案、另 1 个只带 text
+  钉住回退到 text）+ 单必填语义（chatId 缺/空/纯空白→400；label 缺省走回退链**不**判缺；
+  label 空白原样保留**不**判缺；label 缺席 + text 在 → 回退 text）+
+  `label` 怪语义逐字钉住（显式 null 得字面 `"null"` 不继续回退——label 位与 text 位各钉
+  一处；不 trim 前后空格原样保留；超长截 80 前导空格计入上限；JSON 数字经 `.content`
+  照样解析；2 份默认文案均 ≤80 不被截断）+
+  内容模板逐字断言（2 端点包裹前后缀组合逐字一致，`"> @"` / `"> ~nudge:"…"~"` 特意钉住）+
+  4 例坏类型大声失败反证（对象/数组型 chatId、对象型 label、数组型 text →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）+
+  抽取顺序反证（先 chatId 后 label；chatId 空白 + label 坏类型→仍抛错而非 400，
+  与原处理器逐字一致）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（`repeat` 提到模板外拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- 分支基座为最新 main（#251 send*Hint 本轮已合，开工时无 open qca PR）；
+  与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
