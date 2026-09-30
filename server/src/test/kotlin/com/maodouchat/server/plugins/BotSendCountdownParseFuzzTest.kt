@@ -203,7 +203,10 @@ class BotSendCountdownParseFuzzTest {
     @Test
     fun `sendCountdown title legacy quirks are pinned`() {
         // 不 trim：前导空格原样保留并计入 40 上限
-        val leading = "  倒计时 ${\"x\".repeat(36)}"
+        // 注：Kotlin 2.4.0（K2）下模板内 ${\"…\"} 转义引号报 Syntax error，
+        // 故把 repeat 提到模板外，避免模板内嵌套引号。
+        val xs = "x".repeat(36)
+        val leading = "  倒计时 $xs"
         val expected = leading.take(40)
         assertEquals(
             BotSendCountdownFields("c1", expected, 30),
