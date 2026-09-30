@@ -3044,4 +3044,25 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 分支基座为最新 main（#227/#242 已合，本轮开工时无 open qca PR）；
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+### 第十三轮续六十二（2026-09-30）：bot `sendNotice` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第二十二块）
+
+- `/api/bot/sendNotice` 内联在处理器的 `chatId`/`text` 抽取（`(obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(300)`：
+  `text`→`message` 别名链是 `?:` 接存在性——`text` 键缺席才穿透到 `message`，显式 JSON null 的 `text` 得字面
+  `"null"`（`JsonNull` 即 `JsonPrimitive`，`.content` 为 `"null"`）不穿透、不判缺，**不 trim**（前导空格计入 300 上限））+
+  双必填（`chatId.isBlank() || text.isBlank()`→400 `"chatId/text required"`；`text` 缺省/空白**判缺**，没有回退默认值，
+  与 `sendAlert` 的 `text` 不同）+ 内容组装（模板 `"NOTICE: $text"`，`type = "SYSTEM"`）收敛为
+  `parseBotSendNoticeFields` / `buildBotNoticeContent` 纯函数（`BotSendNoticeParse.kt`，处理器只剩调用 + 字段映射，
+  逐行等价——必填（纯函数）→ 成员检查（处理器），校验顺序不变；本端点无 markdown 总开关；响应体逐字不变，下游一行不动）；
+- 新增 `BotSendNoticeParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略恒等断言（含 `message` 别名在避开名集合里）+
+  双必填语义（chatId 缺/空白→400；text 缺/空白→400 判缺无默认值；`message` 别名满足必填；text 显式 null 得字面 `"null"` 不判缺不穿透）+
+  `text` 怪语义逐字钉住（不 trim 原样保留、前导空格计入 `take(300)`；超长截 300；`text` 缺席穿透 `message`、`text` 优先于 `message`）+
+  内容模板逐字断言（`"NOTICE: $text"`）+
+  4 例坏类型大声失败反证（对象型 chatId、数组型 text、对象型 message 别名、对象型 text（即使 message 合法也不穿透）→
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）；
+  另：本轮起测试代码一律规避字符串模板内嵌套引号写法——`BotSendCountdownParseFuzzTest` 第 206 行的 `${\"x\".repeat(36)}`
+  在 Kotlin 2.4.0（K2）下报 `Syntax error: Expecting an expression`（#243 CI 红，已就地修：repeat 提到模板外拼接）；
+- 与 open PR（#243 bot sendCountdown：`BotPresentationStatusRouting.kt` + `BotSendCountdownParse*.kt` +
+  本清单账本节；dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：#243 的 +6 与本轮 +5 按条目约定由复核轮一次性刷新，
+  待 PR 依次合并后由复核轮复核）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
