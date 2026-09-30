@@ -397,17 +397,21 @@ put("type", "MARKDOWN")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val label = (obj["label"]?.jsonPrimitive?.content ?: "metric").take(40)
-        val value = (obj["value"]?.jsonPrimitive?.content ?: "0").take(40)
-        val unit = (obj["unit"]?.jsonPrimitive?.content ?: "").take(20)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotMetricCompareFields(
+            obj,
+            "label", "metric", 40,
+            "value", "0", 40,
+            "unit", "", 20,
+        )) {
+            is BotMetricCompareFieldsResult.Ok -> parsed.fields
+            BotMetricCompareFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "**$label**  \n`$value${if (unit.isNotBlank()) " $unit" else ""}`"
+        val content = buildBotMetricContent(fields.first, fields.second, fields.third)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
@@ -490,16 +494,21 @@ put("type", "MARKDOWN")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val left = (obj["left"]?.jsonPrimitive?.content ?: "A").take(80)
-        val right = (obj["right"]?.jsonPrimitive?.content ?: "B").take(80)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotMetricCompareFields(
+            obj,
+            "left", "A", 80,
+            "right", "B", 80,
+            null, "", 0,
+        )) {
+            is BotMetricCompareFieldsResult.Ok -> parsed.fields
+            BotMetricCompareFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val content = "| Left | Right |\n| --- | --- |\n| $left | $right |"
+        val content = buildBotCompareContent(fields.first, fields.second)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
