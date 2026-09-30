@@ -3190,3 +3190,34 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   新增 `BotSendProgressParse*.kt`）；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续六十八（2026-09-30）：bot `send*Hint` 系列请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第二十八块）
+
+- 十二个 `send*Hint` 端点（`sendInviteHint`/`sendSafetyHint`/`sendQrHint`/`sendSpoilerHint`/
+  `sendDownloadHint`/`sendLocationHint`/`sendFileHint`/`sendSecureHint`/`sendPhotoHint`/
+  `sendVideoHint`/`sendGifHint`/`sendWatermarkHint`；`sendSecretHint` 已是 410 Gone，不在内）
+  的处理器逐字同构（仅特性开关门控、`hint` 默认文案、内容前缀三处不同），其内联的
+  `chatId`/`hint` 抽取（`(obj["hint"]?.jsonPrimitive?.content ?: <默认文案>).take(120)`：
+  默认文案只在键缺席时回退，显式 JSON null 得字面 `"null"`（`JsonNull` 即 `JsonPrimitive`，
+  `.content` 为 `"null"`）不回退、**不 trim**（前导空格计入 120 上限），超长截 120）+
+  单必填（`chatId.isBlank()`→400 `"chatId required"`；`hint` 非必填——缺省回默认文案、
+  空白原样保留不判缺）+ 内容组装（模板 `prefix + hint`，`type = "SYSTEM"`；`sendInviteHint`
+  前缀 `"INVITEHINT:"` 无空格，其余为各色 emoji + 空格）收敛为 `parseBotSendHintFields` /
+  `buildBotSendHintContent` 纯函数（`BotSendHintParse.kt`，处理器只剩调用 + 字段映射，
+  逐行等价——各端点特性开关门控仍在解析之前、必填（纯函数）→ 成员检查（处理器），
+  校验顺序不变；响应体逐字不变，下游一行不动）；
+- 新增 `BotSendHintParseFuzzTest`（6 例）：12 端点 × 150 固定种子随机 payload 未知键忽略恒等断言
+  （每 3 个里 1 个不带 `hint` 钉住缺省回默认文案）+ 单必填语义（chatId 缺/空/纯空白→400；
+  hint 缺省→默认文案**不**判缺；hint 空白原样保留**不**判缺）+
+  `hint` 怪语义逐字钉住（显式 null 得字面 `"null"` 不回退；不 trim 前后空格原样保留；
+  超长截 120 前导空格计入上限；JSON 数字经 `.content` 照样解析；12 份默认文案均 ≤120 不被截断）+
+  内容模板逐字断言（12 端点前缀与默认文案组合逐字一致，`sendInviteHint` 无空格前缀特意钉住）+
+  4 例坏类型大声失败反证（对象/数组型 chatId、对象/数组型 hint →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）+
+  抽取顺序反证（先 chatId 后 hint；chatId 空白 + hint 坏类型→仍抛错而非 400，与原处理器逐字一致）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（`repeat` 提到模板外拼接，见 AGENTS.md 2026-09-30 教训）；
+  12 个 handler 的改动经脚本批量应用、逐个断言只命中一次，默认文案/内容前缀与改前源码字节逐字核对；
+- 分支基座为最新 main（#247 sendToast、#250 sendProgress 本轮已合，开工时无 open qca PR）；
+  与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
