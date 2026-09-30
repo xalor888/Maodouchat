@@ -210,17 +210,18 @@ put("commands", Json.parseToJsonElement(Json.encodeToString(commands)))
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val note = obj["text"]?.jsonPrimitive?.content.orEmpty().take(80)
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val result = parseBotSendNudgeFields(obj)) {
+            is BotSendNudgeFieldsResult.Ok -> result.fields
+            BotSendNudgeFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         }
+        val chatId = fields.chatId
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = if (note.isNotBlank()) "👋 $note" else "👋 nudge"
+        val content = buildBotNudgeContent(fields.note)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "NUDGE")
         }.getOrDefault(false)
