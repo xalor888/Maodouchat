@@ -3909,3 +3909,44 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +7 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续八十五（2026-10-01）：bot `sendRemind` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十六块）
+
+- 端点 `/api/bot/sendRemind` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空）+
+  `text` 抽取（`(obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(300)`——
+  **双别名**（`text`→`message`，逐字顺序——只有 `text` 键缺席才回退，`text` 显式 JSON null
+  得字面量 `"null"`、不回退，特意钉住）、**无 `.trim()`**（首尾空白原样进正文，逐字保留）、
+  **截 300**（先取后截）；对象/数组型在 `?.jsonPrimitive` 处大声失败）+
+  **合并必填**（`chatId.isBlank() || text.isBlank()`→400 `"chatId/text required"`，文案逐字）
+  收敛为 `parseBotSendRemindFields` 纯函数（`BotSendRemindParse.kt`，
+  结果二态 `Ok`/`MissingRequired`）；
+  内容组装抽为 `buildBotRemindContent`：`"REMIND: " + text` 逐字（`type = "SYSTEM"`，
+  原处理器逐字如此）；注意本端点**没有** `markdown_disabled` 特性开关门控
+  （原处理器逐字如此，其余卡片端点有、这里没有——故意不补，零行为改动）；
+  成员检查/`publishBotServiceMessage`/`logCommand` 仍在处理器，
+  抽取顺序与原处理器一致（`chatId`→`text`→必填，坏类型字段抛错顺序不变），
+  逐行等价——下游一行不动；
+- 新增 `BotSendRemindParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、text 恒为非空确定性字符串——**延续第四十一块的
+  CI 教训**；`i % 3 == 0` 时塞 400 字符文本钉住截 300；`chatId`/`text`/`message`
+  视为已知字段不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白→MissingRequired；text 缺/空/纯空白→MissingRequired；
+  显式 null 的 chatId 得字面 `"null"`→Ok 的逐字怪语义）+
+  text 双别名与截断（仅 `message` 生效；`text` 压过 `message`；`text` 显式 null 得
+  字面 `"null"` 不回退；无 trim 原样保留；400 字符→截 300，前导空格计入上限）+
+  大声失败反证（对象/数组型 chatId、text、别名 message 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  显式 null 不抛的反证）+
+  内容组装（`"REMIND: " + text` 逐字；首尾空格与内嵌换行原样拼接；空 text 也逐字组装）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open qca PR（#268，`sendTimeline`，CI 诊断性重跑中）——**改动文件无交集**
+  （#268 动 `BotPresentationCardsRouting.kt`，本轮动 `BotPresentationStatusRouting.kt`；
+  唯一交集是本清单账本，两轮均为末尾追加，git 顺叠、无语义冲突）；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
