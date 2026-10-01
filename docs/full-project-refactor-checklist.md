@@ -4083,3 +4083,59 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续八十八（2026-10-02）：bot `exportChatInviteLink` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十九块）
+
+- 端点 `/api/bot/exportChatInviteLink` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空）+
+  `rotate` 抽取（`obj["rotate"]?.jsonPrimitive?.booleanOrNull == true`——**严格判真**：
+  JSON `true`/内容为 `"true"` 的字符串得 `true`（`booleanOrNull` 即
+  `toBooleanStrictOrNull()`，大小写**不**敏感，`"TRUE"` 同样得 `true`——CI 据此红过一次）；
+  缺席/`false`/显式 null/非真假字符串/数字一律 `false`；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败）+
+  `expiresInSeconds` 抽取（`(obj["expiresInSeconds"]?.jsonPrimitive?.content?.toLongOrNull()
+  ?: 604800).coerceIn(300, 2592000)`——**先取缺省（7 天）、后夹界**：缺席/非数字串/
+  显式 null（`"null"`→`toLongOrNull` 得 null）一律回 604800；< 300 夹到 300，
+  > 2592000（30 天）夹到 2592000；对象/数组型大声失败）+
+  `maxUses` 抽取（`(obj["maxUses"]?.jsonPrimitive?.content?.toIntOrNull()
+  ?: 100).coerceIn(1, 1000)`——缺席/非数字串/显式 null 一律回 100；< 1 夹到 1，
+  > 1000 夹到 1000；对象/数组型大声失败）+
+  **合并必填**（只有 `chatId`：`chatId.isBlank()`→400 `"chatId required"`，文案逐字——
+  其余三字段恒有默认值，从不判空，逐字语义）
+  收敛为 `parseBotExportChatInviteLinkFields` 纯函数（`BotExportChatInviteLinkParse.kt`，
+  结果二态 `Ok`/`MissingRequired`；缺省/夹界常量提为 `internal const`
+  `BOT_EXPORT_CHAT_INVITE_*`，生产与测试钉住同一份值）；
+  抽取顺序与原处理器一致（`chatId`→`rotate`→`expiresInSeconds`→`maxUses`→必填，
+  坏类型字段抛错顺序不变），逐行等价——`group_invites_disabled` 开关门控
+  （原处理器里先于 body 解析，本轮保持门控在解析之前，等价）/成员检查/频道拦截/
+  `configureToken`/`logCommand`/响应仍在处理器，顺序与原处理器一致，下游一行不动；
+  `expiresAt` 仍在处理器里按 `System.currentTimeMillis() + expiresIn * 1000L` 计算，
+  纯函数只返回收敛后的秒数；
+- 新增 `BotExportChatInviteLinkParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`——**延续第四十一块的 CI 教训**；`rotate` 按 `i % 3`
+  轮换 `true`/`false`/缺席；`expiresInSeconds` 按 `i % 5` 轮换数字/字符串数字/低于下限/
+  高于上限/缺席钉住缺省-夹界；`maxUses` 同理；四个已知字段不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白→MissingRequired；其余字段缺席照样 Ok→各自缺省；
+  显式 null 的 chatId 得字面 `"null"`→Ok 的逐字怪语义）+
+  rotate 严格判真（`true`/`"true"`/`"TRUE"`→true；缺席/`false`/显式 null/`"false"`/
+  `"yes"`/`1`/`0`→false）+
+  expiresInSeconds 缺省-夹界（缺席/`"tomorrow"`/显式 null/`""`→604800；
+  300/2592000 边界原样；0/-100/`"10"`→300；99999999/`"2592001"`→2592000）+
+  maxUses 缺省-夹界（缺席/`"unlimited"`/显式 null/`""`→100；1/1000 边界原样；
+  0/-5/`"0"`→1；5000/`"1001"`→1000）+
+  无 trim（`" c1 "` 原样保留）+
+  大声失败反证（对象/数组型 chatId、rotate、expiresInSeconds、maxUses 在
+  `?.jsonPrimitive` 处抛 `IllegalArgumentException`，路由层 `StatusPages` 映射 400，
+  不是 500；显式 null 不抛的反证——chatId→`"null"`→Ok、rotate→false、
+  expiresInSeconds→604800、maxUses→100）+
+  近似字段名（`ChatId`/`chatid2`/`Rotate`/`expiresIn`/`maxuses` 按未知键忽略，
+  真字段缺席→MissingRequired）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open qca PR（本轮先合 #271），无文件交集可比；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +8 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
