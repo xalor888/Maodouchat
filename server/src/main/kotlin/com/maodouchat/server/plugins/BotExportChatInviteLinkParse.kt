@@ -26,9 +26,11 @@ import kotlinx.serialization.json.jsonPrimitive
  *   全空白 chatId 直接判空白，原处理器逐字如此；显式 JSON null 得字面量 `"null"`
  *   （`JsonNull` 是 `JsonPrimitive`，非空→`Ok`，逐字语义）；
  * - `rotate` 取 `obj["rotate"]?.jsonPrimitive?.booleanOrNull == true`——**严格判真**：
- *   只有 JSON 字面量 `true`（或内容恰为 `"true"` 的字符串——`toBooleanStrict`
- *   大小写敏感）才得 `true`；缺席 / `false` / 显式 null（`JsonNull` 的
- *   `booleanOrNull` 为 null→`false`）/ 非 `"true"` 字符串 / 数字一律 `false`；
+ *   JSON 字面量 `true` / 内容为 `"true"` 的字符串得 `true`——注意 `booleanOrNull`
+ *   即 `content.toBooleanStrictOrNull()`，大小写**不**敏感（`"TRUE"`/`"True"`
+ *   同样得 `true`；"严格"指非法输入得 `null` 而非大小写敏感）；缺席 / `false` /
+ *   显式 null（`JsonNull` 的 `booleanOrNull` 为 null→`false`）/ 非真假字符串 /
+ *   数字一律 `false`；
  *   对象 / 数组型在 `?.jsonPrimitive` 处抛 [IllegalArgumentException]（大声失败，
  *   路由层 `StatusPages` 映射为 400「参数无效」，不是 500）；
  * - `expiresInSeconds` 取 `(obj["expiresInSeconds"]?.jsonPrimitive?.content?.toLongOrNull()

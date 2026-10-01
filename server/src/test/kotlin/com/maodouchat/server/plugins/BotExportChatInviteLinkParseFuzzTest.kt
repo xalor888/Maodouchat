@@ -42,8 +42,10 @@ import kotlin.test.assertTrue
  *   `rotate`/`expiresInSeconds`/`maxUses` 恒有默认值，从不判空，合并必填语义由
  *   `missingRequiredSemantics` 钉住。
  * - 钉住 **rotate 严格判真**（`?.jsonPrimitive?.booleanOrNull == true`）：
- *   只有 JSON `true`（或内容恰为 `"true"` 的字符串）才得 `true`；
- *   缺席 / `false` / 显式 null / 其他字符串 / 数字一律 `false`。
+ *   JSON `true` / 内容为 `"true"` 的字符串得 `true`——注意 `booleanOrNull` 即
+ *   `content.toBooleanStrictOrNull()`，大小写**不**敏感（`"TRUE"`/`"True"` 同样得
+ *   `true`；"严格"指非法输入得 `null` 而非大小写敏感）；缺席 / `false` /
+ *   显式 null / 非真假字符串 / 数字一律 `false`。
  * - 钉住 **expiresInSeconds 先取缺省、后夹界**：缺席 / 非数字串 / 显式 null
  *   → 604800（7 天）；`< 300` → 300；`> 2592000` → 2592000。
  * - 钉住 **maxUses 先取缺省、后夹界**：缺席 / 非数字串 / 显式 null → 100；
@@ -202,15 +204,17 @@ class BotExportChatInviteLinkParseFuzzTest {
             if (rotate != null) base["rotate"] = rotate
             return okOf(JsonObject(base)).rotate
         }
-        // 只有 JSON true（或内容恰 "true" 的字符串）得 true。
+        // JSON true / 内容为 "true" 的字符串得 true——注意大小写不敏感：
+        // booleanOrNull 即 content.toBooleanStrictOrNull()，"严格"指非法输入得 null（不抛），
+        // 而非大小写敏感——"TRUE"/"True" 同样得 true（CI 曾据此红过，见本轮 fix）。
         assertEquals(true, rotateOf(JsonPrimitive(true)))
         assertEquals(true, rotateOf(JsonPrimitive("true")))
+        assertEquals(true, rotateOf(JsonPrimitive("TRUE")))
         // 其余一律 false。
         assertEquals(false, rotateOf(null))
         assertEquals(false, rotateOf(JsonPrimitive(false)))
         assertEquals(false, rotateOf(JsonNull))
         assertEquals(false, rotateOf(JsonPrimitive("false")))
-        assertEquals(false, rotateOf(JsonPrimitive("TRUE")))
         assertEquals(false, rotateOf(JsonPrimitive("yes")))
         assertEquals(false, rotateOf(JsonPrimitive(1)))
         assertEquals(false, rotateOf(JsonPrimitive(0)))

@@ -4089,8 +4089,10 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 端点 `/api/bot/exportChatInviteLink` 的处理器内联 `chatId` 抽取
   （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空）+
   `rotate` 抽取（`obj["rotate"]?.jsonPrimitive?.booleanOrNull == true`——**严格判真**：
-  只有 JSON `true`（或内容恰 `"true"` 的字符串）才得 `true`；缺席/`false`/显式 null/
-  其他字符串/数字一律 `false`；对象/数组型在 `?.jsonPrimitive` 处大声失败）+
+  JSON `true`/内容为 `"true"` 的字符串得 `true`（`booleanOrNull` 即
+  `toBooleanStrictOrNull()`，大小写**不**敏感，`"TRUE"` 同样得 `true`——CI 据此红过一次）；
+  缺席/`false`/显式 null/非真假字符串/数字一律 `false`；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败）+
   `expiresInSeconds` 抽取（`(obj["expiresInSeconds"]?.jsonPrimitive?.content?.toLongOrNull()
   ?: 604800).coerceIn(300, 2592000)`——**先取缺省（7 天）、后夹界**：缺席/非数字串/
   显式 null（`"null"`→`toLongOrNull` 得 null）一律回 604800；< 300 夹到 300，
@@ -4115,7 +4117,7 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   高于上限/缺席钉住缺省-夹界；`maxUses` 同理；四个已知字段不得参与随机名）+
   合并必填语义（chatId 缺/空/纯空白→MissingRequired；其余字段缺席照样 Ok→各自缺省；
   显式 null 的 chatId 得字面 `"null"`→Ok 的逐字怪语义）+
-  rotate 严格判真（`true`/`"true"`→true；缺席/`false`/显式 null/`"false"`/`"TRUE"`/
+  rotate 严格判真（`true`/`"true"`/`"TRUE"`→true；缺席/`false`/显式 null/`"false"`/
   `"yes"`/`1`/`0`→false）+
   expiresInSeconds 缺省-夹界（缺席/`"tomorrow"`/显式 null/`""`→604800；
   300/2592000 边界原样；0/-100/`"10"`→300；99999999/`"2592001"`→2592000）+
