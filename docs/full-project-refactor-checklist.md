@@ -4197,3 +4197,42 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续九十一（2026-10-02）：bot `setChatPhoto` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第五十二块）
+
+- 端点 `/api/bot/setChatPhoto` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空；
+  显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义）+
+  `base64` 三键回退抽取
+  （`(obj["photoBase64"] ?: obj["base64Data"] ?: obj["photo"])?.jsonPrimitive?.content.orEmpty()`，
+  **无 `.trim()`**；**按「存在」回退而非按「非空」回退**——`photoBase64` 在场但为空时不会回退
+  到 `base64Data`，逐字 Elvis 怪语义；对象/数组型在 `?.jsonPrimitive` 处大声失败）
+  + 合并必填（`chatId.isBlank() || base64.isBlank()`→400 `"chatId/photoBase64 required"`，
+  文案逐字，写的是首选键名）收敛为 `parseBotSetChatPhotoFields` 纯函数
+  （`BotSetChatPhotoParse.kt`，结果二态 `Ok`/`MissingRequired`）；无缺省/夹界逻辑；
+  抽取逐字等价——限流（原处理器里先于 body 解析，本轮保持它在解析之前，等价）/
+  成员检查/`saveGroupAvatar` 的 `IllegalArgumentException`→400「invalid photo」/
+  `updateAvatar`/`logCommand`/`notifyGroupRevisionChanged` 与响应仍在处理器，
+  顺序与原处理器一致，下游一行不动；
+- 新增 `BotSetChatPhotoParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、base64 恒为 `"Ym" + i` 轮换写进三个回退键——
+  **延续第四十一块的 CI 教训**；已知字段 chatId/photoBase64/base64Data/photo 不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白→MissingRequired；三键全缺/全空→MissingRequired；
+  显式 null→`"null"`→Ok 的逐字怪语义）+
+  三键回退怪语义钉住（photoBase64 在场但为空时不回退→MissingRequired；
+  缺席时按 photoBase64→base64Data→photo 顺序回退；都在时首选键胜出）+
+  无 trim（`" c1 "`/`" eA== "` 原样保留）+
+  大声失败反证（对象/数组型 chatId、三个回退键逐一的 base64 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  显式 null 不抛的反证）+
+  近似字段名（`ChatId`/`chatid2`/`chat_id`/`photobase64`/`base64data`/`Photo` 按未知键忽略，
+  真字段缺席→MissingRequired）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open qca PR（本轮先合 #274），无文件交集可比；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
