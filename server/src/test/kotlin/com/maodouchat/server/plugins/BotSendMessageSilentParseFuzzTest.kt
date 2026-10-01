@@ -158,7 +158,7 @@ class BotSendMessageSilentParseFuzzTest {
     @Test
     fun parseModeMapping() {
         fun typeOf(mode: JsonElement?): String {
-            val base = mutableMapOf("chatId" to JsonPrimitive("c1"), "text" to JsonPrimitive("x"))
+            val base = mutableMapOf<String, JsonElement>("chatId" to JsonPrimitive("c1"), "text" to JsonPrimitive("x"))
             if (mode != null) base["parseMode"] = mode
             return okOf(JsonObject(base)).msgType
         }
