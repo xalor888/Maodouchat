@@ -4139,3 +4139,32 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +8 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续八十九（2026-10-02）：bot `revokeChatInviteLink` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第五十块）
+
+- 端点 `/api/bot/revokeChatInviteLink` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空；
+  显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；对象/数组型在 `?.jsonPrimitive`
+  处大声失败）+ 合并必填（`chatId.isBlank()`→400 `"chatId required"`，文案逐字）
+  收敛为 `parseBotRevokeChatInviteLinkFields` 纯函数（`BotRevokeChatInviteLinkParse.kt`，
+  结果二态 `Ok`/`MissingRequired`）；单字段端点，无缺省/夹界逻辑；
+  抽取逐字等价——`group_invites_disabled` 开关门控（原处理器里先于 body 解析，
+  本轮保持门控在解析之前，等价）/成员检查/`revokeToken`/`logCommand`/响应
+  仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotRevokeChatInviteLinkParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`——**延续第四十一块的 CI 教训**；已知字段只有 chatId，
+  不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白→MissingRequired；显式 null→`"null"`→Ok 的逐字怪语义）+
+  无 trim（`" c1 "` 原样保留）+
+  大声失败反证（对象/数组型 chatId 在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500；显式 null 不抛的反证）+
+  近似字段名（`ChatId`/`chatid2`/`chat_id` 按未知键忽略，真字段缺席→MissingRequired）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open qca PR（本轮先合 #272），无文件交集可比；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
