@@ -3757,3 +3757,64 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +7 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续八十二（2026-10-01）：bot `sendAudio` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十三块）
+
+- 端点 `/api/bot/sendAudio` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空白）
+  + `title` 抽取（`(obj["title"] ?: obj["fileName"])?.jsonPrimitive?.content.orEmpty().trim().take(80)`——
+  **双别名**（`title`→`fileName`）、**有 `.trim()`**（与 chatId/caption 故意不同，逐字保留）、
+  截 80；显式 JSON null 得字面量 `"null"` 保留为标题）+
+  `duration` 抽取（`(obj["duration"] ?: obj["durationSec"])?.jsonPrimitive?.content?.toIntOrNull() ?: 0`——
+  **双别名**、非数字/坏字面量 → `toIntOrNull()` 得 null → 回 `0`（**不抛**，逐字语义；
+  对象/数组型在 `?.jsonPrimitive` 处仍大声失败））+
+  `caption` 抽取（`obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)`，
+  **无 `.trim()`**——与 title 的 trim 语义不同，逐字保留）+
+  `b64` 三别名抽取（`audioBase64`→`fileBase64`→`data`，
+  `?.jsonPrimitive?.content.orEmpty()`；**显式 JSON null 不回退**：`?:` 判的是 Kotlin
+  null，不是 `JsonNull`——`JsonNull` 本身是 `JsonPrimitive`，`.content` 得字面量
+  `"null"` 字符串（非空→Ok；`"null"` 恰是合法 base64 字母表，解码得 3 字节），逐字怪语义）+
+  **合并必填**（`chatId.isBlank() || b64.isBlank()`→400 `"chatId/audioBase64 required"`，
+  文案逐字，与 sendPhoto/sendDocument 的 9.138「空媒体一律拒绝」一致）
+  收敛为 `parseBotSendAudioFields` 纯函数（`BotSendAudioParse.kt`，结果二态
+  `Ok`/`MissingRequired`）；base64 解码（data-URI 前缀剥离 `substringAfter(',')` + 空白剔除，
+  `runCatching` 包住）抽为 `decodeBotAudioSize`（**坏 base64 走宽容分支**：解码抛错只判
+  size=0、不 400——与 sendPhoto 的「坏 base64 判 400 `invalid base64`」故意不同，逐字保留）；
+  内容组装（`"🎵 audio"` + 非空 title 的 `" <title>"` + duration>0 的 `" <N>s"` +
+  size>0 的 `" (NB)"` + 非空 caption 行 + `"[botAudioSize:N]"`，
+  整体 `.take(4000)`）抽为 `buildBotAudioContent`；
+  体积上限 10MB 抽为 `BOT_AUDIO_MAX_BYTES`（413 `audio too large (max 10MB)`，
+  文案逐字）；媒体上传开关 403（`media_upload_disabled`，解析之前）与成员检查仍在处理器；
+  处理器只剩调用 + 副作用（成员检查、insert、logCommand、fanout、响应），逐行等价——
+  下游一行不动；
+- 新增 `BotSendAudioParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（b64 用确定性 base64 编码恒合法、三个别名键按 `i % 3` 轮换——
+  **延续第四十一块的 CI 教训**：fuzz 基 payload 的必填字段必须确定性合法；
+  title 取确定性 `" t<i> "`（断言 trim 后）、duration 取确定性 `i % 301`、
+  `chatId`/`title`/`duration`/`caption`/三个 b64 别名视为已知字段不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白、b64 缺/空/纯空白→MissingRequired；两端合法→Ok、
+  可选字段全缺省）+
+  trim 语义分岔（chatId/caption 无 trim 原样通过，title 有 trim——两处故意不同、逐字保留）+
+  title 双别名与截 80（`title` 压过 `fileName`；先 trim 后截 80；显式 null 得 `"null"` 保留；
+  纯空白→空串）+
+  duration 双别名与 `toIntOrNull` 回 0（`duration` 压过 `durationSec`；字符串数字照收；
+  `abc`/`12.5`/空串/显式 null→0 不抛；负数原样保留——组装时 `duration>0` 才拼时长段）+
+  b64 三别名优先级与显式 null 不回退（`data` 独有→用 `data`；`fileBase64` 压过 `data`；
+  `audioBase64` 显式 null 时不回退 `fileBase64`→字面 `"null"`→Ok→解码 3 字节）+
+  base64 解码语义（data-URI 前缀剥离、空白剔除、坏 base64 宽容判 0 不抛、空串判 0）+
+  内容组装（全字段/全缺省/负时长逐字断言；4000 截断）+
+  null/大声失败反证（chatId 显式 null 得 `"null"`→Ok；对象/数组型 chatId、
+  对象型 title/duration、数组型 caption、对象型别名键在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  显式 null 不抛的反证）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（含 #265 sendAnimation）；本轮开工时仅 #264（sendTable，
+  本轮先合 #265 后基座冲突已就地解、推回待收）一个 open qca PR——**唯一文件交集是本清单账本
+  （两轮均为末尾追加，git 顺叠、无语义冲突）**，其余改动文件无交集；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +8 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
