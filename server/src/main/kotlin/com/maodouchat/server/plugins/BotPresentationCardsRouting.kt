@@ -352,19 +352,16 @@ put("surface", 39)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val title = (obj["title"]?.jsonPrimitive?.content ?: "Timeline").take(80)
-        val items = (obj["items"]?.jsonArray?.mapNotNull {
-            runCatching { it.jsonPrimitive.content }.getOrNull()
-        } ?: emptyList()).map { it.take(120) }.take(12)
-        if (chatId.isBlank() || items.isEmpty()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/items required"))
+        val fields = when (val parsed = parseBotSendTimelineFields(obj)) {
+            is BotSendTimelineFieldsResult.Ok -> parsed.fields
+            BotSendTimelineFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/items required"))
         }
+        val chatId = fields.chatId
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val lines = items.mapIndexed { i, t -> "${i + 1}. $t" }.joinToString("\n")
-        val content = "### $title\n$lines"
+        val content = buildBotTimelineContent(fields.title, fields.items)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
