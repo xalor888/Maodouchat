@@ -4264,3 +4264,36 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续九十三（2026-10-02）：bot `pinChatMessage` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第五十四块）
+
+- 端点 `/api/bot/pinChatMessage` 的处理器内联 `chatId` + `messageId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()` /
+  `obj["messageId"]?.jsonPrimitive?.content.orEmpty()`，**均无 `.trim()`**：全空白直接判空；
+  显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；对象/数组型在 `?.jsonPrimitive`
+  处大声失败）+ 合并必填（`chatId.isBlank() || messageId.isBlank()`→400
+  `"chatId/messageId required"`，文案逐字）收敛为 `parseBotPinChatMessageFields` 纯函数
+  （`BotPinChatMessageParse.kt`，结果二态 `Ok`/`MissingRequired`）；无缺省/夹界逻辑；
+  抽取顺序 chatId 先、messageId 后，与原处理器逐字一致——限流、可投递检查、
+  消息钉住开关检查（原处理器里**先于** body 解析，本轮保持它们在解析之前，等价）/
+  成员检查/chat 查询/`toggle`/`logCommand`/WS 广播与响应仍在处理器，
+  顺序与原处理器一致，下游一行不动；
+- 新增 `BotPinChatMessageParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、messageId 恒为 `"m<i>"`——**延续第四十一块的 CI 教训**；
+  已知字段 `chatId`/`messageId` 不得参与随机名）+ 合并必填语义（任一字段缺/空/纯空白
+  →MissingRequired；显式 null→`"null"`→Ok 的逐字怪语义）+ 无 trim（两字段
+  `" c1 "`/`" m1 "` 原样保留）+ 大声失败反证（对象/数组型任一字段在 `?.jsonPrimitive`
+  处抛 `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  显式 null 不抛的反证）+ 近似字段名（`ChatId`/`chat_id`/`messageid2`/`message_id`
+  按未知键忽略，真字段缺席→MissingRequired）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open qca PR（#276，改动文件为 `BotChatInviteRouting.kt`+
+  `BotDeleteChatPhotoParse.kt`+`BotDeleteChatPhotoParseFuzzTest.kt`，与本轮改动文件无交集）；
+  §3 收取：#276 CI 全绿 + 自审通过 + mergeable clean，已 squash 合并并删远端分支；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
