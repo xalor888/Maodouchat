@@ -316,7 +316,7 @@ class BotSendTimelineParseFuzzTest {
         )
         // title 与条目原样拼接：首尾空格、内嵌换行不做任何处理。
         assertEquals(
-            "###   padded  \n1.  x  \n2. y\nz",
+            "###   padded  \n1.   x  \n2. y\nz",
             buildBotTimelineContent("  padded  ", listOf("  x  ", "y\nz")),
         )
     }
