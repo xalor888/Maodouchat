@@ -34,7 +34,7 @@ import kotlin.test.assertTrue
  * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
  *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
  * - 钉住 `text` 的存在性回退：只有 `text` 键完全缺席才看 `markdown`；`text` 在但为
- *   显式 null 时仍走 `text` 分支（在 `.content` 处抛，**不**回退）。
+ *   显式 null 时仍走 `text` 分支（取到字面量 `"null"` 字符串，不回退、不抛）。
  * - 钉住 `text` 取 `?.jsonPrimitive?.content` **不是** `?.toString()`：字符串不带引号
  *   进模板（与 `sendJsonCard` 的怪语义相反，特意钉住）；`take(4000)` 作用于
  *   `orEmpty()` **之后**（裁的是 content 本身）。
@@ -45,8 +45,9 @@ import kotlin.test.assertTrue
  *   4000 的空白性）。
  * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `chatId` /
  *   `text` 的 `?.jsonPrimitive` 在类型错时抛 [IllegalArgumentException]
- *   （对象 / 数组 / 显式 null 型值在 `.content` 处抛；注意**数字 / 布尔不抛**，
- *   `JsonPrimitive.content` 对它们是 `toString()`——特意钉住），路由层
+ *   （对象 / 数组型值在 `?.jsonPrimitive` 处抛；显式 null 取到 `"null"` 字面量字符串、
+ *   不抛；注意**数字 / 布尔不抛**，`JsonPrimitive.content` 对它们是 `toString()`——
+ *   特意钉住），路由层
  *   `StatusPages` 把它映射为 400「参数无效」（不是 500）——坏数据必须大声失败，
  *   不能悄悄吞掉。
  * - 反证抽取顺序：`chatId` 先于 `text` 抽取——`chatId` 坏类型 + `text` 乱值→抛错；
@@ -164,14 +165,13 @@ class BotSendMarkdownParseFuzzTest {
         // 恰好 4000 不动。
         val exact = "z".repeat(TEXT_CAP)
         assertEquals(exact, okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c"), "text" to JsonPrimitive(exact)))).text)
-        // text 显式 null → 在 .content 处抛，不回退到 markdown。
-        assertFailsWith<IllegalArgumentException> {
-            parseOf(JsonObject(mapOf("chatId" to JsonPrimitive("c"), "text" to JsonNull, "markdown" to JsonPrimitive("fallback"))))
-        }
-        // text 缺席 + markdown 显式 null → 同样在 .content 处抛。
-        assertFailsWith<IllegalArgumentException> {
-            parseOf(JsonObject(mapOf("chatId" to JsonPrimitive("c"), "markdown" to JsonNull)))
-        }
+        // text 显式 null → 不抛、不回退：JsonNull.content 取到字面量 "null"
+        // 字符串（原处理器逐字如此——怪语义，特意钉住）。
+        assertEquals("null", okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c"), "text" to JsonNull, "markdown" to JsonPrimitive("fallback")))).text)
+        // text 缺席 + markdown 显式 null → 同样取到 "null"，不抛。
+        assertEquals("null", okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c"), "markdown" to JsonNull))).text)
+        // chatId 显式 null → 同样取到 "null"（非空不断言必填），不抛。
+        assertEquals("null", okOf(JsonObject(mapOf("chatId" to JsonNull, "text" to JsonPrimitive("hi")))).chatId)
         // 数字 / 布尔型 text 不抛：JsonPrimitive.content 是 toString()，特意钉住。
         assertEquals("5", okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c"), "text" to JsonPrimitive(5)))).text)
         assertEquals("true", okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c"), "text" to JsonPrimitive(true)))).text)

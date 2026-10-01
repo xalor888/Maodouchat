@@ -21,11 +21,12 @@ import kotlinx.serialization.json.jsonPrimitive
  * 行为与搬移前逐行一致——包括几处故意保留的「怪」语义：
  *
  * - **已知字段类型错时抛 [IllegalArgumentException]**——针对 `chatId` 与 `text`
- *   （都是 `?.jsonPrimitive`：对象 / 数组 / 显式 null 型值在 `.content` 处抛；
+ *   （`?.jsonPrimitive`：对象 / 数组型值在此抛；显式 JSON null 本身就是
+ *   [JsonPrimitive] 的一种，`.content` 取到字面量 `"null"` 字符串、不抛；
  *   路由层 `StatusPages` 把它映射为 400「参数无效」，不是 500）；
  * - `text` 取 `(obj["text"] ?: obj["markdown"])?.jsonPrimitive?.content.orEmpty().take(4000)`，
  *   注意三点：**存在性回退**（只有 `text` 键完全缺席才看 `markdown`；`text` 在但为
- *   显式 JSON null 时仍走 `text` 分支，在 `.content` 处抛，不回退）；
+ *   显式 JSON null 时仍走 `text` 分支（取到 `"null"` 字面量字符串，不回退、不抛））；
  *   `take(4000)` 作用于 `orEmpty()` **之后**（裁的是 content，不是序列化串）；
  *   字符串 `text` 不带引号进模板（`?.jsonPrimitive?.content`，与 `sendJsonCard`
  *   的 `?.toString()` 怪语义**相反**，特意钉住）；
@@ -57,10 +58,10 @@ internal sealed interface BotMarkdownFieldsResult {
  * `sendMarkdown` 的请求体解析。
  *
  * 抽取顺序与原处理器逐字一致：先 `chatId`、再 `text`（含 `text`→`markdown` 的
- * 存在性回退）、再 `silentRequested`，然后判必填——`chatId`/`text` 的
- * `?.jsonPrimitive` 在类型错时抛 [IllegalArgumentException]（大声失败），
- * `silent` 的 `?.jsonPrimitive?.booleanOrNull == true` 缺键得 `false`
- * （原处理器逐字如此，特意钉住）。
+ * 存在性回退）、再 `silentRequested`，然后判必填——对象 / 数组型 `chatId` /
+ * `text` 在 `?.jsonPrimitive` 处抛 [IllegalArgumentException]（大声失败；显式
+ * null 取到 `"null"` 字符串、不抛），`silent` 的 `?.jsonPrimitive?.booleanOrNull == true`
+ * 缺键得 `false`（原处理器逐字如此，特意钉住）。
  */
 internal fun parseBotMarkdownFields(obj: JsonObject): BotMarkdownFieldsResult {
     val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
