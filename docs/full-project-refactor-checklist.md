@@ -3710,6 +3710,49 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
 
+### 第十三轮续八十（2026-10-01）：bot `sendTable` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十一块）
+
+- 端点 `/api/bot/sendTable` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空白）
+  + `headers` 抽取（`obj["headers"] as? JsonArray`：**非数组不是错误而是空表头**（随即判缺）；
+  单元格 `(it as? JsonPrimitive)` 让对象/数组单元格**静默丢弃**（不是大声失败，逐字语义）；
+  `?.content?.trim()?.take(40)` → `filter { it.isNotBlank() }` → `take(8)`——**先 trim+截 40、
+  再剔空白、最后取前 8**（空白被剔后不足 8 也照收；显式 JSON null 得字面量 `"null"` 保留为表头；
+  与 `sendChecklist` items 同一族语义））+
+  `rows` 抽取（同理 `as? JsonArray`：非数组不是错误而是空行集；**行元素非数组则整行
+  静默丢弃**；单元格 trim+截 40 但**不做 `isNotBlank` 过滤**（纯空白单元格保留为空串 `""`，
+  逐字语义）；每行 `take(8)`；整体 `filter { it.isNotEmpty() }` 剔全空行、再 `take(20)`）+
+  **合并必填**（`chatId.isBlank() || headers.isEmpty() || rows.isEmpty()`→400
+  `"chatId/headers/rows required"`，文案逐字）
+  收敛为 `parseBotSendTableFields` 纯函数（`BotSendTableParse.kt`，结果二态
+  `Ok`/`MissingRequired`），表格 markdown 内容组装抽为 `buildBotTableContent(headers, rows)`
+  （逐字：表头行 + 分隔行 + 数据行，列数以 `headers.size` 为准，多余单元格丢弃、不足补空串）；
+  处理器只剩调用 + 副作用（成员检查、publishBotServiceMessage、logCommand、响应），逐行等价——
+  下游一行不动；
+- 新增 `BotSendTableParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（表头单元格混入整数/显式 null/对象/数组怪语义用例，期望与纯函数同语义重算；
+  `chatId`/`headers`/`rows` 视为已知字段不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白、headers 缺、rows 缺→MissingRequired；三者合法→Ok）+
+  chatId 无 trim（`" c1 "` 原样通过必填检查、原样进下游）+
+  headers 单元格语义（trim+截 40、先剔空白后取前 8；纯空白单元格剔除；显式 null 得 `"null"`；
+  对象/数组单元格静默丢弃不抛；数字/布尔经 content 取 toString；headers 非数组/显式 null
+  → MissingRequired 而不是抛）+
+  rows 语义（非数组行元素整行丢弃；单元格不剔空白（`""` 保留）；全空行被剔；每行取 8；
+  整体取 20；rows 非数组→MissingRequired 而不是抛）+
+  内容组装（列数以表头为准，不足补空串；多余单元格丢弃的逐行语义在 fuzz 期望重算中覆盖）+
+  null/大声失败反证（chatId 显式 null 得 `"null"`→Ok；对象/数组型 chatId 在
+  `?.jsonPrimitive` 处抛 `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  headers/rows 坏类型是反例——`as?` 分支让它们变成"缺失"，不抛）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；fuzz 辅助函数里修正了“两次 `random.nextInt` 分别
+  注入与期望”的笔误（自审阶段当场修掉）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（含 #263 sendStatus，已于本轮先行收取）；本轮开工时无其他 open qca PR，
+  无文件交集可比；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
 ### 第十三轮续八十一（2026-10-01）：bot `sendAnimation` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十二块）
 
 - 端点 `/api/bot/sendAnimation` 的处理器内联 `chatId` 抽取

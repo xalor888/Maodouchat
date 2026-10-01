@@ -148,30 +148,18 @@ put("webhookConfigured", !bot.webhookUrl.isNullOrBlank())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val headersEl = obj["headers"] as? kotlinx.serialization.json.JsonArray
-        val rowsEl = obj["rows"] as? kotlinx.serialization.json.JsonArray
-        val headers = headersEl?.mapNotNull {
-            (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.trim()?.take(40)
-        }?.filter { it.isNotBlank() }?.take(8).orEmpty()
-        val rows = rowsEl?.mapNotNull { rowEl ->
-            val arr = rowEl as? kotlinx.serialization.json.JsonArray ?: return@mapNotNull null
-            arr.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.trim()?.take(40) }
-                .take(8)
-        }?.filter { it.isNotEmpty() }?.take(20).orEmpty()
-        if (chatId.isBlank() || headers.isEmpty() || rows.isEmpty()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/headers/rows required"))
+        val fields = when (val parsed = parseBotSendTableFields(obj)) {
+            is BotSendTableFieldsResult.Ok -> parsed.fields
+            BotSendTableFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/headers/rows required"))
         }
+        val chatId = fields.chatId
+        val headers = fields.headers
+        val rows = fields.rows
         if (!participantRepository.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val headLine = "| " + headers.joinToString(" | ") + " |"
-        val sepLine = "| " + headers.joinToString(" | ") { "---" } + " |"
-        val bodyLines = rows.joinToString("\n") { r ->
-            val cells = (0 until headers.size).map { i -> r.getOrNull(i).orEmpty() }
-            "| " + cells.joinToString(" | ") + " |"
-        }
-        val content = headLine + "\n" + sepLine + "\n" + bodyLines
+        val content = buildBotTableContent(headers, rows)
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val botMessage = runCatching {
