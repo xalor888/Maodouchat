@@ -104,8 +104,11 @@ class BotSendTableParseFuzzTest {
 
     private fun basePayload(random: Random, i: Int): Pair<MutableMap<String, JsonElement>, BotSendTableFields> {
         val base = mutableMapOf<String, JsonElement>()
-        // 合法表头：2~4 个单元格，混入怪语义用例。
-        val headerCells = List(random.nextInt(2, 5)) { randomHeaderCell(random) }
+        // 合法表头：2~4 个单元格，混入怪语义用例。首个单元格恒为合法字符串：
+        // 对象/数组/纯空白单元格都会被丢弃，全随机时可能出现表头全空 → MissingRequired，
+        // 那是 missingRequiredSemantics 钉的语义，fuzz 轮必须保证至少一列存活。
+        val headerCells = listOf(JsonPrimitive("h" + i) to "h" + i) +
+            List(random.nextInt(2, 5)) { randomHeaderCell(random) }
         val headerValues = headerCells.map { it.second }.filterNotNull().take(8)
         base["headers"] = JsonArray(headerCells.map { it.first })
         // 合法行：1~3 行，每行 1~4 单元格（布尔/整数/null/字符串）。
