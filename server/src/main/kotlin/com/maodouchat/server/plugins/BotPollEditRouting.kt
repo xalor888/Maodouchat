@@ -89,11 +89,13 @@ put("alias", "closePoll")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val messageId = obj["messageId"]?.jsonPrimitive?.content.orEmpty()
-        val caption = (obj["caption"] ?: obj["text"])?.jsonPrimitive?.content.orEmpty().take(1000)
-        if (messageId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId required"))
+        val fields = when (val parsed = parseBotEditMessageCaptionFields(obj)) {
+            is BotEditMessageCaptionFieldsResult.Ok -> parsed.fields
+            BotEditMessageCaptionFieldsResult.MissingMessageId ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId required"))
         }
+        val messageId = fields.messageId
+        val caption = fields.caption
         val existing = serviceMessageRepo.getById(messageId)
             ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("message not found"))
         if (existing.senderId != bot.id) {
@@ -104,14 +106,10 @@ put("alias", "closePoll")
         }
         // Bot plaintext cards only — refuse peer E2EE envelopes (ciphertext bodies).
         val body0 = existing.content.orEmpty()
-        if (body0.startsWith("E2EE:") || (body0.startsWith("{") && body0.contains("\"ciphertext\""))) {
+        if (isPeerE2eeContent(body0)) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("cannot edit peer E2EE message"))
         }
-        val newBody = if (caption.isBlank()) body0 else {
-            // Prefer rewriting trailing caption after first line for media cards.
-            val lines = body0.lines()
-            if (lines.size <= 1) caption else (lines.first() + "\n" + caption)
-        }
+        val newBody = buildBotEditCaptionContent(body0, caption)
         val editedAt = System.currentTimeMillis()
         // Bot plaintext cards may use media types; bypass peer edit window / attachment lock.
         val edited = runCatching {

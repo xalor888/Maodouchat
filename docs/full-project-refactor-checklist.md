@@ -3861,3 +3861,51 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +8 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续八十三（2026-10-01）：bot `editMessageCaption` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十四块）
+
+- 端点 `/api/bot/editMessageCaption` 的处理器内联 `messageId` 抽取
+  （`obj["messageId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空）+
+  `caption` 抽取（`(obj["caption"] ?: obj["text"])?.jsonPrimitive?.content.orEmpty().take(1000)`——
+  **双别名**（`caption`→`text`，逐字顺序）、**无 `.trim()`**（首尾空白原样进正文，
+  与 title 类端点的 trim 故意不同，逐字保留）、**截 1000**；显式 JSON null 得字面量
+  `"null"`（非空→Ok），对象/数组型在 `?.jsonPrimitive` 处大声失败）+
+  **messageId 必填**（`messageId.isBlank()`→400 `"messageId required"`，文案逐字）
+  收敛为 `parseBotEditMessageCaptionFields` 纯函数（`BotEditMessageCaptionParse.kt`，
+  结果二态 `Ok`/`MissingMessageId`）；
+  对端 E2EE 拒绝判定（`body0.startsWith("E2EE:") ||
+  (body0.startsWith("{") && body0.contains("\"ciphertext\""))`→400
+  `"cannot edit peer E2EE message"`，文案逐字——只认既有正文原文，与请求体无关）
+  抽为 `isPeerE2eeContent`；
+  内容组装抽为 `buildBotEditCaptionContent`：caption 空白→原正文不变（等于没改）；
+  否则单行正文直接换成 caption，多行正文（媒体卡片）取 `lines.first() + "\n" + caption`
+  （首行保留、只重写 caption 部分，逐字）；响应 `put("caption", caption.take(200))`
+  的 200 截断留在处理器（响应组装非请求语义）；
+  归属/成员检查/不存在 404 仍在处理器，校验顺序与原处理器一致（messageId 必填→
+  消息存在→归属→成员→E2EE 拒绝→editOwn），逐行等价——下游一行不动；
+- 新增 `BotEditMessageCaptionParseFuzzTest`（7 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（messageId 恒为 `"m<i>"` 确定性合法——**延续第四十一块的 CI 教训**；
+  caption 双别名按 `i % 2` 轮换、`i % 37 == 0` 取 1500 字符钉住截 1000；
+  `messageId`/`caption`/`text` 视为已知字段不得参与随机名）+
+  messageId 必填语义（缺/空/纯空白→MissingMessageId；caption 缺省不影响 Ok；
+  messageId 首尾空白原样保留非 trim）+
+  caption 双别名与截断（`caption` 压过 `text`；仅 `text` 生效；无 trim 原样保留；
+  1200 字符→截 1000；显式 null 得字面 `"null"`；显式 null 的 messageId 同样得
+  `"null"`→Ok 的逐字怪语义）+
+  大声失败反证（对象/数组型 messageId、对象型 caption、数组型 text 别名键在
+  `?.jsonPrimitive` 处抛 `IllegalArgumentException`，路由层 `StatusPages` 映射 400，
+  不是 500；显式 null 不抛的反证）+
+  近似字段名（`Caption`/`caption2` 按未知键忽略，caption 取不到→缺省空串）+
+  E2EE 拒绝语义（`E2EE:` 前缀/`{` 开头含 `"ciphertext"`→拒绝；
+  空串/普通文本/`{"text":…}`/`E2EE is not…`/`[{ciphertext}]`→不拒绝）+
+  内容组装（空白 caption→原正文；单行→换成 caption；多行→首行+换行+caption 逐字；
+  caption 首尾空白与内嵌换行原样拼接）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open qca PR（本轮先合 #266/#264），无文件交集可比；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +7 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
