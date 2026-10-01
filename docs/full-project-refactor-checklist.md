@@ -4043,3 +4043,43 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续八十七（2026-10-01）：bot `sendChatAction` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十八块）
+
+- 端点 `/api/bot/sendChatAction` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空）+
+  `action` 抽取（`obj["action"]?.jsonPrimitive?.content.orEmpty().lowercase().ifBlank { "typing" }`——
+  **先 `.lowercase()` 后判空**：缺席/空串/纯空白→`"typing"`；显式 JSON null 得字面量
+  `"null"`、小写化后仍为 `"null"`（非空→**不**回退 `"typing"`，特意钉住）；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败）+
+  **合并必填**（只有 `chatId`：`chatId.isBlank()`→400 `"chatId required"`，文案逐字——
+  `action` 恒有默认值，从不判空，逐字语义）
+  收敛为 `parseBotSendChatActionFields` 纯函数（`BotSendChatActionParse.kt`，
+  结果二态 `Ok`/`MissingRequired`）；
+  抽取顺序与原处理器一致（`chatId`→`action`→必填，坏类型字段抛错顺序不变），逐行等价——
+  限流门控/成员检查/`isTyping` 推导/typing 侧信道 fanout（9.124 拉黑过滤）/
+  `logCommand`（`"sendChatAction:$action"`）/`{"ok": true, "action": …}` 响应
+  仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotSendChatActionParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`——**延续第四十一块的 CI 教训**；action 按 `i % 4`
+  轮换 `TYPING`/`Upload_Photo`/`"  "`/缺席钉住归一化；`chatId`/`action`
+  视为已知字段不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白→MissingRequired；action 缺席照样 Ok→`"typing"`；
+  显式 null 的 chatId 得字面 `"null"`→Ok 的逐字怪语义）+
+  action 归一化（缺席/空串/纯空白→`"typing"`；`TYPING`/`Typing`→`"typing"`；
+  `UPLOAD_PHOTO`/`Record_Video`→小写化；非典型值 `cancel`/`" MD "` 原样（小写化后）透传，
+  路由层不校验白名单；显式 null→`"null"` 不回退的逐字怪语义）+
+  无 trim（`" c1 "` 原样保留、原样进下游）+
+  大声失败反证（对象/数组型 chatId、action 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  显式 null 不抛的反证）+
+  近似字段名（`ChatId`/`chatid2`/`Action`/`act` 按未知键忽略，真字段缺席→MissingRequired）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open qca PR（本轮先合 #268/#270），无文件交集可比；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
