@@ -59,16 +59,16 @@ add(buildJsonObject {
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val code = (obj["code"] ?: obj["text"])?.jsonPrimitive?.content.orEmpty().take(3500)
-        val lang = obj["language"]?.jsonPrimitive?.content.orEmpty().take(24)
-        if (chatId.isBlank() || code.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/code required"))
+        val fields = when (val parsed = parseBotCodeFields(obj)) {
+            is BotCodeFieldsResult.Ok -> parsed.fields
+            BotCodeFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/code required"))
         }
+        val chatId = fields.chatId
+        val fenced = buildBotCodeContent(fields.code, fields.lang)
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val fenced = if (lang.isNotBlank()) "```$lang\n$code\n```" else "```\n$code\n```"
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val ok = runCatching {
