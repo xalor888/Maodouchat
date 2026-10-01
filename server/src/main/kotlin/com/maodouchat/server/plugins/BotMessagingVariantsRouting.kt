@@ -112,16 +112,14 @@ put("hasInvite", invite.isNotBlank())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val text = obj["text"]?.jsonPrimitive?.content.orEmpty().take(4000)
-        val parseMode = obj["parseMode"]?.jsonPrimitive?.content.orEmpty().uppercase()
-        val msgType = when {
-            parseMode == "MARKDOWN" || parseMode == "MD" -> "MARKDOWN"
-            else -> "TEXT"
+        val fields = when (val parsed = parseBotSendMessageSilentFields(obj)) {
+            is BotSendMessageSilentFieldsResult.Ok -> parsed.fields
+            BotSendMessageSilentFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
         }
-        if (chatId.isBlank() || text.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
-        }
+        val chatId = fields.chatId
+        val text = fields.text
+        val msgType = fields.msgType
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
