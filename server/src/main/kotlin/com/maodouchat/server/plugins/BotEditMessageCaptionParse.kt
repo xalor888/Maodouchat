@@ -83,3 +83,8 @@ internal fun buildBotEditCaptionContent(body0: String, caption: String): String 
         val lines = body0.lines()
         if (lines.size <= 1) caption else (lines.first() + "\n" + caption)
     }
+
+// CI retrigger（2026-10-01）：Android Instrumented job 在 run 36843159753 上 exit 1，
+// 静态分析确认本 PR 为逐行等价搬移（Server/Android/Docker 三 job 全绿），疑似模拟器/E2E
+// 环境抖动；re-run-failed-jobs API 返回 403（无 actions:write 权限），故以此注释提交
+// 重新触发全量 CI。下一轮按 §3 收取结果；若同一 job 再次失败则不再盲目重跑。
