@@ -154,17 +154,16 @@ put("reactions", Json.parseToJsonElement(Json.encodeToString(botReactions)))
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val quote = (obj["quote"] ?: obj["text"])?.jsonPrimitive?.content.orEmpty().take(1500)
-        val note = obj["note"]?.jsonPrimitive?.content.orEmpty().take(500)
-        if (chatId.isBlank() || quote.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/quote required"))
+        val fields = when (val parsed = parseBotQuoteFields(obj)) {
+            is BotQuoteFieldsResult.Ok -> parsed.fields
+            BotQuoteFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/quote required"))
         }
+        val chatId = fields.chatId
+        val content = buildBotQuoteContent(fields.quote, fields.note)
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val quoted = quote.lines().joinToString("\n") { "> " + it }
-        val content = if (note.isNotBlank()) "$quoted\n\n$note" else quoted
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
         val ok = runCatching {

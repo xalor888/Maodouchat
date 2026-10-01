@@ -3490,3 +3490,55 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 open PR（仅 dependabot 若干）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续七十五（2026-10-01）：bot `sendQuote` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第三十六块）
+
+- 端点 `/api/bot/sendQuote` 的处理器内联 `chatId` 抽取 + `quote`
+ （`(obj["quote"] ?: obj["text"])?.jsonPrimitive?.content.orEmpty().take(1500)`：
+  **存在性**回退——只有 `quote` 键完全缺席才看 `text`；`quote` 在但为显式 null
+  时仍走 `quote` 分支得字面 `"null"`（`JsonNull.content` 即 `"null"`、不抛，
+  kotlinx-serialization-json 1.11.0 KDoc 明示，`sendMarkdown` 第三十五块 CI
+  已实证）；`take(1500)` 作用于 `orEmpty()` **之后**（裁的是 content，不是序列化串）；
+  字符串 `quote` 不带引号进模板（`?.jsonPrimitive?.content`，与 `sendJsonCard`
+  的 `?.toString()` 怪语义**相反**，特意钉住）+ `note`
+  （`obj["note"]?.jsonPrimitive?.content.orEmpty().take(500)`：缺键得空串；
+  显式 null 得 `"null"` 字符串、不抛；**不参与必填**）+ **双必填**
+  （`chatId.isBlank() || quote.isBlank()`→400 `"chatId/quote required"`，文案逐字；
+  判的是裁过 1500 的空白性）收敛为 `parseBotQuoteFields` 纯函数
+  （`BotSendQuoteParse.kt`，处理器只剩调用 + 字段映射 + 副作用（成员检查、入库、
+  fanout、响应），逐行等价——特性开关门控（`isMarkdownEnabled`，拒绝文案
+  `"markdown disabled by admin"`）仍在解析之前、必填（纯函数）→ 成员检查（处理器），
+  抽取顺序 chatId→quote→note、校验顺序不变；响应体逐字不变，下游一行不动）；
+- 内容组装逐字搬移：`buildBotQuoteContent`（`quote.lines().joinToString("\n") { "> " + it }`
+  逐行加引用前缀；`note.isNotBlank()` 时 `quoted + "\n\n" + note`，否则只发引用块——
+  判的是裁过 500 的串，逐字断言）；
+- 新增 `BotSendQuoteParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（三分之一 `quote` 缺省钉住 `text` 回退、另三分之一 `quote`+`text`
+  同时在场钉住 `quote` 分支（`text` 被忽略）、其余全字段抽取；
+  `text` 与 `note` 视为已知字段不得参与随机名；三分之一用例 `note` 缺席钉住空串语义，
+  其余五分之一超长 note 钉住 take(500)；二分之一超长 quote 钉住 take(1500)
+  作用于 `orEmpty()` 之后；内容组装与字段逐字一致性交叉断言）+ 双必填语义
+  （chatId 缺/空/纯空白→MissingRequired；quote 与 text 均缺席→MissingRequired；
+  quote 空/纯空白→MissingRequired；quote 缺席但 text 纯空白→MissingRequired；
+  note 再长也不参与必填→Ok）+ 上限与特殊语义逐字钉住（quote 超长截 1500 /
+  note 超长截 500；`quote` 显式 null 得字面 `"null"`、不抛、不回退到 text；
+  `quote` 缺席 + `text` 显式 null 得 `"null"`；`chatId`/`note` 显式 null 同理得
+  `"null"`；JSON 数字/布尔经 content 取 toString；对象/数组型 chatId/quote/note
+  在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`）+ 内容组装逐字断言
+  （单行/多行前缀、note 拼接、note 纯空白视为无、尾随换行逐字保留、空 quote 得
+  `"> "`）+ 坏类型大声失败反证（对象/数组型 chatId/quote/note → 
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）+
+  抽取顺序反证（chatId 坏类型 + quote 乱值→抛错；chatId 缺席 + quote 乱值→抛错
+  而非 MissingRequired；chatId 纯空白 + quote 乱值→仍抛错；反证 quote 合法时
+  chatId 纯空白→MissingRequired）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；`JsonNull` 语义已按第三十五块 CI 教训钉住
+  （`JsonNull.content` 返回 `"null"` 字面量、不抛错），不再重复踩坑；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main；与 open PR（#258 改 `BotMessagingVariantsRouting.kt` +
+  sendMarkdown 解析/测试文件；本轮改 `BotReactionRouting.kt` + sendQuote
+  解析/测试文件 + 清单账本）无代码文件交集；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
