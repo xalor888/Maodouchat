@@ -96,12 +96,15 @@ put("count", 0)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val rotate = obj["rotate"]?.jsonPrimitive?.booleanOrNull == true
-        val expiresIn = (obj["expiresInSeconds"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: 7L * 24 * 3600).coerceIn(300L, 30L * 24 * 3600)
-        val maxUses = (obj["maxUses"]?.jsonPrimitive?.content?.toIntOrNull() ?: 100).coerceIn(1, 1000)
-        if (chatId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val fields = when (val parsed = parseBotExportChatInviteLinkFields(obj)) {
+            is BotExportChatInviteLinkFieldsResult.Ok -> parsed.fields
+            BotExportChatInviteLinkFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        }
+        val chatId = fields.chatId
+        val rotate = fields.rotate
+        val expiresIn = fields.expiresInSeconds
+        val maxUses = fields.maxUses
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
