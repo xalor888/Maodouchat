@@ -576,36 +576,26 @@ put("event", event)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val title = (obj["title"] ?: obj["fileName"])?.jsonPrimitive?.content.orEmpty().trim().take(80)
-        val duration = (obj["duration"] ?: obj["durationSec"])?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-        val caption = obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)
-        val b64 = (obj["audioBase64"] ?: obj["fileBase64"] ?: obj["data"])?.jsonPrimitive?.content.orEmpty()
-        // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体
-        if (chatId.isBlank() || b64.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/audioBase64 required"))
+        val fields = when (val parsed = parseBotSendAudioFields(obj)) {
+            is BotSendAudioFieldsResult.Ok -> parsed.fields
+            BotSendAudioFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/audioBase64 required"))
         }
+        val chatId = fields.chatId
+        val title = fields.title
+        val duration = fields.duration
+        val caption = fields.caption
+        val b64 = fields.fileBase64
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
-        val size = if (b64.isNotBlank()) {
-            runCatching {
-                java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace("\\s".toRegex(), "")).size
-            }.getOrDefault(0)
-        } else 0
-        if (size > 10 * 1024 * 1024) {
+        val size = decodeBotAudioSize(b64)
+        if (size > BOT_AUDIO_MAX_BYTES) {
             return@post call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("audio too large (max 10MB)"))
         }
         val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
         val now = System.currentTimeMillis()
-        val content = buildString {
-            append("🎵 audio")
-            if (title.isNotBlank()) { append(" "); append(title) }
-            if (duration > 0) { append(" "); append(duration); append("s") }
-            if (size > 0) { append(" ("); append(size); append("B)") }
-            if (caption.isNotBlank()) { append("\n"); append(caption) }
-            append("\n[botAudioSize:"); append(size); append("]")
-        }.take(4000)
+        val content = buildBotAudioContent(title, duration, caption, size)
         val ok = runCatching {
             serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "FILE")
         }.getOrDefault(false)
