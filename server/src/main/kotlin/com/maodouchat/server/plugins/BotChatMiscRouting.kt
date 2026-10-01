@@ -57,10 +57,12 @@ put("count", chats.size)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val messageId = obj["messageId"]?.jsonPrimitive?.content.orEmpty()
-        if (messageId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId required"))
+        val fields = when (val parsed = parseBotStarMessageFields(obj)) {
+            is BotStarMessageFieldsResult.Ok -> parsed.fields
+            BotStarMessageFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId required"))
         }
+        val messageId = fields.messageId
         val msg = serviceMessageRepo.metadata(messageId)
             ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("message not found"))
         if (!conversationParticipantRepo.isParticipant(msg.chatId, bot.id)) {
