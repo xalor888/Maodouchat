@@ -3753,3 +3753,50 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   无文件交集可比；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+### 第十三轮续八十一（2026-10-01）：bot `sendAnimation` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十二块）
+
+- 端点 `/api/bot/sendAnimation` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空白）
+  + `caption` 抽取（`obj["caption"]?.jsonPrimitive?.content.orEmpty().take(500)`，
+  同样无 `trim()`——与 `sendTable` 表头单元格的 trim 语义不同，逐字保留）+
+  `b64` 四别名抽取（`animationBase64`→`gifBase64`→`fileBase64`→`data`，
+  `?.jsonPrimitive?.content.orEmpty()`；**显式 JSON null 不回退**：`?:` 判的是 Kotlin
+  null，不是 `JsonNull`——`JsonNull` 本身是 `JsonPrimitive`，`.content` 得字面量
+  `"null"` 字符串（非空→Ok；`"null"` 恰是合法 base64 字母表，解码得 3 字节），逐字怪语义）+
+  **合并必填**（`chatId.isBlank() || b64.isBlank()`→400 `"chatId/animationBase64 required"`，
+  文案逐字，与 sendPhoto/sendDocument 的 9.138「空媒体一律拒绝」一致）
+  收敛为 `parseBotSendAnimationFields` 纯函数（`BotSendAnimationParse.kt`，结果二态
+  `Ok`/`MissingRequired`）；base64 解码（data-URI 前缀剥离 `substringAfter(',')` + 空白剔除，
+  `runCatching` 包住）抽为 `decodeBotAnimationSize`（**坏 base64 走宽容分支**：解码抛错只判
+  size=0、不 400——与 sendPhoto 的「坏 base64 判 400 `invalid base64`」故意不同，逐字保留）；
+  内容组装（`"✨ gif/animation"` + size>0 时的 `" (NB)"` + 非空 caption 行 +
+  `"[botAnimSize:N]"`，整体 `.take(4000)`）抽为 `buildBotAnimationContent`；
+  体积上限 8MB 抽为 `BOT_ANIMATION_MAX_BYTES`（413 `animation too large (max 8MB)`，
+  文案逐字）；媒体上传开关 403（`media_upload_disabled`，解析之前）与成员检查仍在处理器；
+  处理器只剩调用 + 副作用（成员检查、insert、logCommand、fanout、响应），逐行等价——
+  下游一行不动；
+- 新增 `BotSendAnimationParseFuzzTest`（7 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（b64 用确定性 base64 编码恒合法、四个别名键按 `i % 4` 轮换——
+  **吸取第四十一块的 CI 教训**：fuzz 基 payload 的必填字段必须确定性合法，全随机时
+  已知字段可能被丢弃/变空→`MissingRequired`→`okOf` 强转抛 `ClassCastException`；
+  `chatId`/`caption`/四个 b64 别名视为已知字段不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白、b64 缺/空/纯空白→MissingRequired；两端合法→Ok）+
+  chatId/caption 无 trim（`" c1 "`、`" cap "` 原样通过、原样进下游）+
+  四别名优先级与显式 null 不回退（`data` 独有→用 `data`；`fileBase64` 压过 `data`；
+  `animationBase64` 显式 null 时不回退 `gifBase64`→字面 `"null"`→Ok→解码 3 字节）+
+  base64 解码语义（data-URI 前缀剥离、空白剔除、坏 base64 宽容判 0 不抛、空串判 0）+
+  内容组装（size=0 时无 `" (0B)"` 后缀；纯空白 caption 省行；5000 字符 caption 截断到 4000）+
+  null/大声失败反证（chatId 显式 null 得 `"null"`→Ok；对象/数组型 chatId、
+  对象型 caption、对象型别名键在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500；显式 null 不抛的反证）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（含 #263 sendStatus）；本轮开工时仅 #264（sendTable，
+  本轮已就地修 CI 并推回、待收）一个 open qca PR——**唯一文件交集是本清单账本
+  （两轮均为末尾追加，git 顺叠、无语义冲突）**，其余改动文件无交集；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +7 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
