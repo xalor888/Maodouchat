@@ -3861,3 +3861,53 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +8 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续八十四（2026-10-01）：bot `sendTimeline` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第四十五块）
+
+- 端点 `/api/bot/sendTimeline` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空）+
+  `title` 抽取（`(obj["title"]?.jsonPrimitive?.content ?: "Timeline").take(80)`——
+  默认文案只在**键缺席**时回退，显式 JSON null 得字面量 `"null"`（不回退，特意钉住）、
+  **无 `.trim()`**（前导空格计入 80 上限，逐字保留）、截 80；对象/数组型在
+  `?.jsonPrimitive` 处大声失败）+
+  `items` 抽取（`(obj["items"]?.jsonArray?.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() } ?: emptyList()).map { it.take(120) }.take(12)`——
+  键缺席→空列表；显式 JSON null / 对象型在 `?.jsonArray` 处大声失败（`JsonNull`
+  不是数组，逐字语义）；数组元素里**非 primitive（对象/数组）静默丢弃**
+  （`runCatching` 包住，与坏类型大声失败的已知字段故意不同，逐字保留），
+  `JsonNull` 元素是 `JsonPrimitive`、得字面量 `"null"`（保留，非空）；
+  逐项 `.take(120)`、全表 `.take(12)`（先逐项截、再取前 12，逐字顺序））+
+  **合并必填**（`chatId.isBlank() || items.isEmpty()`→400 `"chatId/items required"`，
+  文案逐字——items 为空可能是「全被静默丢弃」的结果，逐字语义）
+  收敛为 `parseBotSendTimelineFields` 纯函数（`BotSendTimelineParse.kt`，
+  结果二态 `Ok`/`MissingRequired`）；
+  内容组装抽为 `buildBotTimelineContent`：
+  `"### " + title + "\n" + lines`（`lines` 为 `items.mapIndexed { i, t -> (i + 1).toString() + ". " + t }.joinToString("\n")`，
+  序号从 1 起，逐字）；特性开关门控（`markdown_disabled`）、成员检查、
+  `publishBotServiceMessage`、`logCommand` 仍在处理器，抽取顺序与原处理器一致
+  （`chatId`→`title`→`items`→必填，坏类型字段抛错顺序不变），逐行等价——下游一行不动；
+- 新增 `BotSendTimelineParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c" + i`、items 恒为三条目确定性合法——**延续第四十一块的
+  CI 教训**；`i % 3 == 0` 时塞 150 字符条目钉住逐项截 120；title 取 `" t" + i + " "`
+  钉住无 trim；`chatId`/`title`/`items` 视为已知字段不得参与随机名）+
+  合并必填语义（chatId 缺/空/纯空白→MissingRequired；items 缺/空数组/全被静默丢弃
+  →MissingRequired；显式 null 的 chatId 得字面 `"null"`→Ok 的逐字怪语义；
+  title 缺省回 `"Timeline"` 不影响 Ok）+
+  title 默认与截断（键缺席→`"Timeline"`；显式 null→`"null"` 不回退；无 trim 原样保留；
+  120 字符→截 80，前导空格计入上限）+
+  items 元素语义（逐项 120 / 全表 12 先截后取；布尔/数字/浮点/字符串字面量保留、
+  `JsonNull` 元素得字面 `"null"`、对象/数组元素静默丢弃；显式 null / 对象型 items
+  在 `?.jsonArray` 处抛 `IllegalArgumentException`）+
+  大声失败反证（对象/数组型 chatId、title 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  显式 null 不抛的反证）+
+  内容组装（单条目/多条目序号从 1 起逐字；title 与条目的首尾空格、内嵌换行原样拼接）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open qca PR（#267，`editMessageCaption`，CI 收取中）——**唯一文件交集
+  是本清单账本（两轮均为末尾追加，git 顺叠、无语义冲突）**，其余改动文件无交集；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
