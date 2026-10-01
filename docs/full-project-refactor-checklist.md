@@ -3595,3 +3595,48 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   无文件交集可比；本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续七十七（2026-10-01）：bot `setMessageReaction` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第三十八块）
+
+- 端点 `/api/bot/setMessageReaction` 的处理器内联 `messageId` 抽取 +
+  `emoji`（`obj["emoji"]?.jsonPrimitive?.content.orEmpty().trim()`：`trim()`
+  作用于 `orEmpty()` **之后**（裁的是 content，不是序列化串）；双必填与白名单
+  判的都是**裁过两端空白**的串——`" 👍 "` 合法通过，全空白 emoji 得
+  `MissingRequired`（不是 `UnsupportedEmoji`）；显式 null 的 emoji 得字面
+  `"null"`（不抛、经 `trim()` 仍为 `"null"`），它**不在**
+  `ALLOWED_REACTION_EMOJIS` 里 → `UnsupportedEmoji`，特意钉住）+ **双必填**
+  （`messageId.isBlank() || emoji.isBlank()`→400 `"messageId/emoji required"`，
+  文案逐字；白名单拒绝 400 `"unsupported emoji"` 文案逐字，只在双必填通过后发生）
+  收敛为 `parseBotReactionFields` 纯函数（`BotSetMessageReactionParse.kt`，
+  结果三态 `Ok`/`MissingRequired`/`UnsupportedEmoji`，处理器只剩调用 +
+  字段映射 + 副作用（消息存在性、成员检查、setReaction、logCommand、fanout、
+  响应），逐行等价——特性开关门控（`isReactionsEnabled`，拒绝文案
+  `"reactions_disabled"`）仍在解析之前；抽取顺序 messageId→emoji、
+  校验顺序抽取→双必填→白名单不变；响应体逐字不变，下游一行不动）；
+- 新增 `BotSetMessageReactionParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（白名单成员逐字通过、四分之一两端空白钉住 trim 后再判白名单、
+  四分之二白名单外/乱串钉住 `UnsupportedEmoji`；五分之一 messageId 数字钉住
+  content→toString；`messageId` 与 `emoji` 视为已知字段不得参与随机名）+
+  双必填语义（messageId 缺/空/纯空白→MissingRequired；emoji 缺/空/纯空白
+  →MissingRequired（判的是 trim 后的串）；双合法→Ok）+
+  白名单语义逐字钉住（白名单**全体成员**逐字通过；白名单外/乱串→UnsupportedEmoji；
+  两端空白的白名单成员→trim 后通过；emoji 显式 null 得字面 `"null"`→UnsupportedEmoji；
+  emoji 数字经 content 取 toString→UnsupportedEmoji）+
+  null/标量怪语义（messageId 显式 null 得 `"null"`→Ok；布尔 messageId 得 `"true"`；
+  对象/数组型 messageId/emoji 在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`）+
+  坏类型大声失败反证（对象/数组型 messageId/emoji →
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  显式 null 不抛的反证）+
+  抽取顺序反证（messageId 坏类型 + emoji 乱值→抛错；messageId 缺席 + emoji 坏类型
+  →抛错而非 MissingRequired；messageId 纯空白 + emoji 坏类型→仍抛错；
+  反证 emoji 合法时 messageId 纯空白→MissingRequired）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；`JsonNull` 语义已按第三十五块 CI 教训钉住
+  （`JsonNull.content` 返回 `"null"` 字面量、不抛错），不再重复踩坑；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 分支基座为最新 main（含 #260 sendCode）；本轮开工时无 open qca PR，
+  无文件交集可比；本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

@@ -107,14 +107,15 @@ put("type", "MARKDOWN")
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val messageId = obj["messageId"]?.jsonPrimitive?.content.orEmpty()
-        val emoji = obj["emoji"]?.jsonPrimitive?.content.orEmpty().trim()
-        if (messageId.isBlank() || emoji.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId/emoji required"))
+        val fields = when (val parsed = parseBotReactionFields(obj)) {
+            is BotReactionFieldsResult.Ok -> parsed.fields
+            BotReactionFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId/emoji required"))
+            BotReactionFieldsResult.UnsupportedEmoji ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("unsupported emoji"))
         }
-        if (emoji !in ALLOWED_REACTION_EMOJIS) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("unsupported emoji"))
-        }
+        val messageId = fields.messageId
+        val emoji = fields.emoji
         val msg = serviceMessageRepo.metadata(messageId)
             ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("message not found"))
         if (!conversationParticipantRepo.isParticipant(msg.chatId, bot.id)) {
