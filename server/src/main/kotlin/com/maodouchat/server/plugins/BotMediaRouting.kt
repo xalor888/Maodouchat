@@ -485,14 +485,17 @@ put("username", bot.username)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val canSend = obj["canSendMessages"]?.jsonPrimitive?.booleanOrNull
-            ?: obj["can_send_messages"]?.jsonPrimitive?.booleanOrNull
-        val until = obj["until"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: obj["untilDate"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: 0L
-        if (chatId.isBlank() || canSend == null) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/canSendMessages required"))
+        val chatId: String
+        val canSend: Boolean
+        val until: Long
+        when (val parsed = parseBotSetChatPermissionsFields(obj)) {
+            is BotSetChatPermissionsFieldsResult.Ok -> {
+                chatId = parsed.fields.chatId
+                canSend = parsed.fields.canSend
+                until = parsed.fields.until
+            }
+            BotSetChatPermissionsFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/canSendMessages required"))
         }
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
