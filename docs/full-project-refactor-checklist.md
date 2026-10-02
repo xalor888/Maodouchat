@@ -4646,3 +4646,72 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotSetMyDescriptionParse.kt`/`BotSetMyDescriptionParseFuzzTest.kt`+本清单——
   本轮清单改动为本账本节追加「续一百六」，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+### 第十三轮续一百二（2026-10-02）：bot `leaveChat` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十三块）——补记
+
+- 本块为 PR #286（squash 合并 eefecd96，当时漏记账本，本轮补记）：`/api/bot/leaveChat`
+  处理器内联 `chatId` 抽取 + 合并必填校验收敛为 `parseBotLeaveChatFields` 纯函数
+  （`BotLeaveChatParse.kt`，结果二态 `Ok`/`Invalid`），新增 `BotLeaveChatParseFuzzTest`；
+  `BotChatModerationRouting.kt` 处理器只保留 `when` 分发（`Invalid`→400 文案逐字），
+  下游限流/成员检查/`logCommand`/响应一行不动；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件）无一在监；
+- 判据：本机无 JDK/Android SDK，未本地验证，已由 CI 验证（合并闸门通过）。
+
+### 第十三轮续一百三（2026-10-02）：bot `demoteChatMember` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十四块）——补记
+
+- 本块为 PR #287（squash 合并 8302a304，当时漏记账本，本轮补记）：`/api/bot/demoteChatMember`
+  处理器内联 `chatId`/`userId` 抽取（两字段均无 `.trim()`，显式 null 得字面量 `"null"`，
+  对象/数组型在 `?.jsonPrimitive` 处大声失败，抽取先于必填校验）+ 合并必填校验
+  （`chatId.isBlank() || userId.isBlank()`→400 `"chatId/userId required"`，文案逐字）
+  收敛为 `parseBotDemoteChatMemberFields` 纯函数（`BotDemoteChatMemberParse.kt`，
+  结果二态 `Ok`/`Invalid`），新增 `BotDemoteChatMemberParseFuzzTest`（8 例）；
+  `BotMediaRouting.kt` 处理器只保留 `when` 分发，限流（先于 body 解析）/成员检查/
+  `logCommand`/修订通知/响应仍在处理器，下游一行不动；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件）无一在监；
+- 判据：本机无 JDK/Android SDK，未本地验证，已由 CI 验证（合并闸门通过）。
+
+### 第十三轮续一百四（2026-10-02）：bot `setChatPermissions` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十五块）
+
+- 端点 `/api/bot/setChatPermissions` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空；
+  显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；对象/数组型在 `?.jsonPrimitive`
+  处大声失败）+ `canSend` 布尔归一化（camel `canSendMessages` 优先、
+  snake `can_send_messages` 兜底的 `?.jsonPrimitive?.booleanOrNull`，即
+  `content.toBooleanStrictOrNull()`——JSON 布尔或 `"true"`/`"false"` 字符串算布尔，
+  大小写**不**敏感（`"TRUE"`→`true`，同第四十九块 CI 教训）；数字/显式 null/
+  空字符串一律落空到别名或 `Invalid`；显式 null camel 等同缺席，不抛）+ `until` 别名回落
+  （camel `until` 优先、camel `untilDate` 兜底、缺省 `0L`；非数字字符串/显式 null
+  回落不抛，下游 `muteUntil` 语义里 0=24 小时静音，本轮不动该语义）+
+  合并必填校验（`chatId.isBlank() || canSend == null`→400
+  `"chatId/canSendMessages required"`，文案逐字）收敛为 `parseBotSetChatPermissionsFields`
+  纯函数（`BotSetChatPermissionsParse.kt`，结果二态 `Ok`/`Invalid`）——限流
+  （原处理器里**先于** body 解析，本轮保持在解析之前，等价）/成员检查（`isParticipant`）/
+  批量静音/`logCommand`/修订通知/响应仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotSetChatPermissionsParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、`canSendMessages` 恒为 JSON 布尔 true、`until` 恒为
+  JSON 整数——**延续第四十一块的 CI 教训**；已知字段五名 `chatId`/`canSendMessages`/
+  `can_send_messages`/`until`/`untilDate` 不得参与随机名）+
+  必填语义（chatId 缺/空/纯空白→Invalid；canSend 缺/数字/显式 null→Invalid；
+  `"TRUE"`→Ok(true)，大小写不敏感；双合法+until 缺席→Ok 且 until 缺省 `0L`）+
+  canSend 严格布尔与别名（JSON 布尔/小写字符串接受；snake 兜底；camel 优先；
+  显式 null camel→别名接管；camel 非布尔字符串落空→别名接管）+
+  until 别名与回落（数字字符串→Long；`untilDate` 兜底；until 优先；非数字回落；
+  双缺→`0L`；显式 null→`0L`）+
+  空白不 trim（`" c1 "` 原样保留仍通过必填）+
+  **抽取先于必填校验的顺序反证**（`until` 对象型 + chatId 空白时先抛，不走 `Invalid`；
+  `canSend` 对象型 + chatId 空白时同样先抛；chatId 对象型先抛——抽取顺序
+  chatId 先、canSend 中、until 末）+
+  大声失败反证（对象/数组型在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500；显式 null chatId 不抛→`"null"`→Ok）+
+  近似字段名（`ChatId`/`canSendMessage`/`Until` 等按未知键忽略，真字段缺席→Invalid，
+  `until` 缺席→`0L`）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（#285/#287 均于本轮按合并闸门收掉；本轮只碰 `BotMediaRouting.kt`/
+  `BotSetChatPermissionsParse.kt`/`BotSetChatPermissionsParseFuzzTest.kt`+本清单——
+  本轮清单改动为本账本节追加「续一百二/三（补记）/四」，不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
