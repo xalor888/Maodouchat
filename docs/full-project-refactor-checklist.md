@@ -4467,3 +4467,41 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 #281 无文件交集，**本轮未改清单 §0（复核轮统一刷新），账本仅末尾追加**——
   账本节用「续九十八」编号，与 #281 分支内的「续九十七」不冲突）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续九十九（2026-10-02）：bot `restrictChatMember` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十块）
+
+- 端点 `/api/bot/restrictChatMember` 的处理器内联 `chatId`/`userId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`、`obj["userId"]?.jsonPrimitive?.content.orEmpty()`，
+  **两字段均无 `.trim()`**：全空白直接判空；显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败；抽取顺序 chatId 先、userId 后）+
+  可选 `until` 抽取（`untilDate` 优先→`mutedUntil` 兜底→缺省/非法→`0L`，与原处理器逐字；
+  **抽取发生在必填校验之前**，坏类型 `untilDate`/`mutedUntil` 先抛、哪怕 chatId 本来是空的）+
+  合并必填校验（`chatId.isBlank() || userId.isBlank()`→400 `"chatId/userId required"`，
+  文案逐字）收敛为 `parseBotRestrictChatMemberFields` 纯函数
+  （`BotRestrictChatMemberParse.kt`，结果二态 `Ok`/`Invalid`）——限流（原处理器里**先于** body 解析，
+  本轮保持在解析之前，等价）/禁言时长上限钳制（8.33 修复，30 天上限）/成员检查
+  （`isParticipant`）/`updateMemberMute`/`logCommand`/修订通知/响应仍在处理器，
+  顺序与原处理器一致，下游一行不动；
+- 新增 `BotRestrictChatMemberParseFuzzTest`（7 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、userId 恒为 `"u<i>"`——**延续第四十一块的 CI 教训**；
+  已知字段 `chatId`/`userId`/`untilDate`/`mutedUntil` 不得参与随机名；**双字段端点的每个 `okOf` 用例都携带
+  全部必填字段**——吸取第五十七块 CI 教训，缺任一字段即 `Invalid`→`as Ok` 强转抛
+  `ClassCastException`；until 缺席恒为 0L）+
+  必填语义（chatId/userId 各自缺/空/纯空白→Invalid；双合法→Ok，until 缺席→0L）+
+  显式 null 字面量（chatId/userId `"null"`→Ok；untilDate 显式 null→字面量 `"null"` 解析不成 Long
+  →滑向 mutedUntil（缺席）→0L；双 until 候选都显式 null→0L）+
+  `until` 语义（untilDate 优先于 mutedUntil；mutedUntil 兜底；字符串数字可解析；
+  untilDate 非法→滑向 mutedUntil；双候选都非法/缺席→0L）+
+  空白不 trim（`" c1 "`/`" u1 "` 原样保留仍通过必填）+
+  大声失败反证（对象/数组型 chatId/userId/`untilDate`/`mutedUntil` 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  抽取先于必填校验的顺序反证——chatId 空+untilDate 对象照样先抛）+
+  近似字段名（`ChatId`/`chat_id`/`UserId`/`user_id` 等按未知键忽略，真字段缺席→Invalid；
+  `UntilDate` 近似名被忽略→until=0L）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（#281、#282 已于本轮收掉）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

@@ -63,13 +63,17 @@ put("status", if (m.mutedUntil > System.currentTimeMillis()) "restricted" else "
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val userId = obj["userId"]?.jsonPrimitive?.content.orEmpty()
-        var until = obj["untilDate"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: obj["mutedUntil"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: 0L
-        if (chatId.isBlank() || userId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/userId required"))
+        val chatId: String
+        val userId: String
+        var until: Long
+        when (val parsed = parseBotRestrictChatMemberFields(obj)) {
+            is BotRestrictChatMemberFieldsResult.Ok -> {
+                chatId = parsed.fields.chatId
+                userId = parsed.fields.userId
+                until = parsed.fields.until
+            }
+            BotRestrictChatMemberFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/userId required"))
         }
         // 8.33 修复：与用户端 mute 路由一致，禁言时长上限 30 天（此前 bot 可无限期禁言）
         val nowMs = System.currentTimeMillis()
