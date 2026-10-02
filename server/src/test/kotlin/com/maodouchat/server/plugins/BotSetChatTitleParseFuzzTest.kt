@@ -112,21 +112,37 @@ class BotSetChatTitleParseFuzzTest {
 
     @Test
     fun titlePriorityAndFallback() {
-        // title 在场 → 优先用 title（groupName 被忽略）。
+        // title 在场 → 优先用 title（groupName 被忽略）；chatId 为必填，测试对象必须带合法 chatId。
         val both = okOf(
-            JsonObject(mapOf("title" to JsonPrimitive("新群名"), "groupName" to JsonPrimitive("旧群名")))
+            JsonObject(
+                mapOf(
+                    "chatId" to JsonPrimitive("c1"),
+                    "title" to JsonPrimitive("新群名"),
+                    "groupName" to JsonPrimitive("旧群名")
+                )
+            )
         )
         assertEquals("新群名", both.title)
         // title 缺席 → 回退 groupName。
-        val fallback = okOf(JsonObject(mapOf("groupName" to JsonPrimitive("旧群名"))))
+        val fallback = okOf(
+            JsonObject(mapOf("chatId" to JsonPrimitive("c1"), "groupName" to JsonPrimitive("旧群名")))
+        )
         assertEquals("旧群名", fallback.title)
         // 显式 null 不触发回退（JsonNull 非空→?: 不生效）→ 字面量 "null" → Ok。
         val nullTitle = okOf(
-            JsonObject(mapOf("title" to JsonNull, "groupName" to JsonPrimitive("旧群名")))
+            JsonObject(
+                mapOf(
+                    "chatId" to JsonPrimitive("c1"),
+                    "title" to JsonNull,
+                    "groupName" to JsonPrimitive("旧群名")
+                )
+            )
         )
         assertEquals("null", nullTitle.title, "显式 null 的 title 不得回退到 groupName")
         // 显式 null 的 groupName → 字面量 "null" → Ok。
-        val nullGroup = okOf(JsonObject(mapOf("groupName" to JsonNull)))
+        val nullGroup = okOf(
+            JsonObject(mapOf("chatId" to JsonPrimitive("c1"), "groupName" to JsonNull))
+        )
         assertEquals("null", nullGroup.title)
     }
 
