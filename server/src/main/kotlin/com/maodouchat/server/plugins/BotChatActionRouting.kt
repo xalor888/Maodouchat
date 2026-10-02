@@ -73,11 +73,13 @@ put("action", action)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val messageId = obj["messageId"]?.jsonPrimitive?.content.orEmpty()
-        if (chatId.isBlank() || messageId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/messageId required"))
+        val fields = when (val parsed = parseBotPinChatMessageFields(obj)) {
+            is BotPinChatMessageFieldsResult.Ok -> parsed.fields
+            BotPinChatMessageFieldsResult.MissingRequired ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/messageId required"))
         }
+        val chatId = fields.chatId
+        val messageId = fields.messageId
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
