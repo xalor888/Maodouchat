@@ -14,10 +14,17 @@ internal fun Route.configureBotWebhookRoutes(botSendRateLimiter: BoundedRateLimi
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val url = obj["url"]?.jsonPrimitive?.content?.trim()?.take(500)
-        if (!url.isNullOrBlank() && !com.maodouchat.server.repository.BotRepository.isAllowedWebhookUrl(url)) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid webhook url"))
+        val url = when (
+            val parsed = parseBotSetWebhookFields(
+                obj,
+                com.maodouchat.server.repository.BotRepository::isAllowedWebhookUrl,
+            )
+        ) {
+            is BotSetWebhookFieldsResult.Ok -> parsed.fields.url
+            BotSetWebhookFieldsResult.InvalidJson ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            BotSetWebhookFieldsResult.InvalidUrl ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid webhook url"))
         }
         val updated = com.maodouchat.server.repository.BotRepository.setWebhookByToken(bot.id, url)
             ?: return@post call.respondBotUnavailable()
