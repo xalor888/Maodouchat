@@ -4716,6 +4716,46 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动为本账本节追加「续一百二/三（补记）/四」，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
 
+### 第十三轮续一百七（2026-10-02）：bot `setChatDescription` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十八块）
+
+- 端点 `/api/bot/setChatDescription` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空；
+  显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义）+ `description` 别名回退 + trim
+  （`(obj["description"] ?: obj["announcement"])?.jsonPrimitive?.content.orEmpty().trim()`——
+  `description` 优先、`announcement` 回退，**按存在而非按非空**：空字符串/显式 null 的
+  `description` 都不回退；显式 null 得字面量 `"null"`→trim 后仍非空→Ok）+
+  **双 400 分开**（`chatId.isBlank()`→400 `"chatId required"`；
+  trim 后 `description.length > 1200`→400 `"description too long"`，文案逐字；
+  **夹界判的是 trim 之后**：1201 个空格→`""`→Ok，不判超长）收敛为
+  `parseBotSetChatDescriptionFields` 纯函数（`BotSetChatDescriptionParse.kt`，
+  结果三态 `Ok`/`Invalid`/`TooLong`）——**抽取先于必填校验**（两处 `?.jsonPrimitive`
+  都在判空之前，对象/数组型先抛 [IllegalArgumentException]，本轮用测试钉住）；
+  空简介的下游语义（`description.takeIf { it.isNotBlank() }`→null 清公告）仍在处理器，
+  本轮不动；限流（先于 body 解析）/成员检查/`updateAnnouncement`/`logCommand`/
+  修订通知/响应仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotSetChatDescriptionParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、`description` 恒为 `"d<i>"`——**延续第四十一块的 CI 教训**；
+  已知字段三名 `chatId`/`description`/`announcement` 不得参与随机名）+
+  必填语义（chatId 缺/空/纯空白→Invalid；description 缺席→Ok("")）+
+  别名与 trim（description 优先；announcement 兜底；前后空白 trim；全空白→""；
+  显式 null→字面量 `"null"` 不回退）+
+  长度夹界（1200→Ok；1201→TooLong；1201 空格→trim 后 ""→Ok；1200+x+前后空格→Ok）+
+  抽取先于必填校验的顺序反证（description 对象型 + chatId 空白时先抛；chatId 数组型先抛）+
+  大声失败反证（announcement 数组型在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500；显式 null chatId 不抛→`"null"`→Ok）+
+  近似字段名（`ChatId`/`Description`/`Announcement` 等按未知键忽略）+
+  chatId 无 trim（`" c1 "` 原样保留）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open 重构 PR（#288，Server job 第三次 CI 运行中 + 刚修好 checklist 合并冲突；
+  本轮只碰 `BotChatAdminRouting.kt`/`BotSetChatDescriptionParse.kt`/
+  `BotSetChatDescriptionParseFuzzTest.kt`+本清单——与 #288 无文件交集；
+  本轮清单改动为本账本节追加「续一百七」，不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
 ### 第十三轮续一百八（2026-10-03）：bot `deleteUpdates` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十九块）
 
 - 端点 `/api/bot/deleteUpdates` 的处理器内联上限抽取（`obj` 可为 null：body 非
