@@ -4578,3 +4578,39 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotPromoteChatMemberParse.kt`/`BotPromoteChatMemberParseFuzzTest.kt`+本清单——
   本轮清单改动为本账本节追加「续一百一」，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百五（2026-10-02）：bot `setMyCommands` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十六块）
+
+- 端点 `/api/bot/setMyCommands` 的处理器内联 `commands` 数组抽取
+  （`obj["commands"] as? JsonArray`——**安全转型**：缺席/对象/字符串/数字/显式 null
+  一律→400 `"commands array required"`，**不抛**；与项内 `?.jsonPrimitive` 的大声失败
+  是两套判据）+ 逐项对象抽取（`item as? JsonObject`，非对象项**静默丢弃**）+
+  `command`/`description` 抽取（`o["command"]?.jsonPrimitive?.content.orEmpty()`，
+  **无 `.trim()`**；对象/数组型在 `?.jsonPrimitive` 处大声失败；显式 JSON null 得
+  字面量 `"null"`→非空→保留的逐字怪语义）+ 空白项丢弃（`command.isBlank() ||
+  description.isBlank()` 的项丢弃，**不是 400**；空数组/全丢弃→`Ok(emptyList())`）
+  收敛为 `parseBotSetMyCommandsFields` 纯函数（`BotSetMyCommandsParse.kt`，
+  结果二态 `Ok`/`Invalid`）——`normalizeCommands`（trim/小写/正则/去重/上限 100，
+  已是 `BotRepository` 里的独立纯函数，本轮不搬，仍在处理器里调用）/`setMyCommands`
+  落库/`logCommand`/响应仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotSetMyCommandsParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（`commands` 恒为单元素合法数组——**延续第四十一块的 CI 教训**；
+  已知字段 `commands`/`command`/`description` 不得参与随机名）+
+  数组必填（`commands` 缺席/对象/字符串/数字/显式 null→Invalid；空数组→`Ok(emptyList())`）+
+  项级过滤（非对象项静默丢弃；`command`/`description` 缺/空/纯空白的项丢弃；
+  全丢弃→`Ok(emptyList())`）+
+  显式 null 字面量（`command` 显式 null→`"null"`→保留）+
+  项内大声失败反证（`command` 对象型/`description` 数组型在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500——与顶层
+  `as?` 安全转型形成对照）+
+  近似字段名（`Commands` 按未知键忽略→Invalid）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open 重构 PR（#288，Server job 失败日志不可读已重跑待收；
+  本轮只碰 `BotCommandRouting.kt`/`BotSetMyCommandsParse.kt`/
+  `BotSetMyCommandsParseFuzzTest.kt`+本清单——本轮清单改动为本账本节追加
+  「续一百五」（编号预留 #288 的续一百二/三/四先合并），不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
