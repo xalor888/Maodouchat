@@ -4715,3 +4715,41 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotSetChatPermissionsParse.kt`/`BotSetChatPermissionsParseFuzzTest.kt`+本清单——
   本轮清单改动为本账本节追加「续一百二/三（补记）/四」，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百八（2026-10-03）：bot `deleteUpdates` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十九块）
+
+- 端点 `/api/bot/deleteUpdates` 的处理器内联上限抽取（`obj` 可为 null：body 非
+  JSON 对象时 `runCatching { ...jsonObject }.getOrNull()` 得 null——本端点**没有**
+  `"invalid json"` 400，原处理器逐字如此）+ 三层回退（body `upToId` 优先、body
+  `offset` 兜底、query `upToId` 再兜底、缺省 `0L`；回退按「能否解析出 Long」而非
+  按存在：非数字字符串 / 浮点数字符串 / 显式 JSON null（一律 `toLongOrNull()` 得
+  `null`）继续回退；对象/数组型在 `?.jsonPrimitive` 处先抛，不走回退）+ 合并必填校验
+  （`upTo <= 0L`→400 `"upToId required"`，文案逐字）收敛为
+  `parseBotDeleteUpdatesFields(obj: JsonObject?, queryUpToId: String?)` 纯函数
+  （`BotDeleteUpdatesParse.kt`，结果二态 `Ok`/`Invalid`，query 参数由处理器传入
+  `call.request.queryParameters["upToId"]`）——限流（原处理器里**先于** body 解析，
+  本轮保持在解析之前，等价）/`deleteUpdates`/`logCommand`/响应仍在处理器，
+  顺序与原处理器一致，下游一行不动；
+- 新增 `BotDeleteUpdatesParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（upToId 恒为 `1000L + i`，已知字段二名 `upToId`/`offset` 不得参与随机名）+
+  三层回退优先级（upToId 优先；offset 兜底；upToId 非数字/"5.9" 落空→offset；
+  query 再兜底；双缺→Invalid）+
+  null body 无 invalid-json 语义（obj=null 直接走 query；query 合法→Ok，
+  全空→Invalid）+
+  显式 null 落空（upToId/offset 显式 null 均继续回退，全链 null→Invalid）+
+  必填语义（0/负数/全链非法→Invalid；query "-1"/"0" 同样 Invalid）+
+  数字字符串接受（`"007"`→7L、JSON 数字同样）+
+  大声失败反证（upToId/offset 对象/数组型抛 `IllegalArgumentException`；
+  upToId 对象型 + offset/query 合法时依然先抛——抽取顺序 upToId 先）+
+  近似字段名（`upToID`/`uptoid`/`up_to_id` 按未知键忽略）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open 重构 PR（#291 `refactor/set-chat-description-parse-fuzz`，
+  改动文件为 `BotChatAdminRouting.kt`/`BotSetChatDescriptionParse.kt`/
+  `BotSetChatDescriptionParseFuzzTest.kt`+本清单——本轮只碰 `BotMediaRouting.kt`/
+  `BotDeleteUpdatesParse.kt`/`BotDeleteUpdatesParseFuzzTest.kt`+本清单；
+  与 #291 的代码文件无交集；清单同为 EOF 追加，git 可自动合并，不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

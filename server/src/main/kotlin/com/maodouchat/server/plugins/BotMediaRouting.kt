@@ -356,12 +356,12 @@ put("username", bot.username)
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-        val upTo = obj?.get("upToId")?.jsonPrimitive?.content?.toLongOrNull()
-            ?: obj?.get("offset")?.jsonPrimitive?.content?.toLongOrNull()
-            ?: call.request.queryParameters["upToId"]?.toLongOrNull()
-            ?: 0L
-        if (upTo <= 0L) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("upToId required"))
+        val upTo = when (
+            val parsed = parseBotDeleteUpdatesFields(obj, call.request.queryParameters["upToId"])
+        ) {
+            is BotDeleteUpdatesFieldsResult.Ok -> parsed.fields.upTo
+            BotDeleteUpdatesFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("upToId required"))
         }
         val n = com.maodouchat.server.repository.BotRepository.deleteUpdates(bot.id, upTo)
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "deleteUpdates")
