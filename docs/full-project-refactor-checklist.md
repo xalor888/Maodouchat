@@ -4614,3 +4614,35 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotSetMyCommandsParseFuzzTest.kt`+本清单——本轮清单改动为本账本节追加
   「续一百五」（编号预留 #288 的续一百二/三/四先合并），不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百六（2026-10-02）：bot `setMyDescription` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十七块）
+
+- 端点 `/api/bot/setMyDescription` 的处理器内联简介抽取
+  （`(obj["description"] ?: obj["about"])?.jsonPrimitive?.content`——`description` 优先、
+  `about` 回退，**按存在而非按非空**：空字符串/显式 JSON null 的 `description` 都不回退
+  （`?:` 只看空引用）；显式 null 得字面量 `"null"`（`JsonNull` 是 `JsonPrimitive`，
+  `?.jsonPrimitive` 不抛，原处理器逐字如此）；双键缺席→`null`（下游
+  `BotRepository.setMyDescription(botId, null)` 清简介，本轮不动该语义）；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败）收敛为 `parseBotSetMyDescriptionFields` 纯函数
+  （`BotSetMyDescriptionParse.kt`，结果单态 `Ok`——本端点无必填校验，任何输入要么解析要么大声失败）——
+  限流（原处理器里**先于** body 解析，本轮保持在解析之前，等价）/`setMyDescription`
+  （`trim()`/`take(500)` 在 repository 内部，本轮不搬）/`logCommand`/响应仍在处理器，
+  顺序与原处理器一致，下游一行不动；
+- 新增 `BotSetMyDescriptionParseFuzzTest`（5 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（description 恒为 `"d<i>"`——**延续第四十一块的 CI 教训**；
+  已知字段 `description`/`about` 不得参与随机名）+
+  别名优先级（description 优先；about 回退；空字符串 description 不回退；
+  显式 null description 不回退→`"null"`）+
+  null 语义（双缺席→真 `null`；description/about 显式 null→字面量 `"null"`）+
+  大声失败反证（对象/数组型 description、对象型 about 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）+
+  近似字段名（`Description`/`about2` 按未知键忽略）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open 重构 PR（#288，`BotMediaRouting.kt` 相关；本轮只碰 `BotProfileRouting.kt`/
+  `BotSetMyDescriptionParse.kt`/`BotSetMyDescriptionParseFuzzTest.kt`+本清单——
+  本轮清单改动为本账本节追加「续一百六」，不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
