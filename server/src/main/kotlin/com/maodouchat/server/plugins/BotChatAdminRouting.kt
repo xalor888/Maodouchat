@@ -22,10 +22,15 @@ internal fun Route.configureBotChatAdminRoutes(
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val title = (obj["title"] ?: obj["groupName"])?.jsonPrimitive?.content.orEmpty().trim()
-        if (chatId.isBlank() || title.isBlank() || title.length > 50) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/title required (1-50)"))
+        val chatId: String
+        val title: String
+        when (val parsed = parseBotSetChatTitleFields(obj)) {
+            is BotSetChatTitleFieldsResult.Ok -> {
+                chatId = parsed.fields.chatId
+                title = parsed.fields.title
+            }
+            BotSetChatTitleFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/title required (1-50)"))
         }
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))

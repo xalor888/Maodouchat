@@ -4366,3 +4366,43 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续九十六（2026-10-02）：bot `setChatTitle` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第五十七块）
+
+- 端点 `/api/bot/setChatTitle` 的处理器内联 `chatId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空；
+  显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；对象/数组型在 `?.jsonPrimitive`
+  处大声失败）+ `title` 抽取归一化
+  （`(obj["title"] ?: obj["groupName"])?.jsonPrimitive?.content.orEmpty().trim()`——
+  `title` 优先、`groupName` 回退、显式 JSON null 不触发回退→字面量 `"null"`→`Ok`
+  的逐字怪语义；**长度上限 50 判的是 trim 之后**的 title，原处理器逐字如此）+
+  合并校验（`chatId.isBlank() || title.isBlank() || title.length > 50`→400
+  `"chatId/title required (1-50)"`，文案逐字）收敛为 `parseBotSetChatTitleFields` 纯函数
+  （`BotSetChatTitleParse.kt`，结果二态 `Ok`/`Invalid`）；抽取顺序 chatId 先、title 后，
+  与原处理器逐字一致——限流（原处理器里**先于** body 解析，本轮保持在解析之前，等价）/
+  成员检查/`updateName`/`logCommand`/修订通知与响应仍在处理器，顺序与原处理器一致，
+  下游一行不动；
+- 新增 `BotSetChatTitleParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、title 恒为 `"T<i>"`——**延续第四十一块的 CI 教训**；
+  已知字段 `chatId`/`title`/`groupName` 不得参与随机名）+ title 优先级与回退
+  （title 在场优先；缺席回 groupName；显式 null 不回退→`"null"`→Ok 的逐字
+  怪语义）+ trim 与长度夹界（`"  群名  "`→`"群名"`；恰 50 字符→Ok；
+  51 字符→Invalid；前后空白不计入长度；chatId 无 trim，`" c1 "` 原样保留）+
+  必填语义（chatId 缺/空/纯空白→Invalid；title 缺→Invalid；显式 null→`"null"`→Ok）+
+  大声失败反证（对象/数组型 chatId/title/groupName 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
+  显式 null 不抛的反证）+ 近似字段名（`ChatId`/`chatid2`/`chat_id`/`Title`/
+  `group_name`/`groupname` 按未知键忽略，真字段缺席→Invalid）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open loop PR（#279，改动文件为 `BotGeoRouting.kt`+
+  `BotSetMyNameParse.kt`+`BotSetMyNameParseFuzzTest.kt`，与本轮改动文件无交集——
+  本轮新增 `BotSetChatTitleParse.kt`/`BotSetChatTitleParseFuzzTest.kt`、只改
+  `BotChatAdminRouting.kt` 的 `setChatTitle` 处理器片段）；
+  §3 收取：#279 CI 全绿 + 自审通过 + mergeable clean，已 squash 合并并删远端分支；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
