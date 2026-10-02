@@ -60,13 +60,17 @@ put("title", title)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val description = (obj["description"] ?: obj["announcement"])?.jsonPrimitive?.content.orEmpty().trim()
-        if (chatId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-        }
-        if (description.length > 1200) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("description too long"))
+        val chatId: String
+        val description: String
+        when (val parsed = parseBotSetChatDescriptionFields(obj)) {
+            is BotSetChatDescriptionFieldsResult.Ok -> {
+                chatId = parsed.fields.chatId
+                description = parsed.fields.description
+            }
+            BotSetChatDescriptionFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+            BotSetChatDescriptionFieldsResult.TooLong ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("description too long"))
         }
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
