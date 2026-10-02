@@ -4753,3 +4753,41 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotDeleteUpdatesParse.kt`/`BotDeleteUpdatesParseFuzzTest.kt`+本清单；
   与 #291 的代码文件无交集；清单同为 EOF 追加，git 可自动合并，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百九（2026-10-03）：bot `setWebhook` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十块）
+
+- 端点 `/api/bot/setWebhook` 的处理器内联 `url` 抽取
+  （`obj["url"]?.jsonPrimitive?.content?.trim()?.take(500)`，**trim 在 take(500) 之前**；
+  `obj` 可为 null：body 非 JSON 对象时 `runCatching { ...jsonObject }.getOrNull()` 得
+  null——本端点**有** `"invalid json"` 400，原处理器逐字如此）+ 白名单校验
+  （`!url.isNullOrBlank() && !isAllowedWebhookUrl(url)`→400 `"invalid webhook url"`，
+  文案逐字；**空/纯空白跳过校验**；显式 JSON null 得字面量 `"null"`→非空→走校验；
+  对象/数组型在 `?.jsonPrimitive` 处先抛，不走校验）收敛为
+  `parseBotSetWebhookFields(obj: JsonObject?, isUrlAllowed: (String) -> Boolean)` 纯函数
+  （`BotSetWebhookParse.kt`，结果三态 `Ok`/`InvalidJson`/`InvalidUrl`；白名单校验器以
+  lambda 注入，生产侧传 `BotRepository::isAllowedWebhookUrl`，纯函数不直接依赖
+  repository）——限流（原处理器里**先于** body 解析，本轮保持在解析之前，等价）/
+  `setWebhookByToken`/`logCommand`/响应仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotSetWebhookParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（url 恒为 `"https://example.com/hook<i>"`，白名单替身只放行该前缀；
+  已知字段一名 `url` 不得参与随机名）+
+  null body 有 invalid-json 语义（obj=null→InvalidJson）+
+  url 缺席→Ok(null)（下游清 webhook）+ 近似字段名（`URL`/`Url`/`webhook_url`
+  按未知键忽略）+
+  trim 在 take(500) 之前（前后空白先去；600 字符截断为 500，白名单看到截断后的值）+
+  空/纯空白跳过白名单校验（校验器零调用）+
+  白名单裁决（放行→Ok；不放行→InvalidUrl）+
+  显式 null 走校验（字面量 `"null"` 被校验器收到）+
+  大声失败反证（url 对象/数组型在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  即使白名单会放行也先抛）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open 重构 PR（#291 `refactor/set-chat-description-parse-fuzz`，
+  改动文件为 `BotChatAdminRouting.kt`/`BotSetChatDescriptionParse.kt`/
+  `BotSetChatDescriptionParseFuzzTest.kt`+本清单——本轮只碰 `BotWebhookRouting.kt`/
+  `BotSetWebhookParse.kt`/`BotSetWebhookParseFuzzTest.kt`+本清单；
+  与 #291 的代码文件无交集；清单同为 EOF 追加，git 可自动合并，不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
