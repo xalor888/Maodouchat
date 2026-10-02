@@ -4676,10 +4676,11 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - 端点 `/api/bot/setChatPermissions` 的处理器内联 `chatId` 抽取
   （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**无 `.trim()`**：全空白直接判空；
   显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；对象/数组型在 `?.jsonPrimitive`
-  处大声失败）+ `canSend` 严格布尔归一化（camel `canSendMessages` 优先、
-  snake `can_send_messages` 兜底的 `?.jsonPrimitive?.booleanOrNull`——仅 JSON 布尔或
-  小写 `"true"`/`"false"` 字符串算布尔，`"TRUE"`/数字/显式 null/空字符串一律落空到
-  别名或 `Invalid`；显式 null camel 等同缺席，不抛）+ `until` 别名回落
+  处大声失败）+ `canSend` 布尔归一化（camel `canSendMessages` 优先、
+  snake `can_send_messages` 兜底的 `?.jsonPrimitive?.booleanOrNull`，即
+  `content.toBooleanStrictOrNull()`——JSON 布尔或 `"true"`/`"false"` 字符串算布尔，
+  大小写**不**敏感（`"TRUE"`→`true`，同第四十九块 CI 教训）；数字/显式 null/
+  空字符串一律落空到别名或 `Invalid`；显式 null camel 等同缺席，不抛）+ `until` 别名回落
   （camel `until` 优先、camel `untilDate` 兜底、缺省 `0L`；非数字字符串/显式 null
   回落不抛，下游 `muteUntil` 语义里 0=24 小时静音，本轮不动该语义）+
   合并必填校验（`chatId.isBlank() || canSend == null`→400
@@ -4691,8 +4692,8 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   恒等断言（chatId 恒为 `"c<i>"`、`canSendMessages` 恒为 JSON 布尔 true、`until` 恒为
   JSON 整数——**延续第四十一块的 CI 教训**；已知字段五名 `chatId`/`canSendMessages`/
   `can_send_messages`/`until`/`untilDate` 不得参与随机名）+
-  必填语义（chatId 缺/空/纯空白→Invalid；canSend 缺/数字/`"TRUE"`/显式 null→Invalid；
-  双合法+until 缺席→Ok 且 until 缺省 `0L`）+
+  必填语义（chatId 缺/空/纯空白→Invalid；canSend 缺/数字/显式 null→Invalid；
+  `"TRUE"`→Ok(true)，大小写不敏感；双合法+until 缺席→Ok 且 until 缺省 `0L`）+
   canSend 严格布尔与别名（JSON 布尔/小写字符串接受；snake 兜底；camel 优先；
   显式 null camel→别名接管；camel 非布尔字符串落空→别名接管）+
   until 别名与回落（数字字符串→Long；`untilDate` 兜底；until 优先；非数字回落；

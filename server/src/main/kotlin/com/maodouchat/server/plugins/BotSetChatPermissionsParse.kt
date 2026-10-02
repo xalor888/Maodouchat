@@ -15,9 +15,10 @@ import kotlinx.serialization.json.jsonPrimitive
  * - `chatId` 取 `obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**没有 `.trim()`**——
  *   全空白直接判空白；显式 JSON null 得字面量 `"null"`→非空→Ok（原处理器逐字如此）；
  * - `canSend` 取 camel `canSendMessages` 优先、snake `can_send_messages` 兜底的
- *   `?.jsonPrimitive?.booleanOrNull`——布尔语义是 kotlinx 的严格判定：JSON 布尔 true/false、
- *   或字符串字面量 `"true"`/`"false"`（仅小写）→真/假，其它（`"TRUE"`、数字、显式 null、
- *   空字符串等）→null→继续看别名；两键都给不出布尔→`Invalid`；
+ *   `?.jsonPrimitive?.booleanOrNull`——即 `content.toBooleanStrictOrNull()`：JSON 布尔
+ *   true/false、或字符串字面量 `"true"`/`"false"`（大小写**不**敏感，`"TRUE"`/
+ *   `"True"` 同样得 `true`；"严格"指非法输入得 `null` 而非大小写敏感）→真/假，
+ *   其它（数字、显式 null、空字符串等）→null→继续看别名；两键都给不出布尔→`Invalid`；
  * - `until` 取 camel `until` 优先、camel `untilDate` 兜底的
  *   `?.jsonPrimitive?.content?.toLongOrNull()`——数字或数字字符串→Long，非数字字符串/
  *   显式 null（`content`=`"null"`）→回落到别名/缺省 `0L`（下游 `muteUntil` 语义里 0=24 小时静音，

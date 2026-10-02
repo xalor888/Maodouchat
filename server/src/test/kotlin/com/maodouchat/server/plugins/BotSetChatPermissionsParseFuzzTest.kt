@@ -34,9 +34,11 @@ import kotlin.test.assertTrue
  *   携带全部必填字段**——缺任一字段 → `Invalid` → `as Ok` 强转抛 `ClassCastException`。
  * - 钉住 **chatId 无 trim**（`" c1 "` 原样保留，原处理器逐字如此）。
  * - 钉住 **canSend 严格布尔 + 别名优先级**：camel `canSendMessages` 优先、
- *   snake `can_send_messages` 兜底；JSON 布尔或小写 `"true"`/`"false"` 字符串才算布尔，
- *   其它（`"TRUE"`/数字/显式 null/空字符串）一律落空到别名或 `Invalid`；显式 null
- *   camel 不抛、等同缺席（继续看别名）。
+ *   snake `can_send_messages` 兜底；布尔语义是
+ *   `content.toBooleanStrictOrNull()`：JSON 布尔 true/false、或字符串字面量
+ *   `"true"`/`"false"`（大小写**不**敏感——`"TRUE"`/`"True"` 同样得 `true`；
+ *   "严格"指非法输入得 `null` 而非大小写敏感），其它（数字/显式 null/
+ *   空字符串）一律落空到别名或 `Invalid`；显式 null camel 不抛、等同缺席（继续看别名）。
  * - 钉住 **until 别名与回落**：camel `until` 优先、camel `untilDate` 兜底、缺省 `0L`；
  *   非数字字符串/显式 null 回落（不抛）。
  * - 钉住 **抽取先于必填校验**：原处理器里三处 `?.jsonPrimitive` 都在空白/布尔判空之前执行——
@@ -128,7 +130,10 @@ class BotSetChatPermissionsParseFuzzTest {
             parseOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"))))
                 is BotSetChatPermissionsFieldsResult.Invalid
         )
-        // canSend 非布尔 → Invalid：数字 / 大写 "TRUE" / 空字符串 / 显式 null 皆落空。
+        // canSend 非布尔 → Invalid：数字 / 空字符串 / 显式 null 皆落空。
+        // 注意：content.toBooleanStrictOrNull() 大小写不敏感——"TRUE"/"True"
+        // 同样得 true（第四十九块 CI 曾据此红过，见 BotExportChatInviteLinkParseFuzzTest），
+        // 所以 "TRUE" → Ok(true)，见下面的 okOf 断言。
         assertTrue(
             parseOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
                 "canSendMessages" to JsonPrimitive(1))))
@@ -136,14 +141,12 @@ class BotSetChatPermissionsParseFuzzTest {
         )
         assertTrue(
             parseOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
-                "canSendMessages" to JsonPrimitive("TRUE"))))
-                is BotSetChatPermissionsFieldsResult.Invalid
-        )
-        assertTrue(
-            parseOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
                 "canSendMessages" to JsonNull)))
                 is BotSetChatPermissionsFieldsResult.Invalid
         )
+        // "TRUE" 大小写不敏感 → true → Ok（不是 Invalid）。
+        assertEquals(true, okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
+            "canSendMessages" to JsonPrimitive("TRUE")))).canSend)
         // 双合法 → Ok，until 缺省回 0L（下游 muteUntil 语义：0=24 小时静音，本轮不动语义）。
         val fields = okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
             "canSendMessages" to JsonPrimitive(false))))
@@ -154,11 +157,17 @@ class BotSetChatPermissionsParseFuzzTest {
 
     @Test
     fun canSendBooleanAndAlias() {
-        // JSON 布尔 true/false 与小写 "true"/"false" 字符串均被接受。
+        // JSON 布尔 true/false 与 "true"/"false" 字符串均被接受；注意大小写不敏感：
+        // content.toBooleanStrictOrNull() 下 "TRUE"/"True" 同样得 true
+        // （第四十九块 CI 曾据此红过，见 BotExportChatInviteLinkParseFuzzTest）。
         assertEquals(true, okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
             "canSendMessages" to JsonPrimitive("true")))).canSend)
         assertEquals(false, okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
             "canSendMessages" to JsonPrimitive("false")))).canSend)
+        assertEquals(true, okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
+            "canSendMessages" to JsonPrimitive("TRUE")))).canSend)
+        assertEquals(false, okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
+            "canSendMessages" to JsonPrimitive("False")))).canSend)
         // snake 别名兜底：camel 缺席时生效。
         assertEquals(true, okOf(JsonObject(mapOf("chatId" to JsonPrimitive("c1"),
             "can_send_messages" to JsonPrimitive(true)))).canSend)
