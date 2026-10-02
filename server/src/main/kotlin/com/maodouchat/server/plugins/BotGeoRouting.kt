@@ -102,9 +102,10 @@ put("count", polls.size)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val name = (obj["name"] ?: obj["displayName"])?.jsonPrimitive?.content.orEmpty().trim().take(120)
-        if (name.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid name"))
+        val name = when (val parsed = parseBotSetMyNameFields(obj)) {
+            is BotSetMyNameFieldsResult.Ok -> parsed.fields.name
+            BotSetMyNameFieldsResult.InvalidName ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid name"))
         }
         val updated = com.maodouchat.server.repository.BotRepository.setMyName(bot.id, name)
             ?: return@post call.respondBotUnavailable()
