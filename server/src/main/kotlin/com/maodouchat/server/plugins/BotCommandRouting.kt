@@ -27,17 +27,10 @@ put("count", commands.size)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val arr = obj["commands"] as? kotlinx.serialization.json.JsonArray
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("commands array required"))
-        val defs = arr.mapNotNull { item ->
-            val o = item as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
-            val command = o["command"]?.jsonPrimitive?.content.orEmpty()
-            val description = o["description"]?.jsonPrimitive?.content.orEmpty()
-            if (command.isBlank() || description.isBlank()) null
-            else com.maodouchat.server.repository.BotRepository.BotCommandDef(
-                command = command,
-                description = description
-            )
+        val defs = when (val parsed = parseBotSetMyCommandsFields(obj)) {
+            is BotSetMyCommandsFieldsResult.Ok -> parsed.fields.commands
+            BotSetMyCommandsFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("commands array required"))
         }
         val normalized = com.maodouchat.server.repository.BotRepository.normalizeCommands(defs)
             ?: return@post call.respond(
