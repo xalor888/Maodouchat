@@ -25,7 +25,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val text = (obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(500)
+        val text = parseBotEchoFields(obj).text
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "echo")
         call.respond(
         buildJsonObject {
