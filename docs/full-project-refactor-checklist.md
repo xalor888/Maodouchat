@@ -4505,3 +4505,36 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
 - 开工时 0 个 open 重构 PR（#281、#282 已于本轮收掉）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百（2026-10-02）：bot `unbanChatMember` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十一块）
+
+- 端点 `/api/bot/unbanChatMember` 的处理器内联 `chatId`/`userId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`、`obj["userId"]?.jsonPrimitive?.content.orEmpty()`，
+  **两字段均无 `.trim()`**：全空白直接判空；显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败；抽取顺序 chatId 先、userId 后）+
+  合并必填校验（`chatId.isBlank() || userId.isBlank()`→400 `"chatId/userId required"`，
+  文案逐字）收敛为 `parseBotUnbanChatMemberFields` 纯函数
+  （`BotUnbanChatMemberParse.kt`，结果二态 `Ok`/`Invalid`）——限流（原处理器里**先于** body 解析，
+  本轮保持在解析之前，等价）/成员检查（`isParticipant`）/ CHANNEL 分支 `addMembers`
+  与非 CHANNEL 分支 `inviteMembers` / `logCommand` / 修订通知（仅 CHANNEL 分支）/
+  响应仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotUnbanChatMemberParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、userId 恒为 `"u<i>"`——**延续第四十一块的 CI 教训**；
+  已知字段 `chatId`/`userId` 不得参与随机名；**双字段端点的每个 `okOf` 用例都携带
+  全部必填字段**——吸取第五十七块 CI 教训，缺任一字段即 `Invalid`→`as Ok` 强转抛
+  `ClassCastException`）+
+  必填语义（chatId/userId 各自缺/空/纯空白→Invalid；双合法→Ok）+
+  显式 null 字面量（`"null"`→Ok，单/双 null 均钉）+
+  空白不 trim（`" c1 "`/`" u1 "` 原样保留仍通过必填）+
+  大声失败反证（对象/数组型 chatId/userId 在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500）+
+  近似字段名（`ChatId`/`chat_id`/`UserId`/`user_id` 等按未知键忽略，真字段缺席→Invalid）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（#283 已于本轮收掉；本轮只碰 `BotMemberPromotionRouting.kt`/
+  `BotUnbanChatMemberParse.kt`/`BotUnbanChatMemberParseFuzzTest.kt`+本清单——
+  本轮清单改动为本账本节追加「续一百」，不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
