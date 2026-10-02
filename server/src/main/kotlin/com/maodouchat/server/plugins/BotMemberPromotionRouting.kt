@@ -96,12 +96,17 @@ put("added", Json.parseToJsonElement(Json.encodeToString(addedUserIds)))
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val userId = obj["userId"]?.jsonPrimitive?.content.orEmpty()
-        val roleRaw = obj["role"]?.jsonPrimitive?.content.orEmpty().uppercase().ifBlank { "ADMIN" }
-        val role = if (roleRaw == "MEMBER") "MEMBER" else "ADMIN"
-        if (chatId.isBlank() || userId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/userId required"))
+        val chatId: String
+        val userId: String
+        val role: String
+        when (val parsed = parseBotPromoteChatMemberFields(obj)) {
+            is BotPromoteChatMemberFieldsResult.Ok -> {
+                chatId = parsed.fields.chatId
+                userId = parsed.fields.userId
+                role = parsed.fields.role
+            }
+            BotPromoteChatMemberFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/userId required"))
         }
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
