@@ -4393,6 +4393,26 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500；
   显式 null 不抛的反证）+ 近似字段名（`ChatId`/`chatid2`/`chat_id`/`Title`/
   `group_name`/`groupname` 按未知键忽略，真字段缺席→Invalid）；
+### 第十三轮续九十七（2026-10-02）：bot `deleteMessage` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第五十八块）
+
+- 端点 `/api/bot/deleteMessage` 的处理器内联 `chatId`/`messageId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`、`obj["messageId"]?.jsonPrimitive?.content.orEmpty()`，
+  **两字段均无 `.trim()`**：全空白直接判空；显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败；抽取顺序 chatId 先、messageId 后）+
+  合并必填校验（`chatId.isBlank() || messageId.isBlank()`→400 `"chatId/messageId required"`，
+  文案逐字）收敛为 `parseBotDeleteMessageFields` 纯函数
+  （`BotDeleteMessageParse.kt`，结果二态 `Ok`/`Invalid`）——限流（原处理器里**先于** body 解析，
+  本轮保持在解析之前，等价）/消息存在性与发送者检查/`deleteOwn`/`fanoutBotEvent`/`logCommand`/
+  响应仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotDeleteMessageParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、messageId 恒为 `"m<i>"`——**延续第四十一块的 CI 教训**；
+  已知字段 `chatId`/`messageId` 不得参与随机名；**吸取第五十七块 CI 教训——双字段端点的
+  每个 `okOf` 用例都携带全部必填字段**，缺任一字段即 `Invalid`→`as Ok` 强转抛 `ClassCastException`）+
+  必填语义（chatId/messageId 各自缺/空/纯空白→Invalid；双合法→Ok）+ 显式 null 字面量
+  （`"null"`→Ok，单/双 null 均钉）+ 空白不 trim（`" c1 "`/`" m1 "` 原样保留仍通过必填）+
+  大声失败反证（对象/数组型 chatId/messageId 在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500）+ 近似字段名（`ChatId`/`chat_id`/`MessageId`/
+  `message_id` 等按未知键忽略，真字段缺席→Invalid）；
 - 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
   见 AGENTS.md 2026-09-30 教训）；
 - `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
@@ -4405,4 +4425,12 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   §3 收取：#279 CI 全绿 + 自审通过 + mergeable clean，已 squash 合并并删远端分支；
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 开工时 1 个 open 重构 PR（#280，改动文件为 `BotChatAdminRouting.kt`+
+  `BotSetChatTitleParse.kt`+`BotSetChatTitleParseFuzzTest.kt`+本清单——本轮改动
+  `BotChatModerationRouting.kt`/`BotDeleteMessageParse.kt`/`BotDeleteMessageParseFuzzTest.kt`，
+  与 #280 无文件交集，**本轮未改清单 §0（复核轮统一刷新），账本仅末尾追加**——
+  账本节用「续九十七」编号，与 #280 分支内的「续九十六」不冲突）；
+  §3 收取：#280 Server job 曾红（`titlePriorityAndFallback` 的 `okOf` 用例漏必填 chatId→
+  `ClassCastException`，照抄单字段端点测试模式时的疏漏），已追加 `fix(test)` 提交补齐，
+  PR 描述同步记录，不等 CI，下一轮收取；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
