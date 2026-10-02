@@ -4831,3 +4831,39 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotSetWebhookParse.kt`/`BotSetWebhookParseFuzzTest.kt`+本清单；
   与 #291 的代码文件无交集；清单同为 EOF 追加，git 可自动合并，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百一十一（2026-10-03）：bot `echo` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十二块）
+
+- 端点 `/api/bot/echo` 的处理器内联 `text` 抽取
+  （`(obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(500)`：
+  **`?:` 接在字段存在性上**——`text` 键存在（哪怕显式 JSON null）不穿透到
+  `message`，得字面量 `"null"`；两键都缺 → `""`（无必填校验）；**take(500) 不 trim**，
+  前后空白计入上限；对象/数组型在 `?.jsonPrimitive` 处大声失败；数字/布尔型走
+  `.content` 字符串）收敛为 `parseBotEchoFields(obj: JsonObject): BotEchoFields`
+  纯函数（`BotEchoParse.kt`，直接返回字段、无 Result——本端点无校验分支；
+  `obj` 为 null 的 `"invalid json"` 400 仍在处理器，与 `banChatMember`/`kickChatMember`
+  块同款纪律）——`logCommand`/`botId`/响应组装仍在处理器，下游一行不动；
+- 新增 `BotEchoParseFuzzTest`（7 例）：150 固定种子随机 payload 未知键忽略恒等断言
+  （text 恒为 `"t" + i`；已知字段 `text`/`message` 不得参与随机名）+
+  text→message 别名回退（text 缺席用 message；双在 text 优先；双缺 → `""`）+
+  显式 null 不穿透（text 显式 null 得字面量 `"null"`，不回退 message）+
+  take(500) 截断（600 字符 → 500；前后空白计入上限，不 trim；message 别名同）+
+  非字符串原语走 content（数字 → `"123"`、布尔 → `"true"`）+
+  大声失败反证（对象/数组型 text/message 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）+
+  近似字段名（`Text`/`TEXT`/`text2`/`Message`/`message2` 等按未知键忽略，
+  真字段缺席 → `""`）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open 重构 PR（#294 `refactor/kick-chat-member-parse-fuzz`，
+  改动文件为 `BotMessagingVariantsRouting.kt`/`BotKickChatMemberParse.kt`/
+  `BotKickChatMemberParseFuzzTest.kt`+本清单——本轮只碰 `BotPresentationCardsRouting.kt`/
+  `BotEchoParse.kt`/`BotEchoParseFuzzTest.kt`+本清单；
+  与 #294 的代码文件无交集；清单同为 EOF 追加——**本轮实测修正系列旧假设**：
+  并发的清单 EOF 追加**不会**被 git 自动合并（#294 在 #293 合并后变 dirty），
+  已在收 PR 侧以「rebase 到 main 最新 EOF」消解（git-database API 重建提交，
+  树 SHA 与本地 rebase 逐字节一致），不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
