@@ -71,10 +71,15 @@ put("result", (outcome?.result?.name ?: "UNKNOWN"))
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val messageId = obj["messageId"]?.jsonPrimitive?.content.orEmpty()
-        if (chatId.isBlank() || messageId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/messageId required"))
+        val chatId: String
+        val messageId: String
+        when (val parsed = parseBotDeleteMessageFields(obj)) {
+            is BotDeleteMessageFieldsResult.Ok -> {
+                chatId = parsed.fields.chatId
+                messageId = parsed.fields.messageId
+            }
+            BotDeleteMessageFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/messageId required"))
         }
         val msg = serviceMessageRepo.getById(messageId)
         if (msg == null || msg.chatId != chatId) {
