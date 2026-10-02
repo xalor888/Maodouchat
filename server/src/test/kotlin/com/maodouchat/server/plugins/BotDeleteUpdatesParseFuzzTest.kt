@@ -156,7 +156,7 @@ class BotDeleteUpdatesParseFuzzTest {
         assertEquals(7L, okOf(JsonObject(mapOf("upToId" to JsonPrimitive("007")))).upTo)
         assertEquals(123L, okOf(JsonObject(emptyMap()), "123").upTo)
         // JSON 数字同样接受。
-        assertEquals(9000L, okOf(JsonObject(mapOf("offset" to JsonPrimitive(9000))))).upTo)
+        assertEquals(9000L, okOf(JsonObject(mapOf("offset" to JsonPrimitive(9000)))).upTo)
     }
 
     @Test
