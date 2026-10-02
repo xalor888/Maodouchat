@@ -138,7 +138,9 @@ class BotSetWebhookParseFuzzTest {
         val padded = okOf(JsonObject(mapOf("url" to JsonPrimitive("  https://example.com/hook9  "))), allow::check)
         assertEquals("https://example.com/hook9", padded.url, "前后空白应先 trim")
         // 600 字符先 trim 再截断为 500，白名单看到截断后的值。
-        val long = "https://example.com/" + "x".repeat(580)
+        // 注意：输入必须以 BASE_URL_PREFIX 开头（与 RecordingAllowList 的放行前缀一致），
+        // 否则白名单裁决会让 parseOf 返回 InvalidUrl，okOf 的强制 cast 先炸（2026-10-03 CI 已踩一次）。
+        val long = BASE_URL_PREFIX + "x".repeat(600 - BASE_URL_PREFIX.length)
         assertEquals(600, long.length, "前置条件：测试输入为 600 字符")
         val truncated = okOf(JsonObject(mapOf("url" to JsonPrimitive(long))), allow::check)
         assertEquals(500, truncated.url!!.length, "超长 url 应截断为 500 字符")
