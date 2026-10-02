@@ -159,10 +159,15 @@ put("hasInvite", invite.isNotBlank())
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
-        val userId = obj["userId"]?.jsonPrimitive?.content.orEmpty()
-        if (chatId.isBlank() || userId.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/userId required"))
+        val chatId: String
+        val userId: String
+        when (val parsed = parseBotDemoteChatMemberFields(obj)) {
+            is BotDemoteChatMemberFieldsResult.Ok -> {
+                chatId = parsed.fields.chatId
+                userId = parsed.fields.userId
+            }
+            BotDemoteChatMemberFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/userId required"))
         }
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
