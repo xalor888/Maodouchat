@@ -4330,3 +4330,39 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮清单改动仅为本账本节**末尾追加**
   （§0 Server 单测标注行暂不改：本轮 +5 按条目约定由复核轮一次性刷新）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续九十五（2026-10-02）：bot `setMyName` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第五十六块）
+
+- 端点 `/api/bot/setMyName` 的处理器内联 `name` 抽取 + 归一化 + 必填校验
+  （`(obj["name"] ?: obj["displayName"])?.jsonPrimitive?.content.orEmpty()` →
+  **先 `.trim()` 再 `.take(120)`**，全空白直接判空；`name` 优先、`displayName`
+  回退——**显式 JSON null 不触发回退**（`JsonNull` 是非空实例，`?:` 不生效→得
+  字面量 `"null"`→非空→Ok 的逐字怪语义）；对象/数组型在 `?.jsonPrimitive`
+  处大声失败）收敛为 `parseBotSetMyNameFields` 纯函数
+  （`BotSetMyNameParse.kt`，结果二态 `Ok`/`InvalidName`）；trim 与 120 字符
+  截断顺序逐字一致——限流（原处理器里**先于** body 解析，本轮保持在解析之前，
+  等价）/`setMyName`/`logCommand`/响应仍在处理器，顺序与原处理器一致，
+  下游一行不动；
+- 新增 `BotSetMyNameParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（name 恒为 `"n<i>"`——**延续第四十一块的 CI 教训**；
+  已知字段 `name`/`displayName` 不得参与随机名）+ name 优先级与回退
+  （name 在场优先；缺席回 displayName；显式 null 不回退→`"null"`→Ok 的逐字
+  怪语义）+ trim 在先/截断在后（`"  Alice  "`→`"Alice"`；200 字符→120 截断；
+  纯空白→InvalidName）+ 必填语义（缺/空/纯空白→InvalidName；
+  displayName 显式 null→`"null"`→Ok）+ 大声失败反证（对象/数组型
+  name/displayName 在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500）+ 近似字段名（`Name`/`NAME`/
+  `name2`/`display_name`/`displayname` 按未知键忽略，真字段缺席→InvalidName）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open qca PR（#278，改动文件为 `BotGeoRouting.kt`+
+  `BotUnpinChatMessageParse.kt`+`BotUnpinChatMessageParseFuzzTest.kt`，与本轮改动文件无交集——
+  本轮新增 `BotSetMyNameParse.kt`/`BotSetMyNameParseFuzzTest.kt`、只改 `setMyName`
+  处理器片段）；
+  §3 收取：#278 CI 全绿 + 自审通过 + mergeable clean，已 squash 合并并删远端分支；
+  本轮清单改动仅为本账本节**末尾追加**
+  （§0 Server 单测标注行暂不改：本轮 +6 按条目约定由复核轮一次性刷新）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
