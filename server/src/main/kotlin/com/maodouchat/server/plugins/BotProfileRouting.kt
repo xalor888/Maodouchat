@@ -19,7 +19,9 @@ internal fun Route.configureBotProfileRoutes(
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val description = (obj["description"] ?: obj["about"])?.jsonPrimitive?.content
+        val description = when (val parsed = parseBotSetMyDescriptionFields(obj)) {
+            is BotSetMyDescriptionFieldsResult.Ok -> parsed.fields.description
+        }
         val updated = com.maodouchat.server.repository.BotRepository.setMyDescription(bot.id, description)
             ?: return@post call.respondBotUnavailable()
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "setMyDescription")
