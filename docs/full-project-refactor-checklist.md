@@ -4538,3 +4538,43 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotUnbanChatMemberParse.kt`/`BotUnbanChatMemberParseFuzzTest.kt`+本清单——
   本轮清单改动为本账本节追加「续一百」，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百一（2026-10-02）：bot `promoteChatMember` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第六十二块）
+
+- 端点 `/api/bot/promoteChatMember` 的处理器内联 `chatId`/`userId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`、`obj["userId"]?.jsonPrimitive?.content.orEmpty()`，
+  **两字段均无 `.trim()`**：全空白直接判空；显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败；抽取顺序 chatId 先、userId 后、role 末）+
+  `role` 归一化（`.orEmpty().uppercase().ifBlank { "ADMIN" }` 后精确判 `"MEMBER"`，其它全滑向
+  `"ADMIN"`——大小写不敏感的 MEMBER（靠 `.uppercase()`）→`"MEMBER"`；缺席/空/纯空白/
+  `"OWNER"`/`"admin"`/带空白的 `" member "`/显式 null（→`"NULL"`）一律→`"ADMIN"`；role 无 trim）+
+  合并必填校验（`chatId.isBlank() || userId.isBlank()`→400 `"chatId/userId required"`，
+  文案逐字）收敛为 `parseBotPromoteChatMemberFields` 纯函数
+  （`BotPromoteChatMemberParse.kt`，结果二态 `Ok`/`Invalid`）——限流（原处理器里**先于** body 解析，
+  本轮保持在解析之前，等价）/成员检查（`isParticipant`）/
+  `groupMembershipService.updateRole`（owner 直改，bots invited as ADMIN 不可提权）/
+  `logCommand` / 修订通知 / 响应仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotPromoteChatMemberParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c<i>"`、userId 恒为 `"u<i>"`、role 恒为 `"MEMBER"`——**延续第四十一块的 CI 教训**；
+  已知字段 `chatId`/`userId`/`role` 不得参与随机名）+
+  必填语义（chatId/userId 各自缺/空/纯空白→Invalid；双合法+role 缺席→Ok，role 缺省→`"ADMIN"`，
+  role 缺席不参与必填）+
+  `role` 归一化钉住（缺席/空/纯空白→`"ADMIN"`；`"member"`/`"Member"`/`"mEmBeR"`→`"MEMBER"`；
+  `" member "`（无 trim）→`"ADMIN"`；`"OWNER"`/`"owner"`/`"admin"`/`"ADMINISTRATOR"`/数字/
+  布尔→`"ADMIN"`；显式 null→`"NULL"`→`"ADMIN"`）+
+  显式 null 字面量（chatId/userId `"null"`→Ok，单/双 null 均钉）+
+  空白不 trim（`" c1 "`/`" u1 "` 原样保留仍通过必填）+
+  大声失败反证（对象/数组型 chatId/userId/**role** 在 `?.jsonPrimitive` 处抛
+  `IllegalArgumentException`，路由层 `StatusPages` 映射 400，不是 500）+
+  **抽取先于必填校验的顺序反证**（role 对象型 + chatId 空白时先抛，不走 `Invalid`；
+  原处理器里 role 的 `?.jsonPrimitive` 在空白判空之前执行，逐字行为）+
+  近似字段名（`ChatId`/`chat_id`/`UserId`/`user_id`/`Role` 等按未知键忽略，真字段缺席→Invalid）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本轮改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（#284 已于本轮收掉；本轮只碰 `BotMemberPromotionRouting.kt`/
+  `BotPromoteChatMemberParse.kt`/`BotPromoteChatMemberParseFuzzTest.kt`+本清单——
+  本轮清单改动为本账本节追加「续一百一」，不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
