@@ -5327,3 +5327,34 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮只碰 `BotInteractionRouting.kt`/`BotJsonEnvelopeParse.kt`/`BotJsonEnvelopeParseFuzzTest.kt`+本清单，
   清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百二十四（2026-10-03）：`POST /api/chats/{chatId}/polls` 与 `POST /api/polls/{pollId}/vote` 请求体 JSON 对象信封解析收敛为纯函数 + fuzz 钉住（Q01 poll 侧第一块）
+
+- `PollLegacyRouting.kt` 两个写端点各自内联的信封抽取
+  （`runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()`，
+  语义逐字相同）收敛为 `parsePollJsonEnvelopeOrNull(body): JsonObject?`
+  纯函数（`PollJsonEnvelopeParse.kt`）——怪语义原样钉住：
+  坏 JSON（截断 / 空串 / 纯空白 / 语法错误）/ 顶层非对象（数组 / 字符串 /
+  数字 / 布尔 / 显式 JSON null——`JsonNull` 是 `JsonPrimitive`，
+  `.jsonObject` 处抛 `IllegalArgumentException`，**大声失败**被
+  `runCatching` 吞掉）统统 → `null` → 两端点共用同一判定
+  `?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))`；
+  顶层为对象 → 逐字原样返回（不深拷贝、不排序、未知键全部保留，
+  交由各自的字段抽取决定取舍）；空 body（`receiveBoundedTextOrEmpty` 兜底 `""`）→ 抛 → `null`
+  → 400 `"invalid json"`，与原先逐字一致；
+  各端点的 `body` 上限（`32_768` / `8_192`）、鉴权 / 成员校验 / 禁言检查 /
+  字段抽取怪语义（`question`.orEmpty()、9.157 非法选项整体拒绝、严格整数拒绝）
+  仍在处理器，顺序一致——下游一行不动；
+  `PollLegacyRouting.kt` 用 wildcard import（`kotlinx.serialization.json.*`），
+  无需清理 import；
+- 新增 `PollJsonEnvelopeParseFuzzTest`（4 例）：固定种子 150 个随机对象 payload
+  往返恒等（未知键避开 `question`/`options`/`multi`/`anonymous`/`closesAt`/
+  `optionIndexes`/`optionIndex` 全部保留）；10 种坏 body → `null`；
+  顶层数组/字符串/数字/布尔/显式 null → `null`
+  （尾随空白的对象仍可解析为空对象）；嵌套显式 null 保留；
+- 开工时 0 个 open 重构 PR（#308 已 squash 合并，仅剩 dependabot 依赖 PR，无文件交集）；
+  本轮只碰 `PollLegacyRouting.kt`/`PollJsonEnvelopeParse.kt`/`PollJsonEnvelopeParseFuzzTest.kt`+本清单，
+  `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+  清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
