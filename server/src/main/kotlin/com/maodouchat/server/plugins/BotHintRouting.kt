@@ -16,7 +16,6 @@ import java.util.UUID
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /** Durable bot-authored hint messages described by policy data instead of copied handlers. */
@@ -40,21 +39,16 @@ internal fun Route.configureBotHintRoutes(
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                     return@post
                 }
-            val chatId = request["chatId"]?.jsonPrimitive?.content.orEmpty()
-            if (chatId.isBlank()) {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-                return@post
+            val chatId = when (val parsed = parseBotHintChatId(request)) {
+                is BotHintChatIdResult.Ok -> parsed.chatId
+                BotHintChatIdResult.Invalid ->
+                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
             }
             if (!participantRepository.isParticipant(chatId, bot.id)) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
                 return@post
             }
-            val suppliedHint = request["hint"]?.jsonPrimitive?.content
-            val hint = if (spec.sanitize) {
-                sanitizeBotHint(suppliedHint).ifBlank { spec.defaultHint }
-            } else {
-                (suppliedHint ?: spec.defaultHint).take(120)
-            }
+            val hint = resolveBotHint(request, spec.sanitize, spec.defaultHint)
             val content = spec.contentPrefix + hint
             val messageId = "bot_" + UUID.randomUUID().toString().replace("-", "").take(16)
             val now = System.currentTimeMillis()
