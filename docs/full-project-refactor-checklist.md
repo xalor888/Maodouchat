@@ -5262,3 +5262,40 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮只碰 `BotInteractionRouting.kt`/`BotInboxParse.kt`/`BotInboxParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百二十二（2026-10-03）：`POST /api/chats/{chatId}/bots` 请求体 botId 解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第八十三块）
+
+- `BotInteractionRouting.kt` 的 `POST /api/chats/{chatId}/bots` 处理器内联 `botId` 抽取
+  （`runCatching { Json.parseToJsonElement(body).jsonObject["botId"]?.jsonPrimitive?.content }.getOrNull().orEmpty()`）
+  收敛为 `parseAddBotToChatBotId(body): String` 纯函数（`BotAddBotToChatParse.kt`）——
+  与之前各块逐字不同的怪语义原样钉住：
+  坏 JSON / 顶层非对象（无单独 `"invalid json"` 判定）/ `botId` 为对象或数组
+  （`?.jsonPrimitive` 处抛 `IllegalArgumentException`，**大声失败**——与 bot-inbox 块的
+  `as?` 静默**反证**，被 `runCatching` 吞掉）统统 → `""` → 处理器报 400
+  `"botId required"`；显式 JSON null → `JsonNull` 是 `JsonPrimitive`，
+  `content` 为字面量 `"null"`（**非空**，不被 `isBlank()` 滤掉）→ 不走 400 文案，
+  而是继续走下游 `addOwnedBot(..., "null", ...)` → `BOT_NOT_FOUND`
+  → 404 `"bot not found"`（与 enabled 块的「显式 null 直接 400」不同，
+  沿用 webhook 管理 / bot-inbox 块的「`"null"` 字面量继续走」习惯）；
+  数字/布尔型 → 其字面量 content（`7`→`"7"`、`true`→`"true"`）；
+  字符串型原样返回（含首尾空白，空白判在处理器 `isBlank()` 侧）；
+  `botId` 缺席 → `""` → 400；近似字段名（`botid`/`BOTID`/`botId2`/`bot_id` 等）
+  一律忽略 → `""` → 400；`receiveBoundedTextOrEmpty(4_096)`、
+  `botId.length > 80` 的 400 判定、维护模式/封禁拦截/功能开关、
+  `addOwnedBot` 结果映射全部仍在处理器，顺序一致——下游一行不动；
+- 新增 `BotAddBotToChatParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言；坏 JSON/顶层非对象吞异常语义（`""`）；对象/数组型大声失败→`""`；
+  显式 null→字面量 `"null"` 非空继续走下游；数字/布尔字面量 content 与
+  空白/长度语义（纯函数只抽取，`isBlank()`/`>80` 判在处理器）；近似字段名忽略
+  （真字段混在其中仍被识别）+ 编解码往返恒等；
+- 附带清理：`BotInteractionRouting.kt` 移除现已无引用的 `jsonPrimitive` 扩展 import
+  （第 248 行是唯一使用者）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（#306 本轮已合并，仅剩 dependabot 依赖 PR，无文件交集）；
+  本轮只碰 `BotInteractionRouting.kt`/`BotAddBotToChatParse.kt`/
+  `BotAddBotToChatParseFuzzTest.kt`+本清单，`ServerArchitectureTest` 对该路由无行数上限；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
