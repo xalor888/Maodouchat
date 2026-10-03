@@ -15,11 +15,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
@@ -127,10 +124,7 @@ put("ok", true)
         if (call.rejectIfSuspended(userRepo, userId)) return@put
         val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
         val body = call.receiveBoundedTextOrEmpty()
-        val enabled = runCatching {
-            val p = Json.parseToJsonElement(body).jsonObject["enabled"]?.jsonPrimitive
-            p?.booleanOrNull ?: p?.content?.toBooleanStrictOrNull()
-        }.getOrNull()
+        val enabled = parseManagementBotEnabled(body)
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled required"))
         val bot = com.maodouchat.server.repository.BotRepository.setEnabled(botId, userId, enabled)
             ?: return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
