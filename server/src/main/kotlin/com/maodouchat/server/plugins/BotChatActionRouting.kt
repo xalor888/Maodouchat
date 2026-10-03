@@ -23,7 +23,7 @@ internal fun Route.configureBotChatActionRoutes(
     post("/api/bot/sendChatAction") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendChatActionFields(obj)) {
             is BotSendChatActionFieldsResult.Ok -> parsed.fields
@@ -71,7 +71,7 @@ put("action", action)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("message_pin_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotPinChatMessageFields(obj)) {
             is BotPinChatMessageFieldsResult.Ok -> parsed.fields
