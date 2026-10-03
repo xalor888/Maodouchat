@@ -230,7 +230,7 @@ put("pushTokens", JsonArray(push))
                 val body = call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("request body is too large or unreadable"))
                 val obj = if (body.isBlank()) null else {
-                    runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+                    parseAdminManagementJsonEnvelopeOrNull(body)
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 }
                 val prefixElement = obj?.get("tokenHashPrefix")
@@ -343,7 +343,7 @@ post("/broadcast") {
                 if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
                 val actorId = call.requireUserId()
                 val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+                val obj = parseAdminManagementJsonEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val text = obj["text"]?.jsonPrimitive?.content?.trim().orEmpty().take(2000)
                 if (text.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("text required"))

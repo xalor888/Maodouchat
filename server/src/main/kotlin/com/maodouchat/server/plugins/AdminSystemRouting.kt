@@ -144,7 +144,7 @@ put("envAllowRegistration", ServerConfig.allowRegistration)
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseAdminSystemJsonEnvelopeOrNull(body)
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val settingsObj = obj["settings"]?.jsonObject ?: obj
         val updates = settingsObj.mapNotNull { (k, v) ->
