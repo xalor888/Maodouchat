@@ -22,7 +22,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
@@ -245,7 +244,7 @@ post("/api/chats/{chatId}/bots") {
         if (call.rejectIfSuspended(userRepo, userId)) return@post
         val chatId = call.parameters["chatId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
         val body = call.receiveBoundedTextOrEmpty(4_096)
-        val botId = runCatching { Json.parseToJsonElement(body).jsonObject["botId"]?.jsonPrimitive?.content }.getOrNull().orEmpty()
+        val botId = parseAddBotToChatBotId(body)
         if (botId.isBlank() || botId.length > 80) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("botId required"))
         }
