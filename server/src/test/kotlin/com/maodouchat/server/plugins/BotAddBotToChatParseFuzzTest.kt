@@ -132,14 +132,14 @@ class BotAddBotToChatParseFuzzTest {
         assertEquals("7", botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive(7))))), "number -> content")
         assertEquals("true", botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive(true))))), "bool -> content")
         // 字符串型原样返回（含首尾空白：空白判在处理器 isBlank() 侧，纯函数不滤）。
-        assertEquals("bot_1", botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive("bot_1")))))), "plain id")
-        assertEquals("", botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive("")))))), "empty string -> empty")
-        assertEquals("  ", botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive("  ")))))), "whitespace kept verbatim")
+        assertEquals("bot_1", botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive("bot_1"))))), "plain id")
+        assertEquals("", botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive(""))))), "empty string -> empty")
+        assertEquals("  ", botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive("  "))))), "whitespace kept verbatim")
         // 长度 > 80 的 400 判定在处理器侧，纯函数只抽取：80 字与 81 字都原样返回。
         val eighty = "b".repeat(80)
         val eightyOne = "b".repeat(81)
-        assertEquals(eighty, botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive(eighty)))))), "80 chars verbatim")
-        assertEquals(eightyOne, botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive(eightyOne)))))), "81 chars verbatim")
+        assertEquals(eighty, botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive(eighty))))), "80 chars verbatim")
+        assertEquals(eightyOne, botIdOf(bodyOf(JsonObject(mapOf("botId" to JsonPrimitive(eightyOne))))), "81 chars verbatim")
     }
 
     @Test
