@@ -5229,6 +5229,26 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   （无 "invalid json" 判定）；坏类型（对象/数组）被吞→null（大声失败反证）；
   近似字段名忽略（`Enabled`/`ENABLED`/`enabled2`/`enable`/`isEnabled`→null，
   真字段混在其中仍被识别）；
+### 第十三轮续一百二十一（2026-10-03）：`POST /api/chats/{chatId}/bot-inbox` 请求体 text/botIdHint 解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第八十二块）
+
+- `BotInteractionRouting.kt` 的 `POST /api/chats/{chatId}/bot-inbox` 处理器内联 `text`/`botIdHint`
+  抽取（`(obj["text"] as? JsonPrimitive)?.content.orEmpty()` +
+  `(obj["botId"] as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() }`）
+  收敛为 `parseBotInboxFields(obj): BotInboxFields` 纯函数（`BotInboxParse.kt`）——
+  与之前各块逐字不同的怪语义原样钉住：
+  `as? JsonPrimitive` 转型失败**静默**（`text` 对象/数组型 → `""`、`botIdHint` 对象/数组型
+  → `null`，与 `?.jsonPrimitive` 的大声失败不同，本端点沿用静默习惯）；显式 JSON null
+  → `JsonNull` 是 `JsonPrimitive`，`text` 得字面量 `"null"`、`botIdHint` 得 `"null"`
+  （非空，不被 `takeIf { it.isNotBlank() }` 滤掉）；`botIdHint` 缺席/空串/全空白 → `null`；
+  数字/布尔型 → 其字面量 content（`1`→`"1"`、`true`→`"true"`）；坏 JSON 的
+  `"invalid json"` 判定、`sanitizeInboxText` 的「命令无效或不能是密文」校验、
+  限流/鉴权/入群检查/投递仍在处理器，顺序与原处理器一致，逐行等价——下游一行不动；
+- 新增 `BotInboxParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（text/botIdHint 交替恒等）；缺席语义（text 缺席→`""`、botId 缺席→null）；
+  text 类型强制（显式 null→`"null"`、对象/数组→`""` 静默、数字→`"1"`、布尔→`"true"`）；
+  botIdHint 语义（空串/全空白→null、显式 null→`"null"`、对象→null 静默、数字→`"7"`）；
+  近似字段名忽略（`Text`/`TEXT`/`text2`/`txt`、`botid`/`BOTID`/`botId2`/`bot_id`→忽略，
+  真字段混在其中仍被识别）；编解码往返恒等；
 - 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
   见 AGENTS.md 2026-09-30 教训）；
 - `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
@@ -5236,5 +5256,9 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
 - 开工时 0 个 open 重构 PR（仅 dependabot 依赖 PR，无文件交集）；本轮只碰
   `BotManagementRouting.kt`/`BotEnabledParse.kt`/`BotEnabledParseFuzzTest.kt`+本清单，
+  `ServerArchitectureTest` 对该路由无行数上限；`RouteRegistrySplitTest` 端点数不变，不受影响；
+- 开工时 1 个 open 重构 PR（#304 bot-enabled-parse-fuzz，文件为
+  `BotEnabledParse.kt`/`BotManagementRouting.kt`/`BotEnabledParseFuzzTest.kt`）；
+  本轮只碰 `BotInteractionRouting.kt`/`BotInboxParse.kt`/`BotInboxParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
