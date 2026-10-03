@@ -28,7 +28,7 @@ internal fun Route.configureBotPollRoutes(
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("polls_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseBotPollJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendPollFields(obj)) {
             is BotSendPollFieldsResult.Ok -> parsed.fields
@@ -78,7 +78,7 @@ put("messageId", msgId)
     post("/api/bot/sendDice") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseBotPollJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendDiceFields(obj)) {
             is BotSendDiceFieldsResult.Ok -> parsed.fields
@@ -122,7 +122,7 @@ put("sides", fields.sides)
             return@post call.respondBotUnavailable()
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseBotPollJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotVotePollFields(obj)) {
             is BotVotePollFieldsResult.Ok -> parsed.fields
@@ -155,7 +155,7 @@ put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
             return@post call.respondBotUnavailable()
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseBotPollJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val pollId = when (val parsed = parseBotClosePollFields(obj)) {
             is BotClosePollFieldsResult.Ok -> parsed.fields.pollId
