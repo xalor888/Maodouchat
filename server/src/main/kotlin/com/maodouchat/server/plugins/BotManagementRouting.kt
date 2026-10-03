@@ -86,8 +86,7 @@ get("/api/bots") {
         if (call.rejectIfSuspended(userRepo, userId)) return@put
         val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
         val body = call.receiveBoundedTextOrEmpty()
-        val url = runCatching { Json.parseToJsonElement(body).jsonObject["url"]?.jsonPrimitive?.content }
-            .getOrNull()?.trim()?.take(500)
+        val url = parseManagementWebhookUrl(body)
         if (!url.isNullOrBlank() && !com.maodouchat.server.repository.BotRepository.isAllowedWebhookUrl(url)) {
             return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("webhook 无效"))
         }
