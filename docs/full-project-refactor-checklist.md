@@ -5197,3 +5197,42 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotManagementRouting.kt`/`BotManagementWebhookParse.kt`/`BotManagementWebhookParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百二十（2026-10-03）：`PUT /api/bots/{botId}/enabled` 请求体 enabled 解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第八十一块）
+
+- `BotManagementRouting.kt` 的 `PUT /api/bots/{botId}/enabled` 处理器内联 `enabled` 抽取
+  （`runCatching { Json.parseToJsonElement(body).jsonObject["enabled"]?.jsonPrimitive }` +
+  `p?.booleanOrNull ?: p?.content?.toBooleanStrictOrNull()` + `?: 400 "enabled required"`）
+  收敛为 `parseManagementBotEnabled(body): Boolean?` 纯函数（`BotEnabledParse.kt`，`null` 即
+  「不可用」，处理器侧 `?: 400 "enabled required"` 逐字保留）——与之前各块逐字不同的
+  怪语义原样钉住：
+  runCatching 覆盖 parse+抽取全链：坏 JSON / 顶层非对象 / `enabled` 对象数组型
+  （`?.jsonPrimitive` 处抛）统统被吞 → `null` → 400 `"enabled required"`，
+  **本端点没有单独的 `"invalid json"` 判定**（坏 JSON 与字段缺席同文案，POST `/api/bots`
+  那块是先判 jsonObject 再报 `"invalid json"`）；布尔字面量 `true`/`false` 同值；
+  字符串型仅 `"true"`/`"false"` 有效（`booleanOrNull` 即 `content.toBooleanStrictOrNull()`，
+  大小写敏感，`"TRUE"`/`"1"`/空串/数字 → `null` → 400）；显式 JSON null → `JsonNull`
+  是 `JsonPrimitive`，`content` 为字面量 `"null"`，`toBooleanStrictOrNull("null")` 为 null
+  → `null` → 400（与 webhook 管理块的「显式 null 得字面量字符串继续走白名单」不同）；
+  维护模式/`requireUserId`/`rejectIfSuspended`/`botId` 参数校验在原处理器里**先于** body 解析，
+  本轮保持它们在解析之前，等价；`BotRepository.setEnabled`/bot 响应仍在处理器，
+  顺序与原处理器一致，逐行等价——下游一行不动；
+  路由文件里因此无用的 `booleanOrNull`/`jsonPrimitive`/`JsonPrimitive` import 已移除
+  （`Json`/`jsonObject` 仍被 POST `/api/bots` 的 `"invalid json"` 判定使用）；
+- 新增 `BotEnabledParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（enabled 真假交替恒等）；缺席语义（缺席/空 body/空对象→null）；
+  布尔字面量（true/false→同值）；严格字符串布尔（"true"/"false" 有效；
+  "TRUE"/"True"/"1"/"" /"yes"/数字 1/0 → null）；显式 null→null
+  （反证与 webhook 块的"null"字面量不同）；坏 JSON 与顶层非对象被吞→null
+  （无 "invalid json" 判定）；坏类型（对象/数组）被吞→null（大声失败反证）；
+  近似字段名忽略（`Enabled`/`ENABLED`/`enabled2`/`enable`/`isEnabled`→null，
+  真字段混在其中仍被识别）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（仅 dependabot 依赖 PR，无文件交集）；本轮只碰
+  `BotManagementRouting.kt`/`BotEnabledParse.kt`/`BotEnabledParseFuzzTest.kt`+本清单，
+  与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
