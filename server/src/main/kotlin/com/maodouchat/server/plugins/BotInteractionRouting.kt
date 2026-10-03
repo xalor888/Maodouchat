@@ -100,8 +100,9 @@ internal fun Route.configureBotInteractionRoutes(
         val body = call.receiveBoundedTextOrEmpty(8_192)
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val text = (obj["text"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
-        val botIdHint = (obj["botId"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
+        val inbox = parseBotInboxFields(obj)
+        val text = inbox.text
+        val botIdHint = inbox.botIdHint
         val cleaned = com.maodouchat.server.bot.BotCommandPolicy.sanitizeInboxText(text)
         if (cleaned == null) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("命令无效或不能是密文"))
