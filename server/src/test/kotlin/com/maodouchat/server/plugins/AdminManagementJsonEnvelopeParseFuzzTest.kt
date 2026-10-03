@@ -14,29 +14,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 管理后台用户管理子域路由（`POST /users/{id}/sessions/revoke`、
- * `POST /broadcast`，`AdminManagementRouting.kt`）
- * 请求体 JSON 对象信封解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与
- * fuzz 测试」的 admin 侧专项评估**第二块**）。
- *
- * 本测试直接钉住纯函数 ([parseAdminManagementJsonEnvelopeOrNull]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机对象 payload。
- * - 随机值覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   随机键避开已知字段（`tokenHashPrefix` / `all` / `text` / `title`）——
- *   测的是「未知键全部保留交由字段抽取取舍」的恒等性，不是已知字段语义。
- * - payload 由「JsonObject 程序化构造再 encode 成 body 字符串」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 **吞异常怪语义**：坏 JSON（截断 / 空串 / 纯空白 / 语法错误）→ `null`
- *   （处理器报 400 `"invalid json"`；两端点共用此判定；sessions/revoke 的
- *   「空 body 宽容」在处理器侧 `if (body.isBlank()) null`，不在纯函数里，
- *   本测试只钉纯函数本身）。
- * - 钉住 **顶层非对象一律 null**：数组 / 字符串 / 数字 / 布尔 /
- *   显式 JSON null（`JsonNull` 是 `JsonPrimitive`，`.jsonObject` 处抛
- *   `IllegalArgumentException`，**大声失败**被 `runCatching` 吞掉）→ `null`。
- * - 钉住 **对象恒等**：合法对象逐字原样返回（不深拷贝、不排序、键与值逐一相等）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
+ * 钉住 `parseAdminManagementJsonEnvelopeOrNull` 的生产语义：
+ * 固定种子 150 个随机 payload 未知键恒等、坏 JSON / 顶层非对象一律 null。
+ * （sessions/revoke 的空 body 宽容在处理器里，不在此测。）
  */
 class AdminManagementJsonEnvelopeParseFuzzTest {
 
