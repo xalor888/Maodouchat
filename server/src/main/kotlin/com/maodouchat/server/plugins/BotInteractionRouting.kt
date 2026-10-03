@@ -185,15 +185,14 @@ internal fun Route.configureBotInteractionRoutes(
         val body = call.receiveBoundedTextOrEmpty(16_384)
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val messageId = obj["messageId"]?.jsonPrimitive?.content.orEmpty()
-        val botUserId = obj["botUserId"]?.jsonPrimitive?.content.orEmpty()
-        val callbackData = obj["callbackData"]?.jsonPrimitive?.content.orEmpty()
-        if (messageId.isBlank() || messageId.length > 80 ||
-            botUserId.isBlank() || botUserId.length > 80 ||
-            callbackData.isBlank() || callbackData.length > 128
-        ) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId/botUserId/callbackData required"))
+        val fields = when (val parsed = parseBotChatCallbackFields(obj)) {
+            is BotChatCallbackFieldsResult.Ok -> parsed.fields
+            BotChatCallbackFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId/botUserId/callbackData required"))
         }
+        val messageId = fields.messageId
+        val botUserId = fields.botUserId
+        val callbackData = fields.callbackData
         val bot = com.maodouchat.server.repository.BotRepository.get(botUserId)
         if (bot == null || !bot.enabled) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable"))
