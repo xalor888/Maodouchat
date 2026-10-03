@@ -300,7 +300,7 @@ fun Application.configureDeveloperRouting() {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("登录过于频繁，请稍后再试"))
                 }
                 val body = call.receiveBoundedText().orEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+                val obj = parseDeveloperJsonEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val email = obj["email"]?.jsonPrimitive?.content.orEmpty()
                 val password = obj["password"]?.jsonPrimitive?.content.orEmpty()
@@ -382,7 +382,7 @@ fun Application.configureDeveloperRouting() {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建机器人太频繁，请稍后再试"))
                 }
                 val body = call.receiveBoundedText().orEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+                val obj = parseDeveloperJsonEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val name = obj["name"]?.jsonPrimitive?.content.orEmpty()
                 val username = obj["username"]?.jsonPrimitive?.content.orEmpty()
@@ -507,7 +507,7 @@ put("ok", true)
                     return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作该机器人"))
                 }
                 val body = call.receiveBoundedText().orEmpty()
-                val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+                val obj = parseDeveloperJsonEnvelopeOrNull(body)
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val arr = obj["commands"] as? JsonArray
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("commands array required"))
