@@ -5044,3 +5044,48 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotPresentationCardsRouting.kt`/`BotSendStepsParse.kt`/`BotSendStepsParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百一十六（2026-10-03）：bot hint 端点群（35 个 `/api/bot/send*Hint`）请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十七块）
+
+- `BotHintRouting.kt` 的 `BOT_HINT_SPECS` 共享循环（35 个 `/api/bot/send*Hint` 端点）处理器内联
+  `chatId` 抽取（`request["chatId"]?.jsonPrimitive?.content.orEmpty()`：**无 `.trim()`**——
+  全空白直接判空；显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败的逐字语义）+
+  合并必填校验（`chatId.isBlank()`→400 `"chatId required"`，文案逐字）收敛为
+  `parseBotHintChatId(request: JsonObject)` 纯函数（`BotHintParse.kt`，结果二态
+  `Ok`/`Invalid`；`request` 为 null 的 `"invalid json"` 400 仍在处理器，同款纪律）——
+  `hint` 解析（`request["hint"]?.jsonPrimitive?.content`：键缺席→null；
+  显式 null→字面量 `"null"` 字符串，**不**回退 `defaultHint`，逐字语义；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败；`sanitize=true` 走
+  `sanitizeBotHint(suppliedHint).ifBlank { defaultHint }`（缺键时 `sanitizeBotHint(null)`
+  为空→回退默认值，逐字）、`sanitize=false` 走 `(suppliedHint ?: defaultHint).take(120)`，
+  逐字）收敛为 `resolveBotHint(request, sanitize, defaultHint)` 纯函数——
+  **拆成两个纯函数的原因**：原处理器里 `hint` 的解析在 `isParticipant`
+  （403 `"bot not in chat"`）**之后**，若合并成一个函数，「hint 坏类型 + 非成员」的
+  组合会从原处理器的 403 提前变成 400（大声失败先于成员检查）——拆分保持求值顺序
+  逐行等价，下游一行不动；限流（`requireRateLimitedBot`）与功能门禁
+  （`spec.enabled()`/`spec.disabledError` 403）在原处理器里**先于** body 解析，
+  本轮保持它们在解析之前，等价；`isParticipant`/`publishBotServiceMessage`
+  （固定 `type="SYSTEM"`，`content = spec.contentPrefix + hint`）/`logCommand`
+  （`spec.path`）/响应（`"ok": true`、`messageId`、`"type": "SYSTEM"`）仍在处理器，
+  顺序与原处理器一致，逐行等价——下游一行不动；
+- 新增 `BotHintParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c" + i`、hint 恒为 `"h" + i`；清洗/非清洗双分支；
+  已知字段 `chatId`/`hint`）；
+  必填语义（chatId 缺/空/纯空白→Invalid；显式 null→字面量 `"null"`→Ok；合法→Ok）；
+  hint 非清洗分支（缺键→`defaultHint`、显式 null→`"null"`、显式空→`""`、
+  超长 120 截断）；hint 清洗分支（缺键→`defaultHint`、清洗后空白→`defaultHint`、
+  控制字符替换+连续空白折叠+trim、显式 null→`"null"`、超长 120 截断）；
+  chatId 无 trim（`" c1 "` 原样保留仍通过）；
+  非字符串 primitive 走 `.content`（`123`→`"123"`、`true`→`"true"`）；
+  坏类型大声失败反证（chatId/hint 对象/数组→`IllegalArgumentException`）；
+  近似字段名忽略（`ChatId`/`CHATID`/`chat_id`/`chatid`/`chatId2`/`Hint`/`HINT`/`hint2`/`hints`）。
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（仅 dependabot 依赖 PR，无文件交集）；本轮只碰
+  `BotHintRouting.kt`/`BotHintParse.kt`/`BotHintParseFuzzTest.kt`+本清单，
+  与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
