@@ -5165,3 +5165,35 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotManagementRouting.kt`/`BotCreateParse.kt`/`BotCreateParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百一十九（2026-10-03）：`PUT /api/bots/{botId}/webhook` 请求体 url 解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第八十块）
+
+- `BotManagementRouting.kt` 的 `PUT /api/bots/{botId}/webhook` 处理器内联 `url` 抽取
+  （`runCatching { Json.parseToJsonElement(body).jsonObject["url"]?.jsonPrimitive?.content }.getOrNull()?.trim()?.take(500)`）收敛为
+  `parseManagementWebhookUrl(body)` 纯函数（`BotManagementWebhookParse.kt`）——与
+  Bot API 的 `/api/bot/setWebhook`（`BotSetWebhookParse.kt`，第七十块）**语义不同**，逐字怪语义原样钉住：
+  本端点**不判 `invalid json`**，runCatching 覆盖整个 parse+抽取链：坏 JSON / 顶层非对象 /
+  url 对象数组型（`?.jsonPrimitive` 处抛）统统被吞 → `url == null` → 下游
+  `setWebhook(botId, userId, null)` 即清空 webhook（POST `/api/bots` 那块是大声失败，这里是吞掉）；
+  显式 JSON null → `JsonNull` 是 `JsonPrimitive`，`.content` 得字面量 `"null"`（非空→照常进白名单校验）；
+  数字/布尔型走 `.content`（`123`→`"123"`、`true`→`"true"`）；`trim` 先于 `take(500)`（超长先去空白再截断）；
+  缺席/坏 JSON/坏类型→`null`，空串/纯空白→`""`（下游 `isNullOrBlank()` 跳过白名单校验→原样清空）；
+  维护模式/`requireUserId`/`rejectIfSuspended`/`botId` 参数校验在原处理器里**先于** body 解析，
+  本轮保持它们在解析之前，等价；`BotRepository.isAllowedWebhookUrl` 白名单校验仍在处理器里，
+  顺序与原处理器一致，逐行等价——下游一行不动；
+- 新增 `BotManagementWebhookParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（url 恒为 `"u<i>"`，随机名避开 `url`、注入永不破坏 JSON 语法）；
+  缺席语义（缺席/空 body→null）；坏 JSON 与顶层非对象被吞→null；
+  显式 null→字面量 `"null"`；坏类型（对象/数组）被吞→null（反证与第七十块的大声失败不同）；
+  trim 先于 take(500)（尾部空白先去再截；超长→500）+ 纯空白→空串；
+  非字符串 primitive 走 `.content`（`123`→`"123"`、`true`→`"true"`、`45.6`→`"45.6"`）；
+  近似字段名忽略（`URL`/`Url`/`urls`/`webhook_url`）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- §3 收了 #302 后 0 个 open 重构 PR（仅 dependabot 依赖 PR，无文件交集）；本轮只碰
+  `BotManagementRouting.kt`/`BotManagementWebhookParse.kt`/`BotManagementWebhookParseFuzzTest.kt`+本清单，
+  与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
