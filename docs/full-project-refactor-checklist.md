@@ -5464,3 +5464,40 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `RouteRegistrySplitTest` 断言 961 个 bot 端点声明数不变（本轮只换内联表达式、不增减端点），不受影响；
   清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百二十八（2026-10-04）：`POST /users/bulk-force-logout`、`POST /users/bulk-ban`、`POST /users/bulk-unban`、`POST /users/bulk-suspend-days` 请求体 JSON 对象信封解析收敛为纯函数 + fuzz 钉住（Q01 admin 侧第一块）
+
+- `AdminBulkRouting.kt` 四个端点各自内联的信封抽取
+  （`runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()`，
+  语义逐字相同）收敛为 `parseAdminBulkJsonEnvelopeOrNull(body): JsonObject?`
+  纯函数（`AdminBulkJsonEnvelopeParse.kt`）——怪语义原样钉住：
+  坏 JSON（截断 / 空串 / 纯空白 / 语法错误）/ 顶层非对象（数组 / 字符串 /
+  数字 / 布尔 / 显式 JSON null——`JsonNull` 是 `JsonPrimitive`，
+  `.jsonObject` 处抛 `IllegalArgumentException`，**大声失败**被
+  `runCatching` 吞掉）统统 → `null` → 四端点共用同一判定
+  `?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))`；
+  顶层为对象 → 逐字原样返回（不深拷贝、不排序、未知键全部保留，
+  交由各自的字段抽取决定取舍）；
+  body 读取（`runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()`，
+  受 `MAX_ADMIN_JSON_BODY_CHARS` 上限，失败兜底空串）仍在处理器，不进纯函数；
+  空 body → `""` → 抛 → `null` → 400 `"invalid json"`，与原先逐字一致；
+  鉴权（`call.isAdminUser()` 在信封解析之前）/ 各端点字段抽取怪语义
+  （bulk-force-logout 的内联 `userIds` 数组/分隔串解析（`take(64)`/`distinct()`/`take(200)`）
+  + `AdminAccess.isAdmin` 管理员保护 + `rotateAccessTokenVersion`
+  + 踢在线会话 + `"ADMIN_BULK_FORCE_LOGOUT"` 审计；bulk-ban 的 `parseAdminIds(obj)`
+  + `days`（`toIntOrNull() ?: 1`，`coerceIn(1, DispositionService.MAX_BAN_DAYS)`）
+  + `reasonCode`（空串回退 `"BULK_BAN"`）；bulk-unban 的 `parseAdminIds(obj)`；
+  bulk-suspend-days 的 `parseAdminIds(obj)` + `days`（`toIntOrNull() ?: 1`，
+  `coerceIn(1, 365)`））仍在处理器，顺序一致——下游一行不动；
+  `AdminBulkRouting.kt` 显式 import（非 wildcard），`jsonObject` 仍被其余 20 个
+  端点内联用，无需清理 import；
+- 新增 `AdminBulkJsonEnvelopeParseFuzzTest`（4 例）：固定种子（18031）150 个随机对象
+  payload 往返恒等（未知键避开 `userIds`/`days`/`reasonCode` 全部保留）；
+  10 种坏 body → `null`；顶层数组/字符串/数字/布尔/显式 null → `null`
+  （尾随空白的空对象仍可解析）；嵌套显式 null 保留；
+- 开工时 0 个 open 重构 PR（#312 已 squash 合并，仅剩 dependabot 依赖 PR，无文件交集）；
+  本轮只碰 `AdminBulkRouting.kt`/`AdminBulkJsonEnvelopeParse.kt`/`AdminBulkJsonEnvelopeParseFuzzTest.kt`+本清单，
+  `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 断言 bot 端点声明数（本轮只换管理侧内联表达式、不增减端点），不受影响；
+  清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
