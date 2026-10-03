@@ -171,8 +171,11 @@ put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val pollId = obj["pollId"]?.jsonPrimitive?.content.orEmpty()
-        if (pollId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
+        val pollId = when (val parsed = parseBotClosePollFields(obj)) {
+            is BotClosePollFieldsResult.Ok -> parsed.fields.pollId
+            BotClosePollFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
+        }
         val poll = com.maodouchat.server.repository.PollRepository.closePoll(
             pollId = pollId,
             userId = bot.id,
