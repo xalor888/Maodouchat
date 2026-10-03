@@ -5089,3 +5089,42 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotHintRouting.kt`/`BotHintParse.kt`/`BotHintParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百一十七（2026-10-03）：`/api/chats/{chatId}/bot-callback` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十八块）
+
+- `BotInteractionRouting.kt` 的 `/api/chats/{chatId}/bot-callback` 处理器内联
+  三字段抽取（`obj["messageId"]`/`obj["botUserId"]`/`obj["callbackData"]`
+  取 `?.jsonPrimitive?.content.orEmpty()`：**无 `.trim()`**——
+  全空白直接判空；显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  非字符串 primitive 走 `.content`（`123`→`"123"`、`true`→`"true"`，逐字）；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败的逐字语义）+
+  合并必填与超长校验（`messageId.isBlank() || messageId.length > 80 ||
+  botUserId.isBlank() || botUserId.length > 80 ||
+  callbackData.isBlank() || callbackData.length > 128`→400
+  `"messageId/botUserId/callbackData required"`，文案与上限逐字）收敛为
+  `parseBotChatCallbackFields(obj)` 纯函数（`BotChatCallbackParse.kt`，结果二态
+  `Ok`/`Invalid`）——`null` 的 `"invalid json"` 400 仍在处理器（`runCatching`
+  形态同款纪律）；维护模式/`requireUserId`/`rejectIfSuspended`/
+  `isParticipant`（403 `"无权访问该聊天"`）在原处理器里**先于** body 解析，
+  本轮保持它们在解析之前，等价；`BotRepository.get`（403 `"bot unavailable"`）/
+  `enqueueCallbackIfAuthorized`（403 `"回调按钮无效或已不可用"`）/
+  `BotWebhookService.notifyBotDirect`/`updateId`（`"cbq_"` 前缀）/响应
+  （`"ok": true`、`callbackQueryId`）仍在处理器，顺序与原处理器一致，
+  逐行等价——下游一行不动；
+- 新增 `BotChatCallbackParseFuzzTest`（8 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（三字段恒为 `"m<i>"`/`"b<i>"`/`"d<i>"`）；必填语义（全缺席/单个字段缺席/
+  空/纯空白→Invalid；合法→Ok）；显式 null→字面量 `"null"` 三字段皆 Ok；
+  上限逐字（80/80/128 边界恒等，超一个字符即 Invalid）；无 trim（`" m1 "` 原样保留）；
+  非字符串 primitive 走 `.content`（`123`→`"123"`、`true`→`"true"`、`45.6`→`"45.6"`）；
+  坏类型大声失败反证（messageId/botUserId/callbackData 对象/数组→
+  `IllegalArgumentException`）；近似字段名忽略（`MessageId`/`MESSAGEID`/`message_id`/
+  `messageId2`/`BotUserId`/`bot_user_id`/`callbackdata`/`CallbackData`/`callbackData2`）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（仅 dependabot 依赖 PR，无文件交集）；本轮只碰
+  `BotInteractionRouting.kt`/`BotChatCallbackParse.kt`/`BotChatCallbackParseFuzzTest.kt`+本清单，
+  与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
