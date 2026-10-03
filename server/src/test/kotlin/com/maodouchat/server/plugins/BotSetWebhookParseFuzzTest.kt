@@ -11,35 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `setWebhook` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，
- * G355 `sendMessage` 起至 `deleteUpdates` 之后第七十块）。
- *
- * 本测试直接钉住纯函数 ([parseBotSetWebhookFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 吸取第四十一块（`sendTable`）的 CI 教训：fuzz 基 payload 的**必填字段必须
- *   确定性合法**——基 payload 的 `url` 恒为 `"https://example.com/hook<i>"`
- *   （白名单 lambda 只放行该前缀，恒等断言只看它不被未知键污染）。
- * - 钉住 **trim 在 take(500) 之前**：前后空白先去再截断；600 字符 URL 截断为 500，
- *   白名单看到的是截断后的值。
- * - 钉住 **空 / 纯空白跳过白名单校验**：`""` 与 `"   "` 都不调用校验器，直接 [Ok]。
- * - 钉住 **null body 有 `"invalid json"` 400**：`obj` 为 null → [InvalidJson]。
- * - 钉住 **显式 null 走校验**：`JsonNull` 得字面量 `"null"`（非空）→ 校验器收到
- *   `"null"`（本轮用调用记录断言）。
- * - 反证坏类型大声失败：对象 / 数组型在 `?.jsonPrimitive`
- *   处抛 [IllegalArgumentException]（路由层 `StatusPages` 映射为 400「参数无效」，
- *   不是 500；抽取在校验之前，坏类型先抛，不走 [InvalidUrl]）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSetWebhookParseFuzzTest {
 
     private companion object {

@@ -7,19 +7,6 @@ import com.maodouchat.util.ClientPrefsSync
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-/**
- * 导航层使用的 app 级事件通道（U02 延伸：把 `ui/navigation` 里的 `MaodouchatApp`
- * 直连收进非 ui 层）。
- *
- * 为什么收：`MainContainerRoute` / `AuthDestinations` 里对 app 单例的访问是纯通道
- * （收事件、消费事件、拿 applicationScope）——放在 Composable 里既难测也把
- * `MaodouchatApp` 符号留在 ui（`ClientArchitectureTest` 的直连持久层棘轮逐字计）。
- * 收进这里后 ui 只调本对象，棘轮对应条目归零。
- *
- * 请求类型经 [typealias] 暴露：`OpenMissedCallsRequest` 内嵌在 `MaodouchatApp` 里，
- * ui 直接引用它的类型名会把 `MaodouchatApp` 符号又带回 ui 文件（棘轮按子串计数），
- * 所以这里给别名——类型不变，符号面收窄。
- */
 typealias OpenMissedCallsRequest = MaodouchatApp.Companion.OpenMissedCallsRequest
 typealias OpenContactsRequest = MaodouchatApp.Companion.OpenContactsRequest
 

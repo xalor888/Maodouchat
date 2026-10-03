@@ -11,41 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendPoll` 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与
- * fuzz 测试」的 bot 侧专项评估，G355 `sendMessage`、G355-2 `editMessage`、
- * `sendDocument`、`sendVoice`、`sendPhoto`、`sendVideo`、`sendLocation`、`sendSticker`、
- * `sendContact`、`sendVenue` 之后第十一块）。
- *
- * Bot 路由没有 typed DTO——请求体是 `receiveBoundedTextOrEmpty()` 拿到的原始字符串，
- * 经 `Json.parseToJsonElement(body).jsonObject` 再手写抽取。本轮把原来内联在
- * `/api/bot/sendPoll` 处理器里的抽取 / 校验 / 摘要组装逻辑收敛为纯函数
- * ([parseBotSendPollFields] / [buildBotPollSummary])
- * （生产侧零行为改动：校验顺序仍为 必填（纯函数）→ 成员检查（处理器）→ 群玩法开关（处理器）），
- * 本测试直接钉住这些函数的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- *   例外：`options` 是 `is JsonArray` 分支判断——非数组不是错误而是 `emptyList()`
- *   （随即 `< 2` 判缺）；数组元素用 `runCatching` 包住，**显式 JSON null 是
- *   `JsonPrimitive`、`.content` 为 `"null"` 字符串——保留为字面 `"null"` 选项**，
- *   非原始类型元素才被静默丢弃（逐字语义，特意钉住）。
- * - 钉住别名优先级（`multi`→`allowsMultipleAnswers`、`anonymous`→`isAnonymous`、
- *   `closesAt`→`closeDate`）、别名链「穿透」语义（`?:` 接在 `booleanOrNull` /
- *   `toLongOrNull()` 之后：主字段非布尔/非数字时穿透到别名）、缺省值
- *   （`multi` 缺省→`false`、`anonymous` 缺省→`true`、`closesAt` 缺省→null）、
- *   元素 `trim()` + 空白剔除而 `question` 本身不 trim 的不对称、必填
- *   （chatId/question/options≥2）、摘要模板形状
- *   （`"📊 "` + question + `"\n{i+1}. {option}"` 行 + `"\n[poll:{id}]"`）。
- */
 class BotSendPollParseFuzzTest {
 
     private companion object {

@@ -10,14 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * G345：`sendNudge()` 从 `ChatDetailViewModel` 抽出（纯搬移不改判断）——「拍一拍」的
- * 编排：守卫与待发意图构造走纯工厂 [ChatSendIntentFactory]（可单测），这里只做副作用
- * 编排（乐观上屏 → 出站队列 → 结果回填）。
- *
- * 依赖全经构造器注入（同 [ChatPinStarController] 一族）：会话身份/令牌/状态读写/
- * 消息合并/列表预览发射/出站门面/文案。组合期外不持有 VM 引用，不新增状态所有权。
- */
 internal class ChatNudgeSender(
     private val scope: CoroutineScope,
     private val nudgeEnabled: () -> Boolean,

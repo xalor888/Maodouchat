@@ -43,14 +43,6 @@ import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.util.RuntimeFlags
 
-/**
- * G343：会话详情**顶栏**从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）——标题/状态区、
- * 导航返回、通话/安全码/群通话操作、溢出菜单（置顶/未读/联系人/免打扰/提醒/通话记录/
- * 免打扰时段/静音至/提醒列表/聊天锁/密聊/星标/媒体中心/搜索/跳转日期/清空历史）。
- *
- * 依赖全部经参数注入：UI 状态 + 各流程持有类（弹层开关写回仍归持有类）+ 路由回调。
- * 组合期内不新增状态所有权；所有开关的读写语义与原内联块逐字一致。
- */
 @Composable
 internal fun ChatDetailTopBar(
     state: ChatDetailUiState,

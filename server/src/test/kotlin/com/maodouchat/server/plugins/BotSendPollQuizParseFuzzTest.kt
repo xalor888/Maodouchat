@@ -11,44 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendPollQuiz` 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与
- * fuzz 测试」的 bot 侧专项评估，G355 `sendMessage`、G355-2 `editMessage`、
- * `sendDocument`、`sendVoice`、`sendPhoto`、`sendVideo`、`sendLocation`、`sendSticker`、
- * `sendContact`、`sendVenue`、`sendPoll`、`sendDice`、`sendDiceCustom`、
- * `forwardMessage`/`copyMessage`、`sendNudge`、`sendContactCard` 之后第十七块）。
- *
- * Bot 路由没有 typed DTO——请求体是 `receiveBoundedTextOrEmpty()` 拿到的原始字符串，
- * 经 `Json.parseToJsonElement(body).jsonObject` 再手写抽取。本轮把原来内联在
- * `/api/bot/sendPollQuiz` 处理器里的抽取 / 校验 / 内容组装逻辑收敛为纯函数
- * ([parseBotSendPollQuizFields] / [buildBotPollQuizContent])
- * （生产侧零行为改动：校验顺序仍为 群玩法开关（处理器，先）→ 必填（纯函数）→
- * 成员检查（处理器），`safeIdx` 钳位仍在处理器里逐字 `coerceIn`），
- * 本测试直接钉住这些函数的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住别名链（`question`→`text`）：`?:` 接在字段**存在性**上——`question` 键存在
- *   但为显式 JSON null 时**不**穿透到 `text`，得字面 `"null"`；`question`
- *   `.orEmpty().take(200)` **不 trim**（前导空格计入 200 上限）。
- * - 钉住 `options` 的 `as? JsonArray` 分支（非数组不是错误而是 `emptyList()`→判缺）、
- *   元素 `trim()` + `take(80)` + 空白剔除 + `take(10)` 的逐字顺序、
- *   显式 JSON null 元素保留为字面 `"null"` 选项、对象/数组元素被 `(as? JsonPrimitive)`
- *   **静默丢弃**（不是大声失败——与已知字段类型错的语义不同，特意钉住）。
- * - 钉住 `correctOptionIndex` 的 `toIntOrNull() ?: 0`（JSON 数字与数字字符串都可，
- *   垃圾/浮点/显式 null/缺省一律→0）与内容模板形状
- *   （`"QUIZ:"` + question + `"|"` 分隔、正确选项多一个 `"*"` 标记，整体 `take(2000)`）。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- *   例外：`options` **元素**的类型错是静默丢弃（见上），`options` 本体非数组是
- *   `emptyList()`→判缺（也不是抛错）。
- */
 class BotSendPollQuizParseFuzzTest {
 
     private companion object {

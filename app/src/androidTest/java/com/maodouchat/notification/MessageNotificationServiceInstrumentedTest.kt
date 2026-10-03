@@ -26,24 +26,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * G339：消息通知「**投递 → 点击**」整链的真机测试（总清单 Q03「通知」项的行为级补齐）。
- *
- * 此前的覆盖缺口：`NotificationIntentConsumerInstrumentedTest` 只覆盖「点击之后」的消费侧
- * （拿到 Intent extras 之后的行为）；本类覆盖**产侧**——通知由 `MessageNotificationService`
- * 真实挂出、`NotificationManager` 真实可见、点击用的 `contentIntent` 真能把 `MainActivity`
- * 拉起来。两片合起来才是检查单里写的「通知投递→点击整链」。
- *
- * 钉住的契约：
- * - 通知槽位：tag = `maodouchat_<chatId>`、id = 0（会话级独立槽位，防跨会话覆盖）；
- * - 点击意图携带 `EXTRA_OPEN_CHAT_ID` 与 `EXTRA_NOTIFICATION_OWNER_USER_ID`（消费侧据此导航）；
- * - 渠道：单聊 `messages_v4` / 群聊 `group_messages_v4`（0.72 群独立渠道）；
- * - owner 不匹配（换号/共享设备）不得挂出；`cancelMessage` 必须清掉槽位；
- * - `contentIntent.send()` 真的拉起 MainActivity（BAL：与 Widget 测试同法用前台服务豁免）。
- *
- * 纪律（同前几片）：TokenManager 真实 SharedPreferences——每例前清、例后恢复登出态并撤销
- * 本类挂出的通知；前台服务在例后必停；`MainActivity` 一旦拉起立即 `finish()`。
- */
 @RunWith(AndroidJUnit4::class)
 class MessageNotificationServiceInstrumentedTest {
 
@@ -65,16 +47,7 @@ class MessageNotificationServiceInstrumentedTest {
     private val createdActivities = mutableListOf<Class<*>>()
     private var lastMainActivity: MainActivity? = null
 
-    /**
-     * 读 MainActivity 的 `notificationTarget`（消费侧落点）。
-     *
-     * 时机的坑（实测）：`Application.ActivityLifecycleCallbacks.onActivityCreated` 是从
-     * **`Activity.onCreate` 基类实现里**（`super.onCreate` 内）回调的，比 MainActivity 自己的
-     * `consumeNotificationIntent(intent)` 还早——在回调里读必然读到 null。而且消费成功后
-     * `NotificationIntents.clearFrom(intent)` 会清掉 extras，也不能读 activity.intent。
-     * 所以这里从测试线程**轮询**读私有字段：目标在 `filterNotNull().collect` 的等待/导航期间
-     * 会保留至少一拍（ContinueWaiting 250ms/轮），轮询能稳定命中。
-     */
+
     private fun readNotificationTarget(activity: MainActivity): NotificationTarget? = try {
         val field = MainActivity::class.java.getDeclaredField("notificationTarget")
         field.isAccessible = true

@@ -14,16 +14,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * G346：`retrySendMessage()` 从 `ChatDetailViewModel` 抽出（纯搬移不改判断）——
- * 「重发失败消息」的编排：重试准入守卫（归属/状态/类型三条一起判）走纯函数
- * [ChatSendGuard.checkRetry]（可单测），这里只做副作用编排（附件重发分流 →
- * 乐观回 SENDING → 出站队列重试 → 结果回填/异常回滚）。
- *
- * 依赖全经构造器注入（同 [ChatNudgeSender] 一族）：会话身份/令牌/状态读写/
- * 后台会话存活判定/出站门面/消息持久化/附件重发入口/文案。组合期外不持有 VM 引用，
- * 不新增状态所有权。
- */
 internal class ChatRetrySender(
     private val scope: CoroutineScope,
     private val ownerUserId: () -> String,

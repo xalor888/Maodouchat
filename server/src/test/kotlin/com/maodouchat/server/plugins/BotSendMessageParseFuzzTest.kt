@@ -12,30 +12,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendMessage` 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与
- * fuzz 测试」的 bot 侧专项评估，G355；G344 覆盖 messaging-v2、G347 覆盖 admin、
- * G353 覆盖通用客户端 API 请求 DTO、G354 覆盖 WS 入站面）。
- *
- * Bot 路由没有 typed DTO——请求体是 `receiveBoundedTextOrEmpty()` 拿到的原始字符串，
- * 经 `Json.parseToJsonElement(body).jsonObject` 再手写抽取。G355 把原来内联在
- * `/api/bot/sendMessage` 处理器里的抽取逻辑收敛为纯函数 [parseBotSendMessage]
- * （生产侧零行为改动），本测试直接钉住该函数的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- * - 钉住 snake_case 别名（`reply_markup`/`inline_keyboard`/`callback_data`/`force_reply`，
- *   Telegram 风格客户端的兼容面）与各处截断上限（text 4000 / 按钮文本 64 /
- *   callbackData 128 / 最多 8 行键盘）。
- */
 class BotSendMessageParseFuzzTest {
 
     private companion object {

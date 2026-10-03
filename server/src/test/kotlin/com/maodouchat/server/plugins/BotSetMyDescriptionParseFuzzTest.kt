@@ -12,33 +12,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Bot `setMyDescription` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，
- * G355 `sendMessage` 起至 `setMyCommands` 之后第六十七块）。
- *
- * 本测试直接钉住纯函数 ([parseBotSetMyDescriptionFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 吸取第四十一块（`sendTable`）的 CI 教训：fuzz 基 payload 的**必填字段必须
- *   确定性合法**——本端点无必填校验，基 payload 的 `description` 恒为 `"d" + i`
- *   （恒等断言只看它不被未知键污染）。
- * - 钉住 **别名回退按存在而非按非空**：`description` 优先、`about` 回退；
- *   空字符串 / 显式 null 的 `description` 都不回退。
- * - 钉住 **显式 null 得字面量 `"null"`**（`JsonNull` 是 `JsonPrimitive`，不抛），
- *   双键缺席才得真 `null`（下游清简介语义，本轮不动）。
- * - 反证坏类型大声失败：对象 / 数组型在 `?.jsonPrimitive`
- *   处抛 [IllegalArgumentException]（路由层 `StatusPages` 映射为 400「参数无效」，
- *   不是 500）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSetMyDescriptionParseFuzzTest {
 
     private companion object {

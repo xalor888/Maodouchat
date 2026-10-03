@@ -18,22 +18,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * G341：权限「契约面」的真机测试（总清单 Q03「权限仪器测试」——五维里的最后一维）。
- *
- * 已有的 `StartupPermissionPolicyTest`（JVM 3 例）覆盖纯策略；本类补**真机契约**：
- *
- * 1. **清单声明契约**：功能依赖的运行时/FGS 权限必须真的在 Manifest 里。缺一个的表现不是
- *    崩溃，而是**特定 API 等级/特定机型上的功能静默失效**——本轮 G337 就实测踩过：
- *    视频通话的 FGS type 需要 CAMERA，缺它时 `startForeground` 抛 SecurityException
- *    被服务自身吞掉、表现为「第二次 start 后 activeCallId 变空」。把它变成一条断言。
- * 2. **策略与设备实态一致**：用真机的 `checkSelfPermission` 喂 `StartupPermissionPolicy`，
- *    两侧必须同结论（授予 → 不请求；未授予且 SDK≥33 → 请求 POST_NOTIFICATIONS）。
- * 3. **授予后能力确实成立**：授予 POST_NOTIFICATIONS + 播种会话后，`showTestNotification`
- *    必须真的出现在 `activeNotifications`（这是「权限 → 能力」的端到端，而非只看标志位）。
- *
- * 纪律：不回收运行时权限（撤销会杀死进程，G337 实测教训）；会话例后恢复登出态。
- */
 @RunWith(AndroidJUnit4::class)
 class PermissionContractInstrumentedTest {
 

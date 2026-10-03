@@ -11,18 +11,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * U02 延伸：`AppRuntime` 的门面测试（真机）。
- *
- * 这三条都是「薄门面」也值得钉的理由：它们把 `CallViewModel` 里的
- * `MaodouchatApp.currentSessionGeneration()` / `instance.applicationScope` /
- * `as? MaodouchatApp` 三处直连换成了一处访问点——门面若在某个分支返回错东西
- * （世代读成常量、scope 读成非活跃、dispatcher 空判反了），表现会是**静默丢弃/丢失事件**，
- * 不会崩。用真机断言三者与 app 实态一致。
- *
- * `realtimeDispatcherOrNull` 的「非本应用实例 → null」原语义单独钉一条：
- * 传一个裸 `Application`（非 MaodouchatApp）必须返回 null 而不是抛。
- */
 @RunWith(AndroidJUnit4::class)
 class AppRuntimeInstrumentedTest {
 

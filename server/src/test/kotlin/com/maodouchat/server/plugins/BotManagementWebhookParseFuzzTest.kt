@@ -12,32 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Bot 用户侧 webhook 管理（`PUT /api/bots/{botId}/webhook`，`BotManagementRouting.kt`）
- * 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」
- * 的 bot 侧专项评估，G355 `sendMessage` 起至 `POST /api/bots` 之后第八十块）。
- *
- * 本测试直接钉住纯函数 ([parseManagementWebhookUrl]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开已知字段 `url`**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject 再程序化注入未知字段，最后 encode 成 body
- *   字符串」得到（不拼字符串）——注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 **吞异常怪语义**：坏 JSON / 顶层非对象 / `url` 对象数组型 → `null`
- *   （与 Bot API `/api/bot/setWebhook` 的大声失败不同，本端点逐字语义是吞掉；
- *   下游 `setWebhook(botId, userId, null)` 即清空 webhook）。
- * - 钉住 **显式 null 得字面量 `"null"`**：`JsonNull` 是 `JsonPrimitive`
- *   （`url` 显式 null 为非空，照常进白名单校验，逐字怪语义）。
- * - 钉住 **trim 先于 take(500)**：超长 URL 先去空白再截断。
- * - 钉住 **非字符串 primitive 走 `.content`**：`123` → `"123"`、`true` → `"true"`。
- * - 钉住缺席→`null`、纯空白→`""`（下游 `isNullOrBlank()` 跳过白名单校验→原样
- *   清空 webhook，逐字语义）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotManagementWebhookParseFuzzTest {
 
     private companion object {

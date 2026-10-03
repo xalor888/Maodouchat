@@ -1,20 +1,5 @@
 package com.maodouchat.security
 
-/**
- * 扫码「安全码 / 身份指纹」核验（U02 延伸：自 `ui/screen/contacts/ContactSubScreens`
- * 迁出的决策 + app 单例访问收口）。
- *
- * 为什么收出来：这段核验原先整个写在 ScanScreen 的 `scope.launch` 里，直接 `as MaodouchatApp`
- * 后调 5 个 `signalProtocol` 入口，**零测试覆盖**。它编码的是 10 种核验结论（含
- * 「扫到别的设备」「QR 与本机指纹不符」这类反诈语义），错一个分支不会崩、只会**给出错误的安全结论**。
- *
- * 现在的形状：
- * - [SafetyScanRequest]：仅承载 QR 载荷里参与核验的字段（不依赖 ui 的 QrTarget 类型，
- *   非 ui 层不 import ui）；
- * - [SafetySignalPort]：核验需要的一小组本机信号能力（生产实现 [SignalIdentityAccess]，JVM 单测用假实现）；
- * - [QrSafetyScanEvaluator.evaluate]：纯决策，逐字复刻原 when 链——包括
- *   **先取本机 deviceId（即使会话已过期也会调用）** 这个调用顺序。
- */
 enum class SafetyScanStatus {
     SESSION_EXPIRED,
     WRONG_ACCOUNT,

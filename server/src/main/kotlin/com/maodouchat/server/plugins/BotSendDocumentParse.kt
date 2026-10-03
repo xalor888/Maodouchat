@@ -3,28 +3,6 @@ package com.maodouchat.server.plugins
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * Bot `sendDocument` 请求体解析（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，
- * G355 `sendMessage`、G355-2 `editMessage` 之后第三块）。
- *
- * Bot 路由是手写 `JsonObject` 解析、没有 typed DTO。本文件把原来内联在
- * `configureBotMediaRoutes` 的 `/api/bot/sendDocument` 处理器里的抽取 / 校验 / 内容组装逻辑
- * 收敛为纯函数，行为与搬移前逐行一致——包括：
- *
- * - **已知字段类型错时抛 [IllegalArgumentException]**
- *   （路由层 `StatusPages` 把它映射为 400「参数无效」，不是 500）；
- * - 空文件名回落 `"document.bin"`、caption 缺省回 `""`、fileName 120 / caption 500 /
- *   内容 4000 的截断上限、`fileName`→`filename` 与
- *   `fileBase64`→`document`→`data` 的别名优先级；
- * - base64 解码前先 `substringAfter(',')`（剥 data-URI 前缀）再剔除空白字符；
- *   解码失败或结果为空 → `InvalidBase64`，超过 8MB → `TooLarge`。
- *
- * 校验顺序刻意与原处理器一致（必填 → 成员检查在处理器里 → base64 → 体积），
- * 纯函数只负责抽取与校验，不碰仓库 / 限流 / 响应——那些副作用仍留在处理器里。
- * 评估结论沿用 G355：bot 侧手写解析本来就满足 fuzz 系列的契约（未知键忽略、
- * 缺省回默认值、坏类型大声失败、无未处理 500），这里只是把它变成可被测试钉住的形态，
- * 零行为改动。
- */
 internal data class BotSendDocumentFields(
     val chatId: String,
     val fileName: String,

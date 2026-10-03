@@ -12,17 +12,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
-/**
- * G350：`handleGroupRevisionChanged()` 从 `ChatDetailViewModel` 抽出（纯搬移不改判断）——
- * 群修订事件的编排：准入守卫（属主/门禁）→ 纯决策 [groupRevisionImpact]（活跃会话判
- * 断/被移除判别）→ sender key 失效（修订号推进）→ 被移出群时本地清理（关 AI 门/取消
- * 全部任务/删除本地会话/状态归零）→ 普通变更时警告文案 + 重载会话 + 刷新禁言状态。
- *
- * 依赖全经构造器注入（同 [ChatAttachmentSender]/[ChatRetrySender] 一族）：会话身份/
- * 状态读写/文案/本地状态协调器/实时控制器/AI 门与任务表/sender key 失效/回掉 `loadChat`
- * 与 `refreshMyMemberRole`。组合期外不持有 VM 引用，不新增状态所有权；日志 tag 保持
- * `ChatDetailViewModel` 不变。
- */
 internal class ChatGroupRevisionHandler(
     private val ownerUserId: () -> String,
     private val activeChatId: () -> String,

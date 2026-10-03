@@ -14,14 +14,6 @@ import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 
-/**
- * G351：会话详情「上半区」弹窗簇从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）——
- * 安全码 / 定时族（阅后即焚、免打扰时段、静音至、提醒列表、定时发送、待发列表、重排）/
- * 聊天锁设置与解除 / GIF 搜索 / 联系人操作与资料卡 / 举报 / 群通话类型与选成员，
- * 以及 AI 弹窗簇（ChatDetailAiDialogs）的挂载。
- *
- * 依赖全经参数注入；组合期内不新增状态所有权，开关读写语义逐字一致。
- */
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串在回调内读取，非组合作用域；lint 无法区分（同 ChatDetailRoute）
 @Composable
 internal fun ChatDetailUpperDialogHost(
@@ -354,7 +346,6 @@ internal fun ChatDetailUpperDialogHost(
         )
     }
 }
-
 
 /**
  * G352：会话详情「下半区」弹窗簇从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）——

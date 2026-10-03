@@ -8,14 +8,6 @@ import org.junit.runner.RunWith
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.robolectric.annotation.Config
 
-/**
- * U02 延伸：`NotificationCenterOpenController` 的行为测试（JVM/Robolectric）。
- *
- * 这段映射此前零覆盖地写死在 `SearchCenterDestinations` 的 Composable lambda 里
- * （点哪行 → 清哪块托盘 → 去哪），本测试把每条分支钉住，并覆盖登出守卫与
- * 解析失败的兜底。用 Robolectric 是因为期望路由要经 `Routes.chatDetail(...)`
- * 的 `android.net.Uri.encode`（JVM 直跑会抛 not-mocked）。
- */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
 class NotificationCenterOpenControllerTest {

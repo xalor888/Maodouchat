@@ -11,51 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendTimeline` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、
- * `sendPhoto`、`sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、
- * `sendVenue`、`sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint`、
- * `sendMentionCard`/`sendNudgeCard`、`sendMetric`/`sendCompare`、`sendKeyValue`、
- * `sendQuoteCard`、`sendBanner`、`sendJsonCard`、`sendMarkdown`、`sendQuote`、
- * `sendCode`、`setMessageReaction`、`starMessage`、`sendStatus`、`sendTable`、
- * `sendAnimation`、`sendAudio`、`editMessageCaption` 之后第四十五块）。
- *
- * 本测试直接钉住纯函数 ([parseBotSendTimelineFields]) 与组装
- * ([buildBotTimelineContent]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 吸取第四十一块（`sendTable`）的 CI 教训：fuzz 基 payload 的**必填字段必须
- *   确定性合法**——全随机时已知字段可能被丢弃/变空 → `MissingRequired` →
- *   `okOf` 的 `as Ok` 强转抛 `ClassCastException`。这里 chatId 用 `"c" + i` 恒合法、
- *   items 用确定性字符串数组恒非空，合并必填语义由 `missingRequiredSemantics` 钉住。
- * - 钉住 **chatId / title 无 `trim()`**（`" c "` 原样通过、原样进下游）与
- *   **title 默认文案只在键缺席时回退**（显式 JSON null 得字面 `"null"`，不回退，特意钉住）、
- *   **截 80**（先取后截、前导空格计入上限）。
- * - 钉住 **items 的怪语义**：键缺席→空列表；显式 JSON null / 对象型在 `?.jsonArray`
- *   处大声失败；数组元素里非 primitive（对象/数组）**静默丢弃**（与坏类型大声失败的
- *   已知字段故意不同），`JsonNull` 元素得字面 `"null"`（保留）；逐项 `.take(120)`、
- *   全表 `.take(12)`（先逐项截、再取前 12，逐字顺序）。
- * - 钉住**合并必填**（`chatId` 空白或 items 为空→`MissingRequired`——items 为空
- *   可能是「全被静默丢弃」的结果，逐字语义）。
- * - 钉住**内容组装**：`"### " + title + "\n" + lines`，
- *   `lines` 为 `<序号>. <条目>` 逐行拼接（序号从 1 起）。
- * - 反证坏类型大声失败：对象 / 数组型 `chatId`、`title`、对象型 `items` 在
- *   `?.jsonPrimitive` / `?.jsonArray` 处抛 [IllegalArgumentException]（路由层
- *   `StatusPages` 映射为 400「参数无效」，不是 500）；显式 null 不抛的反证。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSendTimelineParseFuzzTest {
 
     private companion object {

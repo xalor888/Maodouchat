@@ -12,30 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Bot 用户侧交互（`POST /api/chats/{chatId}/bot-inbox`，`BotInteractionRouting.kt`）
- * 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」
- * 的 bot 侧专项评估，G355 `sendMessage` 起至 `PUT /api/bots/{botId}/enabled` 之后
- * 第八十二块）。
- *
- * 本测试直接钉住纯函数 ([parseBotInboxFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开已知字段 `text`/`botId`**（见 [KNOWN_FIELD_NAMES]）：否则测的是
- *   「重复键覆盖语义」，而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject 再程序化注入未知字段，最后 encode 成 body
- *   字符串」得到（不拼字符串）——注入本身永不破坏 JSON 语法。
- * - 钉住 **静默转型怪语义**：`text`/`botId` 为对象 / 数组型时 `as? JsonPrimitive`
- *   转型失败**不抛**——`text` 得 `""`、`botIdHint` 得 `null`（与 `?.jsonPrimitive`
- *   的大声失败不同，本端点沿用静默习惯，逐字怪语义）。
- * - 钉住 **显式 null 得字面量**：`JsonNull` 是 `JsonPrimitive`，`text` 得 `"null"`、
- *   `botIdHint` 得 `"null"`（非空，不被 `takeIf { it.isNotBlank() }` 滤掉）。
- * - 钉住 **botIdHint 空白归一**：缺席 / 空串 / 全空白 → `null`。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotInboxParseFuzzTest {
 
     private companion object {

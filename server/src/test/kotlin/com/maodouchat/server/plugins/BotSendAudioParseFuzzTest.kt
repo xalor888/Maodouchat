@@ -11,52 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendAudio` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、`sendPhoto`、
- * `sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、`sendVenue`、
- * `sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint`、
- * `sendMentionCard`/`sendNudgeCard`、`sendMetric`/`sendCompare`、`sendKeyValue`、
- * `sendQuoteCard`、`sendBanner`、`sendJsonCard`、`sendMarkdown`、`sendQuote`、
- * `sendCode`、`setMessageReaction`、`starMessage`、`sendStatus`、`sendTable`、
- * `sendAnimation` 之后第四十三块）。
- *
- * 本测试直接钉住纯函数 ([parseBotSendAudioFields])、解码
- * ([decodeBotAudioSize]) 与组装 ([buildBotAudioContent]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 吸取第四十一块（`sendTable`）的 CI 教训：fuzz 基 payload 的**必填字段必须
- *   确定性合法**——全随机时已知字段可能被丢弃/变空 → `MissingRequired` →
- *   `okOf` 的 `as Ok` 强转抛 `ClassCastException`。这里 b64 用确定性 base64 编码恒合法，
- *   合并必填语义由 `missingRequiredSemantics` 钉住。
- * - 钉住 **chatId / caption 无 `trim()`**（`" c1 "` 原样通过、原样进下游），而
- *   **title 有 `trim()`**（`" t "`→`"t"`）——两处故意不同，逐字保留。
- * - 钉住 **title 双别名**（`title`→`fileName`）+ **截 80** 与 **duration 双别名**
- *   （`duration`→`durationSec`）+ **`toIntOrNull()` 回 0**（非数字不抛）。
- * - 钉住 **b64 三别名优先级**（`audioBase64`→`fileBase64`→`data`）与
- *   **显式 null 不回退**的怪语义（`JsonNull` 是 `JsonPrimitive`，得字面 `"null"`→Ok；
- *   `"null"` 恰是合法 base64 字母表，解码得 3 字节）。
- * - 钉住 **base64 解码**：data-URI 前缀剥离、空白剔除、坏 base64 宽容判 0（不抛，
- *   与 sendPhoto 的 400 故意不同）。
- * - 钉住**内容组装**：`"🎵 audio"` + 非空 title 段 + duration>0 的 `"Ns"` 段 +
- *   size>0 的 `"(NB)"` 段 + 非空 caption 行 + `"[botAudioSize:N]"`，整体 4000 截断。
- * - 钉住**合并必填**（`chatId` 或 b64 缺/空/纯空白 → `MissingRequired`）。
- * - 反证坏类型大声失败：对象 / 数组型 `chatId`、`title`、`duration`、`caption`、
- *   别名键在 `?.jsonPrimitive` 处抛 [IllegalArgumentException]（路由层 `StatusPages`
- *   映射为 400「参数无效」，不是 500）；显式 null 不抛的反证。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSendAudioParseFuzzTest {
 
     private companion object {

@@ -12,49 +12,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * Bot `editMessageCaption` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、`sendPhoto`、
- * `sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、`sendVenue`、
- * `sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint`、
- * `sendMentionCard`/`sendNudgeCard`、`sendMetric`/`sendCompare`、`sendKeyValue`、
- * `sendQuoteCard`、`sendBanner`、`sendJsonCard`、`sendMarkdown`、`sendQuote`、
- * `sendCode`、`setMessageReaction`、`starMessage`、`sendStatus`、`sendTable`、
- * `sendAnimation`、`sendAudio` 之后第四十四块）。
- *
- * 本测试直接钉住纯函数 ([parseBotEditMessageCaptionFields])、
- * 对端 E2EE 拒绝判定 ([isPeerE2eeContent]) 与内容组装
- * ([buildBotEditCaptionContent]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 吸取第四十一块（`sendTable`）的 CI 教训：fuzz 基 payload 的**必填字段必须
- *   确定性合法**——全随机时已知字段可能变空 → `MissingMessageId` →
- *   `okOf` 的 `as Ok` 强转抛 `ClassCastException`。这里 messageId 恒为 `"m<i>"`，
- *   合并必填语义由 `missingMessageIdSemantics` 钉住。
- * - 钉住 **caption 双别名**（`caption`→`text`）、**无 `trim()`**、**截 1000**——
- *   首尾空白原样进消息正文，与 title 类端点的 trim 故意不同。
- * - 钉住 **messageId 无 `trim()`**（全空白直接判空）与缺 messageId → `MissingMessageId`；
- *   显式 null 的 messageId 得字面 `"null"`（非空→Ok，逐字怪语义）。
- * - 钉住 **对端 E2EE 拒绝判定**：只认既有正文原文（`E2EE:` 前缀 / `{` 开头含
- *   `"ciphertext"`），与请求体无关。
- * - 钉住 **内容组装**：纯空白 caption → 原正文不变；单行正文直接换成 caption；
- *   多行正文（媒体卡片）只重写首行之后的 caption 部分（首行 + 换行 + caption）。
- * - 反证坏类型大声失败：对象 / 数组型 `messageId`、`caption`、别名键在
- *   `?.jsonPrimitive` 处抛 [IllegalArgumentException]（路由层 `StatusPages`
- *   映射为 400「参数无效」，不是 500）；显式 null 不抛的反证。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotEditMessageCaptionParseFuzzTest {
 
     private companion object {

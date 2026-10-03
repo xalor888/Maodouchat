@@ -3,18 +3,6 @@ package com.maodouchat.call
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.WebRTCSignaling.SignalMessage
 
-/**
- * 轮询路径（`IncomingCallObserver` REST poll）的纯决策。
- *
- * 给定一批服务器信令，决定：哪些终端信令要取消来电通知/转发 hang-up、
- * 哪些命中了本地 pending 的响铃要清 pending 并记一条未接来电墓碑、
- * preferCallId 是否成了幽灵响铃、哪个 offer 首选、以及其余 offer 回 busy。
- *
- * 从 `ui/navigation/CallNavigation.kt` 的 poll 逻辑逐字抽出（含 8.35 双通道去重、
- * 8.49 空 callId 幂等、8.56 群 mesh 边过滤的注释意图）；UI 侧只剩执行
- * （通知取消 / 导航 / REST 发送）。通话族专项第一步：先给来电墓碑/轮询路径补
- * 行为测试钉住语义，再动结构（CallNavigation 9 → 0）。
- */
 object PolledIncomingBatchPolicy {
 
     /** 未接来电墓碑的参数：调用方用它调 MissedCallRecorder（带会话门禁的写路径）。 */

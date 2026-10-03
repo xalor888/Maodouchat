@@ -11,43 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendTable` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、`sendPhoto`、
- * `sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、`sendVenue`、
- * `sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint`、
- * `sendMentionCard`/`sendNudgeCard`、`sendMetric`/`sendCompare`、`sendKeyValue`、
- * `sendQuoteCard`、`sendBanner`、`sendJsonCard`、`sendMarkdown`、`sendQuote`、
- * `sendCode`、`setMessageReaction`、`starMessage`、`sendStatus` 之后第四十一块）。
- *
- * 本测试直接钉住纯函数 ([parseBotSendTableFields]) 与组装 ([buildBotTableContent])
- * 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 **chatId 无 `trim()`**：`" c1 "` 原样通过必填检查、原样进下游。
- * - 钉住 **headers**：非数组不是错误而是空表头（随即判缺）；单元格
- *   `(as? JsonPrimitive)` 让对象 / 数组单元格静默丢弃；trim + 取 40 → 剔空白 →
- *   取前 8（顺序逐字）；显式 JSON null 得字面 `"null"` 保留为表头。
- * - 钉住 **rows**：行元素非数组则整行静默丢弃；单元格 trim + 取 40 但**不剔空白**
- *   （纯空白单元格保留为空串 `""`）；每行取 8；先剔全空行、后取前 20（顺序逐字）。
- * - 钉住**合并必填**（`chatId` 或 `headers` 或 `rows` 缺 → `MissingRequired`）。
- * - 反证 `chatId` 坏类型大声失败：对象 / 数组型在 `?.jsonPrimitive` 处抛
- *   [IllegalArgumentException]（路由层 `StatusPages` 映射为 400「参数无效」，
- *   不是 500）；`headers`/`rows` 的坏类型是反例——`as?` 分支让它们变成"缺失"，
- *   不抛。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSendTableParseFuzzTest {
 
     private companion object {

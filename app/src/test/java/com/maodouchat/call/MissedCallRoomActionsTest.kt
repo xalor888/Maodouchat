@@ -11,14 +11,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * U02 延伸：`MissedCallRoomActions` 的委派测试（JVM，假 DAO）。
- *
- * 钉住两件事：
- * 1. `clearAll`/`delete` 必须落到对应 DAO 动作（deleteAll / deleteById）；
- * 2. app 不可用（factory 返回 null，即原 `as? MaodouchatApp` 空判等价情形）→ **静默 no-op**
- *    而不是抛错（通话记录页点了「清空」不该因为环境问题崩）。
- */
 class MissedCallRoomActionsTest {
 
     private class FakeDao : MissedCallDao {

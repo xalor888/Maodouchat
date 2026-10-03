@@ -11,47 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `setMyName` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、
- * `sendPhoto`、`sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、
- * `sendVenue`、`sendPoll`、`sendDice`、`sendDiceCustom`、
- * `forwardMessage`/`copyMessage`、`sendNudge`、`sendContactCard`、
- * `sendPollQuiz`、`answerCallbackQuery`、`sendChecklist`、`sendAlert`、
- * `sendCountdown`、`sendNotice`、`sendBadge`、`sendToast`、`sendHr`、
- * `sendDivider`、`sendProgress`、`send*Hint`、`sendMentionCard`/`sendNudgeCard`、
- * `sendMetric`/`sendCompare`、`sendKeyValue`、`sendQuoteCard`、`sendBanner`、
- * `sendJsonCard`、`sendMarkdown`、`sendQuote`、`sendCode`、`setMessageReaction`、
- * `starMessage`、`sendStatus`、`sendTable`、`sendAnimation`、`sendAudio`、
- * `editMessageCaption`、`sendTimeline`、`sendRemind`、`sendMessageSilent`、
- * `sendChatAction`、`exportChatInviteLink`、`revokeChatInviteLink`、
- * `unpinAllChatMessages`、`setChatPhoto`、`deleteChatPhoto`、`pinChatMessage`、
- * `unpinChatMessage` 之后第五十六块）。
- *
- * 本测试直接钉住纯函数 ([parseBotSetMyNameFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 吸取第四十一块（`sendTable`）的 CI 教训：fuzz 基 payload 的**必填字段必须
- *   确定性合法**——全随机时已知字段可能被丢弃/变空 → `InvalidName` →
- *   `okOf` 的 `as Ok` 强转抛 `ClassCastException`。这里 name 恒为 `"n" + i`
- *   （无空白、无需 trim 干预）；必填语义由 `invalidNameSemantics` 钉住。
- * - 钉住 **trim 在 take(120) 之前**（`"  Alice  "`→`"Alice"`；200 字符超长→120 字符截断；
- *   纯空白→`InvalidName`）。
- * - 钉住 **`name` 优先、`displayName` 回退**：name 在场即用 name；name 缺席用 displayName；
- *   **显式 null 不触发回退**（`JsonNull` 非空→得字面量 `"null"`→`Ok`，逐字怪语义）。
- * - 反证坏类型大声失败：对象 / 数组型在 `?.jsonPrimitive`
- *   处抛 [IllegalArgumentException]（路由层 `StatusPages` 映射为 400「参数无效」，
- *   不是 500）；显式 null 不抛的反证。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSetMyNameParseFuzzTest {
 
     private companion object {

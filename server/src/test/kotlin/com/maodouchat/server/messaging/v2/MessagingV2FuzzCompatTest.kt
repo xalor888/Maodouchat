@@ -16,25 +16,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/**
- * Messaging V2 协议模型的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的
- * fuzz 部分，第一块；此前该项明确登记「fuzz 测试仍缺」）。
- *
- * 设计要点：
- * - **固定种子** [Random]：CI 上确定性可复跑；send 请求 200 个、ack 请求 100 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 3）；
- *   **随机位置**：顶层 + 信封对象内部。
- * - payload 由「合法请求先序列化成 JsonObject，再程序化注入未知字段」构造（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解码侧。
- * - 反证 `wrong-typed known fields still fail loudly`：`ignoreUnknownKeys = true`
- *   只放行**未知键**；已知字段类型错必须继续抛 [SerializationException]，不能悄悄吞掉坏数据。
- *   （这是向前兼容最容易被误读的一半：只测「未知字段不炸」不测「坏数据仍炸」，门禁就是摆设。）
- *
- * 注意：测试直接引用路由的同一份 [messagingV2Json] 配置——如果有人把
- * `ignoreUnknownKeys` 改回 `false`，这里的 fuzz 用例会立刻变红。
- */
 class MessagingV2FuzzCompatTest {
 
     private companion object {

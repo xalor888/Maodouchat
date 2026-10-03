@@ -17,36 +17,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * G340：`AppUpdateDownloadWorker` 的真机测试（总清单 Q03“更新器”项的行为级补齐）。
- *
- * 此前的缺口（见 `AppUpdateDownloadSchedulerTest` 自己的注释）：`enqueue`/`cancel`/`observe`
- * 「要真跑 WorkManager」、真正干下载活的 Worker 未测。本类分两组补齐：
- *
- * **A 组：Worker 的拒绝/重试门（`TestListenableWorkerBuilder` 直驱，不起调度器）**
- * `OfficialApkInstaller.downloadAndVerify` 的门序是「官方 HTTPS → sha256 格式 → versionCode>0
- * → 网络」，前三个门都在联网**之前**返回，所以它们既确定又零网络依赖：
- * - 缺 URL → `apk_url_missing`；
- * - 非官方 URL（http/陌生 host）→ `apk_not_official`（不可重试 → `Result.failure`）；
- * - sha256 缺失/非法 → `apk_sha256_missing_or_invalid`；
- * - versionCode 缺失 → `apk_version_code_missing`。
- * 再加一条**可重试分类**：官方域名的不可达端口（连接失败类）必须 `Result.retry()`
- * 而不是 `failure`（重试分类错了 = 更新静默放弃或无限重试）。
- *
- * **B 组：真 WorkManager 的 enqueue/observe/cancel（唯一任务语义）**
- * 用**真实** WorkManager（app 由 androidx.startup 自动初始化，不走 `work-testing` 的
- * 测试替身——那会要求进程内尚未初始化）：
- * - enqueue 一个必失败（非官方 URL）的任务 → `observe` 流等到 FAILED，
- *   且 `errorOf` 读出 `apk_not_official`——证明「调度器 → Worker → failureData → observe」整条真链路；
- * - enqueue 一个会 retry 的任务（官方域名不可达端口，backoff 15s）→ 等到 ENQUEUED/RUNNING →
- *   `cancel` → 必须收敛到 CANCELLED（取消不得留下悬挂任务）。
- *
- * **未覆盖（诚实登记）**：成功路径需要真实官方 HTTPS 源 + 与当前签名一致的 APK，无法在本地/CI
- * 伪造；`promptInstall` 的系统安装器交互同样未覆盖。
- *
- * 纪律：每例前后都用生产 `cancel` 清掉唯一任务，避免把失败任务留给同一次运行里的其它类
- * （`AppUpdateDownloadSchedulerTest` 的纯函数例不受影响，但保持干净）。
- */
 @RunWith(AndroidJUnit4::class)
 class AppUpdateDownloadWorkerInstrumentedTest {
 

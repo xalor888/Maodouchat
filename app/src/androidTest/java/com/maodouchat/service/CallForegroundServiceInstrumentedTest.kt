@@ -22,27 +22,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * G337：通话前台服务的**真 Android 运行时**测试（总清单 Q03「前台服务仪器测试」第一片）。
- *
- * 为什么值得钉：
- * - 这是通话链路里唯一「进程被杀也在」的一层（WebRTC/信令保活的前提），它的状态机
- *   坏了不会崩，只会**静默断线**——典型的静默腐烂；
- * - `ACTION_HANG_UP` 是**不可变 PendingIntent** 的入口：callId 不匹配时必须忽略，
- *   否则通知栏上的挂断按钮会在下一次通话里误杀当前通话（跨通话串扰）；
- * - `activeCallId` 是 `IncomingCallObserver` 转发 hang-up 的依据，清空时机错了会把
- *   系统来电 UI 的挂断映射到错误的会话。
- *
- * 探针实测（本机 AVD）：仪器进程内 `startForegroundService` 可用（授予 RECORD_AUDIO +
- * POST_NOTIFICATIONS 后），通知以 `(tag=null, id=9001)` 出现——所以本测试**不需要宿主
- * Activity**，也不需要 fake：直接驱动真实 Service 生命周期，用真实 `NotificationManager`
- * 与 `CallActionBus` 观察结果。
- *
- * 纪律：权限只在测试前未授予时**授予、不回收**——实测回收 RECORD_AUDIO 会**杀死进程**
- * （撤销运行时权限 = 进程级撤销），一轮 connectedDebugAndroidTest 会因此整体崩掉。
- * 授予在测试会话内保持不变；`connectedDebugAndroidTest` 结束会卸载 APK，状态随之消失。
- * 服务在用例前后都确保已停止，避免把挂断请求/前台通知泄漏给同一次运行里的其它类。
- */
 @RunWith(AndroidJUnit4::class)
 class CallForegroundServiceInstrumentedTest {
 

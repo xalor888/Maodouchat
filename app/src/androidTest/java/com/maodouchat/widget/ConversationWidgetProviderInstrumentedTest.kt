@@ -23,42 +23,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * G338：主屏小组件的**真 Android 运行时**测试（总清单 Q03「Widget 仪器测试」第一片），
- * 也是这轮**真缺陷**的发现者与回归网。
- *
- * ## 发现的缺陷（widget 交互在 API 34+ 上全死）
- *
- * 旧实现：manifest `exported=true` + 依赖 `getSentFromUid()` 的守卫「uid 必须等于本应用或 system」。
- * 实测（API 36）：`getSentFromUid()` **只在发送方 `BroadcastOptions.setShareIdentityEnabled(true)`
- * opt-in 时才携带真实 uid**；本应用自己的 `sendBroadcast`、**PendingIntent（行点击/标记已读/
- * 快捷回复）与 AlarmManager 周期同步**全部是 `INVALID_UID(-1)`——守卫把**所有合法投递**也拒了。
- * 也就是说：小组件行点击、标记已读、快捷回复、周期同步在这套代码下**没有一条能work**，
- * 且它是 fail-closed 的静默失败，没有任何崩溃可供发现。
- *
- * ## 修复（本 PR）
- *
- * 1. manifest `android:exported` true → **false**：第三方应用与 adb shell 的伪造广播
- *    在**系统层**直接 `Permission Denial`（本测试断言）；而合法路径不受影响——
- *    PendingIntent 以创建者（本应用）身份执行，同 uid 投递不受导出限制；
- *    生命周期广播 APPWIDGET_UPDATE 由 system_server 发出（AppWidgetServiceImpl
- *    .sendBroadcastAsUser，身份为 system uid），系统本就允许送达非导出组件。
- * 2. Provider 内的同年守卫改为第二道门：只拒**能解析出的真实第三方 uid**；
- *    -1（未 opt-in）与 null（反射失败）依赖 exported=false 的系统拦截放行。
- *
- * ## 测试结构
- *
- * - `ownUidOpenChatBroadcastLaunchesMainActivity`：**正例对照**。本应用 UID 发合法
- *   `ACTION_OPEN_CHAT`，必须真的拉起 MainActivity（没有它，「伪造被拒」可能是假阳性——
- *   比如被 BAL 拦掉的）。BAL：广播上下文无可见窗口，实测给进程挂前台服务即可获得豁免，
- *   所以正/负例都在 FGS 存续期间发送，差异才可归因到校验本身。
- * - `forgedOpenChatBroadcastFromShellUidIsRejected`：shell（uid 2000）发格式完全合法的
- *   同一条广播，必须在**系统层**被拒（Permission Denial）。
- * - `widgetConfigPersistsPerWidgetIdAndRemovesCleanly`：配置按 widgetId 隔离、可清理。
- *
- * 纪律：会话状态每例前清、例后恢复登出态；前台服务在例后必停；
- * `MainActivity` 一旦被拉起立即 `finish()`。
- */
 @RunWith(AndroidJUnit4::class)
 class ConversationWidgetProviderInstrumentedTest {
 

@@ -11,32 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendDocument` 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与
- * fuzz 测试」的 bot 侧专项评估，G355 `sendMessage`、G355-2 `editMessage` 之后第三块）。
- *
- * Bot 路由没有 typed DTO——请求体是 `receiveBoundedTextOrEmpty()` 拿到的原始字符串，
- * 经 `Json.parseToJsonElement(body).jsonObject` 再手写抽取。本轮把原来内联在
- * `/api/bot/sendDocument` 处理器里的抽取 / 校验 / 内容组装逻辑收敛为纯函数
- * ([parseBotSendDocumentFields] / [decodeBotDocumentBytes] / [buildBotDocumentContent])
- * （生产侧零行为改动：校验顺序仍为 必填 → 成员检查（处理器）→ base64 → 体积），
- * 本测试直接钉住这些函数的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- * - 钉住别名优先级（`fileName`→`filename`、`fileBase64`→`document`→`data`）、
- *   缺省值（空文件名→`document.bin`、caption 缺省→`""`）、各处截断上限
- *   （fileName 120 / caption 500 / 内容 4000）、data-URI 前缀剥离与空白剔除、
- *   base64 非法 / 空结果 → `InvalidBase64`、8MB 边界。
- */
 class BotSendDocumentParseFuzzTest {
 
     private companion object {

@@ -11,40 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendBadge` 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与
- * fuzz 测试」的 bot 侧专项评估，G355 `sendMessage`、G355-2 `editMessage`、
- * `sendDocument`、`sendVoice`、`sendPhoto`、`sendVideo`、`sendLocation`、`sendSticker`、
- * `sendContact`、`sendVenue`、`sendPoll`、`sendDice`、`sendDiceCustom`、
- * `forwardMessage`/`copyMessage`、`sendNudge`、`sendContactCard`、`sendPollQuiz`、
- * `answerCallbackQuery`、`sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`
- * 之后第二十三块）。
- *
- * Bot 路由没有 typed DTO——请求体是 `receiveBoundedTextOrEmpty()` 拿到的原始字符串，
- * 经 `Json.parseToJsonElement(body).jsonObject` 再手写抽取。本轮把原来内联在
- * `/api/bot/sendBadge` 处理器里的抽取 / 校验 / 内容组装逻辑收敛为纯函数
- * ([parseBotSendBadgeFields] / [buildBotBadgeContent])
- * （生产侧零行为改动：校验顺序仍为必填（纯函数）→ 成员检查（处理器），
- * markdown 总开关检查仍在处理器解析之前），本测试直接钉住这些函数的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 `label` 的 `.orEmpty().ifBlank { "badge" }.take(40)` 逐字顺序：缺省/空白回
- *   `"badge"`，显式 JSON null 得字面 `"null"`（非空白，`ifBlank` 不触发），
- *   超长先回退默认再截 40，**不 trim**（前导空格计入上限，原处理器逐字语义）。
- * - 钉住 `value` 的 `.orEmpty().take(80)`：缺省回 `""`（**无默认值**，与 `label` 不同），
- *   显式 JSON null 得字面 `"null"`，**不 trim**（前导空格计入上限），超长截 80。
- * - 钉住单必填（`chatId` 缺或空白 → 400），`label`/`value` 非必填。
- * - 钉住内容模板形状（`"**$label**: `$value`"`，`type = "MARKDOWN"` 由处理器固定）。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- */
 class BotSendBadgeParseFuzzTest {
 
     private companion object {

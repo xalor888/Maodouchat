@@ -11,43 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendToast` 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与
- * fuzz 测试」的 bot 侧专项评估，G355 `sendMessage`、G355-2 `editMessage`、
- * `sendDocument`、`sendVoice`、`sendPhoto`、`sendVideo`、`sendLocation`、`sendSticker`、
- * `sendContact`、`sendVenue`、`sendPoll`、`sendDice`、`sendDiceCustom`、
- * `forwardMessage`/`copyMessage`、`sendNudge`、`sendContactCard`、`sendPollQuiz`、
- * `answerCallbackQuery`、`sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、
- * `sendBadge` 之后第二十四块）。
- *
- * Bot 路由没有 typed DTO——请求体是 `receiveBoundedTextOrEmpty()` 拿到的原始字符串，
- * 经 `Json.parseToJsonElement(body).jsonObject` 再手写抽取。本轮把原来内联在
- * `/api/bot/sendToast` 处理器里的抽取 / 校验 / 内容组装逻辑收敛为纯函数
- * ([parseBotSendToastFields] / [buildBotToastContent])
- * （生产侧零行为改动：校验顺序仍为必填（纯函数）→ 成员检查（处理器）；本端点无
- * markdown 总开关），本测试直接钉住这些函数的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]，含 `text`→`message` 别名）：
- *   否则测的是「重复键覆盖语义」，而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 `text` 的 `(obj["text"] ?: obj["message"])?.jsonPrimitive?.content.orEmpty().take(200)`
- *   逐字顺序：`text`→`message` 别名链是 `?:` 接存在性（`text` 键缺席才穿透）；
- *   显式 JSON null 的 `text` 得字面 `"null"`（非空白，不穿透到 `message`，不判缺）；
- *   **不 trim**（前导空格计入上限，原处理器逐字语义）；超长截 200。
- * - 钉住双必填（`chatId`/`text` 缺或空白 → 400 `"chatId/text required"`）——
- *   `text` 缺省/空白判缺，没有回退默认值（与 `sendAlert` 的 `text` 不同，特意钉住）。
- * - 钉住内容模板形状（`"TOAST: $text"`，`type = "SYSTEM"` 由处理器固定）。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- *
- * 注：测试代码一律规避字符串模板内嵌套引号写法（Kotlin 2.4.0 K2 下
- * `${"…"}` 报 `Syntax error: Expecting an expression`），`repeat` 等一律提到模板外拼接。
- */
 class BotSendToastParseFuzzTest {
 
     private companion object {
