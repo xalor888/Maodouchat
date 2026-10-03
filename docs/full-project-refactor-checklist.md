@@ -5006,3 +5006,41 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotPollEditRouting.kt`/`BotStopPollParse.kt`/`BotStopPollParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百一十五（2026-10-03）：bot `sendSteps` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十六块）
+
+- 端点 `/api/bot/sendSteps` 的处理器内联 `chatId`/`title`/`steps` 抽取
+  （`chatId` 为 `obj["chatId"]?.jsonPrimitive?.content.orEmpty()`：**无 `.trim()`**——
+  全空白直接判空；显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  `title` 为 `(obj["title"]?.jsonPrimitive?.content ?: "Steps").take(80)`：
+  默认值 `"Steps"` **只在键缺席时回退**，显式 null 得字面量 `"null"`（不回退）、
+  显式空字符串保留空（不回退），逐字钉住；对象/数组型 title 在 `?.jsonPrimitive`
+  处大声失败的逐字语义；
+  `steps` 为 `(obj["steps"]?.jsonArray?.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() } ?: emptyList()).map { it.take(160) }.take(20)`：
+  键缺席→空列表；显式 null/非数组型在 `?.jsonArray` 处大声失败（逐字语义）；
+  数组里的对象/数组元素**静默丢弃**（`runCatching` 包住，逐字保留），
+  `JsonNull` 元素得字面量 `"null"` 字符串；逐项 `.take(160)`、全表 `.take(20)`，逐字顺序）+
+  合并必填校验（`chatId.isBlank() || steps.isEmpty()`→400 `"chatId/steps required"`，
+  文案逐字；注意 steps 为空也可能是「全被静默丢弃」的结果，逐字语义，纯函数合并为
+  一种 `Invalid` 结果）收敛为 `parseBotSendStepsFields(obj: JsonObject)` 纯函数
+  （`BotSendStepsParse.kt`，结果二态 `Ok`/`Invalid`；
+  `obj` 为 null 的 `"invalid json"` 400 仍在处理器，与 `sendCompare` 块同款纪律）——
+  限流（`requireRateLimitedBot`）与 `isMarkdownEnabled` 门禁（`markdown_disabled` 403）
+  在原处理器里**先于** body 解析，本轮保持它们在解析之前，等价；
+  `isParticipant`（`bot not in chat` 403）/`publishBotServiceMessage`（固定 `type="MARKDOWN"`）/
+  `logCommand`（`"sendSteps"`）/响应（`"ok": true`、`messageId`、`"type": "MARKDOWN"`）
+  仍在处理器，顺序与原处理器一致，逐行等价——下游一行不动；
+- 新增 `BotSendStepsParseFuzzTest`（9 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c" + i`、title 恒为 `"Steps"`、steps 恒为 `["one", "two"]`；
+  已知字段 `chatId`/`title`/`steps`）；
+  合并必填 4 前件（双缺/chatId 纯空白/steps 缺席/steps 空数组）+ 合法 Ok；
+  title 默认值**仅缺键回退**三态（缺键→`"Steps"`、显式 null→`"null"`、显式空→`""`）+
+  超长 80 截断；steps 元素规则（对象/数组元素静默丢弃、`JsonNull`→`"null"`、
+  逐项 160 截断、全表 20 上限）；chatId 无 trim（`" c1 "` 原样保留仍通过）；
+  非字符串 primitive 走 `.content`（`123`→`"123"`）；title 对象/数组、steps 显式 null/
+  对象/字符串、chatId 对象/数组的坏类型大声失败反证（`IllegalArgumentException`）；
+  近似字段名忽略（`ChatId`/`CHATID`/`chat_id`/`chatid`/`chatId2`/`Titles`/`stepz`）。
+- 开工时 0 个 open 重构 PR（仅 dependabot 依赖 PR，无文件交集）；本轮只碰
+  `BotPresentationCardsRouting.kt`/`BotSendStepsParse.kt`/`BotSendStepsParseFuzzTest.kt`+本清单，
+  与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
