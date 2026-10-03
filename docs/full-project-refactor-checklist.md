@@ -4794,6 +4794,7 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 #291 的代码文件无交集；清单同为 EOF 追加，git 可自动合并，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
 
+
 ### 第十三轮续一百九（2026-10-03）：bot `setWebhook` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十块）
 
 - 端点 `/api/bot/setWebhook` 的处理器内联 `url` 抽取
@@ -4832,6 +4833,29 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   与 #291 的代码文件无交集；清单同为 EOF 追加，git 可自动合并，不碰 §0 表格）；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
 
+### 第十三轮续一百一十（2026-10-03）：bot `kickChatMember` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十一块）
+
+- 端点 `/api/bot/kickChatMember`（`banChatMember` 的 Telegram-compat 别名，路由文件注释
+  逐字如此）的处理器内联 `chatId`/`userId` 抽取
+  （`obj["chatId"]?.jsonPrimitive?.content.orEmpty()`、`obj["userId"]?.jsonPrimitive?.content.orEmpty()`，
+  **两字段均无 `.trim()`**：全空白直接判空；显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败；抽取顺序 chatId 先、userId 后）+
+  合并必填校验（`chatId.isBlank() || userId.isBlank()`→400 `"chatId/userId required"`，
+  文案逐字）收敛为 `parseBotKickChatMemberFields` 纯函数
+  （`BotKickChatMemberParse.kt`，结果二态 `Ok`/`Invalid`——与第五十九块 `banChatMember`
+  的解析逐字同构，按系列惯例独立成文件）——限流（原处理器里**先于** body 解析，
+  本轮保持在解析之前，等价）/成员检查（`isParticipant`）/`removeMember`/`logCommand`
+  （`"kickChatMember"`）/修订通知/响应仍在处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotKickChatMemberParseFuzzTest`（6 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（chatId 恒为 `"c" + i`、userId 恒为 `"u" + i`——**延续第四十一块的 CI 教训**；
+  已知字段 `chatId`/`userId` 不得参与随机名；**双字段端点的每个 `okOf` 用例都携带
+  全部必填字段**——吸取第五十七块 CI 教训，缺任一字段即 `Invalid`→`as Ok` 强转抛
+  `ClassCastException`）+
+  必填语义（chatId/userId 各自缺/空/纯空白→Invalid；双合法→Ok）+ 显式 null 字面量
+  （`"null"`→Ok，单/双 null 均钉）+ 空白不 trim（`" c1 "`/`" u1 "` 原样保留仍通过必填）+
+  大声失败反证（对象/数组型 chatId/userId 在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，
+  路由层 `StatusPages` 映射 400，不是 500）+ 近似字段名（`ChatId`/`chat_id`/`UserId`/
+  `user_id` 等按未知键忽略，真字段缺席→Invalid）；
 ### 第十三轮续一百一十一（2026-10-03）：bot `echo` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十二块）
 
 - 端点 `/api/bot/echo` 的处理器内联 `text` 抽取
@@ -4858,6 +4882,13 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
 - `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
   （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
   `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 1 个 open 重构 PR（#293 `refactor/set-webhook-parse-fuzz`，
+  改动文件为 `BotWebhookRouting.kt`/`BotSetWebhookParse.kt`/
+  `BotSetWebhookParseFuzzTest.kt`+本清单——本轮只碰 `BotMessagingVariantsRouting.kt`/
+  `BotKickChatMemberParse.kt`/`BotKickChatMemberParseFuzzTest.kt`+本清单；
+  与 #293 的代码文件无交集；清单同为 EOF 追加（本块取「续一百一十」，#293 的
+  「续一百九」先入时 rebase 自动合并），不碰 §0 表格）；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
 - 开工时 1 个 open 重构 PR（#294 `refactor/kick-chat-member-parse-fuzz`，
   改动文件为 `BotMessagingVariantsRouting.kt`/`BotKickChatMemberParse.kt`/
   `BotKickChatMemberParseFuzzTest.kt`+本清单——本轮只碰 `BotPresentationCardsRouting.kt`/
