@@ -5128,3 +5128,40 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotInteractionRouting.kt`/`BotChatCallbackParse.kt`/`BotChatCallbackParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百一十八（2026-10-03）：`POST /api/bots` 创建 bot 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十九块）
+
+- `BotManagementRouting.kt` 的 `POST /api/bots` 处理器内联三字段抽取（`name`/`username`
+  取 `obj["…"]?.jsonPrimitive?.content.orEmpty()`：**无 `.trim()`**——前后空格原样保留；
+  键缺席→空串（后续 `BotRepository.create` 自行判输入非法，抽取层不提前判空）；
+  显式 JSON null 得字面量 `"null"`→非空→照常进入创建流程的逐字怪语义；
+  非字符串 primitive 走 `.content`（`123`→`"123"`、`true`→`"true"`，逐字）；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败的逐字语义）+
+  `description` 取 `obj["description"]?.jsonPrimitive?.content`（**可空**：
+  缺席→`null`；显式 JSON null→字面量 `"null"` 而非 null，`JsonNull` 是
+  `JsonPrimitive` 的逐字怪语义；对象/数组型同样大声失败）收敛为
+  `parseBotCreateFields(obj)` 纯函数（`BotCreateParse.kt`，直接返回
+  `BotCreateFields`，处理器端无合并校验——校验本来就在 `BotRepository.create`
+  的 `BotCreateResult` 分支里）——维护模式/`isBotsAllowed`/`requireUserId`/
+  `rejectIfSuspended`/创建限流在原处理器里**先于** body 解析，本轮保持它们在解析
+  之前，等价；`BotRepository.create` 的输入校验/用户名占用/数量上限/账号状态判定
+  仍在处理器 `when` 分支里，顺序与原处理器一致，逐行等价——下游一行不动；
+- 新增 `BotCreateParseFuzzTest`（7 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（三字段恒为 `"n<i>"`/`"u<i>"`/`"d<i>"`）；
+  缺席语义（全缺席→name/username 空串、description null；description 单独缺席→null；
+  空串原样保留）；
+  显式 null→字面量 `"null"`（description 亦然，非 null）；
+  无 trim（`" n1 "` 原样保留；纯空白原样保留——抽取层不提前判空）；
+  非字符串 primitive 走 `.content`（`123`→`"123"`、`true`→`"true"`、`45.6`→`"45.6"`）；
+  坏类型大声失败反证（name/username/description 对象/数组→`IllegalArgumentException`）；
+  近似字段名忽略（`Name`/`NAME`/`user_name`/`Username`/`USERNAME`/`username2`/
+  `descriptions`/`Description`/`desc`）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（仅 dependabot 依赖 PR，无文件交集）；本轮只碰
+  `BotManagementRouting.kt`/`BotCreateParse.kt`/`BotCreateParseFuzzTest.kt`+本清单，
+  与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
