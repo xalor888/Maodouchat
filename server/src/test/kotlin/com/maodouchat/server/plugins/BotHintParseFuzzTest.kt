@@ -11,33 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot hint 端点群（`BotHintRouting.kt` 的 `BOT_HINT_SPECS` 共享循环，
- * 35 个 `/api/bot/send*Hint`）请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，
- * G355 `sendMessage` 起至 `echo` 之后第七十七块）。
- *
- * 本测试直接钉住两个纯函数（[parseBotHintChatId]、[resolveBotHint]）的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 **chatId 无 trim**：`" c1 "` 原样保留仍通过必填（`isBlank()` 只判空）。
- * - 钉住 **chatId 显式 null 得字面量 `"null"`**（非空→Ok 的逐字怪语义）。
- * - 钉住 **hint 语义双分支**：`sanitize=false` 时缺键回退 `defaultHint`、
- *   显式 null 得字面量 `"null"`（不回退）、超长 take(120)；
- *   `sanitize=true` 时走 `sanitizeBotHint`（控制字符/空白折叠、trim、take(120)），
- *   清洗后空白回退 `defaultHint`。
- * - 反证坏类型大声失败：chatId / hint 对象/数组型在 `?.jsonPrimitive` 处抛
- *   [IllegalArgumentException]（路由层 `StatusPages` 映射为 400「参数无效」，
- *   不是 500）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotHintParseFuzzTest {
 
     private companion object {

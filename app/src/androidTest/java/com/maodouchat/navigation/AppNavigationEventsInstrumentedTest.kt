@@ -16,16 +16,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * U02 延伸：`AppNavigationEvents` 桥接的**真机测试**。
- *
- * 桥本身是通道，但它承载两条语义：世代过期事件必须被**消费丢弃**（`consumeIfStale`），
- * 新事件必须原样送达。前者是登出/换号竞态的安全网——坏了的表现是「登出后仍跳未接箱」，
- * 不崩、只做错事，所以值得钉住。
- *
- * 纪律：每例前清空两条事件流（消费掉残留）；不改动 `sessionGeneration`（那会污染
- * 同一次运行里的其它类）——过期分支用**自造世代**的请求验证（数据类构造器公开）。
- */
 @RunWith(AndroidJUnit4::class)
 class AppNavigationEventsInstrumentedTest {
 

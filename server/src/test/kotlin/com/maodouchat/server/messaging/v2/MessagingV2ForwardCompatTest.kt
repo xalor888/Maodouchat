@@ -8,20 +8,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Messaging V2 协议模型的兼容性测试（清单 Q01「协议模型向前/向后兼容」的第一块）。
- *
- * 覆盖的契约：
- * 1. **向前兼容**：请求体里出现未知字段时必须解码成功（路由用
- *    [messagingV2Json]，`ignoreUnknownKeys = true`）。新版客户端加字段
- *    时，旧版服务端不得 400。
- * 2. **向后兼容**：请求体缺失可选字段时按默认值补齐（旧版客户端
- *    发给新版服务端）。
- * 3. **往返稳定**：encode → decode → 再 encode，结果一致。
- *
- * 注意：测试直接引用路由的同一份 [messagingV2Json] 配置——如果有人把
- * `ignoreUnknownKeys` 改回 `false`，这里的向前兼容用例会立刻变红。
- */
 class MessagingV2ForwardCompatTest {
 
     private fun sendRequestJson(vararg extraFields: String): String {

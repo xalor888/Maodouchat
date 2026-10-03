@@ -9,14 +9,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * 通话族专项第一步：来电墓碑/轮询路径的行为测试。
- *
- * `PolledIncomingBatchPolicy` 从 `IncomingCallObserver` 的 REST 轮询逻辑逐字抽出——
- * 这条路径决定「轮到哪个 offer 响铃、哪个挂断记未接、哪个幽灵来电要掐掉」，而它此前
- * **零测试**（逻辑内联在 Composable 里）。结构收口（CallNavigation 9 → 0）之前，
- * 先把语义钉住：终端信令的墓碑守卫、幽灵响铃、双通道去重、群 mesh 边过滤。
- */
 class PolledIncomingBatchPolicyTest {
 
     private val nowMs = 1_000_000L

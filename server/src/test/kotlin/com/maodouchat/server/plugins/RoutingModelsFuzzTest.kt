@@ -21,30 +21,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/**
- * 通用路由协议模型的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的
- * fuzz 部分，第三块；第一块 G344 覆盖 messaging-v2，第二块 G347 覆盖 admin，这里补上
- * 经 [RouteParsing.receiveJson]/[parseJson] 解码的通用客户端 API 请求 DTO——它们是
- * 全站最宽的客户端入口面（账号/推送/好友/举报/Signal 密钥/WebRTC 信令）。
- *
- * 设计要点（与 G344/G347 同款）：
- * - **固定种子** [Random]：CI 上确定性可复跑；每个 DTO 100–150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2）；
- *   注入位置为顶层（各 DTO 的嵌套字段仅 [UploadKeysRequest.preKeys]，其元素为对象，
- *   其自身未知键容忍由 kotlinx 递归 `ignoreUnknownKeys` 保证，与顶层同语义）。
- * - payload 由「合法请求先序列化成 JsonObject，再程序化注入未知字段」构造（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解码侧。
- * - 反证 `wrong-typed known fields still fail loudly`：`ignoreUnknownKeys = true`
- *   只放行**未知键**；已知字段类型错必须继续抛 [SerializationException]，不能悄悄吞掉坏数据。
- *   这对 [UploadKeysRequest]/[SendSignalRequest] 尤其关键——密钥材料与信令坏数据静默通过
- *   即安全门洞。
- *
- * 注意：测试直接引用生产侧同一份 [routingJson] 配置（`RouteParsing.kt` 的 `internal`
- * 配置，本轮由 `private` 提为 `internal`，唯一生产代码改动）——如果有人把
- * `ignoreUnknownKeys` 改回 `false`，这里的 fuzz 用例会立刻变红。
- */
 class RoutingModelsFuzzTest {
 
     private companion object {

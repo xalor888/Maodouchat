@@ -16,16 +16,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-/**
- * G349：`sendEncryptedAttachment()` 从 `ChatDetailViewModel` 抽出（纯搬移不改判断）——
- * 「加密附件发送」的编排：发送准入守卫（isSending/上传开关/类型白名单/会话）→ 意图构造 →
- * 乐观上屏（复用既有消息或新建 + 进度/准备态）→ 附件意图控制器提交 → 结果回填/异常回滚
- * （取消透传、失败落 FAILED + 持久化回写）→ 准备任务跟踪与属主一致性校验。
- *
- * 依赖全经构造器注入（同 [ChatNudgeSender]/[ChatRetrySender] 一族）：会话身份/令牌/
- * 开关/状态读写/附件意图控制器/消息持久化/文件传输恢复/准备任务表/属主校验/文案。
- * 组合期外不持有 VM 引用，不新增状态所有权；日志 tag 保持 `ChatDetailViewModel` 不变。
- */
 internal class ChatAttachmentSender(
     private val scope: CoroutineScope,
     private val activeChatId: () -> String,

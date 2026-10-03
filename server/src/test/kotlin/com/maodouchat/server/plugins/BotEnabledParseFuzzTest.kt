@@ -12,32 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Bot 用户侧管理（`PUT /api/bots/{botId}/enabled`，`BotManagementRouting.kt`）
- * 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」
- * 的 bot 侧专项评估，G355 `sendMessage` 起至 `POST /api/bots` 之后第八十一块）。
- *
- * 本测试直接钉住纯函数 ([parseManagementBotEnabled]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开已知字段 `enabled`**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject 再程序化注入未知字段，最后 encode 成 body
- *   字符串」得到（不拼字符串）——注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 **吞异常怪语义**：坏 JSON / 顶层非对象 / `enabled` 对象数组型 → `null`
- *   （与字段缺席同文案，处理器报 400 `"enabled required"`；本端点没有
- *   `"invalid json"` 判定）。
- * - 钉住 **显式 null 直接 400 语义**：`JsonNull` 是 `JsonPrimitive`，其 `content`
- *   为字面量 `"null"`，`toBooleanStrictOrNull("null")` 为 null → `null`
- *   （与 webhook 管理块的「显式 null 得字面量字符串继续走白名单」不同，逐字怪语义）。
- * - 钉住 **严格布尔**：`true`/`false` 字面量与 `"true"`/`"false"` 字符串有效；
- *   `toBooleanStrictOrNull` **大小写不敏感**，`"TRUE"`/`"True"` 同样有效
- *   （与原处理器逐字一致）；`"1"`、空串、`"yes"`、数字 → `null`。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotEnabledParseFuzzTest {
 
     private companion object {

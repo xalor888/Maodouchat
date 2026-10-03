@@ -11,35 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `deleteUpdates` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，
- * G355 `sendMessage` 起至 `setChatDescription` 之后第六十九块）。
- *
- * 本测试直接钉住纯函数 ([parseBotDeleteUpdatesFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 吸取第四十一块（`sendTable`）的 CI 教训：fuzz 基 payload 的**必填字段必须
- *   确定性合法**——基 payload 的 `upToId` 恒为 `1000L + i`（恒等断言只看它不被未知键污染）。
- * - 钉住 **三层回退按「能否解析出 Long」而非按存在**：body `upToId` 优先、
- *   body `offset` 兜底、query `upToId` 再兜底、缺省 `0L`；
- *   非数字字符串 / 浮点数字符串 / 显式 null（一律 `toLongOrNull()` 得 `null`）
- *   都继续回退，不算「给过值」。
- * - 钉住 **null body 没有 `"invalid json"` 400**：`obj` 为 null 时直接走 query 回退，
- *   全空则 `Invalid`（处理器侧 400 `"upToId required"`，文案逐字）。
- * - 钉住 **必填校验**：回退链全空 / 全非法→缺省 `0L`，或解析出 `<= 0L`，一律 `Invalid`。
- * - 反证坏类型大声失败：对象 / 数组型在 `?.jsonPrimitive`
- *   处抛 [IllegalArgumentException]（路由层 `StatusPages` 映射为 400「参数无效」，
- *   不是 500；抽取顺序 `upToId` 先，即使 `offset`/`query` 合法也先抛）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotDeleteUpdatesParseFuzzTest {
 
     private companion object {

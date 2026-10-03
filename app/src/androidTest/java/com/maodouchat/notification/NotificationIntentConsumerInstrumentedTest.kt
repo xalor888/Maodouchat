@@ -26,27 +26,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/**
- * G336：系统入口 Intent 消费的**真 Android 运行时**测试
- * （总清单 Q03「通知/深链仪器测试」的第一片，此前为零）。
- *
- * 为什么需要它：`NotificationIntentConsumer` 的注入面此前只有**纯 JVM** 层的
- * `NotificationIntentPolicyTest` / `AppLinkRouterTest`——它们拿不到真实 `Intent`
- * （extras 的清除语义）、碰不到 `TelecomHelper.isTrustedTransport` 与
- * `MaodouchatApp` 的静态唤醒流。而这里每条分支都对应一个真实攻击面或真实缺陷史：
- *
- * 1. 外部包（浏览器/其它应用）伪造通知 extra → 必须清掉且不得导航；
- * 2. 外部包的**合法** ACTION_VIEW 深链 → 必须放行（8.34 修过一次 100% 失效）；
- * 3. 通知 owner 与当前账号不符 → 不得导航（换号 / 共享设备场景）；
- * 4. Telecom ACTION_ANSWER_CALL 的 null caller → 只认 in-process pending call；
- * 5. 非法 callId/chatId（含 `/?#`）→ 拒绝或降级为空串，绝不带进导航目标；
- * 6. 消费后 extras 必须清空（防同一 Intent 被复用重放）。
- *
- * 纪律（同 G321c/G329c）：**状态必须可清理**。`TokenManager` 是真实
- * SharedPreferences，来电/未接唤醒是进程内静态 StateFlow——每条用例前清一次，
- * 结束后恢复登出态，避免弄脏同一次 connected 运行里的其它类
- * （`ChatListScreenDataTest` 假设设备未登录）。
- */
 @RunWith(AndroidJUnit4::class)
 class NotificationIntentConsumerInstrumentedTest {
 

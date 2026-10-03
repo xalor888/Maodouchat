@@ -15,31 +15,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/**
- * WebSocket 入站消息 DTO 的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的
- * fuzz 部分，第四块；第一块 G344 覆盖 messaging-v2，第二块 G347 覆盖 admin，第三块 G353
- * 覆盖通用客户端 API 请求 DTO，这里补上经 `Sockets.kt` 的 `wsJson` 解码的 WS 入站面——
- * 客户端版本碎片化最严重的长连接入口：`WsMessage` 信封、`TypingPayload` 打字指示、
- * `OutgoingSignalingPayload` 通话/WebRTC 信令）。
- *
- * 设计要点（与 G344/G347/G353 同款）：
- * - **固定种子** [Random]：CI 上确定性可复跑；每个 DTO 100–150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2）；
- *   注入位置为顶层（`WsMessage.payload` 本身是字符串负载，其内部结构由各命令分支
- *   自行解释，不在本层做 JSON 语义）。
- * - payload 由「合法请求先序列化成 JsonObject，再程序化注入未知字段」构造（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解码侧。
- * - 反证 `wrong-typed known fields still fail loudly`：`ignoreUnknownKeys = true`
- *   只放行**未知键**；已知字段类型错必须继续抛 [SerializationException]，不能悄悄吞掉坏数据。
- *   这对 `OutgoingSignalingPayload` 尤其关键——通话信令坏数据静默通过即安全门洞
- *   （伪造的 `groupMemberIds`/`epoch` 会污染 fanout 目标与幂等判断）。
- *
- * 注意：测试直接引用生产侧同一份 [wsJson] 配置（`Sockets.kt` 的 `internal`
- * 配置，本轮由函数局部 val 提升为文件级 `internal`，唯一生产代码改动）——如果有人把
- * `ignoreUnknownKeys` 改回 `false`，这里的 fuzz 用例会立刻变红。
- */
 class WsInboundFuzzTest {
 
     private companion object {

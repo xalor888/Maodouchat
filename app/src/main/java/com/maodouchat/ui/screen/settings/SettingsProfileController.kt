@@ -12,14 +12,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * G358：个人资料一族（状态 / 昵称 / 头像上传与移除）从 `SettingsViewModel` 抽出
- * （纯搬移不改判断）——四个方法逐字搬移；两个 Job（profileSaveJob / avatarUploadJob，
- * 状态与昵称共用前者）的所有权随之内聚。
- *
- * 依赖全经构造器注入：scope / application（头像转码）/ 状态读写 / 文案 / 会话属主校验 /
- * 账号安全仓库。
- */
 internal class SettingsProfileController(
     private val scope: CoroutineScope,
     private val application: Application,

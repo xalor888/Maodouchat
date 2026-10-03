@@ -4,40 +4,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * Bot `setChatPermissions` 请求体解析（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧
- * 专项评估，G355 `sendMessage` 起至 `demoteChatMember` 之后**第六十五块**）。
- *
- * Bot 路由是手写 `JsonObject` 解析、没有 typed DTO。本文件把 `/api/bot/setChatPermissions`
- * 处理器里内联的**抽取 / 布尔与别名归一化 / 合并必填校验**逻辑收敛为纯函数，行为与搬移前逐行一致——
- * 包括几处故意保留的「怪」语义：
- *
- * - `chatId` 取 `obj["chatId"]?.jsonPrimitive?.content.orEmpty()`，**没有 `.trim()`**——
- *   全空白直接判空白；显式 JSON null 得字面量 `"null"`→非空→Ok（原处理器逐字如此）；
- * - `canSend` 取 camel `canSendMessages` 优先、snake `can_send_messages` 兜底的
- *   `?.jsonPrimitive?.booleanOrNull`——即 `content.toBooleanStrictOrNull()`：JSON 布尔
- *   true/false、或字符串字面量 `"true"`/`"false"`（大小写**不**敏感，`"TRUE"`/
- *   `"True"` 同样得 `true`；"严格"指非法输入得 `null` 而非大小写敏感）→真/假，
- *   其它（数字、显式 null、空字符串等）→null→继续看别名；两键都给不出布尔→`Invalid`；
- * - `until` 取 camel `until` 优先、camel `untilDate` 兜底的
- *   `?.jsonPrimitive?.content?.toLongOrNull()`——数字或数字字符串→Long，非数字字符串/
- *   显式 null（`content`=`"null"`）→回落到别名/缺省 `0L`（下游 `muteUntil` 语义里 0=24 小时静音，
- *   本轮不动该语义，只逐字搬移）；
- * - **抽取先于必填校验**：`chatId`/`canSend`/`until` 三处 `?.jsonPrimitive` 都在
- *   `chatId.isBlank() || canSend == null` 判空之前执行——所以 `until` 取对象/数组型时，
- *   即使 chatId 空白也是先抛 [IllegalArgumentException]，而不是走 `Invalid`
- *   （本轮用测试钉住）；对象/数组型在 `?.jsonPrimitive` 处大声失败，路由层 `StatusPages`
- *   映射为 400「参数无效」，不是 500；
- * - **合并必填校验**：`chatId.isBlank() || canSend == null`→400
- *   `"chatId/canSendMessages required"`，文案逐字；
- * - 纯函数只负责抽取与校验，不碰仓库/限流/响应——限流在原处理器里**先于** body 解析，
- *   本轮保持它在解析之前，等价；成员检查（`isParticipant`）/批量静音/`logCommand`/
- *   修订通知/响应仍在处理器里，顺序与原处理器一致，逐行等价——下游一行不动。
- *
- * 评估结论沿用 G355：bot 侧手写解析本来就满足 fuzz 系列的契约（未知键忽略、
- * 缺省回默认值、坏类型大声失败、无未处理 500），这里只是把它变成可被测试钉住的形态，
- * 零行为改动。
- */
 internal data class BotSetChatPermissionsFields(
     val chatId: String,
     val canSend: Boolean,

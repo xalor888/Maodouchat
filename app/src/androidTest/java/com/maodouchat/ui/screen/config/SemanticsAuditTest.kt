@@ -42,26 +42,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.math.roundToInt
 
-/**
- * G342：**无障碍语义审计探针**——可点击节点必须有可朗读的名字，触控目标不小于 48dp。
- *
- * 为什么是一条**通用**探针而不是逐屏手写断言：TalkBack 与触控目标这两维
- * （总清单 Q03 无障碍项）覆盖多个屏幕时，手写「这个按钮叫什么」既写不完也写不准；
- * 这里直接遍历 Compose 语义树，用同一把尺子量每个可点击节点：
- *
- * - **名字**：`contentDescription` 或 `text` 至少有一个非空（TalkBack 读不出名字的按钮
- *   等于「按钮，未命名」）；
- * - **触控目标**：`touchBoundsInRoot` 的宽高 ≥ 48dp（Material 最小触控目标：
- *   低于它手指点不中，尤其是大字号下图标被文字挤压时）。
- *
- * **它已经抓到并修掉一个真缺陷**（G342 探针阶段实测）：ChatList 的搜索输入框
- * 在空值时**没有可朗读名字**——placeholder 是兄弟 `Text` 节点，不在输入框语义里，
- * TalkBack 读作「编辑框，未命名」。修法见 `ui/component/SearchBar.kt`：给
- * `BasicTextField` 挂 `semantics { contentDescription = placeholder }`。
- *
- * 纪律（先测量、再设阈值）：探针阶段先只打日志，用真实数据决定「补语义」还是
- * 「进白名单」，再把结论固化成断言；`selfCheck` 用例常驻，保证探针本身不失明。
- */
 @RunWith(AndroidJUnit4::class)
 class SemanticsAuditTest {
 

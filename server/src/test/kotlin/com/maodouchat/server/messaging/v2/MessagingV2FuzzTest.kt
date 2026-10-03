@@ -9,21 +9,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
-/**
- * Messaging V2 线圈协议模型的变异 fuzz（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的第二块）。
- *
- * 第一块（`MessagingV2ForwardCompatTest`）钉住兼容契约：未知字段容忍、缺省回默认值、往返稳定。
- * 这一块钉住**解码全性**：三个线圈请求模型（`SendMessageV2Request` /
- * `AcknowledgeEnvelopesV2Request` / `ServiceMessagingV2Content`）的解码器对**任意**
- * 字节输入，要么解码成功，要么只以 `SerializationException` 失败——`Error`
- *（`StackOverflowError` / `AssertionError` 之类；G19 证明过第三方库会把意外包成
- * `Error` 逃逸，第一方代码更不该）或其它任何异常类型逃逸出来都是红。
- * 这与 G20 `SignalDecryptInputMatrixTest` 的「畸形输入矩阵」是同款哲学，
- * 只是对象从解密入口换成 JSON 解码入口。
- *
- * 实现是种子化的字符串级变异（[JsonMutator]），不依赖外部 fuzz 语料：
- * seed 固定 → 每次跑同一批输入，CI 可复跑；想加量就调各用例的 `repeat` 次数。
- */
 class MessagingV2FuzzTest {
 
     // 有效基准：与 ForwardCompatTest 同源，所有变异都从这里出发。

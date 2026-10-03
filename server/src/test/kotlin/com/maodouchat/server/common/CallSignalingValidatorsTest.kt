@@ -5,21 +5,6 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * G188：`CallSignalingValidators` 的前两个纯函数 + `isValidGroupSignalMetadata` 的**不触库分支**。
- *
- * 生产代码注释点名了三个"容易被顺手改好"的语义，本文件就是钉死它们的可执行版本：
- * - 信令类型是**小写连字符**形状（`offer` / `ice-candidate` / `hang-up`…），
- *   写成 `CALL_OFFER` 或 `ICE_CANDIDATE` 必须判非法——那等于把线上每一通真实通话判死；
- * - 载荷只做「非终端类型必须非空 + 长度上限」，**不做 SDP 结构校验**：
- *   一个明显不是 SDP 的字符串照样放行，在这里收紧格式就是凭空改协议；
- * - `callId` 上限是 **100**，不是 64。
- *
- * 不覆盖：`isValidGroupSignalMetadata` 中需要 `getById` 查库的最后三段
- * （chat 不存在 / 非群 / 成员不属该群）。`ConversationQueryRepository` 是 final class
- * 且本模块无 mock 依赖，纯单测无法替换它；那三段属于路由/DB 级测试的领地。
- * 传进来的 repository 实例在本文件所有用例里都不会被调用（各分支都在查库前返回）。
- */
 class CallSignalingValidatorsTest {
 
     private val unusedRepo = ConversationQueryRepository()

@@ -11,40 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendQuoteCard` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、`sendPhoto`、
- * `sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、`sendVenue`、
- * `sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint`、
- * `sendMentionCard`/`sendNudgeCard`、`sendMetric`/`sendCompare`、`sendKeyValue`
- * 之后第三十二块）。
- *
- * 本测试直接钉住纯函数 ([parseBotQuoteCardFields] / [buildBotQuoteCardContent])
- * 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 `quote` / `by` 的逐字抽取顺序：两者都**无默认值**（缺席得 `""`），
- *   `.take(200)` / `.take(40)`；空白原样保留；显式 JSON null 得字面 `"null"`
- *   （不被 `orEmpty` 吞掉）。
- * - 钉住**双必填**（`chatId` 或 `quote` 缺/空白 → 400），`by` 非必填——
- *   缺省/空白都不判缺，空白 `by` 组装时吞掉署名行。
- * - 钉住内容模板逐字一致（`"> "` + quote + 署名行，与处理器源码逐字对过）。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- * - 反证抽取顺序：`chatId` 空白 + 后续字段坏类型 → 仍抛错而非回 `MissingRequired`
- *   （抽取在必填校验之前，原处理器逐字如此）。
- */
 class BotSendQuoteCardParseFuzzTest {
 
     private companion object {

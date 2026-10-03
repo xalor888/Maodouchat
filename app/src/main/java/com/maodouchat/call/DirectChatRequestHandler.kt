@@ -4,17 +4,6 @@ import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.session.CurrentSession
 
-/**
- * 「扫一扫后和某人创建 1-on-1 私聊」请求的处理（U02 延伸：自 `NavGraph` 迁出的
- * app 单例访问收口 + 会话门禁留在非 ui 层）。
- *
- * 语义（逐字对齐原收集器）：
- * - 入口先查 token/owner 与实时会话门禁，任一不成立 → [Outcome.SessionExpired]
- *   （调用方弹「会话已失效」提示）；
- * - `createChat` 成功后**再查一次**门禁：中途登出/换号 → [Outcome.Dropped]（静默丢弃，
- *   原实现就是静默 return，不弹任何东西）；
- * - 失败 → [Outcome.Failed]（message 可为空，调用方回落到通用文案）。
- */
 object DirectChatRequestHandler {
 
     sealed interface Outcome {

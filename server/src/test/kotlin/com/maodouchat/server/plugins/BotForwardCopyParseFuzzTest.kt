@@ -11,34 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `forwardMessage` / `copyMessage` 请求体手写解析的**模糊兼容性测试**（清单 Q01「协议模型向前/向后
- * 兼容与 fuzz 测试」的 bot 侧专项评估，G355 `sendMessage`、G355-2 `editMessage`、
- * `sendDocument`、`sendVoice`、`sendPhoto`、`sendVideo`、`sendLocation`、`sendSticker`、
- * `sendContact`、`sendVenue`、`sendPoll`、`sendDice`、`sendDiceCustom` 之后**第十四块**）。
- *
- * Bot 路由没有 typed DTO——请求体是 `receiveBoundedTextOrEmpty()` 拿到的原始字符串，
- * 经 `Json.parseToJsonElement(body).jsonObject` 再手写抽取。本轮把原来逐字相同地内联在
- * 两个处理器里的抽取 / 三必填校验逻辑收敛为同一个纯函数 [parseBotForwardCopyFields]
- * （生产侧零行为改动：功能门 `isMessageForwardingEnabled` 与双成员检查仍在处理器里），
- * 本测试直接钉住这个函数的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- *   例外：显式 JSON null 不是类型错（`JsonNull` 本就是 `JsonPrimitive` 的子类型，
- *   `.content` 为 `"null"` 字符串）——对别名链而言 `?:` 接在 `jsonPrimitive`
- *   **之前**，主字段存在（哪怕显式 null）即不穿透别名，与原处理器逐字一致，特意钉住。
- * - 钉住三条别名链的优先级（`fromChatId`→`from_chat_id`、`chatId`→`toChatId`→`to_chat_id`、
- *   `messageId`→`message_id`）、三必填语义（`fromChatId/chatId/messageId required`）。
- */
 class BotForwardCopyParseFuzzTest {
 
     private companion object {

@@ -7,17 +7,6 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * Bot `sendMessage` 请求体解析（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355）。
- *
- * Bot 路由是手写 `JsonObject` 解析、没有 typed DTO（G344/G347/G353 的 fuzz 对象都是
- * `Json.decodeFromString` 的 DTO）。本文件把原来内联在 `configureBotCoreRoutes` 的
- * `/api/bot/sendMessage` 处理器里的抽取逻辑收敛为纯函数，行为与搬移前逐行一致——
- * 包括**已知字段类型错时抛 [IllegalArgumentException]**（路由层 `StatusPages` 把它
- * 映射为 400「参数无效」，不是 500）。评估结论：bot 侧手写解析本来就满足 fuzz 系列
- * 的契约（未知键忽略、缺省回默认值、坏类型大声失败、无未处理 500），这里只是把它变成
- * 可被测试钉住的形态，零行为改动。
- */
 internal data class BotSendMessageParsed(
     val chatId: String,
     val text: String,

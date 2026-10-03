@@ -11,46 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `starMessage` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、`sendPhoto`、
- * `sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、`sendVenue`、
- * `sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint`、
- * `sendMentionCard`/`sendNudgeCard`、`sendMetric`/`sendCompare`、`sendKeyValue`、
- * `sendQuoteCard`、`sendBanner`、`sendJsonCard`、`sendMarkdown`、`sendQuote`、
- * `sendCode`、`setMessageReaction` 之后第三十九块）。
- *
- * 本测试直接钉住纯函数 ([parseBotStarMessageFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住**无 `trim()`**：`messageId` 取 `?.jsonPrimitive?.content.orEmpty()` 原样；
- *   必填判的是未裁剪串的 `isBlank()`——`" m1 "` **原样**通过必填检查进下游
- *   （不裁剪、不改写），全空白（`"  "`）则判 `MissingRequired`。这与
- *   `setMessageReaction` 那块的 `trim()` 语义是刻意差异，原处理器逐字如此，
- *   特意钉住。
- * - 钉住**单必填**（`messageId` 缺/空/纯空白 → `MissingRequired`）。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `messageId` 的
- *   `?.jsonPrimitive` 在类型错时抛 [IllegalArgumentException]
- *   （对象 / 数组型值在 `?.jsonPrimitive` 处抛；显式 null 取到 `"null"` 字面量
- *   字符串、不抛；注意**数字 / 布尔不抛**，`JsonPrimitive.content` 对它们是
- *   `toString()`——特意钉住），路由层 `StatusPages` 把它映射为 400「参数无效」
- *   （不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- * - 反证抽取抛在必填判断之前：`messageId` 缺席 + 坏类型不可能共存于单字段，
- *   故抽取顺序在此块不做顺序反证——但对象型 `messageId` 必抛、而非
- *   `MissingRequired`（原处理器逐字如此）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotStarMessageParseFuzzTest {
 
     private companion object {

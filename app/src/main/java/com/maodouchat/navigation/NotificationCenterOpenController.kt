@@ -2,20 +2,6 @@ package com.maodouchat.navigation
 
 import com.maodouchat.data.repository.NotificationCenterItem
 
-/**
- * 通知中心行点击的「决策 + 副作用」控制器（U02 延伸：把 `ui/navigation` 里的
- * app 单例通道收进非 ui 层）。
- *
- * 为什么收：`SearchCenterDestinations.kt` 此前把四类行的点击处理全部写在一个
- * Composable 的 lambda 里，直接触碰 `MaodouchatApp.emitOpenMissedCalls()`、
- * `notificationCenter.markPostInteractionsRead()` 与四个通知服务——ui 直连持久层
- * 棘轮记了 5 处命中，而且这段「点哪行 → 清哪块托盘 → 去哪」的映射零测试覆盖。
- *
- * 现在：本类只做**决策**（返回 [Outcome]）与**注入进来的副作用**，不引用
- * Context/TokenManager/NavController；Android 侧接线在 [NotificationCenterEffects]，
- * NavController 留在 UI。行为逐字对齐原实现（含登出守卫、托盘清理、事件发射、
- * legacy deeplink 解析与 `markPostInteractionsRead` 的 runCatching 语义）。
- */
 class NotificationCenterOpenController(
     /** 原判据：`TokenManager.getInstance(context).getToken().isNullOrBlank()`。 */
     private val hasSessionToken: () -> Boolean,

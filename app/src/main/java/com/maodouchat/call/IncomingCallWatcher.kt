@@ -18,26 +18,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/**
- * 来电观察器的非 ui 执行层（U02 延伸：自 `ui/navigation/CallNavigation.kt` 的
- * `IncomingCallObserver` 收口——该文件的 9 处 `MaodouchatApp` 直连命中归零）。
- *
- * 原实现把三件事全写在一个 `@Composable` 里：REST 轮询待处理 offer、
- * FCM/系统通知唤醒事件、WS 通话信令流。收进这里后语义逐字不变：
- * - 会话世代用 [AppRuntime.currentSessionGeneration]（世代是实时映射，非常量）；
- * - 实时连接拉起走 [AppRuntime.ensureRealtimeConnected]；
- * - 来电唤醒通道走 [AppNavigationEvents]（收事件/消费事件）；
- * - 实时事件分发器走 [AppRuntime.realtimeDispatcherOrNull]（非本应用实例 → 不订阅）；
- * - 未接来电墓碑走 [MissedCallRecorder]（它内部只用 `applicationContext`，
- *   调用方不再需要把 context 强转成 app 单例）；
- * - offer 的取舍决策接线到 [PolledIncomingBatchPolicy]（终端信令仍按原内联顺序
- *   逐个执行：re-peek → 命中即清 pending → hang-up 记墓碑；offer 半用
- *   [PolledIncomingBatchPolicy.decide] 在终端处理完后的新快照上重算，
- *   与原「终端循环之后再 peek」的顺序一致）。
- *
- * ui 侧只剩一个薄的 `@Composable` 启动器：构造本类（导航动作以 lambda 注入，
- * navController 不进 call 包）并在 `LaunchedEffect` 里 `start(this)`。
- */
 class IncomingCallWatcher(
     private val appContext: Context,
     private val navigateToIncomingCall: () -> Unit,

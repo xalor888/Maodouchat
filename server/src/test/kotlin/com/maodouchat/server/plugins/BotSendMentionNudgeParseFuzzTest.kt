@@ -11,37 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendMentionCard` / `sendNudgeCard` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、`sendPhoto`、
- * `sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、`sendVenue`、
- * `sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint` 之后第二十九块）。
- *
- * 两个端点（见 [MENTION_NUDGE_SPECS]）的解析逐字同构，本测试直接钉住共用纯函数
- * ([parseBotMentionNudgeFields] / [buildBotMentionNudgeContent]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，每个端点 150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 `label` 的 `(obj["label"]?.jsonPrimitive?.content ?: obj["text"]?.jsonPrimitive?.content
- *   ?: defaultLabel).take(80)` 逐字顺序：回退链接存在性——`label` 键缺席时才看 `text`，
- *   显式 JSON null 得字面 `"null"`（不继续回退），**不 trim**（前导空格计入上限，
- *   原处理器逐字语义），截断 80。
- * - 钉住单必填（`chatId` 缺或空白 → 400），`label` 非必填（缺省走回退链，空白原样保留）。
- * - 钉住两个端点的默认文案与内容包裹前后缀逐字一致（[MENTION_NUDGE_SPECS] 表，
- *   与处理器源码逐字对过）。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `?.jsonPrimitive`
- *   在类型错时抛 [IllegalArgumentException]，路由层 `StatusPages` 把它映射为 400
- *   「参数无效」（不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- */
 class BotSendMentionNudgeParseFuzzTest {
 
     private data class MentionNudgeSpec(

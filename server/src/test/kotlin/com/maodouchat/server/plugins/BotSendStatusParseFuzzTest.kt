@@ -11,46 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendStatus` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、`sendPhoto`、
- * `sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、`sendVenue`、
- * `sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint`、
- * `sendMentionCard`/`sendNudgeCard`、`sendMetric`/`sendCompare`、`sendKeyValue`、
- * `sendQuoteCard`、`sendBanner`、`sendJsonCard`、`sendMarkdown`、`sendQuote`、
- * `sendCode`、`setMessageReaction`、`starMessage` 之后第四十块）。
- *
- * 本测试直接钉住纯函数 ([parseBotSendStatusFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 **`text`/`status` 回退**：`text` 缺键时取 `status`，`text` 显键（哪怕是
- *   显式 JSON null）不回退——`(obj["text"] ?: obj["status"])` 的 `?:` 判的是
- *   Kotlin null，不是 `JsonNull`。
- * - 钉住**先 `take(200)` 后判空白**：超长正文截断到 200 字符，前 200 字符全空白
- *   即判缺失（第 201 个字符之后的内容进不了判据）。
- * - 钉住**无 `trim()`**：`chatId` 与 `text` 都判未裁剪串的 `isBlank()`——
- *   `" c1 "` 原样通过必填检查、原样进下游（不裁剪、不改写）。
- * - 钉住**合并必填**（`chatId` 或 `text` 缺/空/纯空白 → `MissingRequired`，
- *   判据在截断后）。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `chatId` /
- *   `text` 的 `?.jsonPrimitive` 在类型错时抛 [IllegalArgumentException]
- *   （对象 / 数组型值在 `?.jsonPrimitive` 处抛；显式 null 取到 `"null"` 字面量
- *   字符串、不抛；注意**数字 / 布尔不抛**，`JsonPrimitive.content` 对它们是
- *   `toString()`——特意钉住），路由层 `StatusPages` 把它映射为 400「参数无效」
- *   （不是 500）——坏数据必须大声失败，不能悄悄吞掉。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSendStatusParseFuzzTest {
 
     private companion object {

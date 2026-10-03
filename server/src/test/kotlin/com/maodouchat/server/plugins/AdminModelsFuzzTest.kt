@@ -18,26 +18,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/**
- * Admin 协议模型的**模糊兼容性测试**（清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的
- * fuzz 部分，第二块；第一块 G344 只覆盖了 messaging-v2 的 send/ack，这里补上管理后台
- * 一侧——`adminJson` + 走 [receiveAdminJson] 解码的请求 DTO）。
- *
- * 设计要点（与 G344 同款）：
- * - **固定种子** [Random]：CI 上确定性可复跑；每个 DTO 100–150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2）；
- *   注入位置为顶层（admin DTO 均无嵌套对象字段）。
- * - payload 由「合法请求先序列化成 JsonObject，再程序化注入未知字段」构造（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解码侧。
- * - 反证 `wrong-typed known fields still fail loudly`：`ignoreUnknownKeys = true`
- *   只放行**未知键**；已知字段类型错必须继续抛 [SerializationException]，不能悄悄吞掉坏数据。
- *   这对 [AdminSessionRequest] 尤其关键——它是管理会话提权入口，坏数据静默通过就是安全门洞。
- *
- * 注意：测试直接引用生产侧同一份 [adminJson] 配置——如果有人把
- * `ignoreUnknownKeys` 改回 `false`，这里的 fuzz 用例会立刻变红。
- */
 class AdminModelsFuzzTest {
 
     private companion object {

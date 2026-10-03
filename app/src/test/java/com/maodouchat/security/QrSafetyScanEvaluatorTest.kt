@@ -4,15 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * U02 延伸：`QrSafetyScanEvaluator` 的全分支测试（JVM，假信号端口）。
- *
- * 这段核验原先零覆盖地写在 ScanScreen 的 `scope.launch` 里——10 种结论各对应一类
- * 反诈语义（扫了别人的账号/别的设备/QR 与本机指纹不符……），错一个分支不会崩，
- * 只会**给出错误的安全结论**。本测试把 10 个分支逐条钉住，并验证：
- * - 归一化（指纹去非字母数字后小写、安全码只留数字）；
- * - 「会话已过期也会先读一次本机 deviceId」的调用顺序（原实现的顺序，用假端口的计数器钉住）。
- */
 class QrSafetyScanEvaluatorTest {
 
     private class FakeSignal(

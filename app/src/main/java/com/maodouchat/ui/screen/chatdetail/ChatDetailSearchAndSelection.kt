@@ -13,14 +13,6 @@ import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 
-/**
- * G348：会话详情「搜索条 + 多选工具条」两块从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）。
- *
- * - [ChatDetailSearchSection]：搜索条（关键词/语义两态、作用域/窗口/结果导航、关闭重置）；
- * - [ChatDetailSelectionSection]：多选工具条（G84 抽出的 ChatDetailSelectionToolbar 的接线）。
- *
- * 依赖全经参数注入；组合期内不新增状态所有权，开关读写语义逐字一致。
- */
 @Composable
 internal fun ChatDetailSearchSection(
     state: ChatDetailUiState,

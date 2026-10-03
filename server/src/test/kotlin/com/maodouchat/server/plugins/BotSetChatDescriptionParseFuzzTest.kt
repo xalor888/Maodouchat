@@ -11,41 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `setChatDescription` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，
- * G355 `sendMessage` 起至 `setMyDescription` 之后第六十八块）。
- *
- * 本测试直接钉住纯函数 ([parseBotSetChatDescriptionFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]）：否则测的是「重复键覆盖语义」，
- *   而不是「未知键忽略语义」。已知字段含一对别名（`description`/`announcement`），全部避开。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 吸取第四十一块（`sendTable`）的 CI 教训：fuzz 基 payload 的**必填字段必须
- *   确定性合法**——全随机时已知字段可能被丢弃/变空 → `Invalid` →
- *   `okOf` 的 `as Ok` 强转抛 `ClassCastException`。这里 chatId 恒为 `"c" + i`（无空白、
- *   无需 trim 干预）、`description` 恒为 `"d" + i`。
- * - 吸取第五十七块（`setChatTitle`）的 CI 教训：**双字段端点的每个 `okOf` 用例都必须
- *   携带全部必填字段**——缺任一字段 → `Invalid` → `as Ok` 强转抛 `ClassCastException`。
- * - 钉住 **chatId 无 trim**（`" c1 "` 原样保留，原处理器逐字如此）。
- * - 钉住 **description 别名 + trim**：`description` 优先、`announcement` 回退
- *   （按存在而非按非空；显式 null 不回退→字面量 `"null"`）；前后空白被 trim；
- *   全空白 → trim 后 `""`→Ok（是否清空公告由下游 `takeIf` 决定，不在本函数）。
- * - 钉住 **双 400 分开**：chatId 缺/空/纯空白 → `Invalid`（400 `"chatId required"`）；
- *   trim 后 description 超 1200 字符 → `TooLong`（400 `"description too long"`）；
- *   夹界判的是 **trim 之后** 的值（1201 个空格 → `""`→Ok，不判超长）。
- * - 钉住 **抽取先于必填校验**：原处理器里两处 `?.jsonPrimitive` 都在空白判空之前执行——
- *   `description` 对象型 + chatId 空白时先抛 [IllegalArgumentException]，不走 `Invalid`。
- * - 反证坏类型大声失败：对象 / 数组型在 `?.jsonPrimitive`
- *   处抛 [IllegalArgumentException]（路由层 `StatusPages` 映射为 400「参数无效」，
- *   不是 500）；显式 null 不抛的反证（chatId 得字面量 `"null"`→`Ok`）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSetChatDescriptionParseFuzzTest {
 
     private companion object {

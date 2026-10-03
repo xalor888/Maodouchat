@@ -47,14 +47,6 @@ import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
 
-/**
- * G350：`ChatTimelinePane` 的内容（消息列表 + 回底 FAB + 空态，135 行）从
- * `ChatDetailRoute.kt` 抽出（纯搬移不改判断）。
- *
- * 是 [BoxScope] 扩展——FAB 的 `align(BottomEnd)` 与空态的 `align(Center)` 依赖
- * `ChatTimelinePane` 的 Box 作用域（同 `LazyItemScope.ChatDetailTimelineItem` 的先例）。
- * 依赖全经参数注入；组合期内不新增状态所有权。
- */
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串在回调内读取，非组合作用域；lint 无法区分（同 ChatDetailRoute）
 @Composable
 internal fun BoxScope.ChatDetailTimelineSection(

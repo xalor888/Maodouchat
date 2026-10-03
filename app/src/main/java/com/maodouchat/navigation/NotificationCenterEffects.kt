@@ -8,14 +8,6 @@ import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.SocialNotificationService
 
-/**
- * [NotificationCenterOpenController] 的 Android 侧接线（非 ui 层）。
- *
- * 这里集中放置原先写在 `ui/navigation/SearchCenterDestinations.kt` 里的
- * app 单例/通知服务访问，让 Composable 只剩「决策 → 导航」的映射。
- * 逐字对齐原实现的副作用：托盘清理 4 个服务、通知中心标记已读（原 runCatching
- * 包一层，防单条坏数据影响导航）。
- */
 object NotificationCenterEffects {
 
     fun create(context: Context): NotificationCenterOpenController {

@@ -12,17 +12,6 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * G188 补集：`isValidGroupSignalMetadata` 的**查库后三段**（chat 不存在 / 非群 / 成员不属该群）
- * 以及两条合法 mesh 边界（2 人与 6 人）。
- *
- * `CallSignalingValidatorsTest` 只钉了查库前守卫，因为 `ConversationQueryRepository` 是
- * final class 且本模块无 mock 依赖；这里按 `PerUserStateIsolationRouteTest` 的 repo 层夹具
- * 直接 `Database.connect` + `initDatabase()` 起内存 H2，走真实查询。
- *
- * 断言刻意成对写（真群通过 + 掺一个外部成员拒绝）：若 `getById` 因建群失败而恒 null，
- * 只有合法用例失败，不会让"该拒的"用例假绿。
- */
 class CallSignalingGroupMetadataDbTest {
 
     private val repo = ConversationQueryRepository()

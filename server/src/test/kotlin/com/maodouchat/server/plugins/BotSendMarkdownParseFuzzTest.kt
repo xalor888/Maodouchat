@@ -11,51 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Bot `sendMarkdown` 请求体手写解析的**模糊兼容性测试**
- * （清单 Q01「协议模型向前/向后兼容与 fuzz 测试」的 bot 侧专项评估，G355
- * `sendMessage`、G355-2 `editMessage`、`sendDocument`、`sendVoice`、`sendPhoto`、
- * `sendVideo`、`sendLocation`、`sendSticker`、`sendContact`、`sendVenue`、
- * `sendPoll`、`sendDice`、`sendDiceCustom`、`forwardMessage`/`copyMessage`、
- * `sendNudge`、`sendContactCard`、`sendPollQuiz`、`answerCallbackQuery`、
- * `sendChecklist`、`sendAlert`、`sendCountdown`、`sendNotice`、`sendBadge`、
- * `sendToast`、`sendHr`、`sendDivider`、`sendProgress`、`send*Hint`、
- * `sendMentionCard`/`sendNudgeCard`、`sendMetric`/`sendCompare`、`sendKeyValue`、
- * `sendQuoteCard`、`sendBanner`、`sendJsonCard` 之后第三十五块）。
- *
- * 本测试直接钉住纯函数 ([parseBotMarkdownFields]) 的生产语义：
- *
- * - **固定种子** [Random]：CI 上确定性可复跑，150 个随机 payload。
- * - **随机名避开所有已知字段**（见 [KNOWN_FIELD_NAMES]，含 `markdown` 与
- *   `silent`——`markdown` 是 `text` 的存在性回退键，`silent` 是已知解析字段，
- *   同样视为已知）：否则测的是「重复键覆盖语义」，而不是「未知键忽略语义」。
- * - **随机值**覆盖布尔 / 整数 / 浮点 / 字符串 / null / 数组 / 嵌套对象（深度 ≤ 2），
- *   注入位置为顶层。
- * - payload 由「合法请求先构造成 JsonObject，再程序化注入未知字段」得到（不拼字符串）——
- *   注入本身永不破坏 JSON 语法，红只可能来自解析侧。
- * - 钉住 `text` 的存在性回退：只有 `text` 键完全缺席才看 `markdown`；`text` 在但为
- *   显式 null 时仍走 `text` 分支（取到字面量 `"null"` 字符串，不回退、不抛）。
- * - 钉住 `text` 取 `?.jsonPrimitive?.content` **不是** `?.toString()`：字符串不带引号
- *   进模板（与 `sendJsonCard` 的怪语义相反，特意钉住）；`take(4000)` 作用于
- *   `orEmpty()` **之后**（裁的是 content 本身）。
- * - 钉住 `silentRequested` 取 `?.jsonPrimitive?.booleanOrNull == true`：缺键 /
- *   JSON null 得 `false`；字符串 `"true"` 按布尔语义得 `true`；对象 / 数组型
- *   `silent` 大声失败。
- * - 钉住**双必填**（`chatId` 或 `text` 缺/空白 → `MissingRequired`；判的是裁过
- *   4000 的空白性）。
- * - 反证 `wrong-typed known fields still fail loudly`：手写解析里 `chatId` /
- *   `text` 的 `?.jsonPrimitive` 在类型错时抛 [IllegalArgumentException]
- *   （对象 / 数组型值在 `?.jsonPrimitive` 处抛；显式 null 取到 `"null"` 字面量字符串、
- *   不抛；注意**数字 / 布尔不抛**，`JsonPrimitive.content` 对它们是 `toString()`——
- *   特意钉住），路由层
- *   `StatusPages` 把它映射为 400「参数无效」（不是 500）——坏数据必须大声失败，
- *   不能悄悄吞掉。
- * - 反证抽取顺序：`chatId` 先于 `text` 抽取——`chatId` 坏类型 + `text` 乱值→抛错；
- *   `chatId` 缺席 + `text` 乱值→抛错（不是 `MissingRequired`：抽取抛在必填
- *   判断之前，原处理器逐字如此）。
- *
- * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
- */
 class BotSendMarkdownParseFuzzTest {
 
     private companion object {
