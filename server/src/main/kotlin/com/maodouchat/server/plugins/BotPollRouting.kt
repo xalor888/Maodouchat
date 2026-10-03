@@ -124,29 +124,15 @@ put("sides", fields.sides)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val pollId = obj["pollId"]?.jsonPrimitive?.content.orEmpty()
-        // 9.157：同用户投票端点——非法元素整体拒绝，不静默截成子集投票
-        val indexes = buildList {
-            val arr = obj["optionIndexes"] as? kotlinx.serialization.json.JsonArray
-            if (arr != null) {
-                for (element in arr) {
-                    val v = (element as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
-                    if (v == null || v < 0) {
-                        return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid optionIndexes"))
-                    }
-                    add(v)
-                }
-            } else {
-                val single = (obj["optionIndex"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
-                if (single == null || single < 0) {
-                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId/optionIndexes required"))
-                }
-                add(single)
-            }
+        val fields = when (val parsed = parseBotVotePollFields(obj)) {
+            is BotVotePollFieldsResult.Ok -> parsed.fields
+            BotVotePollFieldsResult.InvalidOptionIndexes ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid optionIndexes"))
+            BotVotePollFieldsResult.Required ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId/optionIndexes required"))
         }
-        if (pollId.isBlank() || indexes.isEmpty()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId/optionIndexes required"))
-        }
+        val pollId = fields.pollId
+        val indexes = fields.optionIndexes
         val poll = com.maodouchat.server.repository.PollRepository.vote(
             pollId = pollId,
             userId = bot.id,
