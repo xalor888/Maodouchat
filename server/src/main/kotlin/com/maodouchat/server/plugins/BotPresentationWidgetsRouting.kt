@@ -38,7 +38,7 @@ put("ts", System.currentTimeMillis())
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendHrFields(obj)) {
             is BotSendHrFieldsResult.Ok -> parsed.fields
@@ -82,7 +82,7 @@ put("type", "MARKDOWN")
     post("/api/bot/sendStatus") {
         val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendStatusFields(obj)) {
             is BotSendStatusFieldsResult.Ok -> parsed.fields
@@ -146,7 +146,7 @@ put("webhookConfigured", !bot.webhookUrl.isNullOrBlank())
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendTableFields(obj)) {
             is BotSendTableFieldsResult.Ok -> parsed.fields
@@ -195,7 +195,7 @@ put("rows", rows.size)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendBadgeFields(obj)) {
             is BotSendBadgeFieldsResult.Ok -> parsed.fields

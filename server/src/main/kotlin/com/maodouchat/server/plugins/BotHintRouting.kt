@@ -34,7 +34,7 @@ internal fun Route.configureBotHintRoutes(
                 return@post
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val request = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+            val request = parseJsonObjectEnvelopeOrNull(body)
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                     return@post
