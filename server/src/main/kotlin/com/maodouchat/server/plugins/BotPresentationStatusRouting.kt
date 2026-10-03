@@ -99,7 +99,7 @@ put("serverTime", System.currentTimeMillis())
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendProgressFields(obj)) {
             is BotSendProgressFieldsResult.Ok -> parsed.fields
@@ -157,7 +157,7 @@ put("serverTime", System.currentTimeMillis())
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendCountdownFields(obj)) {
             is BotSendCountdownFieldsResult.Ok -> parsed.fields
@@ -200,7 +200,7 @@ put("seconds", seconds)
     post("/api/bot/sendAlert") {
         val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendAlertFields(obj)) {
             is BotSendAlertFieldsResult.Ok -> parsed.fields
@@ -260,7 +260,7 @@ put("enabled", bot.enabled)
     post("/api/bot/sendRemind") {
         val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendRemindFields(obj)) {
             is BotSendRemindFieldsResult.Ok -> parsed.fields
@@ -304,7 +304,7 @@ put("type", "SYSTEM")
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendDividerFields(obj)) {
             is BotSendDividerFieldsResult.Ok -> parsed.fields
