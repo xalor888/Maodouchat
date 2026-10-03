@@ -32,7 +32,7 @@ internal fun Route.configureBotGeoRoutes(
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("static_location_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val chatId: String
         val lat: Double
@@ -100,7 +100,7 @@ put("count", polls.size)
     post("/api/bot/setMyName") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val name = when (val parsed = parseBotSetMyNameFields(obj)) {
             is BotSetMyNameFieldsResult.Ok -> parsed.fields.name
@@ -160,7 +160,7 @@ put("count", history.size)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("contact_card_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendContactFields(obj)) {
             is BotSendContactFieldsResult.Ok -> parsed.fields
@@ -195,7 +195,7 @@ put("messageId", msgId)
     post("/api/bot/sendVenue") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotSendVenueFields(obj)) {
             is BotSendVenueFieldsResult.Ok -> parsed.fields
@@ -243,7 +243,7 @@ put("title", title)
             return@post call.respondBotUnavailable()
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotUnpinChatMessageFields(obj)) {
             is BotUnpinChatMessageFieldsResult.Ok -> parsed.fields
