@@ -53,10 +53,8 @@ get("/api/bots") {
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val name = obj["name"]?.jsonPrimitive?.content.orEmpty()
-        val username = obj["username"]?.jsonPrimitive?.content.orEmpty()
-        val description = obj["description"]?.jsonPrimitive?.content
-        when (val result = com.maodouchat.server.repository.BotRepository.create(userId, name, username, description)) {
+        val fields = parseBotCreateFields(obj)
+        when (val result = com.maodouchat.server.repository.BotRepository.create(userId, fields.name, fields.username, fields.description)) {
             is com.maodouchat.server.repository.BotRepository.BotCreateResult.Success ->
                 call.respond(result.bot)
             com.maodouchat.server.repository.BotRepository.BotCreateResult.UsernameTaken ->
