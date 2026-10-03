@@ -5299,3 +5299,31 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   本轮只碰 `BotInteractionRouting.kt`/`BotAddBotToChatParse.kt`/
   `BotAddBotToChatParseFuzzTest.kt`+本清单，`ServerArchitectureTest` 对该路由无行数上限；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百二十三（2026-10-03）：`POST /api/chats/{chatId}/bot-inbox` 与 `POST /api/chats/{chatId}/bot-callback` 请求体 JSON 对象信封解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第八十四块）
+
+- `BotInteractionRouting.kt` 两个端点各自内联的信封抽取
+  （`runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()`，
+  语义逐字相同）收敛为 `parseJsonObjectEnvelopeOrNull(body): JsonObject?`
+  纯函数（`BotJsonEnvelopeParse.kt`）——怪语义原样钉住：
+  坏 JSON（截断 / 空串 / 纯空白 / 语法错误）/ 顶层非对象（数组 / 字符串 /
+  数字 / 布尔 / 显式 JSON null——`JsonNull` 是 `JsonPrimitive`，
+  `.jsonObject` 处抛 `IllegalArgumentException`，**大声失败**被
+  `runCatching` 吞掉）统统 → `null` → 两端点共用同一判定
+  `?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))`；
+  顶层为对象 → 逐字原样返回（不深拷贝、不排序、未知键全部保留，
+  交由各自的字段抽取 `parseBotInboxFields` / `parseBotChatCallbackFields`
+  决定取舍）；空 body（`receiveBoundedTextOrEmpty` 兜底 `""`）→ 抛 → `null`
+  → 400 `"invalid json"`，与原先逐字一致；
+  各端点的 `body` 上限（`8_192` / `16_384`）、鉴权 / 限流 / 投递映射仍在
+  处理器，顺序一致——下游一行不动；
+  `BotInteractionRouting.kt` 的 `jsonObject` import 因两处调用点均搬移而移除
+  （`Json` 类型 import 仍被 `json: Json` 参数使用，保留）；
+- 新增 `BotJsonEnvelopeParseFuzzTest`（4 例）：固定种子 150 个随机对象 payload
+  往返恒等（未知键避开 `text`/`botId`/`messageId`/`botUserId`/`callbackData`
+  全部保留）；10 种坏 body → `null`；顶层数组/字符串/数字/布尔/显式 null → `null`
+ （尾随空白的对象仍可解析为空对象）；嵌套显式 null 保留；
+- 开工时 0 个 open 重构 PR（#307 已 squash 合并）；
+  本轮只碰 `BotInteractionRouting.kt`/`BotJsonEnvelopeParse.kt`/`BotJsonEnvelopeParseFuzzTest.kt`+本清单，
+  清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
