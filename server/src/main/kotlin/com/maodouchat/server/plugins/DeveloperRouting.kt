@@ -426,9 +426,7 @@ fun Application.configureDeveloperRouting() {
                 val botId = call.parameters["id"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedText().orEmpty()
-                val url = runCatching {
-                    Json.parseToJsonElement(body).jsonObject["url"]?.jsonPrimitive?.content
-                }.getOrNull()?.trim()?.take(500)
+                val url = parseDeveloperWebhookUrl(body)
                 if (!url.isNullOrBlank() && !BotRepository.isAllowedWebhookUrl(url)) {
                     return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("webhook 无效"))
                 }
@@ -483,10 +481,7 @@ put("ok", true)
                 val botId = call.parameters["id"]
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
                 val body = call.receiveBoundedText().orEmpty()
-                val enabled = runCatching {
-                    val p = Json.parseToJsonElement(body).jsonObject["enabled"]?.jsonPrimitive
-                    p?.booleanOrNull ?: p?.content?.toBooleanStrictOrNull()
-                }.getOrNull()
+                val enabled = parseDeveloperBotEnabled(body)
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled required"))
                 val bot = BotRepository.setEnabled(botId, userId, enabled)
                     ?: return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))

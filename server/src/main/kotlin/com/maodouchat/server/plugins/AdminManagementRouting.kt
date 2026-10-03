@@ -391,10 +391,7 @@ put("delivered", delivered)
                     return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("cannot change master admin"))
                 }
                 val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
-                val enabled = runCatching {
-                    val el = Json.parseToJsonElement(body).jsonObject["enabled"]?.jsonPrimitive
-                    el?.booleanOrNull ?: el?.content?.toBooleanStrictOrNull()
-                }.getOrNull()
+                val enabled = parseAdminModeratorEnabled(body)
                 if (enabled == null) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled bool required"))
                 if (!userRepo.setModerator(actorId, id, enabled)) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
                 call.respond(
