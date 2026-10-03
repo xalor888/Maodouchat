@@ -4973,3 +4973,36 @@ G342 探针（名字 + 触控目标）本日扩面并加一维：
   `BotPollRouting.kt`/`BotVotePollParse.kt`/`BotVotePollParseFuzzTest.kt`+本清单，
   与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
 - 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。
+
+### 第十三轮续一百一十四（2026-10-03）：bot `stopPoll` 请求体手写解析收敛为纯函数 + fuzz 钉住（Q01 bot 侧第七十五块）
+
+- 端点 `/api/bot/stopPoll` 的处理器内联 `pollId` 抽取
+  （`obj["pollId"]?.jsonPrimitive?.content.orEmpty()`：**无 `.trim()`**——全空白直接判空；
+  显式 JSON null 得字面量 `"null"`→非空→Ok 的逐字怪语义；
+  对象/数组型在 `?.jsonPrimitive` 处大声失败的逐字语义）+
+  合并必填校验（`pollId.isBlank()`→400 `"pollId required"`，与 `closePoll` 块同文案，
+  纯函数合并为一种 `Invalid` 结果）收敛为 `parseBotStopPollFields(obj: JsonObject)` 纯函数
+  （`BotStopPollParse.kt`，结果二态 `Ok`/`Invalid`；
+  `obj` 为 null 的 `"invalid json"` 400 仍在处理器，与 `banChatMember`/`kickChatMember`
+  块同款纪律）——限流（`requireRateLimitedBot`）与 `isBotDeliverable` 在原处理器里
+  **先于** body 解析，本轮保持它们在解析之前，等价；`PollRepository.closePoll`
+  （`requireBotDeliverable = true`，与 `closePoll` 端点逐字同调用）/`logCommand`（`"stopPoll"`）/
+  响应（逐字保留兼容字段 `alias: "closePoll"`）/ `"stop failed (creator only)"` 403 仍在
+  处理器，顺序与原处理器一致，下游一行不动；
+- 新增 `BotStopPollParseFuzzTest`（7 例）：150 固定种子随机 payload 未知键忽略
+  恒等断言（pollId 恒为 `"p" + i`；已知字段 `pollId` 不得参与随机名）+
+  必填语义（pollId 缺/空/纯空白→Invalid；合法→Ok）+
+  pollId 怪语义（无 trim 原样保留；显式 null 得字面量 `"null"`→Ok；
+  对象/数组型在 `?.jsonPrimitive` 处抛 `IllegalArgumentException`，路由层 `StatusPages`
+  映射 400，不是 500）+ 非字符串原语（数字/布尔走 `.content` 字符串）+
+  近似字段名（`PollId`/`POLLID`/`poll_id`/`pollid`/`pollId2` 等按未知键忽略，
+  真字段缺席→Invalid）；
+- 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接，
+  见 AGENTS.md 2026-09-30 教训）；
+- `ClientArchitectureTest` 的 `frozenHotspotLineCaps` 只覆盖 app 文件，本块改动
+  （server 路由 + 新增 server 解析/测试文件 + 清单账本）无一在监，无需收紧上限；
+  `RouteRegistrySplitTest` 只断言端点声明仍在模块内，端点数不变，不受影响；
+- 开工时 0 个 open 重构 PR（仅 dependabot 依赖 PR，无文件交集）；本轮只碰
+  `BotPollEditRouting.kt`/`BotStopPollParse.kt`/`BotStopPollParseFuzzTest.kt`+本清单，
+  与 open PR 的文件无交集；清单 EOF 追加，不碰 §0 表格；
+- 判据：本机无 JDK/Android SDK，未本地验证，待 CI 验证。

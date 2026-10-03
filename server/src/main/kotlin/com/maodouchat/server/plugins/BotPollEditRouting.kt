@@ -66,8 +66,11 @@ put("mediaUploadEnabled", com.maodouchat.server.service.RuntimeConfigService.isM
         val body = call.receiveBoundedTextOrEmpty()
         val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val pollId = obj["pollId"]?.jsonPrimitive?.content.orEmpty()
-        if (pollId.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
+        val pollId = when (val parsed = parseBotStopPollFields(obj)) {
+            is BotStopPollFieldsResult.Ok -> parsed.fields.pollId
+            BotStopPollFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
+        }
         val poll = com.maodouchat.server.repository.PollRepository.closePoll(
             pollId = pollId,
             userId = bot.id,
