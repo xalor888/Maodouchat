@@ -49,7 +49,7 @@ internal fun Route.configureBotCoreRoutes(
             return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发送太频繁，请稍后再试"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val req = parseBotSendMessage(
             obj,
@@ -172,7 +172,7 @@ put("messageId", msgId)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("message_edit_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val parsed = parseBotEditMessage(obj)
         val messageId = parsed.messageId

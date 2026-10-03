@@ -24,7 +24,7 @@ internal fun Route.configureBotMessageForwardingRoutes(
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forwarding_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val result = parseBotForwardCopyFields(obj)) {
             is BotForwardCopyFieldsResult.Ok -> result.fields
@@ -93,7 +93,7 @@ put("chatId", toChatId)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forwarding_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val result = parseBotForwardCopyFields(obj)) {
             is BotForwardCopyFieldsResult.Ok -> result.fields
