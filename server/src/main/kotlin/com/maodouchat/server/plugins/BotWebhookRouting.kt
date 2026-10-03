@@ -13,7 +13,7 @@ internal fun Route.configureBotWebhookRoutes(botSendRateLimiter: BoundedRateLimi
     post("/api/bot/setWebhook") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
         val url = when (
             val parsed = parseBotSetWebhookFields(
                 obj,

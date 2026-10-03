@@ -48,7 +48,7 @@ get("/api/bots") {
             return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建机器人太频繁，请稍后再试"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = parseBotCreateFields(obj)
         when (val result = com.maodouchat.server.repository.BotRepository.create(userId, fields.name, fields.username, fields.description)) {

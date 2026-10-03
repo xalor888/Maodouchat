@@ -25,7 +25,7 @@ put("count", commands.size)
     post("/api/bot/setMyCommands") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val defs = when (val parsed = parseBotSetMyCommandsFields(obj)) {
             is BotSetMyCommandsFieldsResult.Ok -> parsed.fields.commands
