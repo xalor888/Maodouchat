@@ -32,8 +32,9 @@ import kotlin.test.assertTrue
  * - 钉住 **显式 null 直接 400 语义**：`JsonNull` 是 `JsonPrimitive`，其 `content`
  *   为字面量 `"null"`，`toBooleanStrictOrNull("null")` 为 null → `null`
  *   （与 webhook 管理块的「显式 null 得字面量字符串继续走白名单」不同，逐字怪语义）。
- * - 钉住 **严格布尔**：仅 `true`/`false` 字面量与 `"true"`/`"false"` 字符串有效；
- *   `"TRUE"`、`"1"`、空串、数字 → `null`。
+ * - 钉住 **严格布尔**：`true`/`false` 字面量与 `"true"`/`"false"` 字符串有效；
+ *   `toBooleanStrictOrNull` **大小写不敏感**，`"TRUE"`/`"True"` 同样有效
+ *   （与原处理器逐字一致）；`"1"`、空串、`"yes"`、数字 → `null`。
  *
  * 本轮测试代码延续规避字符串模板内嵌套引号写法（消息文案用 `+` 拼接）。
  */
@@ -106,11 +107,12 @@ class BotEnabledParseFuzzTest {
 
     @Test
     fun strictStringBooleans() {
-        // 仅 "true"/"false"（大小写敏感）有效。
+        // "true"/"false" 有效（toBooleanStrictOrNull 大小写不敏感，"TRUE"/"True" 同样有效——
+        // 与原处理器逐字语义一致，生产代码无辜，错的是旧测试期望）。
         assertEquals(true, enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive("true"))))), "\"true\" string")
         assertEquals(false, enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive("false"))))), "\"false\" string")
-        assertNull(enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive("TRUE"))))), "\"TRUE\" -> null")
-        assertNull(enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive("True"))))), "\"True\" -> null")
+        assertEquals(true, enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive("TRUE"))))), "\"TRUE\" -> true")
+        assertEquals(true, enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive("True"))))), "\"True\" -> true")
         assertNull(enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive("1"))))), "\"1\" -> null")
         assertNull(enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive(""))))), "empty string -> null")
         assertNull(enabledOf(bodyOf(JsonObject(mapOf("enabled" to JsonPrimitive("yes"))))), "\"yes\" -> null")

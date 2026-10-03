@@ -21,9 +21,10 @@ import kotlinx.serialization.json.jsonPrimitive
  * - 抽取返回 `Boolean?`：`null` 的含义是「不可用」——处理器侧 `?:` 直接
  *   400 `"enabled required"`，文案逐字；纯函数只负责抽取，不碰响应。
  * - 布尔字面量：`true`/`false` → 同值。`booleanOrNull` 即
- *   `content.toBooleanStrictOrNull()`（大小写敏感）。
- * - 字符串型：仅 `"true"`/`"false"` 有效（`"TRUE"`、`"True"`、`"1"`、`"yes"`、
- *   空串 → `null` → 400，大声失败的逐字语义）。
+ *   `content.toBooleanStrictOrNull()`（大小写不敏感：`"TRUE"`/`"True"` → true，
+ *   与原处理器逐字一致）。
+ * - 字符串型：`"true"`/`"false"`（大小写不敏感）有效；`"1"`、`"yes"`、
+ *   空串 → `null` → 400，大声失败的逐字语义。
  * - 显式 JSON null：`JsonNull` 是 `JsonPrimitive`，`content` 为字面量 `"null"`，
  *   `toBooleanStrictOrNull("null")` 为 null → `null` → 400
  *   （与 webhook 管理块不同：那里显式 null 得字面量 `"null"` 字符串继续走白名单，
