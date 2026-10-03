@@ -21,7 +21,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
@@ -97,7 +96,7 @@ internal fun Route.configureBotInteractionRoutes(
             return@post
         }
         val body = call.receiveBoundedTextOrEmpty(8_192)
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val inbox = parseBotInboxFields(obj)
         val text = inbox.text
@@ -183,7 +182,7 @@ internal fun Route.configureBotInteractionRoutes(
             return@post
         }
         val body = call.receiveBoundedTextOrEmpty(16_384)
-        val obj = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotChatCallbackFields(obj)) {
             is BotChatCallbackFieldsResult.Ok -> parsed.fields
