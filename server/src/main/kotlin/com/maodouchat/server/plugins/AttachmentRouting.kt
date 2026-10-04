@@ -142,7 +142,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                 val userId = call.requireUserId()
                 if (call.rejectIfMessageRestricted(userRepo, userId)) return@put
                 val attachmentId = call.parameters["id"].orEmpty()
-                val offset = call.request.queryParameters["offset"]?.toLongOrNull()
+                val offset = parseOptionalLong(call.request.queryParameters, "offset")
                 val chunkHash = call.request.header(ATTACHMENT_CHUNK_HASH_HEADER)?.lowercase().orEmpty()
                 val declaredLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
                 val record = encryptedAttachmentRepo.get(attachmentId)
@@ -232,8 +232,8 @@ internal fun Route.configureEncryptedAttachmentRoutes(
             post("/api/attachments") {
                 val userId = call.requireUserId()
                 if (call.rejectIfMessageRestricted(userRepo, userId)) return@post
-                val chatId = call.request.queryParameters["chatId"].orEmpty()
-                val pendingMessageId = call.request.queryParameters["messageId"].orEmpty()
+                val chatId = parseRawOrEmpty(call.request.queryParameters, "chatId")
+                val pendingMessageId = parseRawOrEmpty(call.request.queryParameters, "messageId")
                 val expectedHash = call.request.header(ATTACHMENT_HASH_HEADER)?.lowercase().orEmpty()
                 val declaredLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
                 if (chatId.isBlank()) {

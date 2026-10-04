@@ -124,7 +124,7 @@ internal fun Route.configureSignalKeyRoutes(
                     allowSelf = true,
                 )
             ) return@get
-            val currentDeviceId = call.request.queryParameters["currentDeviceId"]?.toIntOrNull()
+            val currentDeviceId = parseOptionalInt(call.request.queryParameters, "currentDeviceId")
             call.respond(
                 signalKeyRepository.getDeviceInfos(
                     targetUserId,
@@ -270,7 +270,7 @@ internal fun Route.configureSignalKeyRoutes(
                 call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("sealed sender disabled"))
                 return@get
             }
-            val deviceId = call.request.queryParameters["deviceId"]?.toIntOrNull() ?: 1
+            val deviceId = parseIntOrDefault(call.request.queryParameters, "deviceId", 1)
             val issued = SealedSenderCertificateService.issue(userId, deviceId) ?: run {
                 call.respond(HttpStatusCode.InternalServerError, ErrorResponse("failed to issue certificate"))
                 return@get
