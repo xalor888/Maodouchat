@@ -15,8 +15,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.put
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
@@ -145,11 +143,7 @@ put("envAllowRegistration", ServerConfig.allowRegistration)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = parseAdminSystemJsonEnvelopeOrNull(body)
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val settingsObj = obj["settings"]?.jsonObject ?: obj
-        val updates = settingsObj.mapNotNull { (k, v) ->
-            val s = runCatching { v.jsonPrimitive.content }.getOrNull() ?: return@mapNotNull null
-            k to s
-        }.toMap()
+        val updates = parseAdminSettingsUpdates(obj)
         if (updates.isEmpty()) {
             return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("no settings"))
         }
