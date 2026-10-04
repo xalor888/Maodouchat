@@ -98,7 +98,7 @@ class AdminBulkIdListParseFuzzTest {
         assertEquals(151, parsed.size, "distinct 151 values, limit 200")
         assertTrue(parsed.none { it.length > 64 }, "each id truncated to 64 chars")
         assertTrue(parsed.contains(long.take(64)), "long id truncated not dropped")
-        val limited = parseAdminBulkIdList(obj, "chatIds", 100)
+        val limited = parseAdminBulkIdList(obj, "userIds", 100)
         assertEquals(100, limited.size, "limit 100 pinned")
     }
 
