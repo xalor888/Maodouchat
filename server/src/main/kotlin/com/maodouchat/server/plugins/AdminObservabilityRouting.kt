@@ -62,13 +62,13 @@ internal fun Route.configureAdminObservabilityRoutes(serverConfig: ServerConfig)
 
     get("/online") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 500)
+        val limit = parseObservabilityLimit(call.request.queryParameters)
         call.respond(OperationsQueryService.onlineUsers(limit))
     }
 
     get("/ranking") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val topN = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
+        val topN = parseObservabilityLimit(call.request.queryParameters, defaultLimit = 20, maxLimit = 100)
         call.respond(OperationsQueryService.ranking(topN))
     }
 
@@ -84,18 +84,18 @@ internal fun Route.configureAdminObservabilityRoutes(serverConfig: ServerConfig)
 
     get("/audit-logs") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 500)
-        val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-        val actionFilter = call.request.queryParameters["action"]?.trim()?.takeIf { it.isNotBlank() }
-        val q = call.request.queryParameters["q"]?.trim()?.take(80)?.takeIf { it.isNotBlank() }
+        val limit = parseObservabilityLimit(call.request.queryParameters)
+        val offset = parseObservabilityOffsetLong(call.request.queryParameters)
+        val actionFilter = parseObservabilityAction(call.request.queryParameters)
+        val q = parseObservabilitySearch(call.request.queryParameters)
         call.respond(OperationsQueryService.auditLogs(limit, offset, actionFilter, q))
     }
 
     get("/audit-logs/export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5_000).coerceIn(1, 10_000)
-        val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
+        val limit = parseObservabilityLimit(call.request.queryParameters, defaultLimit = 5_000, maxLimit = 10_000)
+        val offset = parseObservabilityOffsetInt(call.request.queryParameters)
         val logs = OperationsQueryService.auditLogsExport(limit, offset)
         recordAdminAudit(actorId, "ADMIN_AUDIT_EXPORTED", "count=${logs.size}")
         val csv = buildString {
