@@ -177,7 +177,7 @@ internal fun Application.configureAdminManagementRouting(
             get("/users/{id}/sessions") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
                 val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing user id"))
-                val includeRevoked = call.request.queryParameters["includeRevoked"] == "1"
+                val includeRevoked = parseQueryFlagOne(call.request.queryParameters, "includeRevoked")
                 val sessions = authTokenRepo.listActiveRefreshSessions(id, includeRevoked = includeRevoked).map { s ->
                     buildJsonObject {
                         put("tokenHashPrefix", s.tokenHashPrefix)
@@ -295,11 +295,11 @@ put("userId", id)
 
             get("/messages/search") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-                val q = call.request.queryParameters["q"]?.trim().orEmpty()
-                val chatId = call.request.queryParameters["chatId"]?.trim().orEmpty()
-                val userId = call.request.queryParameters["userId"]?.trim().orEmpty()
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-                val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
+                val q = parseTrimmedOrEmpty(call.request.queryParameters, "q")
+                val chatId = parseTrimmedOrEmpty(call.request.queryParameters, "chatId")
+                val userId = parseTrimmedOrEmpty(call.request.queryParameters, "userId")
+                val limit = parseAdminListLimit(call.request.queryParameters)
+                val offset = parseAdminListIntOffset(call.request.queryParameters)
                 if (q.isBlank() && chatId.isBlank() && userId.isBlank()) {
                     return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("q or chatId or userId required"))
                 }
@@ -440,8 +440,8 @@ put("totpEnabled", false)
             get("/bots/{id}/command-logs") {
                 if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
                 val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing bot id"))
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 500)
-                val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
+                val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 500)
+                val offset = parseAdminListIntOffset(call.request.queryParameters)
                 val bot = com.maodouchat.server.repository.BotRepository.get(id)
                     ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("bot not found"))
                 val logs = com.maodouchat.server.repository.BotRepository.listCommandLogs(id, limit, offset)
