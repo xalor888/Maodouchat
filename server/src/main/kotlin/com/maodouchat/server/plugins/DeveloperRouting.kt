@@ -26,7 +26,6 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.JsonNull
@@ -534,7 +533,7 @@ put("ok", true)
                 call.respond(
                 buildJsonObject {
 put("ok", true)
-put("commands", Json.parseToJsonElement(Json.encodeToString(saved)))
+putJsonElement("commands", saved)
 put("count", saved.size)
                 }
             )
@@ -552,7 +551,7 @@ put("count", saved.size)
                 val commands = BotRepository.getMyCommands(botId)
                 call.respond(
                 buildJsonObject {
-put("commands", Json.parseToJsonElement(Json.encodeToString(commands)))
+putJsonElement("commands", commands)
 put("count", commands.size)
                 }
             )

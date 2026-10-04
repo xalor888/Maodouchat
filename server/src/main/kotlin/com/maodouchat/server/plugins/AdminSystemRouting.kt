@@ -13,7 +13,6 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.put
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -133,8 +132,8 @@ get("/settings") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         call.respond(
         buildJsonObject {
-put("settings", Json.parseToJsonElement(Json.encodeToString(RuntimeConfigService.all())))
-put("defaults", Json.parseToJsonElement(Json.encodeToString(RuntimeConfigService.defaults())))
+putJsonElement("settings", RuntimeConfigService.all())
+putJsonElement("defaults", RuntimeConfigService.defaults())
 put("envAllowRegistration", ServerConfig.allowRegistration)
         }
     )
@@ -159,7 +158,7 @@ put("envAllowRegistration", ServerConfig.allowRegistration)
         call.respond(
         buildJsonObject {
 put("status", "ok")
-put("settings", Json.parseToJsonElement(Json.encodeToString(applied)))
+putJsonElement("settings", applied)
         }
     )
     }
