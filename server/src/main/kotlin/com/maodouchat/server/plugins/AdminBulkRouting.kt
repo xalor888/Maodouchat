@@ -31,7 +31,6 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -87,9 +86,9 @@ internal fun Route.configureAdminBulkRoutes(
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("loggedOut", Json.parseToJsonElement(Json.encodeToString(okIds)))
-put("skippedAdmins", Json.parseToJsonElement(Json.encodeToString(skippedAdmins)))
-put("skippedMissing", Json.parseToJsonElement(Json.encodeToString(skippedMissing)))
+putJsonElement("loggedOut", okIds)
+putJsonElement("skippedAdmins", skippedAdmins)
+putJsonElement("skippedMissing", skippedMissing)
 put("count", okIds.size)
         }
     )
@@ -119,8 +118,8 @@ put("count", okIds.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("banned", Json.parseToJsonElement(Json.encodeToString(banned)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("banned", banned)
+putJsonElement("skipped", skipped)
 put("until", until)
 put("count", banned.size)
         }
@@ -145,8 +144,8 @@ put("count", banned.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -174,8 +173,8 @@ put("count", updated.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("until", until)
 put("days", days)
 put("count", updated.size)
@@ -202,8 +201,8 @@ post("/users/bulk-message-restrict") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("until", until)
 put("count", updated.size)
         }
@@ -228,8 +227,8 @@ put("count", updated.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -286,8 +285,8 @@ get("/ai-usage-export") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("until", until)
 put("days", days)
 put("count", updated.size)
@@ -311,8 +310,8 @@ put("count", updated.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -343,8 +342,8 @@ post("/users/bulk-set-message-restrict-until") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("until", until)
 put("count", updated.size)
         }
@@ -368,8 +367,8 @@ put("count", updated.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -391,8 +390,8 @@ put("count", updated.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -420,8 +419,8 @@ put("count", updated.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
 put("showStatus", showStatus)
         }
@@ -450,8 +449,8 @@ put("showStatus", showStatus)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
 put("showOnline", showOnline)
         }
@@ -480,8 +479,8 @@ put("showOnline", showOnline)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
 put("searchable", searchable)
         }
@@ -504,8 +503,8 @@ put("searchable", searchable)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -531,8 +530,8 @@ put("count", updated.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -565,8 +564,8 @@ post("/users/bulk-set-suspend-until") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
 put("suspendedUntil", until)
         }
@@ -587,8 +586,8 @@ post("/users/bulk-clear-all-restrictions") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -608,8 +607,8 @@ post("/users/bulk-clear-message-and-post-restrict") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -656,8 +655,8 @@ post("/users/bulk-force-token-bump") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -677,8 +676,8 @@ post("/users/bulk-clear-suspend") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -698,8 +697,8 @@ post("/users/bulk-clear-message-restrict") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )
@@ -724,8 +723,8 @@ post("/users/bulk-message-restrict-days") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("until", until)
 put("days", days)
 put("count", updated.size)
@@ -747,8 +746,8 @@ post("/users/bulk-clear-post-restrict") {
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("updated", Json.parseToJsonElement(Json.encodeToString(updated)))
-put("skipped", Json.parseToJsonElement(Json.encodeToString(skipped)))
+putJsonElement("updated", updated)
+putJsonElement("skipped", skipped)
 put("count", updated.size)
         }
     )

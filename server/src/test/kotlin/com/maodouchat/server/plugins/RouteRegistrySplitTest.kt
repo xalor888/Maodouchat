@@ -44,7 +44,8 @@ class RouteRegistrySplitTest {
         // 管理后台路由已按子域拆分为多个实现模块（Management / Observability / Moderation / …），
         // 端点计数必须覆盖全部模块，防止任一模块的端点被意外删减。
         val adminRouteModules = ADMIN_ROUTE_MODULES.joinToString("\n") { source(it) }
-        assertEquals(381, ENDPOINT_DECLARATION.findAll(adminRouteModules).count())
+        // 381 → 326：55 处响应体 put("…", …) 收敛为 putJsonElement("…", …)，行首不再命中 put(" 正则；端点本身无增减。
+        assertEquals(326, ENDPOINT_DECLARATION.findAll(adminRouteModules).count())
         listOf(
             "channel-health",
             "dashboard",

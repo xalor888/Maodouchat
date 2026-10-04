@@ -20,7 +20,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.put
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -228,7 +227,7 @@ internal fun Route.configurePublicUpdateRoutes(cacheService: CacheService) {
             put("secretReadReceiptBlockEnabled", RuntimeConfigService.isSecretReadReceiptBlockEnabled())
             put("secretPresenceBlockEnabled", RuntimeConfigService.isSecretPresenceBlockEnabled())
             put("secretLastSeenBlockEnabled", RuntimeConfigService.isSecretLastSeenBlockEnabled())
-            put("secretSurfaceFlags", Json.parseToJsonElement(Json.encodeToString(publicSecretSurfaceFlags())))
+            putJsonElement("secretSurfaceFlags", publicSecretSurfaceFlags())
             put("serverTime", System.currentTimeMillis())
         }.toString()
         cacheService.putPublicStatus(statusCacheKey, body)

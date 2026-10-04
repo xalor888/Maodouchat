@@ -14,7 +14,6 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
 internal fun Route.configureAccountRoutes(
@@ -387,7 +386,7 @@ put("ok", true)
                     val publicProfileUrl = user.username?.let { "${ServerConfig.baseUrl.trimEnd('/')}/u/${it}" }
                     call.respond(
                 buildJsonObject {
-put("user", Json.parseToJsonElement(Json.encodeToString(user)))
+putJsonElement("user", user)
 put("publicProfileUrl", publicProfileUrl)
                 }
             )

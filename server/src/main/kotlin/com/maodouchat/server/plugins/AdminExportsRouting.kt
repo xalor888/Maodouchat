@@ -36,7 +36,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -535,8 +534,8 @@ get("/pinned-messages-export") {
         call.respond(
         buildJsonObject {
 put("generatedAt", System.currentTimeMillis())
-put("settings", Json.parseToJsonElement(Json.encodeToString(RuntimeConfigService.all())))
-put("defaults", Json.parseToJsonElement(Json.encodeToString(RuntimeConfigService.defaults())))
+putJsonElement("settings", RuntimeConfigService.all())
+putJsonElement("defaults", RuntimeConfigService.defaults())
 put("security", buildJsonObject {
 put("sealedSenderEnabled", RuntimeConfigService.isSealedSenderEnabled())
 put("aiEnabled", RuntimeConfigService.isAiEnabled())

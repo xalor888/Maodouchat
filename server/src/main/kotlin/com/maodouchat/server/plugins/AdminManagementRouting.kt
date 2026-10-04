@@ -452,7 +452,7 @@ put("totpEnabled", false)
                 buildJsonObject {
 put("botId", bot.id)
 put("username", bot.username)
-put("logs", Json.parseToJsonElement(Json.encodeToString(logs)))
+putJsonElement("logs", logs)
 put("count", logs.size)
                 }
             )
