@@ -93,9 +93,9 @@ fun Application.configureAnnouncementRoutes(
                     val actorId = call.requireUserId()
                     val req = call.receiveAdminJson<CreateAnnouncementRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
-                    if (req.title.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("公告标题不能为空"))
-                    if (req.content.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("公告内容不能为空"))
-                    if (req.content.length > MAX_ANNOUNCEMENT_CONTENT_CHARS) {
+                    val title = call.requireNonBlankValueOr400(req.title, "公告标题不能为空") ?: return@post
+                    val content = call.requireNonBlankValueOr400(req.content, "公告内容不能为空") ?: return@post
+                    if (content.length > MAX_ANNOUNCEMENT_CONTENT_CHARS) {
                         return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("公告内容过长"))
                     }
                     val audience = req.audience.uppercase().take(20)
@@ -116,7 +116,7 @@ fun Application.configureAnnouncementRoutes(
                     if (startsAt > expiresAt) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("生效时间不能晚于失效时间"))
                     if (expiresAt < now) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("失效时间不能早于当前时间"))
                     val created = announcementRepo.create(
-                        title = req.title, content = req.content, level = level,
+                        title = title, content = content, level = level,
                         targetAudience = audience, targetTagId = req.tagId?.takeIf { audience == "TAGGED" },
                         startsAt = startsAt, expiresAt = expiresAt, createdBy = actorId,
                         asDraft = asDraft

@@ -47,15 +47,15 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
                     val actorId = call.requireUserId()
                     val req = call.receiveAdminJson<CreateUserTagRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
-                    if (req.name.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("标签名称不能为空"))
+                    val name = call.requireNonBlankValueOr400(req.name, "标签名称不能为空") ?: return@post
                     val riskLevel = req.riskLevel.uppercase().take(20)
                     if (riskLevel !in setOf("NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL")) {
                         return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("风控级别非法"))
                     }
-                    val duplicate = userTagRepo.listTags().any { it.name.equals(req.name.trim(), ignoreCase = true) }
+                    val duplicate = userTagRepo.listTags().any { it.name.equals(name.trim(), ignoreCase = true) }
                     if (duplicate) return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("同名标签已存在"))
                     val tag = userTagRepo.createTag(
-                        name = req.name, color = req.color, description = req.description,
+                        name = name, color = req.color, description = req.description,
                         riskLevel = riskLevel, isSystem = false, createdBy = actorId
                     )
                     recordAdminAudit(actorId, "USER_TAG_CREATED", "tagId=${tag.id};name=${tag.name};risk=$riskLevel")
