@@ -16,7 +16,7 @@ internal fun Route.configureBotCommandRoutes(botSendRateLimiter: BoundedRateLimi
         val commands = com.maodouchat.server.repository.BotRepository.getMyCommands(bot.id)
         call.respond(
         buildJsonObject {
-put("commands", Json.parseToJsonElement(Json.encodeToString(commands)))
+putJsonElement("commands", commands)
 put("count", commands.size)
         }
     )
@@ -43,7 +43,7 @@ put("count", commands.size)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("commands", Json.parseToJsonElement(Json.encodeToString(saved)))
+putJsonElement("commands", saved)
 put("count", saved.size)
         }
     )

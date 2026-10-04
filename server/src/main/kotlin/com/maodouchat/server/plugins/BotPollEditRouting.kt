@@ -50,7 +50,7 @@ put("username", bot.username)
 put("description", (bot.description ?: ""))
 put("enabled", bot.enabled)
 put("webhookUrl", (bot.webhookUrl ?: ""))
-put("commands", Json.parseToJsonElement(Json.encodeToString(commands)))
+putJsonElement("commands", commands)
 put("markdownEnabled", com.maodouchat.server.service.RuntimeConfigService.isMarkdownEnabled())
 put("typingIndicatorsEnabled", com.maodouchat.server.service.RuntimeConfigService.isTypingIndicatorsEnabled())
 put("mediaUploadEnabled", com.maodouchat.server.service.RuntimeConfigService.isMediaUploadEnabled())
@@ -81,7 +81,7 @@ put("mediaUploadEnabled", com.maodouchat.server.service.RuntimeConfigService.isM
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
+putJsonElement("poll", poll)
 put("alias", "closePoll")
         }
     )

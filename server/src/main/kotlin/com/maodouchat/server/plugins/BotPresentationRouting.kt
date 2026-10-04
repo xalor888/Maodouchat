@@ -74,7 +74,7 @@ put("ping", "shield")
         buildJsonObject {
 put("ok", true)
 put("botId", bot.id)
-        put("capabilities", Json.parseToJsonElement(Json.encodeToString(BOT_CAPABILITIES)))
+        putJsonElement("capabilities", BOT_CAPABILITIES)
 put("runtime", buildJsonObject {
 put("markdownEnabled", com.maodouchat.server.service.RuntimeConfigService.isMarkdownEnabled())
 put("mediaUploadEnabled", com.maodouchat.server.service.RuntimeConfigService.isMediaUploadEnabled())

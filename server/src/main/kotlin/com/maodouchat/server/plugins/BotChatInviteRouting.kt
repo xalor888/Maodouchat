@@ -77,7 +77,7 @@ internal fun Route.configureBotChatInviteRoutes(
         buildJsonObject {
 put("ok", true)
 put("chatId", chatId)
-put("pins", Json.parseToJsonElement(Json.encodeToString(outcome.pins)))
+putJsonElement("pins", outcome.pins)
 put("count", 0)
         }
     )
