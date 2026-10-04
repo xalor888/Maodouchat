@@ -20,10 +20,11 @@ internal fun Route.configureAdminContentRoutes(
 ) {
     get("/posts") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-        val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
+        val limit = parseAdminListLimit(call.request.queryParameters)
+        val offset = parseAdminListOffset(call.request.queryParameters)
+        // status 不用 parseAdminListStatus：此处沿用未 trim 的原语义
         val status = call.request.queryParameters["status"]?.takeIf { it.isNotBlank() }
-        val search = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
+        val search = parseAdminListSearch(call.request.queryParameters)
         val posts = adminManagementRepo.listAdminPosts(
             limit = limit,
             offset = offset,
@@ -65,9 +66,9 @@ internal fun Route.configureAdminContentRoutes(
 
     get("/comments") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-        val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-        val search = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
+        val limit = parseAdminListLimit(call.request.queryParameters)
+        val offset = parseAdminListOffset(call.request.queryParameters)
+        val search = parseAdminListSearch(call.request.queryParameters)
         val comments = adminManagementRepo.listAdminComments(
             limit = limit,
             offset = offset,
