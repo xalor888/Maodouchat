@@ -65,7 +65,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
                 put("/user-tags/{id}") {
                     if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少标签 ID") ?: return@put
                     val req = call.receiveAdminJson<UpdateUserTagRequest>()
                         ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     val riskLevel = req.riskLevel?.uppercase()?.take(20)
@@ -81,7 +81,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
                 delete("/user-tags/{id}") {
                     if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少标签 ID") ?: return@delete
                     if (!userTagRepo.deleteTag(id)) {
                         return@delete call.respond(HttpStatusCode.Conflict, ErrorResponse("系统内置标签不可删除或标签不存在"))
                     }
@@ -91,7 +91,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
 
                 get("/user-tags/{id}/users") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少标签 ID") ?: return@get
                     val limit = parseAdminListLimit(call.request.queryParameters)
                     val offset = parseAdminListOffset(call.request.queryParameters)
                     val q = parseAdminListSearch(call.request.queryParameters)

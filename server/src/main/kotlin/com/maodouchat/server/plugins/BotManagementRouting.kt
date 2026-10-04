@@ -72,7 +72,7 @@ get("/api/bots") {
         if (!botTokenRateLimiter.acquire(userId, maxPerMinute = 10)) {
             return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
         }
-        val botId = call.parameters["botId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+        val botId = call.requirePathParamOr400("botId", "missing botId") ?: return@post
         val bot = com.maodouchat.server.repository.BotRepository.regenerateToken(botId, userId)
             ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
         call.respond(bot)
@@ -81,7 +81,7 @@ get("/api/bots") {
         if (call.rejectIfMaintenance()) return@put
         val userId = call.requireUserId()
         if (call.rejectIfSuspended(userRepo, userId)) return@put
-        val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+        val botId = call.requirePathParamOr400("botId", "missing botId") ?: return@put
         val body = call.receiveBoundedTextOrEmpty()
         val url = parseManagementWebhookUrl(body)
         if (!url.isNullOrBlank() && !com.maodouchat.server.repository.BotRepository.isAllowedWebhookUrl(url)) {
@@ -95,7 +95,7 @@ get("/api/bots") {
         if (call.rejectIfMaintenance()) return@delete
         val userId = call.requireUserId()
         if (call.rejectIfSuspended(userRepo, userId)) return@delete
-        val botId = call.parameters["botId"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+        val botId = call.requirePathParamOr400("botId", "missing botId") ?: return@delete
         // 8.33 修复：删除 bot 会 bump memberRevision，但此前无广播，客户端成员列表残留
         val affectedGroupIds = com.maodouchat.server.repository.BotRepository.groupChatIdsFor(botId)
         val ok = com.maodouchat.server.repository.BotRepository.delete(botId, userId)
@@ -122,7 +122,7 @@ put("ok", true)
         if (call.rejectIfMaintenance()) return@put
         val userId = call.requireUserId()
         if (call.rejectIfSuspended(userRepo, userId)) return@put
-        val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+        val botId = call.requirePathParamOr400("botId", "missing botId") ?: return@put
         val body = call.receiveBoundedTextOrEmpty()
         val enabled = parseManagementBotEnabled(body)
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled required"))

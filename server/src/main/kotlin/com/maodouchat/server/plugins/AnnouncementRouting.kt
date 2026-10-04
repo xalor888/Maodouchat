@@ -56,9 +56,7 @@ fun Application.configureAnnouncementRoutes(
 
             post("/api/announcements/{id}/ack") {
                 val userId = call.requireUserId()
-                val id = call.parameters["id"] ?: return@post call.respond(
-                    HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID")
-                )
+                val id = call.requirePathParamOr400("id", "缺少公告 ID") ?: return@post
                 // 8.46 修复：ack 必须与 activeForUser 同一可见性判定（status=ACTIVE + 生效窗口
                 // [startsAt,expiresAt] + 受众命中）——否则任意用户可对不可见的 TAGGED/过期公告打已读，
                 // 污染 stats 的 acked 统计。
@@ -132,7 +130,7 @@ fun Application.configureAnnouncementRoutes(
 
                 get("/announcements/{id}") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少公告 ID") ?: return@get
                     val row = announcementRepo.get(id)
                         ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("公告不存在"))
                     call.respond(row.toDto(acked = false))
@@ -141,7 +139,7 @@ fun Application.configureAnnouncementRoutes(
                 put("/announcements/{id}") {
                     if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少公告 ID") ?: return@put
                     val req = call.receiveAdminJson<UpdateAnnouncementRequest>()
                         ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     val current = announcementRepo.get(id)
@@ -184,7 +182,7 @@ fun Application.configureAnnouncementRoutes(
                 post("/announcements/{id}/publish") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少公告 ID") ?: return@post
                     // 发布前快照：仅首次发布（此前非 ACTIVE）推送 FCM，重复 publish 不重复广播
                     val before = announcementRepo.get(id)
                     val wasActive = before?.status == "ACTIVE" && before.publishedAt != null
@@ -228,7 +226,7 @@ fun Application.configureAnnouncementRoutes(
                 post("/announcements/{id}/cancel") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少公告 ID") ?: return@post
                     val cancelled = announcementRepo.cancel(id, actorId)
                         ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("公告不存在"))
                     recordAdminAudit(actorId, "ANNOUNCEMENT_CANCELLED", "id=$id")
@@ -238,7 +236,7 @@ fun Application.configureAnnouncementRoutes(
                 delete("/announcements/{id}") {
                     if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少公告 ID") ?: return@delete
                     if (!announcementRepo.delete(id)) {
                         return@delete call.respond(HttpStatusCode.Conflict, ErrorResponse("仅未发布的草稿可删除；已发布公告请使用取消"))
                     }
@@ -248,7 +246,7 @@ fun Application.configureAnnouncementRoutes(
 
                 get("/announcements/{id}/stats") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少公告 ID"))
+                    val id = call.requirePathParamOr400("id", "缺少公告 ID") ?: return@get
                     val stats = announcementRepo.stats(id)
                         ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("公告不存在"))
                     val ackedCount = announcementRepo.ackedCount(id)

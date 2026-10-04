@@ -241,7 +241,7 @@ post("/api/chats/{chatId}/bots") {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
         }
         if (call.rejectIfSuspended(userRepo, userId)) return@post
-        val chatId = call.parameters["chatId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+        val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@post
         val body = call.receiveBoundedTextOrEmpty(4_096)
         val botId = parseAddBotToChatBotId(body)
         if (botId.isBlank() || botId.length > 80) {
