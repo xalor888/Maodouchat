@@ -40,9 +40,9 @@ internal fun Route.configureAdminDiagnosticsRoutes() {
     // ─── 推送令牌管理 ─────────────────
     get("/push-tokens") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-        val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-        val search = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
+        val limit = parseAdminListLimit(call.request.queryParameters)
+        val offset = parseAdminListOffset(call.request.queryParameters)
+        val search = parseAdminListSearch(call.request.queryParameters)
         val tokens = adminRepo.listPushTokens(limit, offset, search)
         call.respond(tokens)
     }
@@ -63,8 +63,8 @@ internal fun Route.configureAdminDiagnosticsRoutes() {
 
     get("/bots") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
-        val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
+        val limit = parseAdminBotsListLimit(call.request.queryParameters)
+        val offset = parseAdminBotsListOffset(call.request.queryParameters)
         call.respond(BotRepository.adminList(limit, offset))
     }
 
