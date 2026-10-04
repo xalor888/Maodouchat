@@ -68,7 +68,7 @@ internal fun Route.configureBotPollRoutes(
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
+putJsonElement("poll", poll)
 put("messageId", msgId)
         }
     )
@@ -144,7 +144,7 @@ put("sides", fields.sides)
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
+putJsonElement("poll", poll)
         }
     )
     }
@@ -172,7 +172,7 @@ put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
+putJsonElement("poll", poll)
         }
     )
     }
@@ -190,7 +190,7 @@ put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("poll", Json.parseToJsonElement(Json.encodeToString(poll)))
+putJsonElement("poll", poll)
         }
     )
     }

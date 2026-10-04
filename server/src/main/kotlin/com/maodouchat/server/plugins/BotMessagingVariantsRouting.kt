@@ -201,7 +201,7 @@ put("silent", silent)
         buildJsonObject {
 put("botId", bot.id)
 put("count", commands.size)
-put("commands", Json.parseToJsonElement(Json.encodeToString(commands)))
+putJsonElement("commands", commands)
         }
     )
     }

@@ -90,7 +90,7 @@ put("longitude", lon)
         call.respond(
         buildJsonObject {
 put("chatId", chatId)
-put("polls", Json.parseToJsonElement(Json.encodeToString(polls)))
+putJsonElement("polls", polls)
 put("count", polls.size)
         }
     )
@@ -300,7 +300,7 @@ put("alreadyUnpinned", true)
         buildJsonObject {
 put("ok", true)
 put("pinned", false)
-put("pins", Json.parseToJsonElement(Json.encodeToString(outcome.pins)))
+putJsonElement("pins", outcome.pins)
 put("count", outcome.pins.size)
         }
     )

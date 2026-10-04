@@ -123,7 +123,7 @@ put("action", action)
         buildJsonObject {
 put("ok", true)
 put("pinned", pinned)
-put("pins", Json.parseToJsonElement(Json.encodeToString(outcome.pins)))
+putJsonElement("pins", outcome.pins)
 put("count", outcome.pins.size)
         }
     )
@@ -151,7 +151,7 @@ put("count", outcome.pins.size)
         call.respond(
         buildJsonObject {
 put("chatId", chatId)
-put("pins", Json.parseToJsonElement(Json.encodeToString(pins)))
+putJsonElement("pins", pins)
 put("count", pins.size)
         }
     )

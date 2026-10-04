@@ -86,7 +86,7 @@ put("ok", true)
 put("userId", userId)
 put("readded", chatType == ChatType.CHANNEL)
 put("invited", chatType != ChatType.CHANNEL)
-put("added", Json.parseToJsonElement(Json.encodeToString(addedUserIds)))
+putJsonElement("added", addedUserIds)
         }
     )
     }
