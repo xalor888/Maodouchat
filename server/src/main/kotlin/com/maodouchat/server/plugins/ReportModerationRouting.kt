@@ -74,7 +74,7 @@ put("status", "ok")
 
             get("/api/reports/mine") {
                 val uid = call.requireUserId()
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
+                val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
                 call.respond(reportRepo.getMyReports(uid, limit))
             }
 
@@ -87,8 +87,8 @@ put("status", "ok")
                     return@get
                 }
                 val status = call.request.queryParameters["status"]
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 200)
-                val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
+                val limit = parseAdminListLimit(call.request.queryParameters, defaultLimit = 100)
+                val offset = parseAdminListOffset(call.request.queryParameters)
                 call.respond(reportRepo.getReports(status, limit, offset))
             }
 
@@ -301,7 +301,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@get
                 }
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 200)
+                val limit = parseAdminListLimit(call.request.queryParameters, defaultLimit = 100)
                 val needsReview = call.request.queryParameters["needsReview"]?.toBooleanStrictOrNull()
                 call.respond(moderationRuleRepo.getRiskEvents(limit, needsReview))
             }
