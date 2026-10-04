@@ -23,7 +23,7 @@ internal fun Route.configureAdminContentRoutes(
         val limit = parseAdminListLimit(call.request.queryParameters)
         val offset = parseAdminListOffset(call.request.queryParameters)
         // status 不用 parseAdminListStatus：此处沿用未 trim 的原语义
-        val status = call.request.queryParameters["status"]?.takeIf { it.isNotBlank() }
+        val status = parseNonBlankOrNull(call.request.queryParameters, "status")
         val search = parseAdminListSearch(call.request.queryParameters)
         val posts = adminManagementRepo.listAdminPosts(
             limit = limit,
