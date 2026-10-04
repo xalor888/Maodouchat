@@ -51,7 +51,7 @@ internal fun Route.configureAdminModerationRoutes(
     put("/reports/{reportId}/status") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val reportId = call.parameters["reportId"].orEmpty()
+        val reportId = parseRawOrEmpty(call.parameters, "reportId")
         val req = call.receiveAdminJson<UpdateReportStatusRequest>()
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
         when (val result = reportRepo.updateReportStatus(reportId, actorId, req.status, req.resolutionNote)) {
@@ -63,7 +63,7 @@ internal fun Route.configureAdminModerationRoutes(
     post("/reports/{reportId}/action") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val reportId = call.parameters["reportId"].orEmpty()
+        val reportId = parseRawOrEmpty(call.parameters, "reportId")
         val req = call.receiveAdminJson<ApplyReportActionRequest>()
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
         val action = req.action.trim().uppercase()

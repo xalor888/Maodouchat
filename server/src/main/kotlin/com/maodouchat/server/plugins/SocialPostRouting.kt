@@ -263,7 +263,7 @@ internal fun Route.configureSocialPostRoutes(
 
             delete("/api/posts/images/{filename}") {
                 val userId = call.requireUserId()
-                val filename = call.parameters["filename"].orEmpty()
+                val filename = parseRawOrEmpty(call.parameters, "filename")
                 if (!com.maodouchat.server.service.FileStorageService.isOwnedPostImageFilename(filename, userId)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("动态图片无效"))
                     return@delete

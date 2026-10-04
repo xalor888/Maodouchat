@@ -201,8 +201,8 @@ fun Route.configureHealthRoutes() {
     // 按需贴纸文件：放置于 STORAGE_DIR/stickers/<packId>/<file>。
     // packId/file 均做字符白名单 + canonical 路径前缀校验，杜绝路径穿越。
     get("/static/stickers/{packId}/{name}") {
-        val rawPack = call.parameters["packId"].orEmpty()
-        val rawName = call.parameters["name"].orEmpty()
+        val rawPack = parseRawOrEmpty(call.parameters, "packId")
+        val rawName = parseRawOrEmpty(call.parameters, "name")
         val packId = rawPack.replace(Regex("[^A-Za-z0-9_-]"), "").take(40)
         val name = rawName.replace(Regex("[^A-Za-z0-9._-]"), "").take(80)
         if (packId.isEmpty() || name.isEmpty() || packId != rawPack || name != rawName) {
