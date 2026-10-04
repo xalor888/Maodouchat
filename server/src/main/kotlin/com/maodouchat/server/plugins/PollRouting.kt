@@ -22,9 +22,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.slf4j.LoggerFactory
 
@@ -144,16 +142,14 @@ fun Routing.configurePollRoutes() {
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
                 .let(::parsePollJsonEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-            val title = obj["title"]?.jsonPrimitive?.content.orEmpty()
-            val topic = obj["topic"]?.jsonPrimitive?.content.orEmpty()
-            val maxEntries = obj["maxEntries"]?.jsonPrimitive?.intOrNull ?: 200
-            if (title.isBlank() || title.length > MAX_CHAIN_TITLE_LENGTH) {
+            val fields = parseChainCreateFields(obj)
+            if (fields.title.isBlank() || fields.title.length > MAX_CHAIN_TITLE_LENGTH) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙标题无效"))
             }
-            if (topic.length > MAX_CHAIN_TOPIC_LENGTH) {
+            if (fields.topic.length > MAX_CHAIN_TOPIC_LENGTH) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙主题过长"))
             }
-            val chain = GroupCheckinRepository.createChain(chatId, userId, title, topic, maxEntries)
+            val chain = GroupCheckinRepository.createChain(chatId, userId, fields.title, fields.topic, fields.maxEntries)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建接龙"))
             broadcastGroupPlayUpdate(chatId, "chain_created") { viewerId ->
                 GroupCheckinRepository.getChain(chain.id, viewerId)
@@ -197,7 +193,7 @@ fun Routing.configurePollRoutes() {
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
                 .let(::parsePollJsonEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-            val content = obj["content"]?.jsonPrimitive?.content.orEmpty()
+            val content = parseChainJoinContent(obj)
             if (content.isBlank() || content.length > MAX_CHAIN_CONTENT_LENGTH) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙内容无效"))
             }
@@ -226,15 +222,14 @@ fun Routing.configurePollRoutes() {
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
                 .let(::parsePollJsonEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-            val leftTitle = obj["leftTitle"]?.jsonPrimitive?.content.orEmpty()
-            val rightTitle = obj["rightTitle"]?.jsonPrimitive?.content.orEmpty()
-            if (leftTitle.isBlank() || rightTitle.isBlank() ||
-                leftTitle.length > MAX_PK_TITLE_LENGTH || rightTitle.length > MAX_PK_TITLE_LENGTH
+            val fields = parsePkCreateFields(obj)
+            if (fields.leftTitle.isBlank() || fields.rightTitle.isBlank() ||
+                fields.leftTitle.length > MAX_PK_TITLE_LENGTH || fields.rightTitle.length > MAX_PK_TITLE_LENGTH
             ) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("PK 双方标题无效"))
             }
             // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
-            val pk = GroupCheckinRepository.createPk(chatId, userId, leftTitle, rightTitle)
+            val pk = GroupCheckinRepository.createPk(chatId, userId, fields.leftTitle, fields.rightTitle)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建 PK"))
             broadcastGroupPlayUpdate(chatId, "pk_created") { viewerId ->
                 GroupCheckinRepository.getPk(pk.id, viewerId)
@@ -279,7 +274,7 @@ fun Routing.configurePollRoutes() {
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
                 .let(::parsePollJsonEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-            val choice = obj["choice"]?.jsonPrimitive?.content.orEmpty()
+            val choice = parsePkVoteChoice(obj)
             // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
             val pk = GroupCheckinRepository.votePk(pkId, userId, choice)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("PK 投票失败：仅限群成员且未结束"))
