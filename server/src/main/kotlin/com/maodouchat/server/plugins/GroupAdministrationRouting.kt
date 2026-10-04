@@ -112,7 +112,7 @@ internal fun Route.configureGroupAdministrationRoutes(
             }
             val body = call.receiveBoundedText()
             val request = body?.takeIf(String::isNotBlank)?.let { parseJson<CreateGroupInviteRequest>(it) }
-                ?: CreateGroupInviteRequest(rotate = call.request.queryParameters["rotate"] == "1")
+                ?: CreateGroupInviteRequest(rotate = parseQueryFlagOne(call.request.queryParameters, "rotate"))
             if (request.expiresInSeconds !in 300L..MAX_INVITE_TTL_SECONDS || request.maxUses !in 1..1000) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("邀请有效期或使用次数无效"))
                 return@post
@@ -215,8 +215,8 @@ internal fun Route.configureGroupAdministrationRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权查看群操作记录"))
                 return@get
             }
-            val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
-            val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
+            val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
+            val offset = parseAdminListIntOffset(call.request.queryParameters)
             call.respond(auditRepository.list(chatId, limit, offset, viewerId = userId))
         }
 
@@ -247,7 +247,7 @@ internal fun Route.configureGroupAdministrationRoutes(
                         (targetUserId == userId && currentDeviceId != null && deviceId == currentDeviceId)
                 }
                 .toSet()
-            val epoch = call.request.queryParameters["epoch"]?.toLongOrNull()
+            val epoch = parseOptionalLong(call.request.queryParameters, "epoch")
             call.respond(senderKeyRepository.getStatus(chatId, userId, epoch, expectedTargets))
         }
 
