@@ -72,8 +72,8 @@ class AdminBulkBooleanSettingParseFuzzTest {
 
     @Test
     fun `accepted literals are pinned`() {
-        val trueWords = listOf("true", "1", "yes", "on", "TRUE", "Off", "Yes", "NO")
-        val falseWords = listOf("false", "0", "no", "off")
+        val trueWords = listOf("true", "1", "yes", "on", "TRUE", "Yes")
+        val falseWords = listOf("false", "0", "no", "off", "Off", "NO")
         trueWords.forEach { word ->
             assertEquals(true, parseAdminBulkBooleanSetting(JsonObject(mapOf("k" to JsonPrimitive(word))), "k"),
                 "word $word must parse true")
