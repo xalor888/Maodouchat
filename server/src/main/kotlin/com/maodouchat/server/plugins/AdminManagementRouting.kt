@@ -38,7 +38,6 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import java.lang.management.ManagementFactory
 import java.util.UUID
@@ -345,9 +344,10 @@ post("/broadcast") {
                 val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
                 val obj = parseAdminManagementJsonEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val text = obj["text"]?.jsonPrimitive?.content?.trim().orEmpty().take(2000)
+                val broadcast = parseAdminBroadcastContent(obj)
+                val text = broadcast.text
                 if (text.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("text required"))
-                val title = obj["title"]?.jsonPrimitive?.content?.trim()?.take(120).orEmpty().ifBlank { "System" }
+                val title = broadcast.title
                 val payload = kotlinx.serialization.json.buildJsonObject {
                     put("title", title)
                     put("text", text)
