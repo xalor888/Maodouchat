@@ -94,7 +94,7 @@ put("count", okIds.size)
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val ids = parseAdminIds(obj)
-        val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1).coerceIn(1, DispositionService.MAX_BAN_DAYS)
+        val days = parseAdminBulkDays(obj, 1, DispositionService.MAX_BAN_DAYS)
         val reasonCode = obj["reasonCode"]?.jsonPrimitive?.content.orEmpty().ifBlank { "BULK_BAN" }
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
@@ -152,7 +152,7 @@ put("count", updated.size)
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val ids = parseAdminIds(obj)
-        val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1).coerceIn(1, 365)
+        val days = parseAdminBulkDays(obj, 1, 365)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = System.currentTimeMillis() + days * 86_400_000L
         val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, until, "ADMIN_BULK_SUSPEND_DAYS", { e -> "days=$days;until=$e" })
@@ -181,8 +181,7 @@ post("/users/bulk-message-restrict") {
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val ids = parseAdminIds(obj)
-        val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
-            .coerceIn(0, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
+        val days = parseAdminBulkDays(obj, 0, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
@@ -267,8 +266,7 @@ get("/ai-usage-export") {
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val ids = parseAdminIds(obj)
-        val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
-            .coerceIn(0, DispositionService.MAX_POST_RESTRICT_DAYS)
+        val days = parseAdminBulkDays(obj, 0, DispositionService.MAX_POST_RESTRICT_DAYS)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = if (days <= 0) 0L else System.currentTimeMillis() + days * 86_400_000L
         val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.POST, until, "ADMIN_BULK_POST_RESTRICT", { e -> "days=$days;until=$e" })
@@ -396,12 +394,8 @@ put("count", updated.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val showStatus = when (val raw = obj["showStatus"]?.jsonPrimitive?.content?.lowercase()) {
-            "false", "0", "no", "off" -> false
-            "true", "1", "yes", "on" -> true
-            // 9.131：缺字段/拼写错误不得静默默认 true（隐私开关被反向打开）
-            else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showStatus must be a boolean"))
-        }
+        val showStatus = parseAdminBulkBooleanSetting(obj, "showStatus")
+            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showStatus must be a boolean"))
         val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SHOW_STATUS, showStatus)
@@ -426,12 +420,8 @@ put("showStatus", showStatus)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val showOnline = when (val raw = obj["showOnline"]?.jsonPrimitive?.content?.lowercase()) {
-            "false", "0", "no", "off" -> false
-            "true", "1", "yes", "on" -> true
-            // 9.131：缺字段/拼写错误不得静默默认 true
-            else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showOnline must be a boolean"))
-        }
+        val showOnline = parseAdminBulkBooleanSetting(obj, "showOnline")
+            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showOnline must be a boolean"))
         val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SHOW_ONLINE, showOnline)
@@ -456,12 +446,8 @@ put("showOnline", showOnline)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val searchable = when (val raw = obj["searchable"]?.jsonPrimitive?.content?.lowercase()) {
-            "false", "0", "no", "off" -> false
-            "true", "1", "yes", "on" -> true
-            // 9.131：缺字段/拼写错误不得静默默认 true（把用户批量设成可被搜索）
-            else -> return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("searchable must be a boolean"))
-        }
+        val searchable = parseAdminBulkBooleanSetting(obj, "searchable")
+            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("searchable must be a boolean"))
         val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SEARCHABLE, searchable)
@@ -699,8 +685,7 @@ post("/users/bulk-message-restrict-days") {
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         // 9.131：上限改用策略常量——此前硬编码 3650 天（10 年）绕过
         // DispositionService.MAX_MESSAGE_RESTRICT_DAYS(90) 的处置上限
-        val days = (obj["days"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1)
-            .coerceIn(1, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
+        val days = parseAdminBulkDays(obj, 1, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
         val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = System.currentTimeMillis() + days * 24L * 60L * 60L * 1000L
