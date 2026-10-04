@@ -314,9 +314,7 @@ post("/users/bulk-set-message-restrict-until") {
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val ids = parseAdminIds(obj)
-        val until = (obj["until"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: obj["untilMs"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: 0L).coerceAtLeast(0L)
+        val until = parseAdminBulkTimestampMs(obj, "until", "untilMs").coerceAtLeast(0L)
         // 8.37：与单用户端点一致的时间合法性校验（此前只 coerceAtLeast(0)，
         // 过去时间戳被静默写成已过期限制，Long.MAX_VALUE 绕过 10 年上限）
         val now = System.currentTimeMillis()
@@ -516,9 +514,7 @@ post("/users/bulk-set-suspend-until") {
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val until = obj["suspendedUntil"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: obj["until"]?.jsonPrimitive?.content?.toLongOrNull()
-            ?: 0L
+        val until = parseAdminBulkTimestampMs(obj, "suspendedUntil", "until")
         val now = System.currentTimeMillis()
         if (until < 0 || until > now + MAX_ADMIN_SUSPEND_MS || (until in 1..now)) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("suspendedUntil invalid"))
