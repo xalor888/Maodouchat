@@ -85,20 +85,20 @@ fun Application.configureAdminEnhanceRouting(
                 get("/audit/time-range-export") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val scope = call.request.queryParameters["scope"]?.trim()?.uppercase()?.take(30)
+                    val scope = parseUpperToken(call.request.queryParameters, "scope", 30)
                         ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少导出范围 scope"))
                     if (scope !in setOf("ADMIN_AUDIT", "RISK_EVENTS", "ANNOUNCEMENTS", "USER_TAGS", "RATE_LIMIT")) {
                         return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("导出范围非法"))
                     }
-                    val fromMs = call.request.queryParameters["fromMs"]?.toLongOrNull()
+                    val fromMs = parseRequiredLong(call.request.queryParameters, "fromMs")
                         ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少 fromMs"))
-                    val toMs = call.request.queryParameters["toMs"]?.toLongOrNull()
+                    val toMs = parseRequiredLong(call.request.queryParameters, "toMs")
                         ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少 toMs"))
                     if (fromMs >= toMs) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("时间范围非法"))
                     if (toMs - fromMs > MAX_EXPORT_RANGE_MS) {
                         return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("导出时间范围不得超过 90 天"))
                     }
-                    val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5_000).coerceIn(1, 10_000)
+                    val limit = parseExportLimit(call.request.queryParameters, 5_000, 10_000)
                     val export = exportService.auditExportCsv(scope, fromMs, toMs, limit)
                     val fileName = "maodouchat-${scope.lowercase()}-${fromMs}-${toMs}.csv"
                     exportRepository.recordAuditExport(
@@ -119,12 +119,13 @@ fun Application.configureAdminEnhanceRouting(
                 // ═══ 限流仪表盘 ═══
                 get("/rate-limit/dashboard") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val range = call.request.queryParameters["range"]?.trim()?.lowercase() ?: "24h"
+                    val range = parseRateLimitRange(call.request.queryParameters)
+                        ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("range 非法：1h / 24h / 7d"))
                     val hours = when (range) {
                         "1h" -> 1
                         "24h" -> 24
-                        "7d" -> 24 * 7
-                        else -> return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("range 非法：1h / 24h / 7d"))
+                        // parse 已保证只剩 7d
+                        else -> 24 * 7
                     }
                     val now = System.currentTimeMillis()
                     val fromMs = now - hours * 3_600_000L
@@ -169,7 +170,7 @@ fun Application.configureAdminEnhanceRouting(
                 // ═══ 设备事件一致性 ═══
                 get("/device-consistency/summary") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val userId = call.request.queryParameters["userId"]?.trim()?.takeIf { it.isNotBlank() }
+                    val userId = parseOptionalTrimmed(call.request.queryParameters, "userId")
                     val sequences = exportRepository.deviceSequences(userId).map { row ->
                         DeviceSeqResponse(
                             userId = row.userId,
@@ -185,10 +186,10 @@ fun Application.configureAdminEnhanceRouting(
 
                 get("/device-consistency/events") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-                    val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-                    val status = call.request.queryParameters["status"]?.trim()?.uppercase()?.take(20)
-                    val userId = call.request.queryParameters["userId"]?.trim()?.takeIf { it.isNotBlank() }
+                    val limit = parseAdminListLimit(call.request.queryParameters)
+                    val offset = parseAdminListOffset(call.request.queryParameters)
+                    val status = parseUpperToken(call.request.queryParameters, "status", 20)
+                    val userId = parseOptionalTrimmed(call.request.queryParameters, "userId")
                     val events = exportRepository.deviceAnomalies(userId, status, limit, offset).map { row ->
                         DeviceAnomalyResponse(
                             id = row.id,
