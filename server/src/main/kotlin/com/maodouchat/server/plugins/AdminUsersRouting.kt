@@ -43,10 +43,10 @@ internal fun Route.configureAdminUsersRoutes(
     // ─── 用户管理 ─────────────────────
     get("/users") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-        val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-        val search = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
-        val status = call.request.queryParameters["status"]?.trim()?.takeIf { it.isNotBlank() }
+        val limit = parseAdminListLimit(call.request.queryParameters)
+        val offset = parseAdminListOffset(call.request.queryParameters)
+        val search = parseAdminListSearch(call.request.queryParameters)
+        val status = parseAdminListStatus(call.request.queryParameters)
         val users = adminManagementRepo.listUsers(limit, offset, search, status)
         call.respond(users)
     }
