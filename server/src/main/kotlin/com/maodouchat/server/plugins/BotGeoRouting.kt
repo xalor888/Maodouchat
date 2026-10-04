@@ -80,8 +80,7 @@ put("longitude", lon)
 
     get("/api/bot/listChatPolls") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val chatId = parseRawOrEmpty(call.request.queryParameters, "chatId")
-        if (chatId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val chatId = call.requireNonBlankParamOr400("chatId", "chatId required") ?: return@get
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
@@ -121,9 +120,8 @@ put("name", updated.name)
 
     get("/api/bot/getChatHistory") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val chatId = parseRawOrEmpty(call.request.queryParameters, "chatId")
+        val chatId = call.requireNonBlankParamOr400("chatId", "chatId required") ?: return@get
         val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
-        if (chatId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
