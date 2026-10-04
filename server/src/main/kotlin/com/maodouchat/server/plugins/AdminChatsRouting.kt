@@ -35,7 +35,7 @@ internal fun Route.configureAdminChatsRoutes(
     delete("/chats/{id}") {
         if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少聊天 ID"))
+        val id = call.requirePathParamOr400("id", "缺少聊天 ID") ?: return@delete
 
         val (status, attachmentIds, groupAvatarUrl) = adminManagementRepo.dissolveGroupChat(id)
         if (status == "missing") return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))

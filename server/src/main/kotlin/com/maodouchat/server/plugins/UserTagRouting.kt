@@ -111,7 +111,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
 
                 get("/users/{userId}/tags") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
+                    val userId = call.requirePathParamOr400("userId", "缺少用户 ID") ?: return@get
                     val assignments = userTagRepo.userAssignments(userId)
                     call.respond(assignments.map { it.toDto() })
                 }
@@ -119,7 +119,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
                 post("/users/{userId}/tags") {
                     if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val userId = call.parameters["userId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
+                    val userId = call.requirePathParamOr400("userId", "缺少用户 ID") ?: return@post
                     val req = call.receiveAdminJson<AssignUserTagsRequest>()
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
                     if (req.tagIds.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("标签列表不能为空"))
@@ -141,8 +141,8 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
                 delete("/users/{userId}/tags/{tagId}") {
                     if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val actorId = call.requireUserId()
-                    val userId = call.parameters["userId"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
-                    val tagId = call.parameters["tagId"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
+                    val userId = call.requirePathParamOr400("userId", "缺少用户 ID") ?: return@delete
+                    val tagId = call.requirePathParamOr400("tagId", "缺少标签 ID") ?: return@delete
                     if (!userTagRepo.detachTag(userId, tagId)) {
                         return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("该用户未打此标签"))
                     }
