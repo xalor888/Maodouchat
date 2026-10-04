@@ -13,15 +13,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.put
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * 管理后台「诊断」子域路由：AI 使用审计、推送令牌、Bot 开关、Ops 快照。
- * 只暴露元数据（绝不下发 prompt / 消息正文 / E2EE 密文）；全部查询与写入走 repository，
- * 本文件不再直接开事务或引用任何 Exposed 表。
- */
 internal fun Route.configureAdminDiagnosticsRoutes() {
     val aiRepo = AiRepository()
     val adminRepo = AdminManagementRepository()
@@ -60,10 +52,8 @@ internal fun Route.configureAdminDiagnosticsRoutes() {
         val adminId = call.requireUserId()
         val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
         val bodyText = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
-        val enabled = runCatching {
-            val p = adminJson.parseToJsonElement(bodyText).jsonObject["enabled"]?.jsonPrimitive
-            p?.booleanOrNull ?: p?.content?.toBooleanStrictOrNull()
-        }.getOrNull() ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled required"))
+        val enabled = parseAdminModeratorEnabled(bodyText)
+            ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled required"))
 
         val updated = BotRepository.setAdminEnabled(botId, enabled)
             ?: return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("bot not found"))
