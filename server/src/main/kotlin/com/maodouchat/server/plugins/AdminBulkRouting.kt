@@ -31,7 +31,6 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonPrimitive
@@ -51,14 +50,7 @@ internal fun Route.configureAdminBulkRoutes(
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["userIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull {
-                runCatching { it.jsonPrimitive.content }.getOrNull()
-            }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(200)
+        val ids = parseAdminBulkIdList(obj, "userIds", 200)
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
@@ -517,12 +509,7 @@ put("count", updated.size)
         val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val obj = parseAdminBulkJsonEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-        val rawIds = obj["chatIds"]
-        val ids = when {
-            rawIds == null -> emptyList()
-            rawIds is kotlinx.serialization.json.JsonArray -> rawIds.mapNotNull { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            else -> rawIds.jsonPrimitive.content.split(',', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotBlank() }
-        }.map { it.take(64) }.distinct().take(100)
+        val ids = parseAdminBulkIdList(obj, "chatIds", 100)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatIds required"))
         val updated = groupInvitationService.adminRevokeTokens(ids)
         val skipped = ids.filter { it !in updated }
