@@ -151,8 +151,8 @@ internal fun Route.configureSocialPostRoutes(
                     return@get
                 }
                 val userId = call.requireUserId()
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 30).coerceIn(1, 50)
-                val before = call.request.queryParameters["before"]?.toLongOrNull()
+                val limit = parseAdminListLimit(call.request.queryParameters, defaultLimit = 30, maxLimit = 50)
+                val before = parseSocialFeedBefore(call.request.queryParameters)
                 val beforeId = call.request.queryParameters["beforeId"]
                     ?.takeIf { before != null && it.isNotBlank() && it.length <= 100 }
                 val authorId = call.request.queryParameters["authorId"]
@@ -413,8 +413,8 @@ put("status", "ok")
             get("/api/posts/{id}/comments") {
                 val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
-                val before = call.request.queryParameters["before"]?.toLongOrNull()
+                val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
+                val before = parseSocialFeedBefore(call.request.queryParameters)
                 val beforeId = call.request.queryParameters["beforeId"]
                     ?.takeIf { before != null && it.isNotBlank() && it.length <= 100 }
                 val comments = postRepo.getComments(postId, userId, limit, before, beforeId)
@@ -426,7 +426,7 @@ put("status", "ok")
             get("/api/posts/{id}/likers") {
                 val userId = call.requireUserId()
                 val postId = call.parameters["id"]!!
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
+                val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
                 val likers = postRepo.listPostLikers(postId, userId, limit)
                 if (likers == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
                 else call.respond(PostLikersResponse(postId, likers))

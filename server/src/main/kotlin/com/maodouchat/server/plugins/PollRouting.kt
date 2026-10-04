@@ -120,7 +120,7 @@ fun Routing.configurePollRoutes() {
             if (!PollRepository.isMember(chatId, userId)) {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
-            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
+            val limit = parseGroupPlayLimit(call.request.queryParameters, defaultLimit = 20)
             call.respond(GroupCheckinRepository.checkinRanking(chatId, limit, viewerId = userId))
         }
 
@@ -164,7 +164,7 @@ fun Routing.configurePollRoutes() {
             if (!PollRepository.isMember(chatId, userId)) {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
-            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 30
+            val limit = parseGroupPlayLimit(call.request.queryParameters)
             call.respond(GroupCheckinRepository.listChains(chatId, userId, limit))
         }
 
@@ -244,7 +244,7 @@ fun Routing.configurePollRoutes() {
             if (!PollRepository.isMember(chatId, userId)) {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
-            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 30
+            val limit = parseGroupPlayLimit(call.request.queryParameters)
             call.respond(GroupCheckinRepository.listChatPks(chatId, userId, limit))
         }
 
@@ -305,7 +305,7 @@ fun Routing.configurePollRoutes() {
             if (!PollRepository.isGroupChat(chatId) || !PollRepository.isMember(chatId, userId)) {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
-            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 30
+            val limit = parseGroupPlayLimit(call.request.queryParameters)
             call.respond(PollRepository.listChatPollSnapshots(chatId, limit, viewerId = userId))
         }
     }
