@@ -53,6 +53,18 @@ internal fun Route.configureBotPresentationRoutes(
         json = json,
     )
 
+    configureBotPresentationHintsRoutes(
+        userRepository = userRepository,
+        participantRepository = participantRepository,
+        serviceMessageRepository = serviceMessageRepository,
+        botRateLimiter = botRateLimiter,
+        json = json,
+    )
+
+    configureBotPresentationProbesRoutes(
+        botRateLimiter = botRateLimiter,
+    )
+
     get("/api/bot/shieldz") {
         val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@get
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "shieldz")
