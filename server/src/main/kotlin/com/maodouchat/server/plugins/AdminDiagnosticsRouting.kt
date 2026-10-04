@@ -22,16 +22,16 @@ internal fun Route.configureAdminDiagnosticsRoutes() {
     get("/ai-usage") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val limit = AdminAiAuditPolicy.normalizeLimit(
-            call.request.queryParameters["limit"]?.toIntOrNull()
+            parseOptionalInt(call.request.queryParameters, "limit")
         )
         val offset = AdminAiAuditPolicy.normalizeOffset(
-            call.request.queryParameters["offset"]?.toLongOrNull()
+            parseOptionalLong(call.request.queryParameters, "offset")
         )
         val featureFilter = AdminAiAuditPolicy.normalizeFeatureFilter(
-            call.request.queryParameters["feature"]
+            parseRawOrNull(call.request.queryParameters, "feature")
         )
         val userFilter = AdminAiAuditPolicy.normalizeUserFilter(
-            call.request.queryParameters["userId"] ?: call.request.queryParameters["q"]
+            parseFirstPresent(call.request.queryParameters, "userId", "q")
         )
         val logs = aiRepo.listAuditLogsForAdmin(limit, offset, featureFilter, userFilter)
         call.respond(logs)

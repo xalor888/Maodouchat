@@ -20,7 +20,7 @@ internal fun Route.configureAdminChatsRoutes(
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val limit = parseAdminListLimit(call.request.queryParameters)
         val offset = parseAdminListOffset(call.request.queryParameters)
-        val groupOnly = call.request.queryParameters["groupOnly"] != "false"
+        val groupOnly = parseDefaultTrueFlag(call.request.queryParameters, "groupOnly")
         val search = parseAdminListSearch(call.request.queryParameters)
 
         val chats = adminManagementRepo.listAdminChats(
