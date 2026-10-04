@@ -38,10 +38,7 @@ internal fun Route.configureGroupInvitationRoutes(
     authenticate("auth-jwt") {
         post("/api/chats/{chatId}/members") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"]?.takeIf(String::isNotBlank) ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
-                return@post
-            }
+            val chatId = call.requireNonBlankParamOr400("chatId", "聊天 ID 无效") ?: return@post
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             val request = call.receiveJson<CreateChatRequest>() ?: run {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))

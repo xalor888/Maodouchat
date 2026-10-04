@@ -28,7 +28,7 @@ internal fun Route.configurePublicProfileRoutes(
             call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("请求过于频繁，请稍后再试"))
             return@get
         }
-        val username = call.parameters["username"]?.trim()?.lowercase()?.removePrefix("@").orEmpty()
+        val username = parseProfileUsername(call.parameters, "username")
         if (username.isBlank() || username.length < 3) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("用户名无效"))
             return@get
@@ -52,7 +52,7 @@ internal fun Route.configurePublicProfileRoutes(
             call.respondText(buildProfilePage(null, null, "请求过于频繁，请稍后再试"), ContentType.Text.Html)
             return@get
         }
-        val username = call.parameters["username"]?.trim()?.lowercase()?.removePrefix("@").orEmpty()
+        val username = parseProfileUsername(call.parameters, "username")
         if (username.isBlank() || username.length < 3) {
             call.response.header(HttpHeaders.CacheControl, "no-cache")
             call.respondText(buildProfilePage(null, null, "用户名无效"), ContentType.Text.Html)

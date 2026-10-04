@@ -31,10 +31,7 @@ internal fun Route.configureConversationSettingsRoutes(
     authenticate("auth-jwt") {
         put("/api/chats/{chatId}/settings") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"]?.takeIf(String::isNotBlank) ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
-                return@put
-            }
+            val chatId = call.requireNonBlankParamOr400("chatId", "聊天 ID 无效") ?: return@put
             val request = call.receiveJson<UpdateChatSettingsRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("设置参数无效"))
@@ -67,10 +64,7 @@ internal fun Route.configureConversationSettingsRoutes(
             }
             val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepo, userId)) return@put
-            val chatId = call.parameters["chatId"]?.takeIf(String::isNotBlank) ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
-                return@put
-            }
+            val chatId = call.requireNonBlankParamOr400("chatId", "聊天 ID 无效") ?: return@put
             val request = call.receiveJson<UpdateDisappearingMessagesRequest>()
                 ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求体无效"))
