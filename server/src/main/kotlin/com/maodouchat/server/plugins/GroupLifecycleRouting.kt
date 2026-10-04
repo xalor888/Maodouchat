@@ -20,8 +20,8 @@ internal suspend fun ApplicationCall.handleRemoveGroupMember(
     json: Json,
 ) {
     val actorId = requireUserId()
-    val chatId = parameters["chatId"].orEmpty()
-    val targetUserId = parameters["memberId"].orEmpty()
+    val chatId = parseRawOrEmpty(parameters, "chatId")
+    val targetUserId = parseRawOrEmpty(parameters, "memberId")
     if (rejectIfSuspended(userRepo, actorId)) return
 
     val commit = groupMembershipService.removeMember(chatId, actorId, targetUserId)
@@ -44,8 +44,8 @@ internal suspend fun ApplicationCall.handleUpdateGroupMemberRole(
     json: Json,
 ) {
     val actorId = requireUserId()
-    val chatId = parameters["chatId"].orEmpty()
-    val targetUserId = parameters["memberId"].orEmpty()
+    val chatId = parseRawOrEmpty(parameters, "chatId")
+    val targetUserId = parseRawOrEmpty(parameters, "memberId")
     if (rejectIfSuspended(userRepo, actorId)) return
     val request = receiveJson<UpdateMemberRoleRequest>()
     if (request == null) {
@@ -76,8 +76,8 @@ internal suspend fun ApplicationCall.handleTransferGroupOwnership(
     json: Json,
 ) {
     val actorId = requireUserId()
-    val chatId = parameters["chatId"].orEmpty()
-    val targetUserId = parameters["memberId"].orEmpty()
+    val chatId = parseRawOrEmpty(parameters, "chatId")
+    val targetUserId = parseRawOrEmpty(parameters, "memberId")
     if (rejectIfSuspended(userRepo, actorId)) return
 
     val commit = groupMembershipService.transferOwnership(chatId, actorId, targetUserId)
