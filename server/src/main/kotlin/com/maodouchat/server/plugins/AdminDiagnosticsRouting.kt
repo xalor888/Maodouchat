@@ -50,7 +50,7 @@ internal fun Route.configureAdminDiagnosticsRoutes() {
     put("/bots/{botId}/enabled") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
-        val botId = call.parameters["botId"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+        val botId = call.requirePathParamOr400("botId", "missing botId") ?: return@put
         val bodyText = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
         val enabled = parseAdminModeratorEnabled(bodyText)
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled required"))

@@ -187,7 +187,7 @@ internal fun Route.configureAdminModerationRoutes(
 
     put("/moderation-rules/{id}") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少规则 ID"))
+        val id = call.requirePathParamOr400("id", "缺少规则 ID") ?: return@put
         val req = call.receiveAdminJson<UpdateModerationRuleRequest>()
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
         if (!moderationRuleRepo.ruleExists(id)) {
@@ -201,7 +201,7 @@ internal fun Route.configureAdminModerationRoutes(
 
     delete("/moderation-rules/{id}") {
         if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少规则 ID"))
+        val id = call.requirePathParamOr400("id", "缺少规则 ID") ?: return@delete
         if (!moderationRuleRepo.deleteRule(id)) {
             return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("规则不存在"))
         }
@@ -226,7 +226,7 @@ internal fun Route.configureAdminModerationRoutes(
     put("/risk-events/{id}/resolve") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少事件 ID"))
+        val id = call.requirePathParamOr400("id", "缺少事件 ID") ?: return@put
         val updated = adminManagementRepo.resolveRiskEvent(id)
         if (!updated) return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("事件不存在"))
         recordAdminAudit(actorId, "RISK_EVENT_RESOLVED", "eventId=$id")
