@@ -179,10 +179,10 @@ fun Application.configureDeveloperRouting() {
                         ErrorResponse("无权访问该机器人日志")
                     )
                 }
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-                val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
+                val limit = parseAdminListLimit(call.request.queryParameters)
+                val offset = parseAdminListOffset(call.request.queryParameters)
                 val commandFilter = call.request.queryParameters["command"]?.trim()?.takeIf { it.isNotBlank() }
-                val sinceMs = call.request.queryParameters["since"]?.toLongOrNull()
+                val sinceMs = parseOptionalLong(call.request.queryParameters, "since")
 
                 val logs = developerAnalytics.commandLogs(
                     botId = targetBotId,

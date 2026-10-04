@@ -82,10 +82,10 @@ fun Application.configureAnnouncementRoutes(
                 // ═══ 系统公告广播 ═══
                 get("/announcements") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-                    val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-                    val status = call.request.queryParameters["status"]?.trim()?.takeIf { it.isNotBlank() }
-                    val q = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
+                    val limit = parseAdminListLimit(call.request.queryParameters)
+                    val offset = parseAdminListOffset(call.request.queryParameters)
+                    val status = parseAdminListStatus(call.request.queryParameters)
+                    val q = parseAdminListSearch(call.request.queryParameters)
                     val list = announcementRepo.list(status, q, limit, offset)
                     call.respond(list.map { it.toDto(acked = false) })
                 }
