@@ -234,7 +234,7 @@ internal fun Route.configureGroupAdministrationRoutes(
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权查看密钥分发状态"))
                 return@get
             }
-            val requestedDeviceId = call.request.queryParameters["currentDeviceId"]?.toIntOrNull()
+            val requestedDeviceId = parseOptionalInt(call.request.queryParameters, "currentDeviceId")
             if (requestedDeviceId != null && requestedDeviceId !in 1..255) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("设备参数无效"))
                 return@get

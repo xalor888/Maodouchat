@@ -35,7 +35,7 @@ internal fun Route.configureCallSignalingRoutes(
     authenticate("auth-jwt") {
         get("/api/calls/ice-config") {
             val userId = call.requireUserId()
-            val callId = call.request.queryParameters["callId"].orEmpty()
+            val callId = parseRawOrEmpty(call.request.queryParameters, "callId")
             call.respond(turnCredentialService.issue(userId, callId = callId))
         }
 
@@ -71,7 +71,7 @@ internal fun Route.configureCallSignalingRoutes(
 
         get("/api/signaling/pending") {
             val userId = call.requireUserId()
-            val offersOnly = call.request.queryParameters["offersOnly"]?.toBooleanStrictOrNull() == true
+            val offersOnly = parseStrictBooleanFlag(call.request.queryParameters, "offersOnly")
             call.respond(callSignalingService.pending(userId, offersOnly).map {
                 SignalMessageResponse(
                     it.id,
