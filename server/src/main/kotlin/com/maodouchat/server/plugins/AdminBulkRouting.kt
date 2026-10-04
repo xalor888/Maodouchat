@@ -33,8 +33,6 @@ import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.jsonPrimitive
-
 
 /** 管理后台子域路由（从 AdminManagementRouting.kt 拆出）。 */
 internal fun Route.configureAdminBulkRoutes(
@@ -95,7 +93,7 @@ put("count", okIds.size)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val ids = parseAdminIds(obj)
         val days = parseAdminBulkDays(obj, 1, DispositionService.MAX_BAN_DAYS)
-        val reasonCode = obj["reasonCode"]?.jsonPrimitive?.content.orEmpty().ifBlank { "BULK_BAN" }
+        val reasonCode = parseAdminBulkReasonCode(obj)
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }

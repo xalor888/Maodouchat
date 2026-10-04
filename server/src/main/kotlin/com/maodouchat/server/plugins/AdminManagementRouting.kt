@@ -38,7 +38,6 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.booleanOrNull
 import java.lang.management.ManagementFactory
 import java.util.UUID
 
@@ -232,21 +231,19 @@ put("pushTokens", JsonArray(push))
                     parseAdminManagementJsonEnvelopeOrNull(body)
                         ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 }
-                val prefixElement = obj?.get("tokenHashPrefix")
-                val prefix = if (prefixElement == null) "" else {
-                    (prefixElement as? kotlinx.serialization.json.JsonPrimitive)
-                        ?.takeIf { it.isString }
-                        ?.content
-                        ?.trim()
-                        ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("tokenHashPrefix must be a string"))
+                val prefix = when (val parsed = parseAdminRevokePrefix(obj?.get("tokenHashPrefix"))) {
+                    is AdminRevokePrefixResult.Ok -> parsed.prefix
+                    is AdminRevokePrefixResult.Invalid -> return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(parsed.message),
+                    )
                 }
-                val allElement = obj?.get("all")
-                val revokeAll = if (allElement == null) false else {
-                    // 严格 JSON boolean：字符串 "true"/"false" 一律拒绝（booleanOrNull 会宽松解析字符串）
-                    (allElement as? kotlinx.serialization.json.JsonPrimitive)
-                        ?.takeIf { !it.isString }
-                        ?.booleanOrNull
-                        ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("all must be a boolean"))
+                val revokeAll = when (val parsed = parseAdminRevokeAll(obj?.get("all"))) {
+                    is AdminRevokeAllResult.Ok -> parsed.revokeAll
+                    is AdminRevokeAllResult.Invalid -> return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(parsed.message),
+                    )
                 }
                 if (!revokeAll && prefix.isBlank()) {
                     return@post call.respond(
