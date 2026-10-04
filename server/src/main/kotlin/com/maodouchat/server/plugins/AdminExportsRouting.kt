@@ -36,14 +36,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import java.lang.management.ManagementFactory
 import java.util.UUID
 
@@ -562,10 +559,7 @@ post("/watermark/extract") {
         if (bodyText.length > MAX_ADMIN_WATERMARK_BODY_CHARS) {
             return@post call.respond(HttpStatusCode.PayloadTooLarge, ErrorResponse("请求体过大"))
         }
-        val imageB64 = runCatching {
-            val el = adminJson.parseToJsonElement(bodyText)
-            el.jsonObject["imageBase64"]?.jsonPrimitive?.content.orEmpty()
-        }.getOrDefault("")
+        val imageB64 = parseAdminWatermarkImageBase64(bodyText)
         if (imageB64.isBlank()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("imageBase64_required"))
         }

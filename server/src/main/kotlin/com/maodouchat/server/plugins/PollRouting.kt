@@ -39,7 +39,8 @@ import org.slf4j.LoggerFactory
  */
 private val pollLogger = LoggerFactory.getLogger("PollRouting")
 
-private val pollJson = Json { ignoreUnknownKeys = true }
+// internal 供测试引用同一份实例，钉住 pollJson 与默认 Json 在 parseToJsonElement 上的等价。
+internal val pollJson = Json { ignoreUnknownKeys = true }
 
 private const val MAX_BODY_CHARS = 32_768
 private const val MAX_CHAIN_TITLE_LENGTH = 200
@@ -141,7 +142,7 @@ fun Routing.configurePollRoutes() {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建接龙过于频繁"))
             }
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let { runCatching { pollJson.parseToJsonElement(it).jsonObject }.getOrNull() }
+                .let(::parsePollJsonEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             val title = obj["title"]?.jsonPrimitive?.content.orEmpty()
             val topic = obj["topic"]?.jsonPrimitive?.content.orEmpty()
@@ -194,7 +195,7 @@ fun Routing.configurePollRoutes() {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("接龙过于频繁"))
             }
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let { runCatching { pollJson.parseToJsonElement(it).jsonObject }.getOrNull() }
+                .let(::parsePollJsonEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             val content = obj["content"]?.jsonPrimitive?.content.orEmpty()
             if (content.isBlank() || content.length > MAX_CHAIN_CONTENT_LENGTH) {
@@ -223,7 +224,7 @@ fun Routing.configurePollRoutes() {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建 PK 过于频繁"))
             }
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let { runCatching { pollJson.parseToJsonElement(it).jsonObject }.getOrNull() }
+                .let(::parsePollJsonEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             val leftTitle = obj["leftTitle"]?.jsonPrimitive?.content.orEmpty()
             val rightTitle = obj["rightTitle"]?.jsonPrimitive?.content.orEmpty()
@@ -276,7 +277,7 @@ fun Routing.configurePollRoutes() {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("投票过于频繁"))
             }
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let { runCatching { pollJson.parseToJsonElement(it).jsonObject }.getOrNull() }
+                .let(::parsePollJsonEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             val choice = obj["choice"]?.jsonPrimitive?.content.orEmpty()
             // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
