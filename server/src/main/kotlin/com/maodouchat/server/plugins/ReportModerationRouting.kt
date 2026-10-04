@@ -33,7 +33,7 @@ internal fun Route.configureReportModerationRoutes(
                     return@post
                 }
                 val blockerId = call.requireUserId()
-                val blockedId = call.parameters["uid"].orEmpty()
+                val blockedId = parseRawOrEmpty(call.parameters, "uid")
                 if (!userRepo.blockUser(blockerId, blockedId)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法拉黑该用户"))
                     return@post
@@ -98,7 +98,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@put
                 }
-                val reportId = call.parameters["reportId"].orEmpty()
+                val reportId = parseRawOrEmpty(call.parameters, "reportId")
                 val req = call.receiveJson<UpdateReportStatusRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@put
@@ -123,7 +123,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@post
                 }
-                val reportId = call.parameters["reportId"].orEmpty()
+                val reportId = parseRawOrEmpty(call.parameters, "reportId")
                 val req = call.receiveJson<ApplyReportActionRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@post
@@ -280,7 +280,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@put
                 }
-                val ruleId = call.parameters["ruleId"].orEmpty()
+                val ruleId = parseRawOrEmpty(call.parameters, "ruleId")
                 val req = call.receiveJson<UpdateModerationRuleRequest>() ?: run {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                     return@put
@@ -312,7 +312,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@post
                 }
-                val eventId = call.parameters["eventId"].orEmpty()
+                val eventId = parseRawOrEmpty(call.parameters, "eventId")
                 if (!moderationRuleRepo.acknowledgeRiskEvent(eventId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("风险事件不存在"))
                     return@post

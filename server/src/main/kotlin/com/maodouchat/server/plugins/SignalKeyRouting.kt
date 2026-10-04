@@ -91,7 +91,7 @@ internal fun Route.configureSignalKeyRoutes(
 
         get("/api/keys/{userId}/prekey-bundle") {
             val requesterId = call.requireUserId()
-            val targetUserId = call.parameters["userId"].orEmpty()
+            val targetUserId = parseRawOrEmpty(call.parameters, "userId")
             if (!call.canFetchKeys(
                     requesterId,
                     targetUserId,
@@ -115,7 +115,7 @@ internal fun Route.configureSignalKeyRoutes(
 
         get("/api/keys/{userId}/devices") {
             val requesterId = call.requireUserId()
-            val targetUserId = call.parameters["userId"].orEmpty()
+            val targetUserId = parseRawOrEmpty(call.parameters, "userId")
             if (!call.canFetchKeys(
                     requesterId,
                     targetUserId,
@@ -216,7 +216,7 @@ internal fun Route.configureSignalKeyRoutes(
 
         get("/api/keys/{userId}/devices/{deviceId}/prekey-bundle") {
             val requesterId = call.requireUserId()
-            val targetUserId = call.parameters["userId"].orEmpty()
+            val targetUserId = parseRawOrEmpty(call.parameters, "userId")
             val deviceId = call.requireDeviceId() ?: return@get
             if (!call.canFetchKeys(
                     requesterId,
@@ -240,7 +240,7 @@ internal fun Route.configureSignalKeyRoutes(
 
         get("/api/keys/{userId}/prekey-bundles") {
             val requesterId = call.requireUserId()
-            val targetUserId = call.parameters["userId"].orEmpty()
+            val targetUserId = parseRawOrEmpty(call.parameters, "userId")
             if (!call.canFetchKeys(
                     requesterId,
                     targetUserId,

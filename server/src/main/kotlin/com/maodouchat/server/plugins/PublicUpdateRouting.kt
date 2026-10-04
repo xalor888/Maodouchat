@@ -235,7 +235,7 @@ internal fun Route.configurePublicUpdateRoutes(cacheService: CacheService) {
     }
 
     get("/api/webrtc/lib/{abi}") {
-        val abi = call.parameters["abi"].orEmpty()
+        val abi = parseRawOrEmpty(call.parameters, "abi")
         if (!WebRtcBinaryService.isSupported(abi)) {
             call.respond(HttpStatusCode.NotFound, ErrorResponse("不支持的 CPU 架构: $abi"))
             return@get
