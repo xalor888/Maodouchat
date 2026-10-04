@@ -487,9 +487,7 @@ put("status", "ok")
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 }
                 val body = call.receiveBoundedTextOrEmpty()
-                val code = runCatching {
-                    Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.content
-                }.getOrNull().orEmpty()
+                val code = parseAuthTotpCode(body)
                 val codes = mfaService.regenerateBackupCodes(userId, code)
                 if (codes == null) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid totp code", code = "TOTP_INVALID"))
@@ -517,9 +515,7 @@ put("status", "ok")
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 }
                 val body = call.receiveBoundedTextOrEmpty()
-                val code = runCatching {
-                    Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.content
-                }.getOrNull().orEmpty()
+                val code = parseAuthTotpCode(body)
                 val backupCodes = mfaService.confirmTotpSetup(userId, code)
                 if (backupCodes == null) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid totp code", code = "TOTP_INVALID"))
@@ -535,9 +531,7 @@ put("status", "ok")
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 }
                 val body = call.receiveBoundedTextOrEmpty()
-                val code = runCatching {
-                    Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.content
-                }.getOrNull().orEmpty()
+                val code = parseAuthTotpCode(body)
                 if (!mfaService.disableTotp(userId, code)) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid totp code", code = "TOTP_INVALID"))
                 }

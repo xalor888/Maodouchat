@@ -286,9 +286,7 @@ internal fun Route.configureSignalKeyRoutes(
 
         post("/api/e2ee/sealed-sender/verify") {
             val body = call.receiveBoundedTextOrEmpty()
-            val certificate = runCatching {
-                Json.parseToJsonElement(body).jsonObject["certificate"]?.jsonPrimitive?.content
-            }.getOrNull().orEmpty()
+            val certificate = parseSealedSenderCertificate(body)
             val verified = SealedSenderCertificateService.verify(certificate)
             call.respond(buildJsonObject {
                 put("ok", verified != null)
