@@ -157,7 +157,7 @@ fun Application.configureDeveloperRouting() {
             // ─── Per-bot analytics ────────────────
             get("/bots/{id}/analytics") {
                 val bot = authenticateDeveloperBot(call) ?: return@get
-                val targetBotId = call.parameters["id"].orEmpty()
+                val targetBotId = parseRawOrEmpty(call.parameters, "id")
                 if (targetBotId != bot.id) {
                     return@get call.respond(
                         HttpStatusCode.Forbidden,
@@ -172,7 +172,7 @@ fun Application.configureDeveloperRouting() {
             // ─── Structured logs ──────────────────
             get("/bots/{id}/logs") {
                 val bot = authenticateDeveloperBot(call) ?: return@get
-                val targetBotId = call.parameters["id"].orEmpty()
+                val targetBotId = parseRawOrEmpty(call.parameters, "id")
                 if (targetBotId != bot.id) {
                     return@get call.respond(
                         HttpStatusCode.Forbidden,
@@ -201,7 +201,7 @@ fun Application.configureDeveloperRouting() {
                 if (!developerWebhookTestRateLimiter.acquire(bot.id, maxPerMinute = 10)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
-                val targetBotId = call.parameters["id"].orEmpty()
+                val targetBotId = parseRawOrEmpty(call.parameters, "id")
                 if (targetBotId != bot.id) {
                     return@post call.respond(
                         HttpStatusCode.Forbidden,
