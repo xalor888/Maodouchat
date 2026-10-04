@@ -61,7 +61,7 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         put("/api/chats/{chatId}/name") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val name = call.receiveBoundedText()
                 ?.let { parseJson<CreateChatRequest>(it) }
@@ -80,7 +80,7 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         put("/api/chats/{chatId}/announcement") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val request = call.receiveJson<UpdateGroupAnnouncementRequest>()
                 ?: run {
@@ -104,7 +104,7 @@ internal fun Route.configureGroupAdministrationRoutes(
                 return@post
             }
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             if (participantRepository.chatType(chatId) == ChatType.CHANNEL) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("频道不支持邀请链接"))
@@ -144,7 +144,7 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         post("/api/chats/{chatId}/avatar") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             if (!avatarRateLimiter.acquire(userId, maxPerMinute = 10)) {
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("头像操作过于频繁，请稍后再试"))
@@ -190,7 +190,7 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         get("/api/chats/{chatId}/members") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (!participantRepository.isParticipant(chatId, userId)) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
                 return@get
@@ -207,7 +207,7 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         get("/api/chats/{chatId}/audit") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (!participantRepository.isParticipant(chatId, userId) ||
                 (participantRepository.chatType(chatId) == ChatType.CHANNEL &&
                     !participantRepository.isOwnerOrAdmin(chatId, userId))
@@ -223,7 +223,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         get("/api/chats/{chatId}/sender-key-distributions") {
             val principal = call.principal<JWTPrincipal>()!!
             val userId = principal.payload.subject
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (!participantRepository.isParticipant(chatId, userId)) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
                 return@get
@@ -261,7 +261,7 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         put("/api/chats/{chatId}/members/me/nickname") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val request = call.receiveJson<UpdateGroupNicknameRequest>()
                 ?: run {
@@ -281,8 +281,8 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         put("/api/chats/{chatId}/members/{memberId}/title") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
-            val memberId = call.parameters["memberId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
+            val memberId = parseRawOrEmpty(call.parameters, "memberId")
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val request = call.receiveJson<UpdateMemberTitleRequest>()
                 ?: run {
@@ -307,8 +307,8 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         put("/api/chats/{chatId}/members/{memberId}/mute") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
-            val memberId = call.parameters["memberId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
+            val memberId = parseRawOrEmpty(call.parameters, "memberId")
             if (call.rejectIfSuspended(userRepo, userId)) return@put
             val request = call.receiveJson<UpdateMemberMuteRequest>()
                 ?: run {
@@ -327,7 +327,7 @@ internal fun Route.configureGroupAdministrationRoutes(
 
         post("/api/chats/{chatId}/mute-all") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             if (!participantRepository.isOwnerOrAdmin(chatId, userId)) {
                 call.respond(

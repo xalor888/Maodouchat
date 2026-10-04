@@ -150,7 +150,7 @@ internal fun Route.configureGroupInvitationRoutes(
 
         get("/api/chats/{chatId}/invitations") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"].orEmpty()
+            val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (!participantRepository.isParticipant(chatId, userId)) {
                 call.respond(HttpStatusCode.NotFound, ErrorResponse("群聊不存在"))
                 return@get
@@ -160,7 +160,7 @@ internal fun Route.configureGroupInvitationRoutes(
 
         post("/api/group-invitations/{inviteId}/accept") {
             val userId = call.requireUserId()
-            val inviteId = call.parameters["inviteId"].orEmpty()
+            val inviteId = parseRawOrEmpty(call.parameters, "inviteId")
             if (call.rejectIfSuspended(userRepo, userId)) return@post
             val outcome = invitationService.accept(inviteId, userId, maxGroupMembers())
             val chat = outcome.chatId?.let { queryRepository.getById(it, userId) }
@@ -214,7 +214,7 @@ internal fun Route.configureGroupInvitationRoutes(
 
         post("/api/group-invitations/{inviteId}/decline") {
             val userId = call.requireUserId()
-            val inviteId = call.parameters["inviteId"].orEmpty()
+            val inviteId = parseRawOrEmpty(call.parameters, "inviteId")
             if (!invitationService.decline(inviteId, userId)) {
                 call.respond(HttpStatusCode.NotFound, ErrorResponse("邀请不存在或已处理"))
                 return@post
@@ -227,7 +227,7 @@ internal fun Route.configureGroupInvitationRoutes(
 
         delete("/api/group-invitations/{inviteId}") {
             val userId = call.requireUserId()
-            val inviteId = call.parameters["inviteId"].orEmpty()
+            val inviteId = parseRawOrEmpty(call.parameters, "inviteId")
             if (!invitationService.cancel(inviteId, userId)) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权撤销该邀请"))
                 return@delete
