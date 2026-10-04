@@ -226,7 +226,7 @@ put("count", updated.size)
 get("/ai-usage-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
+        val limit = parseExportLimit(call.request.queryParameters, 2000, 10000)
         // Metadata only — never export prompt/body
         val rows = aiRepo.auditExportRows(limit).map { row ->
             listOf(

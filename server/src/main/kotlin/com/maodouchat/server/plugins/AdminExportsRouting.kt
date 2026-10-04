@@ -54,7 +54,7 @@ internal fun Route.configureAdminExportsRoutes(
     get("/push-tokens-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Privacy-safe: no full push token secret — prefix only
         val export = exportService.pushTokensCsv(limit)
         recordAdminAudit(actorId = adminId, action = "push_tokens_export", detail = "count=${export.rowCount}")
@@ -70,7 +70,7 @@ internal fun Route.configureAdminExportsRoutes(
 
     get("/users-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         val export = exportService.usersCsv(limit)
         val csv = export.body
         call.response.header(
@@ -88,7 +88,7 @@ internal fun Route.configureAdminExportsRoutes(
     get("/bots-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         // 只导出元数据：token 只含前缀，绝不导出 tokenHash
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 2000, 20000)
         val csv = exportService.botsCsv(limit).body
         call.response.header(
             HttpHeaders.ContentDisposition,
@@ -113,7 +113,7 @@ internal fun Route.configureAdminExportsRoutes(
     get("/reports-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
+        val limit = parseExportLimit(call.request.queryParameters, 2000, 10000)
         val export = exportService.reportsCsv(limit)
         val csv = export.body
         recordAdminAudit(actorId = adminId, action = "reports_export", detail = "count=${export.rowCount}")
@@ -128,7 +128,7 @@ internal fun Route.configureAdminExportsRoutes(
     get("/risk-events-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
+        val limit = parseExportLimit(call.request.queryParameters, 2000, 10000)
         val export = exportService.riskEventsCsv(limit)
         val csv = export.body
         recordAdminAudit(actorId = adminId, action = "risk_events_export", detail = "count=${export.rowCount}")
@@ -168,7 +168,7 @@ internal fun Route.configureAdminExportsRoutes(
     get("/sessions-summary-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Privacy-safe: session counts per user, no token secrets
         val export = exportService.sessionsSummaryCsv(limit)
         val csv = export.body
@@ -182,7 +182,7 @@ internal fun Route.configureAdminExportsRoutes(
 
 get("/polls-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
+        val limit = parseExportLimit(call.request.queryParameters, 2000, 10000)
         val csv = exportService.pollsCsv(limit).body
         call.response.header(
             HttpHeaders.ContentDisposition,
@@ -196,7 +196,7 @@ get("/polls-export") {
     get("/moderation-audit-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
+        val limit = parseExportLimit(call.request.queryParameters, 2000, 10000)
         // Audit metadata only — no message bodies
         val export = exportService.moderationAuditCsv(limit)
         val csv = export.body
@@ -213,7 +213,7 @@ get("/polls-export") {
     get("/bot-command-stats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Command names only — no message bodies
         val export = exportService.botCommandStatsCsv(limit)
         val csv = export.body
@@ -230,7 +230,7 @@ get("/polls-export") {
     get("/friends-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Friendship graph metadata only — no message bodies
         val export = exportService.friendshipsCsv(limit)
         val csv = export.body
@@ -247,7 +247,7 @@ get("/polls-export") {
     get("/reports-meta-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Report metadata only — no message bodies / E2EE plaintext
         val export = exportService.reportsMetaCsv(limit)
         val csv = export.body
@@ -264,7 +264,7 @@ get("/polls-export") {
     get("/blocks-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Block edges only — no message bodies
         val export = exportService.blockedUsersCsv(limit)
         val csv = export.body
@@ -281,7 +281,7 @@ get("/polls-export") {
     get("/chat-settings-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Per-user chat settings metadata only — no message bodies / SECRET ids
         val export = exportService.chatSettingsCsv(limit)
         val csv = export.body
@@ -298,7 +298,7 @@ get("/polls-export") {
     get("/disappearing-chats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Chat disappearing timer metadata only — no message bodies
         val export = exportService.disappearingChatsCsv(limit)
         val csv = export.body
@@ -315,7 +315,7 @@ get("/polls-export") {
     get("/muted-chats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Muted chat settings metadata only — no message bodies
         val export = exportService.mutedChatsCsv(limit)
         val csv = export.body
@@ -390,7 +390,7 @@ get("/polls-export") {
     get("/online-presence-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         val export = exportService.onlinePresenceCsv(limit)
         val csv = export.body
         recordAdminAudit(actorId = adminId, action = "online_presence_export", detail = "count=${export.rowCount}")
@@ -402,7 +402,7 @@ get("/polls-export") {
     get("/privacy-flags-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         val export = exportService.privacyFlagsCsv(limit)
         val csv = export.body
         recordAdminAudit(actorId = adminId, action = "privacy_flags_export", detail = "count=${export.rowCount}")
@@ -417,7 +417,7 @@ get("/polls-export") {
     get("/identity-users-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Identity discoverability metadata only — no secrets / bodies
         val export = exportService.identityUsersCsv(limit)
         val csv = export.body
@@ -433,7 +433,7 @@ get("/polls-export") {
     get("/totp-users-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // TOTP status only — no secrets / E2EE bodies
         val export = exportService.totpUsersCsv(limit)
         val csv = export.body
@@ -449,7 +449,7 @@ get("/polls-export") {
     get("/group-invites-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Invite metadata only — no message bodies
         val export = exportService.groupInvitesCsv(limit)
         val csv = export.body
@@ -464,7 +464,7 @@ get("/polls-export") {
 get("/restricted-users-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         val now = System.currentTimeMillis()
         val export = exportService.restrictedUsersCsv(limit)
         val csv = export.body
@@ -479,7 +479,7 @@ get("/restricted-users-export") {
 get("/poll-votes-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         val export = exportService.pollVotesCsv(limit)
         val csv = export.body
         recordAdminAudit(actorId = adminId, action = "poll_votes_export", detail = "count=${export.rowCount}")
@@ -493,7 +493,7 @@ get("/poll-votes-export") {
 get("/pinned-messages-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val adminId = call.requireUserId()
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 5000).coerceIn(1, 20000)
+        val limit = parseExportLimit(call.request.queryParameters, 5000, 20000)
         // Pinned message metadata only — no message bodies / E2EE plaintext
         val export = exportService.pinnedMessagesCsv(limit)
         val csv = export.body
@@ -516,7 +516,7 @@ get("/pinned-messages-export") {
 
     get("/chats-export") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000).coerceIn(1, 10000)
+        val limit = parseExportLimit(call.request.queryParameters, 2000, 10000)
         val export = exportService.chatsCsv(limit)
         val csv = export.body
         call.response.header(
