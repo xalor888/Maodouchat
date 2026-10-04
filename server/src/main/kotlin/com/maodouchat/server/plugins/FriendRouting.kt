@@ -127,7 +127,7 @@ internal fun Route.configureFriendRoutes(
         post("/api/friends/requests/{id}/accept") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepository, userId)) return@post
-            call.respondToMutation(friendRepository.acceptRequest(userId, call.parameters["id"].orEmpty())) {
+            call.respondToMutation(friendRepository.acceptRequest(userId, parseRawOrEmpty(call.parameters, "id"))) {
                 notifyFriendRequest(it, "ACCEPTED")
             }
         }
@@ -135,7 +135,7 @@ internal fun Route.configureFriendRoutes(
         post("/api/friends/requests/{id}/reject") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepository, userId)) return@post
-            call.respondToMutation(friendRepository.rejectRequest(userId, call.parameters["id"].orEmpty())) {
+            call.respondToMutation(friendRepository.rejectRequest(userId, parseRawOrEmpty(call.parameters, "id"))) {
                 notifyFriendRequest(it, "REJECTED")
             }
         }
@@ -143,7 +143,7 @@ internal fun Route.configureFriendRoutes(
         post("/api/friends/requests/{id}/cancel") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepository, userId)) return@post
-            call.respondToMutation(friendRepository.cancelRequest(userId, call.parameters["id"].orEmpty())) {
+            call.respondToMutation(friendRepository.cancelRequest(userId, parseRawOrEmpty(call.parameters, "id"))) {
                 notifyFriendRequest(it, "CANCELLED")
             }
         }
@@ -155,7 +155,7 @@ internal fun Route.configureFriendRoutes(
 
         delete("/api/friends/{friendId}") {
             val userId = call.requireUserId()
-            val friendId = call.parameters["friendId"].orEmpty()
+            val friendId = parseRawOrEmpty(call.parameters, "friendId")
             if (friendId.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@delete

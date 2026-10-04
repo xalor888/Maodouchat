@@ -104,7 +104,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
 
             get("/api/attachment-uploads/{id}") {
                 val userId = call.requireUserId()
-                val attachmentId = call.parameters["id"].orEmpty()
+                val attachmentId = parseRawOrEmpty(call.parameters, "id")
                 val record = encryptedAttachmentRepo.get(attachmentId)
                 if (record == null || record.uploaderId != userId) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("附件上传会话不存在"))
@@ -141,7 +141,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
             put("/api/attachment-uploads/{id}") {
                 val userId = call.requireUserId()
                 if (call.rejectIfMessageRestricted(userRepo, userId)) return@put
-                val attachmentId = call.parameters["id"].orEmpty()
+                val attachmentId = parseRawOrEmpty(call.parameters, "id")
                 val offset = parseOptionalLong(call.request.queryParameters, "offset")
                 val chunkHash = call.request.header(ATTACHMENT_CHUNK_HASH_HEADER)?.lowercase().orEmpty()
                 val declaredLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
@@ -331,7 +331,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("附件下载过于频繁，请稍后再试"))
                     return@get
                 }
-                val attachmentId = call.parameters["id"].orEmpty()
+                val attachmentId = parseRawOrEmpty(call.parameters, "id")
                 val record = encryptedAttachmentRepo.get(attachmentId) ?: run {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("附件不存在"))
                     return@get
@@ -410,7 +410,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
 
             delete("/api/attachments/{id}") {
                 val userId = call.requireUserId()
-                val attachmentId = call.parameters["id"].orEmpty()
+                val attachmentId = parseRawOrEmpty(call.parameters, "id")
                 if (!encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("待确认附件不存在"))
                     return@delete
