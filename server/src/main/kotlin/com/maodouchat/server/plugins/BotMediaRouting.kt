@@ -121,8 +121,8 @@ put("type", "VOICE")
         if (!com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled()) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
         }
-        val chatId = call.request.queryParameters["chatId"].orEmpty()
-        if (chatId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val chatId = parseBotGetInviteLinkChatId(call.request.queryParameters)
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }
@@ -306,12 +306,8 @@ put("type", "IMAGE")
 
     get("/api/bot/getFile") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val messageId = call.request.queryParameters["messageId"].orEmpty()
-        val fileId = call.request.queryParameters["fileId"].orEmpty()
-        val id = messageId.ifBlank { fileId }
-        if (id.isBlank()) {
-            return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId or fileId required"))
-        }
+        val id = parseBotGetFileId(call.request.queryParameters)
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId or fileId required"))
         val msg = serviceMessageRepo.getById(id)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("message not found"))
         if (!conversationParticipantRepo.isParticipant(msg.chatId, bot.id)) {
