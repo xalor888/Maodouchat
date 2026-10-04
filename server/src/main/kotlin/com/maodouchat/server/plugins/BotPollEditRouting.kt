@@ -64,7 +64,7 @@ put("mediaUploadEnabled", com.maodouchat.server.service.RuntimeConfigService.isM
             return@post call.respondBotUnavailable()
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseBotPollEditJsonEnvelopeOrNull(body)
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val pollId = when (val parsed = parseBotStopPollFields(obj)) {
             is BotStopPollFieldsResult.Ok -> parsed.fields.pollId
@@ -90,7 +90,7 @@ put("alias", "closePoll")
     post("/api/bot/editMessageCaption") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseBotPollEditJsonEnvelopeOrNull(body)
+        val obj = parseJsonObjectEnvelopeOrNull(body)
             ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
         val fields = when (val parsed = parseBotEditMessageCaptionFields(obj)) {
             is BotEditMessageCaptionFieldsResult.Ok -> parsed.fields

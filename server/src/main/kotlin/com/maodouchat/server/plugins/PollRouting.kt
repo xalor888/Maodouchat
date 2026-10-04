@@ -140,7 +140,7 @@ fun Routing.configurePollRoutes() {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建接龙过于频繁"))
             }
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let(::parsePollJsonEnvelopeOrNull)
+                .let(::parseJsonObjectEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             val fields = parseChainCreateFields(obj)
             if (fields.title.isBlank() || fields.title.length > MAX_CHAIN_TITLE_LENGTH) {
@@ -191,7 +191,7 @@ fun Routing.configurePollRoutes() {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("接龙过于频繁"))
             }
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let(::parsePollJsonEnvelopeOrNull)
+                .let(::parseJsonObjectEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             val content = parseChainJoinContent(obj)
             if (content.isBlank() || content.length > MAX_CHAIN_CONTENT_LENGTH) {
@@ -220,7 +220,7 @@ fun Routing.configurePollRoutes() {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建 PK 过于频繁"))
             }
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let(::parsePollJsonEnvelopeOrNull)
+                .let(::parseJsonObjectEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             val fields = parsePkCreateFields(obj)
             if (fields.leftTitle.isBlank() || fields.rightTitle.isBlank() ||
@@ -272,7 +272,7 @@ fun Routing.configurePollRoutes() {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("投票过于频繁"))
             }
             val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let(::parsePollJsonEnvelopeOrNull)
+                .let(::parseJsonObjectEnvelopeOrNull)
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             val choice = parsePkVoteChoice(obj)
             // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400

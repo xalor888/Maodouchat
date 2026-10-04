@@ -343,7 +343,7 @@ put("avatarUrl", avatarUrl)
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                     return@put
                 }
-                val obj = call.receiveBoundedText()?.let(::parseAccountJsonEnvelopeOrNull)
+                val obj = call.receiveBoundedText()?.let(::parseJsonObjectEnvelopeOrNull)
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 val username = parseAccountUsername(obj)
                 // 8.40：格式非法 400、已占用 409 分离（此前一律 409，客户端无法区分参数错误与冲突）

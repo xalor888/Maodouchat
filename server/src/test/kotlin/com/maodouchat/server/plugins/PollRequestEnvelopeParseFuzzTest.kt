@@ -46,7 +46,7 @@ class PollRequestEnvelopeParseFuzzTest {
             repeat(random.nextInt(0, 6)) { base[randomName(random)] = randomScalar(random) }
             val body = bodyOf(JsonObject(base))
             assertEquals(
-                oldWay(body)?.toString(), parsePollJsonEnvelopeOrNull(body)?.toString(),
+                oldWay(body)?.toString(), parseJsonObjectEnvelopeOrNull(body)?.toString(),
                 "信封抽取必须与旧内联写法逐字等价，迭代 " + i,
             )
         }
@@ -55,10 +55,10 @@ class PollRequestEnvelopeParseFuzzTest {
     @Test
     fun badInputBecomesNull() {
         // 坏 JSON / 顶层非对象 / 空 body → null，下游报 400 "invalid json"。
-        assertNull(parsePollJsonEnvelopeOrNull(""), "空 body 应为 null")
-        assertNull(parsePollJsonEnvelopeOrNull("{oops"), "坏 JSON 应为 null")
-        assertNull(parsePollJsonEnvelopeOrNull("[1, 2]"), "顶层数组应为 null")
-        assertNull(parsePollJsonEnvelopeOrNull("42"), "顶层数字应为 null")
-        assertNull(parsePollJsonEnvelopeOrNull("\"x\""), "顶层字符串应为 null")
+        assertNull(parseJsonObjectEnvelopeOrNull(""), "空 body 应为 null")
+        assertNull(parseJsonObjectEnvelopeOrNull("{oops"), "坏 JSON 应为 null")
+        assertNull(parseJsonObjectEnvelopeOrNull("[1, 2]"), "顶层数组应为 null")
+        assertNull(parseJsonObjectEnvelopeOrNull("42"), "顶层数字应为 null")
+        assertNull(parseJsonObjectEnvelopeOrNull("\"x\""), "顶层字符串应为 null")
     }
 }
