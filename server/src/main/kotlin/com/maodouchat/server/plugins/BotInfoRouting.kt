@@ -134,7 +134,7 @@ put("maxConnections", 40)
         val chats = conversationParticipantRepo.chatIdsForUser(bot.id)
         call.respond(
         buildJsonObject {
-put("chatIds", Json.parseToJsonElement(Json.encodeToString(chats)))
+putJsonElement("chatIds", chats)
 put("count", chats.size)
         }
     )

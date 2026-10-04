@@ -36,7 +36,7 @@ internal fun Route.configureBotReactionRoutes(
 put("ok", true)
 put("botId", bot.id)
 put("totalSampled", logs.size)
-put("byCommand", Json.parseToJsonElement(Json.encodeToString(counts)))
+putJsonElement("byCommand", counts)
 put("recent", buildJsonArray {
     logs.take(20).forEach {
 add(buildJsonObject {
@@ -142,7 +142,7 @@ put("type", "MARKDOWN")
 put("ok", true)
 put("messageId", messageId)
 put("emoji", emoji)
-put("reactions", Json.parseToJsonElement(Json.encodeToString(botReactions)))
+putJsonElement("reactions", botReactions)
         }
     )
     }

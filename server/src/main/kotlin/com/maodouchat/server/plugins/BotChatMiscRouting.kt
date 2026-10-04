@@ -29,7 +29,7 @@ internal fun Route.configureBotChatMiscRoutes(
         call.respond(
         buildJsonObject {
 put("ok", true)
-put("chatIds", Json.parseToJsonElement(Json.encodeToString(chats)))
+putJsonElement("chatIds", chats)
 put("count", chats.size)
         }
     )
@@ -43,7 +43,7 @@ put("count", chats.size)
         call.respond(
             buildJsonObject {
                 put("ok", true)
-                put("commands", Json.parseToJsonElement(Json.encodeToString(cleared)))
+                putJsonElement("commands", cleared)
                 put("count", cleared.size)
             }
         )
