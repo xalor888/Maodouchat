@@ -50,6 +50,7 @@ class RequiredPathParamTest {
         }
         val res = client.get("/probe?id=abc123")
         assertEquals(HttpStatusCode.OK, res.status)
-        assertEquals("\"abc123\"", res.bodyAsText())
+        // Ktor 的 ContentNegotiation 不会对 String 走 JSON 编码：respond(String) 按 text/plain 原样透出。
+        assertEquals("abc123", res.bodyAsText())
     }
 }
