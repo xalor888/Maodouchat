@@ -78,7 +78,8 @@ class AdminListQueryParseFuzzTest {
         assertEquals(50, parseAdminListLimit(parametersOf("limit" to listOf("abc"))))
         assertEquals(50, parseAdminListLimit(parametersOf()))
         assertEquals(1, parseAdminListLimit(parametersOf("limit" to listOf("-5"))))
-        assertEquals(2000, parseAdminListLimit(parametersOf("limit" to listOf("999999")), defaultLimit = 2000, maxLimit = 10000))
+        assertEquals(10000, parseAdminListLimit(parametersOf("limit" to listOf("999999")), defaultLimit = 2000, maxLimit = 10000))
+        assertEquals(2000, parseAdminListLimit(parametersOf("limit" to listOf("abc")), defaultLimit = 2000, maxLimit = 10000))
     }
 
     @Test
