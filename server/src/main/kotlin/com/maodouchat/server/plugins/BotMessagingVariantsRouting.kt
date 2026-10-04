@@ -77,8 +77,7 @@ put("kicked", true)
         if (!com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled()) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
         }
-        val chatId = parseRawOrEmpty(call.request.queryParameters, "chatId")
-        if (chatId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val chatId = call.requireNonBlankParamOr400("chatId", "chatId required") ?: return@get
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }

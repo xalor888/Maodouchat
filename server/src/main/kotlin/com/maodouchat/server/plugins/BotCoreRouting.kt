@@ -249,8 +249,7 @@ put("messageId", messageId)
 
     get("/api/bot/getChat") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val chatId = parseRawOrEmpty(call.request.queryParameters, "chatId")
-        if (chatId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+        val chatId = call.requireNonBlankParamOr400("chatId", "chatId required") ?: return@get
         val chat = conversationQueryRepo.getById(chatId)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {

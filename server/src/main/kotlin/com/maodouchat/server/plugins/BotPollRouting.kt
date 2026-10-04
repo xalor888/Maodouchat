@@ -179,8 +179,7 @@ putJsonElement("poll", poll)
 
     get("/api/bot/getPoll") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val pollId = parseRawOrEmpty(call.request.queryParameters, "pollId")
-        if (pollId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("pollId required"))
+        val pollId = call.requireNonBlankParamOr400("pollId", "pollId required") ?: return@get
         val poll = com.maodouchat.server.repository.PollRepository.getPoll(pollId, bot.id)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("poll not found"))
         if (!conversationParticipantRepo.isParticipant(poll.chatId, bot.id)) {
