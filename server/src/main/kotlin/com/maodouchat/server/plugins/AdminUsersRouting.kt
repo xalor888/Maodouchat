@@ -53,7 +53,7 @@ internal fun Route.configureAdminUsersRoutes(
 
     get("/users/{id}") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
+        val id = call.requirePathParamOr400("id", "缺少用户 ID") ?: return@get
         val user = adminManagementRepo.getUserAdmin(id)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
         call.respond(user)
@@ -61,7 +61,7 @@ internal fun Route.configureAdminUsersRoutes(
 
     get("/users/{id}/detail") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
+        val id = call.requirePathParamOr400("id", "缺少用户 ID") ?: return@get
         val detail = adminManagementRepo.getUserDetail(id)
             ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
         call.respond(detail)
@@ -119,7 +119,7 @@ internal fun Route.configureAdminUsersRoutes(
     put("/users/{id}/status") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
+        val id = call.requirePathParamOr400("id", "缺少用户 ID") ?: return@put
         if (id == actorId) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能修改自己的管理状态"))
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能修改其他超级管理员"))
         val req = call.receiveAdminJson<UpdateUserStatusRequest>()
@@ -151,7 +151,7 @@ internal fun Route.configureAdminUsersRoutes(
     put("/users/{id}/post-restriction") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
+        val id = call.requirePathParamOr400("id", "缺少用户 ID") ?: return@put
         if (id == actorId) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能限制自己的发帖权限"))
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能限制其他超级管理员"))
         val req = call.receiveAdminJson<UpdatePostRestrictionRequest>()
@@ -176,7 +176,7 @@ internal fun Route.configureAdminUsersRoutes(
     put("/users/{id}/message-restriction") {
         if (!call.isAdminUser()) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val id = call.parameters["id"] ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
+        val id = call.requirePathParamOr400("id", "缺少用户 ID") ?: return@put
         if (id == actorId) return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能限制自己的发消息权限"))
         if (AdminAccess.isAdmin(id)) return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能限制系统主管理员"))
         val req = call.receiveAdminJson<UpdateMessageRestrictionRequest>()
@@ -202,7 +202,7 @@ internal fun Route.configureAdminUsersRoutes(
     delete("/users/{id}") {
         if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
         val actorId = call.requireUserId()
-        val id = call.parameters["id"] ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少用户 ID"))
+        val id = call.requirePathParamOr400("id", "缺少用户 ID") ?: return@delete
         if (id == actorId) return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("不能删除自己的管理员账号"))
         if (AdminAccess.isAdmin(id)) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("不能删除其他超级管理员"))
         val groupAvatarCandidates = groupMediaReferenceRepo.avatarUrlsForParticipant(id)
