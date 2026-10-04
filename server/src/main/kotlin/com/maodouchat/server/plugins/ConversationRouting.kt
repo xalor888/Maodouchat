@@ -161,10 +161,7 @@ internal fun Route.configureConversationRoutes(
 
         get("/api/chats/{id}") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["id"]?.takeIf(String::isNotBlank) ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
-                return@get
-            }
+            val chatId = call.requireNonBlankParamOr400("id", "聊天 ID 无效") ?: return@get
             val chat = queryRepository.getForParticipant(chatId, userId) ?: run {
                 call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))
                 return@get
@@ -174,10 +171,7 @@ internal fun Route.configureConversationRoutes(
 
         delete("/api/chats/{id}") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["id"]?.takeIf(String::isNotBlank) ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("聊天 ID 无效"))
-                return@delete
-            }
+            val chatId = call.requireNonBlankParamOr400("id", "聊天 ID 无效") ?: return@delete
             val outcome = commandService.leave(chatId, userId)
             when (outcome.result) {
                 LeaveConversationResult.OWNER_TRANSFER_REQUIRED -> {
