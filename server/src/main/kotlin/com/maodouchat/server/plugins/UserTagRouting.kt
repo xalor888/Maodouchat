@@ -37,7 +37,7 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
                 // ═══ 用户标签 + 风控联动 ═══
                 get("/user-tags") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-                    val q = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
+                    val q = parseAdminListSearch(call.request.queryParameters)
                     val tags = userTagRepo.listTags(q)
                     call.respond(tags.map { it.toDto() })
                 }
@@ -92,9 +92,9 @@ fun Application.configureUserTagRoutes(userTagRepo: UserTagRepository) {
                 get("/user-tags/{id}/users") {
                     if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
                     val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("缺少标签 ID"))
-                    val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-                    val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-                    val q = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotBlank() }
+                    val limit = parseAdminListLimit(call.request.queryParameters)
+                    val offset = parseAdminListOffset(call.request.queryParameters)
+                    val q = parseAdminListSearch(call.request.queryParameters)
                     val users = userTagRepo.listUsersByTag(id, q, limit, offset)
                     call.respond(users.map { it.toDto() })
                 }
