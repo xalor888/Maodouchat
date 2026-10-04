@@ -29,8 +29,8 @@ put("text", (fields.text ?: ""))
 
     get("/api/bot/getUpdates") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val offset = call.request.queryParameters["offset"]?.toLongOrNull()?.coerceAtLeast(0L) ?: 0L
-        val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 50
+        val offset = parseAdminListOffset(call.request.queryParameters)
+        val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
         val rows = com.maodouchat.server.repository.BotRepository.getUpdates(bot.id, offset, limit)
         // 8.46：混合类型 List<Map<String,Any>> 经 Json.encodeToString 运行时抛
         // SerializationException（Serializer for class 'Any' is not found）→ 端点 500。

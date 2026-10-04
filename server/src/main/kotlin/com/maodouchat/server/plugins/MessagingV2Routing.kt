@@ -247,7 +247,7 @@ fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
                         )
                         return@get
                     }
-                    val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 100).coerceIn(1, 500)
+                    val limit = parseAdminListLimit(call.request.queryParameters, defaultLimit = 100, maxLimit = 500)
                     call.respond(repository.pending(binding.userId, binding.deviceId, limit))
                 }
 

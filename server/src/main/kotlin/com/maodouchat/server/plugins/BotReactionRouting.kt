@@ -23,7 +23,7 @@ internal fun Route.configureBotReactionRoutes(
 
     get("/api/bot/getCommandStats") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
+        val limit = parseAdminListLimit(call.request.queryParameters)
         val logs = com.maodouchat.server.repository.BotRepository.listCommandLogs(bot.id, limit)
         val counts = linkedMapOf<String, Int>()
         logs.forEach { row ->
