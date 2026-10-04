@@ -21,7 +21,6 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonPrimitive
 
 /** 8.46：hint 写端点按 bot 限流（防 bot 反复刷 SYSTEM 消息）。 */
 private val hintRateLimiter = BoundedRateLimiter()
@@ -172,9 +171,8 @@ private suspend fun sendSecretSurfaceHint(
     val body = call.receiveBoundedTextOrEmpty()
     val obj = parseJsonObjectEnvelopeOrNull(body)
         ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-    val chatId = obj["chatId"]?.jsonPrimitive?.content.orEmpty()
     // 9.136：hint 与 Routing.kt 家族一致走 sanitizeBotHint——控制字符/换行不得进入 SYSTEM 消息
-    val hint = sanitizeBotHint(obj["hint"]?.jsonPrimitive?.content).ifBlank { defaultHint }
+    val (chatId, hint) = parseSecretSurfaceHint(obj, defaultHint)
     if (chatId.isBlank()) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
     if (!participantRepository.isParticipant(chatId, bot.id)) return call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
     val content = "$prefix " + hint

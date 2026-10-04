@@ -35,27 +35,9 @@ internal fun Route.configurePollLegacyRoutes(
                 val body = call.receiveBoundedTextOrEmpty(32_768)
                 val obj = parsePollJsonEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val question = obj["question"]?.jsonPrimitive?.content.orEmpty()
                 // 9.157：与投票选项一致——非法元素整体拒绝，不静默截成子集
-                val options = buildList {
-                    val arr = obj["options"]?.jsonArray
-                    if (arr != null) {
-                        for (element in arr) {
-                            val text = (element as? kotlinx.serialization.json.JsonPrimitive)?.content
-                            if (text == null) {
-                                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票选项无效"))
-                            }
-                            add(text)
-                        }
-                    }
-                }
-                val multi = obj["multi"]?.jsonPrimitive?.booleanOrNull
-                    ?: obj["multi"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
-                    ?: false
-                val anonymous = obj["anonymous"]?.jsonPrimitive?.booleanOrNull
-                    ?: obj["anonymous"]?.jsonPrimitive?.content?.toBooleanStrictOrNull()
-                    ?: false
-                val closesAt = obj["closesAt"]?.jsonPrimitive?.content?.toLongOrNull()
+                val fields = parsePollLegacyCreateOrNull(obj)
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票选项无效"))
                 // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
                 if (!com.maodouchat.server.repository.PollRepository.isMember(chatId, userId)) {
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
@@ -64,7 +46,7 @@ internal fun Route.configurePollLegacyRoutes(
                     return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法参与群玩法"))
                 }
                 val poll = com.maodouchat.server.repository.PollRepository.createPoll(
-                    chatId, userId, question, options, multi, anonymous, closesAt
+                    chatId, userId, fields.question, fields.options, fields.multi, fields.anonymous, fields.closesAt
                 ) ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建投票"))
                 call.respond(poll)
             }
@@ -98,24 +80,8 @@ internal fun Route.configurePollLegacyRoutes(
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 // 9.157：严格解析——此前 mapNotNull 静默丢弃非法元素（如 [0,"abc",1] 被投成 [0,1]，
                 // 用户发送垃圾数据却按子集成功投票）。任一元素非非负整数即整体拒绝。
-                val indexes = buildList {
-                    val arr = obj["optionIndexes"]?.jsonArray
-                    if (arr != null) {
-                        for (element in arr) {
-                            val v = (element as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
-                            if (v == null || v < 0) {
-                                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票选项无效"))
-                            }
-                            add(v)
-                        }
-                    } else {
-                        val single = (obj["optionIndex"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull()
-                        if (single == null || single < 0) {
-                            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票选项无效"))
-                        }
-                        add(single)
-                    }
-                }
+                val indexes = parsePollLegacyVoteOrNull(obj)
+                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("投票选项无效"))
                 com.maodouchat.server.repository.PollRepository.getPoll(pollId, userId)?.let { existing ->
                     if (com.maodouchat.server.repository.PollRepository.isMuted(existing.chatId, userId)) {
                         return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("你已被禁言，暂时无法参与群玩法"))
