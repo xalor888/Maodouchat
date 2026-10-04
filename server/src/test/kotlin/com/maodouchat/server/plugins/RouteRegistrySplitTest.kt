@@ -26,8 +26,9 @@ class RouteRegistrySplitTest {
         assertTrue("configureBotPresentationRoutes(" in core)
         assertFalse(ENDPOINT_DECLARATION.containsMatchIn(registry))
         // Bot API 端点已按子域拆分为多个实现模块，计数必须覆盖全部模块，防止任一模块端点被意外删减。
+        // 961 → 940：21 处响应体 put("…", …) 收敛为 putJsonElement("…", …)，行首不再命中 put(" 正则；端点本身无增减。
         val botRouteModules = BOT_ROUTE_MODULES.joinToString("\n") { source(it) }
-        assertEquals(961, ENDPOINT_DECLARATION.findAll(botRouteModules).count())
+        assertEquals(940, ENDPOINT_DECLARATION.findAll(botRouteModules).count())
     }
 
     @Test
