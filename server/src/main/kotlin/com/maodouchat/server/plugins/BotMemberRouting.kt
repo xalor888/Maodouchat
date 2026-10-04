@@ -21,8 +21,8 @@ internal fun Route.configureBotMemberRoutes(
 
     get("/api/bot/getChatMember") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val chatId = call.request.queryParameters["chatId"].orEmpty()
-        val userId = call.request.queryParameters["userId"].orEmpty()
+        val chatId = parseRawOrEmpty(call.request.queryParameters, "chatId")
+        val userId = parseRawOrEmpty(call.request.queryParameters, "userId")
         if (chatId.isBlank() || userId.isBlank()) {
             return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/userId required"))
         }

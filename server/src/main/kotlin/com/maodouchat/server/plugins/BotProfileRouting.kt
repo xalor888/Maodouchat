@@ -36,7 +36,7 @@ put("description", (updated.description ?: ""))
 
     get("/api/bot/getChatMemberCount") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val chatId = call.request.queryParameters["chatId"].orEmpty()
+        val chatId = parseRawOrEmpty(call.request.queryParameters, "chatId")
         if (chatId.isBlank()) return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
         if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
