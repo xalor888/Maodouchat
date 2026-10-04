@@ -30,11 +30,8 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import java.util.Date
 import java.util.UUID
 import javax.crypto.Mac
@@ -301,9 +298,7 @@ fun Application.configureDeveloperRouting() {
                 val body = call.receiveBoundedText().orEmpty()
                 val obj = parseDeveloperJsonEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val email = obj["email"]?.jsonPrimitive?.content.orEmpty()
-                val password = obj["password"]?.jsonPrimitive?.content.orEmpty()
-                val totpCode = obj["totpCode"]?.jsonPrimitive?.content
+                val (email, password, totpCode) = parseDeveloperLoginFields(obj)
                 if (email.isBlank() || password.isBlank()) {
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("邮箱或密码不能为空"))
                 }
@@ -383,9 +378,7 @@ fun Application.configureDeveloperRouting() {
                 val body = call.receiveBoundedText().orEmpty()
                 val obj = parseDeveloperJsonEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val name = obj["name"]?.jsonPrimitive?.content.orEmpty()
-                val username = obj["username"]?.jsonPrimitive?.content.orEmpty()
-                val description = obj["description"]?.jsonPrimitive?.content
+                val (name, username, description) = parseDeveloperBotCreateFields(obj)
                 when (val result = BotRepository.create(userId, name, username, description)) {
                     is BotRepository.BotCreateResult.Success -> call.respond(result.bot)
                     BotRepository.BotCreateResult.UsernameTaken ->
@@ -503,25 +496,16 @@ put("ok", true)
                 val body = call.receiveBoundedText().orEmpty()
                 val obj = parseDeveloperJsonEnvelopeOrNull(body)
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                val arr = obj["commands"] as? JsonArray
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("commands array required"))
-                // 8.48 修复 M5：逐项严格校验——任一条目非法即 400，禁止静默丢弃后误清空命令菜单
-                //（此前 mapNotNull 把空 command/description 丢弃，全非法时 defs 为空 → 200 清空全部命令）。
-                // 仅显式传空数组 = 合法清空。
-                val defs = buildList {
-                    for (item in arr) {
-                        val o = item as? JsonObject
-                            ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid command item"))
-                        val command = o["command"]?.jsonPrimitive?.content.orEmpty()
-                        val description = o["description"]?.jsonPrimitive?.content.orEmpty()
-                        if (command.isBlank() || description.isBlank()) {
-                            return@put call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse("invalid command (command and description required)")
-                            )
-                        }
-                        add(BotRepository.BotCommandDef(command = command, description = description))
+                // 8.48 以来逐项严格校验，任一条目非法即 400（禁止静默丢弃后误清空菜单）；
+                // 仅显式传空数组 = 合法清空。抽取逻辑见 parseDeveloperBotCommands。
+                val defs = when (val parsed = parseDeveloperBotCommands(obj)) {
+                    is DeveloperBotCommandsParseResult.Ok -> parsed.defs.map { (command, description) ->
+                        BotRepository.BotCommandDef(command = command, description = description)
                     }
+                    is DeveloperBotCommandsParseResult.Invalid -> return@put call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(parsed.message)
+                    )
                 }
                 val normalized = BotRepository.normalizeCommands(defs)
                     ?: return@put call.respond(
