@@ -42,9 +42,9 @@ internal fun Route.configureAdminModerationRoutes(
     // ─── 举报管理（admin-jwt 代理） ────
     get("/reports") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-        val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-        val status = call.request.queryParameters["status"]?.trim()?.takeIf { it.isNotBlank() && it != "ALL" }
+        val limit = parseAdminListLimit(call.request.queryParameters)
+        val offset = parseAdminListOffset(call.request.queryParameters)
+        val status = parseModerationStatusFilter(call.request.queryParameters)
         call.respond(reportRepo.getReports(status, limit, offset))
     }
 
@@ -216,9 +216,9 @@ internal fun Route.configureAdminModerationRoutes(
     // ─── 风控事件监控 ─────────────────
     get("/risk-events") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 200)
-        val offset = (call.request.queryParameters["offset"]?.toLongOrNull() ?: 0L).coerceAtLeast(0L)
-        val needsReviewOnly = call.request.queryParameters["pending"] == "true"
+        val limit = parseAdminListLimit(call.request.queryParameters)
+        val offset = parseAdminListOffset(call.request.queryParameters)
+        val needsReviewOnly = parseQueryFlag(call.request.queryParameters, "pending")
         val events = adminManagementRepo.listRiskEvents(limit, offset, needsReviewOnly)
         call.respond(events)
     }
