@@ -63,9 +63,9 @@ internal fun Route.configureAccountRoutes(
                     return@get
                 }
                 // 8.38：与 /api/users/search 一致截断 q 到 100（底层 LIKE 四列全表扫描）
-                val q = call.request.queryParameters["q"]?.trim().orEmpty().take(100)
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 30).coerceIn(1, 100)
-                val offset = (call.request.queryParameters["offset"]?.toIntOrNull() ?: 0).coerceAtLeast(0)
+                val q = parseAccountSearchQuery(call.request.queryParameters)
+                val limit = parseAccountPageLimit(call.request.queryParameters, 30)
+                val offset = parseAccountPageOffset(call.request.queryParameters)
                 if (q.isBlank()) {
                     call.respond(userRepo.getAll(limit, offset = offset, viewerId = userId))
                 } else {
@@ -79,8 +79,8 @@ internal fun Route.configureAccountRoutes(
 
             get("/api/users/search") {
                 // 8.33 修复：q 截断到 100 字符（底层 LIKE 全表扫描，超长关键字无意义且放大成本）
-                val q = call.request.queryParameters["q"]?.trim().orEmpty().take(100)
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 30).coerceIn(1, 100)
+                val q = parseAccountSearchQuery(call.request.queryParameters)
+                val limit = parseAccountPageLimit(call.request.queryParameters, 30)
                 if (q.length < 2) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("搜索关键字至少 2 个字符"))
                     return@get
@@ -192,8 +192,8 @@ internal fun Route.configureAccountRoutes(
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("查询太频繁，请稍后再试"))
                     return@get
                 }
-                val radiusKm = (call.request.queryParameters["radiusKm"]?.toDoubleOrNull() ?: 10.0).coerceIn(0.5, 30.0)
-                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 50).coerceIn(1, 100)
+                val radiusKm = parseAccountNearbyRadiusKm(call.request.queryParameters)
+                val limit = parseAccountPageLimit(call.request.queryParameters, 50)
                 call.respond(nearbyRepo.getNearby(userId, radiusKm, limit))
             }
 
@@ -345,7 +345,7 @@ put("avatarUrl", avatarUrl)
                 }
                 val obj = call.receiveBoundedText()?.let(::parseAccountJsonEnvelopeOrNull)
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                val username = obj["username"]?.jsonPrimitive?.content.orEmpty().trim().lowercase()
+                val username = parseAccountUsername(obj)
                 // 8.40：格式非法 400、已占用 409 分离（此前一律 409，客户端无法区分参数错误与冲突）
                 if (username.length !in 3..50 || !username.all { it.isLetterOrDigit() || it == '_' || it == '-' }) {
                     return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("用户名格式无效（3-50 位字母/数字/_/-）"))
