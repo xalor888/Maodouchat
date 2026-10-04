@@ -59,7 +59,7 @@ class DeveloperAccountParseFuzzTest {
         val known = setOf("email", "password", "totpCode")
         val random = Random(19001)
         repeat(ITERATIONS) { i ->
-            val entries = randomObject(random, known).entries.toMutableMap()
+            val entries = randomObject(random, known).toMutableMap()
             entries["email"] = randomScalar(random)
             entries["password"] = randomScalar(random)
             entries["totpCode"] = randomScalar(random)
@@ -107,7 +107,7 @@ class DeveloperAccountParseFuzzTest {
         val known = setOf("name", "username", "description")
         val random = Random(19002)
         repeat(ITERATIONS) { i ->
-            val entries = randomObject(random, known).entries.toMutableMap()
+            val entries = randomObject(random, known).toMutableMap()
             entries["name"] = randomScalar(random)
             entries["username"] = randomScalar(random)
             entries["description"] = randomScalar(random)
