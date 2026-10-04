@@ -81,8 +81,9 @@ class DeveloperAccountParseFuzzTest {
         assertEquals("", parsed.email)
         assertEquals("", parsed.password)
         assertNull(parsed.totpCode)
+        // 显式 JSON null 仍是 JsonPrimitive，content 取字面量 "null"（与旧内联写法一致），不是 Kotlin null。
         val withNull = parseDeveloperLoginFields(JsonObject(mapOf("totpCode" to JsonNull)))
-        assertNull(withNull.totpCode)
+        assertEquals("null", withNull.totpCode)
     }
 
     @Test
