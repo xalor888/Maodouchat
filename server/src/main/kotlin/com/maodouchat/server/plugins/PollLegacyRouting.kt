@@ -33,7 +33,7 @@ internal fun Route.configurePollLegacyRoutes(
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val chatId = call.parameters["chatId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
                 val body = call.receiveBoundedTextOrEmpty(32_768)
-                val obj = parsePollJsonEnvelopeOrNull(body)
+                val obj = parseJsonObjectEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 // 9.157：与投票选项一致——非法元素整体拒绝，不静默截成子集
                 val fields = parsePollLegacyCreateOrNull(obj)
@@ -76,7 +76,7 @@ internal fun Route.configurePollLegacyRoutes(
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
                 val pollId = call.parameters["pollId"] ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pollId"))
                 val body = call.receiveBoundedTextOrEmpty(8_192)
-                val obj = parsePollJsonEnvelopeOrNull(body)
+                val obj = parseJsonObjectEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 // 9.157：严格解析——此前 mapNotNull 静默丢弃非法元素（如 [0,"abc",1] 被投成 [0,1]，
                 // 用户发送垃圾数据却按子集成功投票）。任一元素非非负整数即整体拒绝。

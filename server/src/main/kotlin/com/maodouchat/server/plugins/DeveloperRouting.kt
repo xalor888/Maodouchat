@@ -296,7 +296,7 @@ fun Application.configureDeveloperRouting() {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("登录过于频繁，请稍后再试"))
                 }
                 val body = call.receiveBoundedText().orEmpty()
-                val obj = parseDeveloperJsonEnvelopeOrNull(body)
+                val obj = parseJsonObjectEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val (email, password, totpCode) = parseDeveloperLoginFields(obj)
                 if (email.isBlank() || password.isBlank()) {
@@ -376,7 +376,7 @@ fun Application.configureDeveloperRouting() {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建机器人太频繁，请稍后再试"))
                 }
                 val body = call.receiveBoundedText().orEmpty()
-                val obj = parseDeveloperJsonEnvelopeOrNull(body)
+                val obj = parseJsonObjectEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val (name, username, description) = parseDeveloperBotCreateFields(obj)
                 when (val result = BotRepository.create(userId, name, username, description)) {
@@ -494,7 +494,7 @@ put("ok", true)
                     return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作该机器人"))
                 }
                 val body = call.receiveBoundedText().orEmpty()
-                val obj = parseDeveloperJsonEnvelopeOrNull(body)
+                val obj = parseJsonObjectEnvelopeOrNull(body)
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 // 8.48 以来逐项严格校验，任一条目非法即 400（禁止静默丢弃后误清空菜单）；
                 // 仅显式传空数组 = 合法清空。抽取逻辑见 parseDeveloperBotCommands。
