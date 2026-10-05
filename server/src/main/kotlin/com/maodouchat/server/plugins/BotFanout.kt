@@ -58,11 +58,13 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
+// bot hint 空白折叠：每次调用都在重新编译，提到文件级复用。
+private val whitespaceRunRegex = Regex("\\s+")
 
 internal fun sanitizeBotHint(raw: String?): String = (raw ?: "")
     .map { if (it.isISOControl() || it == '\u007F') ' ' else it }
     .joinToString("")
-    .replace(Regex("\\s+"), " ")
+    .replace(whitespaceRunRegex, " ")
     .trim()
     .take(120)
 
