@@ -169,8 +169,7 @@ private suspend fun sendSecretSurfaceHint(
         return call.respond(HttpStatusCode.Forbidden, ErrorResponse("surface_gate_disabled"))
     }
     val body = call.receiveBoundedTextOrEmpty()
-    val obj = parseJsonObjectEnvelopeOrNull(body)
-        ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+    val obj = call.requireJsonObjectOr400(body) ?: return
     // 9.136：hint 与 Routing.kt 家族一致走 sanitizeBotHint——控制字符/换行不得进入 SYSTEM 消息
     val (rawChatId, hint) = parseSecretSurfaceHint(obj, defaultHint)
     val chatId = call.requireNonBlankValueOr400(rawChatId, "chatId required") ?: return

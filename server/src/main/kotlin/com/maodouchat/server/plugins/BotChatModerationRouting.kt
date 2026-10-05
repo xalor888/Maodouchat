@@ -24,8 +24,7 @@ internal fun Route.configureBotChatModerationRoutes(
     post("/api/bot/leaveChat") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId = when (val parsed = parseBotLeaveChatFields(obj)) {
             is BotLeaveChatFieldsResult.Ok -> parsed.fields.chatId
             BotLeaveChatFieldsResult.MissingRequired ->
@@ -72,8 +71,7 @@ put("result", (outcome?.result?.name ?: "UNKNOWN"))
     post("/api/bot/deleteMessage") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId: String
         val messageId: String
         when (val parsed = parseBotDeleteMessageFields(obj)) {

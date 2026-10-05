@@ -57,8 +57,7 @@ add(buildJsonObject {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotCodeFields(obj)) {
             is BotCodeFieldsResult.Ok -> parsed.fields
             BotCodeFieldsResult.MissingRequired ->
@@ -105,8 +104,7 @@ put("type", "MARKDOWN")
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("reactions_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotReactionFields(obj)) {
             is BotReactionFieldsResult.Ok -> parsed.fields
             BotReactionFieldsResult.MissingRequired ->
@@ -153,8 +151,7 @@ putJsonElement("reactions", botReactions)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotQuoteFields(obj)) {
             is BotQuoteFieldsResult.Ok -> parsed.fields
             BotQuoteFieldsResult.MissingRequired ->

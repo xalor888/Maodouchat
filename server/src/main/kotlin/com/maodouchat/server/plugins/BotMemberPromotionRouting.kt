@@ -24,8 +24,7 @@ internal fun Route.configureBotMemberPromotionRoutes(
     post("/api/bot/unbanChatMember") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId: String
         val userId: String
         when (val parsed = parseBotUnbanChatMemberFields(obj)) {
@@ -94,8 +93,7 @@ putJsonElement("added", addedUserIds)
     post("/api/bot/promoteChatMember") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId: String
         val userId: String
         val role: String

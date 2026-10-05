@@ -20,8 +20,7 @@ internal fun Route.configureBotChatAdminRoutes(
     post("/api/bot/setChatTitle") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId: String
         val title: String
         when (val parsed = parseBotSetChatTitleFields(obj)) {
@@ -58,8 +57,7 @@ put("title", title)
     post("/api/bot/setChatDescription") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId: String
         val description: String
         when (val parsed = parseBotSetChatDescriptionFields(obj)) {

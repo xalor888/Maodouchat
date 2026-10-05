@@ -34,11 +34,7 @@ internal fun Route.configureBotHintRoutes(
                 return@post
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val request = parseJsonObjectEnvelopeOrNull(body)
-                ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
-                    return@post
-                }
+            val request = call.requireJsonObjectOr400(body) ?: return@post
             val chatId = when (val parsed = parseBotHintChatId(request)) {
                 is BotHintChatIdResult.Ok -> parsed.chatId
                 BotHintChatIdResult.Invalid ->

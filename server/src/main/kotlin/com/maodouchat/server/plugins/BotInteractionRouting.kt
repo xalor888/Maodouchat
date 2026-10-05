@@ -96,8 +96,7 @@ internal fun Route.configureBotInteractionRoutes(
             return@post
         }
         val body = call.receiveBoundedTextOrEmpty(8_192)
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val inbox = parseBotInboxFields(obj)
         val text = inbox.text
         val botIdHint = inbox.botIdHint
@@ -182,8 +181,7 @@ internal fun Route.configureBotInteractionRoutes(
             return@post
         }
         val body = call.receiveBoundedTextOrEmpty(16_384)
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotChatCallbackFields(obj)) {
             is BotChatCallbackFieldsResult.Ok -> parsed.fields
             BotChatCallbackFieldsResult.Invalid ->
