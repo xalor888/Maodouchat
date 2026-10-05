@@ -579,6 +579,28 @@ internal class ChatDetailDeps(
         updateState = { transform -> host._uiState.update(transform) },
         text = { id -> host.text(id) },
     )
+    // G378：`jumpToDate()`/`jumpToMessage()`/`jumpToPinnedMessage()` 跳转定位抽到 ChatJumpController，
+    // `notifyLocalCaptureDetected()`/`sendCaptureAlertToPeer()` 截屏告警抽到 ChatCaptureAlertController——
+    // VM 侧只留同签名委托。
+    internal val chatJumpController = ChatJumpController(
+        scope = host.viewModelScope,
+        ownerUserId = { host.currentUserId },
+        activeChatId = { host.activeChatId },
+        chatId = { host.chatId },
+        updateState = { transform -> host._uiState.update(transform) },
+        text = { id -> host.text(id) },
+        messageRepo = messageRepo,
+        searchSelectionStateController = searchSelectionStateController,
+    )
+    internal val chatCaptureAlertController = ChatCaptureAlertController(
+        getApplication = { host.getApplication<android.app.Application>() },
+        activeChatId = { host.activeChatId },
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        sendInlineContent = host::sendInlineContent,
+        getLastPeerNotifyAt = { lastCapturePeerNotifyAt },
+        setLastPeerNotifyAt = { lastCapturePeerNotifyAt = it },
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
