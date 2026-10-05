@@ -15,9 +15,16 @@ class EmailVerificationCodeContractTest {
 
     @Test
     fun `register and reset codes are isolated`() {
-        val email = "iso-${System.nanoTime()}@example.com"
-        val registerCode = EmailService.sendVerificationCode(email, EmailService.PURPOSE_REGISTER)
-        val resetCode = EmailService.sendVerificationCode(email, EmailService.PURPOSE_RESET)
+        // 6 位码约 1/900k 碰撞；撞上时跨用途校验因码值相同而通过，与隔离语义无关。
+        // 同邮箱重发会复用旧码（9.139），所以换邮箱重发，保证两码不同再断言。
+        var email = "iso-${System.nanoTime()}@example.com"
+        var registerCode = EmailService.sendVerificationCode(email, EmailService.PURPOSE_REGISTER)
+        var resetCode = EmailService.sendVerificationCode(email, EmailService.PURPOSE_RESET)
+        while (registerCode == resetCode) {
+            email = "iso-${System.nanoTime()}@example.com"
+            registerCode = EmailService.sendVerificationCode(email, EmailService.PURPOSE_REGISTER)
+            resetCode = EmailService.sendVerificationCode(email, EmailService.PURPOSE_RESET)
+        }
         // 跨用途复用必须失败，且不得消耗正确用途的码。
         assertFalse(EmailService.verifyCode(email, registerCode, EmailService.PURPOSE_RESET))
         assertFalse(EmailService.verifyCode(email, resetCode, EmailService.PURPOSE_REGISTER))
