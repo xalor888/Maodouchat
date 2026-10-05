@@ -674,6 +674,19 @@ internal class ChatDetailDeps(
         mergeMessages = host::mergeMessages,
         mediaStateController = mediaStateController,
     )
+    // G385：`observeLocalMessages()`/`observeAuthoritativeMessageMutations()` 本地消息观察一族抽到
+    // ChatMessageObservationController——VM 侧只留同签名委托。
+    internal val messageObservationController = ChatMessageObservationController(
+        scope = host.viewModelScope,
+        ownerUserId = { host.currentUserId },
+        activeChatId = { host.activeChatId },
+        chatId = host.chatId,
+        messageRepo = messageRepo,
+        timelineStateController = timelineStateController,
+        mutationCoordinator = conversationMessageMutationCoordinator,
+        updateState = { transform -> host._uiState.update(transform) },
+        projectMessageMutation = host::projectMessageMutation,
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(

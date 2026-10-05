@@ -14,7 +14,6 @@ import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.messaging.v2.MessageMutationProjection
-import com.maodouchat.messaging.v2.MessageMutationKind
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
@@ -435,58 +434,10 @@ class ChatDetailViewModel(
      * Open-chat REST is ciphertext; merge local rows continuously so a readable
      * tail is not lost if history decrypt returns Duplicate/placeholder.
      */
-    internal fun observeLocalMessages() {
-        val observedChatId = activeChatId.ifBlank { chatId }
-        if (observedChatId.isBlank()) return
-        val ownerUserId = currentUserId
-        viewModelScope.launch {
-            messageRepo.getMessagesByChatId(observedChatId).collect { local ->
-                if (local.isEmpty()) return@collect
-                if (ownerUserId.isBlank() ||
-                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                    )
-                ) {
-                    return@collect
-                }
-                val visible = local.filter { it.type != MessageType.SK_DIST }
-                if (visible.isEmpty()) return@collect
-                _uiState.update { state -> timelineStateController.mergeIncoming(state, visible) }
-            }
-        }
-    }
+    internal fun observeLocalMessages() = messageObservationController.observeLocalMessages()
 
-    internal fun observeAuthoritativeMessageMutations() {
-        val observedChatId = activeChatId.ifBlank { chatId }
-        if (observedChatId.isBlank()) return
-        val ownerUserId = currentUserId
-        viewModelScope.launch {
-            ChatDetailAccess.messagingMutationEvents.events.collect { mutation ->
-                if (
-                    mutation.conversationId != observedChatId ||
-                    ownerUserId.isBlank() ||
-                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                    )
-                ) {
-                    return@collect
-                }
-                conversationMessageMutationCoordinator.observeAuthoritative(
-                    messageId = mutation.messageId,
-                    kind = mutation.kind,
-                )
-                when (mutation.kind) {
-                    MessageMutationKind.DELETE -> projectMessageMutation(
-                        MessageMutationProjection.Remove(mutation.messageId),
-                    )
-                    MessageMutationKind.REVOKE,
-                    MessageMutationKind.EDIT -> mutation.message?.let { message ->
-                        projectMessageMutation(MessageMutationProjection.Set(message))
-                    }
-                }
-            }
-        }
-    }
+    internal fun observeAuthoritativeMessageMutations() =
+        messageObservationController.observeAuthoritativeMessageMutations()
 
     /** Room already knows participants; pin 1:1 peer before getChats returns. */
     internal suspend fun pinSessionCipherPeerFromCache(targetChatId: String) {
@@ -840,6 +791,7 @@ class ChatDetailViewModel(
     private val contactCardController get() = deps.contactCardController
     private val aiOperationsController get() = deps.aiOperationsController
     private val attachmentObservationController get() = deps.attachmentObservationController
+    private val messageObservationController get() = deps.messageObservationController
     private val chatCaptureAlertController get() = deps.chatCaptureAlertController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()
