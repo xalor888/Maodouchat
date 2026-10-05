@@ -1,8 +1,5 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.notification.MessageNotificationService
-import com.maodouchat.util.DisappearingMessagePolicy
-import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import android.net.Uri
 import android.util.Log
@@ -13,19 +10,13 @@ import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.messaging.v2.MessageMutationProjection
-import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.network.WebSocketEvent
-import com.maodouchat.ui.OwnerSessionPolicy
-import com.maodouchat.ui.OwnerSessionSnapshot
-import com.maodouchat.util.VoicePlayer
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,8 +28,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
 
 class ChatDetailViewModel(
     application: Application,
@@ -68,25 +57,12 @@ class ChatDetailViewModel(
     internal val aiSummaryRepo get() = deps.aiSummaryRepo
     internal val aiTaskRepo get() = deps.aiTaskRepo
     internal val aiOperationRepo get() = deps.aiOperationRepo
-    private val userRepo get() = deps.userRepo
     internal val chatRepo get() = deps.chatRepo
     internal val chatDraftDao get() = deps.chatDraftDao
     private val outgoingFacade get() = deps.outgoingFacade
     private val conversationScheduleCoordinator get() = deps.conversationScheduleCoordinator
     private val chatScheduleController get() = deps.chatScheduleController
     internal val conversationLocalStateCoordinator get() = deps.conversationLocalStateCoordinator
-
-    private fun ownerSession(ownerUserId: String = currentUserId): OwnerSessionSnapshot =
-        OwnerSessionSnapshot(ownerUserId, ChatDetailAccess.currentSessionGeneration())
-
-    internal fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
-        OwnerSessionPolicy.isCurrent(
-            snapshot = session,
-            liveUserId = com.maodouchat.session.CurrentSession.snapshot().userId,
-            liveToken = com.maodouchat.session.CurrentSession.snapshot().token,
-            liveSessionGeneration = ChatDetailAccess.currentSessionGeneration(),
-            purgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
-        )
 
     internal val voiceRecorder get() = deps.voiceRecorder
     internal val recordingWaveformBuffer get() = deps.recordingWaveformBuffer
@@ -111,17 +87,9 @@ class ChatDetailViewModel(
         updatePeer: Boolean = false,
     ) = sessionCipherController.occupySessionCipher(targetChatId, peerUserId, updatePeer)
 
-    // G67：已处理过的消息 id 交给策略自己的 SeenSet（带上界，长会话不会无限增长）
-    private val readSeenMessages get() = deps.readSeenMessages
-    private var pendingReadWatermarkMessageId
-        get() = deps.pendingReadWatermarkMessageId
-        set(value) { deps.pendingReadWatermarkMessageId = value }
     private var lastMessagesSeen
         get() = deps.lastMessagesSeen
         set(value) { deps.lastMessagesSeen = value }
-    private var markReadJob
-        get() = deps.markReadJob
-        set(value) { deps.markReadJob = value }
     internal var pendingAiAction
         get() = deps.pendingAiAction
         set(value) { deps.pendingAiAction = value }
@@ -224,6 +192,9 @@ class ChatDetailViewModel(
     private val messageMutationController get() = deps.messageMutationController
     private val sessionCipherController get() = deps.sessionCipherController
     private val messageLoadingController get() = deps.messageLoadingController
+    private val outgoingHydrationController get() = deps.outgoingHydrationController
+    private val groupCallController get() = deps.groupCallController
+    private val sessionTeardownController get() = deps.sessionTeardownController
 
     init {
         _uiState.update {
@@ -516,38 +487,7 @@ class ChatDetailViewModel(
     fun startGroupCallFromChat(
         callType: com.maodouchat.webrtc.CallType,
         selectedMemberIds: Set<String>? = null
-    ) {
-        val chat = _uiState.value.chat ?: return
-        if (!chat.isGroup) return
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CALLS)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.calls_disabled)) }
-            return
-        }
-        val fineOk = when (callType) {
-            com.maodouchat.webrtc.CallType.VIDEO -> RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.VIDEO_CALL)
-            else -> RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.VOICE_CALL)
-        }
-        if (!fineOk) {
-            _uiState.update {
-                it.copy(
-                    errorMessage = text(
-                        if (callType == com.maodouchat.webrtc.CallType.VIDEO) R.string.video_call_disabled
-                        else R.string.voice_call_disabled
-                    )
-                )
-            }
-            return
-        }
-        val memberIds = chat.participants.map { it.id }.filter {
-            it != currentUserId && (selectedMemberIds == null || it in selectedMemberIds)
-        }
-        if (memberIds.isEmpty()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_call_empty)) }
-            return
-        }
-        // 委派给 CallViewModel 处理（CallViewModel 需通过 NavGraph 注入；这里用单例 fallback）
-        com.maodouchat.call.CallOrchestrator.requestGroupCall(chat.id, memberIds, callType)
-    }
+    ) = groupCallController.startGroupCallFromChat(callType, selectedMemberIds)
 
     internal fun sendEncryptedAttachment(
         uri: Uri,
@@ -576,52 +516,8 @@ class ChatDetailViewModel(
         chat: Chat,
         ownerUserId: String,
         resolvedPeerId: String?,
-    ): ResolvedOutgoingChat {
-        val session = ownerSession(ownerUserId)
-        val localized = chat.copy(participants = chat.participants.map { withLocalNickname(it) })
-        if (!isOwnerSessionCurrent(session)) {
-            throw kotlinx.coroutines.CancellationException("hydrate_outgoing_session_changed")
-        }
-        val previousContact = _uiState.value.contact
-        val peerId = resolvedPeerId
-        if (!localized.isGroup && peerId == null) {
-            throw IllegalStateException(text(R.string.chat_recipient_not_ready))
-        }
-        val contact = if (localized.isGroup) {
-            User(
-                id = localized.id,
-                name = localized.groupName ?: text(R.string.chat_group),
-                avatar = localized.groupAvatar,
-                status = quantityText(
-                    R.plurals.chat_members_count,
-                    localized.participants.size,
-                    localized.participants.size
-                )
-            )
-        } else {
-            localized.participants.firstOrNull { it.id == peerId }
-                ?.takeUnless { it.name.isBlank() && previousContact.id == peerId }
-                ?: previousContact.takeIf { it.id == peerId }
-                ?: User(id = peerId.orEmpty(), name = "")
-        }
-
-        activeChatId = localized.id
-        _uiState.update {
-            it.copy(
-                chat = localized,
-                chatIsGroup = localized.isGroup,
-                isSecretChat = localized.isSecret,
-                contact = contact,
-                disappearingMessageSeconds = if (localized.isGroup) 0 else localized.disappearingMessageSeconds
-            )
-        }
-        occupySessionCipher(
-            localized.id,
-            peerUserId = peerId,
-            updatePeer = true
-        )
-        return ResolvedOutgoingChat(localized.id, localized, peerId)
-    }
+    ): ResolvedOutgoingChat =
+        outgoingHydrationController.hydrateOutgoingChat(chat, ownerUserId, resolvedPeerId)
 
     fun toggleSilentSend() = composerSendController.toggleSilentSend()
 
@@ -743,90 +639,7 @@ class ChatDetailViewModel(
      * WebSocket 重连后同步断连期间遗漏的消息
      */
     override fun onCleared() {
-        // 8.45：离开会话仍向对端发送实时位置终态（内部经 applicationScope 发送，
-        // 不依赖即将取消的 viewModelScope），避免对端残留 live 位置标记
-        stopLiveLocationSharing(notifyPeer = true)
-        // 离开聊天页必须释放麦克风与未完成的语音临时文件，避免幽灵录音占用 MIC
-        stopRecordingMeter()
-        runCatching { voiceRecorder.cancelRecording() }
-        val previewPath = _uiState.value.voicePreviewPath
-        if (previewPath != null) {
-            runCatching { File(previewPath).delete() }
-        }
-        // 全局 VoicePlayer 不随 ViewModel 销毁；离开会话应停播，避免跨页串音
-        runCatching { VoicePlayer.stop() }
-        aiAutoRetryJobs.values.forEach { it.cancel() }
-        aiAutoRetryJobs.clear()
-        aiAutoRetryAt.clear()
-        draftSaveJob?.cancel()
-        draftSaveJob = null
-        realtimeController.clear()
-        val draftOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val draftChatId = activeChatId
-        val draftText = _uiState.value.inputText
-        // 8.49 修复：与 scheduleDraftPersistence/clearDraft/restoreDraft 一致检查 CHAT_DRAFTS
-        // 运行时开关——管理员关闭草稿功能后，残余输入不应被持久化为明文草稿
-        val draftsFeatureEnabled = RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_DRAFTS)
-        // 捕获 chatDraftDao 到局部变量，避免 lambda 闭包捕获 this（ViewModel），
-        // 从而防止 ViewModel 被 applicationScope 中的挂起引用阻止 GC 回收。
-        val draftDao = chatDraftDao
-        if (draftsFeatureEnabled && draftOwnerUserId.isNotBlank() && draftChatId.isNotBlank()) {
-            ChatDetailAccess.applicationScope.launch {
-                withContext(NonCancellable) {
-                    // Soft-purge/logout may destroy Room or switch owner before this runs.
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(draftOwnerUserId)
-                    ) {
-                        return@withContext
-                    }
-                    if (draftText.isBlank()) {
-                        draftDao.delete(draftOwnerUserId, draftChatId)
-                    } else {
-                        draftDao.upsert(
-                            ChatDraftEntity(
-                                ownerUserId = draftOwnerUserId,
-                                chatId = draftChatId,
-                                text = draftText,
-                                updatedAt = System.currentTimeMillis()
-                            )
-                        )
-                    }
-                }
-            }
-        }
-        val finalReadWatermark = pendingReadWatermarkMessageId
-        readSeenMessages.clearAll()
-        pendingReadWatermarkMessageId = null
-        markReadJob?.cancel()
-        markReadJob = null
-        val currentChatId = activeChatId
-        val readOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val readIsSecret = _uiState.value.isSecretChat == true
-        val readGroupRevision = _uiState.value.chat?.memberRevision
-            ?.takeIf { _uiState.value.chat?.isGroup == true }
-        val messagingOutbox = ChatDetailAccess.messagingOutbox
-        sessionCipherController.releaseSessionCipher()
-        if (currentChatId.isNotBlank() && readOwnerUserId.isNotBlank() && finalReadWatermark != null) {
-            ChatDetailAccess.applicationScope.launch {
-                try {
-                    withContext(NonCancellable) {
-                        val liveToken = com.maodouchat.session.CurrentSession.snapshot().token
-                        val liveUserId = com.maodouchat.session.CurrentSession.snapshot().userId
-                        if (liveToken.isNullOrBlank() || liveUserId != readOwnerUserId) return@withContext
-                        if (!DisappearingMessagePolicy.shouldSkipReadReceipts(readIsSecret)) {
-                            messagingOutbox.enqueueReadReceipt(
-                                conversationId = currentChatId,
-                                throughMessageId = finalReadWatermark,
-                                groupRevision = readGroupRevision,
-                            )
-                        }
-                    }
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    Log.w("ChatDetailViewModel", "final v2 read receipt enqueue failed", error)
-                }
-            }
-        }
+        sessionTeardownController.onCleared()
         super.onCleared()
     }
 
@@ -852,17 +665,8 @@ class ChatDetailViewModel(
         decryptStatus.failedTextFor(type)
 
     /** 合并本地备注名（服务端 UserDto 不含 nickname） */
-    internal suspend fun withLocalNickname(user: User): User {
-        if (!user.nickname.isNullOrBlank()) return user
-        val nick = try {
-            userRepo.getUserById(user.id)?.nickname
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            null
-        }
-        return if (nick.isNullOrBlank()) user else user.copy(nickname = nick)
-    }
+    internal suspend fun withLocalNickname(user: User): User =
+        outgoingHydrationController.withLocalNickname(user)
 }
 
 /** 可解密的消息类型（G183 从 ChatDetailViewModel 成员扩展抽成顶层纯函数：它不碰实例状态，留着只会无法单测）。 */

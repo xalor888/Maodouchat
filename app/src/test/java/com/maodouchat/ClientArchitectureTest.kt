@@ -386,7 +386,11 @@ class ClientArchitectureTest {
         // ChatMessageStatusObservationController（1206 → 1124，纯搬移；VM 留同签名委托），上限同步收紧（两份 map 一起改）。
         // G387：消息加载一族抽出 ChatMessageLoadingController、cipher 占用一族抽出
         // ChatSessionCipherController（1124 → 873，纯搬移；VM 留同签名委托），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 873,
+        // G388：会话水合一族（hydrateOutgoingChat/ownerSession/withLocalNickname）抽出
+        // ChatOutgoingHydrationController、群通话入口抽出 ChatGroupCallController、
+        // onCleared 收尾抽出 ChatSessionTeardownController（873 → 677，纯搬移；VM 留同签名委托），
+        // 上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 677,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
@@ -459,7 +463,9 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1077,
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 873,
+            // G388：ChatOutgoingHydrationController + ChatGroupCallController +
+            // ChatSessionTeardownController（873 → 677），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 677,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
