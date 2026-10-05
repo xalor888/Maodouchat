@@ -802,6 +802,59 @@ internal class ChatDetailDeps(
         armSecretDisappearing = host::armSecretDisappearing,
         showNewDeviceHistoryBanner = host::maybeShowNewDeviceHistoryBanner,
     )
+    // G388：会话水合一族（hydrateOutgoingChat + ownerSession/isOwnerSessionCurrent +
+    // withLocalNickname）抽到 ChatOutgoingHydrationController——VM 只留同签名委托。
+    internal val outgoingHydrationController = ChatOutgoingHydrationController(
+        uiState = host._uiState,
+        userRepo = userRepo,
+        cipherController = sessionCipherController,
+        setActiveChatId = { host.activeChatId = it },
+        currentUserId = { host.currentUserId },
+        text = { id, args -> host.text(id, *args) },
+        quantityText = { id, quantity, args -> host.quantityText(id, quantity, *args) },
+    )
+    // G388：群通话入口抽到 ChatGroupCallController——VM 只留同签名委托。
+    internal val groupCallController = ChatGroupCallController(
+        uiState = host._uiState,
+        application = application,
+        currentUserId = { host.currentUserId },
+        text = { id, args -> host.text(id, *args) },
+    )
+    // G388：onCleared 收尾（媒体/任务清理 + 草稿持久化 + 最终已读水印）抽到
+    // ChatSessionTeardownController——VM 只留 override 转发。
+    internal val sessionTeardownController = ChatSessionTeardownController(
+        uiState = host._uiState,
+        application = application,
+        voiceRecorder = voiceRecorder,
+        realtimeController = realtimeController,
+        cipherController = sessionCipherController,
+        getActiveChatId = { host.activeChatId },
+        stopLiveLocationSharing = host::stopLiveLocationSharing,
+        stopRecordingMeter = host::stopRecordingMeter,
+        cancelAiAutoRetryJobs = {
+            aiAutoRetryJobs.values.forEach { it.cancel() }
+            aiAutoRetryJobs.clear()
+            aiAutoRetryAt.clear()
+        },
+        cancelDraftSaveJob = { draftSaveJob?.cancel(); draftSaveJob = null },
+        clearReadSeen = { readSeenMessages.clearAll() },
+        takePendingReadWatermark = { pendingReadWatermarkMessageId.also { pendingReadWatermarkMessageId = null } },
+        cancelMarkReadJob = { markReadJob?.cancel(); markReadJob = null },
+        persistDraft = { ownerUserId, chatId, text ->
+            if (text.isBlank()) {
+                chatDraftDao.delete(ownerUserId, chatId)
+            } else {
+                chatDraftDao.upsert(
+                    ChatDraftEntity(
+                        ownerUserId = ownerUserId,
+                        chatId = chatId,
+                        text = text,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
+            }
+        },
+    )
     internal val recipientId: String get() = host._uiState.value.contact.id
     internal val fileTransferController by lazy {
         ChatDetailFileTransferController(
