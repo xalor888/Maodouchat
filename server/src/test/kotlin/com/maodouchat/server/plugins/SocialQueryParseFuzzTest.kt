@@ -36,8 +36,29 @@ class SocialQueryParseFuzzTest {
         val pairs = mutableListOf<Pair<String, List<String>>>()
         if (random.nextBoolean()) pairs += "limit" to listOf(randomParamValue(random))
         if (random.nextBoolean()) pairs += "before" to listOf(randomParamValue(random))
+        if (random.nextBoolean()) pairs += "status" to listOf(randomStatusValue(random))
+        if (random.nextBoolean()) pairs += "needsReview" to listOf(randomReviewValue(random))
         repeat(random.nextInt(0, 3)) { pairs += NOISE_NAMES.random(random) to listOf(randomParamValue(random)) }
         return parametersOf(*pairs.toTypedArray())
+    }
+
+    private fun randomStatusValue(random: Random): String = when (random.nextInt(6)) {
+        0 -> "PENDING"
+        1 -> "ACCEPTED"
+        2 -> "REJECTED"
+        3 -> ""
+        4 -> "pending"
+        else -> randomParamValue(random)
+    }
+
+    private fun randomReviewValue(random: Random): String = when (random.nextInt(7)) {
+        0 -> "true"
+        1 -> "false"
+        2 -> "TRUE"
+        3 -> "False"
+        4 -> "yes"
+        5 -> ""
+        else -> randomParamValue(random)
     }
 
     // 旧内联写法的逐字复刻，只供等价性比对。
@@ -46,6 +67,12 @@ class SocialQueryParseFuzzTest {
 
     private fun oldGroupPlayLimitWay(params: Parameters, defaultLimit: Int): Int =
         params["limit"]?.toIntOrNull() ?: defaultLimit
+
+    private fun oldFriendStatusWay(params: Parameters): String =
+        params["status"] ?: "PENDING"
+
+    private fun oldNeedsReviewWay(params: Parameters): Boolean? =
+        params["needsReview"]?.toBooleanStrictOrNull()
 
     @Test
     fun `feed before matches old inline`() {
@@ -67,6 +94,24 @@ class SocialQueryParseFuzzTest {
     }
 
     @Test
+    fun `friend request status matches old inline`() {
+        val random = Random(SEED + 2)
+        repeat(ITERATIONS) { i ->
+            val params = randomParams(random)
+            assertEquals(oldFriendStatusWay(params), parseFriendRequestStatus(params), "iter $i")
+        }
+    }
+
+    @Test
+    fun `needs review matches old inline`() {
+        val random = Random(SEED + 3)
+        repeat(ITERATIONS) { i ->
+            val params = randomParams(random)
+            assertEquals(oldNeedsReviewWay(params), parseNeedsReview(params), "iter $i")
+        }
+    }
+
+    @Test
     fun `pinned semantics`() {
         // before：缺省/非法为 null，负值与超大值原样透传。
         assertNull(parseSocialFeedBefore(parametersOf()))
@@ -79,5 +124,16 @@ class SocialQueryParseFuzzTest {
         assertEquals(-7, parseGroupPlayLimit(parametersOf("limit" to listOf("-7"))))
         assertEquals(20, parseGroupPlayLimit(parametersOf(), defaultLimit = 20))
         assertEquals(Int.MAX_VALUE, parseGroupPlayLimit(parametersOf("limit" to listOf(Int.MAX_VALUE.toString()))))
+        // friend status：缺省回 PENDING，空串原样透传（旧内联也是如此）。
+        assertEquals("PENDING", parseFriendRequestStatus(parametersOf()))
+        assertEquals("", parseFriendRequestStatus(parametersOf("status" to listOf(""))))
+        assertEquals("ACCEPTED", parseFriendRequestStatus(parametersOf("status" to listOf("ACCEPTED"))))
+        // needsReview：严格布尔，非法值回 null。
+        assertNull(parseNeedsReview(parametersOf()))
+        assertEquals(true, parseNeedsReview(parametersOf("needsReview" to listOf("true"))))
+        assertEquals(false, parseNeedsReview(parametersOf("needsReview" to listOf("false"))))
+        assertNull(parseNeedsReview(parametersOf("needsReview" to listOf("TRUE"))))
+        assertNull(parseNeedsReview(parametersOf("needsReview" to listOf("yes"))))
+        assertNull(parseNeedsReview(parametersOf("needsReview" to listOf(""))))
     }
 }

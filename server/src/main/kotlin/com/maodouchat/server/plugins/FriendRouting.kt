@@ -112,14 +112,14 @@ internal fun Route.configureFriendRoutes(
 
         get("/api/friends/requests/incoming") {
             val userId = call.requireUserId()
-            val status = call.request.queryParameters["status"] ?: "PENDING"
+            val status = parseFriendRequestStatus(call.request.queryParameters)
             val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
             call.respond(friendRepository.listIncoming(userId, status, limit))
         }
 
         get("/api/friends/requests/outgoing") {
             val userId = call.requireUserId()
-            val status = call.request.queryParameters["status"] ?: "PENDING"
+            val status = parseFriendRequestStatus(call.request.queryParameters)
             val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
             call.respond(friendRepository.listOutgoing(userId, status, limit))
         }
