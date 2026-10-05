@@ -380,7 +380,7 @@ class ClientArchitectureTest {
         // （1357 → 1295，纯搬移；VM 留同签名委托）。
         // G384：附件观察一族（observeAttachmentFinalizedEvents/observeAttachmentTransfers）抽出
         // ChatAttachmentObservationController（1295 → 1254，纯搬移；VM 留同签名委托），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 1254,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 1206,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
@@ -451,7 +451,7 @@ class ClientArchitectureTest {
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1077,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 1254,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 1206,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
