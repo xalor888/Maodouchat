@@ -348,7 +348,7 @@ put("username", bot.username)
         val body = call.receiveBoundedTextOrEmpty()
         val obj = parseJsonObjectEnvelopeOrNull(body)
         val upTo = when (
-            val parsed = parseBotDeleteUpdatesFields(obj, call.request.queryParameters["upToId"])
+            val parsed = parseBotDeleteUpdatesFields(obj, parseRawOrNull(call.request.queryParameters, "upToId"))
         ) {
             is BotDeleteUpdatesFieldsResult.Ok -> parsed.fields.upTo
             BotDeleteUpdatesFieldsResult.Invalid ->
