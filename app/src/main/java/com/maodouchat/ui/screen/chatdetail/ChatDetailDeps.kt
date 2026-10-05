@@ -547,6 +547,13 @@ internal class ChatDetailDeps(
         onGroupRevisionChanged = host::handleGroupRevisionChanged,
         text = { id -> host.text(id) },
     )
+    internal val voicePlaybackReporter = ChatVoicePlaybackReporter(
+        scope = host.viewModelScope,
+        currentUserId = { host.currentUserId },
+        currentState = host._uiState::value,
+        activeChatId = { host.activeChatId },
+        chatId = { host.chatId },
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(

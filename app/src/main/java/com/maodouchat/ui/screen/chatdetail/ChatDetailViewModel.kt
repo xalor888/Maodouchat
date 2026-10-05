@@ -348,6 +348,7 @@ class ChatDetailViewModel(
     private val moderationController get() = deps.moderationController
     private val botGroupActionController get() = deps.botGroupActionController
     private val realtimeController get() = deps.realtimeController
+    private val voicePlaybackReporter get() = deps.voicePlaybackReporter
 
     init {
         _uiState.update {
@@ -580,47 +581,9 @@ class ChatDetailViewModel(
             .launchIn(viewModelScope)
     }
 
-    fun markVoiceMessagePlayed(messageId: String) {
-        val ownerUserId = currentUserId
-        if (
-            ownerUserId.isBlank() ||
-            ownerUserId == "me" ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-        ) {
-            return
-        }
-        val target = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
-        if (target.senderId == ownerUserId) return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val effectiveChatId = activeChatId.ifBlank { chatId }
-                val chat = _uiState.value.chat
-                ChatDetailAccess.messagingOutbox.enqueuePlayReceipt(
-                    conversationId = effectiveChatId,
-                    messageId = messageId,
-                    groupRevision = chat?.memberRevision.takeIf { chat?.isGroup == true },
-                )
-            } catch (error: Exception) {
-                Log.w("ChatDetailViewModel", "v2 play receipt enqueue failed: " + error.message, error)
-            }
-        }
-    }
+    fun markVoiceMessagePlayed(messageId: String) = voicePlaybackReporter.markVoiceMessagePlayed(messageId)
 
-    internal fun observeVoicePlayback() {
-        val playedEnqueued = mutableSetOf<String>()
-        VoicePlayer.state
-            .filter { it.isPlaying && it.messageId != null }
-            .mapNotNull { it.messageId }
-            .distinctUntilChanged()
-            .onEach { messageId ->
-                if (playedEnqueued.add(messageId)) {
-                    markVoiceMessagePlayed(messageId)
-                }
-            }
-            .launchIn(viewModelScope)
-    }
+    internal fun observeVoicePlayback() = voicePlaybackReporter.observeVoicePlayback()
 
     /** 8.52 UX：初次加载失败后手动重试（UI 错误空态的重试按钮）。 */
     fun reloadChat() {
