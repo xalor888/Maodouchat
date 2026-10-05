@@ -1,5 +1,6 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.auth.JwtConfig
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.principal
@@ -19,6 +20,19 @@ fun ApplicationCall.requireUserId(): String = principal<JWTPrincipal>()!!.payloa
 fun ApplicationCall.optionalUserId(): String? = principal<JWTPrincipal>()?.payload?.subject
 
 /**
+ * 必填 auth session id：收敛 `JwtConfig.authSessionId(principal.payload)!!` 样板，
+ * 缺失 principal 或 claim 时行为与原来一致（`!!` 抛错，由上层 StatusPages 处理）。
+ */
+fun ApplicationCall.requireAuthSessionId(): String =
+    JwtConfig.authSessionId(principal<JWTPrincipal>()!!.payload)!!
+
+/**
+ * 可选 auth session id：与 `JwtConfig.authSessionId(call.principal<JWTPrincipal>()!!.payload)` 等价。
+ */
+fun ApplicationCall.optionalAuthSessionId(): String? =
+    JwtConfig.authSessionId(principal<JWTPrincipal>()!!.payload)
+
+/**
  * 设备会话绑定（B02 DeviceSession：auth session → user + 已确认 Signal device）。
  *
  * 收敛 V2 路由三处 `authSessionId → resolveAuthenticatedDevice` 设备门：
@@ -36,7 +50,7 @@ fun ApplicationCall.deviceSessionBinding(
 ): DeviceSessionBinding? {
     val principal = principal<JWTPrincipal>()!!
     val userId = principal.payload.subject
-    val authSessionId = com.maodouchat.server.auth.JwtConfig.authSessionId(principal.payload) ?: return null
+    val authSessionId = JwtConfig.authSessionId(principal.payload) ?: return null
     val deviceId = repository.resolveAuthenticatedDevice(userId, authSessionId) ?: return null
     return DeviceSessionBinding(userId, authSessionId, deviceId)
 }

@@ -1,6 +1,5 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.CreateChatRequest
 import com.maodouchat.server.model.CreateGroupInviteRequest
@@ -25,10 +24,9 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.FileStorageService
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
@@ -221,8 +219,7 @@ internal fun Route.configureGroupAdministrationRoutes(
         }
 
         get("/api/chats/{chatId}/sender-key-distributions") {
-            val principal = call.principal<JWTPrincipal>()!!
-            val userId = principal.payload.subject
+            val userId = call.requireUserId()
             val chatId = parseRawOrEmpty(call.parameters, "chatId")
             if (!participantRepository.isParticipant(chatId, userId)) {
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
@@ -239,7 +236,7 @@ internal fun Route.configureGroupAdministrationRoutes(
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("设备参数无效"))
                 return@get
             }
-            val currentDeviceId = requestedDeviceId ?: authDeviceId(principal)
+            val currentDeviceId = requestedDeviceId ?: call.authDeviceId()
             val expectedTargets = signalKeyRepository
                 .getConfirmedDeviceTargets(participantRepository.participantIds(chatId))
                 .filterNot { (targetUserId, deviceId) ->
@@ -362,8 +359,10 @@ internal fun Route.configureGroupAdministrationRoutes(
 
 private val signalKeyRepoForAuthDevice = SignalKeyRepository()
 
-private fun authDeviceId(principal: JWTPrincipal): Int? {
-    val sessionId = JwtConfig.authSessionId(principal.payload)?.takeIf(String::isNotBlank) ?: return null
+// 当前登录设备的 deviceId：principal 缺失时沿用 `!!` 语义（由 StatusPages 处理），
+// auth session 未绑定或 deviceId 越界时返回 null。
+private fun ApplicationCall.authDeviceId(): Int? {
+    val sessionId = optionalAuthSessionId() ?: return null
     return signalKeyRepoForAuthDevice.getDeviceIdForAuthSession(sessionId)?.takeIf { it in 1..255 }
 }
 

@@ -1,6 +1,5 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
@@ -210,9 +209,8 @@ internal fun Route.configureAccountRoutes(
             }
 
             post("/api/users/push-tokens") {
-                val principal = call.principal<JWTPrincipal>()!!
-                val userId = principal.payload.subject
-                val authSessionId = JwtConfig.authSessionId(principal.payload)!!
+                val userId = call.requireUserId()
+                val authSessionId = call.requireAuthSessionId()
                 val req = call.receiveJson<RegisterPushTokenRequest>()
                 val deviceId = req?.deviceId?.trim().orEmpty()
                 val token = req?.token?.trim().orEmpty()
