@@ -629,6 +629,19 @@ internal class ChatDetailDeps(
         maybeForwardBotInbox = botGroupActionController::maybeForwardBotInbox,
         outgoingFacade = outgoingFacade,
     )
+    // G381：`sendInlineContent()`/`enqueueInlineViaMessagingV2()` 内联发送抽到 ChatInlineSendController——
+    // VM 侧只留同签名委托（扩展函数与截屏告警控制器仍走 VM 委托）。
+    internal val inlineSendController = ChatInlineSendController(
+        scope = host.viewModelScope,
+        ownerUserId = { host.currentUserId },
+        token = { host.token },
+        activeChatId = { host.activeChatId },
+        updateState = { transform -> host._uiState.update(transform) },
+        textProvider = host::text,
+        mergeMessages = host::mergeMessages,
+        completions = inlineSendCompletions,
+        outgoingFacade = outgoingFacade,
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(

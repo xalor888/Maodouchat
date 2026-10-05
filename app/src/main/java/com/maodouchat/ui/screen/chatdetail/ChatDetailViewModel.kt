@@ -15,8 +15,6 @@ import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.messaging.v2.MessageMutationKind
-import com.maodouchat.messaging.v2.OutgoingMessageCommand
-import com.maodouchat.messaging.v2.OutgoingMessageResult
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
@@ -31,8 +29,6 @@ import com.maodouchat.ui.OwnerSessionPolicy
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.VoicePlayer
-import java.util.UUID
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.NonCancellable
@@ -965,6 +961,7 @@ class ChatDetailViewModel(
     private val chatSettingToggleController get() = deps.chatSettingToggleController
     private val chatJumpController get() = deps.chatJumpController
     private val composerSendController get() = deps.composerSendController
+    private val inlineSendController get() = deps.inlineSendController
     private val chatCaptureAlertController get() = deps.chatCaptureAlertController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()
@@ -1010,93 +1007,8 @@ class ChatDetailViewModel(
      * Share live location for [durationMs] (default 15 min). Sends an E2EE LOCATION payload
      * with live=true; further updates reuse the same sessionId via [updateLiveLocation].
      */
-
-    internal fun sendInlineContent(content: String, type: MessageType, preview: String): String? {
-        val sendOwnerUserId = currentUserId
-        if (token.isBlank() || sendOwnerUserId.isBlank()) {
-            _uiState.update {
-                it.copy(isSending = false, groupEncryptionWarning = text(R.string.error_session_expired))
-            }
-            return null
-        }
-        val msgId = "m_${UUID.randomUUID()}"
-        val optimistic = Message(
-            id = msgId,
-            chatId = activeChatId,
-            senderId = sendOwnerUserId,
-            content = content,
-            type = type,
-            timestamp = System.currentTimeMillis(),
-            status = MessageStatus.SENDING,
-        )
-        val completion = CompletableDeferred<Boolean>()
-        inlineSendCompletions[msgId] = completion
-        _uiState.update { it.copy(messages = mergeMessages(it.messages, listOf(optimistic)), isSending = true) }
-        viewModelScope.launch {
-            enqueueInlineViaMessagingV2(
-                optimistic = optimistic,
-                content = content,
-                type = type,
-                preview = preview,
-                completion = completion,
-            )
-        }
-        return msgId
-    }
-
-    private suspend fun enqueueInlineViaMessagingV2(
-        optimistic: Message,
-        content: String,
-        type: MessageType,
-        preview: String,
-        completion: CompletableDeferred<Boolean>,
-    ) {
-        try {
-            val result = withContext(Dispatchers.IO) {
-                outgoingFacade.enqueue(
-                    OutgoingMessageCommand(
-                        ownerUserId = optimistic.senderId,
-                        optimisticMessage = optimistic,
-                        body = content,
-                        type = type,
-                    ),
-                )
-            }
-            when (result) {
-                is OutgoingMessageResult.Staged -> {
-                    _uiState.update { state ->
-                        state.copy(
-                            messages = state.messages.map {
-                                if (it.id == result.message.id) result.message else it
-                            },
-                            isSending = false,
-                        )
-                    }
-                    ChatDetailAccess.emitMessageSent(result.message.chatId, preview, type.name)
-                    completion.complete(true)
-                }
-                is OutgoingMessageResult.Failed -> {
-                    _uiState.update { state ->
-                        state.copy(
-                            messages = state.messages.map {
-                                if (it.id == result.message.id) result.message else it
-                            },
-                            isSending = false,
-                            groupEncryptionWarning = result.error.message?.take(120)
-                                ?: text(R.string.chat_send_failed),
-                        )
-                    }
-                    completion.complete(false)
-                }
-            }
-        } catch (error: kotlinx.coroutines.CancellationException) {
-            _uiState.update { it.copy(isSending = false) }
-            completion.cancel(error)
-            throw error
-        } finally {
-            inlineSendCompletions.remove(optimistic.id, completion)
-        }
-    }
+    internal fun sendInlineContent(content: String, type: MessageType, preview: String): String? =
+        inlineSendController.sendInlineContent(content, type, preview)
 
     internal fun composeContentWithMeta(text: String, meta: com.maodouchat.data.model.MessageMeta): String =
         // 9.144：委托 JsonFormat 权威实现——本地手写清单漏字段（forwardedFrom 等）曾被静默丢弃
