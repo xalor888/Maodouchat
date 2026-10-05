@@ -24,6 +24,10 @@ import java.nio.file.Paths
 /** Dedicated limiter for /health/metrics so monitoring scraping never consumes the /api/ budget. */
 private val healthMetricsLimiter = BoundedRateLimiter()
 
+// 贴纸包/文件名白名单：每个请求都在 handler 里重新编译，提到文件级复用。
+private val stickerPackIdSanitizeRegex = Regex("[^A-Za-z0-9_-]")
+private val stickerNameSanitizeRegex = Regex("[^A-Za-z0-9._-]")
+
 /**
  * 健康检查与状态路由（从 Routing.kt 拆分）。
  * 这些端点不需要 JWT，供部署探针和监控使用。
@@ -203,8 +207,8 @@ fun Route.configureHealthRoutes() {
     get("/static/stickers/{packId}/{name}") {
         val rawPack = parseRawOrEmpty(call.parameters, "packId")
         val rawName = parseRawOrEmpty(call.parameters, "name")
-        val packId = rawPack.replace(Regex("[^A-Za-z0-9_-]"), "").take(40)
-        val name = rawName.replace(Regex("[^A-Za-z0-9._-]"), "").take(80)
+        val packId = rawPack.replace(stickerPackIdSanitizeRegex, "").take(40)
+        val name = rawName.replace(stickerNameSanitizeRegex, "").take(80)
         if (packId.isEmpty() || name.isEmpty() || packId != rawPack || name != rawName) {
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid sticker path"))
             return@get

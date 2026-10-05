@@ -3,6 +3,9 @@ package com.maodouchat.server.plugins
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+// base64 空白剔除：每次请求都在重新编译，提到文件级复用。
+private val base64WhitespaceRegex = Regex("\\s")
+
 internal data class BotSendDocumentFields(
     val chatId: String,
     val fileName: String,
@@ -35,7 +38,7 @@ internal sealed interface BotDocumentBytesResult {
 
 internal fun decodeBotDocumentBytes(b64: String): BotDocumentBytesResult {
     val bytes = runCatching {
-        java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace("\\s".toRegex(), ""))
+        java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace(base64WhitespaceRegex, ""))
     }.getOrNull()
     if (bytes == null || bytes.isEmpty()) return BotDocumentBytesResult.InvalidBase64
     if (bytes.size > BOT_DOCUMENT_MAX_BYTES) return BotDocumentBytesResult.TooLarge

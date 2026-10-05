@@ -41,6 +41,9 @@ import kotlinx.serialization.json.put
 import java.lang.management.ManagementFactory
 import java.util.UUID
 
+// 会话 token 前缀校验：撤销入口每次请求都在重新编译，提到文件级复用。
+private val sessionTokenPrefixRegex = Regex("^[0-9a-fA-F]{12,64}$")
+
 /**
  * 独立管理后台 API。仅允许 MASTER_ADMINS 中配置的账号访问；普通内容审核员继续使用受限审核 API。
  * Web 后台使用「口令 + 账号启用 TOTP 时的动态验证码」二次确认，换取 5 分钟、
@@ -256,7 +259,7 @@ put("pushTokens", JsonArray(push))
                         ErrorResponse("tokenHashPrefix and all=true are mutually exclusive")
                     )
                 }
-                if (!revokeAll && !prefix.matches(Regex("^[0-9a-fA-F]{12,64}$"))) {
+                if (!revokeAll && !prefix.matches(sessionTokenPrefixRegex)) {
                     return@post call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse("tokenHashPrefix must be 12-64 hexadecimal characters")

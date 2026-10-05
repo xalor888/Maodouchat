@@ -3,6 +3,9 @@ package com.maodouchat.server.plugins
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+// base64 空白剔除：每次请求都在重新编译，提到文件级复用。
+private val base64WhitespaceRegex = Regex("\\s")
+
 internal data class BotSendAudioFields(
     val chatId: String,
     val title: String,
@@ -44,7 +47,7 @@ internal const val BOT_AUDIO_MAX_BYTES = 10 * 1024 * 1024
 internal fun decodeBotAudioSize(b64: String): Int =
     if (b64.isBlank()) 0
     else runCatching {
-        java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace("\\s".toRegex(), "")).size
+        java.util.Base64.getDecoder().decode(b64.substringAfter(',').replace(base64WhitespaceRegex, "")).size
     }.getOrDefault(0)
 
 /**
