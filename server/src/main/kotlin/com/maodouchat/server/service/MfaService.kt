@@ -11,6 +11,9 @@ import org.jetbrains.exposed.sql.update
 /** 多因子认证（TOTP + 一次性恢复码），自 UserRepository 拆出（B02「拆 MfaService」）。 */
 class MfaService {
 
+    // SecureRandom 线程安全，每次生成备份码都 new 会反复播种，实例级复用。
+    private val secureRandom = java.security.SecureRandom()
+
     fun isTotpEnabled(userId: String): Boolean = transaction {
         val row = Users.selectAll().where { Users.id eq userId }.firstOrNull() ?: return@transaction false
         row[Users.totpEnabled] && !row[Users.totpSecret].isNullOrBlank()
@@ -120,9 +123,8 @@ class MfaService {
 
     /** 0.75：生成 8 位数字恢复码（SecureRandom，杜绝可预测序列）。 */
     private fun generateBackupCode(): String {
-        val rand = java.security.SecureRandom()
         val sb = StringBuilder(8)
-        repeat(8) { sb.append('0' + rand.nextInt(10)) }
+        repeat(8) { sb.append('0' + secureRandom.nextInt(10)) }
         return sb.toString()
     }
 }
