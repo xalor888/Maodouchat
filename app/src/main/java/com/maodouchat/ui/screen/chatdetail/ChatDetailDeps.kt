@@ -766,6 +766,42 @@ internal class ChatDetailDeps(
         uiState = host._uiState,
         text = host::text,
     )
+
+    // G387：session cipher 占用一族抽到 ChatSessionCipherController——VM 侧只留同签名委托。
+    internal val sessionCipherController = ChatSessionCipherController(
+        initialChatId = host.chatId,
+        chatRepo = chatRepo,
+        currentUserId = { host.currentUserId },
+    )
+    // G387：消息加载/分页/刷新一族抽到 ChatMessageLoadingController——VM 侧只留同签名委托。
+    internal val messageLoadingController = ChatMessageLoadingController(
+        uiState = host._uiState,
+        scope = host.viewModelScope,
+        application = application,
+        chatId = host.chatId,
+        getActiveChatId = { host.activeChatId },
+        getCurrentUserId = { host.currentUserId },
+        chatRepo = chatRepo,
+        messageRepo = messageRepo,
+        groupLifecycleService = groupLifecycleService,
+        groupSecurityStateController = groupSecurityStateController,
+        timelineStateController = timelineStateController,
+        pinStarController = pinStarController,
+        cipherController = sessionCipherController,
+        botGroupActionController = botGroupActionController,
+        moderationController = moderationController,
+        scheduledMessageController = scheduledMessageController,
+        identityVerificationController = identityVerificationController,
+        groupMessagingCoordinator = groupMessagingCoordinator,
+        readReceiptCoordinator = readReceiptCoordinator,
+        text = { id, args -> host.text(id, *args) },
+        quantityText = { id, quantity, args -> host.quantityText(id, quantity, *args) },
+        withLocalNickname = host::withLocalNickname,
+        requestMediaAttachment = host::requestMediaAttachment,
+        maybeGenerateUnreadSummary = host::maybeGenerateUnreadSummary,
+        armSecretDisappearing = host::armSecretDisappearing,
+        showNewDeviceHistoryBanner = host::maybeShowNewDeviceHistoryBanner,
+    )
     internal val recipientId: String get() = host._uiState.value.contact.id
     internal val fileTransferController by lazy {
         ChatDetailFileTransferController(
