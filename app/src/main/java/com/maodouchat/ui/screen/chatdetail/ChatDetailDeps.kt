@@ -601,6 +601,25 @@ internal class ChatDetailDeps(
         getLastPeerNotifyAt = { lastCapturePeerNotifyAt },
         setLastPeerNotifyAt = { lastCapturePeerNotifyAt = it },
     )
+    // G379：`sendMessage()`/`enqueueTextViaMessagingV2()`/`sendRejectMessage()`/`toggleSilentSend()`
+    // 发送流水线抽到 ChatComposerSendController——VM 侧只留同签名委托。
+    internal val composerSendController = ChatComposerSendController(
+        scope = host.viewModelScope,
+        getApplication = { host.getApplication<android.app.Application>() },
+        ownerUserId = { host.currentUserId },
+        token = { host.token },
+        activeChatId = { host.activeChatId },
+        chatId = { host.chatId },
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        textProvider = host::text,
+        requireSilentSend = { host.requireSilentSend() },
+        composeContentWithMeta = host::composeContentWithMeta,
+        mergeMessages = host::mergeMessages,
+        clearDraft = { host.clearDraft() },
+        maybeForwardBotInbox = botGroupActionController::maybeForwardBotInbox,
+        outgoingFacade = outgoingFacade,
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
