@@ -31,8 +31,7 @@ internal fun Route.configureBotMediaRoutes(
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("stickers_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val r = parseBotSendStickerFields(obj)) {
             is BotSendStickerFieldsResult.Ok -> r.fields
             BotSendStickerFieldsResult.MissingRequired ->
@@ -74,8 +73,7 @@ put("type", "STICKER")
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("media_upload_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         // 9.138：与 sendPhoto/sendDocument 一致拒绝空媒体——此前可广播无内容的 voice 消息
         val fields = when (val r = parseBotSendVoiceFields(obj)) {
             is BotSendVoiceFieldsResult.Ok -> r.fields
@@ -157,8 +155,7 @@ put("hasInvite", invite.isNotBlank())
     post("/api/bot/demoteChatMember") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId: String
         val userId: String
         when (val parsed = parseBotDemoteChatMemberFields(obj)) {
@@ -210,8 +207,7 @@ put("role", "MEMBER")
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("media_upload_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val r = parseBotSendDocumentFields(obj)) {
             is BotSendDocumentFieldsResult.Ok -> r.fields
             BotSendDocumentFieldsResult.MissingRequired ->
@@ -262,8 +258,7 @@ put("size", bytes.size)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("image_send_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val r = parseBotSendPhotoFields(obj)) {
             is BotSendPhotoFieldsResult.Ok -> r.fields
             BotSendPhotoFieldsResult.MissingRequired ->
@@ -376,8 +371,7 @@ put("upToId", upTo)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("media_upload_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val r = parseBotSendVideoFields(obj)) {
             is BotSendVideoFieldsResult.Ok -> r.fields
             BotSendVideoFieldsResult.MissingRequired ->
@@ -424,8 +418,7 @@ put("type", "VIDEO")
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("media_upload_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendAnimationFields(obj)) {
             is BotSendAnimationFieldsResult.Ok -> parsed.fields
             BotSendAnimationFieldsResult.MissingRequired ->
@@ -479,8 +472,7 @@ put("username", bot.username)
     post("/api/bot/setChatPermissions") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId: String
         val canSend: Boolean
         val until: Long
@@ -542,8 +534,7 @@ put("membersUpdated", changed)
     post("/api/bot/logEvent") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         fun stringField(name: String): String? =
             (obj[name] as? kotlinx.serialization.json.JsonPrimitive)
                 ?.takeIf { it.isString }
@@ -578,8 +569,7 @@ put("event", event)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("media_upload_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendAudioFields(obj)) {
             is BotSendAudioFieldsResult.Ok -> parsed.fields
             BotSendAudioFieldsResult.MissingRequired ->

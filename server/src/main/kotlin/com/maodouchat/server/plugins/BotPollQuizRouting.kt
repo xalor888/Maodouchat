@@ -46,8 +46,7 @@ put("enabled", bot.enabled)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_play_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val result = parseBotSendPollQuizFields(obj)) {
             is BotSendPollQuizFieldsResult.Ok -> result.fields
             BotSendPollQuizFieldsResult.MissingRequired ->
@@ -86,8 +85,7 @@ put("correctOptionIndex", safeIdx)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_play_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendDiceCustomFields(obj)) {
             is BotSendDiceCustomFieldsResult.Ok -> parsed.fields
             BotSendDiceCustomFieldsResult.MissingRequired ->
