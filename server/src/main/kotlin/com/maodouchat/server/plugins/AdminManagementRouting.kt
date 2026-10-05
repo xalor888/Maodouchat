@@ -342,8 +342,7 @@ post("/broadcast") {
                 val obj = parseJsonObjectEnvelopeOrNull(body)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
                 val broadcast = parseAdminBroadcastContent(obj)
-                val text = broadcast.text
-                if (text.isBlank()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("text required"))
+                val text = call.requireNonBlankValueOr400(broadcast.text, "text required") ?: return@post
                 val title = broadcast.title
                 val payload = kotlinx.serialization.json.buildJsonObject {
                     put("title", title)

@@ -172,8 +172,8 @@ private suspend fun sendSecretSurfaceHint(
     val obj = parseJsonObjectEnvelopeOrNull(body)
         ?: return call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
     // 9.136：hint 与 Routing.kt 家族一致走 sanitizeBotHint——控制字符/换行不得进入 SYSTEM 消息
-    val (chatId, hint) = parseSecretSurfaceHint(obj, defaultHint)
-    if (chatId.isBlank()) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
+    val (rawChatId, hint) = parseSecretSurfaceHint(obj, defaultHint)
+    val chatId = call.requireNonBlankValueOr400(rawChatId, "chatId required") ?: return
     if (!participantRepository.isParticipant(chatId, bot.id)) return call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
     val content = "$prefix " + hint
     val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
