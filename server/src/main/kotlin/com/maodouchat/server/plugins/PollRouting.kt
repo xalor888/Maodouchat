@@ -135,9 +135,7 @@ fun Routing.configurePollRoutes() {
             if (!pollRateLimiter.acquire("$userId:$chatId:chain_create", maxPerMinute = 10)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建接龙过于频繁"))
             }
-            val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let(::parseJsonObjectEnvelopeOrNull)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)) ?: return@post
             val fields = parseChainCreateFields(obj)
             if (fields.title.isBlank() || fields.title.length > MAX_CHAIN_TITLE_LENGTH) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙标题无效"))
@@ -183,9 +181,7 @@ fun Routing.configurePollRoutes() {
             if (!pollRateLimiter.acquire("$userId:$chainId:chain_join", maxPerMinute = 30)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("接龙过于频繁"))
             }
-            val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let(::parseJsonObjectEnvelopeOrNull)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)) ?: return@post
             val content = parseChainJoinContent(obj)
             if (content.isBlank() || content.length > MAX_CHAIN_CONTENT_LENGTH) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("接龙内容无效"))
@@ -211,9 +207,7 @@ fun Routing.configurePollRoutes() {
             if (!pollRateLimiter.acquire("$userId:$chatId:pk_create", maxPerMinute = 10)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建 PK 过于频繁"))
             }
-            val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let(::parseJsonObjectEnvelopeOrNull)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)) ?: return@post
             val fields = parsePkCreateFields(obj)
             if (fields.leftTitle.isBlank() || fields.rightTitle.isBlank() ||
                 fields.leftTitle.length > MAX_PK_TITLE_LENGTH || fields.rightTitle.length > MAX_PK_TITLE_LENGTH
@@ -260,9 +254,7 @@ fun Routing.configurePollRoutes() {
             if (!pollRateLimiter.acquire("$userId:$pkId:pk_vote", maxPerMinute = 30)) {
                 return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("投票过于频繁"))
             }
-            val obj = call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)
-                .let(::parseJsonObjectEnvelopeOrNull)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)) ?: return@post
             val choice = parsePkVoteChoice(obj)
             // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
             val pk = GroupCheckinRepository.votePk(pkId, userId, choice)
