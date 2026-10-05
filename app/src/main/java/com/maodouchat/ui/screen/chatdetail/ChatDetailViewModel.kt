@@ -15,7 +15,6 @@ import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.messaging.v2.MessageMutationKind
-import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
@@ -419,29 +418,7 @@ class ChatDetailViewModel(
         ChatDetailAccess.emitChatRead(id)
     }
 
-    internal fun observeAttachmentTransfers() {
-        com.maodouchat.chatdetail.ChatDetailDataAccess.observeAllAttachmentTransfers()
-            .onEach { allTransfers ->
-                val liveOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-                if (liveOwnerUserId.isBlank()) return@onEach
-                val visibleMessageIds = _uiState.value.messages.mapTo(hashSetOf()) { it.id }
-                // Only this account's rows — SQLCipher wipe is primary isolation, this is defense-in-depth mid-switch.
-                val transfers = allTransfers.filter { transfer ->
-                    transfer.ownerUserId == liveOwnerUserId &&
-                        (transfer.chatId == activeChatId || transfer.messageId in visibleMessageIds)
-                }
-                _uiState.update { state -> mediaStateController.applyTransfers(state, transfers) }
-                transfers.filter { it.chatId == activeChatId && it.state == AttachmentTransferState.READY }.forEach { transfer ->
-                    // Final send is owned by WorkManager so it survives navigation/process death.
-                    com.maodouchat.attachment.AttachmentTransferScheduler.schedule(
-                        getApplication(),
-                        transfer.messageId,
-                        transfer.ownerUserId
-                    )
-                }
-            }
-            .launchIn(viewModelScope)
-    }
+    internal fun observeAttachmentTransfers() = attachmentObservationController.observeAttachmentTransfers()
 
     fun markVoiceMessagePlayed(messageId: String) = voicePlaybackReporter.markVoiceMessagePlayed(messageId)
 
@@ -760,26 +737,7 @@ class ChatDetailViewModel(
         operationId, message, expectedUserId, expectedChatId
     )
 
-    internal fun observeAttachmentFinalizedEvents() {
-        viewModelScope.launch {
-            ChatDetailAccess.attachmentFinalizedEvents.collect { event ->
-                if (event.sessionGeneration != ChatDetailAccess.currentSessionGeneration()) {
-                    return@collect
-                }
-                val message = event.message
-                if (message.chatId != activeChatId) return@collect
-                _uiState.update { state ->
-                    state.copy(
-                        messages = mergeMessages(state.messages.filterNot { it.id == message.id }, listOf(message)),
-                        fileTransferProgress = state.fileTransferProgress - message.id,
-                        fileTransferStates = state.fileTransferStates - message.id,
-                        fileTransferErrors = state.fileTransferErrors - message.id,
-                        preparingAttachmentMessageIds = state.preparingAttachmentMessageIds - message.id
-                    )
-                }
-            }
-        }
-    }
+    internal fun observeAttachmentFinalizedEvents() = attachmentObservationController.observeAttachmentFinalizedEvents()
 
 
     /** Sends a nudge through the same durable encrypted outbox as every other message. */
@@ -881,6 +839,7 @@ class ChatDetailViewModel(
     private val inlineSendController get() = deps.inlineSendController
     private val contactCardController get() = deps.contactCardController
     private val aiOperationsController get() = deps.aiOperationsController
+    private val attachmentObservationController get() = deps.attachmentObservationController
     private val chatCaptureAlertController get() = deps.chatCaptureAlertController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()
