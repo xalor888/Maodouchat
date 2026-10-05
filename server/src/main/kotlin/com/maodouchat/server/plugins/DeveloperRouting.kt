@@ -400,8 +400,7 @@ fun Application.configureDeveloperRouting() {
                 if (!developerBotTokenRateLimiter.acquire(userId, maxPerMinute = 10)) {
                     return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
-                val botId = call.parameters["id"]
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@post
                 val bot = BotRepository.regenerateToken(botId, userId)
                     ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
                 call.respond(bot)
@@ -415,8 +414,7 @@ fun Application.configureDeveloperRouting() {
                 if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
                     return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
-                val botId = call.parameters["id"]
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@put
                 val body = call.receiveBoundedText().orEmpty()
                 val url = parseDeveloperWebhookUrl(body)
                 if (!url.isNullOrBlank() && !BotRepository.isAllowedWebhookUrl(url)) {
@@ -436,8 +434,7 @@ fun Application.configureDeveloperRouting() {
                 if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
                     return@delete call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
-                val botId = call.parameters["id"]
-                    ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@delete
                 // 与 REST 删除机器人一致：删除会 bump 群成员版本；此前开发者账号路径只删 DB，
                 // 客户端成员列表会残留已删除 bot。
                 val affectedGroupIds = BotRepository.groupChatIdsFor(botId)
@@ -470,8 +467,7 @@ put("ok", true)
                 if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
                     return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
-                val botId = call.parameters["id"]
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@put
                 val body = call.receiveBoundedText().orEmpty()
                 val enabled = parseDeveloperBotEnabled(body)
                     ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled required"))
@@ -488,8 +484,7 @@ put("ok", true)
                 if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
                     return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
                 }
-                val botId = call.parameters["id"]
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@put
                 if (devSessionOwnedBot(botId, userId) == null) {
                     return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作该机器人"))
                 }
@@ -527,8 +522,7 @@ put("count", saved.size)
             get("/bots/{id}/commands") {
                 val userId = devSessionUserId(call)
                     ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                val botId = call.parameters["id"]
-                    ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing botId"))
+                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@get
                 if (devSessionOwnedBot(botId, userId) == null) {
                     return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作该机器人"))
                 }

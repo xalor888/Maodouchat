@@ -79,8 +79,7 @@ fun Routing.configurePollRoutes() {
         post("/api/chats/{chatId}/checkins") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
-            val chatId = call.parameters["chatId"]
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@post
             // 8.47：成员校验先于限流——非成员不应能消耗自己对该 chat 的配额
             //（此前限流先行，非成员可反复探测耗尽配额）
             if (!PollRepository.isMember(chatId, userId)) {
@@ -101,8 +100,7 @@ fun Routing.configurePollRoutes() {
 
         get("/api/chats/{chatId}/checkins/me") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"]
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@get
             // 8.39：与同文件其余读端点一致，先校验成员返回 403（此前落到 404「签到信息不存在」，
             // 把非成员与群不存在合并暴露权限边界）
             if (!PollRepository.isMember(chatId, userId)) {
@@ -115,8 +113,7 @@ fun Routing.configurePollRoutes() {
 
         get("/api/chats/{chatId}/checkins/rank") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"]
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@get
             if (!PollRepository.isMember(chatId, userId)) {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
@@ -128,8 +125,7 @@ fun Routing.configurePollRoutes() {
         post("/api/chats/{chatId}/chains") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
-            val chatId = call.parameters["chatId"]
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@post
             // 9.136：成员校验先于限流（与 checkin/pk 的 8.47 口径一致）——
             // 此前接龙创建限流先行，非成员可反复探测耗尽自己对该 chat 的配额
             if (!PollRepository.isMember(chatId, userId)) {
@@ -159,8 +155,7 @@ fun Routing.configurePollRoutes() {
 
         get("/api/chats/{chatId}/chains") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"]
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@get
             if (!PollRepository.isMember(chatId, userId)) {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
@@ -170,8 +165,7 @@ fun Routing.configurePollRoutes() {
 
         get("/api/chains/{chainId}") {
             val userId = call.requireUserId()
-            val chainId = call.parameters["chainId"]
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chainId"))
+            val chainId = call.requirePathParamOr400("chainId", "missing chainId") ?: return@get
             val chain = GroupCheckinRepository.getChain(chainId, userId)
                 ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("接龙不存在"))
             call.respond(chain)
@@ -180,8 +174,7 @@ fun Routing.configurePollRoutes() {
         post("/api/chains/{chainId}/entries") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
-            val chainId = call.parameters["chainId"]
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chainId"))
+            val chainId = call.requirePathParamOr400("chainId", "missing chainId") ?: return@post
             // 8.52 一致性：接龙不存在或非成员统一 403（与 PK 投票口径一致），
             // 并在限流前拦截，避免非成员/禁言成员消耗群玩法配额。
             val chainForMute = GroupCheckinRepository.getChain(chainId, userId)
@@ -209,8 +202,7 @@ fun Routing.configurePollRoutes() {
         post("/api/chats/{chatId}/pk") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
-            val chatId = call.parameters["chatId"]
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@post
             // 8.47：成员校验先于限流（同 checkin 口径）
             if (!PollRepository.isMember(chatId, userId)) {
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
@@ -239,8 +231,7 @@ fun Routing.configurePollRoutes() {
 
         get("/api/chats/{chatId}/pk") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"]
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@get
             if (!PollRepository.isMember(chatId, userId)) {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
@@ -250,8 +241,7 @@ fun Routing.configurePollRoutes() {
 
         get("/api/pk/{pkId}") {
             val userId = call.requireUserId()
-            val pkId = call.parameters["pkId"]
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pkId"))
+            val pkId = call.requirePathParamOr400("pkId", "missing pkId") ?: return@get
             val pk = GroupCheckinRepository.getPk(pkId, userId)
                 ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("PK 不存在"))
             call.respond(pk)
@@ -260,8 +250,7 @@ fun Routing.configurePollRoutes() {
         post("/api/pk/{pkId}/vote") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
-            val pkId = call.parameters["pkId"]
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pkId"))
+            val pkId = call.requirePathParamOr400("pkId", "missing pkId") ?: return@post
             // 8.47：成员校验先于限流（同 checkin 口径）；非成员不得消耗投票配额
             val pkChatId = GroupCheckinRepository.getPk(pkId, userId)?.chatId
             if (pkChatId == null || !PollRepository.isMember(pkChatId, userId)) {
@@ -287,8 +276,7 @@ fun Routing.configurePollRoutes() {
         post("/api/pk/{pkId}/close") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
-            val pkId = call.parameters["pkId"]
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing pkId"))
+            val pkId = call.requirePathParamOr400("pkId", "missing pkId") ?: return@post
             val pk = GroupCheckinRepository.closePk(pkId, userId)
                 ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("只有创建者可关闭 PK"))
             broadcastGroupPlayUpdate(pk.chatId, "pk_closed") { viewerId ->
@@ -300,8 +288,7 @@ fun Routing.configurePollRoutes() {
         // ── 投票同步（补充端点，不重复 Routing.kt 已有 CRUD）──
         get("/api/chats/{chatId}/polls/sync") {
             val userId = call.requireUserId()
-            val chatId = call.parameters["chatId"]
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing chatId"))
+            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@get
             if (!PollRepository.isGroupChat(chatId) || !PollRepository.isMember(chatId, userId)) {
                 return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
             }
