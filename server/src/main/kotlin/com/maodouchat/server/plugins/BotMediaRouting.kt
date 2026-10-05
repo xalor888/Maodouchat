@@ -535,19 +535,14 @@ put("membersUpdated", changed)
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
         val obj = call.requireJsonObjectOr400(body) ?: return@post
-        fun stringField(name: String): String? =
-            (obj[name] as? kotlinx.serialization.json.JsonPrimitive)
-                ?.takeIf { it.isString }
-                ?.content
-        if (listOf("event", "name", "chatId", "userId").any { name ->
-                obj[name] != null && stringField(name) == null
-            }
-        ) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("event, name, chatId and userId must be strings"))
+        val fields = when (val parsed = parseBotLogEventFields(obj)) {
+            is BotLogEventFieldsResult.Ok -> parsed.fields
+            BotLogEventFieldsResult.InvalidType ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("event, name, chatId and userId must be strings"))
         }
-        val event = (stringField("event") ?: stringField("name")).orEmpty().take(40).ifBlank { "custom" }
-        val chatId = stringField("chatId")?.trim()?.takeIf { it.isNotEmpty() }
-        val userId = stringField("userId")?.trim()?.takeIf { it.isNotEmpty() }
+        val chatId = fields.chatId
+        val userId = fields.userId
+        val event = fields.event
         if (chatId != null && !conversationParticipantRepo.isParticipant(chatId, bot.id)) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
         }

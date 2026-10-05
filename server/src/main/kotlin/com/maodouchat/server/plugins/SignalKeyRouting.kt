@@ -301,7 +301,7 @@ internal fun Route.configureSignalKeyRoutes(
 }
 
 private suspend fun io.ktor.server.application.ApplicationCall.requireDeviceId(): Int? {
-    val deviceId = parameters["deviceId"]?.toIntOrNull()
+    val deviceId = parseOptionalInt(parameters, "deviceId")
     if (deviceId == null || deviceId !in 1..255) {
         respond(HttpStatusCode.BadRequest, ErrorResponse("设备 ID 无效"))
         return null
