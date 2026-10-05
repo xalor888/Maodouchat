@@ -41,7 +41,7 @@ internal fun Route.configureBotInteractionRoutes(
 
     get("/api/chats/{chatId}/bot-commands") {
         val userId = call.requireUserId()
-        val chatId = call.parameters["chatId"]!!
+        val chatId = call.requirePathParamOr400("chatId", "缺少聊天 ID") ?: return@get
         if (!conversationParticipantRepo.isParticipant(chatId, userId)) {
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
             return@get
@@ -86,7 +86,7 @@ internal fun Route.configureBotInteractionRoutes(
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
             return@post
         }
-        val chatId = call.parameters["chatId"]!!
+        val chatId = call.requirePathParamOr400("chatId", "缺少聊天 ID") ?: return@post
         if (!conversationParticipantRepo.isParticipant(chatId, userId)) {
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
             return@post
@@ -142,7 +142,7 @@ internal fun Route.configureBotInteractionRoutes(
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
             return@post
         }
-        val botId = call.parameters["botId"]!!
+        val botId = call.requirePathParamOr400("botId", "缺少机器人 ID") ?: return@post
         val bot = com.maodouchat.server.repository.BotRepository.get(botId)
         if (bot == null || !bot.enabled) {
             call.respond(HttpStatusCode.NotFound, ErrorResponse("bot not found"))
@@ -175,7 +175,7 @@ internal fun Route.configureBotInteractionRoutes(
         val userId = call.requireUserId()
         // 8.33 修复：封禁用户不得触发 bot 回调（bot 平台交互面一致收口）
         if (call.rejectIfSuspended(userRepo, userId)) return@post
-        val chatId = call.parameters["chatId"]!!
+        val chatId = call.requirePathParamOr400("chatId", "缺少聊天 ID") ?: return@post
         if (!conversationParticipantRepo.isParticipant(chatId, userId)) {
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该聊天"))
             return@post

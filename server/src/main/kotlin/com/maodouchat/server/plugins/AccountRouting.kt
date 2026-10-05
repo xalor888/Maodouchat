@@ -253,7 +253,8 @@ internal fun Route.configureAccountRoutes(
 
             get("/api/users/{id}") {
                 val viewerId = call.optionalUserId()
-                val user = userRepo.getPublicById(call.parameters["id"]!!, viewerId = viewerId)
+                val id = call.requirePathParamOr400("id", "缺少用户 ID") ?: return@get
+                val user = userRepo.getPublicById(id, viewerId = viewerId)
                 if (user != null) {
                     call.respond(
                         user.copy(isOnline = user.isOnline && userRepo.shouldShowOnlineTo(user.id, viewerId))
