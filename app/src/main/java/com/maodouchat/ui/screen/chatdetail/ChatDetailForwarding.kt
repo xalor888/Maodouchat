@@ -7,7 +7,6 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.domain.messaging.ForwardFailureReason
 import com.maodouchat.domain.messaging.ForwardRequest
-import com.maodouchat.domain.messaging.ForwardTargetResult
 import com.maodouchat.forwarding.ConversationForwardCoordinator
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers

@@ -10,7 +10,6 @@ import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.data.local.entity.AiOperationType
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.network.ApiService
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -18,9 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.json.Json
 
 /**
  * 从 ChatDetailViewModel.kt 拆分的 AI 操作管线。

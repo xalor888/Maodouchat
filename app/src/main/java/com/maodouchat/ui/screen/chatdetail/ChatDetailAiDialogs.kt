@@ -1,6 +1,5 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text

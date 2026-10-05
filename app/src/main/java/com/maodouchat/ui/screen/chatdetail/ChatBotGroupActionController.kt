@@ -4,7 +4,6 @@ import com.maodouchat.R
 import com.maodouchat.bot.BotCommandPolicy
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
-import com.maodouchat.network.ApiService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

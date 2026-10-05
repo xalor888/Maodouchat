@@ -25,9 +25,6 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.ui.theme.Outline
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.PrimaryFixed
 import com.maodouchat.security.MessageSafetyScanner
 import java.util.Calendar
 import java.util.Date

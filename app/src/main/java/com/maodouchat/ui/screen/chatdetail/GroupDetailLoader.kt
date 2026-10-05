@@ -1,6 +1,5 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.group.GroupAuditController
 import com.maodouchat.group.GroupBotController
