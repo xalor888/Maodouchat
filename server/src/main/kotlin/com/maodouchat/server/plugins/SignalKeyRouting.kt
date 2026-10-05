@@ -1,6 +1,5 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.model.ConfirmDeviceRequest
 import com.maodouchat.server.model.DeviceInfoResponse
 import com.maodouchat.server.model.ErrorResponse
@@ -16,8 +15,6 @@ import com.maodouchat.server.service.SealedSenderCertificateService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
@@ -38,9 +35,8 @@ internal fun Route.configureSignalKeyRoutes(
 ) {
     authenticate("auth-jwt") {
         post("/api/keys/upload") {
-            val principal = call.principal<JWTPrincipal>()!!
-            val userId = principal.payload.subject
-            val authSessionId = JwtConfig.authSessionId(principal.payload)!!
+            val userId = call.requireUserId()
+            val authSessionId = call.requireAuthSessionId()
             val request = call.receiveJson<UploadKeysRequest>()
             if (request == null) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
@@ -183,7 +179,7 @@ internal fun Route.configureSignalKeyRoutes(
         delete("/api/keys/devices/{deviceId}") {
             val requesterId = call.requireUserId()
             val deviceId = call.requireDeviceId() ?: return@delete
-            val authSessionId = JwtConfig.authSessionId(call.principal<JWTPrincipal>()!!.payload)
+            val authSessionId = call.optionalAuthSessionId()
             val currentDeviceId = authSessionId?.let { sessionId ->
                 signalKeyRepository.getDeviceIdForAuthSession(sessionId)
             }
