@@ -22,8 +22,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
         post("/api/bot/echo") {
             val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@post
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val text = parseBotEchoFields(obj).text
             com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "echo")
             call.respond(
@@ -39,8 +38,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
         post("/api/bot/sendToast") {
             val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@post
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotSendToastFields(obj)) {
                 is BotSendToastFieldsResult.Ok -> parsed.fields
                 BotSendToastFieldsResult.MissingRequired ->
@@ -84,8 +82,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotKeyValueFields(obj)) {
                 is BotKeyValueFieldsResult.Ok -> parsed.fields
                 BotKeyValueFieldsResult.MissingRequired ->
@@ -125,8 +122,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
         post("/api/bot/sendNotice") {
             val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@post
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotSendNoticeFields(obj)) {
                 is BotSendNoticeFieldsResult.Ok -> parsed.fields
                 BotSendNoticeFieldsResult.MissingRequired ->
@@ -170,8 +166,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotQuoteCardFields(obj)) {
                 is BotQuoteCardFieldsResult.Ok -> parsed.fields
                 BotQuoteCardFieldsResult.MissingRequired ->
@@ -214,8 +209,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotBannerFields(obj)) {
                 is BotBannerFieldsResult.Ok -> parsed.fields
                 BotBannerFieldsResult.MissingRequired ->
@@ -258,8 +252,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotJsonCardFields(obj)) {
                 is BotJsonCardFieldsResult.Ok -> parsed.fields
                 BotJsonCardFieldsResult.MissingRequired ->
@@ -302,8 +295,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown_disabled"))
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotSendTimelineFields(obj)) {
                 is BotSendTimelineFieldsResult.Ok -> parsed.fields
                 BotSendTimelineFieldsResult.MissingRequired ->
@@ -346,8 +338,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown_disabled"))
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotMetricCompareFields(
                 obj,
                 "label", "metric", 40,
@@ -395,8 +386,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown_disabled"))
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotSendStepsFields(obj)) {
                 is BotSendStepsFieldsResult.Ok -> parsed.fields
                 BotSendStepsFieldsResult.Invalid ->
@@ -442,8 +432,7 @@ internal fun Route.configureBotPresentationCardsRoutes(
                 return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown_disabled"))
             }
             val body = call.receiveBoundedTextOrEmpty()
-            val obj = parseJsonObjectEnvelopeOrNull(body)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+            val obj = call.requireJsonObjectOr400(body) ?: return@post
             val fields = when (val parsed = parseBotMetricCompareFields(
                 obj,
                 "left", "A", 80,

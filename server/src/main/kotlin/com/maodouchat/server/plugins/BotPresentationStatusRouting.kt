@@ -99,8 +99,7 @@ put("serverTime", System.currentTimeMillis())
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendProgressFields(obj)) {
             is BotSendProgressFieldsResult.Ok -> parsed.fields
             BotSendProgressFieldsResult.MissingRequired ->
@@ -157,8 +156,7 @@ put("serverTime", System.currentTimeMillis())
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendCountdownFields(obj)) {
             is BotSendCountdownFieldsResult.Ok -> parsed.fields
             BotSendCountdownFieldsResult.MissingRequired ->
@@ -200,8 +198,7 @@ put("seconds", seconds)
     post("/api/bot/sendAlert") {
         val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendAlertFields(obj)) {
             is BotSendAlertFieldsResult.Ok -> parsed.fields
             BotSendAlertFieldsResult.MissingRequired ->
@@ -260,8 +257,7 @@ put("enabled", bot.enabled)
     post("/api/bot/sendRemind") {
         val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendRemindFields(obj)) {
             is BotSendRemindFieldsResult.Ok -> parsed.fields
             BotSendRemindFieldsResult.MissingRequired ->
@@ -304,8 +300,7 @@ put("type", "SYSTEM")
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendDividerFields(obj)) {
             is BotSendDividerFieldsResult.Ok -> parsed.fields
             BotSendDividerFieldsResult.MissingRequired ->
