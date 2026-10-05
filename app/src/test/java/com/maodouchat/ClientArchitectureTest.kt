@@ -372,7 +372,8 @@ class ClientArchitectureTest {
         // G376：消息变更（删除/批量删除/撤回/编辑）与表情回应抽出 ChatMessageMutationController（1998 → 1804，纯搬移），上限同步收紧（两份 map 一起改）。
         // G377：会话级设置开关（置顶/标记未读，乐观更新+失败回滚）抽出 ChatSettingToggleController（1804 → 1743，纯搬移），上限同步收紧（两份 map 一起改）。
         // G378：会话跳转定位抽出 ChatJumpController、截屏告警抽出 ChatCaptureAlertController（1743 → 1676，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 1676,
+        // G379：发送流水线（sendMessage/静默发送开关）抽出 ChatComposerSendController（1676 → 1552，纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 1552,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
@@ -443,7 +444,7 @@ class ClientArchitectureTest {
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
             "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1077,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 1676,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 1552,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
