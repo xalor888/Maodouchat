@@ -642,6 +642,14 @@ internal class ChatDetailDeps(
         completions = inlineSendCompletions,
         outgoingFacade = outgoingFacade,
     )
+    // G382：`sendContactCard()` 名片发送抽到 ChatContactCardController——VM 侧只留同签名委托。
+    internal val contactCardController = ChatContactCardController(
+        getApplication = { host.getApplication<android.app.Application>() },
+        textProvider = host::text,
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        sendMessage = { cardContent -> host.sendMessage(forceText = cardContent) },
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
