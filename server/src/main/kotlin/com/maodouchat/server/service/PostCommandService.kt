@@ -32,6 +32,7 @@ class PostCommandService(
     // filename → postId 映射：图片先上传，post 后创建；创建时扫描 imageUrls 注册此映射。
     private val imageFilenameToPostId = ConcurrentHashMap<String, String>()
     private val imageClaimLock = Any()
+    private val safeImageFilenamePattern = Regex("^[A-Za-z0-9_.-]+$")
     private val imageMetaCapacityLock = Any()
     private val MAX_IMAGE_META_SIZE = 10_000
 
@@ -198,7 +199,7 @@ class PostCommandService(
     }
 
     fun findPostIdByImageFilename(filename: String): String? {
-        if (filename.isBlank() || !filename.matches(Regex("^[A-Za-z0-9_.-]+$")) || !filename.startsWith("post_")) return null
+        if (filename.isBlank() || !filename.matches(safeImageFilenamePattern) || !filename.startsWith("post_")) return null
         imageFilenameToPostId[filename]?.let { cachedPostId ->
             val stillClaimed = transaction {
                 Posts.select(Posts.imageUrls).where { Posts.id eq cachedPostId }.limit(1).firstOrNull()
@@ -289,7 +290,7 @@ class PostCommandService(
     }
 
     private fun isImageFilenameClaimedInTx(filename: String): Boolean {
-        if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) return true
+        if (!filename.matches(safeImageFilenamePattern)) return true
         if (imageFilenameToPostId[filename] != null) return true
         if (PostImageClaims.select(PostImageClaims.postId)
                 .where { PostImageClaims.filename eq filename }
