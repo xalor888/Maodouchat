@@ -18,7 +18,6 @@ import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.ChatNetworkRepository
@@ -333,89 +332,7 @@ class ChatDetailViewModel(
 
     internal fun observeAiOperations() = aiOperationsController.observeAiOperations()
 
-    internal fun observeMessageStatus() {
-        _uiState
-            .onEach { state ->
-                if (state.chat == null) return@onEach
-                val effectiveChatId = activeChatId.ifBlank { chatId }
-                if (ChatDetailAccess.activeChatId() != effectiveChatId) return@onEach
-                val currentIds = state.messages.map { it.id to it.status }
-                if (currentIds == lastMessagesSeen) return@onEach
-                lastMessagesSeen = currentIds
-                // G67：「算哪些新未读、水印选哪条」下沉到纯策略（可单测），这里只编排副作用。
-                val ownerUserId = currentUserId
-                val plan = ChatReadWatermarkPolicy.plan(
-                    input = ChatReadWatermarkPolicy.Input(
-                        messages = state.messages,
-                        hasChat = true,
-                        isActiveChat = true,
-                        ownerUserId = ownerUserId,
-                        sessionMayContinue = com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = ownerUserId,
-                        ),
-                    ),
-                    seen = readSeenMessages,
-                ) ?: return@onEach
-                val unreadIds = plan.unreadIds
-                val watermarkId = plan.watermarkMessageId
-                val watermarkTimestamp = plan.watermarkTimestamp
-                pendingReadWatermarkMessageId = watermarkId
-                _uiState.update { current ->
-                    current.copy(
-                        messages = current.messages.map { message ->
-                            if (message.id in unreadIds) message.copy(status = MessageStatus.READ) else message
-                        },
-                    )
-                }
-                viewModelScope.launch(Dispatchers.IO) {
-                    com.maodouchat.chatdetail.ChatDetailDataAccess.markIncomingReadThrough(
-                        chatId = effectiveChatId,
-                        ownerUserId = ownerUserId,
-                        throughTimestamp = watermarkTimestamp,
-                        throughMessageId = watermarkId,
-                    )
-                    com.maodouchat.chatdetail.ChatDetailDataAccess.markAllRead(effectiveChatId)
-                }
-                markReadJob?.cancel()
-                markReadJob = viewModelScope.launch {
-                    if (DisappearingMessagePolicy.shouldSkipReadReceipts(state.isSecretChat == true)) {
-                        armSecretDisappearing(effectiveChatId, watermarkId)
-                        return@launch
-                    }
-                    delay(500)
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerUserId,
-                    )
-                    ) {
-                        return@launch
-                    }
-                    try {
-                        withContext(Dispatchers.IO) {
-                            ChatDetailAccess.messagingOutbox.enqueueReadReceipt(
-                                conversationId = effectiveChatId,
-                                throughMessageId = watermarkId,
-                                groupRevision = state.chat.memberRevision.takeIf { state.chat.isGroup },
-                            )
-                        }
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
-                        // G67：入队失败必须回滚 seen + 短路标记，否则这条消息永远不会重试
-                        ChatReadWatermarkPolicy.rollbackAfterFailure(readSeenMessages, plan)
-                        lastMessagesSeen = null
-                        Log.w("ChatDetailViewModel", "v2 read receipt enqueue failed: " + error.message, error)
-                    }
-                }
-                emitChatReadForCurrentChat()
-            }
-            .launchIn(viewModelScope)
-    }
-
-    private fun emitChatReadForCurrentChat() {
-        val id = activeChatId.ifBlank { chatId }
-        if (id.isBlank()) return
-        ChatDetailAccess.emitChatRead(id)
-    }
+    internal fun observeMessageStatus() = messageStatusObservationController.observeMessageStatus()
 
     internal fun observeAttachmentTransfers() = attachmentObservationController.observeAttachmentTransfers()
 
@@ -792,6 +709,7 @@ class ChatDetailViewModel(
     private val aiOperationsController get() = deps.aiOperationsController
     private val attachmentObservationController get() = deps.attachmentObservationController
     private val messageObservationController get() = deps.messageObservationController
+    private val messageStatusObservationController get() = deps.messageStatusObservationController
     private val chatCaptureAlertController get() = deps.chatCaptureAlertController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()
