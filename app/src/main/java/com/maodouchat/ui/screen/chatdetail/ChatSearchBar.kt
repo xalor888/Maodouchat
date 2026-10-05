@@ -39,7 +39,6 @@ import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.Secondary
 import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.UnreadRed
 
 @Composable
 internal fun ChatSearchBar(

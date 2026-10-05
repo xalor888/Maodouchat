@@ -1,18 +1,13 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.data.local.entity.AiOperationError
-import com.maodouchat.data.model.Message
 import com.maodouchat.network.AiContextMessage
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.network.AiSemanticSearchCandidate
 import com.maodouchat.data.model.semanticSearchText
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * 群 AI 助手与语义搜索（G170 从 ChatDetailAiGeneration.kt 抽出，218 行）。

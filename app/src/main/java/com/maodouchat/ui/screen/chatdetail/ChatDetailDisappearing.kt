@@ -2,10 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.data.model.MessageType
-import com.maodouchat.network.ApiService
 import com.maodouchat.util.DisappearingMessagePolicy
-import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update

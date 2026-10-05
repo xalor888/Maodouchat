@@ -2,7 +2,6 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update

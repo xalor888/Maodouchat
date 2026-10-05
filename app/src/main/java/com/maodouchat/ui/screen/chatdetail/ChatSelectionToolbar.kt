@@ -21,9 +21,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.ui.theme.OnSurface
-import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalChatPalette
 
 @Composable

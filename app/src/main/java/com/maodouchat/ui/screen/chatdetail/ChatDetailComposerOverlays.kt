@@ -15,7 +15,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.maodouchat.bot.BotCommandPolicy
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.User
 
 /**
  * 输入框上方的「覆盖层编排」（G96 从 `ChatDetailComponents.kt` 的 `ComposerPane` 拆出，原 126 行）。

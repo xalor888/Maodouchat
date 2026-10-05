@@ -4,7 +4,6 @@ import android.app.Application
 import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.network.ApiConfig
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.network.RealtimeDisconnectPolicy
 import com.maodouchat.network.TypingSignalAction

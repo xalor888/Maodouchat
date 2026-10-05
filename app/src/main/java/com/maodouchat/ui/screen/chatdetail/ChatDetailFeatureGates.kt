@@ -9,7 +9,6 @@ import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 // 9.5xx：真实功能门卫与内联投票（自 ChatDetailGroupPlay.kt 拆出保留；其余 ~190 个假群玩法已删除）
 internal fun ChatDetailViewModel.votePoll(pollId: String, optionIndex: Int) {

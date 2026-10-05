@@ -5,10 +5,8 @@ import com.maodouchat.ai.AiPromptSafetyPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.model.Message
 import com.maodouchat.network.AiContextMessage
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
