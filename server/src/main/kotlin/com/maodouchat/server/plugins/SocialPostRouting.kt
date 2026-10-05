@@ -39,7 +39,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("starring_disabled"))
                     return@post
                 }
-                val mid = call.parameters["messageId"]!!
+                val mid = call.requirePathParamOr400("messageId", "缺少消息 ID") ?: return@post
                 val starred = starMessageRepo.toggleStar(uid, mid)
                 if (starred == null) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("该消息不能星标"))
@@ -51,7 +51,7 @@ internal fun Route.configureSocialPostRoutes(
             // 会话消息置顶（群：管理员；单聊：双方）
             get("/api/chats/{chatId}/pins") {
                 val uid = call.requireUserId()
-                val chatId = call.parameters["chatId"]!!
+                val chatId = call.requirePathParamOr400("chatId", "缺少聊天 ID") ?: return@get
                 if (!conversationParticipantRepo.isParticipant(chatId, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
                     return@get
@@ -71,8 +71,8 @@ internal fun Route.configureSocialPostRoutes(
                 }
                 val uid = call.requireUserId()
                 if (call.rejectIfSuspended(userRepo, uid)) return@post
-                val chatId = call.parameters["chatId"]!!
-                val mid = call.parameters["messageId"]!!
+                val chatId = call.requirePathParamOr400("chatId", "缺少聊天 ID") ?: return@post
+                val mid = call.requirePathParamOr400("messageId", "缺少消息 ID") ?: return@post
                 if (!conversationParticipantRepo.isParticipant(chatId, uid)) {
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
                     return@post
@@ -270,7 +270,7 @@ internal fun Route.configureSocialPostRoutes(
 
             get("/api/posts/{id}") {
                 val userId = call.requireUserId()
-                val postId = call.parameters["id"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@get
                 val post = postRepo.getPostById(postId, userId)
                 if (post == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
                 else call.respond(post)
@@ -278,7 +278,7 @@ internal fun Route.configureSocialPostRoutes(
 
             delete("/api/posts/{id}") {
                 val userId = call.requireUserId()
-                val postId = call.parameters["id"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@delete
                 if (!postRepo.exists(postId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
                     return@delete
@@ -298,7 +298,7 @@ put("status", "ok")
 
             put("/api/posts/{id}") {
                 val userId = call.requireUserId()
-                val postId = call.parameters["id"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@put
                 if (!postRepo.exists(postId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
                     return@put
@@ -355,7 +355,7 @@ put("status", "ok")
             post("/api/posts/{id}/like") {
                 val userId = call.requireUserId()
                 if (call.rejectIfSuspended(userRepo, userId)) return@post
-                val postId = call.parameters["id"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@post
                 // 8.38：点赞/取消点赞限流——此前无限流可对作者反复 like/unlike 刷 FCM 通知
                 if (!postLikeRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
@@ -386,7 +386,7 @@ put("status", "ok")
 
             delete("/api/posts/{id}/like") {
                 val userId = call.requireUserId()
-                val postId = call.parameters["id"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@delete
                 if (!postLikeRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                     return@delete
@@ -405,7 +405,7 @@ put("status", "ok")
 
             get("/api/posts/{id}/comments") {
                 val userId = call.requireUserId()
-                val postId = call.parameters["id"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@get
                 val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
                 val before = parseSocialFeedBefore(call.request.queryParameters)
                 val beforeId = parseSocialFeedBeforeId(call.request.queryParameters, before)
@@ -417,7 +417,7 @@ put("status", "ok")
             // 1.93：动态点赞者列表
             get("/api/posts/{id}/likers") {
                 val userId = call.requireUserId()
-                val postId = call.parameters["id"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@get
                 val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
                 val likers = postRepo.listPostLikers(postId, userId, limit)
                 if (likers == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
@@ -431,7 +431,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("评论过于频繁，请稍后再试"))
                     return@post
                 }
-                val postId = call.parameters["id"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@post
                 val req = call.receiveJson<CreateCommentRequest>()
                 if (req == null) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@post }
                 if (!isValidCommentPayload(req.content)) {
@@ -485,8 +485,8 @@ put("status", "ok")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("评论操作过于频繁，请稍后再试"))
                     return@put
                 }
-                val postId = call.parameters["id"]!!
-                val cid = call.parameters["cid"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@put
+                val cid = call.requirePathParamOr400("cid", "缺少评论 ID") ?: return@put
                 val req = call.receiveJson<UpdateCommentRequest>()
                 if (req == null || !isValidCommentPayload(req.content)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("评论内容无效"))
@@ -519,8 +519,8 @@ put("status", "ok")
 
             delete("/api/posts/{id}/comments/{cid}") {
                 val userId = call.requireUserId()
-                val postId = call.parameters["id"]!!
-                val cid = call.parameters["cid"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@delete
+                val cid = call.requirePathParamOr400("cid", "缺少评论 ID") ?: return@delete
                 val ok = postRepo.deleteCommentForUser(postId, cid, userId)
                 if (ok) call.respond(
                 buildJsonObject {
@@ -534,8 +534,8 @@ put("status", "deleted")
             post("/api/posts/{id}/comments/{cid}/like") {
                 val userId = call.requireUserId()
                 if (call.rejectIfPostRestricted(userRepo, userId)) return@post
-                val postId = call.parameters["id"]!!
-                val cid = call.parameters["cid"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@post
+                val cid = call.requirePathParamOr400("cid", "缺少评论 ID") ?: return@post
                 if (!commentLikeRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                     return@post
@@ -563,8 +563,8 @@ put("likeCount", likeCount)
             }
             delete("/api/posts/{id}/comments/{cid}/like") {
                 val userId = call.requireUserId()
-                val postId = call.parameters["id"]!!
-                val cid = call.parameters["cid"]!!
+                val postId = call.requirePathParamOr400("id", "缺少动态 ID") ?: return@delete
+                val cid = call.requirePathParamOr400("cid", "缺少评论 ID") ?: return@delete
                 if (!commentLikeRateLimiter.acquire(userId, maxPerMinute = 30)) {
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                     return@delete
@@ -582,7 +582,7 @@ put("likeCount", likeCount)
             // 必须经过 JWT 认证 — 旧 staticFiles("/uploads") 已被移除，避免 visibility 旁路
             // 头像：任何登录用户都可获取（头像本身是公开信息）
             get("/api/files/avatar/{filename}") {
-                val filename = call.parameters["filename"]!!
+                val filename = call.requirePathParamOr400("filename", "缺少文件名") ?: return@get
                 if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
                 val avatarUrl = com.maodouchat.server.service.FileStorageService.avatarUrl(filename)
                 if (avatarUrl == null || !userRepo.isCurrentAvatarUrl(avatarUrl)) {
@@ -595,8 +595,8 @@ put("likeCount", likeCount)
             }
             get("/api/chats/{chatId}/avatar/file/{filename}") {
                 val userId = call.requireUserId()
-                val chatId = call.parameters["chatId"]!!
-                val filename = call.parameters["filename"]!!
+                val chatId = call.requirePathParamOr400("chatId", "缺少聊天 ID") ?: return@get
+                val filename = call.requirePathParamOr400("filename", "缺少文件名") ?: return@get
                 if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
                 val chat = conversationQueryRepo.getById(chatId)
                 if (chat == null || !conversationParticipantRepo.isParticipant(chatId, userId)) { call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问群头像")); return@get }
@@ -609,7 +609,7 @@ put("likeCount", likeCount)
             }
             // 动态图片：通过 filename→postId 映射查找对应动态，再校验可见性
             get("/api/files/post-image/{filename}") {
-                val filename = call.parameters["filename"]!!
+                val filename = call.requirePathParamOr400("filename", "缺少文件名") ?: return@get
                 if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
                 val userId = call.requireUserId()
                 val postId = postRepo.findPostIdByImageFilename(filename)

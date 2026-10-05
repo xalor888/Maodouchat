@@ -44,7 +44,7 @@ put("status", "ok")
                 }
             )
             }
-            delete("/api/users/block/{uid}") { userRepo.unblockUser(call.requireUserId(), call.parameters["uid"]!!); call.respond(
+            delete("/api/users/block/{uid}") { userRepo.unblockUser(call.requireUserId(), call.requirePathParamOr400("uid", "缺少用户 ID") ?: return@delete); call.respond(
                 buildJsonObject {
 put("status", "ok")
                 }
