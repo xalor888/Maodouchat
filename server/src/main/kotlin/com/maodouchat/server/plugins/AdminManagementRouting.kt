@@ -228,8 +228,7 @@ put("pushTokens", JsonArray(push))
                 val body = call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS)
                     ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("request body is too large or unreadable"))
                 val obj = if (body.isBlank()) null else {
-                    parseJsonObjectEnvelopeOrNull(body)
-                        ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+                    call.requireJsonObjectOr400(body) ?: return@post
                 }
                 val prefix = when (val parsed = parseAdminRevokePrefix(obj?.get("tokenHashPrefix"))) {
                     is AdminRevokePrefixResult.Ok -> parsed.prefix
@@ -339,8 +338,7 @@ post("/broadcast") {
                 if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
                 val actorId = call.requireUserId()
                 val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
-                val obj = parseJsonObjectEnvelopeOrNull(body)
-                    ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+                val obj = call.requireJsonObjectOr400(body) ?: return@post
                 val broadcast = parseAdminBroadcastContent(obj)
                 val text = call.requireNonBlankValueOr400(broadcast.text, "text required") ?: return@post
                 val title = broadcast.title
