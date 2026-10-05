@@ -302,7 +302,7 @@ put("status", "ok")
                     return@get
                 }
                 val limit = parseAdminListLimit(call.request.queryParameters, defaultLimit = 100)
-                val needsReview = call.request.queryParameters["needsReview"]?.toBooleanStrictOrNull()
+                val needsReview = parseNeedsReview(call.request.queryParameters)
                 call.respond(moderationRuleRepo.getRiskEvents(limit, needsReview))
             }
 
