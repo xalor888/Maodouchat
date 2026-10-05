@@ -216,6 +216,7 @@ class ChatDetailViewModel(
         get() = deps.liveLocationCancel
         set(value) { deps.liveLocationCancel = value }
     internal val liveLocationUpdateMutex get() = deps.liveLocationUpdateMutex
+    internal val inlineSendCompletions get() = deps.inlineSendCompletions
     internal var lastLiveLocationPayload
         get() = deps.lastLiveLocationPayload
         set(value) { deps.lastLiveLocationPayload = value }
