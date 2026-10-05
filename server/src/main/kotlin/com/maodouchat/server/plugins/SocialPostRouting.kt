@@ -139,7 +139,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(emptyList<com.maodouchat.server.model.StarredMessageReference>())
                     return@get
                 }
-                val chatId = call.request.queryParameters["chatId"]
+                val chatId = parseRawOrNull(call.request.queryParameters, "chatId")
                 call.respond(starMessageRepo.getStarredMessages(uid, chatId))
             }
 
@@ -153,9 +153,8 @@ internal fun Route.configureSocialPostRoutes(
                 val userId = call.requireUserId()
                 val limit = parseAdminListLimit(call.request.queryParameters, defaultLimit = 30, maxLimit = 50)
                 val before = parseSocialFeedBefore(call.request.queryParameters)
-                val beforeId = call.request.queryParameters["beforeId"]
-                    ?.takeIf { before != null && it.isNotBlank() && it.length <= 100 }
-                val authorId = call.request.queryParameters["authorId"]
+                val beforeId = parseSocialFeedBeforeId(call.request.queryParameters, before)
+                val authorId = parseRawOrNull(call.request.queryParameters, "authorId")
                 if (authorId != null) {
                     call.respond(postRepo.getPostsByAuthor(userId, authorId, limit, before, beforeId))
                 } else {
@@ -415,8 +414,7 @@ put("status", "ok")
                 val postId = call.parameters["id"]!!
                 val limit = parseAdminListLimit(call.request.queryParameters, maxLimit = 100)
                 val before = parseSocialFeedBefore(call.request.queryParameters)
-                val beforeId = call.request.queryParameters["beforeId"]
-                    ?.takeIf { before != null && it.isNotBlank() && it.length <= 100 }
+                val beforeId = parseSocialFeedBeforeId(call.request.queryParameters, before)
                 val comments = postRepo.getComments(postId, userId, limit, before, beforeId)
                 if (comments == null) call.respond(HttpStatusCode.NotFound, ErrorResponse("动态不存在"))
                 else call.respond(comments)

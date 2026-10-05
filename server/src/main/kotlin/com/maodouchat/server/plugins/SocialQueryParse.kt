@@ -17,3 +17,7 @@ internal fun parseFriendRequestStatus(params: Parameters): String =
 // 审核事件列表的 needsReview：非法值回 null，按不过滤处理。
 internal fun parseNeedsReview(params: Parameters): Boolean? =
     params["needsReview"]?.toBooleanStrictOrNull()
+
+// 动态/评论的 beforeId 游标：仅 before 合法时生效，空白或超 100 字符丢弃（两处内联原样搬出）。
+internal fun parseSocialFeedBeforeId(params: Parameters, before: Long?): String? =
+    params["beforeId"]?.takeIf { before != null && it.isNotBlank() && it.length <= 100 }
