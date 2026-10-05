@@ -31,10 +31,10 @@ class BotSetWebhookParseFuzzTest {
         }
     }
 
-    private fun parseOf(obj: JsonObject?, allow: (String) -> Boolean = { true }): BotSetWebhookFieldsResult =
+    private fun parseOf(obj: JsonObject, allow: (String) -> Boolean = { true }): BotSetWebhookFieldsResult =
         parseBotSetWebhookFields(obj, allow)
 
-    private fun okOf(obj: JsonObject?, allow: (String) -> Boolean = { true }): BotSetWebhookFields =
+    private fun okOf(obj: JsonObject, allow: (String) -> Boolean = { true }): BotSetWebhookFields =
         (parseOf(obj, allow) as BotSetWebhookFieldsResult.Ok).fields
 
     private fun randomScalar(random: Random): JsonElement = when (random.nextInt(7)) {
@@ -77,12 +77,6 @@ class BotSetWebhookParseFuzzTest {
             assertEquals(expected, fields.url, "未知键不得污染 url，迭代 " + i)
             assertEquals(listOf(expected), allow.seen, "校验器应恰好收到截断前的 url，迭代 " + i)
         }
-    }
-
-    @Test
-    fun nullBodyIsInvalidJson() {
-        val result = parseOf(null)
-        assertTrue(result is BotSetWebhookFieldsResult.InvalidJson, "null body 应为 InvalidJson")
     }
 
     @Test

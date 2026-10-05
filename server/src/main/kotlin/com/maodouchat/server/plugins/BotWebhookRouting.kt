@@ -13,7 +13,7 @@ internal fun Route.configureBotWebhookRoutes(botSendRateLimiter: BoundedRateLimi
     post("/api/bot/setWebhook") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val url = when (
             val parsed = parseBotSetWebhookFields(
                 obj,
@@ -21,8 +21,6 @@ internal fun Route.configureBotWebhookRoutes(botSendRateLimiter: BoundedRateLimi
             )
         ) {
             is BotSetWebhookFieldsResult.Ok -> parsed.fields.url
-            BotSetWebhookFieldsResult.InvalidJson ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
             BotSetWebhookFieldsResult.InvalidUrl ->
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid webhook url"))
         }
