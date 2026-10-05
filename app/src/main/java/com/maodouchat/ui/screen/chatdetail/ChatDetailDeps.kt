@@ -569,6 +569,16 @@ internal class ChatDetailDeps(
         mutationCoordinator = conversationMessageMutationCoordinator,
         reactionCoordinator = conversationReactionCoordinator,
     )
+    internal val chatSettingToggleController = ChatSettingToggleController(
+        scope = host.viewModelScope,
+        getApplication = { host.getApplication<android.app.Application>() },
+        ownerUserId = { host.currentUserId },
+        token = { host.token },
+        chatId = { host.chatId },
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        text = { id -> host.text(id) },
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(

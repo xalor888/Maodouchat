@@ -936,72 +936,9 @@ class ChatDetailViewModel(
         sendMessage(forceText = cardContent)
     }
 
-    /** 1.156：会话详情内标记未读/已读（乐观更新 + 失败回滚）。 */
-    fun toggleChatMarkedUnread() {
-        val chat = _uiState.value.chat ?: return
-        val ownerUserId = currentUserId
-        if (token.isBlank() || ownerUserId.isBlank() || chatId.isBlank()) return
-        val next = !chat.markedUnread
-        _uiState.update { it.copy(chat = it.chat?.copy(markedUnread = next)) }
-        viewModelScope.launch {
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
-                ChatNetworkRepository().updateChatSettings(
-                    liveToken,
-                    chatId,
-                    com.maodouchat.network.UpdateChatSettingsRequest(markedUnread = next)
-                ).onFailure {
-                    _uiState.update { state -> state.copy(chat = state.chat?.copy(markedUnread = chat.markedUnread)) }
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                _uiState.update { state -> state.copy(chat = state.chat?.copy(markedUnread = chat.markedUnread)) }
-            }
-        }
-    }
+    fun toggleChatMarkedUnread() = chatSettingToggleController.toggleChatMarkedUnread()
 
-    /** 1.155：会话详情内置顶/取消置顶会话（乐观更新 + 失败回滚）。 */
-    fun toggleChatPinned() {
-        val chat = _uiState.value.chat ?: return
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_PIN)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val ownerUserId = currentUserId
-        if (token.isBlank() || ownerUserId.isBlank() || chatId.isBlank()) return
-        val wasPinned = chat.pinnedAt > 0
-        val nextPinnedAt = if (wasPinned) 0L else System.currentTimeMillis()
-        _uiState.update { it.copy(chat = it.chat?.copy(pinnedAt = nextPinnedAt)) }
-        viewModelScope.launch {
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
-                ChatNetworkRepository().updateChatSettings(
-                    liveToken,
-                    chatId,
-                    com.maodouchat.network.UpdateChatSettingsRequest(pinned = !wasPinned)
-                ).onFailure {
-                    _uiState.update { state -> state.copy(chat = state.chat?.copy(pinnedAt = chat.pinnedAt)) }
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                _uiState.update { state -> state.copy(chat = state.chat?.copy(pinnedAt = chat.pinnedAt)) }
-            }
-        }
-    }
+    fun toggleChatPinned() = chatSettingToggleController.toggleChatPinned()
 
     internal suspend fun handleGroupRevisionChanged(event: WebSocketEvent.GroupRevisionChanged) =
         revisionHandler.handleGroupRevisionChanged(event)
@@ -1159,6 +1096,8 @@ class ChatDetailViewModel(
 
 
     private val scheduledMessageController get() = deps.scheduledMessageController
+
+    private val chatSettingToggleController get() = deps.chatSettingToggleController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()
     fun clearScheduledInfo() = scheduledMessageController.clearScheduledInfo()
