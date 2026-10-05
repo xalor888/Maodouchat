@@ -32,8 +32,7 @@ internal fun Route.configureBotChatInviteRoutes(
             return@post call.respondBotUnavailable()
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotUnpinAllChatMessagesFields(obj)) {
             is BotUnpinAllChatMessagesFieldsResult.Ok -> parsed.fields
             BotUnpinAllChatMessagesFieldsResult.MissingRequired ->
@@ -98,8 +97,7 @@ put("count", 0)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotExportChatInviteLinkFields(obj)) {
             is BotExportChatInviteLinkFieldsResult.Ok -> parsed.fields
             BotExportChatInviteLinkFieldsResult.MissingRequired ->
@@ -147,8 +145,7 @@ put("usedCount", inv.usedCount)
     post("/api/bot/setChatPhoto") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSetChatPhotoFields(obj)) {
             is BotSetChatPhotoFieldsResult.Ok -> parsed.fields
             BotSetChatPhotoFieldsResult.MissingRequired ->
@@ -200,8 +197,7 @@ put("avatarUrl", avatarUrl)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotRevokeChatInviteLinkFields(obj)) {
             is BotRevokeChatInviteLinkFieldsResult.Ok -> parsed.fields
             BotRevokeChatInviteLinkFieldsResult.MissingRequired ->
@@ -233,8 +229,7 @@ put("revoked", true)
     post("/api/bot/deleteChatPhoto") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId = when (val parsed = parseBotDeleteChatPhotoFields(obj)) {
             is BotDeleteChatPhotoFieldsResult.Ok -> parsed.fields.chatId
             BotDeleteChatPhotoFieldsResult.MissingRequired ->
