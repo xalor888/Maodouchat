@@ -13,8 +13,6 @@ import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
-import com.maodouchat.messaging.v2.ConversationMessageMutationOutcome
-import com.maodouchat.messaging.v2.ConversationReactionOutcome
 import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.messaging.v2.MessageMutationKind
 import com.maodouchat.messaging.v2.OutgoingMessageCommand
@@ -349,6 +347,7 @@ class ChatDetailViewModel(
     private val botGroupActionController get() = deps.botGroupActionController
     private val realtimeController get() = deps.realtimeController
     private val voicePlaybackReporter get() = deps.voicePlaybackReporter
+    private val messageMutationController get() = deps.messageMutationController
 
     init {
         _uiState.update {
@@ -1085,221 +1084,28 @@ class ChatDetailViewModel(
      */
 
     /** Optimistically hides a message after its encrypted delete event is staged. */
-    internal fun deleteMessage(messageId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val deleteOwnerUserId = currentUserId
-        if (token.isBlank() || deleteOwnerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        viewModelScope.launch {
-            deleteOneMessage(messageId, deleteOwnerUserId)
-        }
-    }
+    internal fun deleteMessage(messageId: String) = messageMutationController.deleteMessage(messageId)
 
-    /** Serializes batch mutation commands so UI rollback and outbox order stay deterministic. */
-    fun deleteMessagesBatch(messageIds: List<String>) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val deleteOwnerUserId = currentUserId
-        if (token.isBlank() || deleteOwnerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        if (messageIds.isEmpty()) return
-        viewModelScope.launch {
-            for (id in messageIds) {
-                try {
-                    deleteOneMessage(id, deleteOwnerUserId)
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Throwable) {
-                    // deleteOneMessage 内部已处理回滚与日志，单条失败不中断后续
-                    Log.w("ChatDetailViewModel", "batch delete item failed: $id", error)
-                }
-            }
-        }
-    }
+    fun deleteMessagesBatch(messageIds: List<String>) =
+        messageMutationController.deleteMessagesBatch(messageIds)
 
-    /** Single-item core shared by single and batch delete commands. */
-    private suspend fun deleteOneMessage(messageId: String, deleteOwnerUserId: String) {
-        val original = _uiState.value.messages.find { it.id == messageId } ?: return
-        val outcome = conversationMessageMutationCoordinator.delete(
-            original = original,
-            ownerUserId = deleteOwnerUserId,
-            groupRevision = currentGroupRevision(),
-            project = ::projectMessageMutation,
-        )
-        applyMessageMutationOutcome(
-            outcome = outcome,
-            messageId = messageId,
-            failureText = text(R.string.chat_delete_server_failed),
-        )
-    }
+    fun revokeMessage(messageId: String) = messageMutationController.revokeMessage(messageId)
 
-    fun revokeMessage(messageId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val ownerUserId = currentUserId
-        if (token.isBlank() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        viewModelScope.launch {
-            val original = _uiState.value.messages.find { it.id == messageId } ?: return@launch
-            val revoked = original.toRevokedPlaceholder(text(R.string.chat_message_revoked_placeholder))
-            val outcome = conversationMessageMutationCoordinator.revoke(
-                original = original,
-                revoked = revoked,
-                ownerUserId = ownerUserId,
-                groupRevision = currentGroupRevision(),
-                project = ::projectMessageMutation,
-            )
-            applyMessageMutationOutcome(
-                outcome = outcome,
-                messageId = messageId,
-                failureText = text(R.string.chat_revoke_failed),
-            )
-        }
-    }
+    fun editTextMessage(messageId: String, newText: String) =
+        messageMutationController.editTextMessage(messageId, newText)
 
-    fun editTextMessage(messageId: String, newText: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_EDIT)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val trimmed = newText.trim()
-        val original = _uiState.value.messages.find { it.id == messageId } ?: return
-        val ownerUserId = currentUserId
-        if (trimmed.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_edit_empty)) }
-            return
-        }
-        if (
-            original.senderId != ownerUserId ||
-            original.type !in setOf(MessageType.TEXT, MessageType.MARKDOWN) ||
-            System.currentTimeMillis() - original.timestamp >= 300_000
-        ) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_edit_not_allowed)) }
-            return
-        }
-        if (token.isBlank() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        viewModelScope.launch {
-            val meta = original.parsedMeta().copy(aiAssisted = false, aiAssistantMode = null)
-            val optimistic = original.toOptimisticEdit(composeContentWithMeta(trimmed, meta))
-            _uiState.update { it.copy(groupEncryptionWarning = null) }
-            val outcome = conversationMessageMutationCoordinator.edit(
-                original = original,
-                updated = optimistic,
-                ownerUserId = ownerUserId,
-                groupRevision = currentGroupRevision(),
-                project = ::projectMessageMutation,
-            )
-            applyMessageMutationOutcome(
-                outcome = outcome,
-                messageId = messageId,
-                failureText = text(R.string.chat_edit_failed),
-            )
-        }
-    }
+    fun setMessageReaction(messageId: String, emoji: String) =
+        messageMutationController.setMessageReaction(messageId, emoji)
 
-    private fun projectMessageMutation(projection: MessageMutationProjection) {
+    // observeAuthoritativeMessageMutations 与消息变更控制器共用此投影入口，故保留在 VM。
+    internal fun projectMessageMutation(projection: MessageMutationProjection) {
         _uiState.update { state -> timelineStateController.applyMutation(state, projection) }
-    }
-
-    private fun applyMessageMutationOutcome(
-        outcome: ConversationMessageMutationOutcome,
-        messageId: String,
-        failureText: String,
-    ) {
-        when (outcome) {
-            is ConversationMessageMutationOutcome.Applied -> _uiState.update { state ->
-                state.copy(
-                    pinnedMessages = if (outcome.removePinnedReference) {
-                        state.pinnedMessages.filterNot { it.messageId == messageId }
-                    } else {
-                        state.pinnedMessages
-                    },
-                    groupEncryptionWarning = if (outcome.localProjectionError != null) {
-                        text(R.string.chat_mutation_committed_local_sync_pending)
-                    } else {
-                        state.groupEncryptionWarning
-                    },
-                )
-            }
-            is ConversationMessageMutationOutcome.Failed -> _uiState.update {
-                it.copy(groupEncryptionWarning = outcome.error.message ?: failureText)
-            }
-            ConversationMessageMutationOutcome.Ignored -> Unit
-        }
     }
 
     fun toggleStarMessage(messageId: String) = pinStarController.toggleStarMessage(messageId)
 
     fun toggleStarMessagesBatch(messageIds: List<String>, shouldStar: Boolean) =
         pinStarController.toggleStarMessagesBatch(messageIds, shouldStar)
-
-    fun setMessageReaction(messageId: String, emoji: String) {
-        if (!requireReactions()) return
-        val reactionUserId = currentUserId
-        if (token.isBlank() || reactionUserId.isBlank()) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
-            return
-        }
-        viewModelScope.launch {
-            when (
-                val outcome = conversationReactionCoordinator.toggle(
-                    messageId = messageId,
-                    emoji = emoji,
-                    ownerUserId = reactionUserId,
-                    groupRevision = ::currentGroupRevision,
-                    currentMessage = { id -> _uiState.value.messages.find { it.id == id } },
-                    project = ::projectReactionMessage,
-                )
-            ) {
-                is ConversationReactionOutcome.Applied -> if (outcome.localProjectionError != null) {
-                    _uiState.update {
-                        it.copy(
-                            groupEncryptionWarning = text(
-                                R.string.chat_mutation_committed_local_sync_pending,
-                            ),
-                        )
-                    }
-                }
-                is ConversationReactionOutcome.Failed -> _uiState.update {
-                    it.copy(
-                        groupEncryptionWarning = outcome.error.message
-                            ?: text(R.string.chat_reaction_failed),
-                    )
-                }
-                ConversationReactionOutcome.Ignored -> Unit
-            }
-        }
-    }
-
-    private fun projectReactionMessage(message: Message) {
-        _uiState.update { state ->
-            if (state.messages.none { it.id == message.id }) {
-                state
-            } else {
-                state.copy(
-                    messages = state.messages.map { current ->
-                        if (current.id == message.id) message else current
-                    }
-                )
-            }
-        }
-    }
 
     fun loadReadReceipts(messageId: String) = readReceiptCoordinator.loadDetails(messageId)
 
