@@ -687,6 +687,23 @@ internal class ChatDetailDeps(
         updateState = { transform -> host._uiState.update(transform) },
         projectMessageMutation = host::projectMessageMutation,
     )
+    // G386：`observeMessageStatus()` 消息状态观察一族抽到
+    // ChatMessageStatusObservationController——VM 侧只留同签名委托。
+    internal val messageStatusObservationController = ChatMessageStatusObservationController(
+        uiState = host._uiState,
+        scope = host.viewModelScope,
+        ownerUserId = { host.currentUserId },
+        activeChatId = { host.activeChatId },
+        chatId = host.chatId,
+        updateState = { transform -> host._uiState.update(transform) },
+        getLastMessagesSeen = { lastMessagesSeen },
+        setLastMessagesSeen = { lastMessagesSeen = it },
+        readSeenMessages = readSeenMessages,
+        setPendingReadWatermarkMessageId = { pendingReadWatermarkMessageId = it },
+        getMarkReadJob = { markReadJob },
+        setMarkReadJob = { markReadJob = it },
+        armSecretDisappearing = host::armSecretDisappearing,
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
