@@ -333,52 +333,7 @@ class ChatDetailViewModel(
         }
     }
 
-    internal fun observeAiOperations() {
-        val ownerUserId = com.maodouchat.session.CurrentSession.snapshot().userId?.takeIf(String::isNotBlank) ?: return
-        aiOperationRepo.observeActionable(ownerUserId, activeChatId)
-            .onEach { operations ->
-                // Drop if logout/switch happened while Room Flow was still open.
-                if (com.maodouchat.session.CurrentSession.ownerUserId() != ownerUserId) return@onEach
-                _uiState.update { state ->
-                    state.copy(
-                        aiOperations = operations.map { operation ->
-                            val waitSeconds = com.maodouchat.ai.AiCostVisibilityPolicy
-                                .waitSecondsFor(operation.lastErrorCode)
-                                .takeIf { it > 0L }
-                            AiOperationUi(
-                                id = operation.id,
-                                type = operation.type,
-                                state = operation.state,
-                                attempts = operation.attempts,
-                                lastErrorCode = operation.lastErrorCode,
-                                nextRetryAtMs = aiAutoRetryAt[operation.id],
-                                retryAfterSeconds = waitSeconds
-                            )
-                        }
-                    )
-                }
-            }
-            .launchIn(viewModelScope)
-        viewModelScope.launch(Dispatchers.IO) {
-            if (com.maodouchat.session.CurrentSession.ownerUserId() != ownerUserId) return@launch
-            aiOperationRepo.recoverInterrupted(ownerUserId, activeChatId)
-            aiOperationRepo.pruneTerminal()
-            // AI 本地缓存保留期清理：总结缓存 90 天，已完成任务 90 天
-            val cutoff = System.currentTimeMillis() - 90L * 24L * 60L * 60L * 1_000L
-            try {
-                aiSummaryRepo.pruneOlderThan(cutoff)
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (_: Exception) {
-            }
-            try {
-                aiTaskRepo.pruneCompletedOlderThan(cutoff)
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (_: Exception) {
-            }
-        }
-    }
+    internal fun observeAiOperations() = aiOperationsController.observeAiOperations()
 
     internal fun observeMessageStatus() {
         _uiState
@@ -801,27 +756,9 @@ class ChatDetailViewModel(
         message: Message,
         expectedUserId: String,
         expectedChatId: String,
-    ): Boolean {
-        if (message.chatId != expectedChatId || activeChatId != expectedChatId ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = expectedUserId,
-            )
-        ) throw kotlinx.coroutines.CancellationException("ai_result_context_changed")
-        val committed = withContext(Dispatchers.IO) {
-            aiMessageResultStore.commit(operationId, message)
-        }
-        if (!committed) return false
-        if (activeChatId != expectedChatId ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = expectedUserId,
-            )
-        ) return false
-        if (operationId != null) {
-            aiAutoRetryJobs.remove(operationId)?.cancel()
-            aiAutoRetryAt.remove(operationId)
-        }
-        return true
-    }
+    ): Boolean = aiOperationsController.commitAiMessageResult(
+        operationId, message, expectedUserId, expectedChatId
+    )
 
     internal fun observeAttachmentFinalizedEvents() {
         viewModelScope.launch {
@@ -943,6 +880,7 @@ class ChatDetailViewModel(
     private val composerSendController get() = deps.composerSendController
     private val inlineSendController get() = deps.inlineSendController
     private val contactCardController get() = deps.contactCardController
+    private val aiOperationsController get() = deps.aiOperationsController
     private val chatCaptureAlertController get() = deps.chatCaptureAlertController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()

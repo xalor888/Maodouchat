@@ -650,6 +650,19 @@ internal class ChatDetailDeps(
         updateState = { transform -> host._uiState.update(transform) },
         sendMessage = { cardContent -> host.sendMessage(forceText = cardContent) },
     )
+    // G383：`observeAiOperations()`/`commitAiMessageResult()` AI 操作一族抽到
+    // ChatAiOperationsController——VM 侧只留同签名委托。
+    internal val aiOperationsController = ChatAiOperationsController(
+        scope = host.viewModelScope,
+        updateState = { transform -> host._uiState.update(transform) },
+        activeChatId = { host.activeChatId },
+        aiOperationRepo = aiOperationRepo,
+        aiMessageResultStore = aiMessageResultStore,
+        aiSummaryRepo = aiSummaryRepo,
+        aiTaskRepo = aiTaskRepo,
+        aiAutoRetryJobs = aiAutoRetryJobs,
+        aiAutoRetryAt = aiAutoRetryAt,
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
