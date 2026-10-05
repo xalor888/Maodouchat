@@ -16,6 +16,9 @@ import kotlinx.serialization.json.*
 import java.security.MessageDigest
 import java.util.UUID
 
+// SHA-256 十六进制校验：三处 handler 每次请求都在内联里编译一次，提到文件级复用。
+private val sha256HexRegex = Regex("^[a-f0-9]{64}$")
+
 internal fun Route.configureEncryptedAttachmentRoutes(
     userRepo: UserRepository,
     encryptedAttachmentRepo: EncryptedAttachmentRepository,
@@ -33,7 +36,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     request == null ||
                     request.chatId.isBlank() ||
                     !CLIENT_MESSAGE_ID_REGEX.matches(request.messageId) ||
-                    !request.cipherSha256.lowercase().matches(Regex("^[a-f0-9]{64}$")) ||
+                    !request.cipherSha256.lowercase().matches(sha256HexRegex) ||
                     request.cipherSize !in 17L..MAX_ATTACHMENT_CIPHER_BYTES
                 ) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("附件上传会话参数无效"))
@@ -179,7 +182,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     offset == null ||
                     declaredLength == null || declaredLength !in 1L..MAX_ATTACHMENT_CHUNK_BYTES ||
                     offset < 0L || offset + declaredLength > record.cipherSize ||
-                    !chunkHash.matches(Regex("^[a-f0-9]{64}$")) ||
+                    !chunkHash.matches(sha256HexRegex) ||
                     call.request.contentType().withoutParameters() != ContentType.Application.OctetStream
                 ) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("附件分块参数无效"))
@@ -256,7 +259,7 @@ internal fun Route.configureEncryptedAttachmentRoutes(
                     call.respond(HttpStatusCode.UnsupportedMediaType, ErrorResponse("附件必须使用二进制上传"))
                     return@post
                 }
-                if (!expectedHash.matches(Regex("^[a-f0-9]{64}$"))) {
+                if (!expectedHash.matches(sha256HexRegex)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("附件哈希无效"))
                     return@post
                 }

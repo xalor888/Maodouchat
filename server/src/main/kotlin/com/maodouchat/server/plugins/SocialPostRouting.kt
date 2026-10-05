@@ -15,6 +15,9 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
 
+// 文件名白名单：原来三个 handler 每次请求都在内联里编译一次，提到文件级复用。
+private val filenameAllowlistRegex = Regex("^[A-Za-z0-9_.-]+$")
+
 internal fun Route.configureSocialPostRoutes(
     userRepo: UserRepository,
     postRepo: PostRepository,
@@ -583,7 +586,7 @@ put("likeCount", likeCount)
             // 头像：任何登录用户都可获取（头像本身是公开信息）
             get("/api/files/avatar/{filename}") {
                 val filename = call.requirePathParamOr400("filename", "缺少文件名") ?: return@get
-                if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
+                if (!filename.matches(filenameAllowlistRegex)) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
                 val avatarUrl = com.maodouchat.server.service.FileStorageService.avatarUrl(filename)
                 if (avatarUrl == null || !userRepo.isCurrentAvatarUrl(avatarUrl)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("文件不存在"))
@@ -597,7 +600,7 @@ put("likeCount", likeCount)
                 val userId = call.requireUserId()
                 val chatId = call.requirePathParamOr400("chatId", "缺少聊天 ID") ?: return@get
                 val filename = call.requirePathParamOr400("filename", "缺少文件名") ?: return@get
-                if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
+                if (!filename.matches(filenameAllowlistRegex)) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
                 val chat = conversationQueryRepo.getById(chatId)
                 if (chat == null || !conversationParticipantRepo.isParticipant(chatId, userId)) { call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问群头像")); return@get }
                 if (com.maodouchat.server.service.FileStorageService.groupAvatarFilename(chat.groupAvatar, chatId) != filename) {
@@ -610,7 +613,7 @@ put("likeCount", likeCount)
             // 动态图片：通过 filename→postId 映射查找对应动态，再校验可见性
             get("/api/files/post-image/{filename}") {
                 val filename = call.requirePathParamOr400("filename", "缺少文件名") ?: return@get
-                if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
+                if (!filename.matches(filenameAllowlistRegex)) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("文件名无效")); return@get }
                 val userId = call.requireUserId()
                 val postId = postRepo.findPostIdByImageFilename(filename)
                 if (postId == null) { call.respond(HttpStatusCode.NotFound, ErrorResponse("文件不存在")); return@get }

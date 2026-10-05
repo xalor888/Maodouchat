@@ -15,6 +15,9 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
 
+// 推送设备 ID 校验：两处 handler 都在请求里内联编译同一正则，提到文件级复用。
+private val pushDeviceIdRegex = Regex("^[A-Za-z0-9._:-]{1,100}$")
+
 internal fun Route.configureAccountRoutes(
     userRepo: UserRepository,
     postRepo: PostRepository,
@@ -215,7 +218,7 @@ internal fun Route.configureAccountRoutes(
                 val deviceId = req?.deviceId?.trim().orEmpty()
                 val token = req?.token?.trim().orEmpty()
                 val platform = req?.platform?.trim()?.uppercase().orEmpty()
-                if (req == null || !deviceId.matches(Regex("^[A-Za-z0-9._:-]{1,100}$")) ||
+                if (req == null || !deviceId.matches(pushDeviceIdRegex) ||
                     token.length !in 32..512 || token.any(Char::isWhitespace) ||
                     platform != "ANDROID" || req.timezoneOffsetMinutes !in -1080..1080
                 ) {
@@ -241,7 +244,7 @@ internal fun Route.configureAccountRoutes(
                 val userId = call.requireUserId()
                 val req = call.receiveJson<RemovePushTokenRequest>()
                 val deviceId = req?.deviceId?.trim().orEmpty()
-                if (!deviceId.matches(Regex("^[A-Za-z0-9._:-]{1,100}$"))) {
+                if (!deviceId.matches(pushDeviceIdRegex)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("设备标识无效"))
                     return@delete
                 }
