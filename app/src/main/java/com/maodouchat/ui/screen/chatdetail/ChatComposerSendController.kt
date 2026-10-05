@@ -122,12 +122,13 @@ internal class ChatComposerSendController(
                     onDurableFailure = { onDurableFailure?.invoke() },
                     afterDurableCommit = { conversation, _ ->
                         try {
+                            // 函数类型值不支持命名参数，按声明顺序传位置参数。
                             maybeForwardBotInbox(
-                                liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty(),
-                                chatId = conversation.conversationId,
-                                plaintext = plaintext,
-                                isGroup = conversation.isGroup,
-                                peerId = conversation.peerUserId.orEmpty(),
+                                com.maodouchat.session.CurrentSession.snapshot().token.orEmpty(),
+                                conversation.conversationId,
+                                plaintext,
+                                conversation.isGroup,
+                                conversation.peerUserId.orEmpty(),
                             )
                         } catch (error: kotlinx.coroutines.CancellationException) {
                             throw error
