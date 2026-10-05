@@ -663,6 +663,17 @@ internal class ChatDetailDeps(
         aiAutoRetryJobs = aiAutoRetryJobs,
         aiAutoRetryAt = aiAutoRetryAt,
     )
+    // G384：`observeAttachmentFinalizedEvents()`/`observeAttachmentTransfers()` 附件观察一族抽到
+    // ChatAttachmentObservationController——VM 侧只留同签名委托。
+    internal val attachmentObservationController = ChatAttachmentObservationController(
+        scope = host.viewModelScope,
+        getApplication = { host.getApplication<android.app.Application>() },
+        currentState = host._uiState::value,
+        updateState = { transform -> host._uiState.update(transform) },
+        activeChatId = { host.activeChatId },
+        mergeMessages = host::mergeMessages,
+        mediaStateController = mediaStateController,
+    )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
     // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
