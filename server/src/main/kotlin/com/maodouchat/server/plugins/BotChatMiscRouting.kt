@@ -55,8 +55,7 @@ put("count", chats.size)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("starring_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotStarMessageFields(obj)) {
             is BotStarMessageFieldsResult.Ok -> parsed.fields
             BotStarMessageFieldsResult.MissingRequired ->
@@ -90,8 +89,7 @@ put("starred", starred)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendChecklistFields(obj)) {
             is BotSendChecklistFieldsResult.Ok -> parsed.fields
             BotSendChecklistFieldsResult.MissingRequired ->

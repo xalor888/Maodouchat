@@ -13,8 +13,7 @@ internal fun Route.configureBotCallbackRoutes(botSendRateLimiter: BoundedRateLim
     post("/api/bot/answerCallbackQuery") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = parseBotAnswerCallbackQueryFields(obj)
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "answerCallbackQuery")
         // Ack only — client shows ephemeral toast via future WS if needed.

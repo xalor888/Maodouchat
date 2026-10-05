@@ -17,8 +17,7 @@ internal fun Route.configureBotProfileRoutes(
     post("/api/bot/setMyDescription") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val description = when (val parsed = parseBotSetMyDescriptionFields(obj)) {
             is BotSetMyDescriptionFieldsResult.Ok -> parsed.fields.description
         }

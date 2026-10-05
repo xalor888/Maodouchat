@@ -28,8 +28,7 @@ internal fun Route.configureBotMessagingVariantsRoutes(
         // Alias of banChatMember for Telegram-compat naming
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val chatId: String
         val userId: String
         when (val parsed = parseBotKickChatMemberFields(obj)) {
@@ -114,8 +113,7 @@ put("hasInvite", invite.isNotBlank())
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("silent_send_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotSendMessageSilentFields(obj)) {
             is BotSendMessageSilentFieldsResult.Ok -> parsed.fields
             BotSendMessageSilentFieldsResult.MissingRequired ->
@@ -157,8 +155,7 @@ put("type", msgType)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val parsed = parseBotMarkdownFields(obj)) {
             is BotMarkdownFieldsResult.Ok -> parsed.fields
             BotMarkdownFieldsResult.MissingRequired ->
@@ -211,8 +208,7 @@ putJsonElement("commands", commands)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("nudge_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val fields = when (val result = parseBotSendNudgeFields(obj)) {
             is BotSendNudgeFieldsResult.Ok -> result.fields
             BotSendNudgeFieldsResult.MissingRequired ->

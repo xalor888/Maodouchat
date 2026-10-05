@@ -49,8 +49,7 @@ internal fun Route.configureBotCoreRoutes(
             return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发送太频繁，请稍后再试"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val req = parseBotSendMessage(
             obj,
             silentSendEnabled = com.maodouchat.server.service.RuntimeConfigService.isSilentSendEnabled(),
@@ -172,8 +171,7 @@ put("messageId", msgId)
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("message_edit_disabled"))
         }
         val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid json"))
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
         val parsed = parseBotEditMessage(obj)
         val messageId = parsed.messageId
         val text = parsed.text
