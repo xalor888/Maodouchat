@@ -841,36 +841,7 @@ class ChatDetailViewModel(
      * 日历跳转：定位到本机持久时间线中指定日期的第一条消息，
      * 然后滚动定位并高亮。
      */
-    fun jumpToDate(dayStartMillis: Long) {
-        val targetChatId = activeChatId.ifBlank { chatId }
-        if (targetChatId.isBlank() || dayStartMillis <= 0L) return
-        val ownerUserId = currentUserId
-        if (ownerUserId.isBlank() || ownerUserId == "me") return
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) {
-                    return@launch
-                }
-                val anchorId = messageRepo.getFirstMessageAtOrAfter(targetChatId, dayStartMillis)?.id
-                if (anchorId.isNullOrBlank()) {
-                    withContext(Dispatchers.Main.immediate) {
-                        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_jump_date_empty)) }
-                    }
-                    return@launch
-                }
-                withContext(Dispatchers.Main.immediate) {
-                    _uiState.update { it.copy(navigationTargetMessageId = anchorId) }
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                Log.w("ChatDetailViewModel", "jumpToDate failed", error)
-            }
-        }
-    }
+    fun jumpToDate(dayStartMillis: Long) = chatJumpController.jumpToDate(dayStartMillis)
 
     private suspend fun refreshPinnedMessages(expectedUserId: String) =
         pinStarController.refreshPinnedMessages(expectedUserId)
@@ -898,16 +869,9 @@ class ChatDetailViewModel(
 
     fun togglePinMessage(messageId: String) = pinStarController.togglePinMessage(messageId)
 
-    fun jumpToPinnedMessage(messageId: String) {
-        if (messageId.isBlank()) return
-        _uiState.update { state -> searchSelectionStateController.navigateTo(state, messageId) }
-    }
+    fun jumpToPinnedMessage(messageId: String) = chatJumpController.jumpToPinnedMessage(messageId)
 
-    /** 通用跳转定位：点击引用预览/置顶跳转等，滚动到指定消息并高亮。 */
-    fun jumpToMessage(messageId: String) {
-        if (messageId.isBlank()) return
-        _uiState.update { state -> searchSelectionStateController.navigateTo(state, messageId) }
-    }
+    fun jumpToMessage(messageId: String) = chatJumpController.jumpToMessage(messageId)
 
     fun togglePinMessages(messageIds: List<String>, shouldPin: Boolean) =
         pinStarController.togglePinMessages(messageIds, shouldPin)
@@ -1098,6 +1062,8 @@ class ChatDetailViewModel(
     private val scheduledMessageController get() = deps.scheduledMessageController
 
     private val chatSettingToggleController get() = deps.chatSettingToggleController
+    private val chatJumpController get() = deps.chatJumpController
+    private val chatCaptureAlertController get() = deps.chatCaptureAlertController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()
     fun clearScheduledInfo() = scheduledMessageController.clearScheduledInfo()
@@ -1136,40 +1102,7 @@ class ChatDetailViewModel(
 
     fun inviteBot(botId: String) = botGroupActionController.inviteBot(botId)
 
-    fun notifyLocalCaptureDetected(message: String) {
-        val msg = message.trim()
-        if (msg.isBlank()) return
-        val state = _uiState.value
-        val disappearOn = (state.chat?.disappearingMessageSeconds ?: 0) > 0
-        val shouldWarnPeer = (state.isSecretChat == true) || disappearOn
-        _uiState.update {
-            it.copy(
-                groupEncryptionWarning = msg,
-                secretChatInfoMessage = if (it.isSecretChat == true) msg else it.secretChatInfoMessage
-            )
-        }
-        // Best-effort peer notice over E2EE (1:1 only). Debounced inside helper.
-        if (shouldWarnPeer && state.chat?.isGroup != true) {
-            sendCaptureAlertToPeer()
-        }
-    }
-
-    private var lastCapturePeerNotifyAt
-        get() = deps.lastCapturePeerNotifyAt
-        set(value) { deps.lastCapturePeerNotifyAt = value }
-
-    private fun sendCaptureAlertToPeer() {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CAPTURE_ALERT)) return
-        val now = System.currentTimeMillis()
-        if (now - lastCapturePeerNotifyAt < 8_000L) return
-        lastCapturePeerNotifyAt = now
-        if (activeChatId.isBlank()) return
-        if (_uiState.value.chat?.isGroup == true) return
-        val label = com.maodouchat.session.CurrentSession.snapshot().userId?.take(8) ?: "me"
-        val content = com.maodouchat.util.CaptureAlertPolicy.format(label, "screenshot")
-        // Reuse sticker/nudge-like inline send pipeline (E2EE TEXT envelope).
-        sendInlineContent(content, MessageType.TEXT, content)
-    }
+    fun notifyLocalCaptureDetected(message: String) = chatCaptureAlertController.notifyLocalCaptureDetected(message)
 
     /**
      * Share live location for [durationMs] (default 15 min). Sends an E2EE LOCATION payload
