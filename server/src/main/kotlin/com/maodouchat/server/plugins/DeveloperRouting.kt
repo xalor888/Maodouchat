@@ -164,7 +164,7 @@ fun Application.configureDeveloperRouting() {
                         ErrorResponse("无权访问该机器人数据")
                     )
                 }
-                val days = (call.request.queryParameters["days"]?.toIntOrNull() ?: 7).coerceIn(1, 90)
+                val days = parseDeveloperAnalyticsDays(call.request.queryParameters)
                 val analytics = developerAnalytics.analytics(targetBotId, days)
                 call.respond(analytics)
             }
@@ -181,7 +181,7 @@ fun Application.configureDeveloperRouting() {
                 }
                 val limit = parseAdminListLimit(call.request.queryParameters)
                 val offset = parseAdminListOffset(call.request.queryParameters)
-                val commandFilter = call.request.queryParameters["command"]?.trim()?.takeIf { it.isNotBlank() }
+                val commandFilter = parseDeveloperCommandFilter(call.request.queryParameters)
                 val sinceMs = parseOptionalLong(call.request.queryParameters, "since")
 
                 val logs = developerAnalytics.commandLogs(
@@ -576,8 +576,8 @@ private suspend fun authenticateDeveloperBot(call: ApplicationCall): BotReposito
                 call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
                 return null
             }
-            val botId = call.parameters["id"]?.takeIf { it.isNotBlank() }
-                ?: call.request.queryParameters["bot_id"]?.takeIf { it.isNotBlank() }
+            val botId = parseNonBlankOrNull(call.parameters, "id")
+                ?: parseNonBlankOrNull(call.request.queryParameters, "bot_id")
             if (botId.isNullOrBlank()) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("missing bot id"))
                 return null
