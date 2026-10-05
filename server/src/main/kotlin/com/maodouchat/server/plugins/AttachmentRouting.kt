@@ -19,6 +19,10 @@ import java.util.UUID
 // SHA-256 十六进制校验：三处 handler 每次请求都在内联里编译一次，提到文件级复用。
 private val sha256HexRegex = Regex("^[a-f0-9]{64}$")
 
+// Range 头解析：`parseAttachmentRange` 每次调用都重新编译两个 pattern，提到文件级复用。
+private val attachmentRangeStartEndRegex = Regex("^bytes=(\\d+)-(\\d*)$")
+private val attachmentRangeSuffixOnlyRegex = Regex("^bytes=-(\\d+)$")
+
 internal fun Route.configureEncryptedAttachmentRoutes(
     userRepo: UserRepository,
     encryptedAttachmentRepo: EncryptedAttachmentRepository,
@@ -465,14 +469,14 @@ private suspend fun reconcileAttachmentUpload(
 private fun parseAttachmentRange(value: String, fileSize: Long): LongRange? {
     if (fileSize <= 0L) return null
     val trimmed = value.trim()
-    Regex("^bytes=(\\d+)-(\\d*)$").matchEntire(trimmed)?.let { m ->
+    attachmentRangeStartEndRegex.matchEntire(trimmed)?.let { m ->
         val start = m.groupValues[1].toLongOrNull() ?: return null
         if (start >= fileSize) return null
         val endRaw = m.groupValues[2]
         val end = if (endRaw.isEmpty()) fileSize - 1 else (endRaw.toLongOrNull() ?: return null).coerceAtMost(fileSize - 1)
         return if (start <= end) start..end else null
     }
-    Regex("^bytes=-(\\d+)$").matchEntire(trimmed)?.let { m ->
+    attachmentRangeSuffixOnlyRegex.matchEntire(trimmed)?.let { m ->
         val length = m.groupValues[1].toLongOrNull() ?: return null
         if (length <= 0L) return null
         return (fileSize - length).coerceAtLeast(0L)..(fileSize - 1)

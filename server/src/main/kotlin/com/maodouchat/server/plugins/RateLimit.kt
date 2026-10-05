@@ -23,6 +23,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
+// 附件分块上传路径：拦截器里每个请求都在重新编译，提到文件级复用。
+private val attachmentChunkPathRegex = Regex("^/api/attachments/[^/]+/chunks?$")
+
 /**
  * Result of a single rate-limit probe for a client IP.
  *
@@ -369,7 +372,7 @@ fun Application.configureRateLimit() {
             (method == "POST" || method == "PUT" || method == "PATCH") &&
                 (path.startsWith("/api/attachment-uploads") ||
                     path == "/api/attachments" ||
-                    path.matches(Regex("^/api/attachments/[^/]+/chunks?$")))
+                    path.matches(attachmentChunkPathRegex))
         if (isAttachmentUploadBody) return@intercept
         // Skip health checks
         if (path == "/api/health" || path == "/api/status") return@intercept
