@@ -40,10 +40,7 @@ internal fun Route.configureGroupInvitationRoutes(
             val userId = call.requireUserId()
             val chatId = call.requireNonBlankParamOr400("chatId", "聊天 ID 无效") ?: return@post
             if (call.rejectIfSuspended(userRepo, userId)) return@post
-            val request = call.receiveJson<CreateChatRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val request = call.receiveJsonOr400<CreateChatRequest>() ?: return@post
             val requestedIds = request.participantIds.map(String::trim)
             if (requestedIds.isEmpty() || requestedIds.any(String::isBlank) ||
                 requestedIds.distinct().size != requestedIds.size

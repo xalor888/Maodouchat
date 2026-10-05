@@ -84,10 +84,7 @@ internal fun Route.configureFriendRoutes(
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
-            val request = call.receiveJson<SendFriendRequestBody>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val request = call.receiveJsonOr400<SendFriendRequestBody>() ?: return@post
             val recipientUserId = request.toUserId.trim()
             if (recipientUserId.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("目标用户无效"))

@@ -62,10 +62,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("举报过于频繁，请稍后再试"))
                     return@post
                 }
-                val req = call.receiveJson<CreateReportRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
+                val req = call.receiveJsonOr400<CreateReportRequest>() ?: return@post
                 when (val result = reportRepo.createReport(uid, req)) {
                     is ReportWorkflow.CreateResult.Success -> call.respond(HttpStatusCode.Created, result.report)
                     is ReportWorkflow.CreateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
@@ -99,10 +96,7 @@ put("status", "ok")
                     return@put
                 }
                 val reportId = parseRawOrEmpty(call.parameters, "reportId")
-                val req = call.receiveJson<UpdateReportStatusRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@put
-                }
+                val req = call.receiveJsonOr400<UpdateReportStatusRequest>() ?: return@put
                 when (val result = reportRepo.updateReportStatus(reportId, uid, req.status, req.resolutionNote)) {
                     is ReportWorkflow.UpdateResult.Success -> call.respond(result.report)
                     is ReportWorkflow.UpdateResult.Failure -> {
@@ -124,10 +118,7 @@ put("status", "ok")
                     return@post
                 }
                 val reportId = parseRawOrEmpty(call.parameters, "reportId")
-                val req = call.receiveJson<ApplyReportActionRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
+                val req = call.receiveJsonOr400<ApplyReportActionRequest>() ?: return@post
                 val action = req.action.trim().uppercase()
                 val existingReport = reportRepo.getReport(reportId) ?: run {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("举报不存在"))
@@ -281,10 +272,7 @@ put("status", "ok")
                     return@put
                 }
                 val ruleId = parseRawOrEmpty(call.parameters, "ruleId")
-                val req = call.receiveJson<UpdateModerationRuleRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@put
-                }
+                val req = call.receiveJsonOr400<UpdateModerationRuleRequest>() ?: return@put
                 // 8.32 一致性：资源不存在 404、参数问题 400（此前合并为一个 400）
                 if (!moderationRuleRepo.ruleExists(ruleId)) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("规则不存在"))

@@ -42,10 +42,7 @@ internal fun Route.configureCallSignalingRoutes(
         post("/api/signaling/send") {
             val fromUserId = call.requireUserId()
             if (call.rejectIfMessageRestricted(userRepository, fromUserId)) return@post
-            val request = call.receiveJson<SendSignalRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val request = call.receiveJsonOr400<SendSignalRequest>() ?: return@post
             when (val outcome = callSignalingService.send(request, fromUserId)) {
                 is CallSignalingService.SendOutcome.Rejected -> {
                     outcome.retryAfterSeconds?.let { call.response.headers.append(HttpHeaders.RetryAfter, it.toString()) }
@@ -92,10 +89,7 @@ internal fun Route.configureCallSignalingRoutes(
 
         post("/api/signaling/hangup") {
             val userId = call.requireUserId()
-            val request = call.receiveJson<SendSignalRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val request = call.receiveJsonOr400<SendSignalRequest>() ?: return@post
             when (val outcome = callSignalingService.hangUp(request, userId)) {
                 is CallSignalingService.SendOutcome.Rejected ->
                     call.respond(outcome.status, ErrorResponse(outcome.message, outcome.code, outcome.retryAfterSeconds))

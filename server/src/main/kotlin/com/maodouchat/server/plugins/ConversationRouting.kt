@@ -53,10 +53,7 @@ internal fun Route.configureConversationRoutes(
                 return@post
             }
             if (call.rejectIfSuspended(userRepo, userId)) return@post
-            val request = call.receiveJson<CreateChatRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val request = call.receiveJsonOr400<CreateChatRequest>() ?: return@post
             val requestedType = request.chatType?.trim()?.takeIf(String::isNotEmpty)
                 ?: if (request.isGroup) ChatType.GROUP else ChatType.DIRECT
             if (requestedType == ChatType.SECRET && !RuntimeConfigService.isSecretChatEnabled()) {
@@ -108,10 +105,7 @@ internal fun Route.configureConversationRoutes(
             }
             val userId = call.requireUserId()
             if (call.rejectIfSuspended(userRepo, userId)) return@post
-            val request = call.receiveJson<JoinGroupInviteRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("邀请参数无效"))
-                return@post
-            }
+            val request = call.receiveJsonOr400<JoinGroupInviteRequest>(message = "邀请参数无效") ?: return@post
             val token = request.token.trim()
             if (!INVITE_TOKEN_REGEX.matches(token)) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("邀请二维码无效"))

@@ -158,10 +158,7 @@ internal fun Route.configureAuthRoutes(
         // 发送验证码 — 在 Dispatchers.IO 中同步阻塞等待邮件发送完成，避免阻塞 Netty 事件线程
             // purpose=register（默认）| reset；重置密码不依赖 allowRegistration
             post("/api/auth/send-code") {
-                val req = call.receiveJson<SendCodeRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
+                val req = call.receiveJsonOr400<SendCodeRequest>() ?: return@post
                 val purpose = req.purpose.trim().lowercase().ifBlank { "register" }
                 val isReset = purpose == com.maodouchat.server.service.EmailService.PURPOSE_RESET
                 if (!isReset && !RuntimeConfigService.isRegistrationAllowed()) {
@@ -237,10 +234,7 @@ return@post
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("注册过于频繁，请稍后再试"))
                     return@post
                 }
-                val req = call.receiveJson<RegisterWithCodeRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
+                val req = call.receiveJsonOr400<RegisterWithCodeRequest>() ?: return@post
             if (req.name.isBlank() || req.email.isBlank() || !isValidPassword(req.password)) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
                 return@post
@@ -287,10 +281,7 @@ return@post
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
-            val req = call.receiveJson<ResetPasswordRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val req = call.receiveJsonOr400<ResetPasswordRequest>() ?: return@post
             val email = req.email.normalizedEmail()
             // 8.40：先校验再按账号限流（此前空邮箱先占限流额度再被 429 拒绝，且空值也扣配额）
             if (email.isBlank() || !email.contains("@") || req.code.isBlank() || !isValidPassword(req.newPassword)) {
@@ -335,10 +326,7 @@ put("message", "密码已重置，请使用新密码登录")
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
-            val req = call.receiveJson<RefreshTokenRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val req = call.receiveJsonOr400<RefreshTokenRequest>() ?: return@post
             // 单事务：校验封禁/账号存在后再 revoke，避免 peek→consume 窗口烧 refresh
             when (val rotated = authTokenRepo.rotateIfEligible(req.refreshToken.trim())) {
                 is AuthTokenRepository.RotateRefreshResult.InvalidToken -> {
@@ -404,10 +392,7 @@ put("message", "密码已重置，请使用新密码登录")
                 call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
                 return@post
             }
-            val req = call.receiveJson<RefreshTokenRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val req = call.receiveJsonOr400<RefreshTokenRequest>() ?: return@post
             // 优先从 refresh 行解析 userId（body-only logout 也能踢 WS）
             val revokedRefreshSession = authTokenRepo.revokeAndGetSession(req.refreshToken.trim())
             authTokenRepo.revokeAccessTokenFromAuthorizationHeader(call.request.headers[HttpHeaders.Authorization])
