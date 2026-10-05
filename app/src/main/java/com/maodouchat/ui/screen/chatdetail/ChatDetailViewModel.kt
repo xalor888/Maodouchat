@@ -774,28 +774,8 @@ class ChatDetailViewModel(
         pinStarController.togglePinMessages(messageIds, shouldPin)
 
     // 1.11：发送名片（联系人卡片）——构造卡片文本后复用 sendMessage 完整发送链路（加密/出站/状态）
-    fun sendContactCard(targetUserId: String, displayName: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CONTACT_CARD)) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.contact_card_disabled)) }
-            return
-        }
-        if (_uiState.value.isSecretChat == true) {
-            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.contact_card_secret_blocked)) }
-            return
-        }
-        if (targetUserId.isBlank()) return
-        val safeName = displayName.trim().take(80).ifBlank { "contact" }
-        val cardContent = buildString {
-            append("👤 ")
-            append(safeName)
-            append("\n[contactUser:")
-            append(targetUserId)
-            append("]")
-        }
-        // 8.49 修复：改走 forceText——写入 inputText 再 sendMessage() 会把用户未发送的
-        // 持久化草稿一并清除（sendMessage 清空输入框并 clearDraft），造成数据丢失
-        sendMessage(forceText = cardContent)
-    }
+    fun sendContactCard(targetUserId: String, displayName: String) =
+        contactCardController.sendContactCard(targetUserId, displayName)
 
     fun toggleChatMarkedUnread() = chatSettingToggleController.toggleChatMarkedUnread()
 
@@ -962,6 +942,7 @@ class ChatDetailViewModel(
     private val chatJumpController get() = deps.chatJumpController
     private val composerSendController get() = deps.composerSendController
     private val inlineSendController get() = deps.inlineSendController
+    private val contactCardController get() = deps.contactCardController
     private val chatCaptureAlertController get() = deps.chatCaptureAlertController
 
     fun refreshScheduledMessages() = scheduledMessageController.refreshScheduledMessages()
