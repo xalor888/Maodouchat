@@ -86,7 +86,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要审核员权限"))
                     return@get
                 }
-                val status = call.request.queryParameters["status"]
+                val status = parseRawOrNull(call.request.queryParameters, "status")
                 val limit = parseAdminListLimit(call.request.queryParameters, defaultLimit = 100)
                 val offset = parseAdminListOffset(call.request.queryParameters)
                 call.respond(reportRepo.getReports(status, limit, offset))

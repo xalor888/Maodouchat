@@ -12,7 +12,7 @@ class SocialQueryParseFuzzTest {
     private companion object {
         private const val SEED = 19342
         private const val ITERATIONS = 150
-        private val NOISE_NAMES = listOf("beforeId", "authorId", "chatId", "foo", "x")
+        private val NOISE_NAMES = listOf("foo", "x", "q", "pending", "since")
     }
 
     private fun randomString(random: Random, length: Int): String {
@@ -38,6 +38,9 @@ class SocialQueryParseFuzzTest {
         if (random.nextBoolean()) pairs += "before" to listOf(randomParamValue(random))
         if (random.nextBoolean()) pairs += "status" to listOf(randomStatusValue(random))
         if (random.nextBoolean()) pairs += "needsReview" to listOf(randomReviewValue(random))
+        if (random.nextBoolean()) pairs += "chatId" to listOf(randomParamValue(random))
+        if (random.nextBoolean()) pairs += "authorId" to listOf(randomParamValue(random))
+        if (random.nextBoolean()) pairs += "beforeId" to listOf(randomBeforeIdValue(random))
         repeat(random.nextInt(0, 3)) { pairs += NOISE_NAMES.random(random) to listOf(randomParamValue(random)) }
         return parametersOf(*pairs.toTypedArray())
     }
@@ -61,6 +64,17 @@ class SocialQueryParseFuzzTest {
         else -> randomParamValue(random)
     }
 
+    // beforeId 边界：空/空白/≤100 字符/恰 100/超 100 都要覆盖（逻辑只关心这三个阈值）。
+    private fun randomBeforeIdValue(random: Random): String = when (random.nextInt(7)) {
+        0 -> ""
+        1 -> "   "
+        2 -> randomString(random, random.nextInt(1, 100))
+        3 -> randomString(random, 100)
+        4 -> randomString(random, random.nextInt(101, 260))
+        5 -> random.nextLong().toString()
+        else -> randomParamValue(random)
+    }
+
     // 旧内联写法的逐字复刻，只供等价性比对。
     private fun oldBeforeWay(params: Parameters): Long? =
         params["before"]?.toLongOrNull()
@@ -73,6 +87,12 @@ class SocialQueryParseFuzzTest {
 
     private fun oldNeedsReviewWay(params: Parameters): Boolean? =
         params["needsReview"]?.toBooleanStrictOrNull()
+
+    private fun oldRawWay(params: Parameters, name: String): String? =
+        params[name]
+
+    private fun oldBeforeIdWay(params: Parameters, before: Long?): String? =
+        params["beforeId"]?.takeIf { before != null && it.isNotBlank() && it.length <= 100 }
 
     @Test
     fun `feed before matches old inline`() {
@@ -112,6 +132,27 @@ class SocialQueryParseFuzzTest {
     }
 
     @Test
+    fun `feed beforeId matches old inline`() {
+        val random = Random(SEED + 4)
+        repeat(ITERATIONS) { i ->
+            val params = randomParams(random)
+            val before = parseSocialFeedBefore(params)
+            assertEquals(oldBeforeIdWay(params, before), parseSocialFeedBeforeId(params, before), "iter $i")
+        }
+    }
+
+    @Test
+    fun `raw nullable params match old inline`() {
+        val random = Random(SEED + 5)
+        repeat(ITERATIONS) { i ->
+            val params = randomParams(random)
+            assertEquals(oldRawWay(params, "chatId"), parseRawOrNull(params, "chatId"), "iter $i chatId")
+            assertEquals(oldRawWay(params, "authorId"), parseRawOrNull(params, "authorId"), "iter $i authorId")
+            assertEquals(oldRawWay(params, "status"), parseRawOrNull(params, "status"), "iter $i status")
+        }
+    }
+
+    @Test
     fun `pinned semantics`() {
         // before：缺省/非法为 null，负值与超大值原样透传。
         assertNull(parseSocialFeedBefore(parametersOf()))
@@ -135,5 +176,17 @@ class SocialQueryParseFuzzTest {
         assertNull(parseNeedsReview(parametersOf("needsReview" to listOf("TRUE"))))
         assertNull(parseNeedsReview(parametersOf("needsReview" to listOf("yes"))))
         assertNull(parseNeedsReview(parametersOf("needsReview" to listOf(""))))
+        // beforeId：before 缺省时 beforeId 被忽略；空白/超 100 字符丢弃，边界 100 透传。
+        assertNull(parseSocialFeedBeforeId(parametersOf("beforeId" to listOf("abc123")), null))
+        assertEquals("abc123", parseSocialFeedBeforeId(parametersOf("beforeId" to listOf("abc123")), 123L))
+        assertNull(parseSocialFeedBeforeId(parametersOf("beforeId" to listOf("  ")), 123L))
+        assertNull(parseSocialFeedBeforeId(parametersOf("beforeId" to listOf("x".repeat(101))), 123L))
+        assertEquals("x".repeat(100), parseSocialFeedBeforeId(parametersOf("beforeId" to listOf("x".repeat(100))), 123L))
+        assertNull(parseSocialFeedBeforeId(parametersOf(), 123L))
+        // raw nullable（chatId/authorId/status）：缺省回 null，其余原样透传。
+        assertNull(parseRawOrNull(parametersOf(), "chatId"))
+        assertEquals("", parseRawOrNull(parametersOf("chatId" to listOf("")), "chatId"))
+        assertEquals("abc", parseRawOrNull(parametersOf("authorId" to listOf("abc")), "authorId"))
+        assertEquals("pending", parseRawOrNull(parametersOf("status" to listOf("pending")), "status"))
     }
 }
