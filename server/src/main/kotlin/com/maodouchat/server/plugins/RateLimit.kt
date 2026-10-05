@@ -372,7 +372,7 @@ fun Application.configureRateLimit() {
             (method == "POST" || method == "PUT" || method == "PATCH") &&
                 (path.startsWith("/api/attachment-uploads") ||
                     path == "/api/attachments" ||
-                    path.matches(attachmentChunkPathRegex)))
+                    path.matches(attachmentChunkPathRegex))
         if (isAttachmentUploadBody) return@intercept
         // Skip health checks
         if (path == "/api/health" || path == "/api/status") return@intercept
