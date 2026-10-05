@@ -14,18 +14,16 @@ internal sealed interface BotDeleteUpdatesFieldsResult {
 }
 
 /**
- * 与原处理器逐字一致的上限抽取 + 三层回退 + 必填校验。
- * 单字段端点：body `upToId` 优先、body `offset` 兜底、query `upToId` 再兜底（`queryUpToId`
- * 即处理器传入的 `call.request.queryParameters["upToId"]`）、缺省 `0L`；
- * `obj` 为 null（body 非 JSON 对象）时直接走 query 回退；
+ * 与原处理器逐字一致的三层回退 + 必填校验：body `upToId` 优先、body `offset` 兜底、
+ * query `upToId`（调用方用 parseRawOrNull 传入）再兜底、缺省 `0L`；
  * 回退只看「能否解析出 Long」；`upTo <= 0L`→Invalid（处理器侧 400 `"upToId required"`）。
  */
 internal fun parseBotDeleteUpdatesFields(
     obj: JsonObject?,
     queryUpToId: String?,
 ): BotDeleteUpdatesFieldsResult {
-    // 注意：三层回退都在必填判空之前；显式 null upToId → 字面量 "null"→toLongOrNull
-    // 得 null→继续回退；对象/数组型 upToId 即使后面键合法也先抛。
+    // 三层回退都在必填判空之前；显式 null upToId → 字面量 "null"→toLongOrNull 得 null→继续回退。
+    // 对象/数组型 upToId 会在 jsonPrimitive 直接抛（与原处理器一致）。
     val upTo = obj?.get("upToId")?.jsonPrimitive?.content?.toLongOrNull()
         ?: obj?.get("offset")?.jsonPrimitive?.content?.toLongOrNull()
         ?: queryUpToId?.toLongOrNull()
