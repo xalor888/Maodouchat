@@ -140,12 +140,21 @@ internal class ChatDetailDeps(
             }
         },
     )
+    // G380：消息展示与搜索索引（列表预览文案、解密后回写预览、本地全文索引）
+    // 抽到 ChatMessagePreviewController——VM 侧四个函数直接搬出，无内部调用者留守。
+    internal val messagePreviewController = ChatMessagePreviewController(
+        chatProvider = { host._uiState.value.chat },
+        contactProvider = { host._uiState.value.contact },
+        currentUserId = { host.currentUserId },
+        activeChatId = { host.activeChatId },
+        textProvider = host::text,
+    )
     internal val messageGateway by lazy {
         MessagingV2MessageGateway(
             database = host.app.database,
             messageStore = messageRepo,
             outbox = host.app.messagingV2Outbox,
-            indexMessage = host::indexSearchableMessage,
+            indexMessage = messagePreviewController::indexSearchableMessage,
         )
     }
     internal val commandFacade by lazy {
@@ -198,7 +207,7 @@ internal class ChatDetailDeps(
                 )
             }
         },
-        indexMessage = host::indexSearchableMessage,
+        indexMessage = messagePreviewController::indexSearchableMessage,
         cleanupAttachment = host::cleanupAttachmentForMessage,
         refreshConversationPreview = com.maodouchat.chatdetail.ChatDetailAccess::emitChatListPreviewRefresh,
         isOwnerSessionCurrent = { ownerUserId ->
@@ -441,7 +450,7 @@ internal class ChatDetailDeps(
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         mergeMessages = host::mergeMessages,
-        emitListPreviewForDecrypted = host::emitListPreviewForDecrypted,
+        emitListPreviewForDecrypted = messagePreviewController::emitListPreviewForDecrypted,
         outgoingFacade = outgoingFacade,
         text = { id, args -> host.text(id, *args) },
     )
