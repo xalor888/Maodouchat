@@ -33,10 +33,7 @@ internal fun Route.configureClientSyncRoutes(
                 return@put
             }
             val userId = call.requireUserId()
-            val request = call.receiveJson<ChatFoldersSyncRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@put
-            }
+            val request = call.receiveJsonOr400<ChatFoldersSyncRequest>() ?: return@put
             call.respond(chatFolderRepository.replaceFolders(userId, request))
         }
 
@@ -47,10 +44,7 @@ internal fun Route.configureClientSyncRoutes(
 
         put("/api/client-prefs") {
             val userId = call.requireUserId()
-            val request = call.receiveJson<ClientPrefsUpdateRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@put
-            }
+            val request = call.receiveJsonOr400<ClientPrefsUpdateRequest>() ?: return@put
             call.respond(clientPrefsRepository.update(userId, request))
         }
     }

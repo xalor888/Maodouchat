@@ -158,10 +158,7 @@ internal fun Route.configureAccountRoutes(
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("位置更新太频繁，请稍后再试"))
                     return@put
                 }
-                val req = call.receiveJson<UpdateNearbyLocationRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("位置参数无效"))
-                    return@put
-                }
+                val req = call.receiveJsonOr400<UpdateNearbyLocationRequest>(message = "位置参数无效") ?: return@put
                 val status = nearbyRepo.updateLocation(userId, req.latitude, req.longitude)
                 if (status == null) call.respond(HttpStatusCode.BadRequest, ErrorResponse("位置参数无效"))
                 else call.respond(status)
@@ -396,10 +393,7 @@ put("publicProfileUrl", publicProfileUrl)
             // 修改密码：成功后吊销全部刷新令牌并轮换 access token version，避免旧会话继续有效
             post("/api/users/change-password") {
                 val userId = call.requireUserId()
-                val req = call.receiveJson<ChangePasswordRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@post
-                }
+                val req = call.receiveJsonOr400<ChangePasswordRequest>() ?: return@post
                 if (req.oldPassword.isBlank() || !isValidPassword(req.newPassword)) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("新密码至少 6 位"))
                     return@post
@@ -421,10 +415,7 @@ put("publicProfileUrl", publicProfileUrl)
                 val groupAvatarCandidates = groupMediaReferenceRepo.avatarUrlsForParticipant(userId)
                 // 8.33 修复：删号会 bump memberRevision（含群主转让），但此前无广播，剩余成员残留成员列表
                 val groupSnapshots = conversationParticipantRepo.groupMembershipSnapshotForDeletion(userId)
-                val req = call.receiveJson<DeleteAccountRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                    return@delete
-                }
+                val req = call.receiveJsonOr400<DeleteAccountRequest>() ?: return@delete
                 if (req.password.isBlank()) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("请输入当前密码"))
                     return@delete

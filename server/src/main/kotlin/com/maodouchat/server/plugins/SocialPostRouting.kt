@@ -174,10 +174,7 @@ internal fun Route.configureSocialPostRoutes(
                     call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发布过于频繁，请稍后再试"))
                     return@post
                 }
-                val req = call.receiveJson<CreatePostRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("动态内容无效"))
-                    return@post
-                }
+                val req = call.receiveJsonOr400<CreatePostRequest>(message = "动态内容无效") ?: return@post
                 // Legacy clients always sent PUBLIC even when it only represented the UI default.
                 // Preserve explicit CONTACTS/PRIVATE choices while failing closed for legacy PUBLIC.
                 val useAccountDefault = req.useDefaultVisibility
@@ -310,10 +307,7 @@ put("status", "ok")
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权编辑该动态"))
                     return@put
                 }
-                val req = call.receiveJson<EditPostRequest>() ?: run {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求体无效"))
-                    return@put
-                }
+                val req = call.receiveJsonOr400<EditPostRequest>(message = "请求体无效") ?: return@put
                 val newContent = req.content.trim()
                 if (newContent.isEmpty()) {
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("动态内容不能为空"))

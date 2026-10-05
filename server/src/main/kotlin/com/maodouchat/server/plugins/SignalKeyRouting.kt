@@ -149,10 +149,7 @@ internal fun Route.configureSignalKeyRoutes(
         put("/api/keys/devices/{deviceId}/name") {
             val requesterId = call.requireUserId()
             val deviceId = call.requireDeviceId() ?: return@put
-            val request = call.receiveJson<UpdateDeviceNameRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@put
-            }
+            val request = call.receiveJsonOr400<UpdateDeviceNameRequest>() ?: return@put
             val name = request.deviceName.trim()
             if (name.isEmpty() || name.length > 50) {
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("设备名长度需 1-50 字符"))
@@ -168,10 +165,7 @@ internal fun Route.configureSignalKeyRoutes(
         post("/api/keys/devices/{deviceId}/confirm") {
             val requesterId = call.requireUserId()
             val deviceId = call.requireDeviceId() ?: return@post
-            val request = call.receiveJson<ConfirmDeviceRequest>() ?: run {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
-                return@post
-            }
+            val request = call.receiveJsonOr400<ConfirmDeviceRequest>() ?: return@post
             when (signalKeyRepository.confirmDevice(requesterId, deviceId, request.approverDeviceId, request.signature)) {
                 ConfirmDeviceResult.CONFIRMED,
                 ConfirmDeviceResult.ALREADY_CONFIRMED -> call.respondOk()
