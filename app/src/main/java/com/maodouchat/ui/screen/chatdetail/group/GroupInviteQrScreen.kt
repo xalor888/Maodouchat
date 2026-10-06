@@ -203,6 +203,9 @@ fun GroupInviteContent(
 ) {
     val context = LocalContext.current
     val inviteCopiedMessage = stringResource(R.string.group_detail_invite_copied)
+    // 二维码/邀请状态行每次重组都重复构造；locale 变化时键失效重建。
+    val locale = LocalConfiguration.current.locales[0]
+    val inviteDateFormat = remember(locale) { SimpleDateFormat("yyyy-MM-dd HH:mm", locale) }
     val bitmap = remember(payload) {
         payload.takeIf { it.isNotBlank() }?.let { QrCodeGenerator.generateBitmap(it, 720) }
     }
@@ -256,10 +259,7 @@ fun GroupInviteContent(
             Text(
                 stringResource(
                     R.string.group_detail_invite_status,
-                    SimpleDateFormat(
-                        "yyyy-MM-dd HH:mm",
-                        LocalConfiguration.current.locales[0]
-                    ).format(Date(expiresAt)),
+                    inviteDateFormat.format(Date(expiresAt)),
                     usedCount,
                     maxUses,
                     remainingUses

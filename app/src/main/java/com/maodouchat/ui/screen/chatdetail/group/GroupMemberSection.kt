@@ -62,10 +62,8 @@ object GroupMemberSectionUtils {
     @Composable
     fun formatMuteTime(timestamp: Long): String {
         if (timestamp <= 0) return stringResource(R.string.group_detail_not_muted)
-        val formatter = SimpleDateFormat(
-            "MM-dd HH:mm",
-            LocalConfiguration.current.locales[0]
-        )
+        val locale = LocalConfiguration.current.locales[0]
+        val formatter = remember(locale) { SimpleDateFormat("MM-dd HH:mm", locale) }
         return formatter.format(Date(timestamp))
     }
 
