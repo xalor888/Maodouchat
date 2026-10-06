@@ -391,6 +391,11 @@ internal class ChatListMutationCoordinator(
         }
     }
 
+    /** 密聊建好并导航后清掉一次性跳转标记（与 startSecretChatWithPeer 配对）。 */
+    fun clearCreatedSecretChat() {
+        uiState.update { it.copy(createdSecretChatId = null) }
+    }
+
     private companion object {
         const val TAG = "ChatListMutation"
     }
