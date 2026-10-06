@@ -26,6 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 
+// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+private val copyWithSenderTimeFormat: ThreadLocal<java.text.SimpleDateFormat> =
+    ThreadLocal.withInitial { java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()) }
+
 /**
  * 长按消息的「操作」底部弹层（G328c 从 `ChatDetailRoute.kt` 的
  * `messageToActions?.let { ... }` 整块搬出，**纯搬移不改判断**）。
@@ -147,7 +151,7 @@ internal fun ChatDetailMessageActionsSheet(
                         TextButton(
                             onClick = {
                                 val sender = senderName ?: ""
-                                val time = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(message.timestamp))
+                                val time = copyWithSenderTimeFormat.get().format(java.util.Date(message.timestamp))
                                 val body = com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
                                     message.parsedContent(),
                                     context.getString(R.string.chat_decrypt_failed)
