@@ -13,6 +13,8 @@ import com.maodouchat.network.TokenManager
 import java.util.concurrent.TimeUnit
 
 object AttachmentTransferScheduler {
+    // 传输作业 ID 净化：每次调用重复编译正则，提到对象级复用。
+    private val jobIdUnsafeCharsRegex = Regex("[^A-Za-z0-9_-]")
     const val KEY_MESSAGE_ID = "message_id"
     const val KEY_OWNER_USER_ID = "owner_user_id"
     private const val TAG = "attachment_transfer"
@@ -66,6 +68,6 @@ object AttachmentTransferScheduler {
     }
 
     private fun workName(ownerUserId: String, messageId: String): String = WORK_PREFIX +
-        ownerUserId.replace(Regex("[^A-Za-z0-9_-]"), "_") + "_" +
-        messageId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        ownerUserId.replace(jobIdUnsafeCharsRegex, "_") + "_" +
+        messageId.replace(jobIdUnsafeCharsRegex, "_")
 }

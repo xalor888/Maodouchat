@@ -11,6 +11,8 @@ import kotlinx.coroutines.withContext
  * Uses the user-configured OpenAI-compatible provider only.
  */
 object LocalAiGateway {
+    // 查询分词：每次调用重复编译正则，提到对象级复用。
+    private val queryTokenSplitRegex = Regex("\\s+")
     fun configured(context: Context): Boolean = LocalAiProviderStore.isConfigured(context)
 
     fun missingProviderMessage(): String =
@@ -111,7 +113,7 @@ object LocalAiGateway {
     ): List<Pair<String, Double>> = withContext(Dispatchers.Default) {
         val q = query.trim().lowercase()
         if (q.isBlank()) return@withContext emptyList()
-        val tokens = q.split(Regex("\\s+")).filter { it.isNotBlank() }.take(12)
+        val tokens = q.split(queryTokenSplitRegex).filter { it.isNotBlank() }.take(12)
         candidates
             .map { (id, text) ->
                 val hay = text.lowercase()

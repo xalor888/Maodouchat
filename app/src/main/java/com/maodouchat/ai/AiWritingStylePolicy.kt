@@ -5,6 +5,8 @@ package com.maodouchat.ai
  * 仅影响改写类提示附加说明；不上传独立记忆库，内容只存本机 prefs。
  */
 object AiWritingStylePolicy {
+    // 写作风格自定义文本空白折叠：每次调用重复编译正则，提到对象级复用。
+    private val styleTextWhitespaceRegex = Regex("\\s+")
     const val MAX_CUSTOM_CHARS = 320
     const val MAX_PRESET_ID_CHARS = 40
 
@@ -39,7 +41,7 @@ object AiWritingStylePolicy {
     }
 
     fun normalizeCustomNote(raw: String?): String =
-        raw.orEmpty().trim().replace(Regex("\\s+"), " ").take(MAX_CUSTOM_CHARS)
+        raw.orEmpty().trim().replace(styleTextWhitespaceRegex, " ").take(MAX_CUSTOM_CHARS)
 
     fun normalize(enabled: Boolean, presetId: String?, customNote: String?): Snapshot {
         val preset = Preset.fromId(presetId)

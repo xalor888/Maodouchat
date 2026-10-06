@@ -23,6 +23,14 @@ object MediaCache {
     private const val ATTACHMENT_PAYLOAD_KIND = "maodouchat-attachment-v1"
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
+    // 文件名净化/校验：每次调用都重复编译正则，提到对象级复用。
+    private val safeIdCharsRegex = Regex("[^A-Za-z0-9_-]")
+    private val attachmentExtensionRegex = Regex("^\\.[a-z0-9]{1,10}$")
+    private val attachmentIdRegex = Regex("^att_[A-Za-z0-9_-]{20,100}$")
+    private val sha256HexRegex = Regex("^[a-f0-9]{64}$")
+    private val filenameUnsafeCharsRegex = Regex("[\\\\/:*?\"<>|\\p{Cntrl}]")
+    private val extensionNameRegex = Regex("[a-z0-9]{1,10}")
+
     data class LocalFileMetadata(
         val fileName: String,
         val mimeType: String,
@@ -186,7 +194,7 @@ object MediaCache {
         } else {
             File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
         }
-        val safeId = messageId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        val safeId = messageId.replace(safeIdCharsRegex, "_")
         val extension = MessageType.FILE.extension(fileName)
         val target = File(dir, "$safeId$extension")
         require(target.canonicalPath.startsWith(dir.canonicalPath + File.separator))
@@ -195,9 +203,9 @@ object MediaCache {
 
     fun createEncryptedDownloadFile(context: Context, attachmentId: String, discriminator: String = ""): File {
         val dir = File(context.cacheDir, "attachment-downloads").apply { mkdirs() }
-        val safeId = attachmentId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        val safeId = attachmentId.replace(safeIdCharsRegex, "_")
         // 8.60：discriminator（messageId）避免同 attachmentId 的并发下载共用 .part 互相截断/删除损坏
-        val safeDisc = discriminator.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        val safeDisc = discriminator.replace(safeIdCharsRegex, "_")
         val name = if (safeDisc.isBlank()) "$safeId.part" else "${safeId}_$safeDisc.part"
         val target = File(dir, name)
         require(target.canonicalPath.startsWith(dir.canonicalPath + File.separator))
@@ -205,9 +213,9 @@ object MediaCache {
     }
 
     fun createPreparedAttachmentSource(context: Context, messageId: String, extension: String): File {
-        require(extension.matches(Regex("^\\.[a-z0-9]{1,10}$")))
+        require(extension.matches(attachmentExtensionRegex))
         val dir = File(context.cacheDir, "attachment-sources").apply { mkdirs() }
-        val safeId = messageId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        val safeId = messageId.replace(safeIdCharsRegex, "_")
         val target = File(dir, "$safeId$extension")
         require(target.canonicalPath.startsWith(dir.canonicalPath + File.separator))
         return target
@@ -227,7 +235,7 @@ object MediaCache {
     }.getOrNull()
 
     fun deleteCachedMediaForMessage(context: Context, messageId: String): Boolean = runCatching {
-        val safeId = messageId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        val safeId = messageId.replace(safeIdCharsRegex, "_")
         // 9.147：密聊明文媒体位于 SECRET_CACHE_DIR/<chatId>/ 隔离目录——此前只扫共享
         // CACHE_DIR，密聊里到期/阅后即焚消息的明文媒体在 purge 后仍长期留存
         val dirs = mutableListOf(File(context.cacheDir, CACHE_DIR))
@@ -365,11 +373,11 @@ object MediaCache {
 
     private fun isValidAttachmentReference(reference: EncryptedAttachmentReference): Boolean {
         return reference.kind == ATTACHMENT_PAYLOAD_KIND &&
-            reference.attachmentId.matches(Regex("^att_[A-Za-z0-9_-]{20,100}$")) &&
+            reference.attachmentId.matches(attachmentIdRegex) &&
             reference.keyBase64.length in 40..48 &&
             reference.ivBase64.length in 16..24 &&
-            reference.cipherSha256.matches(Regex("^[a-f0-9]{64}$")) &&
-            reference.plainSha256.matches(Regex("^[a-f0-9]{64}$")) &&
+            reference.cipherSha256.matches(sha256HexRegex) &&
+            reference.plainSha256.matches(sha256HexRegex) &&
             reference.cipherSize in 17L..MAX_ATTACHMENT_CIPHER_BYTES &&
             reference.plainSize in 1L..MAX_ATTACHMENT_PLAIN_BYTES &&
             (reference.durationMs == null || reference.durationMs in 500L..MAX_VOICE_DURATION_MS) &&
@@ -379,7 +387,7 @@ object MediaCache {
 
     private fun sanitizeFileName(value: String): String {
         return value
-            .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
+            .replace(filenameUnsafeCharsRegex, "_")
             .trim()
             .trim('.')
             .take(120)
@@ -394,7 +402,7 @@ object MediaCache {
         MessageType.FILE -> originalFileName
             ?.substringAfterLast('.', missingDelimiterValue = "")
             ?.lowercase()
-            ?.takeIf { it.matches(Regex("[a-z0-9]{1,10}")) }
+            ?.takeIf { it.matches(extensionNameRegex) }
             ?.let { ".$it" }
             ?: ".bin"
         else -> ".bin"

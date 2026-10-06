@@ -16,6 +16,8 @@ import java.util.Locale
  * 仅导出本地已解密消息；内容不经网络。上限 [MAX_MESSAGES] 条防止超大会话 OOM。
  */
 object ChatExport {
+    // 导出文件名净化：每次调用重复编译正则，提到对象级复用。
+    private val exportFilenameUnsafeCharsRegex = Regex("[\\\\/:*?\"<>|]")
 
     const val MAX_MESSAGES = 2000
     const val FORMAT_VERSION = 1
@@ -66,7 +68,7 @@ object ChatExport {
         if (text.isBlank()) return null
         return runCatching {
             val dir = File(context.cacheDir, "exports").apply { if (!exists()) mkdirs() }
-            val safe = fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(80)
+            val safe = fileName.replace(exportFilenameUnsafeCharsRegex, "_").take(80)
             val file = File(dir, "$safe.txt")
             file.writeText(text, Charsets.UTF_8)
             file
@@ -89,7 +91,7 @@ object ChatExport {
         isCancelled: () -> Boolean = { false },
     ): File? {
         val dir = File(context.cacheDir, "exports").apply { if (!exists()) mkdirs() }
-        val safe = fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_").take(80)
+        val safe = fileName.replace(exportFilenameUnsafeCharsRegex, "_").take(80)
         val file = File(dir, "$safe.txt")
         val tempFile = File(dir, "$safe.tmp")
 
