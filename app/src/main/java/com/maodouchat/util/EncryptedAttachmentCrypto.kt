@@ -33,6 +33,9 @@ class AttachmentCryptoException(
 ) : Exception(failure.name, cause)
 
 object EncryptedAttachmentCrypto {
+    // SecureRandom 线程安全，每次加密附件都 new 会反复播种，对象级复用。
+    private val secureRandom = SecureRandom()
+
     data class EncryptedFile(
         val file: File,
         val keyBase64: String,
@@ -76,8 +79,8 @@ object EncryptedAttachmentCrypto {
         if (expectedPlainSize < 0L) {
             throw AttachmentCryptoException(AttachmentCryptoFailure.SIZE_MISMATCH)
         }
-        val key = ByteArray(32).also(SecureRandom()::nextBytes)
-        val iv = ByteArray(12).also(SecureRandom()::nextBytes)
+        val key = ByteArray(32).also(secureRandom::nextBytes)
+        val iv = ByteArray(12).also(secureRandom::nextBytes)
         val digest = MessageDigest.getInstance("SHA-256")
         val plainDigest = MessageDigest.getInstance("SHA-256")
         var copied = 0L

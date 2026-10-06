@@ -9,6 +9,9 @@ import javax.crypto.spec.PBEKeySpec
 
 class ChatLockRepository(private val dao: ChatLockDao) {
 
+    // SecureRandom 线程安全，每次生成 salt 都 new 会反复播种，实例级复用。
+    private val secureRandom = SecureRandom()
+
     /**
      * PBKDF2 迭代次数。600k 次（OWASP 建议区间）使 4-8 位 PIN 的穷举成本从分钟级
      * 提升到小时级，配合 SQLCipher 主防线和 16 字节随机 salt，达到聊天锁的隐私承诺。
@@ -111,7 +114,7 @@ class ChatLockRepository(private val dao: ChatLockDao) {
 
     private fun generateSalt(): String {
         val bytes = ByteArray(16)
-        SecureRandom().nextBytes(bytes)
+        secureRandom.nextBytes(bytes)
         return bytes.joinToString("") { "%02x".format(it) }
     }
 

@@ -17,6 +17,9 @@ import javax.crypto.spec.PBEKeySpec
  * 5. 内存级解锁会话缓存（TTL 自动失效与账号隔离）。
  */
 object PinSecurityPolicy {
+    // SecureRandom 线程安全，每次生成 salt 都 new 会反复播种，对象级复用。
+    private val secureRandom = SecureRandom()
+
     const val MIN_PIN_LENGTH = 4
     const val MAX_PIN_LENGTH = 12
 
@@ -33,7 +36,7 @@ object PinSecurityPolicy {
 
     fun generateSalt(byteCount: Int = SALT_BYTES): String {
         val bytes = ByteArray(byteCount)
-        SecureRandom().nextBytes(bytes)
+        secureRandom.nextBytes(bytes)
         return bytes.joinToString("") { "%02x".format(it) }
     }
 

@@ -17,6 +17,9 @@ import java.security.SecureRandom
  */
 object DatabasePassphraseProvider {
 
+    // SecureRandom 线程安全，每次生成口令都 new 会反复播种，对象级复用。
+    private val secureRandom = SecureRandom()
+
     private const val PREFS_NAME = "secure_database_key_prefs"
     private const val PASSPHRASE_KEY = "sqlcipher_passphrase_hex"
     private const val PASSPHRASE_BYTES = 32
@@ -57,7 +60,7 @@ object DatabasePassphraseProvider {
 
     private fun generatePassphraseHex(): String {
         val bytes = ByteArray(PASSPHRASE_BYTES)
-        SecureRandom().nextBytes(bytes)
+        secureRandom.nextBytes(bytes)
         return bytes.joinToString(separator = "") { byte -> "%02x".format(byte) }
     }
 }

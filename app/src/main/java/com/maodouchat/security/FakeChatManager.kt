@@ -45,6 +45,9 @@ object FakeChatPolicy {
 }
 
 object FakeChatManager {
+    // SecureRandom 线程安全，每次设 PIN 都 new 会反复播种，对象级复用。
+    private val secureRandom = SecureRandom()
+
     private const val PREFS = "fake_chat"
 
     /** 拨号盘恢复码：`*#*#75263#*#*`（manifest 中 receiver 的 host 与此一致，勿改） */
@@ -117,7 +120,7 @@ object FakeChatManager {
         val userId = userId(ctx)
         if (userId.isBlank() || !isPinValid(pin)) return false
         if (pin == "0000" || pin == "1234") return false
-        val salt = ByteArray(SALT_BYTES).also { SecureRandom().nextBytes(it) }
+        val salt = ByteArray(SALT_BYTES).also { secureRandom.nextBytes(it) }
         val hash = pbkdf2(pin, salt, PBKDF2_ITERATIONS)
         prefs(ctx).edit {
             putString(
