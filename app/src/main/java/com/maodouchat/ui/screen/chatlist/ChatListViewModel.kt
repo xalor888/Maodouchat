@@ -60,7 +60,8 @@ class ChatListViewModel private constructor(
 
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
-    private val localCleanupCoordinator = ChatListLocalCleanupCoordinator(
+    // 显式类型：断开与 loadCoordinator 的初始化类型互推断（CI 曾报 recursive problem）。
+    private val localCleanupCoordinator: ChatListLocalCleanupCoordinator = ChatListLocalCleanupCoordinator(
         scope = viewModelScope,
         ownerUserId = { currentUserIdStr },
         localStateCoordinator = conversationLocalStateCoordinator,
