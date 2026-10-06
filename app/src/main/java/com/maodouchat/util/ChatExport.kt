@@ -18,6 +18,11 @@ import java.util.Locale
 object ChatExport {
     // 导出文件名净化：每次调用重复编译正则，提到对象级复用。
     private val exportFilenameUnsafeCharsRegex = Regex("[\\\\/:*?\"<>|]")
+    // SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+    private val messageTimeFormat: ThreadLocal<SimpleDateFormat> =
+        ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
+    private val headerTimeFormat: ThreadLocal<SimpleDateFormat> =
+        ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
 
     const val MAX_MESSAGES = 2000
     const val FORMAT_VERSION = 1
@@ -33,11 +38,11 @@ object ChatExport {
         messages: List<Message>,
         exportedAt: Long = System.currentTimeMillis()
     ): String {
-        val ts = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+        val ts = messageTimeFormat.get()
         val sb = StringBuilder()
         sb.append("=== ").append(chatName.ifBlank { "-" }).append(" ===\n")
         sb.append("format_version=").append(FORMAT_VERSION).append("\n")
-        sb.append("exported_at=").append(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(exportedAt))).append("\n")
+        sb.append("exported_at=").append(headerTimeFormat.get().format(Date(exportedAt))).append("\n")
         sb.append("count=").append(messages.size).append("\n\n")
         messages.forEach { m ->
             if (m.type == MessageType.SYSTEM || m.type == MessageType.SK_DIST) return@forEach
@@ -95,8 +100,8 @@ object ChatExport {
         val file = File(dir, "$safe.txt")
         val tempFile = File(dir, "$safe.tmp")
 
-        val ts = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        val exportTs = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(exportedAt))
+        val ts = messageTimeFormat.get()
+        val exportTs = headerTimeFormat.get().format(Date(exportedAt))
 
         var cancelled = false
         try {

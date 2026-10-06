@@ -65,6 +65,10 @@ import java.util.Locale
  */
 
 /** 1.11：发送名片——选择要分享的联系人（单聊会话对端用户）。1.27：支持搜索过滤。 */
+// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+private val aiTaskDueFormat: ThreadLocal<SimpleDateFormat> =
+    ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
+
 @Composable
 internal fun GroupAiAssistantDialog(
     question: String,
@@ -174,7 +178,7 @@ internal fun GroupAiAssistantDialog(
                                     }
                                     val due = task.dueText?.takeIf(String::isNotBlank)
                                         ?: task.dueAt?.let {
-                                            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(it))
+                                            aiTaskDueFormat.get().format(Date(it))
                                         }
                                     due?.let {
                                         Text(

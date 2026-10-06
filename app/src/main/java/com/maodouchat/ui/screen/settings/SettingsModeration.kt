@@ -622,6 +622,10 @@ private fun reportStatusColor(status: String): Color = when (status) {
 }
 
 /** 审计/审核时间戳 → 本地化短时间（AI 审计页与内容审核页共用）。 */
+// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+private val auditTimeFormat: ThreadLocal<SimpleDateFormat> =
+    ThreadLocal.withInitial { SimpleDateFormat("M/d HH:mm", Locale.getDefault()) }
+
 internal fun formatAuditTime(timestamp: Long): String =
-    SimpleDateFormat("M/d HH:mm", Locale.getDefault()).format(Date(timestamp))
+    auditTimeFormat.get().format(Date(timestamp))
 

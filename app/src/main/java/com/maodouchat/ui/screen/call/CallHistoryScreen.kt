@@ -59,6 +59,9 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.call.CallLogStore
 import com.maodouchat.ui.theme.UnreadRed
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -294,6 +297,10 @@ fun CallHistoryScreen(
     }
 }
 
+// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+private val callHistoryDayFormat: ThreadLocal<SimpleDateFormat> =
+    ThreadLocal.withInitial { SimpleDateFormat("MM-dd", Locale.getDefault()) }
+
 private fun callHistoryRelativeTime(context: android.content.Context, millis: Long): String {
     val diff = System.currentTimeMillis() - millis
     return when {
@@ -310,7 +317,7 @@ private fun callHistoryRelativeTime(context: android.content.Context, millis: Lo
             val d = (diff / 86_400_000L).toInt()
             context.resources.getQuantityString(R.plurals.time_days_ago, d, d)
         }
-        else -> java.text.SimpleDateFormat("MM-dd", java.util.Locale.getDefault()).format(java.util.Date(millis))
+        else -> callHistoryDayFormat.get().format(Date(millis))
     }
 }
 

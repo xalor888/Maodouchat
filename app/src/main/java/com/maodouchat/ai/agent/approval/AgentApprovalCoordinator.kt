@@ -34,6 +34,10 @@ class AgentApprovalCoordinator {
     private val records = ConcurrentHashMap<String, AgentApprovalRecord>()
     private val executedIdempotencyKeys = ConcurrentHashMap.newKeySet<String>()
 
+    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个；异常路径走不到 digest()，取用前先 reset。
+    private val sha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
     fun createPendingApproval(toolName: String, args: Map<String, String>): AgentApprovalRecord {
         val hash = hashArguments(args)
         val record = AgentApprovalRecord(
@@ -85,7 +89,7 @@ class AgentApprovalCoordinator {
 
     private fun hashArguments(args: Map<String, String>): String {
         val sorted = args.entries.sortedBy { it.key }.joinToString("&") { "${it.key}=${it.value}" }
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256Digest.get().also { it.reset() }
         return digest.digest(sorted.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 }
