@@ -11,6 +11,9 @@ import com.maodouchat.server.repository.AttachmentQuotaExceededException
 import com.maodouchat.server.repository.AttachmentStatus
 import com.maodouchat.server.repository.AttachmentUploadSession
 import com.maodouchat.server.repository.EncryptedAttachmentRecord
+import org.jetbrains.exposed.sql.Op
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
@@ -39,7 +42,7 @@ class UploadSessionService {
                 (EncryptedAttachments.chatId eq chatId) and
                 (EncryptedAttachments.messageId eq pendingMessageId) and
                 (EncryptedAttachments.status neq AttachmentStatus.COMMITTED.dbValue) and
-                ((EncryptedAttachments.expiresAt.isNull()) or (EncryptedAttachments.expiresAt greater now))
+                unexpiredAttachments()
         }.sumOf { it[EncryptedAttachments.cipherSize] }
         activeBytesForUploaderInTransaction(uploaderId) - replaceableBytes + cipherSize <= maxUserBytes
     }
@@ -87,7 +90,7 @@ class UploadSessionService {
         val replacedIds = existing.map { it[EncryptedAttachments.id] }
         val nowForExpiry = System.currentTimeMillis()
         val replacedBytes = existing.filter { row ->
-            row[EncryptedAttachments.expiresAt] == null || row[EncryptedAttachments.expiresAt]!! > nowForExpiry
+            isUnexpired(row, nowForExpiry)
         }.sumOf { it[EncryptedAttachments.cipherSize] }
         val projectedBytes = activeBytesForUploaderInTransaction(uploaderId) - replacedBytes + cipherSize
         if (projectedBytes > maxUserBytes) throw AttachmentQuotaExceededException()
@@ -154,7 +157,7 @@ class UploadSessionService {
         val reusable = existing.singleOrNull { row ->
             row[EncryptedAttachments.cipherSha256] == sha256 &&
                 row[EncryptedAttachments.cipherSize] == cipherSize &&
-                (row[EncryptedAttachments.expiresAt] == null || row[EncryptedAttachments.expiresAt]!! > nowForExpiry)
+                isUnexpired(row, nowForExpiry)
         }
         if (reusable != null) {
             // activeBytes 已包含当前可复用行，不能再重复累加一次。
@@ -172,7 +175,7 @@ class UploadSessionService {
         val replacedIds = existing.map { it[EncryptedAttachments.id] }
         // BUG-5 fix: replacedBytes 仅计算未过期的附件，与 activeBytes 的过期过滤一致
         val replacedBytes = existing.filter { row ->
-            row[EncryptedAttachments.expiresAt] == null || row[EncryptedAttachments.expiresAt]!! > nowForExpiry
+            isUnexpired(row, nowForExpiry)
         }.sumOf { it[EncryptedAttachments.cipherSize] }
         val projectedBytes = activeBytesForUploaderInTransaction(uploaderId) - replacedBytes + cipherSize
         if (projectedBytes > maxUserBytes) throw AttachmentQuotaExceededException()
@@ -210,6 +213,14 @@ class UploadSessionService {
         )
     }
 
+    // 内存侧「未过期」：expiresAt 为 null（永不过期）或晚于 now——与 SQL 侧谓词同口径。
+    private fun isUnexpired(row: ResultRow, now: Long): Boolean =
+        row[EncryptedAttachments.expiresAt] == null || row[EncryptedAttachments.expiresAt]!! > now
+
+    // SQL 侧同口径谓词：配额计算的 where 里共用，别跟内存侧判定漂移。
+    private fun SqlExpressionBuilder.unexpiredAttachments(): Op<Boolean> =
+        (EncryptedAttachments.expiresAt.isNull()) or (EncryptedAttachments.expiresAt greater now)
+
     private fun activeBytesForUploaderInTransaction(userId: String): Long {
         val now = System.currentTimeMillis()
         return EncryptedAttachments
@@ -217,7 +228,7 @@ class UploadSessionService {
             .where {
                 (EncryptedAttachments.uploaderId eq userId) and
                     // 排除已过期但尚未被定时任务清理的未提交附件，防止配额虚高
-                    ((EncryptedAttachments.expiresAt.isNull()) or (EncryptedAttachments.expiresAt greater now))
+                    unexpiredAttachments()
             }
             .sumOf { it[EncryptedAttachments.cipherSize] }
     }
