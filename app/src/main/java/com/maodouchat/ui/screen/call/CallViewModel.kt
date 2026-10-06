@@ -64,7 +64,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     /** 通话中 TURN 凭据刷新 job（8.35：短期凭据 1h 过期后热替换 ICE 配置）。 */
     private var pollingJob: Job? = null
     private var webSocketJob: Job? = null
-    private var ringingTimeoutJob: Job? = null
     private val groupReconnectJobs = mutableMapOf<String, Job>()
     private val groupInviteTimeoutJobs = mutableMapOf<String, Job>()
     private var pendingOfferSdp: String? = null
@@ -153,7 +152,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             removeGroupMemberId = { userId -> activeGroupMemberIds = activeGroupMemberIds - userId },
             groupInviteTimeoutJobs = groupInviteTimeoutJobs,
             groupReconnectJobs = groupReconnectJobs,
-            cancelRingingTimeout = { ringingTimeoutJob?.cancel() },
+            cancelRingingTimeout = { ringingTimeout.cancel() },
             ringingTimeoutMs = RINGING_TIMEOUT_MS,
             updateState = { transform -> _uiState.update(transform) },
             currentState = { _uiState.value },
@@ -182,6 +181,20 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             onIceGiveUp = { message -> endCall(notifyPeer = false, errorMessage = message) },
             text = { id, args -> text(id, *args) },
             webRTCManager = { webRTCManager },
+        )
+    }
+
+    private val ringingTimeout by lazy {
+        CallRingingTimeout(
+            scope = viewModelScope,
+            context = app,
+            sessionGate = callSessionGate,
+            activeCallSession = { activeCallSession },
+            currentState = { _uiState.value },
+            activeCallId = { activeCallId },
+            timeoutMs = RINGING_TIMEOUT_MS,
+            text = { id, args -> text(id, *args) },
+            onNoAnswer = { message -> endCall(notifyPeer = true, errorMessage = message) },
         )
     }
 
@@ -385,7 +398,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                         if (!isCurrentCallSession(session, manager)) return@startCall
                         _uiState.update { it.copy(isInitializing = false) }
                         signalingSender.sendSdp(contactId, "offer", sdp)
-                        startRingingTimeout(contactId)
+                        ringingTimeout.start(contactId)
                     }
                 )
                 observeSignaling()
@@ -487,45 +500,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         // 8.55：呼入时快照账号，作为通话记录写入的 expectedUserId 守卫
         callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (isGroup) groupMesh.loadGroupParticipantProfiles()
-        startRingingTimeout(contactId)
+        ringingTimeout.start(contactId)
         observeSignaling()
-    }
-
-    private fun startRingingTimeout(contactId: String) {
-        ringingTimeoutJob?.cancel()
-        val session = activeCallSession
-        ringingTimeoutJob = viewModelScope.launch {
-            delay(RINGING_TIMEOUT_MS)
-            if (
-                callSessionGate.isCurrent(session) &&
-                (_uiState.value.callState == CallState.CALLING || _uiState.value.callState == CallState.RINGING)
-            ) {
-                val st = _uiState.value
-                // Incoming no-answer: list/tray missed row (idempotent with NavGraph timer
-                // via stable callId REPLACE). Outgoing CALLING still only hangs up.
-                if (st.isIncoming && st.callState == CallState.RINGING) {
-                    try {
-                        com.maodouchat.call.MissedCallRecorder.recordRingTimeout(
-                            context = app,
-                            signalingCallId = activeCallId,
-                            fromUserId = st.contactId.ifBlank { contactId },
-                            callerName = st.contactName,
-                            isVideo = st.callType == CallType.VIDEO,
-                            isGroup = st.isGroupCall,
-                        )
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
-                        android.util.Log.w("CallViewModel", "missed-call record on ring timeout failed", error)
-                    }
-                    IncomingCallCoordinator.clear()
-                    // Peer already waited 30s; still send hang-up so their UI stops ringing.
-                    endCall(notifyPeer = true, errorMessage = text(R.string.call_no_answer))
-                } else {
-                    endCall(notifyPeer = true, errorMessage = text(R.string.call_no_answer))
-                }
-            }
-        }
     }
 
     /**
@@ -548,7 +524,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
         // 8.39：用户已接听即取消 30s 振铃超时——否则 WebRTC 原生库首次联网下载（慢网可超 30s）
         // 期间超时触发「无应答」挂断，用户明明已接听却被直接挂断
-        ringingTimeoutJob?.cancel()
+        ringingTimeout.cancel()
         callSessionMachine.markConnecting(activeDomainSession)
         // Accepting from in-app UI must clear any leftover FCM incoming tray.
         if (activeCallId.isNotBlank()) {
@@ -594,7 +570,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                         },
                         onAnswerCreated = { sdp ->
                             if (!isCurrentCallSession(session, manager)) return@acceptGroupOffer
-                            ringingTimeoutJob?.cancel()
+                            ringingTimeout.cancel()
                             pendingOfferSdp = null
                             _uiState.update { it.copy(isInitializing = false) }
                             signalingSender.sendSdp(targetContactId, "answer", sdp)
@@ -612,7 +588,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     },
                     onAnswerCreated = { sdp ->
                         if (!isCurrentCallSession(session, manager)) return@answerCall
-                        ringingTimeoutJob?.cancel()
+                        ringingTimeout.cancel()
                         pendingOfferSdp = null
                         _uiState.update { it.copy(isInitializing = false) }
                         signalingSender.sendSdp(targetContactId, "answer", sdp)
@@ -857,7 +833,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                                 signalingSender.sendSdp(memberId, "offer", sdp, groupInvite = true)
                                 if (!firstOfferSent) {
                                     firstOfferSent = true
-                                    startRingingTimeout(chatId)
+                                    ringingTimeout.start(chatId)
                                 }
                             }
                         }
@@ -945,7 +921,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 "answer" -> {
                     val st = _uiState.value
                     if (st.callState == CallState.DISCONNECTED || st.callState == CallState.IDLE) return
-                    ringingTimeoutJob?.cancel()
+                    ringingTimeout.cancel()
                     if (st.isGroupCall) {
                         groupInviteTimeoutJobs.remove(fromUserId)?.cancel()
                         webRTCManager?.handleGroupAnswer(fromUserId, payload)
@@ -1127,7 +1103,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         timersController.cancelTimers()
         pollingJob?.cancel()
         webSocketJob?.cancel()
-        ringingTimeoutJob?.cancel()
+        ringingTimeout.cancel()
         iceRecovery.cancel()
         groupReconnectJobs.values.forEach(Job::cancel)
         groupReconnectJobs.clear()
@@ -1135,7 +1111,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         groupInviteTimeoutJobs.clear()
         pollingJob = null
         webSocketJob = null
-        ringingTimeoutJob = null
 
         mediaBridge.release()
         pendingOfferSdp = null
@@ -1274,7 +1249,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         timersController.cancelTimers()
         pollingJob?.cancel()
         webSocketJob?.cancel()
-        ringingTimeoutJob?.cancel()
+        ringingTimeout.cancel()
         iceRecovery.cancel()
         // 8.46 修复：无条件停止前台服务——若已有挂断在途（endingCall=true），endCall 开头
         // 直接 return，末尾的 stopForegroundService() 被跳过，通话前台通知/服务残留到系统回收。
