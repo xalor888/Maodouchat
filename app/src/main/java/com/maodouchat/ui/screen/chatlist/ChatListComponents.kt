@@ -695,19 +695,27 @@ private fun relativeTime(ts: Long): String {
     ).toString()
 }
 
+// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+private val chatTimeFormat: ThreadLocal<SimpleDateFormat> =
+    ThreadLocal.withInitial { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+private val chatWeekdayFormat: ThreadLocal<SimpleDateFormat> =
+    ThreadLocal.withInitial { SimpleDateFormat("EEE", Locale.getDefault()) }
+private val chatDateFormat: ThreadLocal<SimpleDateFormat> =
+    ThreadLocal.withInitial { SimpleDateFormat("MM/dd", Locale.getDefault()) }
+
 internal fun formatChatTime(ts: Long): String {
     if (ts <= 0L) return ""
     val cal = Calendar.getInstance()
     val msg = Calendar.getInstance().apply { timeInMillis = ts }
     return if (cal.get(Calendar.YEAR) == msg.get(Calendar.YEAR) && cal.get(Calendar.DAY_OF_YEAR) == msg.get(Calendar.DAY_OF_YEAR)) {
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ts))
+        chatTimeFormat.get().format(Date(ts))
     } else {
         // 9.278：TG 式时间分段——近一周内显示星期缩写（如「周一」/Mon），更早才显示日期
         val dayDiff = daysBetween(msg, cal)
         if (dayDiff in 1..6) {
-            SimpleDateFormat("EEE", Locale.getDefault()).format(Date(ts))
+            chatWeekdayFormat.get().format(Date(ts))
         } else {
-            SimpleDateFormat("MM/dd", Locale.getDefault()).format(Date(ts))
+            chatDateFormat.get().format(Date(ts))
         }
     }
 }
