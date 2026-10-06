@@ -20,6 +20,9 @@ object PinSecurityPolicy {
     // SecureRandom 线程安全，每次生成 salt 都 new 会反复播种，对象级复用。
     private val secureRandom = SecureRandom()
 
+    // SecretKeyFactory 线程安全，getInstance 每次都要走 provider 查找，对象级复用。
+    private val pbkdf2Factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+
     // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
     private val sha256Digest: ThreadLocal<MessageDigest> =
         ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
@@ -47,8 +50,7 @@ object PinSecurityPolicy {
     fun hashPbkdf2(pin: String, saltHex: String, iterations: Int = DEFAULT_ITERATIONS): String {
         val salt = saltHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         val spec = PBEKeySpec(pin.toCharArray(), salt, iterations, 256)
-        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        val bytes = factory.generateSecret(spec).encoded
+        val bytes = pbkdf2Factory.generateSecret(spec).encoded
         spec.clearPassword()
         return bytes.joinToString("") { "%02x".format(it) }
     }

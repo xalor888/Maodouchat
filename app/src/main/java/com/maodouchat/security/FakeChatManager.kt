@@ -48,6 +48,9 @@ object FakeChatManager {
     // SecureRandom 线程安全，每次设 PIN 都 new 会反复播种，对象级复用。
     private val secureRandom = SecureRandom()
 
+    // SecretKeyFactory 线程安全，getInstance 每次都要走 provider 查找，对象级复用。
+    private val pbkdf2Factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+
     private const val PREFS = "fake_chat"
 
     /** 拨号盘恢复码：`*#*#75263#*#*`（manifest 中 receiver 的 host 与此一致，勿改） */
@@ -184,7 +187,7 @@ object FakeChatManager {
     private fun pbkdf2(pin: String, salt: ByteArray, iterations: Int): ByteArray {
         val spec = PBEKeySpec(pin.toCharArray(), salt, iterations, 256)
         return try {
-            SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+            pbkdf2Factory.generateSecret(spec).encoded
         } finally {
             spec.clearPassword()
         }
