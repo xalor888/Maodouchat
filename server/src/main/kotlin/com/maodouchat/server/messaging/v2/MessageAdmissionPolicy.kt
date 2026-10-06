@@ -22,6 +22,9 @@ import java.util.UUID
  * B06：消息准入子域。校验发送者状态、revision、覆盖集与幂等，并在单事务内写入
  * metadata + envelopes。设备快照/拉黑过滤委托 [ConversationDeviceSnapshotStore]。
  */
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 class MessageAdmissionPolicy(
     private val snapshotStore: ConversationDeviceSnapshotStore,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -193,7 +196,7 @@ class MessageAdmissionPolicy(
     }
 
     private fun digest(command: SendMessageV2Command): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256ThreadLocal.get().apply { reset() }
         fun add(value: String) {
             val bytes = value.toByteArray(Charsets.UTF_8)
             digest.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(bytes.size).array())

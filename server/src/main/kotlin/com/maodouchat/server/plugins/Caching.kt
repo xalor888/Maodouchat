@@ -11,6 +11,9 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import java.security.MessageDigest
 
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 /**
  * Ktor plugin that adds Cache-Control headers, ETag generation,
  * and conditional request (304 Not Modified) handling.
@@ -88,7 +91,7 @@ private fun findMatchingTtl(path: String, routeTtls: Map<String, Long>): Long? {
  * Uses time bucketing so ETag changes at TTL intervals rather than every request.
  */
 private fun generateWeakEtag(path: String, timeBucket: Long): String {
-    val digest = MessageDigest.getInstance("SHA-256")
+    val digest = sha256ThreadLocal.get().apply { reset() }
     digest.update(path.toByteArray(Charsets.UTF_8))
     digest.update(timeBucket.toString().toByteArray(Charsets.UTF_8))
     val hash = digest.digest().take(16).joinToString("") { "%02x".format(it) }
@@ -136,7 +139,7 @@ fun Route.cacheApiResponse(maxAgeSeconds: Int = 30) {
  * Compute ETag (SHA-256 truncated to 16 hex chars).
  */
 fun computeETag(content: ByteArray): String {
-    val digest = MessageDigest.getInstance("SHA-256").digest(content)
+    val digest = sha256ThreadLocal.get().apply { reset() }.digest(content)
     return digest.take(16).joinToString("") { "%02x".format(it) }
 }
 

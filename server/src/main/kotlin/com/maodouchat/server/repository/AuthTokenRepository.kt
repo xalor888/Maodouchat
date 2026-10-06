@@ -32,6 +32,9 @@ data class IssuedRefreshToken(val token: String, val expiresAt: Long, val sessio
 // （此前 IllegalStateException 落全局 Throwable 处理器回 500；refresh 路由对同条件显式 401/403）
 class InactiveAuthSessionException : IllegalArgumentException("Authentication session is no longer active")
 
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 class AuthTokenRepository {
 
     fun issueRefreshToken(userId: String, existingSessionId: String? = null): IssuedRefreshToken {
@@ -597,7 +600,7 @@ class AuthTokenRepository {
     }
 
     private fun hashToken(token: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8))
+        val digest = sha256ThreadLocal.get().apply { reset() }.digest(token.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
 

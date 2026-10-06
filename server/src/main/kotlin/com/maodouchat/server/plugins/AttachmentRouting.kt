@@ -502,7 +502,10 @@ private suspend fun ApplicationCall.receiveEncryptedAttachmentChunk(maxBytes: In
     return output.toByteArray()
 }
 
-private fun ByteArray.sha256Hex(): String = MessageDigest.getInstance("SHA-256")
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
+private fun ByteArray.sha256Hex(): String = sha256ThreadLocal.get().apply { reset() }
     .digest(this)
     .joinToString("") { "%02x".format(it) }
 
@@ -510,7 +513,7 @@ private suspend fun ApplicationCall.receiveEncryptedAttachment(
     target: java.io.File,
     maxBytes: Long
 ): ReceivedEncryptedAttachment? {
-    val digest = MessageDigest.getInstance("SHA-256")
+    val digest = sha256ThreadLocal.get().apply { reset() }
     val channel = receiveChannel()
     var total = 0L
     return try {
