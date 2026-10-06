@@ -44,6 +44,8 @@ import javax.crypto.spec.SecretKeySpec
  */
 // MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
 private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+// Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val hmacSha256ThreadLocal = ThreadLocal.withInitial { Mac.getInstance("HmacSHA256") }
 
 object BotWebhookService {
     private enum class LifecycleState { RUNNING, STOPPED }
@@ -508,7 +510,7 @@ object BotWebhookService {
     }
 
     private fun hmacSha256Hex(secret: String, message: String): String {
-        val mac = Mac.getInstance("HmacSHA256")
+        val mac = hmacSha256ThreadLocal.get().apply { reset() }
         mac.init(SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
         val raw = mac.doFinal(message.toByteArray(StandardCharsets.UTF_8))
         // Byte 是有符号的：`"%02x".format(it)` 会对 0x80..0xFF 符号扩展成 "ffffff80"。
