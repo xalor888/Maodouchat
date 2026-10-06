@@ -1038,9 +1038,9 @@ private fun formatBytes(bytes: Long): String = when {
     else -> "$bytes B"
 }
 
-private fun formatDate(timestamp: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(timestamp))
+private val threadLocalDateFormatByLocale = ThreadLocal.withInitial { mutableMapOf<java.util.Locale, DateFormat>() }
+private fun formatDate(timestamp: Long): String = threadLocalDateFormatByLocale.get().getOrPut(java.util.Locale.getDefault()) { DateFormat.getDateInstance(DateFormat.MEDIUM, it) }.format(Date(timestamp))
 
-// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
 @Composable
 private fun highlightedText(text: String, query: String): AnnotatedString {
     val (c, bg) = SearchHighlightAccent

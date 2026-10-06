@@ -95,8 +95,15 @@ internal fun formatDateLabel(context: Context, timestamp: Long): String {
     }
 }
 
-internal fun formatDateTime(context: Context, timestamp: Long): String =
-    java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, context.resources.configuration.locales[0]).format(Date(timestamp))
+// DateFormat 非线程安全：ThreadLocal 按 locale 分键缓存，语言切换后自动重建。
+private val dateTimeFormatCache = ThreadLocal.withInitial { mutableMapOf<java.util.Locale, java.text.DateFormat>() }
+
+internal fun formatDateTime(context: Context, timestamp: Long): String {
+    val locale = context.resources.configuration.locales[0]
+    return dateTimeFormatCache.get().getOrPut(locale) {
+        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, locale)
+    }.format(Date(timestamp))
+}
 
 internal fun isSameDay(a: Calendar, b: Calendar): Boolean =
     a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)

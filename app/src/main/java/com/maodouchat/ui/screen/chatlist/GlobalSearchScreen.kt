@@ -70,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -214,7 +215,6 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             it.copy(
                 query = query,
                 results = emptyList(),
-                // Typing never auto-fires AI; cancel in-flight AI display state.
                 isSearching = false,
                 aiSearchCompleted = false,
                 excludedChatCount = 0,
@@ -876,7 +876,8 @@ fun GlobalSearchScreen(
 
 @Composable
 private fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick: () -> Unit) {
-    val time = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(hit.timestamp))
+    val locale = LocalConfiguration.current.locales[0]
+    val time = remember(locale, hit.timestamp) { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale).format(Date(hit.timestamp)) }
     Row(
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top
@@ -920,7 +921,6 @@ private fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick: 
     }
 }
 
-// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
 @Composable
 private fun highlightedText(text: String, query: String): AnnotatedString {
     val (c, bg) = SearchHighlightSurface
