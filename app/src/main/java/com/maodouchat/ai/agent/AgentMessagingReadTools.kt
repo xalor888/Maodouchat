@@ -5,11 +5,13 @@ import com.maodouchat.ai.AiPromptSafetyPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.data.repository.MessageSearchRepository
+import com.maodouchat.network.ApiService
+import com.maodouchat.network.TokenManager
 import com.maodouchat.security.ChatLockSession
 import kotlinx.coroutines.flow.first
 
-// Agent 工具执行簇拆分第一步：只读查询工具（会话/消息/联系人/草稿/任务/通话/通知）。
-// 纯搬移：函数体与 AgentToolHost 原版逐字一致，调用点改走这里；写操作簇仍在 AgentToolHost。
+// Agent 工具执行簇拆分：只读查询工具（会话/消息/联系人/草稿/任务/通话/通知/社交/动态/置顶）。
+// 纯搬移：函数体与 AgentToolHost 原版逐字一致；写操作簇已搬出为同包 AgentMessagingWriteTools。
 internal object AgentMessagingReadTools {
         internal suspend fun requireReadableChat(app: MaodouchatApp, chatId: String): String? {
             if (chatId.isBlank()) return "Error: chatId required"
@@ -242,5 +244,75 @@ internal object AgentMessagingReadTools {
         internal fun formatMessage(message: Message): String {
             val text = AiPromptSafetyPolicy.sanitizeContextText(message.parsedContent(), 500)
             return "${message.timestamp}\t${message.senderId}\t${message.type.name}\t$text"
+        }
+
+        internal suspend fun listPinned(app: MaodouchatApp, chatId: String): String {
+            denySecretOrLockedChat(app, chatId)?.let { return it }
+            if (chatId.isBlank()) return "Error: chatId required"
+            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            val result = ApiService.getPinnedMessages(token, chatId).getOrElse { return AgentToolHost.fail(it) }
+            if (result.pins.isEmpty()) return "No pinned messages."
+            return result.pins.joinToString("\n") { "${it.messageId}\tby=${it.pinnedBy}\tat=${it.pinnedAt}" }
+        }
+
+        internal suspend fun listFriendRequests(app: MaodouchatApp, direction: String): String {
+            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            val incoming = !direction.equals("outgoing", ignoreCase = true)
+            val rows = if (incoming) {
+                ApiService.getIncomingFriendRequests(token).getOrElse { return AgentToolHost.fail(it) }
+            } else {
+                ApiService.getOutgoingFriendRequests(token).getOrElse { return AgentToolHost.fail(it) }
+            }
+            if (rows.isEmpty()) return "No friend requests."
+            return rows.take(50).joinToString("\n") { req ->
+                "${req.id}\t${req.status}\tfrom=${req.fromUser.id}/${req.fromUser.name}\tto=${req.toUser.id}/${req.toUser.name}\t${req.message.take(80)}"
+            }
+        }
+
+        internal suspend fun listFriends(app: MaodouchatApp): String {
+            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            val rows = ApiService.getFriends(token).getOrElse { return AgentToolHost.fail(it) }
+            if (rows.isEmpty()) return "No friends."
+            return rows.take(80).joinToString("\n") { "${it.id}\t${it.name}\t${it.status.take(40)}" }
+        }
+
+        internal suspend fun searchUsers(app: MaodouchatApp, query: String, limit: Int): String {
+            val q = query.trim()
+            if (q.isBlank()) return "Error: query required"
+            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            val rows = ApiService.searchUsers(token, q, limit.coerceIn(1, 30)).getOrElse { return AgentToolHost.fail(it) }
+            if (rows.isEmpty()) return "No users."
+            return rows.joinToString("\n") { "${it.id}\t${it.name}\t${it.status.take(40)}" }
+        }
+
+        internal suspend fun listPosts(app: MaodouchatApp, limit: Int): String {
+            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            val rows = ApiService.getPosts(token, limit = limit.coerceIn(1, 40)).getOrElse { return AgentToolHost.fail(it) }
+            if (rows.isEmpty()) return "No posts."
+            return rows.joinToString("\n") { post ->
+                "${post.id}\t${post.author.name}\tlikes=${post.likeCount}\tcomments=${post.commentCount}\t${post.content.take(120)}"
+            }
+        }
+
+        internal suspend fun getPost(app: MaodouchatApp, postId: String): String {
+            if (postId.isBlank()) return "Error: postId required"
+            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            val post = ApiService.getPost(token, postId).getOrElse { return AgentToolHost.fail(it) }
+            return "id=${post.id}\tauthor=${post.author.id}/${post.author.name}\tlikes=${post.likeCount}\tcomments=${post.commentCount}\tmine=${post.isMine}\n${post.content.take(1_000)}"
+        }
+
+        internal suspend fun listPostComments(app: MaodouchatApp, postId: String, limit: Int): String {
+            if (postId.isBlank()) return "Error: postId required"
+            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            val rows = ApiService.getPostComments(token, postId, limit.coerceIn(1, 100)).getOrElse { return AgentToolHost.fail(it) }
+            if (rows.isEmpty()) return "No comments."
+            return rows.joinToString("\n") { "${it.id}\t${it.author.name}\t${it.content.take(160)}" }
+        }
+
+        internal suspend fun listBlocked(app: MaodouchatApp): String {
+            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            val rows = ApiService.getBlockedUserDetails(token).getOrElse { return AgentToolHost.fail(it) }
+            if (rows.isEmpty()) return "No blocked users."
+            return rows.joinToString("\n") { "${it.id}\t${it.name}" }
         }
 }
