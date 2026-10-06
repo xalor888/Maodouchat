@@ -11,6 +11,8 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.update
 
+private val safeConstraintNamePattern = Regex("[A-Za-z0-9_]+")
+
 /** Applies the historical non-destructive and corrective changes captured by migration version 1. */
 internal fun applyBaselineSchemaMigration() {
     createSchemaTables()
@@ -84,7 +86,7 @@ private fun migrateMessageControlForeignKeys() {
             }
         }.orEmpty()
         names.forEach { name ->
-            require(name.matches(Regex("[A-Za-z0-9_]+"))) { "unsafe constraint name" }
+            require(name.matches(safeConstraintNamePattern)) { "unsafe constraint name" }
             TransactionManager.current().exec("ALTER TABLE $tableName DROP CONSTRAINT \"$name\"")
         }
     }
@@ -137,7 +139,7 @@ private fun dropMessagingV2SenderUserForeignKey() {
         }
     }.orEmpty()
     names.forEach { name ->
-        require(name.matches(Regex("[A-Za-z0-9_]+"))) { "unsafe constraint name" }
+        require(name.matches(safeConstraintNamePattern)) { "unsafe constraint name" }
         TransactionManager.current().exec(
             "ALTER TABLE messaging_v2_messages DROP CONSTRAINT \"$name\""
         )

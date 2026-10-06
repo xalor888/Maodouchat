@@ -52,6 +52,10 @@ object BotRepository {
     private const val MAX_COMMAND_LOGS_PER_BOT = 2_000L
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
     private val logger = org.slf4j.LoggerFactory.getLogger(BotRepository::class.java)
+    private val botUsernamePattern = Regex("^[a-z][a-z0-9_]{2,31}$")
+    private val botCommandPattern = Regex("^[a-z][a-z0-9_]{0,31}$")
+    private val ipv4HexLiteralPattern = Regex("""^0x[0-9a-f]+$""")
+    private val ipv4DigitsPattern = Regex("""\d+""")
 
     @Serializable
     data class BotDto(
@@ -668,7 +672,7 @@ object BotRepository {
 
     private fun normalizeUsername(raw: String): String? {
         val u = raw.trim().lowercase().removePrefix("@")
-        if (!Regex("^[a-z][a-z0-9_]{2,31}$").matches(u)) return null
+        if (!botUsernamePattern.matches(u)) return null
         return u
     }
 
@@ -928,11 +932,10 @@ object BotRepository {
         if (commands.size > 100) return null
         val out = ArrayList<BotCommandDef>(commands.size)
         val seen = HashSet<String>()
-        val cmdRe = Regex("^[a-z][a-z0-9_]{0,31}$")
         for (c in commands) {
             val command = c.command.trim().lowercase().removePrefix("/")
             val description = c.description.trim().take(256)
-            if (!cmdRe.matches(command)) return null
+            if (!botCommandPattern.matches(command)) return null
             if (description.isBlank()) return null
             if (!seen.add(command)) return null
             out.add(BotCommandDef(command = command, description = description))
@@ -1036,13 +1039,13 @@ object BotRepository {
     }
 
     private fun isBlockedIpv4Literal(host: String): Boolean {
-        if (host.matches(Regex("""^0x[0-9a-f]+$"""))) return true
+        if (host.matches(ipv4HexLiteralPattern)) return true
         val parts = host.split(".")
         if (parts.size !in 1..4) return false
         if (parts.any { it.isBlank() }) return true
         if (parts.any { it.startsWith("0x") || (it.length > 1 && it.startsWith("0")) }) return true
         if (parts.size != 4) {
-            return parts.all { it.matches(Regex("""\d+""")) }
+            return parts.all { it.matches(ipv4DigitsPattern) }
         }
         val octets = parts.map { it.toIntOrNull() }
         if (octets.any { it == null || it !in 0..255 }) return true
