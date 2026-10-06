@@ -14,7 +14,6 @@ import com.maodouchat.contacts.usecase.DefaultFriendRequestUseCase
 import com.maodouchat.contacts.usecase.FriendRequestUseCase
 import com.maodouchat.conversation.ConversationCreationPort
 import com.maodouchat.conversation.DefaultConversationCreationPort
-import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.AppRepositories
 import com.maodouchat.data.repository.FriendCacheStore
@@ -22,7 +21,6 @@ import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.GroupInvitationDto
 import com.maodouchat.network.GroupInviteAcceptResponse
-import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.notification.NotificationCenterType
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
@@ -178,6 +176,31 @@ class ContactsViewModel @JvmOverloads constructor(
         groupInviteAcceptor = groupInviteAcceptor,
         groupInviteDecliner = groupInviteDecliner,
         onInviteAccepted = ::reloadContacts,
+    )
+
+    private val friendActionController = ContactsFriendActionController(
+        scope = viewModelScope,
+        updateState = { transform -> _uiState.update(transform) },
+        isFriendActionBusy = { _uiState.value.isFriendActionBusy },
+        incomingRequestIds = { _uiState.value.incomingRequests.map { it.id } },
+        text = { id, args -> text(id, *args) },
+        friendRequestUseCase = friendRequestUseCase,
+        contactMutationUseCase = contactMutationUseCase,
+        friendRequestsEnabled = {
+            RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.FRIEND_REQUESTS)
+        },
+        reloadContacts = ::reloadContacts,
+    )
+
+    private val chatCreationController = ContactsChatCreationController(
+        scope = viewModelScope,
+        updateState = { transform -> _uiState.update(transform) },
+        isCreatingChat = { _uiState.value.isCreatingChat },
+        text = { id, args -> text(id, *args) },
+        conversationCreationPort = conversationCreationPort,
+        secretChatEnabled = {
+            RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_CHAT)
+        },
     )
 
     private var friendsJob: Job? = null
@@ -354,258 +377,25 @@ class ContactsViewModel @JvmOverloads constructor(
         }
     }
 
-    // ─── 好友申请用例分发 ───────────────────────────────────────────
+    // 好友动作 → ContactsFriendActionController；签名不变，UI 调用点无需改动。
+    fun loadFriendRequests() = friendActionController.loadFriendRequests()
+    fun acceptFriendRequest(requestId: String) = friendActionController.acceptFriendRequest(requestId)
+    fun rejectFriendRequest(requestId: String) = friendActionController.rejectFriendRequest(requestId)
+    fun cancelFriendRequest(requestId: String) = friendActionController.cancelFriendRequest(requestId)
+    fun removeFriend(user: User) = friendActionController.removeFriend(user)
+    fun blockUser(user: User) = friendActionController.blockUser(user)
+    fun sendFriendRequest(user: User, message: String = "") = friendActionController.sendFriendRequest(user, message)
+    fun acceptAllFriendRequests() = friendActionController.acceptAllFriendRequests()
+    fun rejectAllFriendRequests() = friendActionController.rejectAllFriendRequests()
+    fun setContactNickname(user: User, nickname: String) = friendActionController.setContactNickname(user, nickname)
 
-    fun loadFriendRequests() {
-        viewModelScope.launch {
-            val result = friendRequestUseCase.loadRequests()
-            result.onSuccess { snapshot ->
-                _uiState.update {
-                    it.copy(
-                        incomingRequests = snapshot.incoming,
-                        outgoingRequests = snapshot.outgoing
-                    )
-                }
-            }
-        }
-    }
-
-    fun acceptFriendRequest(requestId: String) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_accepted),
-        refreshRequests = true,
-        refreshContacts = true,
-    ) {
-        friendRequestUseCase.acceptFriendRequest(requestId)
-    }
-
-    fun rejectFriendRequest(requestId: String) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_rejected),
-        refreshRequests = true,
-    ) {
-        friendRequestUseCase.rejectFriendRequest(requestId)
-    }
-
-    fun cancelFriendRequest(requestId: String) = launchFriendAction(
-        refreshRequests = true,
-    ) {
-        friendRequestUseCase.cancelFriendRequest(requestId)
-    }
-
-    fun removeFriend(user: User) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_removed),
-    ) {
-        contactMutationUseCase.removeFriend(user.id)
-    }
-
-    fun blockUser(user: User) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_blocked, user.displayName),
-    ) {
-        contactMutationUseCase.blockUser(user.id)
-    }
-
-    /**
-     * 好友操作公共骨架：忙 guard → 置忙 → 用例调用 → 成功文案/刷新 → 失败文案。
-     * cancel 原未重置 infoMessage，此处统一重置（陈旧成功提示不再残留）。
-     */
-    private fun launchFriendAction(
-        successMessage: String? = null,
-        fallbackErrorMessage: String? = null,
-        refreshRequests: Boolean = false,
-        refreshContacts: Boolean = false,
-        action: suspend () -> Result<*>,
-    ) {
-        if (_uiState.value.isFriendActionBusy) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isFriendActionBusy = true, errorMessage = null, infoMessage = null) }
-            try {
-                action().fold(
-                    onSuccess = {
-                        _uiState.update { it.copy(isFriendActionBusy = false, infoMessage = successMessage) }
-                        if (refreshRequests) loadFriendRequests()
-                        if (refreshContacts) reloadContacts()
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            it.copy(
-                                isFriendActionBusy = false,
-                                errorMessage = error.message ?: fallbackErrorMessage
-                                ?: text(R.string.error_operation_failed)
-                            )
-                        }
-                    }
-                )
-            } catch (error: CancellationException) {
-                _uiState.update { it.copy(isFriendActionBusy = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isFriendActionBusy = false,
-                        errorMessage = error.message ?: fallbackErrorMessage
-                        ?: text(R.string.error_operation_failed)
-                    )
-                }
-            }
-        }
-    }
-
-    fun sendFriendRequest(user: User, message: String = "") {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.FRIEND_REQUESTS)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.friend_requests_disabled)) }
-            return
-        }
-        launchFriendAction(
-            successMessage = text(R.string.contacts_friend_request_sent),
-            fallbackErrorMessage = text(R.string.contacts_friend_request_failed),
-            refreshRequests = true,
-        ) {
-            friendRequestUseCase.sendFriendRequest(user.id, message.take(300))
-        }
-    }
-
-    fun acceptAllFriendRequests() = launchFriendBatchAction(
-        allSucceededMessage = text(R.string.contacts_friend_accepted_all),
-        reloadContacts = true,
-    ) { ids ->
-        friendRequestUseCase.batchAcceptFriendRequests(ids)
-    }
-
-    fun rejectAllFriendRequests() = launchFriendBatchAction(
-        allSucceededMessage = text(R.string.contacts_friend_rejected_all),
-    ) { ids ->
-        friendRequestUseCase.batchRejectFriendRequests(ids)
-    }
-
-    /**
-     * 批量好友操作骨架：空列表/忙时直接返回；按结果计数拼全成功或部分成功文案。
-     */
-    private fun launchFriendBatchAction(
-        allSucceededMessage: String,
-        reloadContacts: Boolean = false,
-        action: suspend (ids: List<String>) -> Map<String, Result<*>>,
-    ) {
-        val ids = _uiState.value.incomingRequests.map { it.id }
-        if (ids.isEmpty() || _uiState.value.isFriendActionBusy) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isFriendActionBusy = true, errorMessage = null, infoMessage = null) }
-            try {
-                val results = action(ids)
-                val successCount = results.values.count { it.isSuccess }
-                val failedCount = results.values.count { it.isFailure }
-                _uiState.update {
-                    it.copy(
-                        isFriendActionBusy = false,
-                        infoMessage = if (failedCount == 0) {
-                            allSucceededMessage
-                        } else {
-                            text(R.string.contacts_friend_batch_partial, successCount, failedCount)
-                        }
-                    )
-                }
-                loadFriendRequests()
-                if (reloadContacts) reloadContacts()
-            } catch (error: CancellationException) {
-                _uiState.update { it.copy(isFriendActionBusy = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isFriendActionBusy = false,
-                        errorMessage = error.message ?: text(R.string.error_operation_failed)
-                    )
-                }
-            }
-        }
-    }
-
-    // ─── 联系人修改与黑名单用例分发 ─────────────────────────────────────
-
-    fun setContactNickname(user: User, nickname: String) {
-        viewModelScope.launch {
-            val result = contactMutationUseCase.setNickname(user.id, nickname)
-            result.fold(
-                onSuccess = {
-                    _uiState.update { it.copy(infoMessage = text(R.string.contacts_nickname_saved)) }
-                },
-                onFailure = { error ->
-                    _uiState.update { it.copy(errorMessage = error.message ?: text(R.string.error_operation_failed)) }
-                }
-            )
-        }
-    }
-
-    // ─── 会话创建端口分发 ───────────────────────────────────────────
-
-    fun createDirectChat(user: User) {
-        launchChatCreation {
-            conversationCreationPort.createDirectChat(user.id)
-        }
-    }
-
-    fun startSecretChat(peer: User) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_CHAT)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.secret_chat_feature_disabled)) }
-            return
-        }
-        launchChatCreation {
-            conversationCreationPort.createSecretChat(peer.id)
-        }
-    }
-
-    fun createGroupChat(groupName: String, members: List<User>) {
-        val name = groupName.trim()
-        if (name.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.contacts_enter_group_name)) }
-            return
-        }
-        launchChatCreation {
-            conversationCreationPort.createGroupChat(name, members.map { it.id })
-        }
-    }
-
-    fun createChannelChat(channelName: String, members: List<User>) {
-        val name = channelName.trim()
-        if (name.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.chat_channel_name_hint)) }
-            return
-        }
-        launchChatCreation {
-            conversationCreationPort.createChannelChat(name, members.map { it.id })
-        }
-    }
-
-    private fun launchChatCreation(block: suspend () -> Result<Chat>) {
-        if (_uiState.value.isCreatingChat) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isCreatingChat = true, errorMessage = null) }
-            try {
-                val result = block()
-                result.fold(
-                    onSuccess = { chat ->
-                        _uiState.update { it.copy(isCreatingChat = false, createdChatId = chat.id) }
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            it.copy(
-                                isCreatingChat = false,
-                                errorMessage = error.message ?: text(R.string.contacts_create_chat_failed)
-                            )
-                        }
-                    }
-                )
-            } catch (error: CancellationException) {
-                _uiState.update { it.copy(isCreatingChat = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isCreatingChat = false,
-                        errorMessage = error.message ?: text(R.string.contacts_create_chat_failed)
-                    )
-                }
-            }
-        }
-    }
+    // 会话创建 → ContactsChatCreationController；签名不变，UI 调用点无需改动。
+    fun createDirectChat(user: User) = chatCreationController.createDirectChat(user)
+    fun startSecretChat(peer: User) = chatCreationController.startSecretChat(peer)
+    fun createGroupChat(groupName: String, members: List<User>) =
+        chatCreationController.createGroupChat(groupName, members)
+    fun createChannelChat(channelName: String, members: List<User>) =
+        chatCreationController.createChannelChat(channelName, members)
 
     // 群邀请流程 → ContactsGroupInviteController；签名不变，UI 调用点无需改动。
     fun loadGroupInvites() = groupInviteController.loadGroupInvites()
