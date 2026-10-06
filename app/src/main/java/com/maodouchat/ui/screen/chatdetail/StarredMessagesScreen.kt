@@ -632,10 +632,16 @@ private fun Message.starredPreview(context: android.content.Context): String = w
     else -> content
 }
 
-private fun formatStarredTime(timestamp: Long): String =
-    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault()).format(Date(timestamp))
+// DateFormat 非线程安全：ThreadLocal 按 locale 分键缓存，语言切换后自动重建。
+private val starredTimeFormatCache = ThreadLocal.withInitial { mutableMapOf<Locale, DateFormat>() }
 
-// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
+private fun formatStarredTime(timestamp: Long): String {
+    val locale = Locale.getDefault()
+    return starredTimeFormatCache.get().getOrPut(locale) {
+        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale)
+    }.format(Date(timestamp))
+}
+
 @Composable
 private fun highlightedText(text: String, query: String): AnnotatedString {
     val (c, bg) = SearchHighlightAccent
