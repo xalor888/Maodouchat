@@ -12,6 +12,9 @@ class ChatLockRepository(private val dao: ChatLockDao) {
     // SecureRandom 线程安全，每次生成 salt 都 new 会反复播种，实例级复用。
     private val secureRandom = SecureRandom()
 
+    // SecretKeyFactory 线程安全，getInstance 每次都要走 provider 查找，实例级复用。
+    private val pbkdf2Factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+
     /**
      * PBKDF2 迭代次数。600k 次（OWASP 建议区间）使 4-8 位 PIN 的穷举成本从分钟级
      * 提升到小时级，配合 SQLCipher 主防线和 16 字节随机 salt，达到聊天锁的隐私承诺。
@@ -130,8 +133,7 @@ class ChatLockRepository(private val dao: ChatLockDao) {
     private fun pbkdf2(pin: String, saltHex: String, iterations: Int): String {
         val salt = saltHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         val spec = PBEKeySpec(pin.toCharArray(), salt, iterations, 256)
-        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        val bytes = factory.generateSecret(spec).encoded
+        val bytes = pbkdf2Factory.generateSecret(spec).encoded
         spec.clearPassword()
         return bytes.joinToString("") { "%02x".format(it) }
     }
