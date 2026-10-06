@@ -10,6 +10,8 @@ import java.nio.file.Files
  * 过期文件回收；所有路径经 idPattern + canonicalFile 校验防路径穿越。
  */
 object BlobStore {
+    // MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+    private val sha256ThreadLocal = ThreadLocal.withInitial { java.security.MessageDigest.getInstance("SHA-256") }
     sealed interface AppendResult {
         data class Accepted(val uploadedBytes: Long, val replayed: Boolean) : AppendResult
         data class OffsetMismatch(val uploadedBytes: Long) : AppendResult
@@ -91,7 +93,7 @@ object BlobStore {
             val file = checkedFile("$id.bin").takeIf { it.isFile }
                 ?: checkedFile("$id.part").takeIf { it.isFile }
                 ?: return@withIdLock null
-            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            val digest = sha256ThreadLocal.get().apply { reset() }
             file.inputStream().buffered().use { input ->
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                 while (true) {

@@ -23,6 +23,9 @@ import java.util.UUID
  * B06：服务消息发布子域。bot / system 服务内容以明文发布，与设备邮箱行在同一事务
  * 内提交；幂等由 (id + requestDigest) 保证。
  */
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 class ServiceMessagePublisher(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
@@ -252,7 +255,7 @@ class ServiceMessagePublisher(
     }
 
     private fun digestService(message: MessageResponse, content: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256ThreadLocal.get().apply { reset() }
         listOf(
             message.id,
             message.chatId,
@@ -275,7 +278,7 @@ class ServiceMessagePublisher(
         clientTimestamp: Long,
         content: String,
     ): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256ThreadLocal.get().apply { reset() }
         listOf(id, conversationId, senderUserId, clientTimestamp.toString(), content).forEach { value ->
             val bytes = value.toByteArray(Charsets.UTF_8)
             digest.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(bytes.size).array())

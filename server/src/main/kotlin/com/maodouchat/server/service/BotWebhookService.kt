@@ -42,6 +42,9 @@ import javax.crypto.spec.SecretKeySpec
  * Requests are signed with HMAC-SHA256 over "{ts}.{body}" using tokenHash as secret material
  * so developers can verify authenticity without storing the raw bot token server-side beyond hash.
  */
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 object BotWebhookService {
     private enum class LifecycleState { RUNNING, STOPPED }
 
@@ -528,7 +531,7 @@ object BotWebhookService {
 
     /** Helper for docs / self-test: hash of raw bot token (same as BotRepository). */
     fun hashTokenLike(token: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
+        val md = sha256ThreadLocal.get().apply { reset() }
         val dig = md.digest(token.trim().toByteArray(StandardCharsets.UTF_8))
         return dig.joinToString("") { "%02x".format(it) }
     }

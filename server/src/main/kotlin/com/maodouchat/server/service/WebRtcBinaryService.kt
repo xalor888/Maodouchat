@@ -15,6 +15,9 @@ import java.util.concurrent.ConcurrentHashMap
  * 首次请求时惰性解压到 STORAGE_DIR/webrtc/{abi}/ 后走 Ktor respondFile。
  * arm64-v8a 给真机/arm 模拟器；x86_64 给本机带屏 x86 模拟器。
  */
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 object WebRtcBinaryService {
 
     /** 默认/产品 ABI（与 release ndk abiFilters 一致）。 */
@@ -62,7 +65,7 @@ object WebRtcBinaryService {
     /** .so 的 SHA-256（用于 ETag / X-Content-SHA256），按 ABI 缓存。 */
     fun sha256(file: File, abi: String = SUPPORTED_ABI): String {
         cachedSha256[abi]?.let { return it }
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256ThreadLocal.get().apply { reset() }
         file.inputStream().buffered().use { input ->
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
             while (true) {

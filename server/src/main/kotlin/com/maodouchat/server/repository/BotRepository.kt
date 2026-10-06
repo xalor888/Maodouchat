@@ -42,6 +42,9 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.UUID
 
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 object BotRepository {
     // 8.48 修复 L1：收件箱事件 JSON 上限——超过即拒写（take 截断会从多字节字符/JSON token
     // 中间切断产生损坏行，bot 轮询解析抛异常）。正常事件远小于该值。
@@ -685,7 +688,7 @@ object BotRepository {
     }
 
     private fun hashToken(token: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
+        val md = sha256ThreadLocal.get().apply { reset() }
         return md.digest(token.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     }
 

@@ -16,6 +16,9 @@ import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
+// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 object AppUpdateStorage {
     private const val DIR = "app-updates"
     const val FILE_NAME = "latest.apk"
@@ -26,7 +29,7 @@ object AppUpdateStorage {
     fun latestSha256(): String? {
         val file = latestFile()
         if (!file.isFile) return null
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256ThreadLocal.get().apply { reset() }
         file.inputStream().buffered().use { input ->
             val buffer = ByteArray(64 * 1024)
             while (true) {
