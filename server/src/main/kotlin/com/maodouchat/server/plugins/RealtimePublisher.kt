@@ -45,10 +45,10 @@ internal suspend fun broadcastPostDeleted(postId: String, actorId: String? = nul
     // 防反复建/删动态把单事件放大为 O(N) 全量 fanout
     if (actorId != null && !postDeleteBroadcastLimiter.acquire(actorId, maxPerMinute = 30)) return
     if (ConnectionRegistry.onlineUsers.size > PRESENCE_FANOUT_CAP) return
-    val json = Json { ignoreUnknownKeys = true }
-    val message = json.encodeToString(
+    // Json 线程安全，每次广播都 new 是浪费；复用 Sockets.kt 的 wsJson（配置逐字相同）。
+    val message = wsJson.encodeToString(
         WsMessage.serializer(),
-        WsMessage("POST_DELETED", json.encodeToString(PostDeletedPayload.serializer(), PostDeletedPayload(postId)))
+        WsMessage("POST_DELETED", wsJson.encodeToString(PostDeletedPayload.serializer(), PostDeletedPayload(postId)))
     )
     ConnectionRegistry.onlineUserIds().forEach { LocalRealtimeBus.publish(it, message) }
 }
@@ -219,5 +219,5 @@ internal suspend fun disconnectUserSessionsByAccessJti(
  * 状态锁 + 锁外二次确认避免新连接注册后被旧清理路径误标离线。
  */
 internal suspend fun markOfflineAndBroadcastIfNoSessions(userId: String) {
-    PresenceService.markOffline(userId, Json { ignoreUnknownKeys = true }, UserRepository())
+    PresenceService.markOffline(userId, wsJson, UserRepository())
 }

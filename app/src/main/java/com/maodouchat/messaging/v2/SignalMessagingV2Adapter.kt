@@ -50,6 +50,9 @@ class SignalMessagingV2EnvelopePreparer(
     private val snapshotProvider: MessagingV2ConversationSnapshotProvider,
     private val ensureGroupReady: suspend (groupId: String, epoch: Long) -> Unit = { _, _ -> },
 ) : MessagingV2EnvelopePreparer {
+    // Json 线程安全，每次发消息都 new 会重复走构建开销，实例级复用（本类由 MessagingV2Runtime 懒加载单例持有）。
+    private val json = Json { ignoreUnknownKeys = false }
+
     override suspend fun prepare(token: String, message: MessagingV2OutboxEntity): PreparedMessageV2 {
         val snapshot = snapshotProvider.get(token, message.conversationId)
         require(snapshot.conversationId == message.conversationId) { "messaging_v2_snapshot_mismatch" }
@@ -160,7 +163,7 @@ class SignalMessagingV2EnvelopePreparer(
     internal fun wireCiphertextType(value: String): String = value.uppercase()
 
     private fun decodeContent(message: MessagingV2OutboxEntity): MessagingV2Content =
-        Json { ignoreUnknownKeys = false }.decodeFromString(message.localPayload)
+        json.decodeFromString(message.localPayload)
 
     private companion object {
         const val CIPHERTEXT_SENDER_KEY = "SENDER_KEY"
