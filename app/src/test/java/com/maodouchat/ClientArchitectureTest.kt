@@ -414,7 +414,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 873,
         // 通话 VM 瘦身第一批：WebRtcNativeLoadException/CallUiState/NetworkQuality/
         // GroupCallParticipantUi 纯搬移到同包 CallUiModels.kt（1536 → 1500），两处同步收紧。
-        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1500,
+        // 通话 VM 瘦身第二批：出站信令发送簇（sendSdp/sendIceCandidate/sendSignalWithFallback）
+        // 纯搬移到同包 CallSignalingSender（1500 → 1449，调用点改走 sender），两处同步收紧。
+        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1449,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
@@ -490,7 +492,8 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 670,
             "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 873,
-            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1500,
+            // 通话 VM 瘦身第二批：出站信令发送簇纯搬移到同包 CallSignalingSender（1500 → 1449）。
+            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1449,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内

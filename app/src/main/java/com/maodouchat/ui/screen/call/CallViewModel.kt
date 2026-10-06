@@ -41,7 +41,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.webrtc.IceCandidate
-import org.webrtc.SessionDescription
 import java.util.UUID
 
 class CallViewModel(application: Application) : AndroidViewModel(application) {
@@ -129,6 +128,23 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             callSessionGate = callSessionGate,
             token = { token },
             onLogAnswered = { writeCallLog(com.maodouchat.call.CallLogStore.State.ANSWERED) },
+        )
+    }
+
+    private val signalingSender by lazy {
+        CallSignalingSender(
+            scope = viewModelScope,
+            token = { token },
+            activeCallId = { activeCallId },
+            activeGroupId = { activeGroupId },
+            meshGroupMemberIds = { meshGroupMemberIds },
+            activeCallSession = { activeCallSession },
+            callSessionGate = callSessionGate,
+            outboundSignalingCursor = outboundSignalingCursor,
+            updateState = { transform -> _uiState.update(transform) },
+            text = { id, args -> text(id, *args) },
+            failureReason = { error -> failureReason(error) },
+            onEndCall = { errorMessage -> endCall(notifyPeer = false, errorMessage = errorMessage) },
         )
     }
 
@@ -339,10 +355,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     peerUserId = peerId,
                     type = _uiState.value.callType,
                     onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) sendIceCandidate(peerId, candidate)
+                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(peerId, candidate)
                     },
                     onOfferCreated = { sdp ->
-                        if (isCurrentCallSession(session, manager)) sendSdp(peerId, "offer", sdp, groupInvite = false)
+                        if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(peerId, "offer", sdp, groupInvite = false)
                     }
                 )
             }
@@ -454,12 +470,12 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 manager.startCall(
                     type = callType,
                     onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) sendIceCandidate(contactId, candidate)
+                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(contactId, candidate)
                     },
                     onOfferCreated = { sdp ->
                         if (!isCurrentCallSession(session, manager)) return@startCall
                         _uiState.update { it.copy(isInitializing = false) }
-                        sendSdp(contactId, "offer", sdp)
+                        signalingSender.sendSdp(contactId, "offer", sdp)
                         startRingingTimeout(contactId)
                     }
                 )
@@ -490,10 +506,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 remoteOfferSdp = sdp,
                 type = _uiState.value.callType,
                 onIceCandidate = { candidate ->
-                    if (isCurrentCallSession(session, manager)) sendIceCandidate(fromUserId, candidate)
+                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, candidate)
                 },
                 onAnswerCreated = { sdp2 ->
-                    if (isCurrentCallSession(session, manager)) sendSdp(fromUserId, "answer", sdp2)
+                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp2)
                 }
             )
         }
@@ -587,7 +603,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         val current = _uiState.value
         if (current.callState != CallState.IDLE && current.callState != CallState.DISCONNECTED) {
             if (current.contactId != contactId) {
-                sendSignalWithFallback(
+                signalingSender.sendSignalWithFallback(
                     contactId,
                     "busy",
                     "",
@@ -737,14 +753,14 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                         remoteOfferSdp = targetOfferSdp,
                         type = targetCallType,
                         onIceCandidate = { candidate ->
-                            if (isCurrentCallSession(session, manager)) sendIceCandidate(targetContactId, candidate)
+                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate)
                         },
                         onAnswerCreated = { sdp ->
                             if (!isCurrentCallSession(session, manager)) return@acceptGroupOffer
                             ringingTimeoutJob?.cancel()
                             pendingOfferSdp = null
                             _uiState.update { it.copy(isInitializing = false) }
-                            sendSdp(targetContactId, "answer", sdp)
+                            signalingSender.sendSdp(targetContactId, "answer", sdp)
                         }
                     )
                     startDeterministicMeshEdges(manager, targetContactId, session)
@@ -755,14 +771,14 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     remoteOfferSdp = targetOfferSdp,
                     type = targetCallType,
                     onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) sendIceCandidate(targetContactId, candidate)
+                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate)
                     },
                     onAnswerCreated = { sdp ->
                         if (!isCurrentCallSession(session, manager)) return@answerCall
                         ringingTimeoutJob?.cancel()
                         pendingOfferSdp = null
                         _uiState.update { it.copy(isInitializing = false) }
-                        sendSdp(targetContactId, "answer", sdp)
+                        signalingSender.sendSdp(targetContactId, "answer", sdp)
                     }
                 )
                 observeSignaling()
@@ -780,7 +796,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         val contactId = _uiState.value.contactId
         val callId = activeCallId
         if (contactId.isNotBlank()) {
-            sendSignalWithFallback(contactId, "reject", "", text(R.string.call_notify_reject_failed))
+            signalingSender.sendSignalWithFallback(contactId, "reject", "", text(R.string.call_notify_reject_failed))
         }
         // User declined — never leave FCM tray ringing after reject.
         if (callId.isNotBlank()) {
@@ -824,73 +840,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun detachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
         mediaBridge.detachRemoteRenderer(renderer)
-    }
-
-    private fun sendSdp(toUserId: String, type: String, sdp: SessionDescription, groupInvite: Boolean = false) {
-        sendSignalWithFallback(
-            toUserId,
-            type,
-            sdp.description,
-            text(R.string.call_send_sdp_failed, type.uppercase()),
-            groupInvite = groupInvite
-        )
-    }
-
-    private fun sendIceCandidate(toUserId: String, candidate: IceCandidate) {
-        val payload = "${candidate.sdpMid}|${candidate.sdpMLineIndex}|${candidate.sdp}"
-        sendSignalWithFallback(toUserId, "ice-candidate", payload, text(R.string.call_send_candidate_failed))
-    }
-
-    private fun sendSignalWithFallback(
-        toUserId: String,
-        type: String,
-        payload: String,
-        errorPrefix: String,
-        callIdOverride: String? = null,
-        groupIdOverride: String? = null,
-        groupMemberIdsOverride: List<String>? = null,
-        groupInvite: Boolean = false
-    ) {
-        val callId = callIdOverride ?: activeCallId
-        val groupId = groupIdOverride ?: activeGroupId
-        val groupMembers = groupMemberIdsOverride ?: meshGroupMemberIds
-        val sourceSession = activeCallSession
-        val ticket = outboundSignalingCursor.next(callId, type)
-        viewModelScope.launch {
-            if (token.isBlank()) {
-                if (callSessionGate.isCurrent(sourceSession)) {
-                    _uiState.update { it.copy(errorMessage = text(R.string.call_session_expired)) }
-                }
-                return@launch
-            }
-
-            // 关键信令（offer/answer/hang-up 等）不能只信 OkHttp 本地 enqueue 成功；
-            // WS 缓冲接受 ≠ 服务端处理。关键类型始终补 REST，ICE 保持 WS-first。
-            val normalizedType = CallReliabilityPolicy.normalizeSignalingType(type)
-            val sentByWebSocket = WebRTCSignaling.sendViaWebSocket(
-                toUserId, type, payload, callId, groupId, groupMembers, groupInvite,
-                ticket.epoch, ticket.sequence, ticket.idempotencyKey,
-            )
-            val needRest = CallReliabilityPolicy.isCriticalSignalingType(normalizedType) || !sentByWebSocket
-            if (needRest) {
-                WebRTCSignaling.sendViaRest(
-                    token, toUserId, type, payload, callId, groupId, groupMembers, groupInvite,
-                    ticket.epoch, ticket.sequence, ticket.idempotencyKey,
-                ).onFailure { error ->
-                    if (!callSessionGate.isCurrent(sourceSession) && normalizedType != "hang-up") return@onFailure
-                    val message = text(R.string.call_error_with_reason, errorPrefix, failureReason(error))
-                    if (
-                        normalizedType == "offer" &&
-                        error is WebRTCSignaling.SignalingException &&
-                        error.code == "CALL_INVITE_RATE_LIMITED"
-                    ) {
-                        endCall(notifyPeer = false, errorMessage = failureReason(error))
-                    } else if (normalizedType != "hang-up") {
-                        _uiState.update { it.copy(errorMessage = message) }
-                    }
-                }
-            }
-        }
     }
 
     private fun observeSignaling() {
@@ -1064,11 +1013,11 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                         peerUserId = memberId,
                         type = type,
                         onIceCandidate = { candidate ->
-                            if (isCurrentCallSession(session, manager)) sendIceCandidate(memberId, candidate)
+                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(memberId, candidate)
                         },
                         onOfferCreated = { sdp ->
                             if (isCurrentCallSession(session, manager)) {
-                                sendSdp(memberId, "offer", sdp, groupInvite = true)
+                                signalingSender.sendSdp(memberId, "offer", sdp, groupInvite = true)
                                 if (!firstOfferSent) {
                                     firstOfferSent = true
                                     startRingingTimeout(chatId)
@@ -1125,7 +1074,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             CallSignalingAdmissionPolicy.Decision.DROP -> return
             CallSignalingAdmissionPolicy.Decision.BUSY_REJECT -> {
                 if (fromUserId.isNotBlank()) {
-                    sendSignalWithFallback(
+                    signalingSender.sendSignalWithFallback(
                         fromUserId,
                         "busy",
                         "",
@@ -1291,15 +1240,15 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                                 remoteOfferSdp = payload,
                                 type = st.callType,
                                 onIceCandidate = { candidate ->
-                                    if (isCurrentCallSession(session, manager)) sendIceCandidate(fromUserId, candidate)
+                                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, candidate)
                                 },
                                 onAnswerCreated = { sdp ->
-                                    if (isCurrentCallSession(session, manager)) sendSdp(fromUserId, "answer", sdp)
+                                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp)
                                 }
                             )
                         }
                     } else if (fromUserId.isNotBlank() && !st.isGroupCall) {
-                        sendSignalWithFallback(
+                        signalingSender.sendSignalWithFallback(
                             fromUserId,
                             "busy",
                             "",
