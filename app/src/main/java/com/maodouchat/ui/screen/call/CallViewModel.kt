@@ -24,7 +24,6 @@ import com.maodouchat.call.WebRtcNativeLibraryLoader
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.CallReliabilityPolicy
-import com.maodouchat.webrtc.IceReconnectAction
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.webrtc.CallIceServer
 import com.maodouchat.webrtc.CallAudioRoute
@@ -66,10 +65,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private var pollingJob: Job? = null
     private var webSocketJob: Job? = null
     private var ringingTimeoutJob: Job? = null
-    private var iceReconnectJob: Job? = null
-    // 8.56：WebRTC 原生回调线程与主线程并发访问——volatile 保证可见性，避免读到旧值误走重连/重复挂断
-    @Volatile
-    private var iceRestartAttempts = 0
     private val groupReconnectJobs = mutableMapOf<String, Job>()
     private val groupInviteTimeoutJobs = mutableMapOf<String, Job>()
     private var pendingOfferSdp: String? = null
@@ -173,6 +168,23 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    private val iceRecovery by lazy {
+        CallIceRecovery(
+            scope = viewModelScope,
+            endingCall = { endingCall },
+            callSessionMachine = callSessionMachine,
+            activeDomainSession = { activeDomainSession },
+            timersController = timersController,
+            activeCallSession = { activeCallSession },
+            callSessionGate = callSessionGate,
+            updateState = { transform -> _uiState.update(transform) },
+            currentState = { _uiState.value },
+            onIceGiveUp = { message -> endCall(notifyPeer = false, errorMessage = message) },
+            text = { id, args -> text(id, *args) },
+            webRTCManager = { webRTCManager },
+        )
+    }
+
     init {
         viewModelScope.launch {
             WebRtcNativeLibraryLoader.progress.collect { pct ->
@@ -213,9 +225,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun configureReliabilityCallbacks(manager: WebRTCManager, session: Long) {
         fun current(): Boolean = callSessionGate.isCurrent(session) && webRTCManager === manager && !endingCall
-        manager.onIceConnectionDisconnected = { if (current()) onIceConnectionChange(false) }
-        manager.onIceConnectionRecovered = { if (current()) onIceConnectionChange(true) }
-        manager.onIceConnectionFailed = { if (current()) onIceConnectionFailed() }
+        manager.onIceConnectionDisconnected = { if (current()) iceRecovery.onIceConnectionChange(false) }
+        manager.onIceConnectionRecovered = { if (current()) iceRecovery.onIceConnectionChange(true) }
+        manager.onIceConnectionFailed = { if (current()) iceRecovery.onIceConnectionFailed() }
         manager.onAudioRoutesChanged = { available, selected ->
             if (current()) {
                 _uiState.update {
@@ -249,7 +261,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         signalingIdempotency.clear()
         inboundSignalingCursors.clear()
         outboundSignalingCursor.begin()
-        iceRestartAttempts = 0
+        iceRecovery.resetAttempts()
         val snapshot = if (incoming) {
             callSessionMachine.beginIncoming(peerId)
         } else {
@@ -409,78 +421,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp2)
                 }
             )
-        }
-    }
-
-    /**
-     * ICE 连接状态变化：先标记 reconnecting；如宽限期内仍未恢复则触发真正的 endCall，
-     * 否则自动恢复正常，UI 上给用户一个轻提示。
-     */
-    private fun onIceConnectionChange(recovered: Boolean) {
-        if (endingCall) return
-        if (recovered) {
-            callSessionMachine.markConnected(activeDomainSession)
-            iceReconnectJob?.cancel()
-            iceReconnectJob = null
-            iceRestartAttempts = 0
-            // BUG 3 fix: ICE 连接成功时才设 CONNECTED（首次连接和重连恢复都走这里）
-            _uiState.update {
-                it.copy(
-                    networkReconnecting = false,
-                    errorMessage = null,
-                    callState = CallState.CONNECTED,
-                    isInitializing = false,
-                )
-            }
-            timersController.startDurationTimer()
-            timersController.startNetworkStatsPolling()
-            return
-        }
-        val current = _uiState.value
-        if (current.callState != CallState.CONNECTED) return
-        _uiState.update { it.copy(networkReconnecting = true) }
-        if (iceReconnectJob?.isActive == true) return
-        val session = activeCallSession
-        iceReconnectJob = viewModelScope.launch {
-            delay(CallReliabilityPolicy.ICE_RECONNECT_GRACE_MS)
-            if (callSessionGate.isCurrent(session) && _uiState.value.networkReconnecting && _uiState.value.callState == CallState.CONNECTED) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_network_disconnected))
-            }
-        }
-    }
-
-    private fun onIceConnectionFailed() {
-        if (endingCall) return
-        iceReconnectJob?.cancel()
-        iceReconnectJob = null
-        val current = _uiState.value
-        if (
-            current.callState == CallState.IDLE ||
-            current.callState == CallState.DISCONNECTED
-        ) {
-            return
-        }
-        when (CallReliabilityPolicy.iceReconnectAction("FAILED", iceRestartAttempts)) {
-            IceReconnectAction.RESTART_ICE -> {
-                iceRestartAttempts++
-                _uiState.update { it.copy(networkReconnecting = true) }
-                webRTCManager?.restartIce()
-                iceReconnectJob = viewModelScope.launch {
-                    delay(CallReliabilityPolicy.ICE_RESTART_INTERVAL_MS)
-                    if (
-                        callSessionGate.isCurrent(activeCallSession) &&
-                        _uiState.value.networkReconnecting &&
-                        _uiState.value.callState != CallState.IDLE &&
-                        _uiState.value.callState != CallState.DISCONNECTED
-                    ) {
-                        onIceConnectionFailed()
-                    }
-                }
-            }
-            IceReconnectAction.END_NOW -> {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_network_disconnected))
-            }
-            else -> Unit
         }
     }
 
@@ -1188,7 +1128,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         pollingJob?.cancel()
         webSocketJob?.cancel()
         ringingTimeoutJob?.cancel()
-        iceReconnectJob?.cancel()
+        iceRecovery.cancel()
         groupReconnectJobs.values.forEach(Job::cancel)
         groupReconnectJobs.clear()
         groupInviteTimeoutJobs.values.forEach(Job::cancel)
@@ -1196,7 +1136,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         pollingJob = null
         webSocketJob = null
         ringingTimeoutJob = null
-        iceReconnectJob = null
 
         mediaBridge.release()
         pendingOfferSdp = null
@@ -1336,7 +1275,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         pollingJob?.cancel()
         webSocketJob?.cancel()
         ringingTimeoutJob?.cancel()
-        iceReconnectJob?.cancel()
+        iceRecovery.cancel()
         // 8.46 修复：无条件停止前台服务——若已有挂断在途（endingCall=true），endCall 开头
         // 直接 return，末尾的 stopForegroundService() 被跳过，通话前台通知/服务残留到系统回收。
         stopForegroundService()
