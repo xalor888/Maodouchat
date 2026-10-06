@@ -361,7 +361,7 @@ internal class ChatDetailDeps(
             onDurableMessage = { message ->
                 if (message.chatId == host.activeChatId) {
                     host._uiState.update { state ->
-                        state.copy(messages = host.mergeMessages(state.messages, listOf(message)))
+                        state.copy(messages = mergeMessageVersions(state.messages, listOf(message)))
                     }
                 }
             },
@@ -411,7 +411,7 @@ internal class ChatDetailDeps(
     internal var draftSaveJob: kotlinx.coroutines.Job? = null
     /** Bumped on every schedule/clear so a late persist cannot resurrect a cleared draft. */
     internal var draftGeneration = 0L
-    internal val timelineStateController = ChatTimelineStateController(host::mergeMessages)
+    internal val timelineStateController = ChatTimelineStateController(::mergeMessageVersions)
     internal val searchSelectionStateController = ChatSearchSelectionStateController()
     internal val groupSecurityStateController = ChatGroupSecurityStateController()
     internal val mediaStateController = ChatMediaStateController()
@@ -449,7 +449,7 @@ internal class ChatDetailDeps(
         token = { host.token },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
-        mergeMessages = host::mergeMessages,
+        mergeMessages = ::mergeMessageVersions,
         emitListPreviewForDecrypted = messagePreviewController::emitListPreviewForDecrypted,
         outgoingFacade = outgoingFacade,
         text = { id, args -> host.text(id, *args) },
@@ -484,7 +484,7 @@ internal class ChatDetailDeps(
         mediaUploadEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.MEDIA_UPLOAD) },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
-        mergeMessages = host::mergeMessages,
+        mergeMessages = ::mergeMessageVersions,
         attachmentIntentController = attachmentIntentController,
         getMessageById = messageRepo::getMessageById,
         persistMessage = messageRepo::insertMessage,
@@ -624,7 +624,7 @@ internal class ChatDetailDeps(
         textProvider = host::text,
         requireSilentSend = { host.requireSilentSend() },
         composeContentWithMeta = host::composeContentWithMeta,
-        mergeMessages = host::mergeMessages,
+        mergeMessages = ::mergeMessageVersions,
         clearDraft = { host.clearDraft() },
         maybeForwardBotInbox = botGroupActionController::maybeForwardBotInbox,
         outgoingFacade = outgoingFacade,
@@ -638,7 +638,7 @@ internal class ChatDetailDeps(
         activeChatId = { host.activeChatId },
         updateState = { transform -> host._uiState.update(transform) },
         textProvider = host::text,
-        mergeMessages = host::mergeMessages,
+        mergeMessages = ::mergeMessageVersions,
         completions = inlineSendCompletions,
         outgoingFacade = outgoingFacade,
     )
@@ -671,7 +671,7 @@ internal class ChatDetailDeps(
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         activeChatId = { host.activeChatId },
-        mergeMessages = host::mergeMessages,
+        mergeMessages = ::mergeMessageVersions,
         mediaStateController = mediaStateController,
     )
     // G385：`observeLocalMessages()`/`observeAuthoritativeMessageMutations()` 本地消息观察一族抽到

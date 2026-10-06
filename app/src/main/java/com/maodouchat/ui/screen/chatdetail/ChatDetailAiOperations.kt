@@ -238,7 +238,7 @@ import kotlinx.coroutines.sync.withLock
         val cached = withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) }
             ?.takeIf { it.chatId == activeChatId }
             ?: return null
-        _uiState.update { state -> state.copy(messages = mergeMessages(state.messages, listOf(cached))) }
+        _uiState.update { state -> state.copy(messages = mergeMessageVersions(state.messages, listOf(cached))) }
         return cached
     }
 

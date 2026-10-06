@@ -83,7 +83,7 @@ internal class ChatComposerSendController(
         if (allowed.clearDraft) clearDraft()
         updateState {
             it.copy(
-                messages = mergeMessages(it.messages, listOf(optimistic)),
+                messages = mergeMessageVersions(it.messages, listOf(optimistic)),
                 inputText = if (allowed.clearDraft) "" else it.inputText,
                 groupEncryptionWarning = null,
                 isSending = true,

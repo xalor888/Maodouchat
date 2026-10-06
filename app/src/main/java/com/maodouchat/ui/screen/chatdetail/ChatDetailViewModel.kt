@@ -2,7 +2,6 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -611,29 +610,9 @@ class ChatDetailViewModel(
         const val MAX_COMPOSER_TEXT_LENGTH: Int = 4000
     }
 
-    internal fun mergeMessages(existing: List<Message>, incoming: List<Message>): List<Message> {
-        return mergeMessageVersions(existing, incoming)
-    }
-
     /** 删除消息时清理附件传输记录和本地密文文件，防止孤儿行和磁盘泄漏。 */
-    internal suspend fun cleanupAttachmentForMessage(messageId: String) {
-        try {
-            val ownerUserId = currentUserId
-            if (ownerUserId.isBlank()) return
-            val dao = com.maodouchat.chatdetail.ChatDetailDataAccess.attachmentTransferDao()
-            val transfer = dao.get(messageId, ownerUserId = ownerUserId) ?: return
-            // 删除本地密文文件
-            transfer.encryptedPath.takeIf { it.isNotBlank() }?.let { path ->
-                runCatching { java.io.File(path).delete() }
-            }
-            // 删除传输记录
-            dao.delete(messageId, ownerUserId = ownerUserId)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w("ChatDetailViewModel", "Attachment cleanup failed for $messageId", e)
-        }
-    }
+    internal suspend fun cleanupAttachmentForMessage(messageId: String) =
+        fileTransferController.cleanupAttachmentForMessage(messageId)
 
     /**
      * WebSocket 重连后同步断连期间遗漏的消息

@@ -33,7 +33,7 @@ internal class ChatAttachmentObservationController(
                 if (message.chatId != activeChatId()) return@collect
                 updateState { state ->
                     state.copy(
-                        messages = mergeMessages(state.messages.filterNot { it.id == message.id }, listOf(message)),
+                        messages = mergeMessageVersions(state.messages.filterNot { it.id == message.id }, listOf(message)),
                         fileTransferProgress = state.fileTransferProgress - message.id,
                         fileTransferStates = state.fileTransferStates - message.id,
                         fileTransferErrors = state.fileTransferErrors - message.id,

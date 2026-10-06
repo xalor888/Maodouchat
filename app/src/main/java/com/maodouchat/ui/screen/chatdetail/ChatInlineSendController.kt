@@ -50,7 +50,7 @@ internal class ChatInlineSendController(
         )
         val completion = CompletableDeferred<Boolean>()
         completions[msgId] = completion
-        updateState { it.copy(messages = mergeMessages(it.messages, listOf(optimistic)), isSending = true) }
+        updateState { it.copy(messages = mergeMessageVersions(it.messages, listOf(optimistic)), isSending = true) }
         scope.launch {
             enqueueInlineViaMessagingV2(
                 optimistic = optimistic,
