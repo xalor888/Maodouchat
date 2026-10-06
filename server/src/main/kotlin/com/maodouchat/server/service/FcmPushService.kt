@@ -150,6 +150,8 @@ class FcmPushService(
 
     companion object {
         const val DELIVERY_QUEUE_CAPACITY = 1_024
+        // Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+        private val hmacSha256Mac = ThreadLocal.withInitial { Mac.getInstance("HmacSHA256") }
         const val DELIVERY_WORKERS = 4
         const val DELIVERY_BATCH = 50
         const val CALL_QUEUE_CAPACITY = 256
@@ -202,7 +204,7 @@ class FcmPushService(
             val canonical = base.keys.sorted().joinToString("&") { "${it}=${base[it]}" }
             val payload = "$canonical&ts=$ts"
             val sig = try {
-                val mac = Mac.getInstance("HmacSHA256")
+                val mac = hmacSha256Mac.get().apply { reset() }
                 mac.init(SecretKeySpec(pushKeyForUser(recipientId).toByteArray(Charsets.UTF_8), "HmacSHA256"))
                 mac.doFinal(payload.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
             } catch (_: Exception) {
@@ -212,7 +214,7 @@ class FcmPushService(
         }
 
         fun pushKeyForUser(recipientId: String): String = try {
-            val mac = Mac.getInstance("HmacSHA256")
+            val mac = hmacSha256Mac.get().apply { reset() }
             mac.init(SecretKeySpec(ServerConfig.pushHmacSecret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
             mac.doFinal(recipientId.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
         } catch (_: Exception) {

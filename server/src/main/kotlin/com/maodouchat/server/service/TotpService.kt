@@ -11,6 +11,8 @@ import kotlin.math.pow
  */
 object TotpService {
     private val random = SecureRandom()
+    // Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+    private val hmacSha1Mac = ThreadLocal.withInitial { Mac.getInstance("HmacSHA1") }
     private const val PERIOD_SEC = 30L
     private const val DIGITS = 6
     private const val MAX_REPLAY_COUNTER_ENTRIES = 100_000
@@ -93,7 +95,7 @@ object TotpService {
 
     private fun generateCode(secret: ByteArray, counter: Long): String {
         val data = ByteBuffer.allocate(8).putLong(counter).array()
-        val mac = Mac.getInstance("HmacSHA1")
+        val mac = hmacSha1Mac.get().apply { reset() }
         mac.init(SecretKeySpec(secret, "HmacSHA1"))
         val hash = mac.doFinal(data)
         val offset = hash.last().toInt() and 0x0f

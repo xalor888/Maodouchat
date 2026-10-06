@@ -689,8 +689,11 @@ private fun buildTestPayload(botId: String, botUsername: String): String {
 }
 
 /** HMAC-SHA256 hex digest, matching BotWebhookService signing. */
+// Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+private val hmacSha256MacThreadLocal = ThreadLocal.withInitial { Mac.getInstance("HmacSHA256") }
+
 private fun hmacSha256Hex(secret: String, message: String): String {
-    val mac = Mac.getInstance("HmacSHA256")
+    val mac = hmacSha256MacThreadLocal.get().apply { reset() }
     mac.init(SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
     val raw = mac.doFinal(message.toByteArray(StandardCharsets.UTF_8))
     return raw.joinToString("") { "%02x".format(it) }

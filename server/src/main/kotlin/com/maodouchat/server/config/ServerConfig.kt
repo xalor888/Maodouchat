@@ -263,13 +263,16 @@ object ServerConfig {
      * 因此**不需要任何配置变更**就已分离；想真正独立轮换时，用 [envName] 单独配置即可，
      * 换掉它只影响该用途（sealed-sender 证书 24 小时内自然轮换，开发者会话 2 小时）。
      */
+    // Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+    private val hmacSha256Mac = ThreadLocal.withInitial { javax.crypto.Mac.getInstance("HmacSHA256") }
+
     private fun purposeSecret(purpose: String, envName: String): String {
         val explicit = env(envName, "")
         if (explicit.isNotBlank()) return explicit
         val master = jwtSecret
         if (master.isBlank()) return ""
         return try {
-            val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+            val mac = hmacSha256Mac.get().apply { reset() }
             mac.init(javax.crypto.spec.SecretKeySpec(master.toByteArray(Charsets.UTF_8), "HmacSHA256"))
             mac.doFinal("maodouchat/v1/$purpose".toByteArray(Charsets.UTF_8))
                 .joinToString("") { "%02x".format(it.toInt() and 0xff) }

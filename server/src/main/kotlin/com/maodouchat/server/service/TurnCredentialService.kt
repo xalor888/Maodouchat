@@ -20,6 +20,8 @@ class TurnCredentialService(
     private val nowSeconds: () -> Long = { System.currentTimeMillis() / 1000 },
 ) {
     private val revokedCallKeys = ConcurrentHashMap.newKeySet<String>()
+    // Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+    private val hmacSha1Mac = ThreadLocal.withInitial { Mac.getInstance("HmacSHA1") }
 
     fun issue(userId: String, callId: String = ""): IceConfigResponse {
         val expiresAtSeconds = nowSeconds() + ttlSeconds.coerceIn(300, 86_400)
@@ -69,7 +71,7 @@ class TurnCredentialService(
         raw.trim().replace(":", "_").replace("\r", "").replace("\n", "").take(64)
 
     private fun hmacSha1Base64(secret: String, value: String): String {
-        val mac = Mac.getInstance("HmacSHA1")
+        val mac = hmacSha1Mac.get().apply { reset() }
         mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA1"))
         return Base64.getEncoder().encodeToString(mac.doFinal(value.toByteArray(Charsets.UTF_8)))
     }
