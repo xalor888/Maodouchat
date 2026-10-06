@@ -1039,7 +1039,7 @@ private fun formatBytes(bytes: Long): String = when {
 }
 
 private val threadLocalDateFormatByLocale = ThreadLocal.withInitial { mutableMapOf<java.util.Locale, DateFormat>() }
-private fun formatDate(timestamp: Long): String = threadLocalDateFormatByLocale.get().getOrPut(java.util.Locale.getDefault()) { DateFormat.getDateInstance(DateFormat.MEDIUM, it) }.format(Date(timestamp))
+private fun formatDate(timestamp: Long): String = threadLocalDateFormatByLocale.get().getOrPut(java.util.Locale.getDefault()) { DateFormat.getDateInstance(DateFormat.MEDIUM, java.util.Locale.getDefault()) }.format(Date(timestamp))
 
 @Composable
 private fun highlightedText(text: String, query: String): AnnotatedString {
