@@ -63,7 +63,7 @@ internal class ChatNudgeSender(
         )
         updateState { state ->
             state.copy(
-                messages = mergeMessages(state.messages, listOf(optimistic)),
+                messages = mergeMessageVersions(state.messages, listOf(optimistic)),
                 groupEncryptionWarning = null,
             )
         }

@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import android.content.Context
+import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.domain.messaging.AttachmentIntentController
@@ -226,4 +227,26 @@ internal class ChatDetailFileTransferController(
                 (error as? com.maodouchat.network.ApiException)?.serverMessage?.takeIf { it.isNotBlank() }
                     ?: text(fallbackStringRes)
             }
-        }}
+        }
+
+    /** 删除消息时清理附件传输记录和本地密文文件，防止孤儿行和磁盘泄漏。 */
+    internal suspend fun cleanupAttachmentForMessage(messageId: String) {
+        try {
+            // 与 ChatDetailViewModel.currentUserId 同口径：当前会话 userId，兜底 "me"。
+            val ownerUserId = com.maodouchat.session.CurrentSession.snapshot().userId ?: "me"
+            if (ownerUserId.isBlank()) return
+            val dao = com.maodouchat.chatdetail.ChatDetailDataAccess.attachmentTransferDao()
+            val transfer = dao.get(messageId, ownerUserId = ownerUserId) ?: return
+            // 删除本地密文文件
+            transfer.encryptedPath.takeIf { it.isNotBlank() }?.let { path ->
+                runCatching { java.io.File(path).delete() }
+            }
+            // 删除传输记录
+            dao.delete(messageId, ownerUserId = ownerUserId)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w("ChatDetailFileTransferController", "Attachment cleanup failed for $messageId", e)
+        }
+    }
+}

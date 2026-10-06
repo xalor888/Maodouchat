@@ -108,7 +108,7 @@ internal class ChatAttachmentSender(
 
         updateState {
             it.copy(
-                messages = mergeMessages(it.messages, listOf(optimistic)),
+                messages = mergeMessageVersions(it.messages, listOf(optimistic)),
                 isSending = true,
                 fileTransferProgress = it.fileTransferProgress + (messageId to 0f),
                 preparingAttachmentMessageIds = it.preparingAttachmentMessageIds + messageId,
