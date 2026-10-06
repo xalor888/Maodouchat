@@ -206,7 +206,10 @@ class ScheduledMessageController(
     }
 
     private fun formatScheduleTimeHint(millis: Long): String {
-        val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
-        return fmt.format(java.util.Date(millis))
+        return scheduleTimeHintFormat.get().format(java.util.Date(millis))
     }
+
+    // SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+    private val scheduleTimeHintFormat: ThreadLocal<java.text.SimpleDateFormat> =
+        ThreadLocal.withInitial { java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()) }
 }

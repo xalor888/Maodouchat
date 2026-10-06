@@ -59,9 +59,12 @@ import com.maodouchat.util.ScheduledMessage
  */
 
 internal fun formatScheduleTime(millis: Long): String {
-    val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
-    return fmt.format(java.util.Date(millis))
+    return scheduleTimeFormat.get().format(java.util.Date(millis))
 }
+
+// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+private val scheduleTimeFormat: ThreadLocal<java.text.SimpleDateFormat> =
+    ThreadLocal.withInitial { java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()) }
 
 @Composable
 internal fun ScheduledMessagesBanner(
