@@ -1,6 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.scheduling.ConversationScheduleCoordinator
 import kotlinx.coroutines.CoroutineScope
 
 object ChatDetailAccess {
@@ -31,4 +32,12 @@ object ChatDetailAccess {
     val messagingOutbox get() = MaodouchatApp.instance.messagingV2Outbox
 
     internal val messagingMutationEvents get() = MaodouchatApp.instance.messagingV2MutationEvents
+
+    // 会话本地状态协调器的装配入口：工厂要 app 本体，ui 侧不再自己做转型。
+    internal fun conversationLocalStateCoordinator(
+        scheduleCoordinator: ConversationScheduleCoordinator,
+    ) = com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator(
+        app = MaodouchatApp.instance,
+        scheduleCoordinator = scheduleCoordinator,
+    )
 }

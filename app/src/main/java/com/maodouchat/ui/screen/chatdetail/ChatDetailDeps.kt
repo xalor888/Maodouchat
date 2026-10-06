@@ -19,7 +19,6 @@ import com.maodouchat.attachment.RoomTransferRepository
 import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.conversation.ConversationLocalCleanupMode
 import com.maodouchat.conversation.conversationLocalCleanupSession
-import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
 import com.maodouchat.crypto.DecryptHistoryPolicy
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.crypto.SignalProtocol
@@ -57,7 +56,6 @@ import com.maodouchat.messaging.v2.OutgoingConversationErrors
 import com.maodouchat.messaging.v2.OutgoingConversationRequest
 import com.maodouchat.messaging.v2.OutgoingMessageCommand
 import com.maodouchat.messaging.v2.OutgoingMessageResult
-import com.maodouchat.messaging.v2.createAndroidGroupMessagingCoordinator
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.notification.MessageNotificationService
@@ -117,19 +115,20 @@ internal class ChatDetailDeps(
     private val host: ChatDetailViewModel,
 ) {
     internal val aiConversationProfileSource: AiConversationProfileSource =
-        com.maodouchat.data.local.RoomAiConversationProfileSource(application, host.app.database)
+        com.maodouchat.data.local.RoomAiConversationProfileSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
     internal val aiChatClassificationSource: AiChatClassificationSource =
-        com.maodouchat.data.local.RoomAiChatClassificationSource(application, host.app.database)
+        com.maodouchat.data.local.RoomAiChatClassificationSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
     internal val aiEmotionReplySource: AiEmotionReplySource =
-        com.maodouchat.data.local.RoomAiEmotionReplySource(application, host.app.database)
+        com.maodouchat.data.local.RoomAiEmotionReplySource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
     internal val aiWeeklyReportSource: AiWeeklyReportSource =
-        com.maodouchat.data.local.RoomAiWeeklyReportSource(application, host.app.database)
+        com.maodouchat.data.local.RoomAiWeeklyReportSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
     internal val messageRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.messageRepo()
     internal val attachmentDownloadCoordinator = AttachmentDownloadCoordinator(
         context = application,
         messageStore = messageRepo,
         isSecretChat = { message ->
-            host._uiState.value.isSecretChat == true || host.app.secretConversationController.capabilities(message.chatId).isSecretChat
+            host._uiState.value.isSecretChat == true ||
+                com.maodouchat.security.SecretChatCapabilities.forChat(message.chatId).isSecretChat
         },
         onProgress = host::updateFileTransferProgress,
         onMessageUpdated = { updated ->
@@ -151,9 +150,9 @@ internal class ChatDetailDeps(
     )
     internal val messageGateway by lazy {
         MessagingV2MessageGateway(
-            database = host.app.database,
+            database = com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase,
             messageStore = messageRepo,
-            outbox = host.app.messagingV2Outbox,
+            outbox = com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox,
             indexMessage = messagePreviewController::indexSearchableMessage,
         )
     }
@@ -168,7 +167,7 @@ internal class ChatDetailDeps(
     internal val attachmentIntentController: AttachmentIntentController by lazy {
         DefaultAttachmentIntentController(
             context = application,
-            transferRepository = RoomTransferRepository(host.app),
+            transferRepository = RoomTransferRepository(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase.attachmentTransferDao()),
             preparationService = DefaultAttachmentPreparationService(application),
             messageStore = messageRepo,
                 commandFacade = commandFacade,
@@ -190,7 +189,7 @@ internal class ChatDetailDeps(
     )
     internal val messagingMutationFacade = MessagingV2MutationFacade(
         eventOutbox = MessagingV2EventOutbox { conversationId, event, groupRevision ->
-            host.app.messagingV2Outbox.enqueueEvent(conversationId, event, groupRevision)
+            com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox.enqueueEvent(conversationId, event, groupRevision)
         },
         persistDeleted = messageTerminalStore::persistDeleted,
         persistRevoked = messageTerminalStore::persistRevoked,
@@ -216,7 +215,7 @@ internal class ChatDetailDeps(
             )
         },
         cleanupTerminalNotification = { message ->
-            if (host.app.notificationCenter.removeMessageReferences(message.id)) {
+            if (com.maodouchat.notification.NotificationCenterAccess.repository.removeMessageReferences(message.id)) {
                 com.maodouchat.notification.MessageNotificationService.cancelMessage(application, message.chatId)
             }
         },
@@ -296,18 +295,15 @@ internal class ChatDetailDeps(
             RuntimeFlags.isEnabled(application, RuntimeFlags.SCHEDULED_MESSAGES)
         },
     )
-    internal val conversationLocalStateCoordinator = createAndroidConversationLocalStateCoordinator(
-        app = host.app,
+    internal val conversationLocalStateCoordinator = com.maodouchat.chatdetail.ChatDetailAccess.conversationLocalStateCoordinator(
         scheduleCoordinator = conversationScheduleCoordinator,
     )
     internal val voiceRecorder = VoiceRecorder(application)
     internal val recordingWaveformBuffer = VoiceRecordingWaveform()
     internal var recordingMeterJob: Job? = null
-    internal val signalProtocol: SignalProtocol = host.app.signalProtocol
-    internal val groupMessagingCoordinator = createAndroidGroupMessagingCoordinator(
-        app = host.app,
-        signalProtocol = signalProtocol,
-    )
+    internal val signalProtocol: SignalProtocol = com.maodouchat.crypto.SignalProtocolAccess.protocol
+    internal val groupMessagingCoordinator =
+        com.maodouchat.group.GroupDetailAccess.groupMessagingCoordinator(application)
     internal val groupLifecycleCoordinator = GroupLifecycleCoordinator(
         ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
         token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
@@ -327,7 +323,7 @@ internal class ChatDetailDeps(
         com.maodouchat.group.DefaultGroupLifecycleService(
             coordinator = groupLifecycleCoordinator,
             tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
-            membershipStore = host.app.groupMembershipStore,
+            membershipStore = com.maodouchat.group.GroupDetailAccess.groupMembershipStore,
         )
     }
     internal val conversationForwardCoordinator by lazy {
@@ -372,7 +368,7 @@ internal class ChatDetailDeps(
         )
     }
     /** Senders that already got one ensureSessions this chat open (history must not storm). */
-    internal val aiMessageResultStore = AiMessageResultStore(host.app.database)
+    internal val aiMessageResultStore = AiMessageResultStore(com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
     internal val readSeenMessages = ChatReadWatermarkPolicy.SeenSet()
     internal var pendingReadWatermarkMessageId: String? = null
     internal var lastMessagesSeen: List<Pair<String, MessageStatus>>? = null
@@ -860,7 +856,7 @@ internal class ChatDetailDeps(
         ChatDetailFileTransferController(
             uiState = host._uiState,
             scope = host.viewModelScope,
-            applicationScope = host.app.applicationScope,
+            applicationScope = com.maodouchat.chatdetail.ChatDetailAccess.applicationScope,
             context = application,
             activeChatId = { host.activeChatId },
             messageRepo = messageRepo,
@@ -869,8 +865,8 @@ internal class ChatDetailDeps(
             attachmentPreparationJobs = attachmentPreparationJobs,
             text = { res -> host.text(res) },
             ensureLocalAttachment = host::ensureLocalAttachment,
-            retryAllTransfers = { chatId -> AttachmentTransferSummaryRepository.retryAll(host.app, host.chatId) },
-            cancelAllTransfers = { chatId -> AttachmentTransferSummaryRepository.cancelAll(host.app, host.chatId) },
+            retryAllTransfers = { _ -> AttachmentTransferSummaryRepository.retryAll(host.chatId) },
+            cancelAllTransfers = { _ -> AttachmentTransferSummaryRepository.cancelAll(host.chatId) },
         )
     }
     internal val decryptStatus by lazy {

@@ -36,7 +36,6 @@ class ChatDetailViewModel(
     internal val chatId: String = savedStateHandle.get<String>("chatId").orEmpty()
     private val navigationMessageId: String? = savedStateHandle.get<String>("messageId")?.takeIf(String::isNotBlank)
     @Volatile internal var activeChatId: String = chatId
-    internal val app = application as com.maodouchat.MaodouchatApp
     // G73：AI 能力端口（实现在 data 层，Route 只认端口）
     internal val aiConversationProfileSource get() = deps.aiConversationProfileSource
     internal val aiChatClassificationSource get() = deps.aiChatClassificationSource

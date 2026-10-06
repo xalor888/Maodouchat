@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import android.app.Application
 import com.maodouchat.util.RuntimeFlags
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
@@ -55,6 +56,7 @@ fun ChatDetailViewModel.consumeNavigationTarget() {
 }
 
 fun ChatDetailViewModel.acceptAiConsentAndContinue() {
+        val app = getApplication<Application>()
         com.maodouchat.ai.AiPrivacyPreferences.setConsentAccepted(app, true)
         val action = pendingAiAction
         val retryOperationId = pendingAiOperationRetryId
@@ -265,6 +267,7 @@ fun ChatDetailViewModel.openUnreadAiSummary() {
 }
 
 fun ChatDetailViewModel.setAiEnabledForChat(enabled: Boolean) {
+        val app = getApplication<Application>()
         val ownerUserId = currentUserId
         if (token.isBlank() || ownerUserId.isBlank()) {
             _uiState.update {

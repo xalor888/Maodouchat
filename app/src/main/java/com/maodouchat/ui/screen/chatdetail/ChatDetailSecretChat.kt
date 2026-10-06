@@ -26,7 +26,7 @@ internal fun ChatDetailViewModel.refreshSecretChatState() {
             null
         }
         val secret = try {
-            loaded?.isSecret ?: app.secretConversationController.capabilities(targetChatId).isSecretChat
+            loaded?.isSecret ?: com.maodouchat.security.SecretChatCapabilities.forChat(targetChatId).isSecretChat
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Exception) {
