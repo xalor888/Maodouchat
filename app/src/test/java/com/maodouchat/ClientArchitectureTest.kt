@@ -417,7 +417,9 @@ class ClientArchitectureTest {
         // 通话 VM 瘦身第二批：出站信令发送簇（sendSdp/sendIceCandidate/sendSignalWithFallback）
         // 纯搬移到同包 CallSignalingSender（1500 → 1449，调用点改走 sender），两处同步收紧。
         // 通话 VM 瘦身第三批：群组网格状态簇纯搬移到同包 CallGroupMesh（1449 → 1346，调用点改走 groupMesh），两处同步收紧。
-        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1346,
+        // 通话 VM 瘦身第四批：ICE 恢复簇（断线宽限/FAILED 重启退避/放弃挂断）纯搬移到同包 CallIceRecovery
+        // （1346 → 1285，resetAttempts/cancel/回调改走 iceRecovery），两处同步收紧。
+        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1285,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
@@ -496,7 +498,8 @@ class ClientArchitectureTest {
             // 通话 VM 瘦身第二批：出站信令发送簇纯搬移到同包 CallSignalingSender（1500 → 1449）。
             // 通话 VM 瘦身第三批：群组通话网格状态簇（成员连接状态/超时重连/确定性 mesh 建边）纯搬移到
             // 同包 CallGroupMesh（1449 → 1346，调用点改走 groupMesh）。
-            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1346,
+            // 通话 VM 瘦身第四批：ICE 恢复簇纯搬移到同包 CallIceRecovery（1346 → 1285）。
+            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 1285,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
