@@ -393,10 +393,10 @@ class ClientArchitectureTest {
         // 薄委托收尾：mergeMessages 转发删除（7 处调用点直调顶层 mergeMessageVersions，
         // 接线改 ::mergeMessageVersions）+ cleanupAttachmentForMessage 搬入
         // ChatDetailFileTransferController（VM 留一行委托），677 → 656。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 656,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 655,
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
         // 按实测值纳入监管（两份 map 一起加）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 898,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
@@ -473,10 +473,10 @@ class ClientArchitectureTest {
             // ChatSessionTeardownController（873 → 677），上限同步收紧（两份 map 一起改）。
             // 薄委托收尾：mergeMessages 转发删除 + cleanupAttachmentForMessage 搬入
             // ChatDetailFileTransferController（677 → 656）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 656,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 655,
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
             // 按实测值纳入监管（两份 map 一起加）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 898,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
@@ -1187,12 +1187,14 @@ class ClientArchitectureTest {
         // U02 延伸：会话详情的单例/持久层直连收进非 ui 的 chatdetail/ChatDetailAccess
         // （会话代际/事件发射/活跃会话时间戳/附件定稿流/后台作用域/outbox/mutation 事件）
         // 与 ChatDetailDataAccess（markIncomingThrough/markAllRead/传输观察/未读数/DAO），
-        // 19 → 1（剩余 1 是共享 `app` 属性的转型声明行——ChatDetailDeps/AI 扩展仍在用它，
-        // 待 deps 装配批次一并收口）。
-        "screen/chatdetail/ChatDetailViewModel.kt" to 1,
+        // 19 → 0：共享 `app` 属性删除——ChatDetailDeps 的 18 处 `host.app.*`
+        // 改走非 ui 的访问口（ChatDetailAccess / ChatDetailDataAccess /
+        // SecretChatCapabilities / NotificationCenterAccess / GroupDetailAccess /
+        // SignalProtocolAccess），AI 扩展只拿 Context 的改走 `getApplication()`，
+        // 条目删除。
         // 2026-09-28：ChatDetailDeps 的 17 处 app.database 直连全部改走非 ui 的
         // chatdetail/ChatDetailDataAccess（DAI/仓库/传输源/可见性写回），条目删除；
-        // 剩余两文件都是「会话拥有者」性质（LoginViewModel 建会话、ChatDetailViewModel 剩 1 处共享 app 属性转型）。
+        // 仅剩 LoginViewModel 是「会话拥有者」性质（建会话）；ChatDetailViewModel 的共享 app 属性已删除。
         // 群详情 VM 收口：`import MaodouchatApp` + `application as MaodouchatApp` 删除——
         // 实时分发器走 AppRuntime.realtimeDispatcherOrNull（非 app 实例 → 不订阅）、
         // userRepository 走 AppRepositories.users（同一 UserDao）、密聊能力走

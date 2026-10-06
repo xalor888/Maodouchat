@@ -121,4 +121,11 @@ object AttachmentTransferSummaryRepository {
         }
         return cancelled
     }
+
+    // ui 不再持有 app 符号时的入口：与单例同一实例，行为与上面两函数一致。
+    suspend fun retryAll(chatIdFilter: String? = null): Int =
+        retryAll(MaodouchatApp.instance, chatIdFilter)
+
+    suspend fun cancelAll(chatIdFilter: String? = null): Int =
+        cancelAll(MaodouchatApp.instance, chatIdFilter)
 }

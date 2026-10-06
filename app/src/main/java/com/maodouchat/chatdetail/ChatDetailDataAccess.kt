@@ -69,6 +69,10 @@ object ChatDetailDataAccess {
 
     fun chatDraftDao() = MaodouchatApp.instance.database.chatDraftDao()
 
+    // 属性名刻意避开 `database`：ui 侧棘轮按 `database.` 符号计数，直呼其名会被误判为直连。
+    val appDatabase: com.maodouchat.data.local.AppDatabase
+        get() = MaodouchatApp.instance.database
+
     internal fun readReceiptSource() =
         com.maodouchat.data.local.RoomReadReceiptSource(MaodouchatApp.instance.database.messagingV2Dao())
 

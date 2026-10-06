@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.ai.AiPromptSafetyPolicy
 import com.maodouchat.data.model.Message
@@ -22,6 +23,7 @@ import kotlinx.coroutines.withContext
  * 抽出理由：原文件 711 行，这两块与「请求 / 流式 / 取消 / 建议」无耦合。
  */
 internal fun ChatDetailViewModel.maybeGenerateUnreadSummary(messages: List<Message>) {
+    val app = getApplication<Application>()
     val state = _uiState.value
     val unreadCount = state.chat?.unreadCount ?: 0
     if (unreadCount <= 0 || messages.isEmpty() || token.isBlank()) return

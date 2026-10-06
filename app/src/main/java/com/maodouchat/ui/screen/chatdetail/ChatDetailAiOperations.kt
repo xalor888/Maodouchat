@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.ai.AiRetryPolicy
@@ -26,6 +27,7 @@ import kotlinx.coroutines.sync.withLock
  */
 
     internal fun ChatDetailViewModel.loadAiSettings() {
+        val app = getApplication<Application>()
         val ownerUserId = currentUserId
         if (token.isBlank() || ownerUserId.isBlank()) {
             aiSettingsLoaded = true
@@ -50,6 +52,7 @@ import kotlinx.coroutines.sync.withLock
     }
 
     internal fun ChatDetailViewModel.runAiWithConsent(action: PendingAiAction) {
+        val app = getApplication<Application>()
         if (com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)) {
             executeAiAction(action)
         } else {
@@ -110,6 +113,7 @@ import kotlinx.coroutines.sync.withLock
     }
 
     fun ChatDetailViewModel.retryAiOperation(operationId: String) {
+        val app = getApplication<Application>()
         if (aiOperationJobs.containsKey(operationId)) return
         aiAutoRetryJobs.remove(operationId)?.cancel()
         aiAutoRetryAt.remove(operationId)
@@ -165,6 +169,7 @@ import kotlinx.coroutines.sync.withLock
     }
 
     internal suspend fun ChatDetailViewModel.pumpAiOperationQueue() {
+        val app = getApplication<Application>()
         aiOperationQueueMutex.withLock {
             val ownerUserId = com.maodouchat.session.CurrentSession.snapshot().userId?.takeIf(String::isNotBlank) ?: return
             if (!_uiState.value.aiEnabled || !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)) return
