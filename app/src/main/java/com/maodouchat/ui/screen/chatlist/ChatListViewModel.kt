@@ -8,8 +8,6 @@ import com.maodouchat.chatlist.AndroidChatListPorts
 import com.maodouchat.chatlist.ChatListPorts
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
-import com.maodouchat.ui.OwnerSessionPolicy
-import com.maodouchat.ui.OwnerSessionSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,12 +49,14 @@ class ChatListViewModel private constructor(
     private val conversationLocalStateCoordinator = ports.conversationLocalStateCoordinator
     private val notificationRepo = ports.notificationCenter
 
+    private val ownerSessionGuard = ChatListOwnerSessionGuard(ports = ports)
+
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
     // 显式类型：断开与 loadCoordinator 的初始化类型互推断（CI 曾报 recursive problem）。
     private val localCleanupCoordinator: ChatListLocalCleanupCoordinator = ChatListLocalCleanupCoordinator(
         scope = viewModelScope,
-        ownerUserId = { currentUserIdStr },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
         localStateCoordinator = conversationLocalStateCoordinator,
         deleteDraftForChat = ports.deleteDraftForChat,
         reloadChats = { loadCoordinator.loadChats(showLoading = false) },
@@ -94,10 +94,10 @@ class ChatListViewModel private constructor(
     private val previewCoordinator = ChatListPreviewCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        currentUserId = { currentUserIdStr },
+        currentUserId = { ownerSessionGuard.currentUserIdStr },
         currentSessionGeneration = ports.sessionGeneration,
-        isOwnerSessionCurrent = { isOwnerSessionCurrent(it) },
-        withOwnerRoomWrite = { session, block -> withOwnerRoomWrite(session, block) },
+        isOwnerSessionCurrent = { ownerSessionGuard.isOwnerSessionCurrent(it) },
+        withOwnerRoomWrite = { session, block -> ownerSessionGuard.withOwnerRoomWrite(session, block) },
         getCachedChat = { chatRepo.getChatById(it) },
         cacheChats = { chatRepo.cacheChats(it) },
         getRecentMessages = { chatId, limit -> messageRepo.getRecentMessages(chatId, limit) },
@@ -115,7 +115,7 @@ class ChatListViewModel private constructor(
         scope = viewModelScope,
         uiState = _uiState,
         deletedChatIds = deletedChatIds,
-        ownerUserId = { currentUserIdStr },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
         getAllChats = { chatRepo.getAllChats() },
         getChatById = { chatRepo.getChatById(it) },
         cacheChats = { chatRepo.cacheChats(it) },
@@ -151,7 +151,7 @@ class ChatListViewModel private constructor(
         uiState = _uiState,
         deletedChatIds = deletedChatIds,
         settingsInFlight = settingsInFlight,
-        ownerUserId = { currentUserIdStr },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
         cacheChats = { chatRepo.cacheChats(it) },
         updateChatSettingsRemote = ports.updateChatSettingsRemote,
         deleteChatRemote = ports.deleteChatRemote,
@@ -193,10 +193,10 @@ class ChatListViewModel private constructor(
         notificationCenter = notificationRepo,
         chatReadEvents = ports.chatReadEvents,
         chatMessageSentEvents = ports.chatMessageSentEvents,
-        ownerUserId = { currentUserIdStr },
-        ownerSession = { ownerSession() },
-        isOwnerSessionCurrent = { isOwnerSessionCurrent(it) },
-        withOwnerRoomWrite = { session, block -> withOwnerRoomWrite(session, block) },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
+        ownerSession = { ownerSessionGuard.ownerSession() },
+        isOwnerSessionCurrent = { ownerSessionGuard.isOwnerSessionCurrent(it) },
+        withOwnerRoomWrite = { session, block -> ownerSessionGuard.withOwnerRoomWrite(session, block) },
         getCachedChat = { chatRepo.getChatById(it) },
         cacheChats = { chatRepo.cacheChats(it) },
         applyRealtimeVisibility = ports.applyRealtimeVisibility,
@@ -222,7 +222,7 @@ class ChatListViewModel private constructor(
     private val missedCallCoordinator = ChatListMissedCallCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        ownerUserId = { currentUserIdStr },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
         markAllRead = { missedRepo.markAllRead() },
         clearAll = { missedRepo.clearAll() },
         deleteCall = { missedRepo.delete(it) },
@@ -233,9 +233,9 @@ class ChatListViewModel private constructor(
     private val archiveSuggestionCoordinator = ChatListArchiveSuggestionCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        ownerUserId = { currentUserIdStr },
-        ownerSession = { ownerSession(it) },
-        isOwnerSessionCurrent = { isOwnerSessionCurrent(it) },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
+        ownerSession = { ownerSessionGuard.ownerSession(it) },
+        isOwnerSessionCurrent = { ownerSessionGuard.isOwnerSessionCurrent(it) },
         loadDismissedIds = ports.loadDismissedArchiveIds,
         addDismissal = ports.addArchiveDismissal,
         refreshSuggestions = ports.refreshArchiveSuggestions,
@@ -245,10 +245,10 @@ class ChatListViewModel private constructor(
     private val unreadBatchCoordinator = ChatListUnreadBatchCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        ownerUserId = { currentUserIdStr },
-        ownerSession = { ownerSession(it) },
-        isOwnerSessionCurrent = { isOwnerSessionCurrent(it) },
-        withOwnerRoomWrite = { session, block -> withOwnerRoomWrite(session, block) },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
+        ownerSession = { ownerSessionGuard.ownerSession(it) },
+        isOwnerSessionCurrent = { ownerSessionGuard.isOwnerSessionCurrent(it) },
+        withOwnerRoomWrite = { session, block -> ownerSessionGuard.withOwnerRoomWrite(session, block) },
         getCachedChat = { chatRepo.getChatById(it) },
         cacheChats = { chatRepo.cacheChats(it) },
         getLatestIncomingMessage = { chatId, owner ->
@@ -267,7 +267,7 @@ class ChatListViewModel private constructor(
     private val localProjectionCoordinator = ChatListLocalProjectionCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
-        ownerUserId = { currentUserIdStr },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
         observeDraftsForOwner = ports.observeDraftsForOwner,
         getRecentMessages = { chatId, limit -> messageRepo.getRecentMessages(chatId, limit) },
         listLockedChatIds = ports.listLockedChatIds,
@@ -277,30 +277,6 @@ class ChatListViewModel private constructor(
         text = { text(it) },
         listScheduled = { conversationScheduleCoordinator.listAllScheduled() },
     )
-
-    private fun ownerSession(ownerUserId: String = currentUserIdStr): OwnerSessionSnapshot =
-        OwnerSessionSnapshot(ownerUserId, ports.sessionGeneration())
-
-    private fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
-        OwnerSessionPolicy.isCurrent(
-            snapshot = session,
-            liveUserId = com.maodouchat.session.CurrentSession.snapshot().userId,
-            liveToken = com.maodouchat.session.CurrentSession.snapshot().token,
-            liveSessionGeneration = ports.sessionGeneration(),
-            purgeInProgress = ports.isPurgeInProgress(),
-        )
-
-    private suspend fun withOwnerRoomWrite(
-        session: OwnerSessionSnapshot,
-        block: suspend () -> Unit,
-    ): Boolean = ports.withRoomTransaction {
-        if (!isOwnerSessionCurrent(session)) {
-            false
-        } else {
-            block()
-            true
-        }
-    }
 
     init {
         folderController.loadFolders()
@@ -347,9 +323,7 @@ class ChatListViewModel private constructor(
 
     fun refreshSecretChats() = localProjectionCoordinator.refreshSecretChats()
 
-    fun clearCreatedSecretChat() {
-        _uiState.update { it.copy(createdSecretChatId = null) }
-    }
+    fun clearCreatedSecretChat() = mutationCoordinator.clearCreatedSecretChat()
 
     fun startSecretChatWithPeer(peerId: String) =
         mutationCoordinator.startSecretChatWithPeer(peerId)
@@ -395,8 +369,6 @@ class ChatListViewModel private constructor(
      */
     fun removeMissedCallLocally(callId: String) =
         missedCallCoordinator.removeMissedCallLocally(callId)
-
-    private val currentUserIdStr: String get() = com.maodouchat.session.CurrentSession.snapshot().userId ?: ""
 
     fun refreshScheduledCounts() = localProjectionCoordinator.refreshScheduledCounts()
 
