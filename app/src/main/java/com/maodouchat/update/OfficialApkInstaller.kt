@@ -24,7 +24,7 @@ object OfficialApkInstaller {
 
     private val client = com.maodouchat.network.HttpClients.largeDownload()
 
-    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
+    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个；异常路径走不到 digest()，取用前先 reset。
     private val sha256Digest: ThreadLocal<MessageDigest> =
         ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
 
@@ -188,6 +188,7 @@ object OfficialApkInstaller {
     }
 
     private fun sha256(file: File): String = sha256Digest.get().let { digest ->
+        digest.reset()
         file.inputStream().use { input ->
             val buffer = ByteArray(64 * 1024)
             while (true) {
