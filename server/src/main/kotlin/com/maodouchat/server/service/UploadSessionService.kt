@@ -42,7 +42,7 @@ class UploadSessionService {
                 (EncryptedAttachments.chatId eq chatId) and
                 (EncryptedAttachments.messageId eq pendingMessageId) and
                 (EncryptedAttachments.status neq AttachmentStatus.COMMITTED.dbValue) and
-                unexpiredAttachments()
+                unexpiredAttachments(now)
         }.sumOf { it[EncryptedAttachments.cipherSize] }
         activeBytesForUploaderInTransaction(uploaderId) - replaceableBytes + cipherSize <= maxUserBytes
     }
@@ -218,7 +218,7 @@ class UploadSessionService {
         row[EncryptedAttachments.expiresAt] == null || row[EncryptedAttachments.expiresAt]!! > now
 
     // SQL 侧同口径谓词：配额计算的 where 里共用，别跟内存侧判定漂移。
-    private fun SqlExpressionBuilder.unexpiredAttachments(): Op<Boolean> =
+    private fun SqlExpressionBuilder.unexpiredAttachments(now: Long): Op<Boolean> =
         (EncryptedAttachments.expiresAt.isNull()) or (EncryptedAttachments.expiresAt greater now)
 
     private fun activeBytesForUploaderInTransaction(userId: String): Long {
@@ -228,7 +228,7 @@ class UploadSessionService {
             .where {
                 (EncryptedAttachments.uploaderId eq userId) and
                     // 排除已过期但尚未被定时任务清理的未提交附件，防止配额虚高
-                    unexpiredAttachments()
+                    unexpiredAttachments(now)
             }
             .sumOf { it[EncryptedAttachments.cipherSize] }
     }
