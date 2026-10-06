@@ -20,6 +20,8 @@ import javax.crypto.spec.SecretKeySpec
  */
 object SealedSenderCertificateService {
     private const val VERSION = "v1"
+    // Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
+    private val hmacSha256Mac = ThreadLocal.withInitial { Mac.getInstance("HmacSHA256") }
     private const val DEFAULT_TTL_MS = 24L * 60L * 60L * 1000L
     private const val MAX_TTL_MS = 7L * 24L * 60L * 60L * 1000L
 
@@ -75,7 +77,7 @@ object SealedSenderCertificateService {
         // 不再与 access token 共用 JWT_SECRET——否则换密钥等于把所有登录态一起作废。
         val secret = ServerConfig.sealedSenderSecret.ifBlank { return null }
         return try {
-            val mac = Mac.getInstance("HmacSHA256")
+            val mac = hmacSha256Mac.get().apply { reset() }
             mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
             val payload = "$VERSION|$userId|$deviceId|$expiresAt"
             mac.doFinal(payload.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
