@@ -111,6 +111,14 @@ internal class ChatListLocalProjectionCoordinator(
         uiState.update { it.copy(scheduledByChat = counts) }
     }
 
+    fun onTabSelected(tab: Int) { uiState.update { it.copy(selectedTab = tab) } }
+
+    fun setShowArchived(show: Boolean) { uiState.update { it.copy(showArchived = show) } }
+
+    fun clearError() { uiState.update { it.copy(errorMessage = null) } }
+
+    fun clearOwnerTransferRequired() { uiState.update { it.copy(ownerTransferRequiredChatId = null) } }
+
     fun onSearchQueryChange(query: String) {
         // 8.52 UX：列表搜索框长度上限（对齐其它搜索框，防超长 LIKE 查询）
         val clipped = if (query.length > searchMaxLength) query.take(searchMaxLength) else query
