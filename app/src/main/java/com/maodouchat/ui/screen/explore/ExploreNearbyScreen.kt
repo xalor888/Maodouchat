@@ -235,7 +235,7 @@ fun NearbyScreen(
                     ) {
                         NearbyPolicy.RADIUS_OPTIONS_KM.forEach { option ->
                             val selected = kotlin.math.abs(state.radiusKm - option) < 0.01
-                            val optionLabel = NumberFormat.getNumberInstance().apply {
+                            val optionLabel = nearbyRadiusFormat.get().apply {
                                 maximumFractionDigits = if (option % 1.0 == 0.0) 0 else 1
                             }.format(option)
                             FilterChip(
@@ -422,6 +422,18 @@ private fun formatNearbyDistance(distanceMeters: Int): String {
     return if (arg == null) stringResource(res) else stringResource(res, arg)
 }
 
+// NumberFormat 非线程安全，ThreadLocal 每线程复用一个。
+// 半径选项的小数位随选项变化，每次调用前重设；距离文案固定一位小数。
+private val nearbyRadiusFormat: ThreadLocal<NumberFormat> =
+    ThreadLocal.withInitial { NumberFormat.getNumberInstance() }
+private val nearbyDistanceFormat: ThreadLocal<NumberFormat> =
+    ThreadLocal.withInitial {
+        NumberFormat.getNumberInstance().apply {
+            minimumFractionDigits = 1
+            maximumFractionDigits = 1
+        }
+    }
+
 /**
  * 距离 → (文案资源, 实参)（G163 从 `formatNearbyDistance` 抽出的纯判定）。
  *
@@ -437,11 +449,7 @@ internal fun nearbyDistanceLabel(distanceMeters: Int): Pair<Int, Any?> =
     if (distanceMeters < 1_000) {
         R.string.explore_nearby_distance_meters to distanceMeters.coerceAtLeast(100)
     } else {
-        val formatter = NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 1
-            maximumFractionDigits = 1
-        }
-        R.string.explore_nearby_distance_km to formatter.format(distanceMeters / 1_000.0)
+        R.string.explore_nearby_distance_km to nearbyDistanceFormat.get().format(distanceMeters / 1_000.0)
     }
 
 data class NearbyPerson(val user: User, val distanceMeters: Int, val locationUpdatedAt: Long)
