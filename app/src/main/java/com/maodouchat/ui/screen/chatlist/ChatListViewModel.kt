@@ -8,21 +8,14 @@ import com.maodouchat.chatlist.AndroidChatListPorts
 import com.maodouchat.chatlist.ChatListPorts
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
-import com.maodouchat.security.SecureSessionAccess
-import com.maodouchat.security.SessionUiResetEvent
 import com.maodouchat.ui.OwnerSessionPolicy
 import com.maodouchat.ui.OwnerSessionSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.maodouchat.notification.NotificationCenterType
 
 /**
  * G319c：主构造器恢复为 `private`。
@@ -75,6 +68,15 @@ class ChatListViewModel private constructor(
 
     private val _uiState = MutableStateFlow(ChatListUiState())
     val uiState: StateFlow<ChatListUiState> = _uiState.asStateFlow()
+
+    private val badgeCoordinator = ChatListBadgeCoordinator(
+        scope = viewModelScope,
+        uiState = _uiState,
+        notificationCenter = notificationRepo,
+    )
+
+    val notificationCenterUnread: StateFlow<Int> = badgeCoordinator.notificationCenterUnread
+    val exploreBadgeCount: StateFlow<Int> = badgeCoordinator.exploreBadgeCount
 
     private val folderController = ChatFolderController(
         context = application,
@@ -300,15 +302,6 @@ class ChatListViewModel private constructor(
         }
     }
 
-    val notificationCenterUnread: StateFlow<Int> = notificationRepo.items
-        .map { items -> items.count { !it.read } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), notificationRepo.unreadCount())
-
-    // 1.112：Explore 标签「动态互动」未读角标（仅 POST_INTERACTION 未读）
-    val exploreBadgeCount: StateFlow<Int> = notificationRepo.items
-        .map { items -> items.count { !it.read && it.type == NotificationCenterType.POST_INTERACTION } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
-
     init {
         folderController.loadFolders()
         folderController.loadUnreadPriority()
@@ -328,37 +321,8 @@ class ChatListViewModel private constructor(
             delay(3_000L)
             archiveSuggestionCoordinator.loadArchiveSuggestions()
         }
-        // 1.55 事件化：登出/切号清理后 SecureSessionManager 经 uiResetEvents 发归零命令
-        //（security 层不再直写本 ui 包的 UnreadBadgeStore 单例）；归零幂等，replay 保证
-        // 清理时本 VM 尚未存活也能在重建后收到。
-        viewModelScope.launch {
-            SecureSessionAccess.manager.uiResetEvents.collect { event ->
-                if (event == SessionUiResetEvent.UNREAD_BADGE) {
-                    UnreadBadgeStore.totalUnread.value = 0
-                }
-            }
-        }
-        // 1.54：底部导航未读角标——汇总未读数推送到 UnreadBadgeStore
-        viewModelScope.launch {
-            // 8.49 修复：与 unreadChatCount/文件夹角标口径统一，排除已归档会话——
-            // 否则归档会话来消息时 Tab 角标上涨，默认列表却看不到对应未读
-            _uiState.map { state -> state.chats.filter { !it.archived }.sumOf { it.unreadCount } }
-                .distinctUntilChanged()
-                .collect { UnreadBadgeStore.totalUnread.value = it }
-        }
-        // 1.112：Explore 标签「动态互动」未读角标
-        viewModelScope.launch {
-            notificationRepo.items
-                .map { items -> items.count { !it.read && it.type == NotificationCenterType.POST_INTERACTION } }
-                .distinctUntilChanged()
-                .collect { ExploreBadgeStore.count.value = it }
-        }
-        // 1.103：会话列表「正在输入」presence（3s 过期由 store 维护）
-        viewModelScope.launch {
-            com.maodouchat.util.TypingPresenceStore.typingByChat.collect { typing ->
-                _uiState.update { it.copy(typingByChat = typing) }
-            }
-        }
+        // 角标订阅（未读汇总/Explore/typing presence）与会话重建后归零
+        badgeCoordinator.start()
     }
 
     /** 重算智能归档建议（纯本地 SQLCipher 打分，无服务端调用）。 */
