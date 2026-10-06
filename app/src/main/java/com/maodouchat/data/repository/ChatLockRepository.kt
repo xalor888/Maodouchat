@@ -29,6 +29,9 @@ class ChatLockRepository(private val dao: ChatLockDao) {
     private companion object {
         const val MAX_FAILURES = 5
         const val LOCKOUT_MS = 30_000L
+        // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
+        val sha256Digest: ThreadLocal<MessageDigest> =
+            ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
     }
 
     suspend fun get(chatId: String): ChatLockEntity? = dao.get(chatId)
@@ -119,7 +122,7 @@ class ChatLockRepository(private val dao: ChatLockDao) {
     }
 
     private fun sha256(input: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
+        val md = sha256Digest.get()
         val bytes = md.digest(input.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }

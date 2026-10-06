@@ -25,6 +25,10 @@ import java.security.MessageDigest
  */
 object QuickReplyPolicy {
 
+    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
+    private val sha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
     private const val PREFS = "quick_reply"
     private const val KEY_ENABLED = "enabled"
     private const val DEDUPE_WINDOW_MS = 5000L   // 去抖窗口：同会话同文本 5s 内只发一次
@@ -122,7 +126,7 @@ object QuickReplyPolicy {
         raw?.trim().orEmpty().let { if (it.length > ConversationWidgetContract.MAX_REPLY_LENGTH) it.take(ConversationWidgetContract.MAX_REPLY_LENGTH) else it }
 
     fun dedupeKey(ownerUserId: String, chatId: String, text: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256Digest.get()
             .digest(text.toByteArray(Charsets.UTF_8))
             .take(8)
             .joinToString("") { "%02x".format(it) }

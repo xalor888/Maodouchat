@@ -448,9 +448,13 @@ private suspend fun downloadEncryptedAttachmentPass(
 
 private fun File.sha256Hex(): String = sha256Hex(0L, length())
 
+// MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
+private val mediaApiSha256Digest: ThreadLocal<MessageDigest> =
+    ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
 private fun File.sha256Hex(offset: Long, length: Long): String {
     require(offset >= 0L && length >= 0L && offset + length <= this.length())
-    val digest = MessageDigest.getInstance("SHA-256")
+    val digest = mediaApiSha256Digest.get()
     RandomAccessFile(this, "r").use { input ->
         input.seek(offset)
         var remaining = length

@@ -20,6 +20,10 @@ object PinSecurityPolicy {
     // SecureRandom 线程安全，每次生成 salt 都 new 会反复播种，对象级复用。
     private val secureRandom = SecureRandom()
 
+    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
+    private val sha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
     const val MIN_PIN_LENGTH = 4
     const val MAX_PIN_LENGTH = 12
 
@@ -50,7 +54,7 @@ object PinSecurityPolicy {
     }
 
     fun hashSha256Legacy(pin: String, salt: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
+        val md = sha256Digest.get()
         val bytes = md.digest((pin + salt).toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }

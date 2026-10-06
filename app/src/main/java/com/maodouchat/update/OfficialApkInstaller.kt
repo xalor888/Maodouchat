@@ -24,6 +24,10 @@ object OfficialApkInstaller {
 
     private val client = com.maodouchat.network.HttpClients.largeDownload()
 
+    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
+    private val sha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
     fun canOfferHttps(apkUrl: String): Boolean =
         AppUpdatePolicy.isOfficialApkUrl(apkUrl)
 
@@ -177,13 +181,13 @@ object OfficialApkInstaller {
             packageInfo.signatures.orEmpty()
         }
         return signatures.map { signature ->
-            MessageDigest.getInstance("SHA-256")
+            sha256Digest.get()
                 .digest(signature.toByteArray())
                 .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xFF) }
         }.toSet()
     }
 
-    private fun sha256(file: File): String = MessageDigest.getInstance("SHA-256").let { digest ->
+    private fun sha256(file: File): String = sha256Digest.get().let { digest ->
         file.inputStream().use { input ->
             val buffer = ByteArray(64 * 1024)
             while (true) {
