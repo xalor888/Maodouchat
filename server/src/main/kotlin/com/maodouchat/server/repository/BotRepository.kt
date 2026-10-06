@@ -56,6 +56,8 @@ object BotRepository {
     private val botCommandPattern = Regex("^[a-z][a-z0-9_]{0,31}$")
     private val ipv4HexLiteralPattern = Regex("""^0x[0-9a-f]+$""")
     private val ipv4DigitsPattern = Regex("""\d+""")
+    // SecureRandom 线程安全，每次生成 token 都 new 会反复播种，对象级复用。
+    private val secureRandom = SecureRandom()
 
     @Serializable
     data class BotDto(
@@ -678,7 +680,7 @@ object BotRepository {
 
     private fun generateToken(): String {
         val bytes = ByteArray(32)
-        SecureRandom().nextBytes(bytes)
+        secureRandom.nextBytes(bytes)
         return "mdc_" + bytes.joinToString("") { "%02x".format(it) }
     }
 
