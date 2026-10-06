@@ -69,6 +69,12 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val callSessionGate = CallSessionGate()
     private val callSessionMachine = com.maodouchat.call.CallSessionMachine()
     private val callSystemIntegration = CallSystemIntegration(application)
+    private val foregroundService = CallForegroundServiceController(
+        systemIntegration = callSystemIntegration,
+        currentState = { _uiState.value },
+        activeCallId = { activeCallId },
+        text = { id, args -> text(id, *args) },
+    )
     private var activeCallSession: Long = 0L
     private var activeDomainSession: Long = 0L
     private var activeGroupId: String = ""
@@ -79,6 +85,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private var activeGroupMemberIds: Set<String> = emptySet()
     private val signalingIdempotency = CallSignalingIdempotencyStore()
     private val outboundSignalingCursor = CallSignalingOutboundCursor()
+    private val hangUpSender = CallHangUpSender(outboundSignalingCursor)
     /** Per sender last accepted (epoch, sequence) for the active call. */
     private val inboundSignalingCursors = mutableMapOf<String, CallSignalingOrderPolicy.Cursor>()
     // 8.55：通话开始时的账号快照——writeCallLog 用其作 expectedUserId 守卫，
@@ -91,22 +98,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private companion object {
         const val RINGING_TIMEOUT_MS = 30_000L
         /** TURN 短期凭据 TTL 1h：每 30 分钟刷新一次，留足余量（8.35）。 */
-    }
-
-    /**
-     * 启动前台服务，确保通话期间进程不被轻易回收
-     */
-    private fun startForegroundService() {
-        val state = _uiState.value
-        callSystemIntegration.startCallForeground(
-            contactName = state.contactName.ifBlank { text(R.string.call_unknown_caller) },
-            isVideo = state.callType == CallType.VIDEO,
-            callId = activeCallId,
-        )
-    }
-
-    private fun stopForegroundService() {
-        callSystemIntegration.stopCallForeground()
     }
 
     private val timersController by lazy {
@@ -367,7 +358,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 errorMessage = null
             )
         }
-        startForegroundService()
+        foregroundService.start()
         // 8.46 修复：振铃超时改到 offer 发出后启动（此前在 createWebRtcManager 之前——
         // 慢网下载 ~10MB 原生库 + 拉取 TURN 可能 >30s，超时在对端还没开始振铃时就触发挂断）
         writeCallLog(com.maodouchat.call.CallLogStore.State.MISSED)
@@ -538,7 +529,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 errorMessage = null
             )
         }
-        startForegroundService()
+        foregroundService.start()
         val session = activeCallSession
 
         viewModelScope.launch {
@@ -802,7 +793,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         groupMesh.loadGroupParticipantProfiles()
         // 8.46 修复：群呼振铃超时改到首条 offer 发出后启动（与 1:1 呼出一致，
         // 避免慢网原生库下载/ICE 拉取超过 30s 时在对端还没开始振铃就挂断）
-        startForegroundService()
+        foregroundService.start()
         viewModelScope.launch {
             try {
                 val manager = createWebRtcManager()
@@ -1140,7 +1131,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             val hangupMembers = meshGroupMemberIds
             val targets = if (_uiState.value.isGroupCall) activeGroupMemberIds else setOf(contactId)
             targets.filter(String::isNotBlank).forEach { targetId ->
-                sendHangUpDurable(
+                hangUpSender.sendHangUpDurable(
                     toUserId = targetId,
                     callId = hangupCallId,
                     groupId = hangupGroupId,
@@ -1173,7 +1164,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 errorMessage = errorMessage ?: it.errorMessage
             )
         }
-        stopForegroundService()
+        foregroundService.stop()
     }
 
     /**
@@ -1181,59 +1172,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
      * 不阻塞 UI，主观评价值 GOOD/FAIR/POOR。
      */
 
-    /**
-     * hang-up 走 applicationScope + REST 优先，避免 ViewModel 销毁后 viewModelScope 被取消导致对端一直响铃。
-     */
-    private fun sendHangUpDurable(
-        toUserId: String,
-        callId: String,
-        groupId: String,
-        groupMembers: List<String>
-    ) {
-        if (toUserId.isBlank()) return
-        // Capture owner at hang-up request time: after account switch, do not hang up under new session.
-        val hangUpOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (hangUpOwnerUserId.isBlank()) return
-        val ticket = outboundSignalingCursor.next(callId, "hang-up")
-        AppRuntime.applicationScope.launch {
-            // 挂断必须尽量送达：进程/协程取消时仍跑 REST+WS，避免对端幽灵响铃
-            withContext(kotlinx.coroutines.NonCancellable) {
-                // Same owner + live token only; never hang-up under a switched account.
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = hangUpOwnerUserId)) {
-                    return@withContext
-                }
-                // 启动时再读一次会话令牌（可能刚 refresh，比上面捕获的更新）；
-                // hangUp 内部 ApiService 仍会 401 重试
-                val authToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
-                if (authToken.isBlank()) return@withContext
-                // 走 /api/signaling/hangup：存 hang-up 并 clearForCallExcluding，避免离线仍响铃
-                try {
-                    WebRTCSignaling.hangUp(
-                        authToken, toUserId, callId, groupId, groupMembers,
-                        ticket.epoch, ticket.sequence, ticket.idempotencyKey,
-                    )
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    android.util.Log.w("CallViewModel", "durable hang-up REST failed", error)
-                }
-                // REST 失败或 WS 更快送达时仍尽力推一条（仍要求同一 owner）
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = hangUpOwnerUserId)) {
-                    return@withContext
-                }
-                try {
-                    WebRTCSignaling.sendViaWebSocket(
-                        toUserId, "hang-up", "", callId, groupId, groupMembers, false,
-                        ticket.epoch, ticket.sequence, ticket.idempotencyKey,
-                    )
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    android.util.Log.w("CallViewModel", "durable hang-up WS failed", error)
-                }
-            }
-        }
-    }
 
     override fun onCleared() {
         // 仍在通话中则必须通知对端；hang-up 用 applicationScope，不依赖即将取消的 viewModelScope
@@ -1245,8 +1183,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         ringingTimeout.cancel()
         iceRecovery.cancel()
         // 8.46 修复：无条件停止前台服务——若已有挂断在途（endingCall=true），endCall 开头
-        // 直接 return，末尾的 stopForegroundService() 被跳过，通话前台通知/服务残留到系统回收。
-        stopForegroundService()
+        // 直接 return，末尾的 foregroundService.stop() 被跳过，通话前台通知/服务残留到系统回收。
+        foregroundService.stop()
         endCall(notifyPeer = shouldNotifyPeer)
         super.onCleared()
     }
