@@ -15,6 +15,14 @@ object ChatMarkdown {
     private val MD_LINK_REGEX = Regex("""\[[^\]]+\]\([^\)]+\)""")
     private val MD_IMAGE_REGEX = Regex("""!\[[^\]]*\]\([^\)]+\)""")
     private val MD_ORDERED_LIST_ML_REGEX = Regex("""^\d+\.\s""", RegexOption.MULTILINE)
+    // toPlainText 的逐行 strip 模式：每次调用重复编译，提到对象级复用。
+    private val STRIP_IMAGE_REGEX = Regex("!\\[([^\\]]*)\\]\\([^)]*\\)")
+    private val STRIP_LINK_REGEX = Regex("\\[([^\\]]+)\\]\\([^)]*\\)")
+    private val STRIP_BOLD_STAR_REGEX = Regex("\\*\\*(.+?)\\*\\*")
+    private val STRIP_BOLD_UNDER_REGEX = Regex("__(.+?)__")
+    private val STRIP_STRIKE_REGEX = Regex("~~(.+?)~~")
+    private val STRIP_CODE_REGEX = Regex("`([^`]+)`")
+    private val STRIP_LINE_START_REGEX = Regex("(?m)^\\s{0,3}(#{1,6}[ \\t]+|> ?|[-+*] ?|\\d+\\. ?|```+)")
 
     /** 1.18：剥离名片标记行 `[contactUser:xxx]`（含前一换行），会话列表预览等不显示裸标记。 */
     private val CONTACT_CARD_MARKER_RE = Regex("\\n?\\[contactUser:[^\\]]+\\]")
@@ -130,16 +138,16 @@ object ChatMarkdown {
         var text = markdown
         // [t](url) -> t（9.230：必须先于行首语法剥离——否则 `- [t](url)` 的 `- ` 前缀
         // 被先行删去后无碍，但图片 ![alt](url) 的 ! 残留及顺序交换引发的链接断裂已规避）
-        text = text.replace(Regex("!\\[([^\\]]*)\\]\\([^)]*\\)"), "$1")
-        text = text.replace(Regex("\\[([^\\]]+)\\]\\([^)]*\\)"), "$1")
+        text = text.replace(STRIP_IMAGE_REGEX, "$1")
+        text = text.replace(STRIP_LINK_REGEX, "$1")
         // 9.230：内联语法必须先于行首剥离——行首规则中的 ```+ 会吞掉行内代码的
         // 首个反引号，导致孤儿反引号残留进复制/分享文本
-        text = text.replace(Regex("\\*\\*(.+?)\\*\\*"), "$1")
-        text = text.replace(Regex("__(.+?)__"), "$1")
-        text = text.replace(Regex("~~(.+?)~~"), "$1")
-        text = text.replace(Regex("`([^`]+)`"), "$1")
+        text = text.replace(STRIP_BOLD_STAR_REGEX, "$1")
+        text = text.replace(STRIP_BOLD_UNDER_REGEX, "$1")
+        text = text.replace(STRIP_STRIKE_REGEX, "$1")
+        text = text.replace(STRIP_CODE_REGEX, "$1")
         // 行首语法：标题/引用/无序/有序列表/代码围栏
-        text = text.replace(Regex("(?m)^\\s{0,3}(#{1,6}[ \\t]+|> ?|[-+*] ?|\\d+\\. ?|```+)"), "")
+        text = text.replace(STRIP_LINE_START_REGEX, "")
         return text.trim()
     }
 }

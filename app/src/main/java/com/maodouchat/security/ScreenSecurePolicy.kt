@@ -8,6 +8,8 @@ package com.maodouchat.security
  * - 水印取证页：含可能敏感的泄露截图，始终按聊天表面处理（配合全局开关）
  */
 object ScreenSecurePolicy {
+    // 路由模板占位符：每次调用重复编译正则，提到对象级复用。
+    private val routePlaceholderRegex = Regex("\\{([^}]+)\\}")
     fun shouldSecureWindow(
         appLockShowing: Boolean,
         globalEnabled: Boolean,
@@ -85,7 +87,7 @@ object ScreenSecurePolicy {
      */
     fun fillRoutePattern(pattern: String?, arguments: Map<String, String?>): String? {
         if (pattern.isNullOrBlank()) return pattern
-        return pattern.replace(Regex("\\{([^}]+)\\}")) { match ->
+        return pattern.replace(routePlaceholderRegex) { match ->
             val key = match.groupValues[1]
             val value = arguments[key]
             if (value.isNullOrBlank()) match.value else value

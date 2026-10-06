@@ -24,6 +24,11 @@ object LinkPreviewPolicy {
     )
 
     private val ALLOWED_WEB_PORTS = setOf(80, 443, 8080, 8443)
+    // 内网地址/标题抓取用的模式：每次调用重复编译，提到对象级复用。
+    private val IPV4_HEX_OR_DECIMAL_REGEX = Regex("""^(0x[0-9a-fA-F]+|\d+)$""")
+    private val IPV4_HEX_OR_DECIMAL_LABEL_REGEX = Regex("""(?i)^(0x[0-9a-fA-F]+|\d+)$""")
+    private val WHITESPACE_COLLAPSE_REGEX = Regex("\\s+")
+    private val TITLE_TAG_PATTERN: Pattern = Pattern.compile("(?is)<title[^>]*>(.*?)</title>")
 
     /** 取正文中第一个 http(s)/www URL，规范化 scheme。 */
     fun firstHttpUrl(text: String): String? {
@@ -75,11 +80,11 @@ object LinkPreviewPolicy {
             }
 
             // 拒绝单个整数或十六进制字面量（例如 2130706433 或 0x7f000001 即 127.0.0.1）
-            if (host.matches(Regex("""^(0x[0-9a-fA-F]+|\d+)$"""))) return null
+            if (host.matches(IPV4_HEX_OR_DECIMAL_REGEX)) return null
 
             // 检查带点分段的数值/十六进制/八进制混合变体（例如 127.1, 127.0.0.0x1, 0x7f.0.0.1, 0177.0.0.1）
             val parts = host.split(".")
-            val isNumericOrHexLabels = parts.all { it.matches(Regex("""(?i)^(0x[0-9a-fA-F]+|\d+)$""")) }
+            val isNumericOrHexLabels = parts.all { it.matches(IPV4_HEX_OR_DECIMAL_LABEL_REGEX) }
             if (isNumericOrHexLabels) {
                 // 必须严格为 4 段十进制，不能包含 0x，不能有前导 0（八进制形式）
                 if (parts.size != 4) return null
@@ -218,7 +223,7 @@ object LinkPreviewPolicy {
     }
 
     private fun titleTag(head: String): String? {
-        val m = Pattern.compile("(?is)<title[^>]*>(.*?)</title>").matcher(head)
+        val m = TITLE_TAG_PATTERN.matcher(head)
         if (!m.find()) return null
         return m.group(1)
     }
@@ -226,7 +231,7 @@ object LinkPreviewPolicy {
     private fun cleanText(raw: String?): String? {
         if (raw.isNullOrBlank()) return null
         return raw
-            .replace(Regex("\\s+"), " ")
+            .replace(WHITESPACE_COLLAPSE_REGEX, " ")
             .replace("&amp;", "&")
             .replace("&lt;", "<")
             .replace("&gt;", ">")

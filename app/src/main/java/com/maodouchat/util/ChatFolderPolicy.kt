@@ -14,6 +14,8 @@ data class ChatFolder(
 )
 
 object ChatFolderPolicy {
+    // 文件夹名空白折叠：每次调用重复编译正则，提到对象级复用。
+    private val folderNameWhitespaceRegex = Regex("\\s+")
     const val MAX_FOLDERS = 28
     const val MAX_NAME_LEN = 48
     const val ALL_ID = "all"
@@ -35,7 +37,7 @@ object ChatFolderPolicy {
         unreadCount > 0 || markedUnread
 
     fun normalizeName(raw: String?): String =
-        raw.orEmpty().trim().replace(Regex("\\s+"), " ").take(MAX_NAME_LEN)
+        raw.orEmpty().trim().replace(folderNameWhitespaceRegex, " ").take(MAX_NAME_LEN)
 
     fun canCreateMore(existingCount: Int): Boolean = existingCount < MAX_FOLDERS
 

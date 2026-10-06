@@ -17,6 +17,8 @@ data class SearchSnippet(
 )
 
 object GlobalSearchTextHighlight {
+    // 高亮片段空白折叠：每次调用重复编译正则，提到对象级复用。
+    private val snippetWhitespaceRegex = Regex("\\s+")
     /**
      * Finds non-overlapping case-insensitive spans for the full query and its whitespace tokens.
      * Longer matches win; later equal-length spans keep earlier ones.
@@ -60,7 +62,7 @@ object GlobalSearchTextHighlight {
         query: String,
         maxChars: Int = DEFAULT_SNIPPET_CHARS
     ): SearchSnippet {
-        val compact = fullText.replace('\n', ' ').replace(Regex("\\s+"), " ").trim()
+        val compact = fullText.replace('\n', ' ').replace(snippetWhitespaceRegex, " ").trim()
         if (compact.isEmpty()) return SearchSnippet("", emptyList())
         if (maxChars <= 0) return SearchSnippet(compact, findHighlightSpans(compact, query))
 

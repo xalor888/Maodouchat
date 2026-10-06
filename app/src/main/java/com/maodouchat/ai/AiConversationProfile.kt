@@ -28,6 +28,8 @@ import kotlinx.serialization.json.Json
  * - 需已同意 AI 处理 + 本地画像开关（默认开）。
  */
 object AiConversationProfile {
+    // 画像关键词切分：每次调用重复编译正则，提到对象级复用。
+    private val profileWordSplitRegex = Regex("[^a-z0-9]+")
 
     /** 本地画像开关（与 AI 处理同意独立，默认开，纯本机）。 */
     fun isAllowed(context: Context): Boolean =
@@ -178,7 +180,7 @@ object AiConversationProfile {
                 }
             }
         }
-        cleaned.split(Regex("[^a-z0-9]+")).forEach { word ->
+        cleaned.split(profileWordSplitRegex).forEach { word ->
             if (word.length in 3..20 && STOP_WORDS.none { it == word }) {
                 counts[word] = (counts[word] ?: 0) + 1
             }
