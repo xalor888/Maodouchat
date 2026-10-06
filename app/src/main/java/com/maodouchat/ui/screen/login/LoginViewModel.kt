@@ -5,9 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.data.repository.AuthNetworkRepository
 import com.maodouchat.data.repository.SessionNetworkRepository
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ai.AiTaskReminderScheduler
+import com.maodouchat.login.LoginAccess
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.toUserFacingMessage
 import com.maodouchat.push.PushRegistrationManager
@@ -43,7 +43,6 @@ data class LoginUiState(
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tokenManager = TokenManager.getInstance(application)
-    private val app = application as MaodouchatApp
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -83,10 +82,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val localCryptoReady = try {
                     // Always give a locally-ready but unpublished store one upload-only retry.
-                    if (!app.signalProtocol.isInitializedFor(userId)) {
-                        app.signalProtocol.initialize(token, userId)
+                    if (!LoginAccess.signalProtocol.isInitializedFor(userId)) {
+                        LoginAccess.signalProtocol.initialize(token, userId)
                     }
-                    app.signalProtocol.isLocalStoreReadyFor(userId)
+                    LoginAccess.signalProtocol.isLocalStoreReadyFor(userId)
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     throw error
                 } catch (error: Exception) {
@@ -331,7 +330,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             }
                             return@launch
                         }
-                        app.secureSessionManager.purgeIfAccountChanged(auth.userId)
+                        LoginAccess.secureSessionManager.purgeIfAccountChanged(auth.userId)
                         // Token 持久化失败 = 下次冷启动丢失登录态，直接暴露给用户
                         // 8.49：saveAuthSession 内部对 EncryptedSharedPreferences commit()（同步
                         // fsync），移到 IO 调度器避免主线程卡顿
@@ -348,21 +347,21 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             _uiState.update { it.copy(isLoading = false, errorMessage = text(R.string.error_session_persist_failed)) }
                             return@launch
                         }
-                        app.notificationCenter.refreshAccount()
+                        LoginAccess.notificationCenter.refreshAccount()
                         // Server upload may retry later, but the account-scoped local store must
                         // be ready before navigation can expose any cipher entry point.
                         val localCryptoReady = withContext(Dispatchers.IO) {
                             var localReady = false
                             for (attempt in 0 until 3) {
                                 try {
-                                    app.signalProtocol.initialize(auth.token, auth.userId)
+                                    LoginAccess.signalProtocol.initialize(auth.token, auth.userId)
                                 } catch (error: kotlinx.coroutines.CancellationException) {
                                     throw error
                                 } catch (error: Exception) {
                                     android.util.Log.w("LoginViewModel", "Signal initialize attempt ${attempt + 1} failed", error)
                                 }
-                                localReady = app.signalProtocol.isLocalStoreReadyFor(auth.userId)
-                                if (app.signalProtocol.isInitializedFor(auth.userId)) break
+                                localReady = LoginAccess.signalProtocol.isLocalStoreReadyFor(auth.userId)
+                                if (LoginAccess.signalProtocol.isInitializedFor(auth.userId)) break
                                 if (attempt < 2) kotlinx.coroutines.delay(500L * (attempt + 1))
                             }
                             if (!localReady) {
@@ -384,18 +383,18 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         // 附件对账）失败不再吞掉 isLoggedIn，把已生效的会话留在登录页
                         _uiState.update { it.copy(isLoading = false, isLoggedIn = true) }
                         // 8.49：后置步骤各自 best-effort，异常不再中断（isLoggedIn 已置位）
-                        runCatching { PushRegistrationManager.refreshRegistration(app) }
+                        runCatching { PushRegistrationManager.refreshRegistration(getApplication()) }
                             .onFailure { android.util.Log.w("LoginViewModel", "push registration after login failed", it) }
                         // 9.3xx：登录成功后按设置恢复推送保活（Ideaura 式）
-                        runCatching { com.maodouchat.push.PushKeepAlive.ensureForUser(app) }
+                        runCatching { com.maodouchat.push.PushKeepAlive.ensureForUser(getApplication()) }
                             .onFailure { android.util.Log.w("LoginViewModel", "push keepalive start failed", it) }
-                        runCatching { AiTaskReminderScheduler.ensureScheduled(app) }
+                        runCatching { AiTaskReminderScheduler.ensureScheduled(getApplication()) }
                             .onFailure { android.util.Log.w("LoginViewModel", "ai task reminder scheduling failed", it) }
-                        runCatching { com.maodouchat.attachment.AttachmentTransferCoordinator.reconcile(app) }
+                        runCatching { com.maodouchat.attachment.AttachmentTransferCoordinator.reconcile(getApplication()) }
                             .onFailure { android.util.Log.w("LoginViewModel", "attachment reconcile after login failed", it) }
                         runCatching {
-                            com.maodouchat.crypto.SenderKeyRetryWorkScheduler.ensureScheduled(app)
-                            app.senderKeyRetryManager.processDueTasks()
+                            com.maodouchat.crypto.SenderKeyRetryWorkScheduler.ensureScheduled(getApplication())
+                            LoginAccess.senderKeyRetryManager.processDueTasks()
                         }.onFailure { android.util.Log.w("LoginViewModel", "sender-key retry resume after login failed", it) }
                     },
                     onFailure = { error ->
@@ -427,7 +426,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         // 8.61：重入守卫——连点登出/与 NavGraph tokenExpired 并发 purge 只执行一次
         if (logoutJob?.isActive == true) return
         logoutJob = viewModelScope.launch {
-            app.secureSessionManager.purgeLocalSession(
+            LoginAccess.secureSessionManager.purgeLocalSession(
                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
                     com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
                 )

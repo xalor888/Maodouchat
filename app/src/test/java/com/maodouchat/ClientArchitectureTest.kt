@@ -1207,7 +1207,10 @@ class ClientArchitectureTest {
         // 通讯录收口续：3 处全部迁出——静态发射走 NotificationCenterAccess.repository、
         // 实时分发器走 AppRuntime.realtimeDispatcherOrNull，import 与 `as?` val 删除，
         // 3 → 0，条目删除。
-        "screen/login/LoginViewModel.kt" to 2,
+        // 登录收口：LoginViewModel 的 `application as MaodouchatApp` 收进非 ui 的
+        // com.maodouchat.login.LoginAccess（signalProtocol/secureSessionManager/
+        // notificationCenter/senderKeyRetryManager）；只收 Context 的后置调用改传
+        // getApplication()，2 → 0，条目删除。
         // 死 import 收口：SettingsAccountSecurity.kt 头部残留的 `import ...MaodouchatApp`
         //（正文仅 KDoc 提及，剥注释后零命中），随死 import 删除后归零，条目删除。
     )
