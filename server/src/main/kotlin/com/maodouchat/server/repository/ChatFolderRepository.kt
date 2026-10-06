@@ -21,6 +21,9 @@ class ChatFolderRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    // 文件夹名空白折叠：每次同步都在重新编译，提到类级复用。
+    private val whitespaceCollapseRegex = Regex("\\s+")
+
     fun getFolders(userId: String): ChatFoldersSyncResponse = transaction {
         loadFoldersInTransaction(userId)
     }
@@ -59,7 +62,7 @@ class ChatFolderRepository {
             .asSequence()
             .mapNotNull { folder ->
                 val id = folder.id.trim().take(80)
-                val name = folder.name.trim().replace(Regex("\\s+"), " ").take(MAX_NAME_LEN)
+                val name = folder.name.trim().replace(whitespaceCollapseRegex, " ").take(MAX_NAME_LEN)
                 if (id.isEmpty() || name.isEmpty()) null
                 else ChatFolderDto(
                     id = id,
