@@ -43,6 +43,11 @@ object EncryptedAttachmentCrypto {
     private val plainSha256Digest: ThreadLocal<MessageDigest> =
         ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
 
+    // Cipher 非线程安全，ThreadLocal 每线程复用一个；每次使用都以 init() 开头
+    //（按 JCA 语义 init 会完全重置实例），与新 getInstance 等价。
+    private val gcmCipher: ThreadLocal<Cipher> =
+        ThreadLocal.withInitial { Cipher.getInstance("AES/GCM/NoPadding") }
+
     data class EncryptedFile(
         val file: File,
         val keyBase64: String,
@@ -92,7 +97,7 @@ object EncryptedAttachmentCrypto {
         val plainDigest = plainSha256Digest.get().also { it.reset() }
         var copied = 0L
         try {
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
+            val cipher = gcmCipher.get().apply {
                 init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
             }
             openInput()?.use { input ->
@@ -170,7 +175,7 @@ object EncryptedAttachmentCrypto {
             throw AttachmentCryptoException(AttachmentCryptoFailure.INVALID_REFERENCE)
         }
         try {
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
+            val cipher = gcmCipher.get().apply {
                 init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
             }
             val digest = cipherSha256Digest.get().also { it.reset() }
