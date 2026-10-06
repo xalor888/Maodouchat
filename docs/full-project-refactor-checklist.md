@@ -634,7 +634,7 @@ Gate：锁屏超时、进程恢复、设备撤销、TOTP replay、截图与数�
 - [x] 多模态视觉理解模型支持：`LocalAiModels` 与 `LocalAiProviderStore` 引入 `supportsVision` 属性与配置开关，纯文本模型上传图片时智能提示降级。
 - [x] AI 与隐私体验优化：`AiPrivacyPreferences.enableAllDefaults` 支持设置页一键开启推荐默认配置。
 - [x] 彻底清理端侧遗留模型代码：已删除废弃的 `OnDeviceEmbeddingGate` 及其单测，净化注释与文档。
-- [ ] 拆为 Provider、Credential、Context Builder、Tool Registry、Approval、Audit、Executor。
+- [~] 拆为 Provider、Credential、Context Builder、Tool Registry、Approval、Audit、Executor。
 - [ ] 每个 Tool 只依赖领域 Command/Query Port，不访问 DAO、ApiService 或 Application。
 - [ ] 明确每种模型调用的数据出境清单、密聊/PIN 门禁和日志脱敏。
 - [ ] 写操作携带审批记录和幂等键；取消后不得继续执行工具。
