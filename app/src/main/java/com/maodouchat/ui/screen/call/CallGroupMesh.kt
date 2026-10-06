@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 /**
  * 群组通话网格状态簇（成员连接状态 / 邀请超时与重连 / 确定性 mesh 建边）：
  * 函数体从 `CallViewModel` 逐字搬入，VM 状态经 lambda 注入（与 `CallSignalingSender` 同一装配模式）。
+ * 群 job 双 map（邀请超时 / 重连）由本类内部持有，VM 不再直接触碰。
  */
 internal class CallGroupMesh(
     private val scope: CoroutineScope,
@@ -25,8 +26,6 @@ internal class CallGroupMesh(
     private val activeDomainSession: () -> Long,
     private val groupMemberIds: () -> Set<String>,
     private val removeGroupMemberId: (String) -> Unit,
-    private val groupInviteTimeoutJobs: MutableMap<String, Job>,
-    private val groupReconnectJobs: MutableMap<String, Job>,
     private val cancelRingingTimeout: () -> Unit,
     private val ringingTimeoutMs: Long,
     private val updateState: ((CallUiState) -> CallUiState) -> Unit,
@@ -40,6 +39,8 @@ internal class CallGroupMesh(
     private val text: (Int, Array<out Any>) -> String,
     private val onNoActivePeers: (String) -> Unit,
 ) {
+    private val groupInviteTimeoutJobs = mutableMapOf<String, Job>()
+    private val groupReconnectJobs = mutableMapOf<String, Job>()
     fun updateGroupParticipant(userId: String, transform: (GroupCallParticipantUi) -> GroupCallParticipantUi) {
         updateState { state ->
             state.copy(groupParticipants = state.groupParticipants.map { participant ->
@@ -132,6 +133,17 @@ internal class CallGroupMesh(
         if (!active && currentState().isGroupCall && currentState().callState != CallState.DISCONNECTED) {
             onNoActivePeers(text(R.string.call_group_no_active_members, emptyArray()))
         }
+    }
+
+    fun cancelInviteTimeout(userId: String) {
+        groupInviteTimeoutJobs.remove(userId)?.cancel()
+    }
+
+    fun cancelAllGroupJobs() {
+        groupInviteTimeoutJobs.values.forEach(Job::cancel)
+        groupInviteTimeoutJobs.clear()
+        groupReconnectJobs.values.forEach(Job::cancel)
+        groupReconnectJobs.clear()
     }
 
     fun scheduleGroupPeerTimeout(userId: String) {

@@ -64,8 +64,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     /** 通话中 TURN 凭据刷新 job（8.35：短期凭据 1h 过期后热替换 ICE 配置）。 */
     private var pollingJob: Job? = null
     private var webSocketJob: Job? = null
-    private val groupReconnectJobs = mutableMapOf<String, Job>()
-    private val groupInviteTimeoutJobs = mutableMapOf<String, Job>()
     private var pendingOfferSdp: String? = null
     private var activeCallId: String = ""
     private val callSessionGate = CallSessionGate()
@@ -150,8 +148,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             activeDomainSession = { activeDomainSession },
             groupMemberIds = { activeGroupMemberIds },
             removeGroupMemberId = { userId -> activeGroupMemberIds = activeGroupMemberIds - userId },
-            groupInviteTimeoutJobs = groupInviteTimeoutJobs,
-            groupReconnectJobs = groupReconnectJobs,
             cancelRingingTimeout = { ringingTimeout.cancel() },
             ringingTimeoutMs = RINGING_TIMEOUT_MS,
             updateState = { transform -> _uiState.update(transform) },
@@ -923,7 +919,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                     if (st.callState == CallState.DISCONNECTED || st.callState == CallState.IDLE) return
                     ringingTimeout.cancel()
                     if (st.isGroupCall) {
-                        groupInviteTimeoutJobs.remove(fromUserId)?.cancel()
+                        groupMesh.cancelInviteTimeout(fromUserId)
                         webRTCManager?.handleGroupAnswer(fromUserId, payload)
                     } else {
                         webRTCManager?.handleAnswer(payload)
@@ -1105,10 +1101,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         webSocketJob?.cancel()
         ringingTimeout.cancel()
         iceRecovery.cancel()
-        groupReconnectJobs.values.forEach(Job::cancel)
-        groupReconnectJobs.clear()
-        groupInviteTimeoutJobs.values.forEach(Job::cancel)
-        groupInviteTimeoutJobs.clear()
+        groupMesh.cancelAllGroupJobs()
         pollingJob = null
         webSocketJob = null
 
