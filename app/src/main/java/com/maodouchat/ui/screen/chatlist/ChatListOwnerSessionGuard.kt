@@ -8,7 +8,7 @@ import com.maodouchat.ui.OwnerSessionSnapshot
  * 会话守卫：owner 会话快照构造 / 有效性判定 / 带守卫的 Room 写事务。
  * 从 ChatListViewModel 逐字搬出，5 个 coordinator 共用同一份守卫。
  */
-class ChatListOwnerSessionGuard(
+internal class ChatListOwnerSessionGuard(
     private val ports: ChatListPorts,
 ) {
     val currentUserIdStr: String
