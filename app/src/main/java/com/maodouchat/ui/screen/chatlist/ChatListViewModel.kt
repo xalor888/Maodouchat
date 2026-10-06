@@ -6,17 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.chatlist.AndroidChatListPorts
 import com.maodouchat.chatlist.ChatListPorts
-import com.maodouchat.conversation.ConversationLocalCleanupMode
-import com.maodouchat.conversation.ConversationLocalCleanupSession
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
-import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.security.SecureSessionAccess
 import com.maodouchat.security.SessionUiResetEvent
 import com.maodouchat.ui.OwnerSessionPolicy
 import com.maodouchat.ui.OwnerSessionSnapshot
-import com.maodouchat.util.RuntimeFlags
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,7 +22,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import com.maodouchat.notification.NotificationCenterType
 
 /**
@@ -66,31 +60,18 @@ class ChatListViewModel private constructor(
 
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
+    // 显式类型：断开与 loadCoordinator 的初始化类型互推断（CI 曾报 recursive problem）。
+    private val localCleanupCoordinator: ChatListLocalCleanupCoordinator = ChatListLocalCleanupCoordinator(
+        scope = viewModelScope,
+        ownerUserId = { currentUserIdStr },
+        localStateCoordinator = conversationLocalStateCoordinator,
+        deleteDraftForChat = ports.deleteDraftForChat,
+        reloadChats = { loadCoordinator.loadChats(showLoading = false) },
+    )
+
     /** 清空指定会话的本地明文（保留会话/PIN/草稿/同步游标）。不清游标，避免重拉密文 Duplicate。 */
-    fun clearLocalChatHistory(chatId: String) {
-        if (chatId.isBlank()) return
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (ownerUserId.isBlank()) return
-        val cleanupSession = conversationLocalCleanupSession(ownerUserId)
-        viewModelScope.launch(Dispatchers.IO) {
-            val report = withContext(kotlinx.coroutines.NonCancellable) {
-                conversationLocalStateCoordinator.cleanup(
-                    chatId = chatId,
-                    expectedSession = cleanupSession,
-                    mode = ConversationLocalCleanupMode.CLEAR_HISTORY,
-                )
-            }
-            report.failures.forEach { failure ->
-                android.util.Log.w(
-                    "ChatListViewModel",
-                    "local conversation cleanup failed at ${failure.step} for $chatId",
-                    failure.error,
-                )
-            }
-            if (!report.completed) return@launch
-            loadCoordinator.loadChats(showLoading = false)
-        }
-    }
+    fun clearLocalChatHistory(chatId: String) =
+        localCleanupCoordinator.clearLocalChatHistory(chatId)
 
     private val _uiState = MutableStateFlow(ChatListUiState())
     val uiState: StateFlow<ChatListUiState> = _uiState.asStateFlow()
@@ -140,7 +121,7 @@ class ChatListViewModel private constructor(
         enrichServerChatPreview = { chat, ownerUserId ->
             previewCoordinator.enrichServerChatPreview(chat, ownerUserId)
         },
-        cleanupLocalChat = { chatId, session -> cleanupLocalChat(chatId, session) },
+        cleanupLocalChat = { chatId, session -> localCleanupCoordinator.cleanupLocalChat(chatId, session) },
         cleanupSessionFor = { conversationLocalCleanupSession(it) },
         activeChatId = ports.activeChatId,
         observeMissedCalls = { missedRepo.observeRecent() },
@@ -174,7 +155,7 @@ class ChatListViewModel private constructor(
         deleteChatRemote = ports.deleteChatRemote,
         createChatRemote = ports.createChatRemote,
         touchSecretChat = ports.touchSecretChat,
-        cleanupLocalChat = { chatId, session -> cleanupLocalChat(chatId, session) },
+        cleanupLocalChat = { chatId, session -> localCleanupCoordinator.cleanupLocalChat(chatId, session) },
         cleanupSessionFor = { conversationLocalCleanupSession(it) },
         onMuteApplied = { chatId ->
             try {
@@ -194,6 +175,13 @@ class ChatListViewModel private constructor(
         secretChatFeatureEnabled = ports.secretChatFeatureEnabled,
         secretChatDisabledMessage = ports.secretChatDisabledMessage,
         secretChatStartFailedMessage = ports.secretChatStartFailedMessage,
+    )
+
+    private val settingsToggleCoordinator = ChatListSettingsToggleCoordinator(
+        uiState = _uiState,
+        isFlagEnabled = ports.isFlagEnabled,
+        text = { text(it) },
+        updateChatSettings = mutationCoordinator::updateChatSettings,
     )
 
     private val realtimeCoordinator = ChatListRealtimeCoordinator(
@@ -460,29 +448,15 @@ class ChatListViewModel private constructor(
     fun clearRealtimeBanner() = realtimeCoordinator.clearRealtimeBanner()
     fun clearOwnerTransferRequired() { _uiState.update { it.copy(ownerTransferRequiredChatId = null) } }
 
-    // 9.150：置顶/静音/归档/标未读改为按 chatId 现查 _uiState 最新快照取反，
-    // 不再信任调用方传入的 Chat 快照（长按菜单 menuChat 可能在 WS 刷新后陈旧，反向操作会覆盖新值）
-    fun togglePinned(chatId: String) =
-        toggleSetting(chatId, RuntimeFlags.CHAT_PIN, ChatSettingsToggle.PIN)
+    fun togglePinned(chatId: String) = settingsToggleCoordinator.togglePinned(chatId)
 
     fun toggleNotificationsMuted(chatId: String) =
-        toggleSetting(chatId, RuntimeFlags.CHAT_MUTE, ChatSettingsToggle.MUTE)
+        settingsToggleCoordinator.toggleNotificationsMuted(chatId)
 
-    fun toggleArchived(chatId: String) =
-        toggleSetting(chatId, RuntimeFlags.CHAT_ARCHIVE, ChatSettingsToggle.ARCHIVE)
+    fun toggleArchived(chatId: String) = settingsToggleCoordinator.toggleArchived(chatId)
 
     fun toggleMarkedUnread(chatId: String) =
-        toggleSetting(chatId, RuntimeFlags.MARKED_UNREAD, ChatSettingsToggle.MARKED_UNREAD)
-
-    private fun toggleSetting(chatId: String, flagKey: RuntimeFlags.Flag, toggle: ChatSettingsToggle) {
-        if (!ports.isFlagEnabled(flagKey)) {
-            _uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
-            return
-        }
-        val chat = _uiState.value.chats.firstOrNull { it.id == chatId } ?: return
-        val mutation = buildSettingsToggle(chat, toggle)
-        updateChatSettings(chat, mutation.optimistic, mutation.request)
-    }
+        settingsToggleCoordinator.toggleMarkedUnread(chatId)
 
     /**
      * 未读文件夹「全部已读」：本地原子清零，再为每个普通会话写入持久 v2 已读水位。
@@ -503,9 +477,6 @@ class ChatListViewModel private constructor(
 
     fun batchDeleteSelected() = selectionCoordinator.batchDeleteSelected()
 
-    private fun updateChatSettings(chat: Chat, optimistic: Chat, request: UpdateChatSettingsRequest) =
-        mutationCoordinator.updateChatSettings(chat, optimistic, request)
-
     /**
      * 删除聊天（同时退出服务端聊天 + 清理本地缓存）
      * - 调用服务端 DELETE /api/chats/{chatId} 退出聊天
@@ -514,38 +485,8 @@ class ChatListViewModel private constructor(
      */
     fun deleteChat(chatId: String) = mutationCoordinator.deleteChat(chatId)
 
-    private suspend fun cleanupLocalChat(
-        chatId: String,
-        cleanupSession: ConversationLocalCleanupSession,
-    ) {
-        val report = conversationLocalStateCoordinator.cleanup(
-            chatId = chatId,
-            expectedSession = cleanupSession,
-            mode = ConversationLocalCleanupMode.DELETE_CONVERSATION,
-        )
-        report.failures.forEach { failure ->
-            android.util.Log.w(
-                "ChatListViewModel",
-                "conversation deletion cleanup failed at ${failure.step} for $chatId",
-                failure.error,
-            )
-        }
-    }
-
     /** 1.142：会话列表长按菜单「清除草稿」（本地，不打开会话）。 */
-    fun clearChatDraft(chatId: String) {
-        if (chatId.isBlank()) return
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (ownerUserId.isBlank()) return
-        viewModelScope.launch {
-            try {
-                ports.deleteDraftForChat(ownerUserId, chatId)
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (_: Exception) {
-            }
-        }
-    }
+    fun clearChatDraft(chatId: String) = localCleanupCoordinator.clearChatDraft(chatId)
 
     companion object {
         /** Same-module test / DI seam — production uses the Application constructor. */
