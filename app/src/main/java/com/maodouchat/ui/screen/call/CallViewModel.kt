@@ -29,7 +29,6 @@ import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.webrtc.CallIceServer
 import com.maodouchat.webrtc.CallAudioRoute
 import com.maodouchat.webrtc.GroupPeerConnectionState
-import com.maodouchat.webrtc.GroupCallPolicy
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.Job
@@ -148,6 +147,32 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    private val groupMesh by lazy {
+        CallGroupMesh(
+            scope = viewModelScope,
+            token = { token },
+            endingCall = { endingCall },
+            activeCallSession = { activeCallSession },
+            activeDomainSession = { activeDomainSession },
+            groupMemberIds = { activeGroupMemberIds },
+            removeGroupMemberId = { userId -> activeGroupMemberIds = activeGroupMemberIds - userId },
+            groupInviteTimeoutJobs = groupInviteTimeoutJobs,
+            groupReconnectJobs = groupReconnectJobs,
+            cancelRingingTimeout = { ringingTimeoutJob?.cancel() },
+            ringingTimeoutMs = RINGING_TIMEOUT_MS,
+            updateState = { transform -> _uiState.update(transform) },
+            currentState = { _uiState.value },
+            callSessionMachine = callSessionMachine,
+            callSessionGate = callSessionGate,
+            timersController = timersController,
+            webRTCManager = { webRTCManager },
+            isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
+            signalingSender = signalingSender,
+            text = { id, args -> text(id, *args) },
+            onNoActivePeers = { message -> endCall(notifyPeer = false, errorMessage = message) },
+        )
+    }
+
     init {
         viewModelScope.launch {
             WebRtcNativeLibraryLoader.progress.collect { pct ->
@@ -198,9 +223,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-        manager.onGroupPeerStateChanged = { userId, state -> if (current()) onGroupPeerStateChanged(userId, state) }
+        manager.onGroupPeerStateChanged = { userId, state -> if (current()) groupMesh.onGroupPeerStateChanged(userId, state) }
         manager.onGroupPeerVideoChanged = { userId, available ->
-            if (current()) updateGroupParticipant(userId) { it.copy(videoAvailable = available) }
+            if (current()) groupMesh.updateGroupParticipant(userId) { it.copy(videoAvailable = available) }
         }
         // 8.39：直连 SDP/信令操作失败此前无任何反馈（onOperationError 从未接线），
         // 用户干等 30s 才见「无应答」。接线后立即结束通话并给出可读错误。
@@ -236,134 +261,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun isCurrentCallSession(session: Long, manager: WebRTCManager? = null): Boolean =
         callSessionGate.isCurrent(session) && !endingCall && (manager == null || webRTCManager === manager)
-
-    private fun updateGroupParticipant(userId: String, transform: (GroupCallParticipantUi) -> GroupCallParticipantUi) {
-        _uiState.update { state ->
-            state.copy(groupParticipants = state.groupParticipants.map { participant ->
-                if (participant.userId == userId) transform(participant) else participant
-            })
-        }
-    }
-
-    private fun loadGroupParticipantProfiles() {
-        viewModelScope.launch {
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (token.isBlank() || ownerUserId.isBlank()) return@launch
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)) {
-                return@launch
-            }
-            val liveToken = token
-            com.maodouchat.data.repository.UserNetworkRepository().users(liveToken).onSuccess { users ->
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)) {
-                    return@onSuccess
-                }
-                val profiles = users.associateBy { it.id }
-                _uiState.update { state ->
-                    state.copy(groupParticipants = state.groupParticipants.map { participant ->
-                        profiles[participant.userId]?.let { profile ->
-                            participant.copy(name = profile.name, avatar = profile.avatar)
-                        } ?: participant
-                    })
-                }
-            }
-        }
-    }
-
-    private fun onGroupPeerStateChanged(userId: String, state: GroupPeerConnectionState) {
-        if (endingCall) return
-        viewModelScope.launch {
-            updateGroupParticipant(userId) { it.copy(connectionState = state) }
-            when (state) {
-                GroupPeerConnectionState.CONNECTED -> {
-                    callSessionMachine.markConnected(activeDomainSession)
-                    groupInviteTimeoutJobs.remove(userId)?.cancel()
-                    groupReconnectJobs.remove(userId)?.cancel()
-                    ringingTimeoutJob?.cancel()
-                    _uiState.update { it.copy(callState = CallState.CONNECTED, isInitializing = false) }
-                    timersController.startDurationTimer()
-                    timersController.startNetworkStatsPolling()
-                }
-                GroupPeerConnectionState.RECONNECTING -> {
-                    if (groupReconnectJobs[userId]?.isActive != true) {
-                        val session = activeCallSession
-                        groupReconnectJobs[userId] = viewModelScope.launch {
-                            delay(CallReliabilityPolicy.ICE_RECONNECT_GRACE_MS)
-                            if (
-                                callSessionGate.isCurrent(session) &&
-                                _uiState.value.groupParticipants.firstOrNull { it.userId == userId }?.connectionState == GroupPeerConnectionState.RECONNECTING
-                            ) {
-                                webRTCManager?.removeGroupPeer(userId)
-                                markGroupPeerTerminal(userId, GroupPeerConnectionState.FAILED)
-                            }
-                        }
-                    }
-                }
-                GroupPeerConnectionState.FAILED,
-                GroupPeerConnectionState.DISCONNECTED,
-                GroupPeerConnectionState.REJECTED,
-                GroupPeerConnectionState.BUSY,
-                GroupPeerConnectionState.NO_ANSWER -> {
-                    groupInviteTimeoutJobs.remove(userId)?.cancel()
-                    groupReconnectJobs.remove(userId)?.cancel()
-                    if (state == GroupPeerConnectionState.FAILED || state == GroupPeerConnectionState.DISCONNECTED) {
-                        webRTCManager?.removeGroupPeer(userId)
-                    }
-                    activeGroupMemberIds = activeGroupMemberIds - userId
-                    endGroupCallIfNoActivePeers()
-                }
-                GroupPeerConnectionState.CONNECTING -> Unit
-            }
-        }
-    }
-
-    private fun markGroupPeerTerminal(userId: String, state: GroupPeerConnectionState) {
-        groupInviteTimeoutJobs.remove(userId)?.cancel()
-        groupReconnectJobs.remove(userId)?.cancel()
-        updateGroupParticipant(userId) { it.copy(connectionState = state, videoAvailable = false) }
-        activeGroupMemberIds = activeGroupMemberIds - userId
-        endGroupCallIfNoActivePeers()
-    }
-
-    private fun endGroupCallIfNoActivePeers() {
-        val active = _uiState.value.groupParticipants.any { GroupCallPolicy.isActive(it.connectionState) }
-        if (!active && _uiState.value.isGroupCall && _uiState.value.callState != CallState.DISCONNECTED) {
-            endCall(notifyPeer = false, errorMessage = text(R.string.call_group_no_active_members))
-        }
-    }
-
-    private fun scheduleGroupPeerTimeout(userId: String) {
-        groupInviteTimeoutJobs.remove(userId)?.cancel()
-        val session = activeCallSession
-        groupInviteTimeoutJobs[userId] = viewModelScope.launch {
-            delay(RINGING_TIMEOUT_MS)
-            if (
-                callSessionGate.isCurrent(session) &&
-                _uiState.value.groupParticipants.firstOrNull { it.userId == userId }?.connectionState == GroupPeerConnectionState.CONNECTING
-            ) {
-                webRTCManager?.removeGroupPeer(userId)
-                markGroupPeerTerminal(userId, GroupPeerConnectionState.NO_ANSWER)
-            }
-        }
-    }
-
-    private fun startDeterministicMeshEdges(manager: WebRTCManager, primaryPeerId: String, session: Long) {
-        val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        activeGroupMemberIds.filter { it != primaryPeerId }.forEach { peerId ->
-            scheduleGroupPeerTimeout(peerId)
-            if (GroupCallPolicy.shouldInitiateMeshEdge(selfUserId, peerId) && !manager.hasGroupPeer(peerId)) {
-                manager.startGroupCallToPeer(
-                    peerUserId = peerId,
-                    type = _uiState.value.callType,
-                    onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(peerId, candidate)
-                    },
-                    onOfferCreated = { sdp ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(peerId, "offer", sdp, groupInvite = false)
-                    }
-                )
-            }
-        }
-    }
 
     private fun newCallId(): String = "call_${UUID.randomUUID().toString().replace("-", "")}"
 
@@ -500,7 +397,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         pendingGroupOffers.clear()
         entries.forEach { (fromUserId, sdp) ->
             if (manager.hasGroupPeer(fromUserId)) return@forEach
-            scheduleGroupPeerTimeout(fromUserId)
+            groupMesh.scheduleGroupPeerTimeout(fromUserId)
             manager.acceptGroupOffer(
                 peerUserId = fromUserId,
                 remoteOfferSdp = sdp,
@@ -649,7 +546,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
         // 8.55：呼入时快照账号，作为通话记录写入的 expectedUserId 守卫
         callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (isGroup) loadGroupParticipantProfiles()
+        if (isGroup) groupMesh.loadGroupParticipantProfiles()
         startRingingTimeout(contactId)
         observeSignaling()
     }
@@ -745,7 +642,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 configureReliabilityCallbacks(manager, session)
                 manager.initialize()
                 if (latest.isGroupCall) {
-                    scheduleGroupPeerTimeout(targetContactId)
+                    groupMesh.scheduleGroupPeerTimeout(targetContactId)
                     // 8.56：接听后统一 flush 被缓冲的群成员边 offer（修复成员先接听导致边永久丢失）
                     flushPendingGroupOffers(manager, session)
                     manager.acceptGroupOffer(
@@ -763,7 +660,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                             signalingSender.sendSdp(targetContactId, "answer", sdp)
                         }
                     )
-                    startDeterministicMeshEdges(manager, targetContactId, session)
+                    groupMesh.startDeterministicMeshEdges(manager, targetContactId, session)
                     observeSignaling()
                     return@launch
                 }
@@ -990,7 +887,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         activeGroupMemberIds = remoteMembers.toSet()
-        loadGroupParticipantProfiles()
+        groupMesh.loadGroupParticipantProfiles()
         // 8.46 修复：群呼振铃超时改到首条 offer 发出后启动（与 1:1 呼出一致，
         // 避免慢网原生库下载/ICE 拉取超过 30s 时在对端还没开始振铃就挂断）
         startForegroundService()
@@ -1008,7 +905,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 manager.initialize()
                 var firstOfferSent = false
                 activeGroupMemberIds.forEach { memberId ->
-                    scheduleGroupPeerTimeout(memberId)
+                    groupMesh.scheduleGroupPeerTimeout(memberId)
                     manager.startGroupCallToPeer(
                         peerUserId = memberId,
                         type = type,
@@ -1165,7 +1062,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                             endCall(notifyPeer = false)
                         } else {
                             webRTCManager?.removeGroupPeer(fromUserId)
-                            markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.DISCONNECTED)
+                            groupMesh.markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.DISCONNECTED)
                         }
                     } else {
                         // Caller hung up while we were still ringing → missed call
@@ -1203,7 +1100,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 "reject" -> {
                     if (currentState.isGroupCall) {
                         webRTCManager?.removeGroupPeer(fromUserId)
-                        markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.REJECTED)
+                        groupMesh.markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.REJECTED)
                     } else {
                         endCall(notifyPeer = false, errorMessage = text(R.string.call_peer_rejected))
                     }
@@ -1211,7 +1108,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                 "busy" -> {
                     if (currentState.isGroupCall) {
                         webRTCManager?.removeGroupPeer(fromUserId)
-                        markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.BUSY)
+                        groupMesh.markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.BUSY)
                     } else {
                         endCall(notifyPeer = false, errorMessage = text(R.string.call_peer_busy))
                     }
@@ -1227,7 +1124,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
                         fromUserId in activeGroupMemberIds &&
                         webRTCManager?.hasGroupPeer(fromUserId) != true
                     ) {
-                        scheduleGroupPeerTimeout(fromUserId)
+                        groupMesh.scheduleGroupPeerTimeout(fromUserId)
                         val manager = webRTCManager
                         if (manager == null) {
                             // 8.56：本端 manager 尚未创建（成员先接听）——缓冲该边 offer，
