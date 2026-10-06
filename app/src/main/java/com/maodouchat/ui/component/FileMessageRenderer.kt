@@ -52,6 +52,11 @@ import java.util.Date
 import java.util.Locale
 
 /** File renderer driven only by mapped presentation data and UI callbacks. */
+
+// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
+private val fileTimeFormat: ThreadLocal<SimpleDateFormat> =
+    ThreadLocal.withInitial { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+
 @Composable
 internal fun FileMessageRenderer(
     message: Message,
@@ -82,7 +87,7 @@ internal fun FileMessageRenderer(
             ?.uppercase()
             ?.takeIf { it.isNotBlank() && it != "OCTET-STREAM" }
         val size = file?.sizeBytes?.takeIf { it > 0 }?.let(::formatPresentationFileSize)
-        val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(presentation.timestamp))
+        val time = fileTimeFormat.get().format(Date(presentation.timestamp))
         listOfNotNull(mime, size, time).joinToString(" · ")
     }
     val transferStatus = transferState?.let { fileTransferStatusText(it, transferError) }
