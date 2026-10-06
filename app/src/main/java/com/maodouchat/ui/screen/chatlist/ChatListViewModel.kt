@@ -12,26 +12,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * G319c：主构造器恢复为 `private`。
- *
- * G317c 我曾把它放宽为 `internal`，理由是「UI 测试碰不到这个收
- * `ChatListPorts` 的构造器，所以 `ChatListScreen` 测不了」。
- * **该理由不成立**：`ChatListScreenUiTest`（G319c）用**公开**构造器
- * `ChatListViewModel(application)` 就能渲染并断言——它内部走
- * `AndroidChatListPorts.create(application)`，在仪器测试里
- * `application as MaodouchatApp` 成立，真实 Room 库可用。
- *
- * 而这个 `internal` **没有任何外部使用者**（唯一的 2 参调用者是本类
- * 第 588 行的内部工厂，`private` 本就可达）。按「无使用者就回退」，
- * 恢复 `private`，以免留下一个没有需求的加宽 API。
- *
- * 若将来要覆盖「指定会话数据下的 UI」，仍需要这个接缝（或把 43 参数的
- * `ChatListPorts` 按内聚分组）——那时再有理由加宽。
- */
+/** 会话列表 ViewModel：组合与分发调度层，业务逻辑在各 Coordinator。主构造器保持 private，测试走 createForTest。 */
 class ChatListViewModel private constructor(
     application: Application,
     private val ports: ChatListPorts,
@@ -374,15 +357,15 @@ class ChatListViewModel private constructor(
 
     fun onSearchQueryChange(query: String) = localProjectionCoordinator.onSearchQueryChange(query)
 
-    fun onTabSelected(tab: Int) { _uiState.update { it.copy(selectedTab = tab) } }
-    fun setShowArchived(show: Boolean) { _uiState.update { it.copy(showArchived = show) } }
+    fun onTabSelected(tab: Int) = localProjectionCoordinator.onTabSelected(tab)
+    fun setShowArchived(show: Boolean) = localProjectionCoordinator.setShowArchived(show)
     fun refresh() = loadCoordinator.requestLoadChats(ChatListReloadPolicy.Trigger.USER_REFRESH)
 
     fun refreshOnForeground() = loadCoordinator.requestLoadChats(ChatListReloadPolicy.Trigger.FOREGROUND)
 
-    fun clearError() { _uiState.update { it.copy(errorMessage = null) } }
+    fun clearError() = localProjectionCoordinator.clearError()
     fun clearRealtimeBanner() = realtimeCoordinator.clearRealtimeBanner()
-    fun clearOwnerTransferRequired() { _uiState.update { it.copy(ownerTransferRequiredChatId = null) } }
+    fun clearOwnerTransferRequired() = localProjectionCoordinator.clearOwnerTransferRequired()
 
     fun togglePinned(chatId: String) = settingsToggleCoordinator.togglePinned(chatId)
 
@@ -413,12 +396,7 @@ class ChatListViewModel private constructor(
 
     fun batchDeleteSelected() = selectionCoordinator.batchDeleteSelected()
 
-    /**
-     * 删除聊天（同时退出服务端聊天 + 清理本地缓存）
-     * - 调用服务端 DELETE /api/chats/{chatId} 退出聊天
-     * - 删除本地缓存的消息和聊天记录
-     * - 从 UI 列表中移除
-     */
+    /** 删除聊天：退出服务端会话 + 清理本地缓存 + 从 UI 列表移除。 */
     fun deleteChat(chatId: String) = mutationCoordinator.deleteChat(chatId)
 
     /** 1.142：会话列表长按菜单「清除草稿」（本地，不打开会话）。 */
