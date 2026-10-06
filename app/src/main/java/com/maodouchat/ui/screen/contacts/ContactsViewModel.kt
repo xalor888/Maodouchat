@@ -169,6 +169,17 @@ class ContactsViewModel @JvmOverloads constructor(
     private val _uiState = MutableStateFlow(ContactsUiState())
     val uiState: StateFlow<ContactsUiState> = _uiState.asStateFlow()
 
+    private val groupInviteController = ContactsGroupInviteController(
+        scope = viewModelScope,
+        updateState = { transform -> _uiState.update(transform) },
+        isGroupInviteBusy = { _uiState.value.isGroupInviteBusy },
+        text = { id, args -> text(id, *args) },
+        groupInviteLoader = groupInviteLoader,
+        groupInviteAcceptor = groupInviteAcceptor,
+        groupInviteDecliner = groupInviteDecliner,
+        onInviteAccepted = ::reloadContacts,
+    )
+
     private var friendsJob: Job? = null
     private var searchJob: Job? = null
 
@@ -596,100 +607,10 @@ class ContactsViewModel @JvmOverloads constructor(
         }
     }
 
-    // ─── 群邀请流程 ──────────────────────────────────────────────
-
-    fun loadGroupInvites() {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) return
-        viewModelScope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) return@launch
-            val result = groupInviteLoader()
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) return@launch
-            val invites = result.getOrNull() ?: return@launch
-            _uiState.update {
-                it.copy(
-                    groupInvites = invites.map { dto ->
-                        GroupInviteItem(
-                            id = dto.id,
-                            chatId = dto.chatId,
-                            chatName = dto.chatName.ifBlank { text(R.string.contacts_group_unnamed) },
-                            inviterName = dto.inviterName,
-                            memberCount = dto.memberCount,
-                            createdAt = dto.createdAt
-                        )
-                    }
-                )
-            }
-        }
-    }
-
-    fun acceptGroupInvite(inviteId: String) {
-        mutateGroupInvite(inviteId, accept = true)
-    }
-
-    fun declineGroupInvite(inviteId: String) {
-        mutateGroupInvite(inviteId, accept = false)
-    }
-
-    private fun mutateGroupInvite(inviteId: String, accept: Boolean) {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank() || _uiState.value.isGroupInviteBusy) return
-        viewModelScope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) return@launch
-            _uiState.update { it.copy(isGroupInviteBusy = true, errorMessage = null, infoMessage = null) }
-            try {
-                val result = if (accept) {
-                    groupInviteAcceptor(inviteId)
-                } else {
-                    groupInviteDecliner(inviteId)
-                }
-                if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) return@launch
-                result.fold(
-                    onSuccess = {
-                        _uiState.update { state ->
-                            state.copy(
-                                isGroupInviteBusy = false,
-                                infoMessage = text(if (accept) R.string.contacts_group_invite_accepted else R.string.contacts_group_invite_declined),
-                                groupInvites = state.groupInvites.filterNot { it.id == inviteId }
-                            )
-                        }
-                        if (accept) reloadContacts()
-                        loadGroupInvites()
-                    },
-                    onFailure = { error ->
-                        _uiState.update {
-                            it.copy(
-                                isGroupInviteBusy = false,
-                                errorMessage = error.message ?: text(R.string.error_operation_failed)
-                            )
-                        }
-                    }
-                )
-            } catch (error: CancellationException) {
-                _uiState.update { it.copy(isGroupInviteBusy = false) }
-                throw error
-            } catch (error: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isGroupInviteBusy = false,
-                        errorMessage = error.message ?: text(R.string.error_operation_failed)
-                    )
-                }
-            }
-        }
-    }
+    // 群邀请流程 → ContactsGroupInviteController；签名不变，UI 调用点无需改动。
+    fun loadGroupInvites() = groupInviteController.loadGroupInvites()
+    fun acceptGroupInvite(inviteId: String) = groupInviteController.acceptGroupInvite(inviteId)
+    fun declineGroupInvite(inviteId: String) = groupInviteController.declineGroupInvite(inviteId)
 
     companion object {
         fun getInitial(name: String): String = ContactsIndexPolicy.initialFor(name)
