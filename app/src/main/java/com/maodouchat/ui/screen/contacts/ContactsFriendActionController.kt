@@ -84,7 +84,7 @@ internal class ContactsFriendActionController(
 
     fun acceptAllFriendRequests() = launchFriendBatchAction(
         allSucceededMessage = text(R.string.contacts_friend_accepted_all, emptyArray()),
-        reloadContacts = true,
+        refreshContacts = true,
     ) { ids ->
         friendRequestUseCase.batchAcceptFriendRequests(ids)
     }
@@ -156,7 +156,7 @@ internal class ContactsFriendActionController(
     // 批量好友操作骨架：空列表/忙时直接返回；按结果计数拼全成功或部分成功文案。
     private fun launchFriendBatchAction(
         allSucceededMessage: String,
-        reloadContacts: Boolean = false,
+        refreshContacts: Boolean = false,
         action: suspend (ids: List<String>) -> Map<String, Result<*>>,
     ) {
         val ids = incomingRequestIds()
@@ -178,7 +178,7 @@ internal class ContactsFriendActionController(
                     )
                 }
                 loadFriendRequests()
-                if (reloadContacts) reloadContacts()
+                if (refreshContacts) reloadContacts()
             } catch (error: CancellationException) {
                 updateState { it.copy(isFriendActionBusy = false) }
                 throw error
