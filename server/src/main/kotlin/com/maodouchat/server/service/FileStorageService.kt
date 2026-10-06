@@ -30,6 +30,7 @@ object FileStorageService {
     private val storageRoot = BlobRoot.storageRoot
     private val baseUrl = ServerConfig.baseUrl.trimEnd('/')
     private val safeFilenamePattern = Regex("^[A-Za-z0-9_.-]+$")
+    private val randomImageSuffixPattern = Regex("^[A-Fa-f0-9]{8}\\.jpg$")
     private val storageTypes = setOf("avatars", "posts", "group-avatars")
 
     init {
@@ -64,7 +65,7 @@ object FileStorageService {
     }
 
     fun avatarUrl(filename: String): String? {
-        if (!filename.matches(Regex("^[A-Za-z0-9_.-]+$"))) return null
+        if (!filename.matches(safeFilenamePattern)) return null
         return "$baseUrl/api/files/avatar/$filename"
     }
 
@@ -79,7 +80,7 @@ object FileStorageService {
         if (userId.isBlank()) return false
         val safeUserId = userId.replace("/", "_").replace("\\", "_").replace("..", "_")
         val suffix = filename.removePrefix("avatar_${safeUserId}_")
-        return suffix != filename && suffix.matches(Regex("^[A-Fa-f0-9]{8}\\.jpg$"))
+        return suffix != filename && suffix.matches(randomImageSuffixPattern)
     }
 
     fun saveGroupAvatar(base64Data: String, chatId: String): String {
@@ -123,7 +124,7 @@ object FileStorageService {
         if (userId.isBlank()) return false
         val safeUserId = userId.replace("/", "_").replace("\\", "_").replace("..", "_")
         val suffix = filename.removePrefix("post_${safeUserId}_")
-        return suffix != filename && suffix.matches(Regex("^[A-Fa-f0-9]{8}\\.jpg$"))
+        return suffix != filename && suffix.matches(randomImageSuffixPattern)
     }
 
     /**
@@ -218,7 +219,7 @@ object FileStorageService {
         if (chatId.isBlank() || !filename.matches(safeFilenamePattern)) return false
         val safeChatId = chatId.replace("/", "_").replace("\\", "_").replace("..", "_")
         val suffix = filename.removePrefix("group_${safeChatId}_")
-        return suffix != filename && suffix.matches(Regex("^[A-Fa-f0-9]{8}\\.jpg$"))
+        return suffix != filename && suffix.matches(randomImageSuffixPattern)
     }
 
     fun deletePostImage(filename: String): Boolean {
@@ -247,11 +248,11 @@ object FileStorageService {
 
     private fun isPostImageFilename(filename: String): Boolean =
         filename.matches(safeFilenamePattern) && filename.startsWith("post_") &&
-            filename.substringAfterLast('_', "").matches(Regex("^[A-Fa-f0-9]{8}\\.jpg$"))
+            filename.substringAfterLast('_', "").matches(randomImageSuffixPattern)
 
     private fun isGroupAvatarFilename(filename: String): Boolean =
         filename.matches(safeFilenamePattern) && filename.startsWith("group_") &&
-            filename.substringAfterLast('_', "").matches(Regex("^[A-Fa-f0-9]{8}\\.jpg$"))
+            filename.substringAfterLast('_', "").matches(randomImageSuffixPattern)
 
     private fun requireTypeRoot(type: String): File =
         requireNotNull(resolveTypeRoot(type)) { "存储子目录路径非法: $type" }

@@ -10,6 +10,7 @@ object AppUpdatePublishPolicy {
     const val MAX_APK_BYTES = 80L * 1024 * 1024
     const val MIN_APK_BYTES = 64L
     private const val MIN_TOKEN_CHARS = 16
+    private val versionNamePattern = Regex("^[A-Za-z0-9._+-]+$")
 
     fun tokenConfigured(token: String): Boolean =
         token.trim().length >= MIN_TOKEN_CHARS
@@ -38,7 +39,7 @@ object AppUpdatePublishPolicy {
     fun parseVersionName(raw: String?): String? {
         val value = raw?.trim().orEmpty()
         if (value.isEmpty() || value.length > 32) return null
-        if (!value.matches(Regex("^[A-Za-z0-9._+-]+$"))) return null
+        if (!value.matches(versionNamePattern)) return null
         return value
     }
 
