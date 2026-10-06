@@ -152,4 +152,60 @@ class ChatListLocalProjectionCoordinatorTest {
 
         assertEquals(setOf("peer"), uiState.value.identityChangedUserIds)
     }
+
+    @Test
+    fun refreshScheduledCountsAggregatesByChatId() = runTest(dispatcher) {
+        val uiState = MutableStateFlow(ChatListUiState())
+        fun scheduled(chatId: String) = com.maodouchat.util.ScheduledMessage(
+            id = "s-$chatId-${kotlin.random.Random.nextInt()}",
+            chatId = chatId,
+            peerUserId = "peer",
+            text = "hi",
+            sendAtMillis = 1L,
+            createdAtMillis = 0L,
+        )
+        val coordinator = ChatListLocalProjectionCoordinator(
+            scope = this,
+            uiState = uiState,
+            ownerUserId = { "me" },
+            observeDraftsForOwner = { flowOf(emptyList()) },
+            getRecentMessages = { _, _ -> emptyList() },
+            listLockedChatIds = { emptySet() },
+            searchChatIdsByMessageContent = { emptyList() },
+            listSecretChatIds = { emptySet() },
+            trustChangedRemoteIds = { _, _ -> emptySet() },
+            text = { "err" },
+            ioDispatcher = dispatcher,
+            listScheduled = {
+                listOf(scheduled("c1"), scheduled("c1"), scheduled("c2"))
+            },
+        )
+
+        coordinator.refreshScheduledCounts()
+
+        assertEquals(mapOf("c1" to 2, "c2" to 1), uiState.value.scheduledByChat)
+    }
+
+    @Test
+    fun refreshScheduledCountsSwallowsErrors() = runTest(dispatcher) {
+        val uiState = MutableStateFlow(ChatListUiState(scheduledByChat = mapOf("old" to 9)))
+        val coordinator = ChatListLocalProjectionCoordinator(
+            scope = this,
+            uiState = uiState,
+            ownerUserId = { "me" },
+            observeDraftsForOwner = { flowOf(emptyList()) },
+            getRecentMessages = { _, _ -> emptyList() },
+            listLockedChatIds = { emptySet() },
+            searchChatIdsByMessageContent = { emptyList() },
+            listSecretChatIds = { emptySet() },
+            trustChangedRemoteIds = { _, _ -> emptySet() },
+            text = { "err" },
+            ioDispatcher = dispatcher,
+            listScheduled = { error("prefs broken") },
+        )
+
+        coordinator.refreshScheduledCounts()
+
+        assertEquals(emptyMap(), uiState.value.scheduledByChat)
+    }
 }

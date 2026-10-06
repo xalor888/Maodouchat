@@ -268,6 +268,12 @@ class ChatListViewModel private constructor(
         cancelMessageNotification = ports.cancelMessageNotification,
     )
 
+    private val selectionCoordinator = ChatListSelectionCoordinator(
+        uiState = _uiState,
+        togglePinned = ::togglePinned,
+        deleteChat = ::deleteChat,
+    )
+
     private val localProjectionCoordinator = ChatListLocalProjectionCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
@@ -279,6 +285,7 @@ class ChatListViewModel private constructor(
         listSecretChatIds = ports.listSecretChatIds,
         trustChangedRemoteIds = ports.trustChangedRemoteIds,
         text = { text(it) },
+        listScheduled = { conversationScheduleCoordinator.listAllScheduled() },
     )
 
     private fun ownerSession(ownerUserId: String = currentUserIdStr): OwnerSessionSnapshot =
@@ -439,19 +446,7 @@ class ChatListViewModel private constructor(
 
     private val currentUserIdStr: String get() = com.maodouchat.session.CurrentSession.snapshot().userId ?: ""
 
-    /** 1.146：刷新各会话待发送定时消息数（本地 prefs store）。 */
-    fun refreshScheduledCounts() {
-        val counts = try {
-            conversationScheduleCoordinator.listAllScheduled()
-                .groupingBy { it.chatId }
-                .eachCount()
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            emptyMap()
-        }
-        _uiState.update { it.copy(scheduledByChat = counts) }
-    }
+    fun refreshScheduledCounts() = localProjectionCoordinator.refreshScheduledCounts()
 
     fun onSearchQueryChange(query: String) = localProjectionCoordinator.onSearchQueryChange(query)
 
@@ -495,56 +490,18 @@ class ChatListViewModel private constructor(
      */
     fun markAllUnreadChatsRead() = unreadBatchCoordinator.markAllUnreadChatsRead()
 
-    /** 1.368：进入会话列表多选模式（长按任一会话） */
-    fun enterSelectionMode() {
-        _uiState.update { state ->
-            val next = reduceSelection(
-                ChatListSelection(state.selectionMode, state.selectedChatIds),
-                ChatListSelectionEvent.Enter,
-            )
-            state.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds)
-        }
-    }
+    fun enterSelectionMode() = selectionCoordinator.enterSelectionMode()
 
-    /** 1.368：退出多选模式并清空勾选 */
-    fun exitSelectionMode() {
-        _uiState.update { state ->
-            val next = reduceSelection(
-                ChatListSelection(state.selectionMode, state.selectedChatIds),
-                ChatListSelectionEvent.Exit,
-            )
-            state.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds)
-        }
-    }
+    fun exitSelectionMode() = selectionCoordinator.exitSelectionMode()
 
-    /** 1.368：勾选/取消勾选一个会话（最后一个取消时自动退出多选） */
-    fun toggleSelectChat(chatId: String) {
-        _uiState.update { state ->
-            val next = reduceSelection(
-                ChatListSelection(state.selectionMode, state.selectedChatIds),
-                ChatListSelectionEvent.Toggle(chatId),
-            )
-            state.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds)
-        }
-    }
+    fun toggleSelectChat(chatId: String) = selectionCoordinator.toggleSelectChat(chatId)
 
-    /** 1.368：批量置顶/取消置顶选中会话（复用单会话置顶，含 RuntimeFlags 门控） */
-    fun batchTogglePinSelected() {
-        val selected = _uiState.value.selectedChatIds
-        if (selected.isEmpty()) return
-        selected.forEach(::togglePinned)
-    }
+    fun batchTogglePinSelected() = selectionCoordinator.batchTogglePinSelected()
 
     /** Batch local read projection plus one durable v2 read watermark per conversation. */
     fun batchMarkReadSelected() = unreadBatchCoordinator.batchMarkReadSelected()
 
-    /** 1.368：批量删除选中会话（逐个走 deleteChat，结束后退出多选） */
-    fun batchDeleteSelected() {
-        val selected = _uiState.value.selectedChatIds
-        if (selected.isEmpty()) return
-        selected.forEach { deleteChat(it) }
-        exitSelectionMode()
-    }
+    fun batchDeleteSelected() = selectionCoordinator.batchDeleteSelected()
 
     private fun updateChatSettings(chat: Chat, optimistic: Chat, request: UpdateChatSettingsRequest) =
         mutationCoordinator.updateChatSettings(chat, optimistic, request)

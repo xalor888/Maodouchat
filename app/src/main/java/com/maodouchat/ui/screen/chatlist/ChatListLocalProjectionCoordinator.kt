@@ -6,6 +6,7 @@ import com.maodouchat.data.local.LikeQueryPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.session.CurrentSession
+import com.maodouchat.util.ScheduledMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,7 @@ internal class ChatListLocalProjectionCoordinator(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val searchDebounceMs: Long = LIST_MESSAGE_SEARCH_DEBOUNCE_MS,
     private val searchMaxLength: Int = LIST_SEARCH_MAX_LENGTH,
+    private val listScheduled: () -> List<ScheduledMessage> = { emptyList() },
 ) {
     private var messageSearchJob: Job? = null
 
@@ -93,6 +95,20 @@ internal class ChatListLocalProjectionCoordinator(
             if (CurrentSession.ownerUserId() != owner) return@launch
             uiState.update { it.copy(secretChatIds = ids) }
         }
+    }
+
+    /** 1.146：刷新各会话待发送定时消息数（本地 prefs store，非流式 → 按需刷新）。 */
+    fun refreshScheduledCounts() {
+        val counts = try {
+            listScheduled()
+                .groupingBy { it.chatId }
+                .eachCount()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyMap()
+        }
+        uiState.update { it.copy(scheduledByChat = counts) }
     }
 
     fun onSearchQueryChange(query: String) {
