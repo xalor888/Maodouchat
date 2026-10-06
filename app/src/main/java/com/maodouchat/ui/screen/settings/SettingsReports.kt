@@ -133,8 +133,10 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
     } else {
         stringResource(com.maodouchat.R.string.report_status_resolved)
     }
-    val timeText = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", androidx.compose.ui.platform.LocalConfiguration.current.locales[0])
-        .format(java.util.Date(report.createdAt))
+    // 举报卡片每次重组都 new 一个 SimpleDateFormat；locale 变化时 remember 键失效重建。
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val reportDateFormat = remember(locale) { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", locale) }
+    val timeText = reportDateFormat.format(java.util.Date(report.createdAt))
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(
