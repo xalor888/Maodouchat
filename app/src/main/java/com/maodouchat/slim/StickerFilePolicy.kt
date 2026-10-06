@@ -11,13 +11,17 @@ import java.security.MessageDigest
  */
 internal object StickerFilePolicy {
 
+    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个；异常路径走不到 digest()，取用前先 reset。
+    private val sha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
     fun isCurrent(file: File, expectedSha256: String): Boolean {
         if (!file.isFile || file.length() <= 0L) return false
         return sha256(file) == expectedSha256.lowercase()
     }
 
     fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256Digest.get().also { it.reset() }
         file.inputStream().buffered().use { input ->
             val buffer = ByteArray(64 * 1024)
             while (true) {

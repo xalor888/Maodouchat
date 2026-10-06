@@ -18,6 +18,10 @@ internal class SignalIdentityTrustService(
     private val context: SignalProtocolContext
 ) : IdentityTrustService {
 
+    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
+    private val sha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
     fun getIdentityPublicKey(): IdentityKey = context.identityKeyPair.publicKey
 
     fun getLocalIdentityFingerprint(): String =
@@ -136,7 +140,7 @@ internal class SignalIdentityTrustService(
     }
 
     private fun identityFingerprint(bytes: ByteArray): String {
-        return MessageDigest.getInstance("SHA-256")
+        return sha256Digest.get()
             .digest(bytes)
             .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xFF) }
     }

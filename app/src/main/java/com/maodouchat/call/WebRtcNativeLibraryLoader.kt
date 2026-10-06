@@ -38,6 +38,10 @@ object WebRtcNativeLibraryLoader {
 
     private val loadMutex = Mutex()
 
+    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个；异常路径走不到 digest()，取用前先 reset。
+    private val sha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
     private val _progress = MutableStateFlow(0)
     val progress: StateFlow<Int> = _progress.asStateFlow()
 
@@ -187,7 +191,7 @@ object WebRtcNativeLibraryLoader {
     }
 
     private fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+        val digest = sha256Digest.get().also { it.reset() }
         file.inputStream().buffered().use { input ->
             val buffer = ByteArray(64 * 1024)
             while (true) {

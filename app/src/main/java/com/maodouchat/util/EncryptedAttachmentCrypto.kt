@@ -36,6 +36,13 @@ object EncryptedAttachmentCrypto {
     // SecureRandom 线程安全，每次加密附件都 new 会反复播种，对象级复用。
     private val secureRandom = SecureRandom()
 
+    // MessageDigest 非线程安全，ThreadLocal 每线程各备一个；异常路径走不到 digest()，
+    // 所以每次取用前先 reset，否则残留状态会污染下一次计算。
+    private val cipherSha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+    private val plainSha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
     data class EncryptedFile(
         val file: File,
         val keyBase64: String,
@@ -81,8 +88,8 @@ object EncryptedAttachmentCrypto {
         }
         val key = ByteArray(32).also(secureRandom::nextBytes)
         val iv = ByteArray(12).also(secureRandom::nextBytes)
-        val digest = MessageDigest.getInstance("SHA-256")
-        val plainDigest = MessageDigest.getInstance("SHA-256")
+        val digest = cipherSha256Digest.get().also { it.reset() }
+        val plainDigest = plainSha256Digest.get().also { it.reset() }
         var copied = 0L
         try {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
@@ -166,8 +173,8 @@ object EncryptedAttachmentCrypto {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
                 init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
             }
-            val digest = MessageDigest.getInstance("SHA-256")
-            val plainDigest = MessageDigest.getInstance("SHA-256")
+            val digest = cipherSha256Digest.get().also { it.reset() }
+            val plainDigest = plainSha256Digest.get().also { it.reset() }
             var cipherRead = 0L
             FileInputStream(encryptedFile).use { fileInput ->
                 DigestInputStream(fileInput, digest).use { digestInput ->
@@ -207,7 +214,7 @@ object EncryptedAttachmentCrypto {
     fun isValidCachedPlaintext(file: File, reference: MediaCache.EncryptedAttachmentReference): Boolean {
         if (!file.isFile || file.length() != reference.plainSize) return false
         return runCatching {
-            val digest = MessageDigest.getInstance("SHA-256")
+            val digest = plainSha256Digest.get()
             FileInputStream(file).use { input ->
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                 while (true) {

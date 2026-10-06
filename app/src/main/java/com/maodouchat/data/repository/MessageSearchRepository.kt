@@ -172,11 +172,14 @@ class MessageSearchRepository(private val database: AppDatabase) {
 
     private fun contentHash(chatId: String, senderId: String, timestamp: Long, text: String): String {
         val bytes = "$chatId\u0000$senderId\u0000$timestamp\u0000$text".toByteArray(Charsets.UTF_8)
-        return MessageDigest.getInstance("SHA-256").digest(bytes)
+        return sha256Digest.get().digest(bytes)
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
     private companion object {
+        // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
+        val sha256Digest: ThreadLocal<MessageDigest> =
+            ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
         /** 文档数与消息数偏差超过此比例或最小绝对值即触发全量重建（8.31 F18）。 */
         const val STALE_DRIFT_RATIO = 0.1
         const val MIN_STALE_DRIFT = 50
