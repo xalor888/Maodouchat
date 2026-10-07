@@ -206,7 +206,7 @@ internal fun ChatListItem(
                 // 1.148：搜索时关键词高亮
                 if (searchQuery.isNotBlank()) {
                     Text(
-                        highlightedText(displayName, searchQuery),
+                        accentHighlightedText(displayName, searchQuery),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -257,7 +257,7 @@ internal fun ChatListItem(
                     Spacer(Modifier.width(4.dp))
                 }
                 Text(
-                    if (searchQuery.isNotBlank()) highlightedText(finalPreview, searchQuery) else androidx.compose.ui.text.AnnotatedString(finalPreview),
+                    if (searchQuery.isNotBlank()) accentHighlightedText(finalPreview, searchQuery) else androidx.compose.ui.text.AnnotatedString(finalPreview),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (typingPreview != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
@@ -467,7 +467,7 @@ private fun chatNameForSuggestion(chat: Chat?): String? {
 
 // G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
 @Composable
-private fun highlightedText(text: String, query: String): AnnotatedString {
+private fun accentHighlightedText(text: String, query: String): AnnotatedString {
     val (c, bg) = SearchHighlightAccent
     return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }

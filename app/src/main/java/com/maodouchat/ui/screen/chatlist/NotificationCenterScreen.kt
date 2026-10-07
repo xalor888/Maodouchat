@@ -2,21 +2,14 @@ package com.maodouchat.ui.screen.chatlist
 
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import com.maodouchat.notification.SocialNotificationService
-import com.maodouchat.notification.ReminderNotificationService
-import com.maodouchat.notification.MessageNotificationService
-import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.navigation.AppLinkDestination
 import com.maodouchat.navigation.AppLinkRouter
 import android.annotation.SuppressLint
-import android.app.Application
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,8 +41,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -62,10 +52,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import com.maodouchat.ui.component.SearchHighlightSurface
-import com.maodouchat.ui.component.SearchHighlightAccent
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,13 +69,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
@@ -97,143 +80,9 @@ import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.notification.NotificationCenterType
 
-class NotificationCenterViewModel(application: Application) : AndroidViewModel(application) {
-    // U02 延伸：仓库入口收进非 ui 的 NotificationCenterAccess。
-    private val repo: NotificationCenterRepository = com.maodouchat.notification.NotificationCenterAccess.repository
-
-    val items = repo.items.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = repo.snapshot()
-    )
-
-    fun markAllRead() {
-        // Mark-all should also drop tray shadows so badge UX matches the center.
-        val snapshot = repo.snapshot()
-        repo.markAllRead()
-        dismissTrayFor(snapshot)
-    }
-
-    /**
-     * Merge can rewrite [NotificationCenterItem.id] to the incoming head while Compose
-     * still holds the pre-merge id. Resolve by id first, then type + mergeKey.
-     */
-    private fun resolveLiveItem(id: String, hint: NotificationCenterItem? = null): NotificationCenterItem? {
-        val snapshot = repo.snapshot()
-        snapshot.firstOrNull { it.id == id }?.let { return it }
-        val type = hint?.type
-        val mergeKey = hint?.mergeKey
-        if (!type.isNullOrBlank() && !mergeKey.isNullOrBlank()) {
-            snapshot.firstOrNull { it.type == type && it.mergeKey == mergeKey }?.let { return it }
-        }
-        return null
-    }
-
-    fun markRead(id: String, hint: NotificationCenterItem? = null) {
-        val item = resolveLiveItem(id, hint)
-        val targetId = item?.id ?: id
-        repo.markRead(targetId)
-        if (item != null) dismissTrayFor(listOf(item))
-    }
-
-    fun markUnread(id: String, hint: NotificationCenterItem? = null) {
-        val item = resolveLiveItem(id, hint)
-        repo.markUnread(item?.id ?: id)
-    }
-
-    fun remove(id: String, hint: NotificationCenterItem? = null) {
-        val item = resolveLiveItem(id, hint)
-        val targetId = item?.id ?: id
-        repo.remove(targetId)
-        if (item != null) dismissTrayFor(listOf(item))
-    }
-
-    /** 1.170：清除某个会话的全部通知（含托盘通知）。 */
-    fun removeChat(chatId: String) {
-        if (chatId.isBlank()) return
-        val affected = repo.snapshot().filter { item ->
-            com.maodouchat.notification.NotificationCenterReadPolicy.belongsToChat(
-                chatId = chatId,
-                mergeKey = item.mergeKey,
-                deeplink = item.deeplink,
-                extraChatId = item.extra["chatId"]
-            )
-        }
-        repo.removeChatItems(chatId)
-        dismissTrayFor(affected)
-    }
-
-    fun clearAll() {
-        val snapshot = repo.snapshot()
-        repo.clearAll()
-        dismissTrayFor(snapshot)
-    }
-
-    private fun dismissTrayFor(items: List<NotificationCenterItem>) {
-        val ctx = getApplication<Application>()
-        for (item in items) {
-            try {
-                when {
-                    item.type == "MISSED_CALL" -> {
-                        val callId = item.extra["callId"].orEmpty()
-                        if (callId.isNotBlank()) {
-                            com.maodouchat.notification.CallNotificationService.cancelMissedCall(ctx, callId)
-                        }
-                    }
-                    item.type == "AI_TASK" -> {
-                        val taskId = item.extra["taskId"].orEmpty()
-                        val chatId = item.extra["chatId"].orEmpty()
-                        when {
-                            // 8.44：优先按 chat 整组清理（含 group-summary）——cancelAiTaskReminder
-                            // 单任务不清理 summary，会造成托盘残留
-                            chatId.isNotBlank() ->
-                                com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(ctx, chatId)
-                            taskId.isNotBlank() ->
-                                com.maodouchat.notification.ReminderNotificationService.cancelAiTaskReminder(ctx, taskId)
-                        }
-                    }
-                    item.type == "MESSAGE" || item.deeplink?.startsWith("maodouchat:chat:") == true -> {
-                        val chatId = item.extra["chatId"]
-                            ?: (AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
-                                as? AppLinkDestination.ChatDetail)?.chatId
-                            ?: item.mergeKey.removePrefix("msg_")
-                        if (chatId.isNotBlank()) {
-                            com.maodouchat.notification.MessageNotificationService.cancelMessage(ctx, chatId)
-                        }
-                    }
-                    item.type == "POST_INTERACTION" ||
-                        item.deeplink?.startsWith("maodouchat:post:") == true -> {
-                        val postId = item.extra["postId"]
-                            ?: (AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
-                                as? AppLinkDestination.PostDetail)?.postId
-                            ?: item.mergeKey.removePrefix("post_")
-                        if (postId.isNotBlank()) {
-                            com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(ctx, postId)
-                        }
-                    }
-                    item.type == "FRIEND_REQUEST" ||
-                        AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
-                            is AppLinkDestination.ContactsTab -> {
-                        com.maodouchat.notification.SocialNotificationService.cancelAllFriendRequests(ctx)
-                    }
-                    item.type == "GROUP_INVITE" ||
-                        AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
-                            is AppLinkDestination.GroupInvitesTab -> {
-                        com.maodouchat.notification.SocialNotificationService.cancelAllGroupInvites(ctx)
-                    }
-                }
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                throw error
-            } catch (_: Exception) {
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -536,7 +385,7 @@ private fun NotificationRow(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    relativeTime(item.updatedAt),
+                    notifRelativeTime(item.updatedAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = LocalChatPalette.current.textHint
                 )
@@ -604,67 +453,6 @@ internal fun resolvedNotificationChatId(item: NotificationCenterItem): String? {
     return null
 }
 
-private enum class NotifFilter {
-    ALL,
-    UNREAD,
-    MESSAGE,
-    MISSED_CALL,
-    AI_TASK,
-    POST_INTERACTION,
-    FRIEND_REQUEST;
-
-    fun matches(item: NotificationCenterItem): Boolean = when (this) {
-        ALL -> true
-        UNREAD -> !item.read
-        MESSAGE -> item.type == NotificationCenterType.MESSAGE
-        MISSED_CALL -> item.type == NotificationCenterType.MISSED_CALL
-        AI_TASK -> item.type == NotificationCenterType.AI_TASK
-        POST_INTERACTION -> item.type == NotificationCenterType.POST_INTERACTION
-        FRIEND_REQUEST -> item.type == NotificationCenterType.FRIEND_REQUEST
-    }
-}
-
-@Composable
-private fun NotificationFilterStrip(
-    selected: NotifFilter,
-    onSelect: (NotifFilter) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val options = listOf(
-        NotifFilter.ALL to stringResource(R.string.notif_center_filter_all),
-        NotifFilter.UNREAD to stringResource(R.string.notif_center_filter_unread),
-        NotifFilter.MESSAGE to stringResource(R.string.notif_center_subtitle_message),
-        NotifFilter.MISSED_CALL to stringResource(R.string.notif_center_filter_calls),
-        NotifFilter.AI_TASK to stringResource(R.string.notif_center_filter_ai),
-        NotifFilter.POST_INTERACTION to stringResource(R.string.notif_center_filter_social),
-        NotifFilter.FRIEND_REQUEST to stringResource(R.string.notif_center_filter_friends)
-    )
-    Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        options.forEach { (filter, label) ->
-            FilterChip(
-                selected = selected == filter,
-                onClick = { onSelect(filter) },
-                label = { Text(label) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    enabled = true,
-                    selected = selected == filter,
-                    borderColor = MaterialTheme.colorScheme.outlineVariant,
-                    selectedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                )
-            )
-        }
-    }
-}
 
 internal fun iconForType(item: NotificationCenterItem): Pair<ImageVector, Color> {
     // 非 Composable：不能读 MaterialTheme.colorScheme。图标色用常量。
@@ -689,54 +477,3 @@ internal fun iconForType(item: NotificationCenterItem): Pair<ImageVector, Color>
 }
 
 
-private fun List<NotificationCenterItem>.groupByDay(): List<Pair<StringBucket, List<NotificationCenterItem>>> {
-    val now = System.currentTimeMillis()
-    val dayMs = 24L * 3600L * 1000L
-    return this
-        .groupBy { item ->
-            // 8.48 修复 M5：未来时间戳（时钟超前/服务端未来时间）强制归 TODAY——
-            // 此前负 diffDays 落入 YESTERDAY/WEEK，未来 8 天以上也归 WEEK
-            val diffDays = ((now - item.updatedAt) / dayMs).coerceAtLeast(0L)
-            when {
-                diffDays == 0L -> StringBucket.TODAY
-                diffDays == 1L -> StringBucket.YESTERDAY
-                diffDays <= 7L -> StringBucket.WEEK
-                else -> StringBucket.EARLIER
-            }
-        }
-        .map { (bucket, list) ->
-            val ordered = list.sortedByDescending { it.updatedAt }
-            bucket to ordered
-        }
-        .sortedBy { it.first.ordinal }
-}
-
-enum class StringBucket(val sortOrder: Int) {
-    TODAY(0), YESTERDAY(1), WEEK(2), EARLIER(3);
-
-    @Composable
-    fun displayLabel(): String = when (this) {
-        TODAY -> stringResource(R.string.notif_center_bucket_today)
-        YESTERDAY -> stringResource(R.string.notif_center_bucket_yesterday)
-        WEEK -> stringResource(R.string.notif_center_bucket_week)
-        EARLIER -> stringResource(R.string.notif_center_bucket_earlier)
-    }
-}
-
-@Composable
-private fun relativeTime(timestamp: Long): String {
-    val diff = System.currentTimeMillis() - timestamp
-    return when {
-        diff < 60_000 -> stringResource(R.string.time_just_now)
-        diff < 3600_000 -> stringResource(R.string.notif_center_minutes_ago, (diff / 60_000).toInt())
-        diff < 86_400_000 -> stringResource(R.string.notif_center_hours_ago, (diff / 3600_000).toInt())
-        else -> stringResource(R.string.notif_center_days_ago, (diff / 86_400_000).toInt())
-    }
-}
-
-// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
-@Composable
-private fun highlightedText(text: String, query: String): AnnotatedString {
-    val (c, bg) = SearchHighlightSurface
-    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
-}
