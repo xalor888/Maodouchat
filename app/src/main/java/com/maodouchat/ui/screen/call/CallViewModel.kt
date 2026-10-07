@@ -370,6 +370,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    private val mediaController by lazy {
+        CallMediaController(mediaBridge = mediaBridge)
+    }
+
     init {
         lifecycleController.onStart()
     }
@@ -414,29 +418,23 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
-    fun toggleMute(muted: Boolean) { mediaBridge.toggleMute(muted) }
-    fun toggleVideo(enabled: Boolean) { mediaBridge.toggleVideo(enabled) }
-    fun switchCamera() { mediaBridge.switchCamera() }
-    fun selectAudioRoute(route: CallAudioRoute) { mediaBridge.selectAudioRoute(route) }
+    fun toggleMute(muted: Boolean) = mediaController.toggleMute(muted)
+    fun toggleVideo(enabled: Boolean) = mediaController.toggleVideo(enabled)
+    fun switchCamera() = mediaController.switchCamera()
+    fun selectAudioRoute(route: CallAudioRoute) = mediaController.selectAudioRoute(route)
 
-    fun attachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
-        mediaBridge.attachLocalRenderer(renderer)
-    }
-    fun attachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
-        mediaBridge.attachRemoteRenderer(renderer)
-    }
-    fun attachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) {
-        mediaBridge.attachGroupRemoteRenderer(userId, renderer)
-    }
-    fun detachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) {
-        mediaBridge.detachGroupRemoteRenderer(userId, renderer)
-    }
-    fun detachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
-        mediaBridge.detachLocalRenderer(renderer)
-    }
-    fun detachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
-        mediaBridge.detachRemoteRenderer(renderer)
-    }
+    fun attachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
+        mediaController.attachLocalRenderer(renderer)
+    fun attachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
+        mediaController.attachRemoteRenderer(renderer)
+    fun attachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) =
+        mediaController.attachGroupRemoteRenderer(userId, renderer)
+    fun detachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) =
+        mediaController.detachGroupRemoteRenderer(userId, renderer)
+    fun detachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
+        mediaController.detachLocalRenderer(renderer)
+    fun detachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
+        mediaController.detachRemoteRenderer(renderer)
 
     // G372：通话记录写入抽到 CallLogWriter（纯搬移不改判断）。
     private val callLogWriter by lazy {
