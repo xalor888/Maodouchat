@@ -53,11 +53,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import com.maodouchat.network.AiAuditLogResponse
 import com.maodouchat.R
 import android.widget.Toast
 import com.maodouchat.ui.theme.Error
-import androidx.compose.ui.graphics.Color
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -66,7 +64,7 @@ import androidx.compose.ui.draw.clip
 /**
  * 「AI 与隐私」页（G99 从 `SettingsSubScreens.kt` 拆出，原 633 行）。
  *
- * 聊天内 AI 开关 + 本机授权 + 调用审计。含它专属的 `AiAuditLogRow`。
+ * 聊天内 AI 开关 + 本机授权 + 调用审计。审计行组件与文案映射见 `AiPrivacySettingsRows.kt`。
  *
  * **拆解约束**：不直接抓应用级数据库单例（`ui/` 红线，读库只能经 ViewModel/repository）。
  * 纯搬移，不改判断。
@@ -664,69 +662,4 @@ fun AiPrivacySettingsScreen(
             }
         )
     }
-}
-
-@Composable
-private fun AiAuditLogRow(log: AiAuditLogResponse) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(aiFeatureLabel(log.feature), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    aiStatusLabel(log.status),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = aiStatusColor(log.status)
-                )
-            }
-            Text(
-                listOfNotNull(
-                    log.model?.takeIf { it.isNotBlank() },
-                    stringResource(R.string.ai_privacy_input_chars, log.inputChars),
-                    if (log.contextMessages > 0) stringResource(R.string.ai_privacy_context_messages, log.contextMessages) else null,
-                    log.durationMs?.let { "${it}ms" }
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalChatPalette.current.textSecondary
-            )
-            log.error?.takeIf { it.isNotBlank() }?.let { error ->
-                Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            }
-        }
-        Text(formatAuditTime(log.createdAt), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
-    }
-}
-
-@Composable
-private fun aiFeatureLabel(feature: String): String = when (feature.lowercase()) {
-    "rewrite" -> stringResource(R.string.ai_feature_rewrite)
-    "suggest_replies" -> stringResource(R.string.ai_feature_suggest_replies)
-    "summarize" -> stringResource(R.string.ai_feature_summarize)
-    "transcribe_voice" -> stringResource(R.string.ai_feature_transcribe_voice)
-    "translate_message" -> stringResource(R.string.ai_feature_translate_message)
-    "semantic_search" -> stringResource(R.string.ai_feature_semantic_search)
-    "global_semantic_search" -> stringResource(R.string.ai_feature_global_semantic_search)
-    "group_assistant" -> stringResource(R.string.ai_feature_group_assistant)
-    "image_analyze" -> stringResource(R.string.ai_feature_image_analyze)
-    "file_analyze" -> stringResource(R.string.ai_feature_file_analyze)
-    else -> if (feature.isBlank()) stringResource(R.string.ai_feature_generic) else feature
-}
-
-@Composable
-private fun aiStatusLabel(status: String): String = when (status.lowercase()) {
-    "success" -> stringResource(R.string.ai_status_success)
-    "failed", "error" -> stringResource(R.string.ai_status_failed)
-    "disabled" -> stringResource(R.string.ai_status_disabled)
-    "rate_limited" -> stringResource(R.string.ai_status_rate_limited)
-    else -> if (status.isBlank()) stringResource(R.string.ai_status_unknown) else status
-}
-
-@Composable
-private fun aiStatusColor(status: String): Color = when (status.lowercase()) {
-    "success" -> MaterialTheme.colorScheme.primary
-    "failed", "error", "rate_limited" -> Error
-    else -> LocalChatPalette.current.textHint
 }
