@@ -4,14 +4,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.TextHint
 
-/** 富文本消息：高亮正文中的 @token（displayName 或遗留 userId）。 */
-/** 1.17：从名片标记中提取目标用户 id（供点击打开资料）。 */
 
 // ─── CONTACT_CARD_USER_RE ───
 internal val CONTACT_CARD_USER_RE = Regex("\\[contactUser:([^\\]]+)")
