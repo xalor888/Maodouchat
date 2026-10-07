@@ -4,18 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.call.CallActionBus
-import com.maodouchat.session.AppRuntime
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.CallSignalingIdempotencyStore
 import com.maodouchat.call.CallSignalingOrderPolicy
 import com.maodouchat.call.CallSignalingOutboundCursor
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.call.GroupCallCapabilities
-import com.maodouchat.call.WebRtcNativeLibraryLoader
-import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
-import com.maodouchat.webrtc.CallReliabilityPolicy
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.webrtc.CallAudioRoute
 import com.maodouchat.webrtc.WebRTCManager
@@ -24,8 +19,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import java.util.UUID
 
 class CallViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -347,48 +340,48 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    private val sessionController by lazy {
+        CallSessionController(
+            callSessionGate = callSessionGate,
+            callSessionMachine = callSessionMachine,
+            resetIceRecoveryAttempts = { iceRecovery.resetAttempts() },
+            clearSignalingIdempotency = { signalingIdempotency.clear() },
+            clearInboundSignalingCursors = { inboundSignalingCursors.clear() },
+            beginOutboundSignalingCursor = { outboundSignalingCursor.begin() },
+            setActiveDomainSession = { activeDomainSession = it },
+            setActiveCallSession = { activeCallSession = it },
+            endingCall = { endingCall },
+            webRTCManager = { webRTCManager },
+        )
+    }
+
+    private val lifecycleController by lazy {
+        CallLifecycleController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            activeCallId = { activeCallId },
+            cancelTimers = { timersController.cancelTimers() },
+            stopSignalingIngress = { signalingIngress.stop() },
+            cancelRingingTimeout = { ringingTimeout.cancel() },
+            cancelIceRecovery = { iceRecovery.cancel() },
+            stopForegroundService = { foregroundService.stop() },
+            endCall = { notifyPeer -> endCall(notifyPeer) },
+        )
+    }
+
     init {
-        viewModelScope.launch {
-            WebRtcNativeLibraryLoader.progress.collect { pct ->
-                _uiState.update { it.copy(nativeDownloadProgress = pct) }
-            }
-        }
-        viewModelScope.launch {
-            CallActionBus.hangUpRequests.collect { req ->
-                // Drop hang-ups buffered before logout/account switch.
-                if (req.sessionGeneration != AppRuntime.currentSessionGeneration) {
-                    return@collect
-                }
-                if (
-                    CallReliabilityPolicy.shouldAcceptHangUpAction(activeCallId, req.callId) &&
-                    _uiState.value.callState != CallState.IDLE &&
-                    _uiState.value.callState != CallState.DISCONNECTED
-                ) {
-                    endCall(notifyPeer = req.notifyPeer)
-                }
-            }
-        }
+        lifecycleController.onStart()
     }
 
-
-    private fun beginCallSession(peerId: String, incoming: Boolean = false): Long {
-        signalingIdempotency.clear()
-        inboundSignalingCursors.clear()
-        outboundSignalingCursor.begin()
-        iceRecovery.resetAttempts()
-        val snapshot = if (incoming) {
-            callSessionMachine.beginIncoming(peerId)
-        } else {
-            callSessionMachine.beginOutgoing(peerId)
-        }
-        activeDomainSession = snapshot.epoch
-        return callSessionGate.begin().also { activeCallSession = it }
-    }
+    // 会话簇已搬入 CallSessionController；此处只留同签名委托，各 controller 接线不变。
+    private fun beginCallSession(peerId: String, incoming: Boolean = false): Long =
+        sessionController.beginCallSession(peerId, incoming)
 
     private fun isCurrentCallSession(session: Long, manager: WebRTCManager? = null): Boolean =
-        callSessionGate.isCurrent(session) && !endingCall && (manager == null || webRTCManager === manager)
+        sessionController.isCurrentCallSession(session, manager)
 
-    private fun newCallId(): String = "call_${UUID.randomUUID().toString().replace("-", "")}"
+    private fun newCallId(): String = sessionController.newCallId()
 
     fun startCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType) =
         outgoingCallController.startCall(contactId, contactName, contactAvatar, callType)
@@ -464,17 +457,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         teardownController.endCall(notifyPeer, errorMessage, logMissed)
 
     override fun onCleared() {
-        // 仍在通话中则必须通知对端；hang-up 用 applicationScope，不依赖即将取消的 viewModelScope
-        val shouldNotifyPeer = _uiState.value.callState != CallState.IDLE &&
-            _uiState.value.callState != CallState.DISCONNECTED
-        timersController.cancelTimers()
-        signalingIngress.stop()
-        ringingTimeout.cancel()
-        iceRecovery.cancel()
-        // 8.46 修复：无条件停止前台服务——若已有挂断在途（endingCall=true），endCall 开头
-        // 直接 return，末尾的 foregroundService.stop() 被跳过，通话前台通知/服务残留到系统回收。
-        foregroundService.stop()
-        endCall(notifyPeer = shouldNotifyPeer)
+        lifecycleController.onCleared()
         super.onCleared()
     }
 }
