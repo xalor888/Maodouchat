@@ -309,6 +309,44 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    private val teardownController: CallTeardownController by lazy {
+        CallTeardownController(
+            app = app,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            token = { token },
+            endingCall = { endingCall },
+            setEndingCall = { endingCall = it },
+            activeCallId = { activeCallId },
+            setActiveCallId = { activeCallId = it },
+            activeGroupId = { activeGroupId },
+            setActiveGroupId = { activeGroupId = it },
+            meshGroupMemberIds = { meshGroupMemberIds },
+            setMeshGroupMemberIds = { meshGroupMemberIds = it },
+            groupMemberIds = { activeGroupMemberIds },
+            setGroupMemberIds = { activeGroupMemberIds = it },
+            activeCallSession = { activeCallSession },
+            setActiveCallSession = { activeCallSession = it },
+            activeDomainSession = { activeDomainSession },
+            setActiveDomainSession = { activeDomainSession = it },
+            clearPendingOfferSdp = { pendingOfferSdp = null },
+            clearSignalingIdempotency = { signalingIdempotency.clear() },
+            clearInboundSignalingCursors = { inboundSignalingCursors.clear() },
+            clearOutboundSignalingCursor = { outboundSignalingCursor.clear() },
+            callSessionGate = callSessionGate,
+            callSessionMachine = callSessionMachine,
+            timersController = timersController,
+            signalingIngress = signalingIngress,
+            ringingTimeout = ringingTimeout,
+            iceRecovery = iceRecovery,
+            groupMesh = groupMesh,
+            mediaBridge = mediaBridge,
+            hangUpSender = hangUpSender,
+            foregroundService = foregroundService,
+            writeCallLog = { state -> writeCallLog(state) },
+        )
+    }
+
     init {
         viewModelScope.launch {
             WebRtcNativeLibraryLoader.progress.collect { pct ->
@@ -375,9 +413,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rejectIncomingCall() = incomingCallController.rejectIncomingCall()
 
-    /**
-     * 挂断
-     */
     fun hangUp() {
         endCall(notifyPeer = true)
     }
@@ -391,7 +426,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     fun switchCamera() { mediaBridge.switchCamera() }
     fun selectAudioRoute(route: CallAudioRoute) { mediaBridge.selectAudioRoute(route) }
 
-    /** UI 层创建 SurfaceViewRenderer 后调用，将渲染器连接到 WebRTCManager */
     fun attachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) {
         mediaBridge.attachLocalRenderer(renderer)
     }
@@ -425,93 +459,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         callLogWriter.writeCallLog(state)
 
 
-    private fun endCall(notifyPeer: Boolean, errorMessage: String? = null, logMissed: Boolean = true) {
-        if (endingCall) return
-        endingCall = true
-        callSessionMachine.beginEnding(activeDomainSession)
-        callSessionGate.invalidate(activeCallSession)
-        val contactId = _uiState.value.contactId
-        timersController.cancelTimers()
-        signalingIngress.stop()
-        ringingTimeout.cancel()
-        iceRecovery.cancel()
-        groupMesh.cancelAllGroupJobs()
-
-        mediaBridge.release()
-        pendingOfferSdp = null
-        signalingIngress.clearPendingGroupOffers()
-
-        // Snapshot before clearing; cancel only the *incoming* tray slot.
-        // Missed-call notify id is salted separately so this cannot wipe a just-posted
-        // missed entry after ring-timeout / peer-hang-up record.
-        val hangupCallId = activeCallId
-        if (hangupCallId.isNotBlank()) {
-            com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, hangupCallId)
-            // 销毁系统级 Telecom Connection，避免应用内挂断后系统残留「活跃通话」(幽灵来电)
-            com.maodouchat.telecom.MaodouchatConnectionService.finishConnection(hangupCallId)
-        }
-        // 8.52：挂断前按最终状态回写（接通→补时长；未接→保持 MISSED）
-        if (logMissed) {
-            writeCallLog(
-                if (_uiState.value.callState == CallState.CONNECTED)
-                    com.maodouchat.call.CallLogStore.State.ANSWERED
-                else
-                    com.maodouchat.call.CallLogStore.State.MISSED
-            )
-        } else {
-            // 8.53：主动拒接（logMissed=false）——仅回写已接通话时长，不落 MISSED
-            if (_uiState.value.callState == CallState.CONNECTED) {
-                writeCallLog(com.maodouchat.call.CallLogStore.State.ANSWERED)
-            }
-        }
-
-        if (notifyPeer && token.isNotBlank()) {
-            // 先快照 callId/目标，再清会话字段，避免 send 协程读到空 activeCallId
-            val hangupGroupId = activeGroupId
-            val hangupMembers = meshGroupMemberIds
-            val targets = if (_uiState.value.isGroupCall) activeGroupMemberIds else setOf(contactId)
-            targets.filter(String::isNotBlank).forEach { targetId ->
-                hangUpSender.sendHangUpDurable(
-                    toUserId = targetId,
-                    callId = hangupCallId,
-                    groupId = hangupGroupId,
-                    groupMembers = hangupMembers
-                )
-            }
-        }
-        activeGroupMemberIds = emptySet()
-        activeGroupId = ""
-        meshGroupMemberIds = emptyList()
-        activeCallId = ""
-        activeCallSession = 0L
-        callSessionMachine.finish(activeDomainSession)
-        activeDomainSession = 0L
-        signalingIdempotency.clear()
-        inboundSignalingCursors.clear()
-        outboundSignalingCursor.clear()
-
-        _uiState.update {
-            it.copy(
-                callState = CallState.DISCONNECTED,
-                isInitializing = false,
-                duration = "00:00",  // 重置 duration 避免残影
-                networkReconnecting = false,
-                networkStats = NetworkQuality.UNKNOWN,
-                iceStunOnly = false,
-                availableAudioRoutes = emptySet(),
-                selectedAudioRoute = null,
-                groupParticipants = emptyList(),
-                errorMessage = errorMessage ?: it.errorMessage
-            )
-        }
-        foregroundService.stop()
-    }
-
-    /**
-     * 定期读取 PeerConnection 的 RTC 统计，估算当前链路质量，结果写入 networkStats。
-     * 不阻塞 UI，主观评价值 GOOD/FAIR/POOR。
-     */
-
+    // 拆卸收尾簇已搬入 CallTeardownController；此处只留同签名委托，各 controller 的 endCall 接线不变。
+    private fun endCall(notifyPeer: Boolean, errorMessage: String? = null, logMissed: Boolean = true) =
+        teardownController.endCall(notifyPeer, errorMessage, logMissed)
 
     override fun onCleared() {
         // 仍在通话中则必须通知对端；hang-up 用 applicationScope，不依赖即将取消的 viewModelScope
