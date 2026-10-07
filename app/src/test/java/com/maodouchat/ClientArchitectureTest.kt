@@ -468,7 +468,7 @@ class ClientArchitectureTest {
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 835,
         // 输入栏杂项瘦身第一批：贴纸/杂项对话框 → ChatDetailComposerDialogs（AI 条/录音留守 ComposerExtras）
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 427,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 425,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 545,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
@@ -476,7 +476,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 810,
+        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
     )
 
     @Test
@@ -568,7 +568,7 @@ class ClientArchitectureTest {
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 835,
         // 输入栏杂项瘦身第一批：贴纸/杂项对话框 → ChatDetailComposerDialogs（AI 条/录音留守 ComposerExtras）
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 427,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 425,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 545,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
@@ -576,7 +576,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 810,
+        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
