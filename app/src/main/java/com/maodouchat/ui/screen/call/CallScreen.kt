@@ -5,12 +5,9 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,30 +15,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.SwitchCamera
-import androidx.compose.material.icons.filled.BluetoothAudio
-import androidx.compose.material.icons.filled.Headset
-import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VideocamOff
-import androidx.compose.material.icons.outlined.SignalCellular4Bar
-import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.SignalCellularConnectedNoInternet0Bar
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material3.FloatingActionButton
@@ -49,10 +36,6 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -84,19 +67,9 @@ import com.maodouchat.ui.theme.rememberMotionPulse
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallAudioRoute
 import com.maodouchat.webrtc.CallType
-import com.maodouchat.webrtc.GroupPeerConnectionState
 import com.maodouchat.webrtc.GroupCallPolicy
 
-/**
- * 音视频通话页面
- *
- * @param contactName 联系人名称
- * @param contactAvatar 联系人头像 URL
- * @param callType 通话类型
- * @param isIncoming 是否是来电
- * @param onHangUp 挂断回调
- * @param onAccept 接听回调
- */
+/** 音视频通话页面 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CallScreen(
@@ -428,7 +401,6 @@ fun CallScreen(
                         )
                     }
 
-                    // 切换摄像头
                     FloatingActionButton(
                         onClick = onSwitchCamera,
                         containerColor = Color.White.copy(alpha = 0.2f),
@@ -463,169 +435,16 @@ fun CallScreen(
     }
 
     if (showAudioRoutes) {
-        ModalBottomSheet(
+        CallAudioRouteSheet(
+            availableAudioRoutes = availableAudioRoutes,
+            selectedAudioRoute = selectedAudioRoute,
+            onSelectAudioRoute = onSelectAudioRoute,
             onDismissRequest = { showAudioRoutes = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ) {
-            Text(
-                text = stringResource(R.string.call_choose_audio_route),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-            )
-            CallAudioRoute.entries.filter { it in availableAudioRoutes }.forEach { route ->
-                ListItem(
-                    headlineContent = { Text(stringResource(audioRouteLabel(route))) },
-                    leadingContent = { Icon(audioRouteIcon(route), contentDescription = null) },
-                    trailingContent = { RadioButton(selected = route == selectedAudioRoute, onClick = null) },
-                    modifier = Modifier.clickable {
-                        onSelectAudioRoute(route)
-                        showAudioRoutes = false
-                    }
-                )
-            }
-            Spacer(modifier = Modifier.navigationBarsPadding().height(8.dp))
-        }
+        )
     }
 }
 
-private fun audioRouteIcon(route: CallAudioRoute?) = when (route) {
-    CallAudioRoute.BLUETOOTH -> Icons.Filled.BluetoothAudio
-    CallAudioRoute.WIRED -> Icons.Filled.Headset
-    CallAudioRoute.EARPIECE -> Icons.Filled.PhoneInTalk
-    CallAudioRoute.SPEAKER, null -> Icons.AutoMirrored.Filled.VolumeUp
-}
 
-private fun audioRouteLabel(route: CallAudioRoute): Int = when (route) {
-    CallAudioRoute.BLUETOOTH -> R.string.call_audio_route_bluetooth
-    CallAudioRoute.WIRED -> R.string.call_audio_route_wired
-    CallAudioRoute.EARPIECE -> R.string.call_audio_route_earpiece
-    CallAudioRoute.SPEAKER -> R.string.call_audio_route_speaker
-}
-
-@Composable
-private fun GroupParticipantGrid(
-    participants: List<GroupCallParticipantUi>,
-    videoCall: Boolean,
-    onRendererReady: ((String, org.webrtc.SurfaceViewRenderer) -> Unit)?,
-    onRendererReleased: ((String, org.webrtc.SurfaceViewRenderer) -> Unit)?,
-    modifier: Modifier = Modifier
-) {
-    val columns = GroupCallPolicy.gridColumns(participants.size)
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
-        modifier = modifier,
-        contentPadding = PaddingValues(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(participants, key = { it.userId }, contentType = { "call_participant" }) { participant ->
-            GroupParticipantTile(
-                participant = participant,
-                showVideo = videoCall && participant.videoAvailable && onRendererReady != null,
-                onRendererReady = onRendererReady,
-                onRendererReleased = onRendererReleased
-            )
-        }
-    }
-}
-
-@Composable
-private fun GroupParticipantTile(
-    participant: GroupCallParticipantUi,
-    showVideo: Boolean,
-    onRendererReady: ((String, org.webrtc.SurfaceViewRenderer) -> Unit)?,
-    onRendererReleased: ((String, org.webrtc.SurfaceViewRenderer) -> Unit)?
-) {
-    val statusColor = when (participant.connectionState) {
-        GroupPeerConnectionState.CONNECTED -> Color(0xFF34C759)
-        GroupPeerConnectionState.RECONNECTING -> Color(0xFFFFC107)
-        GroupPeerConnectionState.CONNECTING -> Color.White.copy(alpha = 0.7f)
-        else -> Color(0xFFFF453A)
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(if (showVideo) 0.78f else 1f)
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFF1A1A1A))
-    ) {
-        if (showVideo && onRendererReady != null) {
-            androidx.compose.ui.viewinterop.AndroidView(
-                factory = { context ->
-                    org.webrtc.SurfaceViewRenderer(context).also { renderer ->
-                        onRendererReady(participant.userId, renderer)
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-                onRelease = { renderer -> onRendererReleased?.invoke(participant.userId, renderer) }
-            )
-        } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Avatar(name = participant.name, avatarUrl = participant.avatar, size = AvatarSize.LG)
-            }
-        }
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .background(Color(0x99000000))
-                .padding(horizontal = 10.dp, vertical = 7.dp)
-        ) {
-            Text(
-                participant.name,
-                color = Color.White,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(7.dp).clip(CircleShape).background(statusColor))
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    stringResource(groupParticipantStatusLabel(participant.connectionState)),
-                    color = Color.White.copy(alpha = 0.78f),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-
-internal fun groupParticipantStatusLabel(state: GroupPeerConnectionState): Int = when (state) {
-    GroupPeerConnectionState.CONNECTING -> R.string.call_group_member_connecting
-    GroupPeerConnectionState.CONNECTED -> R.string.call_group_member_connected
-    GroupPeerConnectionState.RECONNECTING -> R.string.call_group_member_reconnecting
-    GroupPeerConnectionState.DISCONNECTED -> R.string.call_group_member_left
-    GroupPeerConnectionState.FAILED -> R.string.call_group_member_failed
-    GroupPeerConnectionState.REJECTED -> R.string.call_group_member_rejected
-    GroupPeerConnectionState.BUSY -> R.string.call_group_member_busy
-    GroupPeerConnectionState.NO_ANSWER -> R.string.call_group_member_no_answer
-}
-
-/**
- * 通话顶部网络质量小药丸（绿/黄/红）
- */
-@Composable
-private fun NetworkQualityPill(quality: NetworkQuality) {
-    val (icon, color, label) = when (quality) {
-        NetworkQuality.GOOD -> Triple(Icons.Outlined.SignalCellular4Bar, Color(0xFF34C759), R.string.call_network_good)
-        NetworkQuality.FAIR -> Triple(Icons.Outlined.SignalCellularAlt, Color(0xFFFFC107), R.string.call_network_fair)
-        NetworkQuality.POOR -> Triple(Icons.Outlined.SignalCellularConnectedNoInternet0Bar, Color(0xFFFF453A), R.string.call_network_poor)
-        NetworkQuality.UNKNOWN -> Triple(Icons.Outlined.SignalCellularAlt, Color.White.copy(alpha = 0.55f), R.string.call_network_measuring)
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0x99000000))
-            .padding(horizontal = 12.dp, vertical = 5.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-        Spacer(modifier = Modifier.width(5.dp))
-        Text(stringResource(label), color = color, style = MaterialTheme.typography.labelMedium)
-    }
-}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
