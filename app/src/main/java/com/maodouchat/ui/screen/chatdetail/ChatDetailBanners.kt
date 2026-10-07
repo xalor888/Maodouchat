@@ -19,7 +19,6 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -58,114 +57,19 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.rememberMotionPulse
 import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.ui.theme.UnreadRed
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
 /**
- * 聊天详情页顶部的「横幅」一族（G109 从 `ChatDetailComponents.kt` 拆出，原 412 行）。
+ * 聊天详情页顶部的「横幅」一族（G109 从 `ChatDetailComponents.kt` 拆出）。
  *
- * 八个横幅，都是「常驻提示条」形态——出现在消息列表上方，提示当前会话的特殊状态：
- * 群加密警告、密聊（含封Sender 就绪/过期倒计时）、实时位置共享（含剩余时间倒计时）、
- * 阅后即焚、置顶消息、群公告、安全警告、未读摘要。
- *
- * 内含几条容易在后续改动中被破坏的判定：
- * - **实时位置与密聊封Sender 都有倒计时**，用 `mutableLongStateOf` + `LaunchedEffect` 驱动，
- *   不是每次重组都重算——否则会漂移；
- * - 置顶横幅只在有置顶消息时出现，且「能否管理」决定是否显示取消按钮；
- * - 群公告为空时不渲染（不是显示一个空条）。
+ * 留守：实时位置共享、阅后即焚、置顶消息、群公告、未读摘要等状态横幅，以及
+ * `ChatDetailBannerStack` 组装点（顺序、出现条件与开关逐字保留）。
+ * 安全簇（群加密警告/密聊/安全警告）见 `ChatDetailSecurityBanners.kt`。
  *
  * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`；
  * 所需输入全部经参数显式传入。纯搬移，不改判断。
  */
-
-@Composable
-internal fun GroupEncryptionWarningBanner(warning: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-    ) {
-        Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(warning, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-    }
-}
-
-@Composable
-internal fun SecretChatBanner(
-    onManage: () -> Unit = {},
-    sealedSenderReady: Boolean = false,
-    sealedSenderExpiresInSec: Long = 0L,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-    ) {
-        Icon(
-            Icons.Outlined.VisibilityOff,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.secret_chat_banner),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = stringResource(R.string.secret_chat_banner_limit),
-                style = MaterialTheme.typography.labelSmall,
-                color = LocalChatPalette.current.textSecondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = stringResource(R.string.secret_chat_safety_hint),
-                style = MaterialTheme.typography.labelSmall,
-                color = LocalChatPalette.current.textSecondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                Icon(
-                    Icons.Outlined.Security,
-                    contentDescription = null,
-                    tint = if (sealedSenderReady) Primary else TextSecondary,
-                    modifier = Modifier.size(12.dp)
-                )
-                Text(
-                    text = if (sealedSenderReady) {
-                        stringResource(
-                            R.string.secret_chat_sealed_chip,
-                            (sealedSenderExpiresInSec / 3600L).coerceAtLeast(0L)
-                        )
-                    } else {
-                        stringResource(R.string.secret_chat_sealed_chip_pending)
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (sealedSenderReady) Primary else TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
 
 @Composable
 internal fun LiveLocationSharingBanner(
@@ -393,35 +297,6 @@ internal fun GroupAnnouncementBanner(
     }
 }
 
-/**
- * Identity / safety warning strip above the timeline.
- * CHANGED (sticky) uses stronger fill so it cannot read as a soft tip.
- */
-@Composable
-internal fun SecurityWarningBanner(
-    warning: String,
-    sticky: Boolean = false,
-    onClick: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(UnreadRed.copy(alpha = if (sticky) 0.16f else 0.08f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-    ) {
-        Icon(Icons.Outlined.Security, contentDescription = null, tint = LocalChatPalette.current.unreadRed, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            warning,
-            color = LocalChatPalette.current.unreadRed,
-            style = if (sticky) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
 @Composable
 internal fun UnreadSummaryBanner(
     summary: String?,
@@ -492,7 +367,6 @@ internal fun UnreadSummaryBanner(
         }
     }
 }
-
 
 /**
  * G344：把会话详情页消息列表上方的**横幅栈组装**（置顶/群公告/定时/阅后即焚/密聊/实时位置/
