@@ -432,10 +432,10 @@ class ClientArchitectureTest {
         // 通话 VM 瘦身第九批：入站信令簇（WS/轮询双路接收、准入/幂等/排序门闩、类型分发、
         // 群边 offer 缓冲+flush）→ 同包 CallSignalingIngressController（863 → 530，纯搬移），
         // 两处同步收紧。
-        // 通话 VM 瘦身第十三批：文案簇（text/failureReason）→ 同包 CallErrorMessages、
-        // 会话重置簇（呼出/呼入四重置 lambda）→ 同包 CallSessionResetController
-        //（461 → 437，VM 只留同签名委托/方法引用），两处同步收紧。
-        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 437,
+        // 通话 VM 瘦身第十四批（收官）：文案委托直连（11 处 text/failureReason 接线 lambda
+        // → errorMessages 方法引用，删 VM 私有转手）+ foregroundService 懒加载
+        //（437 → 435，VM 只剩接线与公开 intent 委托），两处同步收紧。
+        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 435,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
@@ -525,9 +525,9 @@ class ClientArchitectureTest {
             // 通话 VM 瘦身第九批：入站信令簇 → 同包 CallSignalingIngressController（863 → 530，纯搬移）。
             // 通话 VM 瘦身第十二批：媒体簇 → 同包 CallMediaController（463 → 461，
             // VM 留同签名公开委托）。
-            // 通话 VM 瘦身第十三批：文案簇 → 同包 CallErrorMessages、
-            // 会话重置簇 → 同包 CallSessionResetController（461 → 437）。
-            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 437,
+            // 通话 VM 瘦身第十四批（收官）：文案委托直连 + foregroundService 懒加载
+            //（437 → 435，VM 只剩接线与公开 intent 委托）。
+            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 435,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内

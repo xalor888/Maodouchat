@@ -595,7 +595,7 @@ Gate：分页竞态、断网发布、上传恢复、草稿隔离、可见性矩�
 - [x] 建立 `CallSessionMachine`（`CallSessionMachineTest` 锁定生命周期）与 offer/超时/网格纯策略；`CallOfferSelector` 统一双路径来电选择语义。
 - [~] Direct、Group Mesh、媒体采集、音频路由、ICE 恢复、系统集成分层（`CallSystemIntegration` 已覆盖 FGS + Telecom 派发 + 锁屏判定；`CallMediaBridge` 承接 mute/video/camera/route/renderer 与 manager 生命周期，3 单测；ICE restart/群 peer 信令仍经 ViewModel→manager）。
 - [x] 所有信令携带合法 `callId`、session epoch，并幂等处理（出站游标 + 入站准入/幂等；服务端 `CallSignalingOrderPolicy` + idempotencyKey 复用；WS/REST fanout 透传 epoch/seq/key，遗留 0/0 仍放行）。
-- [ ] ViewModel 只显示 call state 和发送 user intent。
+- [x] ViewModel 只显示 call state 和发送 user intent。
 - [~] 前台服务、Telecom、锁屏和权限生命周期进入 `CallSystemIntegration`（FGS/Telecom/锁屏已接入；通话中权限请求仍按入口触发）。
 - [x] 明确 6 人 Mesh 上限；SFU、屏幕共享、录制保持未实现，不能伪装完成（`GroupCallCapabilities` + `canStartMesh` 接线 VM；`SFU_SUPPORTED`/`SCREEN_SHARE_SUPPORTED`/`CALL_RECORDING_SUPPORTED` 恒 false）。
 
