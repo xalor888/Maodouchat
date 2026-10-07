@@ -361,7 +361,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     fun prepareIncomingCall(
         contactId: String,
-        contactName: String?,
+        contactName: String,
         contactAvatar: String?,
         callType: CallType,
         offerSdp: String,
