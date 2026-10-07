@@ -1,298 +1,82 @@
 package com.maodouchat.ui.screen.chatlist
 
-
-import android.annotation.SuppressLint
 import com.maodouchat.util.RuntimeFlags
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.outlined.Archive
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.Circle
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material.icons.outlined.DragIndicator
-import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Unarchive
-import androidx.compose.material.icons.filled.ChatBubble
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.DoneAll
-import androidx.compose.material.icons.outlined.Campaign
-import androidx.compose.material.icons.outlined.PersonAdd
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.outlined.Explore
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import com.maodouchat.ui.component.SearchHighlightSurface
+import androidx.compose.runtime.getValue
 import com.maodouchat.ui.component.SearchHighlightAccent
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.zIndex
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.ui.platform.LocalDensity
-import kotlin.math.roundToInt
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.data.model.MissedCall
 import com.maodouchat.ui.component.MessageStatusIcon
-import com.maodouchat.network.ApiService
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.ui.component.EmptyState
-import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.AnimatedBottomNav
 import com.maodouchat.ui.component.BottomNavItem
-import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.LiquidBottomTabItem
 import com.maodouchat.ui.component.LiquidBottomTabs
-import com.maodouchat.ui.component.PullToRefreshLayout
-import com.maodouchat.ui.component.SearchBar
-import com.maodouchat.ui.component.SwipeableChatItem
-import com.maodouchat.ui.component.ShimmerChatRow
-import com.maodouchat.navigation.MainTab
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.util.ChatFolderPolicy
 import com.maodouchat.util.HapticGate
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
-
-
-@Composable
-internal fun ChatFolderStrip(
-    folders: List<com.maodouchat.util.ChatFolder>,
-    selectedFolderId: String?,
-    secretChatCount: Int,
-    lockedChatCount: Int,
-    unreadInFolder: (String) -> Int,
-    onSelectFolder: (String?) -> Unit,
-    onManage: () -> Unit,
-    onCreate: () -> Unit
-) {
-    val scroll = rememberScrollState()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scroll)
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        FolderChip(stringResource(R.string.chat_folder_all), selectedFolderId.isNullOrBlank(), 0) { onSelectFolder(null) }
-        FolderChip(stringResource(R.string.chat_folder_unread), selectedFolderId == ChatFolderPolicy.SYSTEM_UNREAD_ID, unreadInFolder(ChatFolderPolicy.SYSTEM_UNREAD_ID)) { onSelectFolder(ChatFolderPolicy.SYSTEM_UNREAD_ID) }
-        FolderChip(stringResource(R.string.chat_folder_groups), selectedFolderId == ChatFolderPolicy.SYSTEM_GROUPS_ID, unreadInFolder(ChatFolderPolicy.SYSTEM_GROUPS_ID)) { onSelectFolder(ChatFolderPolicy.SYSTEM_GROUPS_ID) }
-        FolderChip(stringResource(R.string.chat_folder_direct), selectedFolderId == ChatFolderPolicy.SYSTEM_DIRECT_ID, unreadInFolder(ChatFolderPolicy.SYSTEM_DIRECT_ID)) { onSelectFolder(ChatFolderPolicy.SYSTEM_DIRECT_ID) }
-        if (secretChatCount > 0 || selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID) {
-            FolderChip(stringResource(R.string.chat_folder_secret), selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID, secretChatCount) { onSelectFolder(ChatFolderPolicy.SYSTEM_SECRET_ID) }
-        }
-        if (lockedChatCount > 0 || selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID) {
-            FolderChip(stringResource(R.string.chat_folder_locked), selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID, lockedChatCount) { onSelectFolder(ChatFolderPolicy.SYSTEM_LOCKED_ID) }
-        }
-        folders.forEach { folder ->
-            FolderChip(folder.name, selectedFolderId == folder.id, unreadInFolder(folder.id)) { onSelectFolder(folder.id) }
-        }
-        TextButton(
-            onClick = onCreate,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-            modifier = Modifier.height(32.dp),
-            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                contentColor = MaterialTheme.colorScheme.onSurface
-            )
-        ) { Text(stringResource(R.string.chat_folder_create), style = MaterialTheme.typography.labelMedium) }
-        TextButton(
-            onClick = onManage,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-            modifier = Modifier.height(32.dp),
-            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                contentColor = MaterialTheme.colorScheme.onSurface
-            )
-        ) { Text(stringResource(R.string.chat_folder_manage), style = MaterialTheme.typography.labelMedium) }
-    }
-}
-
-@Composable
-internal fun FolderChip(label: String, selected: Boolean, badge: Int, onClick: () -> Unit) {
-    val chipLabel = if (badge > 0) "$label ${if (badge > 99) "99+" else badge}" else label
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(chipLabel, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelMedium) },
-        modifier = Modifier.padding(end = 6.dp).height(32.dp),
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            enabled = true,
-            selected = selected,
-            borderColor = MaterialTheme.colorScheme.outlineVariant,
-            selectedBorderColor = MaterialTheme.colorScheme.outline,
-        )
-    )
-}
-
-@Composable
-internal fun ShimmerChatList() {
-    Column(modifier = Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        repeat(8) { ShimmerChatRow() }
-    }
-}
-
-@Composable
-internal fun EmptyChatState(
-    hasSearchQuery: Boolean,
-    showArchived: Boolean,
-    selectedFolderId: String?,
-    loadError: String? = null,
-    onRetry: (() -> Unit)? = null,
-    onAddContact: () -> Unit,
-    onScan: (() -> Unit)?
-) {
-    // 8.52 UX：初次加载失败且无本地缓存时，用错误空态代替误导性的「还没有聊天」+ 重试入口
-    if (loadError != null && !hasSearchQuery && !showArchived && selectedFolderId.isNullOrBlank()) {
-        EmptyState(
-            type = EmptyStateType.NETWORK_ERROR,
-            title = stringResource(R.string.chat_load_failed_title),
-            subtitle = loadError,
-            actionText = stringResource(R.string.chat_load_failed_retry),
-            onAction = onRetry
-        )
-        return
-    }
-    val title = when {
-        hasSearchQuery -> stringResource(R.string.chat_empty_search_title)
-        showArchived -> stringResource(R.string.chat_empty_archived_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_UNREAD_ID -> stringResource(R.string.chat_folder_empty_unread_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_GROUPS_ID -> stringResource(R.string.chat_folder_empty_groups_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_DIRECT_ID -> stringResource(R.string.chat_folder_empty_direct_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID -> stringResource(R.string.chat_folder_empty_secret_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID -> stringResource(R.string.chat_folder_empty_locked_title)
-        !selectedFolderId.isNullOrBlank() -> stringResource(R.string.chat_folder_empty)
-        else -> stringResource(R.string.chat_empty_title)
-    }
-    val subtitle = when {
-        hasSearchQuery -> stringResource(R.string.chat_empty_search_subtitle)
-        showArchived -> stringResource(R.string.chat_empty_archived_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_UNREAD_ID -> stringResource(R.string.chat_folder_empty_unread_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_GROUPS_ID -> stringResource(R.string.chat_folder_empty_groups_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_DIRECT_ID -> stringResource(R.string.chat_folder_empty_direct_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID -> stringResource(R.string.chat_folder_empty_secret_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID -> stringResource(R.string.chat_folder_empty_locked_subtitle)
-        // 8.45：此前误用「查看全部会话」操作按钮文案作空态副标题
-        !selectedFolderId.isNullOrBlank() -> stringResource(R.string.chat_folder_empty_subtitle)
-        else -> stringResource(R.string.chat_empty_subtitle)
-    }
-    val showActions = !hasSearchQuery && !showArchived && selectedFolderId.isNullOrBlank()
-    EmptyState(
-        type = if (hasSearchQuery) EmptyStateType.SEARCH else EmptyStateType.CHAT_LIST,
-        title = title,
-        subtitle = subtitle,
-        actionText = if (showActions) stringResource(R.string.chat_empty_action_add) else null,
-        onAction = if (showActions) onAddContact else null,
-        secondaryActionText = if (showActions && onScan != null) stringResource(R.string.chat_empty_action_scan) else null,
-        onSecondaryAction = if (showActions) onScan else null
-    )
-}
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -516,117 +300,6 @@ internal fun ChatListItem(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-internal fun MissedCallsCard(calls: List<MissedCall>, onOpen: () -> Unit) {
-    val unread = calls.count { !it.isRead }
-    // 9.215 修复：missed_calls 原调用未传数量参数，%1$d 会原样显示；转 plurals 并传入计数
-    val title = if (unread > 0) pluralStringResource(R.plurals.missed_calls_with_unread, calls.size, calls.size, unread) else pluralStringResource(R.plurals.missed_calls, calls.size, calls.size)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f))
-            .combinedClickable(onClick = onOpen)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Filled.Call, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.SemiBold)
-            Text(calls.firstOrNull()?.callerName.orEmpty(), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        TextButton(onClick = onOpen) { Text(stringResource(R.string.schedule_view_all)) }
-    }
-}
-
-internal data class CallLogRow(
-    val id: String,
-    val peerId: String,
-    val peerName: String,
-    val video: Boolean,
-    val direction: com.maodouchat.call.CallLogStore.Direction,
-    val state: com.maodouchat.call.CallLogStore.State,
-    val at: Long,
-    val durationMs: Long
-)
-
-private fun formatCallDuration(durationMs: Long): String {
-    if (durationMs <= 0L) return ""
-    val totalSec = (durationMs / 1000).toInt()
-    val min = totalSec / 60
-    val sec = totalSec % 60
-    return "%d:%02d".format(min, sec)
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-internal fun MissedCallsSheet(
-    rows: List<CallLogRow>,
-    onDismiss: () -> Unit,
-    onClear: () -> Unit,
-    onOpenChat: (userId: String, name: String, video: Boolean) -> Unit,
-    // 1.289：长按单条删除（与通话记录页单条删除一致）
-    onDeleteRow: (CallLogRow) -> Unit = {}
-) {
-    val motion = LocalMotionSettings.current
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.call_log_title)) },
-        text = {
-            if (rows.isEmpty()) Text(stringResource(R.string.missed_calls_empty))
-            else LazyColumn {
-                items(rows, key = { it.id }) { call ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateItem(
-                                fadeInSpec = motion.listItemFadeInSpec(),
-                                fadeOutSpec = motion.listItemFadeOutSpec(),
-                                placementSpec = motion.listItemPlacementSpec()
-                            )
-                            .combinedClickable(
-                                onClick = { onOpenChat(call.peerId, call.peerName, call.video) },
-                                // 1.289：长按删除该条通话记录
-                                onLongClick = { onDeleteRow(call) }
-                            )
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            // CallMade/CallReceived 不在 material-icons-core；用 Call + tint 区分状态
-                            imageVector = Icons.Filled.Call,
-                            contentDescription = null,
-                            tint = if (call.state == com.maodouchat.call.CallLogStore.State.MISSED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(call.peerName, fontWeight = FontWeight.Medium)
-                            Text(
-                                (if (call.video) stringResource(R.string.call_video) else stringResource(R.string.call_audio)) +
-                                    " · " + relativeTime(call.at) +
-                                    when (call.state) {
-                                        com.maodouchat.call.CallLogStore.State.MISSED -> " · " + stringResource(R.string.missed_calls_badge)
-                                        com.maodouchat.call.CallLogStore.State.ANSWERED -> {
-                                            val d = formatCallDuration(call.durationMs)
-                                            if (d.isNotEmpty()) " · " + d else ""
-                                        }
-                                    },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = LocalChatPalette.current.textSecondary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onClear) { Text(stringResource(R.string.chat_delete)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } }
-    )
-}
-
 @Composable
 fun BottomNavBar(
     selectedTab: Int,
@@ -683,16 +356,6 @@ fun BottomNavBar(
             modifier = modifier.navigationBarsPadding()
         )
     }
-}
-
-private fun relativeTime(ts: Long): String {
-    if (ts <= 0L) return ""
-    // 8.45：此前硬编码 "now"/"5m"/"3h" 英文——改用地区分区间的相对时间（中英文界面均正确）
-    return android.text.format.DateUtils.getRelativeTimeSpanString(
-        ts,
-        System.currentTimeMillis(),
-        android.text.format.DateUtils.MINUTE_IN_MILLIS
-    ).toString()
 }
 
 // SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
