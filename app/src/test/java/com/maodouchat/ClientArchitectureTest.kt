@@ -472,6 +472,8 @@ class ClientArchitectureTest {
         // （502 行，未进前 20 不纳管）+ UseKtx 收尾（两处 .edit().apply() → edit{}）+ 删 9 个死 import，
         // 纯搬移，上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 483,
+        // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
+        // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
         "com/maodouchat/network/WebSocketClient.kt" to 969,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
