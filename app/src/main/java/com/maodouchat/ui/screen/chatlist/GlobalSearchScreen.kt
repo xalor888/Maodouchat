@@ -922,7 +922,7 @@ private fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick: 
 }
 
 @Composable
-private fun highlightedText(text: String, query: String): AnnotatedString {
+internal fun highlightedText(text: String, query: String): AnnotatedString {
     val (c, bg) = SearchHighlightSurface
     return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }

@@ -385,7 +385,7 @@ private fun NotificationRow(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    relativeTime(item.updatedAt),
+                    notifRelativeTime(item.updatedAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = LocalChatPalette.current.textHint
                 )

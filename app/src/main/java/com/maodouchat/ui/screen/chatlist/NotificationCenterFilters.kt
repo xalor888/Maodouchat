@@ -9,14 +9,13 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.notification.NotificationCenterType
-import com.maodouchat.ui.component.SearchHighlightSurface
 
 internal enum class NotifFilter {
     ALL,
@@ -115,7 +114,7 @@ enum class StringBucket(val sortOrder: Int) {
 }
 
 @Composable
-internal fun relativeTime(timestamp: Long): String {
+internal fun notifRelativeTime(timestamp: Long): String {
     val diff = System.currentTimeMillis() - timestamp
     return when {
         diff < 60_000 -> stringResource(R.string.time_just_now)
@@ -125,9 +124,3 @@ internal fun relativeTime(timestamp: Long): String {
     }
 }
 
-// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
-@Composable
-internal fun highlightedText(text: String, query: String): AnnotatedString {
-    val (c, bg) = SearchHighlightSurface
-    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
-}

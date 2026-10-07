@@ -461,7 +461,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 763）。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 763,
-        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 742,
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
@@ -569,7 +569,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 763）。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 763,
-        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 742,
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
