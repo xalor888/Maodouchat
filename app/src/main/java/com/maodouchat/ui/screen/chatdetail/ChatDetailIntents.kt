@@ -2,11 +2,9 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiOperationError
@@ -19,7 +17,7 @@ import com.maodouchat.data.local.entity.AiOperationError
  * - `openFile`：把 content/file URI 经 FileProvider 转成可授权视图意图；
  * - `requestVoiceCallPermission` / `requestVideoCallPermissions`：语音/视频通话前的权限申请。
  *
- * 它们被 `ChatDetailRoute`、`CallNavigation`、`ChatDetailComposerExtras`、
+ * 它们被 `ChatDetailRoute`、`ChatDetailComposerExtras`、
  * `ChatDetailAiStatusStrip` 多处共用，放在输入栏文件里名不副实，故独立成文件。
  *
  * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`。
@@ -90,7 +88,8 @@ internal fun requestVoiceCallPermission(
     contactName: String,
     onVoiceCall: (String, String) -> Unit
 ) {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+    // 权限集合走统一门；语音通话只需麦克风，缺失时只请求这一项。
+    if (com.maodouchat.call.CallPermissionGate.hasPermissions(context, com.maodouchat.webrtc.CallType.AUDIO)) {
         onVoiceCall(contactId, contactName)
     } else {
         launchPermissionRequest(Manifest.permission.RECORD_AUDIO)
@@ -104,11 +103,10 @@ internal fun requestVideoCallPermissions(
     contactName: String,
     onVideoCall: (String, String) -> Unit
 ) {
-    val missingPermissions = listOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
-        .filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
-    if (missingPermissions.isEmpty()) {
+    val missing = com.maodouchat.call.CallPermissionGate.missingPermissions(context, com.maodouchat.webrtc.CallType.VIDEO)
+    if (missing.isEmpty()) {
         onVideoCall(contactId, contactName)
     } else {
-        launchPermissionRequest(missingPermissions.toTypedArray())
+        launchPermissionRequest(missing)
     }
 }

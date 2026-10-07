@@ -1,8 +1,5 @@
 package com.maodouchat.ui.navigation
 
-import com.maodouchat.util.RuntimeFlags
-import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
@@ -140,14 +137,22 @@ internal fun IncomingCallRoute(navController: NavHostController) {
         }
     }
 
-    val voicePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    // 通话权限统一走 CallPermissionGate：策略（CallType→运行时权限）只此一处，
+    // 各入口只管 launcher 注册与授权后的动作。
+    val gateCallType = incomingCall?.callType ?: CallType.AUDIO
+    val callPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val granted = com.maodouchat.call.CallPermissionGate.requiredPermissions(gateCallType).all {
+            grants[it] == true ||
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
         if (granted) pendingAccept = true
-        else Toast.makeText(context, voiceCallPermissionMsg, Toast.LENGTH_SHORT).show()
-    }
-    val videoPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-        val allGranted = permissions.values.all { it }
-        if (allGranted) pendingAccept = true
-        else Toast.makeText(context, videoCallPermissionMsg, Toast.LENGTH_SHORT).show()
+        else Toast.makeText(
+            context,
+            if (gateCallType == CallType.VIDEO) videoCallPermissionMsg else voiceCallPermissionMsg,
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     if (incomingCall == null) {
@@ -169,12 +174,9 @@ internal fun IncomingCallRoute(navController: NavHostController) {
         // 8.56：系统 Telecom「接听」已确认 → 进入即自动接听（权限已由系统通话流程授予，
         // 仍走统一权限请求以防 RECORD_AUDIO 缺失）。autoAnswer 随 PendingIncomingCall 绑定，无串单风险。
         if (incomingCall.autoAnswer) {
-            when (incomingCall.callType) {
-                CallType.AUDIO, CallType.GROUP ->
-                    requestVoiceCallPermission(context, voicePermissionLauncher) { pendingAccept = true }
-                CallType.VIDEO ->
-                    requestVideoCallPermissions(context, videoPermissionLauncher) { pendingAccept = true }
-            }
+            com.maodouchat.call.CallPermissionGate.ensurePermissions(
+                context, gateCallType, callPermissionLauncher::launch
+            ) { pendingAccept = true }
         }
     }
 
@@ -213,10 +215,9 @@ internal fun IncomingCallRoute(navController: NavHostController) {
         onDismissError = { callViewModel.clearError() },
         onAccept = {
             // 先标记"待接听"，权限通过后再触发 LaunchedEffect 执行 answerCall
-            when (incomingCall.callType) {
-                CallType.AUDIO, CallType.GROUP -> requestVoiceCallPermission(context, voicePermissionLauncher) { pendingAccept = true }
-                CallType.VIDEO -> requestVideoCallPermissions(context, videoPermissionLauncher) { pendingAccept = true }
-            }
+            com.maodouchat.call.CallPermissionGate.ensurePermissions(
+                context, gateCallType, callPermissionLauncher::launch
+            ) { pendingAccept = true }
         },
         onHangUp = {
             if (callState.callState == CallState.RINGING && callState.isIncoming) {
@@ -244,30 +245,4 @@ internal fun IncomingCallRoute(navController: NavHostController) {
         onGroupRemoteRendererReady = { userId, renderer -> callViewModel.attachGroupRemoteRenderer(userId, renderer) },
         onGroupRemoteRendererReleased = { userId, renderer -> callViewModel.detachGroupRemoteRenderer(userId, renderer) }
     )
-}
-
-internal fun requestVoiceCallPermission(
-    context: Context,
-    launcher: androidx.activity.result.ActivityResultLauncher<String>,
-    onGranted: () -> Unit
-) {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-        onGranted()
-    } else {
-        launcher.launch(Manifest.permission.RECORD_AUDIO)
-    }
-}
-
-internal fun requestVideoCallPermissions(
-    context: Context,
-    launcher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
-    onGranted: () -> Unit
-) {
-    val permissions = arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
-    val allGranted = permissions.all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
-    if (allGranted) {
-        onGranted()
-    } else {
-        launcher.launch(permissions)
-    }
 }

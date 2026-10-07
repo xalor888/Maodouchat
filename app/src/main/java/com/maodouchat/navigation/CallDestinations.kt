@@ -1,7 +1,5 @@
 package com.maodouchat.navigation
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -15,7 +13,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -57,12 +54,7 @@ fun NavGraphBuilder.callDestinations(navController: NavHostController) {
         val memberIds = if (isGroupCall) contactId.substringAfter("|").split(",").filter { it.isNotBlank() } else emptyList()
 
         val requiredPermissions = remember(callType) {
-            com.maodouchat.webrtc.CallReliabilityPolicy.requiredPermissions(callType).map { permission ->
-                when (permission) {
-                    com.maodouchat.webrtc.CallMediaPermission.MICROPHONE -> Manifest.permission.RECORD_AUDIO
-                    com.maodouchat.webrtc.CallMediaPermission.CAMERA -> Manifest.permission.CAMERA
-                }
-            }.toTypedArray()
+            com.maodouchat.call.CallPermissionGate.requiredPermissions(callType)
         }
         val voiceCallPermissionMsg = stringResource(R.string.chat_permission_voice_call)
         val videoCallPermissionMsg = stringResource(R.string.chat_permission_video_call)
@@ -72,16 +64,15 @@ fun NavGraphBuilder.callDestinations(navController: NavHostController) {
         val callPermissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) {
-            callPermissionsGranted = requiredPermissions.all { permission ->
-                ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
-            }
+            callPermissionsGranted = com.maodouchat.call.CallPermissionGate.hasPermissions(context, callType)
         }
 
         LaunchedEffect(requiredPermissions.contentHashCode()) {
-            val granted = requiredPermissions.all { permission ->
-                ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+            com.maodouchat.call.CallPermissionGate.ensurePermissions(
+                context, callType, callPermissionLauncher::launch
+            ) {
+                callPermissionsGranted = true
             }
-            if (granted) callPermissionsGranted = true else callPermissionLauncher.launch(requiredPermissions)
         }
 
         // 仅在真正 IDLE 状态才发起通话，避免进程恢复后重复发起
