@@ -3,18 +3,15 @@ package com.maodouchat.ui.screen.call
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.R
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.CallSignalingIdempotencyStore
 import com.maodouchat.call.CallSignalingOrderPolicy
 import com.maodouchat.call.CallSignalingOutboundCursor
 import com.maodouchat.call.CallSystemIntegration
-import com.maodouchat.call.GroupCallCapabilities
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.webrtc.CallAudioRoute
 import com.maodouchat.webrtc.WebRTCManager
-import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,14 +25,12 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app: Application get() = getApplication()
 
-    private fun text(id: Int, vararg args: Any): String =
-        getApplication<Application>().getString(id, *args)
+    // 文案簇已搬入 CallErrorMessages；此处只留同签名委托，各 controller 接线不变。
+    private val errorMessages by lazy { CallErrorMessages(application) }
 
-    private fun failureReason(error: Throwable): String =
-        if (error is WebRTCSignaling.SignalingException && error.code == "CALL_INVITE_RATE_LIMITED") {
-            text(R.string.call_rate_limited, error.retryAfterSeconds ?: 60)
-        } else if (error is WebRTCSignaling.SignalingException) text(R.string.call_network_error)
-        else error.message ?: text(R.string.call_network_error)
+    private fun text(id: Int, vararg args: Any): String = errorMessages.text(id, *args)
+
+    private fun failureReason(error: Throwable): String = errorMessages.failureReason(error)
 
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
@@ -70,7 +65,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val RINGING_TIMEOUT_MS = 30_000L
-        /** TURN 短期凭据 TTL 1h：每 30 分钟刷新一次，留足余量（8.35）。 */
     }
 
     private val timersController by lazy {
@@ -182,24 +176,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             updateState = { transform -> _uiState.update(transform) },
             token = { token },
             text = { id, args -> text(id, *args) },
-            resetForNewOutgoingCall = { peerId ->
-                endingCall = false
-                val session = beginCallSession(peerId)
-                activeCallId = newCallId()
-                activeGroupId = ""
-                meshGroupMemberIds = emptyList()
-                // 8.55：呼出时快照账号，作为通话记录写入的 expectedUserId 守卫
-                callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-                session
-            },
-            resetForNewGroupCall = { chatId, remoteMembers, selfUserId ->
-                endingCall = false
-                val session = beginCallSession(chatId)
-                activeCallId = newCallId()
-                activeGroupId = chatId
-                meshGroupMemberIds = (remoteMembers + selfUserId).sorted()
-                session
-            },
+            // 会话重置簇已搬入 CallSessionResetController；此处只留方法引用。
+            resetForNewOutgoingCall = sessionResetController::resetForNewOutgoingCall,
+            resetForNewGroupCall = sessionResetController::resetForNewGroupCall,
             groupMemberIds = { activeGroupMemberIds },
             setGroupMemberIds = { ids -> activeGroupMemberIds = ids },
             currentOwnerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
@@ -230,25 +209,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             activeCallSession = { activeCallSession },
             pendingOfferSdp = { pendingOfferSdp },
             clearPendingOfferSdp = { pendingOfferSdp = null },
-            resetForNewIncomingCall = { contactId, offerSdp, callId, groupId, groupMemberIds ->
-                pendingOfferSdp = offerSdp
-                endingCall = false
-                beginCallSession(contactId, incoming = true)
-                activeCallId = callId
-                val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-                val normalizedMembers = groupMemberIds.filter(String::isNotBlank).distinct()
-                val isGroup = groupId.isNotBlank() &&
-                    GroupCallCapabilities.canStartMesh(normalizedMembers.size) &&
-                    selfUserId in normalizedMembers
-                activeGroupId = if (isGroup) groupId else ""
-                meshGroupMemberIds = if (isGroup) normalizedMembers.sorted() else emptyList()
-                activeGroupMemberIds = if (isGroup) normalizedMembers.filter { it != selfUserId }.toSet() else emptySet()
-                isGroup to activeGroupMemberIds.map { GroupCallParticipantUi(it) }
-            },
-            markIncomingSessionOwner = {
-                // 8.55：呼入时快照账号，作为通话记录写入的 expectedUserId 守卫
-                callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            },
+            resetForNewIncomingCall = sessionResetController::resetForNewIncomingCall,
+            markIncomingSessionOwner = sessionResetController::markIncomingSessionOwner,
             signalingSender = signalingSender,
             groupMesh = groupMesh,
             webRtcSetup = webRtcSetup,
@@ -352,6 +314,20 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             setActiveCallSession = { activeCallSession = it },
             endingCall = { endingCall },
             webRTCManager = { webRTCManager },
+        )
+    }
+
+    private val sessionResetController by lazy {
+        CallSessionResetController(
+            beginCallSession = { peerId, incoming -> beginCallSession(peerId, incoming) },
+            newCallId = ::newCallId,
+            setEndingCall = { endingCall = it },
+            setActiveCallId = { activeCallId = it },
+            setActiveGroupId = { activeGroupId = it },
+            setMeshGroupMemberIds = { meshGroupMemberIds = it },
+            setGroupMemberIds = { activeGroupMemberIds = it },
+            setPendingOfferSdp = { pendingOfferSdp = it },
+            setCallLogOwnerUserId = { callLogOwnerUserId = it },
         )
     }
 
