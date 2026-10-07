@@ -25,12 +25,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app: Application get() = getApplication()
 
-    // 文案簇已搬入 CallErrorMessages；此处只留同签名委托，各 controller 接线不变。
-    private val errorMessages by lazy { CallErrorMessages(application) }
-
-    private fun text(id: Int, vararg args: Any): String = errorMessages.text(id, *args)
-
-    private fun failureReason(error: Throwable): String = errorMessages.failureReason(error)
+    // 文案簇在 CallErrorMessages；接线直接引它的方法引用，VM 不再转手。
+    private val errorMessages = CallErrorMessages(application)
 
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
@@ -40,12 +36,14 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val callSessionGate = CallSessionGate()
     private val callSessionMachine = com.maodouchat.call.CallSessionMachine()
     private val callSystemIntegration = CallSystemIntegration(application)
-    private val foregroundService = CallForegroundServiceController(
-        systemIntegration = callSystemIntegration,
-        currentState = { _uiState.value },
-        activeCallId = { activeCallId },
-        text = { id, args -> text(id, *args) },
-    )
+    private val foregroundService by lazy {
+        CallForegroundServiceController(
+            systemIntegration = callSystemIntegration,
+            currentState = { _uiState.value },
+            activeCallId = { activeCallId },
+            text = errorMessages::text,
+        )
+    }
     private var activeCallSession: Long = 0L
     private var activeDomainSession: Long = 0L
     private var activeGroupId: String = ""
@@ -91,8 +89,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             callSessionGate = callSessionGate,
             outboundSignalingCursor = outboundSignalingCursor,
             updateState = { transform -> _uiState.update(transform) },
-            text = { id, args -> text(id, *args) },
-            failureReason = { error -> failureReason(error) },
+            text = errorMessages::text,
+            failureReason = errorMessages::failureReason,
             onEndCall = { errorMessage -> endCall(notifyPeer = false, errorMessage = errorMessage) },
         )
     }
@@ -116,7 +114,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             webRTCManager = { webRTCManager },
             isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
             signalingSender = signalingSender,
-            text = { id, args -> text(id, *args) },
+            text = errorMessages::text,
             onNoActivePeers = { message -> endCall(notifyPeer = false, errorMessage = message) },
         )
     }
@@ -133,7 +131,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             updateState = { transform -> _uiState.update(transform) },
             currentState = { _uiState.value },
             onIceGiveUp = { message -> endCall(notifyPeer = false, errorMessage = message) },
-            text = { id, args -> text(id, *args) },
+            text = errorMessages::text,
             webRTCManager = { webRTCManager },
         )
     }
@@ -147,7 +145,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             currentState = { _uiState.value },
             activeCallId = { activeCallId },
             timeoutMs = RINGING_TIMEOUT_MS,
-            text = { id, args -> text(id, *args) },
+            text = errorMessages::text,
             onNoAnswer = { message -> endCall(notifyPeer = true, errorMessage = message) },
         )
     }
@@ -164,7 +162,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             iceRecovery = iceRecovery,
             groupMesh = groupMesh,
             endCall = ::endCall,
-            text = { id, args -> text(id, *args) },
+            text = errorMessages::text,
         )
     }
 
@@ -175,7 +173,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
             token = { token },
-            text = { id, args -> text(id, *args) },
+            text = errorMessages::text,
             // 会话重置簇已搬入 CallSessionResetController；此处只留方法引用。
             resetForNewOutgoingCall = sessionResetController::resetForNewOutgoingCall,
             resetForNewGroupCall = sessionResetController::resetForNewGroupCall,
@@ -204,7 +202,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
             token = { token },
-            text = { id, args -> text(id, *args) },
+            text = errorMessages::text,
             activeCallId = { activeCallId },
             activeCallSession = { activeCallSession },
             pendingOfferSdp = { pendingOfferSdp },
@@ -258,8 +256,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             prepareIncomingCall = { contactId, contactName, contactAvatar, callType, offerSdp, callId, groupId, groupMemberIds ->
                 incomingCallController.prepareIncomingCall(contactId, contactName, contactAvatar, callType, offerSdp, callId, groupId, groupMemberIds)
             },
-            text = { id, args -> text(id, *args) },
-            failureReason = { error -> failureReason(error) },
+            text = errorMessages::text,
+            failureReason = errorMessages::failureReason,
             endCall = { notifyPeer, errorMessage -> endCall(notifyPeer, errorMessage) },
         )
     }
