@@ -399,7 +399,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
+        // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
+        // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 293,
         "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
@@ -454,7 +456,12 @@ class ClientArchitectureTest {
         // 通话泡瘦身第一批：链接预览簇 → LinkPreviewBubble、富文本簇 → RichTextBubble
         // （1050 → 749，纯搬移；死 import 同步清理），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 749,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1048,
+        // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
+        // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
+        // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 763）。
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 763,
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 742,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
@@ -513,7 +520,9 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 882,
+        // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
+        // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 293,
             "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
@@ -555,7 +564,12 @@ class ClientArchitectureTest {
         // 通话泡瘦身第一批：链接预览簇 → LinkPreviewBubble、富文本簇 → RichTextBubble
         // （1050 → 749，纯搬移；死 import 同步清理），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 749,
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1048,
+        // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
+        // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
+        // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 763）。
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 763,
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 742,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
