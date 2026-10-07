@@ -1,12 +1,9 @@
 package com.maodouchat.ui.screen.call
 
-import com.maodouchat.notification.CallNotificationService
-import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.call.CallActionBus
 import com.maodouchat.session.AppRuntime
@@ -25,7 +22,6 @@ import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.CallReliabilityPolicy
 import com.maodouchat.webrtc.CallSessionGate
-import com.maodouchat.webrtc.CallIceServer
 import com.maodouchat.webrtc.CallAudioRoute
 import com.maodouchat.webrtc.GroupPeerConnectionState
 import com.maodouchat.webrtc.WebRTCManager
@@ -185,6 +181,113 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    private val webRtcSetup by lazy {
+        CallWebRtcSetupController(
+            app = app,
+            token = { token },
+            updateState = { transform -> _uiState.update(transform) },
+            currentState = { _uiState.value },
+            endingCall = { endingCall },
+            callSessionGate = callSessionGate,
+            webRTCManager = { webRTCManager },
+            iceRecovery = iceRecovery,
+            groupMesh = groupMesh,
+            endCall = ::endCall,
+            text = { id, args -> text(id, *args) },
+        )
+    }
+
+    private val outgoingCallController by lazy {
+        CallOutgoingCallController(
+            scope = viewModelScope,
+            app = app,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            token = { token },
+            text = { id, args -> text(id, *args) },
+            resetForNewOutgoingCall = { peerId ->
+                endingCall = false
+                val session = beginCallSession(peerId)
+                activeCallId = newCallId()
+                activeGroupId = ""
+                meshGroupMemberIds = emptyList()
+                // 8.55：呼出时快照账号，作为通话记录写入的 expectedUserId 守卫
+                callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+                session
+            },
+            resetForNewGroupCall = { chatId, remoteMembers, selfUserId ->
+                endingCall = false
+                val session = beginCallSession(chatId)
+                activeCallId = newCallId()
+                activeGroupId = chatId
+                meshGroupMemberIds = (remoteMembers + selfUserId).sorted()
+                session
+            },
+            groupMemberIds = { activeGroupMemberIds },
+            setGroupMemberIds = { ids -> activeGroupMemberIds = ids },
+            currentOwnerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+            writeCallLog = { state -> writeCallLog(state) },
+            webRtcSetup = webRtcSetup,
+            mediaBridge = mediaBridge,
+            groupMesh = groupMesh,
+            sessionGateIsCurrent = { session -> callSessionGate.isCurrent(session) },
+            isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
+            flushPendingGroupOffers = { manager, session -> flushPendingGroupOffers(manager, session) },
+            signalingSender = signalingSender,
+            ringingTimeout = ringingTimeout,
+            foregroundService = foregroundService,
+            observeSignaling = ::observeSignaling,
+            endCall = ::endCall,
+        )
+    }
+
+    private val incomingCallController by lazy {
+        CallIncomingCallController(
+            scope = viewModelScope,
+            app = app,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            token = { token },
+            text = { id, args -> text(id, *args) },
+            activeCallId = { activeCallId },
+            activeCallSession = { activeCallSession },
+            pendingOfferSdp = { pendingOfferSdp },
+            clearPendingOfferSdp = { pendingOfferSdp = null },
+            resetForNewIncomingCall = { contactId, offerSdp, callId, groupId, groupMemberIds ->
+                pendingOfferSdp = offerSdp
+                endingCall = false
+                beginCallSession(contactId, incoming = true)
+                activeCallId = callId
+                val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+                val normalizedMembers = groupMemberIds.filter(String::isNotBlank).distinct()
+                val isGroup = groupId.isNotBlank() &&
+                    GroupCallCapabilities.canStartMesh(normalizedMembers.size) &&
+                    selfUserId in normalizedMembers
+                activeGroupId = if (isGroup) groupId else ""
+                meshGroupMemberIds = if (isGroup) normalizedMembers.sorted() else emptyList()
+                activeGroupMemberIds = if (isGroup) normalizedMembers.filter { it != selfUserId }.toSet() else emptySet()
+                isGroup to activeGroupMemberIds.map { GroupCallParticipantUi(it) }
+            },
+            markIncomingSessionOwner = {
+                // 8.55：呼入时快照账号，作为通话记录写入的 expectedUserId 守卫
+                callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            },
+            signalingSender = signalingSender,
+            groupMesh = groupMesh,
+            webRtcSetup = webRtcSetup,
+            mediaBridge = mediaBridge,
+            sessionGateIsCurrent = { session -> callSessionGate.isCurrent(session) },
+            isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
+            flushPendingGroupOffers = { manager, session -> flushPendingGroupOffers(manager, session) },
+            callSessionMachine = callSessionMachine,
+            activeDomainSession = { activeDomainSession },
+            ringingTimeout = ringingTimeout,
+            foregroundService = foregroundService,
+            observeSignaling = ::observeSignaling,
+            endCall = ::endCall,
+        )
+    }
+
     init {
         viewModelScope.launch {
             WebRtcNativeLibraryLoader.progress.collect { pct ->
@@ -208,54 +311,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun createWebRtcManager(): WebRTCManager {
-        // 侧载/特性模块未安装时，先从自服服务器下载 WebRTC 原生库并预加载，
-        // 失败以 WebRtcNativeLoadException 抛出，由各通话路径呈现友好错误。
-        WebRtcNativeLibraryLoader.ensureLoaded(getApplication())
-            .onFailure { throw WebRtcNativeLoadException(it.message ?: "") }
-        val iceServers = if (token.isBlank()) {
-            CallIceServer.defaultStun()
-        } else {
-            WebRTCSignaling.fetchIceServers(token).getOrElse { CallIceServer.defaultStun() }
-        }
-        val stunOnly = CallIceServer.isStunOnly(iceServers)
-        _uiState.update { it.copy(iceStunOnly = stunOnly) }
-        return WebRTCManager(getApplication(), iceServers)
-    }
-
-    private fun configureReliabilityCallbacks(manager: WebRTCManager, session: Long) {
-        fun current(): Boolean = callSessionGate.isCurrent(session) && webRTCManager === manager && !endingCall
-        manager.onIceConnectionDisconnected = { if (current()) iceRecovery.onIceConnectionChange(false) }
-        manager.onIceConnectionRecovered = { if (current()) iceRecovery.onIceConnectionChange(true) }
-        manager.onIceConnectionFailed = { if (current()) iceRecovery.onIceConnectionFailed() }
-        manager.onAudioRoutesChanged = { available, selected ->
-            if (current()) {
-                _uiState.update {
-                    it.copy(availableAudioRoutes = available, selectedAudioRoute = selected)
-                }
-            }
-        }
-        manager.onGroupPeerStateChanged = { userId, state -> if (current()) groupMesh.onGroupPeerStateChanged(userId, state) }
-        manager.onGroupPeerVideoChanged = { userId, available ->
-            if (current()) groupMesh.updateGroupParticipant(userId) { it.copy(videoAvailable = available) }
-        }
-        // 8.39：直连 SDP/信令操作失败此前无任何反馈（onOperationError 从未接线），
-        // 用户干等 30s 才见「无应答」。接线后立即结束通话并给出可读错误。
-        manager.onOperationError = { peerUserId, detail ->
-            run {
-                if (!current()) return@run
-                android.util.Log.w("CallViewModel", "webrtc operation error: $detail")
-                val currentContactId = _uiState.value.contactId
-                if (peerUserId == null || peerUserId.isBlank() || peerUserId == currentContactId) {
-                    endCall(
-                        notifyPeer = false,
-                        errorMessage = detail.take(200).takeIf { it.isNotBlank() }
-                            ?: text(R.string.call_operation_failed)
-                    )
-                }
-            }
-        }
-    }
 
     private fun beginCallSession(peerId: String, incoming: Boolean = false): Long {
         signalingIdempotency.clear()
@@ -276,128 +331,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun newCallId(): String = "call_${UUID.randomUUID().toString().replace("-", "")}"
 
-    /**
-     * 发起通话
-     */
-    fun startCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType) {
-        if (_uiState.value.callState != CallState.IDLE) return
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CALLS)) {
-            _uiState.update {
-                it.copy(
-                    contactId = contactId,
-                    contactName = contactName,
-                    contactAvatar = contactAvatar,
-                    callType = callType,
-                    callState = CallState.DISCONNECTED,
-                    isIncoming = false,
-                    isGroupCall = false,
-                    isInitializing = false,
-                    errorMessage = text(R.string.calls_disabled)
-                )
-            }
-            return
-        }
-        val fineOk = when (callType) {
-            CallType.VIDEO -> RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.VIDEO_CALL)
-            CallType.AUDIO, CallType.GROUP -> RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.VOICE_CALL)
-        }
-        if (!fineOk) {
-            _uiState.update {
-                it.copy(
-                    contactId = contactId,
-                    contactName = contactName,
-                    contactAvatar = contactAvatar,
-                    callType = callType,
-                    callState = CallState.DISCONNECTED,
-                    isIncoming = false,
-                    isGroupCall = false,
-                    isInitializing = false,
-                    errorMessage = text(
-                        if (callType == CallType.VIDEO) R.string.video_call_disabled else R.string.voice_call_disabled
-                    )
-                )
-            }
-            return
-        }
-        if (token.isBlank()) {
-            // Fail before CALLING/foreground service so the user is not left in a dead ringing UI.
-            _uiState.update {
-                it.copy(
-                    contactId = contactId,
-                    contactName = contactName,
-                    contactAvatar = contactAvatar,
-                    callType = callType,
-                    callState = CallState.DISCONNECTED,
-                    isIncoming = false,
-                    isGroupCall = false,
-                    isInitializing = false,
-                    errorMessage = text(R.string.call_session_expired)
-                )
-            }
-            return
-        }
-        endingCall = false
-        val session = beginCallSession(contactId)
-        activeCallId = newCallId()
-        activeGroupId = ""
-        meshGroupMemberIds = emptyList()
-        // 8.55：呼出时快照账号，作为通话记录写入的 expectedUserId 守卫
-        callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        _uiState.update {
-            it.copy(
-                contactId = contactId,
-                contactName = contactName,
-                contactAvatar = contactAvatar,
-                callType = callType,
-                callState = CallState.CALLING,
-                isIncoming = false,
-                isGroupCall = false,
-                isInitializing = true,
-                networkReconnecting = false,
-                networkStats = NetworkQuality.UNKNOWN,
-                errorMessage = null
-            )
-        }
-        foregroundService.start()
-        // 8.46 修复：振铃超时改到 offer 发出后启动（此前在 createWebRtcManager 之前——
-        // 慢网下载 ~10MB 原生库 + 拉取 TURN 可能 >30s，超时在对端还没开始振铃时就触发挂断）
-        writeCallLog(com.maodouchat.call.CallLogStore.State.MISSED)
-
-        viewModelScope.launch {
-            try {
-                val manager = createWebRtcManager()
-                if (!callSessionGate.isCurrent(session) || _uiState.value.callState != CallState.CALLING || _uiState.value.contactId != contactId) {
-                    // 8.56：门禁失效时释放已构造的 manager，避免残留（audio 监听等）
-                    runCatching { manager.release() }
-                    return@launch
-                }
-                mediaBridge.bind(manager)
-                configureReliabilityCallbacks(manager, session)
-                manager.initialize()
-                // 8.56：建 manager 后 flush 群成员边缓冲（发起者在初始化期间被先接听成员 offer）
-                flushPendingGroupOffers(manager, session)
-                manager.startCall(
-                    type = callType,
-                    onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(contactId, candidate)
-                    },
-                    onOfferCreated = { sdp ->
-                        if (!isCurrentCallSession(session, manager)) return@startCall
-                        _uiState.update { it.copy(isInitializing = false) }
-                        signalingSender.sendSdp(contactId, "offer", sdp)
-                        ringingTimeout.start(contactId)
-                    }
-                )
-                observeSignaling()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: WebRtcNativeLoadException) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_webrtc_download_failed, e.message.orEmpty()))
-            } catch (e: Exception) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_initialization_failed, e.message ?: text(R.string.call_unknown_error)))
-            }
-        }
-    }
+    fun startCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType) =
+        outgoingCallController.startCall(contactId, contactName, contactAvatar, callType)
 
     /**
      * 8.56：群 mesh——本端 manager 就绪后统一处理被缓冲的成员边 offer
@@ -424,9 +359,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * 准备来电界面：只展示响铃，不初始化 WebRTC，等待用户授权并接听。
-     */
     fun prepareIncomingCall(
         contactId: String,
         contactName: String,
@@ -436,175 +368,12 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         callId: String = "",
         groupId: String = "",
         groupMemberIds: List<String> = emptyList()
-    ) {
-        val current = _uiState.value
-        if (current.callState != CallState.IDLE && current.callState != CallState.DISCONNECTED) {
-            if (current.contactId != contactId) {
-                signalingSender.sendSignalWithFallback(
-                    contactId,
-                    "busy",
-                    "",
-                    text(R.string.call_notify_busy_failed),
-                    callId,
-                    groupId,
-                    groupMemberIds
-                )
-            }
-            return
-        }
-        pendingOfferSdp = offerSdp
-        endingCall = false
-        beginCallSession(contactId, incoming = true)
-        activeCallId = callId
-        // In-app ring UI owns the call — drop FCM/full-screen incoming tray so shade
-        // does not keep a second "encrypted call" while CallScreen is already open.
-        if (callId.isNotBlank()) {
-            com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, callId)
-        }
-        val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val normalizedMembers = groupMemberIds.filter(String::isNotBlank).distinct()
-        val isGroup = groupId.isNotBlank() &&
-            GroupCallCapabilities.canStartMesh(normalizedMembers.size) &&
-            selfUserId in normalizedMembers
-        activeGroupId = if (isGroup) groupId else ""
-        meshGroupMemberIds = if (isGroup) normalizedMembers.sorted() else emptyList()
-        activeGroupMemberIds = if (isGroup) normalizedMembers.filter { it != selfUserId }.toSet() else emptySet()
-        val participants = activeGroupMemberIds.map { GroupCallParticipantUi(it) }
-        _uiState.update {
-            it.copy(
-                contactId = contactId,
-                contactName = if (isGroup) text(R.string.call_group_name, participants.size) else contactName,
-                contactAvatar = contactAvatar,
-                callType = callType,
-                callState = CallState.RINGING,
-                isIncoming = true,
-                isGroupCall = isGroup,
-                isInitializing = false,
-                groupParticipants = participants,
-                errorMessage = null
-            )
-        }
-        // 8.55：呼入时快照账号，作为通话记录写入的 expectedUserId 守卫
-        callLogOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (isGroup) groupMesh.loadGroupParticipantProfiles()
-        ringingTimeout.start(contactId)
-        observeSignaling()
-    }
+    ) = incomingCallController.prepareIncomingCall(contactId, contactName, contactAvatar, callType, offerSdp, callId, groupId, groupMemberIds)
 
-    /**
-     * 接听来电
-     */
-    fun answerCall(contactId: String? = null, contactName: String? = null, contactAvatar: String? = null, callType: CallType? = null, offerSdp: String? = null) {
-        val state = _uiState.value
-        val targetContactId = contactId ?: state.contactId
-        val targetContactName = contactName ?: state.contactName
-        val targetCallType = callType ?: state.callType
-        val targetOfferSdp = offerSdp ?: pendingOfferSdp
-        if (targetContactId.isBlank() || targetOfferSdp.isNullOrBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.call_incoming_incomplete)) }
-            return
-        }
-        if (state.callState != CallState.RINGING || !state.isIncoming || state.isInitializing) return
-        if (token.isBlank()) {
-            endCall(notifyPeer = false, errorMessage = text(R.string.call_session_expired))
-            return
-        }
-        // 8.39：用户已接听即取消 30s 振铃超时——否则 WebRTC 原生库首次联网下载（慢网可超 30s）
-        // 期间超时触发「无应答」挂断，用户明明已接听却被直接挂断
-        ringingTimeout.cancel()
-        callSessionMachine.markConnecting(activeDomainSession)
-        // Accepting from in-app UI must clear any leftover FCM incoming tray.
-        if (activeCallId.isNotBlank()) {
-            com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, activeCallId)
-        }
-        _uiState.update {
-            it.copy(
-                contactId = targetContactId,
-                contactName = targetContactName,
-                contactAvatar = contactAvatar ?: state.contactAvatar,
-                callType = targetCallType,
-                callState = CallState.RINGING,
-                isIncoming = true,
-                isInitializing = true,
-                errorMessage = null
-            )
-        }
-        foregroundService.start()
-        val session = activeCallSession
+    fun answerCall(contactId: String? = null, contactName: String? = null, contactAvatar: String? = null, callType: CallType? = null, offerSdp: String? = null) =
+        incomingCallController.answerCall(contactId, contactName, contactAvatar, callType, offerSdp)
 
-        viewModelScope.launch {
-            try {
-                val manager = createWebRtcManager()
-                val latest = _uiState.value
-                if (!callSessionGate.isCurrent(session) || latest.callState != CallState.RINGING || !latest.isIncoming || latest.contactId != targetContactId) {
-                    // 8.56：门禁失效时释放已构造的 manager，避免残留（audio 监听等）
-                    runCatching { manager.release() }
-                    return@launch
-                }
-                mediaBridge.bind(manager)
-                configureReliabilityCallbacks(manager, session)
-                manager.initialize()
-                if (latest.isGroupCall) {
-                    groupMesh.scheduleGroupPeerTimeout(targetContactId)
-                    // 8.56：接听后统一 flush 被缓冲的群成员边 offer（修复成员先接听导致边永久丢失）
-                    flushPendingGroupOffers(manager, session)
-                    manager.acceptGroupOffer(
-                        peerUserId = targetContactId,
-                        remoteOfferSdp = targetOfferSdp,
-                        type = targetCallType,
-                        onIceCandidate = { candidate ->
-                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate)
-                        },
-                        onAnswerCreated = { sdp ->
-                            if (!isCurrentCallSession(session, manager)) return@acceptGroupOffer
-                            ringingTimeout.cancel()
-                            pendingOfferSdp = null
-                            _uiState.update { it.copy(isInitializing = false) }
-                            signalingSender.sendSdp(targetContactId, "answer", sdp)
-                        }
-                    )
-                    groupMesh.startDeterministicMeshEdges(manager, targetContactId, session)
-                    observeSignaling()
-                    return@launch
-                }
-                manager.answerCall(
-                    remoteOfferSdp = targetOfferSdp,
-                    type = targetCallType,
-                    onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate)
-                    },
-                    onAnswerCreated = { sdp ->
-                        if (!isCurrentCallSession(session, manager)) return@answerCall
-                        ringingTimeout.cancel()
-                        pendingOfferSdp = null
-                        _uiState.update { it.copy(isInitializing = false) }
-                        signalingSender.sendSdp(targetContactId, "answer", sdp)
-                    }
-                )
-                observeSignaling()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: WebRtcNativeLoadException) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_webrtc_download_failed, e.message.orEmpty()))
-            } catch (e: Exception) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_answer_failed, e.message ?: text(R.string.call_unknown_error)))
-            }
-        }
-    }
-
-    fun rejectIncomingCall() {
-        val contactId = _uiState.value.contactId
-        val callId = activeCallId
-        if (contactId.isNotBlank()) {
-            signalingSender.sendSignalWithFallback(contactId, "reject", "", text(R.string.call_notify_reject_failed))
-        }
-        // User declined — never leave FCM tray ringing after reject.
-        if (callId.isNotBlank()) {
-            com.maodouchat.notification.CallNotificationService.cancelIncomingCall(app, callId)
-        }
-        // 8.53：主动拒接非「未接」——不写 MISSED 通话记录（对端忙/拒接由呼出侧记未接通）
-        endCall(notifyPeer = false, logMissed = false)
-    }
+    fun rejectIncomingCall() = incomingCallController.rejectIncomingCall()
 
     /**
      * 挂断
@@ -737,105 +506,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** 群通话邀请：挨个向群成员发 offer（依赖 WebRTC 端已实现 group peer 池） */
-    fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) {
-        if (_uiState.value.callState != CallState.IDLE) return
-        val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val remoteMembers = memberIds.filter { it.isNotBlank() && it != selfUserId }.distinct()
-        if (remoteMembers.isEmpty()) return
-        if (token.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    contactId = chatId,
-                    contactName = text(R.string.chat_group_call),
-                    callType = type,
-                    callState = CallState.DISCONNECTED,
-                    isGroupCall = true,
-                    isInitializing = false,
-                    errorMessage = text(R.string.call_session_expired)
-                )
-            }
-            return
-        }
-        if (selfUserId.isBlank() ||
-            !GroupCallCapabilities.canStartMesh(remoteMembers.size + 1)
-        ) {
-            _uiState.update {
-                it.copy(
-                    contactId = chatId,
-                    contactName = text(R.string.chat_group_call),
-                    callType = type,
-                    callState = CallState.DISCONNECTED,
-                    errorMessage = text(R.string.call_group_mesh_limit, GroupCallCapabilities.MAX_MESH_MEMBERS)
-                )
-            }
-            return
-        }
-        endingCall = false
-        val session = beginCallSession(chatId)
-        activeCallId = newCallId()
-        activeGroupId = chatId
-        meshGroupMemberIds = (remoteMembers + selfUserId).sorted()
-        _uiState.update {
-            it.copy(
-                contactId = chatId,
-                contactName = text(R.string.call_group_name, remoteMembers.size),
-                callType = type,
-                callState = CallState.CALLING,
-                isIncoming = false,
-                isGroupCall = true,
-                isInitializing = true,
-                groupParticipants = remoteMembers.map { GroupCallParticipantUi(it) },
-                errorMessage = null
-            )
-        }
-        activeGroupMemberIds = remoteMembers.toSet()
-        groupMesh.loadGroupParticipantProfiles()
-        // 8.46 修复：群呼振铃超时改到首条 offer 发出后启动（与 1:1 呼出一致，
-        // 避免慢网原生库下载/ICE 拉取超过 30s 时在对端还没开始振铃就挂断）
-        foregroundService.start()
-        viewModelScope.launch {
-            try {
-                val manager = createWebRtcManager()
-                val state = _uiState.value
-                if (!callSessionGate.isCurrent(session) || !state.isGroupCall || state.callState != CallState.CALLING || state.contactId != chatId) {
-                    // 8.56：与 startCall/answerCall 一致——门禁失效时释放已构造的 manager
-                    runCatching { manager.release() }
-                    return@launch
-                }
-                mediaBridge.bind(manager)
-                configureReliabilityCallbacks(manager, session)
-                manager.initialize()
-                var firstOfferSent = false
-                activeGroupMemberIds.forEach { memberId ->
-                    groupMesh.scheduleGroupPeerTimeout(memberId)
-                    manager.startGroupCallToPeer(
-                        peerUserId = memberId,
-                        type = type,
-                        onIceCandidate = { candidate ->
-                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(memberId, candidate)
-                        },
-                        onOfferCreated = { sdp ->
-                            if (isCurrentCallSession(session, manager)) {
-                                signalingSender.sendSdp(memberId, "offer", sdp, groupInvite = true)
-                                if (!firstOfferSent) {
-                                    firstOfferSent = true
-                                    ringingTimeout.start(chatId)
-                                }
-                            }
-                        }
-                    )
-                }
-                observeSignaling()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: WebRtcNativeLoadException) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_webrtc_download_failed, e.message.orEmpty()))
-            } catch (e: Exception) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_group_start_failed, e.message ?: text(R.string.call_unknown_error)))
-            }
-        }
-    }
+    fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) =
+        outgoingCallController.startGroupCall(chatId, memberIds, type)
 
     private fun handleSignalingMessage(
         type: String,
