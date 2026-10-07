@@ -62,10 +62,10 @@ internal class CallWebRtcSetupController(
                 val currentContactId = currentState().contactId
                 if (peerUserId == null || peerUserId.isBlank() || peerUserId == currentContactId) {
                     endCall(
-                        notifyPeer = false,
-                        errorMessage = detail.take(200).takeIf { it.isNotBlank() }
+                        false,
+                        detail.take(200).takeIf { it.isNotBlank() }
                             ?: text(R.string.call_operation_failed, emptyArray()),
-                        logMissed = true
+                        true
                     )
                 }
             }

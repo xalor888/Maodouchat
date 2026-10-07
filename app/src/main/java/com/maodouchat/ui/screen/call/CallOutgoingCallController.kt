@@ -146,9 +146,9 @@ internal class CallOutgoingCallController(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: WebRtcNativeLoadException) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), logMissed = true)
+                endCall(false, text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), true)
             } catch (e: Exception) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_initialization_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), logMissed = true)
+                endCall(false, text(R.string.call_initialization_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), true)
             }
         }
     }
@@ -241,9 +241,9 @@ internal class CallOutgoingCallController(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: WebRtcNativeLoadException) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), logMissed = true)
+                endCall(false, text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), true)
             } catch (e: Exception) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_group_start_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), logMissed = true)
+                endCall(false, text(R.string.call_group_start_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), true)
             }
         }
     }

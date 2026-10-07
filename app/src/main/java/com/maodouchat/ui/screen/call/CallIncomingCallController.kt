@@ -103,7 +103,7 @@ internal class CallIncomingCallController(
         }
         if (state.callState != CallState.RINGING || !state.isIncoming || state.isInitializing) return
         if (token().isBlank()) {
-            endCall(notifyPeer = false, errorMessage = text(R.string.call_session_expired, emptyArray()), logMissed = true)
+            endCall(false, text(R.string.call_session_expired, emptyArray()), true)
             return
         }
         // 8.39：用户已接听即取消 30s 振铃超时——否则 WebRTC 原生库首次联网下载（慢网可超 30s）
@@ -182,9 +182,9 @@ internal class CallIncomingCallController(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: WebRtcNativeLoadException) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), logMissed = true)
+                endCall(false, text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), true)
             } catch (e: Exception) {
-                endCall(notifyPeer = false, errorMessage = text(R.string.call_answer_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), logMissed = true)
+                endCall(false, text(R.string.call_answer_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), true)
             }
         }
     }
@@ -200,6 +200,6 @@ internal class CallIncomingCallController(
             CallNotificationService.cancelIncomingCall(app, callId)
         }
         // 8.53：主动拒接非「未接」——不写 MISSED 通话记录（对端忙/拒接由呼出侧记未接通）
-        endCall(notifyPeer = false, errorMessage = null, logMissed = false)
+        endCall(false, null, false)
     }
 }
