@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -32,7 +31,6 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Send
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Search
@@ -53,19 +51,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import com.maodouchat.ui.component.SearchHighlightSurface
-import com.maodouchat.ui.component.SearchHighlightAccent
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -77,9 +70,9 @@ import com.maodouchat.ui.component.AvatarSize
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.explore.policy.ExploreFeedPolicy
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 
 /**
  * 「动态详情」页（G115 从 `ExploreSubScreens.kt` 拆出，原 659 行）。
@@ -674,67 +667,5 @@ fun PostDetailScreen(
             }
         )
     }
-}
-
-// 1.97：详情页评论输入条（支持回复目标提示条，复用 sendComment/回复状态）
-@Composable
-private fun CommentComposerBar(
-    text: String,
-    isSending: Boolean,
-    replyToComment: com.maodouchat.network.PostCommentDto?,
-    onTextChange: (String) -> Unit,
-    onSend: () -> Unit,
-    onClearReply: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        if (replyToComment != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.explore_reply_to, replyToComment.author.name),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        replyToComment.content,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = LocalChatPalette.current.textSecondary,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                }
-                TextButton(onClick = onClearReply) {
-                    Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary)
-                }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                placeholder = { Text(stringResource(R.string.explore_write_comment)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            )
-            IconButton(onClick = onSend, enabled = text.isNotBlank() && !isSending) {
-                if (isSending) CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                else Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = stringResource(R.string.explore_send), tint = MaterialTheme.colorScheme.primary)
-            }
-        }
-    }
-}
-
-// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
-@Composable
-private fun highlightedText(text: String, query: String): AnnotatedString {
-    val (c, bg) = SearchHighlightAccent
-    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }
 
