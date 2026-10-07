@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import com.maodouchat.ui.component.SearchHighlightAccent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.remember
