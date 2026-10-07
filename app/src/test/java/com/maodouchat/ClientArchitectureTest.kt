@@ -469,7 +469,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 810,
+        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
+        // #447 合并后挤进前 20：按判据纳管，上限=实测行数。
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 807,
     )
 
     @Test
@@ -562,7 +564,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 810,
+        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
+        // #447 合并后挤进前 20：按判据纳管，上限=实测行数。
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 807,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
