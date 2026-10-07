@@ -1,7 +1,5 @@
 package com.maodouchat.ui.screen.chatdetail
 
-package com.maodouchat.ui.screen.chatdetail
-
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
