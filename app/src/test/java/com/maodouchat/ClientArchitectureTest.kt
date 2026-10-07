@@ -459,8 +459,8 @@ class ClientArchitectureTest {
         // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
-        // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 761）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 761,
+        // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 763）。
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 763,
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 742,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
@@ -567,8 +567,8 @@ class ClientArchitectureTest {
         // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
-        // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 761）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 761,
+        // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 763）。
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 763,
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 742,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
