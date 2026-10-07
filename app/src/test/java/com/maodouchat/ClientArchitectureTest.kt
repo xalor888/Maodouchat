@@ -462,8 +462,8 @@ class ClientArchitectureTest {
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 763）。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 763,
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
-        // G164b 判据：上条拆小（742→479）后它挤进前 20，按实测值纳入监管（只许降）。
-        "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 740,
+        // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
+        "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
@@ -486,6 +486,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
+        // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
+        // MaodouchatApp（722）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
+        "com/maodouchat/MaodouchatApp.kt" to 722,
     )
 
     @Test
@@ -572,8 +575,8 @@ class ClientArchitectureTest {
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数（补 import 后 740 → 763）。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 763,
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
-        // G164b 判据：上条拆小（742→479）后它挤进前 20，按实测值纳入监管（只许降）。
-        "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 740,
+        // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
+        "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
@@ -595,6 +598,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
+        // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
+        // MaodouchatApp（722）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
+        "com/maodouchat/MaodouchatApp.kt" to 722,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
