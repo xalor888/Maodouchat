@@ -25,6 +25,15 @@ import com.maodouchat.R
 import com.maodouchat.data.model.MissedCall
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

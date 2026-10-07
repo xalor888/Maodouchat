@@ -10,6 +10,9 @@ import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.ShimmerChatRow
 import com.maodouchat.util.ChatFolderPolicy
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun ShimmerChatList() {
