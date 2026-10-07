@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.explore
 
 import androidx.compose.foundation.background
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,8 +59,6 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.ui.theme.LocalChatPalette
-
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

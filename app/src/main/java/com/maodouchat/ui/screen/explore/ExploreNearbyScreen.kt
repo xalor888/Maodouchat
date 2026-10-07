@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.explore
 
 import android.Manifest
+
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -76,7 +77,6 @@ import java.text.NumberFormat
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-
 
 /**
  * 「附近的人」页（G114 从 `ExploreSubScreens.kt` 拆出，原 324 行）。
