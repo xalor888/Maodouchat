@@ -25,7 +25,6 @@ import com.maodouchat.notification.NotificationCenterType
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,14 +82,7 @@ data class ContactsUiState(
             .toSortedMap()
 }
 
-/**
- * 通讯录与关系 ViewModel。
- *
- * 全面收敛为 UI 渲染与意图分发器：
- * - 好友数据流单一源：通过 contactsController.observeFriends 监听 Room 数据源。
- * - 业务逻辑下沉：好友申请（FriendRequestUseCase）、好友修改/黑名单（ContactMutationUseCase）、
- *   会话创建（ConversationCreationPort）、实时同步（ContactsRealtimeSyncCoordinator）。
- */
+/** 通讯录与关系 ViewModel：只做 UI 渲染与意图分发，业务逻辑下沉到用例与同包 controller/协调器。 */
 class ContactsViewModel @JvmOverloads constructor(
     application: Application,
     private val contactsController: ContactsController = ContactsController(
@@ -203,8 +195,14 @@ class ContactsViewModel @JvmOverloads constructor(
         },
     )
 
+    private val searchController = ContactsSearchController(
+        scope = viewModelScope,
+        updateState = { transform -> _uiState.update(transform) },
+        text = { id, args -> text(id, *args) },
+        contactsController = contactsController,
+    )
+
     private var friendsJob: Job? = null
-    private var searchJob: Job? = null
 
     init {
         observeFriendsStream()
@@ -264,59 +262,8 @@ class ContactsViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(onlineOnly = enabled) }
     }
 
-    fun onSearchQueryChange(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
-        searchJob?.cancel()
-        val trimmed = query.trim()
-        if (trimmed.length < 2) {
-            _uiState.update { it.copy(searchResults = emptyList(), isSearching = false, searchFailed = false) }
-            return
-        }
-        val session = contactsController.currentSession()
-        if (session == null) {
-            _uiState.update {
-                it.copy(
-                    searchResults = emptyList(),
-                    isSearching = false,
-                    searchFailed = true,
-                    errorMessage = text(R.string.error_session_expired)
-                )
-            }
-            return
-        }
-        searchJob = viewModelScope.launch {
-            delay(300)
-            if (!contactsController.isCurrent(session)) return@launch
-            _uiState.update { it.copy(isSearching = true, searchFailed = false, errorMessage = null) }
-            try {
-                val result = contactsController.search(session, trimmed)
-                if (!contactsController.isCurrent(session)) return@launch
-                _uiState.update {
-                    it.copy(
-                        searchResults = result.users,
-                        isSearching = false,
-                        searchFailed = result.users.isEmpty() && result.failure != null,
-                        errorMessage = if (result.users.isEmpty() && result.failure != null) text(R.string.contacts_search_failed) else null
-                    )
-                }
-            } catch (error: CancellationException) {
-                if (contactsController.isCurrent(session)) {
-                    _uiState.update { it.copy(isSearching = false) }
-                }
-                throw error
-            } catch (_: Exception) {
-                if (contactsController.isCurrent(session)) {
-                    _uiState.update {
-                        it.copy(
-                            isSearching = false,
-                            searchFailed = true,
-                            errorMessage = text(R.string.contacts_search_failed)
-                        )
-                    }
-                }
-            }
-        }
-    }
+    // 搜索 → ContactsSearchController；签名不变，UI 调用点无需改动。
+    fun onSearchQueryChange(query: String) = searchController.onSearchQueryChange(query)
 
     fun clearCreatedChat() {
         _uiState.update { it.copy(createdChatId = null) }
