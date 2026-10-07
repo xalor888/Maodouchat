@@ -3,9 +3,7 @@ package com.maodouchat.ui.screen.contacts
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.R
 import com.maodouchat.contacts.ContactsIndexPolicy
-import com.maodouchat.contacts.sync.ContactSyncEvent
 import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.sync.DefaultContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.usecase.ContactMutationUseCase
@@ -23,13 +21,10 @@ import com.maodouchat.network.GroupInvitationDto
 import com.maodouchat.network.GroupInviteAcceptResponse
 import com.maodouchat.notification.NotificationCenterType
 import com.maodouchat.util.RuntimeFlags
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 typealias FriendRequestItem = com.maodouchat.contacts.usecase.FriendRequestItem
 
@@ -159,6 +154,13 @@ class ContactsViewModel @JvmOverloads constructor(
     private val _uiState = MutableStateFlow(ContactsUiState())
     val uiState: StateFlow<ContactsUiState> = _uiState.asStateFlow()
 
+    private val loadController = ContactsLoadController(
+        scope = viewModelScope,
+        updateState = { transform -> _uiState.update(transform) },
+        text = { id, args -> text(id, *args) },
+        contactsController = contactsController,
+    )
+
     private val groupInviteController = ContactsGroupInviteController(
         scope = viewModelScope,
         updateState = { transform -> _uiState.update(transform) },
@@ -202,60 +204,21 @@ class ContactsViewModel @JvmOverloads constructor(
         contactsController = contactsController,
     )
 
-    private var friendsJob: Job? = null
+    private val realtimeController = ContactsRealtimeController(
+        scope = viewModelScope,
+        application = application,
+        realtimeSyncCoordinator = realtimeSyncCoordinator,
+        contactsController = contactsController,
+        onFriendRequestsNeedsRefresh = ::loadFriendRequests,
+        onGroupInvitesNeedsRefresh = ::loadGroupInvites,
+    )
 
     init {
-        observeFriendsStream()
-        reloadContacts()
+        loadController.observeFriendsStream()
+        loadController.reloadContacts()
         loadFriendRequests()
         loadGroupInvites()
-        observeRealtimeEvents()
-    }
-
-    private fun observeFriendsStream() {
-        val session = contactsController.currentSession() ?: return
-        friendsJob?.cancel()
-        friendsJob = viewModelScope.launch {
-            contactsController.observeFriends(session).collect { friends ->
-                _uiState.update { it.copy(contacts = friends) }
-            }
-        }
-    }
-
-    private fun observeRealtimeEvents() {
-        val eventsFlow = com.maodouchat.session.AppRuntime
-            .realtimeDispatcherOrNull(getApplication())
-            ?.allEvents
-        if (eventsFlow != null) {
-            realtimeSyncCoordinator.startObserving(
-                viewModelScope,
-                eventsFlow
-            ) {
-                val snap = com.maodouchat.session.CurrentSession.snapshot()
-                Pair(snap.userId, snap.token)
-            }
-        }
-
-        viewModelScope.launch {
-            realtimeSyncCoordinator.syncEvents.collect { event ->
-                when (event) {
-                    is ContactSyncEvent.FriendRequestsNeedsRefresh -> {
-                        loadFriendRequests()
-                    }
-                    is ContactSyncEvent.GroupInvitesNeedsRefresh -> {
-                        loadGroupInvites()
-                    }
-                    is ContactSyncEvent.FriendAccepted -> {
-                        contactsController.currentSession()?.let { session ->
-                            contactsController.loadFriends(session)
-                        }
-                    }
-                    is ContactSyncEvent.FriendRemoved -> {
-                        // Room Flow 自动响应
-                    }
-                }
-            }
-        }
+        realtimeController.start()
     }
 
     fun setOnlineOnly(enabled: Boolean) {
@@ -273,56 +236,8 @@ class ContactsViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(errorMessage = null, infoMessage = null) }
     }
 
-    fun reloadContacts() {
-        _uiState.update { it.copy(errorMessage = null, isLoading = true) }
-        loadContacts()
-    }
-
-    private fun loadContacts() {
-        val session = contactsController.currentSession()
-        if (session == null) {
-            _uiState.update {
-                it.copy(
-                    contacts = emptyList(),
-                    isLoading = false,
-                    errorMessage = text(R.string.error_session_expired),
-                )
-            }
-            return
-        }
-        observeFriendsStream()
-        viewModelScope.launch {
-            try {
-                val result = contactsController.loadFriends(session)
-                if (!contactsController.isCurrent(session) && !result.sessionMissing) return@launch
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = when {
-                            result.users.isNotEmpty() -> null
-                            result.sessionMissing -> text(R.string.error_session_expired)
-                            result.failure != null -> result.failure.message ?: text(R.string.contacts_load_failed)
-                            else -> null
-                        },
-                    )
-                }
-            } catch (error: CancellationException) {
-                if (contactsController.isCurrent(session)) {
-                    _uiState.update { it.copy(isLoading = false) }
-                }
-                throw error
-            } catch (error: Exception) {
-                if (contactsController.isCurrent(session)) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: text(R.string.contacts_load_failed),
-                        )
-                    }
-                }
-            }
-        }
-    }
+    // 联系人加载 → ContactsLoadController；签名不变，UI 调用点无需改动。
+    fun reloadContacts() = loadController.reloadContacts()
 
     // 好友动作 → ContactsFriendActionController；签名不变，UI 调用点无需改动。
     fun loadFriendRequests() = friendActionController.loadFriendRequests()
