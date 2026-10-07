@@ -429,7 +429,10 @@ class ClientArchitectureTest {
         // 通话 VM 瘦身第八批：通话建立簇搬出——呼出（1:1 + 群发起）→ 同包 CallOutgoingCallController、
         // 来电（准备/接听/拒接）→ 同包 CallIncomingCallController、WebRTC 建联（manager 创建/可靠性回调）
         // → 同包 CallWebRtcSetupController（1191 → 863，VM 留同签名委托），两处同步收紧。
-        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 863,
+        // 通话 VM 瘦身第九批：入站信令簇（WS/轮询双路接收、准入/幂等/排序门闩、类型分发、
+        // 群边 offer 缓冲+flush）→ 同包 CallSignalingIngressController（863 → 530，纯搬移），
+        // 两处同步收紧。
+        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 530,
         "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
@@ -516,7 +519,8 @@ class ClientArchitectureTest {
             // 通话 VM 瘦身第八批：通话建立簇 → 同包 CallOutgoingCallController（呼出 1:1 + 群发起）
             // + CallIncomingCallController（来电准备/接听/拒接）+ CallWebRtcSetupController
             //（manager 创建/可靠性回调），VM 留同签名委托（1191 → 863）。
-            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 863,
+            // 通话 VM 瘦身第九批：入站信令簇 → 同包 CallSignalingIngressController（863 → 530，纯搬移）。
+            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 530,
             "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
