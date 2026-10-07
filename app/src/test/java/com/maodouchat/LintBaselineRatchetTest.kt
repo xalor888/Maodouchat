@@ -93,7 +93,10 @@ class LintBaselineRatchetTest {
             // 包进 `prefs.edit { }`（含 NotificationPreferences 迁移体、跨 forEach/when 的编辑器）；
             // 保留 1 处（TokenManager 的 `val editor = prefs.edit().clear()`——commit 返回值被
             // getOrDefault(false) 消费，转换会丢提交失败信号）。22 → 12，总条目 69 → 59。
-            "UseKtx" to 8,
+            // 2026-10-08：GlobalSearchScreen 拆出 GlobalSearchViewModel.kt（新文件无行数上限），
+            // 兑现「先拆后收」——RecentSearches 两处 `.edit()...apply()` → `edit { }`，
+            // 基线删 2 条对应条目（原文件路径下已无匹配）。
+            "UseKtx" to 6,
             // 2026-09-28：`Uri.parse` 尾巴收口——4 处 `Uri.parse(x)` → `x.toUri()`。
             // 其中 ChatDetailViewModel.kt 1 处（retrySendMessage 附件重发，parsedContent(): String 非空；
             // 该文件 `uri: Uri` 参数仍需 android.net.Uri，故新增 `import androidx.core.net.toUri` +1 行，
@@ -108,6 +111,8 @@ class LintBaselineRatchetTest {
             // （settings_username_placeholder "3-50" → "3–50"，与 values-en 的 en dash 对齐）。
             // 8 → 8（UseKtx 8 条为有意保留：变量编辑器 1 + check 1 + 值被消费 commit 4
             // + GlobalSearchScreen 2——见上条注释），总条目 55 → 53。
+            // 2026-10-08 续：上条 2 处随拆分收掉，8 → 6（= 变量编辑器 1 + check 1 + 值被消费 commit 4），
+            // 总条目 53 → 51。
             // 上面两条是 warning 级的大头；真正卡 CI 的是它：
             "LocalContextGetResourceValueCall" to 0,
             "GradleDependency" to 17,

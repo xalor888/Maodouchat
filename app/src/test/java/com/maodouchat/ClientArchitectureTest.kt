@@ -468,9 +468,10 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 807,
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
-        // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
-        // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
+        // 2026-10-08：VM 簇（枚举/data/VM/RecentSearches）搬出同包 GlobalSearchViewModel.kt
+        // （502 行，未进前 20 不纳管）+ UseKtx 收尾（两处 .edit().apply() → edit{}）+ 删 9 个死 import，
+        // 纯搬移，上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 483,
         "com/maodouchat/network/WebSocketClient.kt" to 969,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
@@ -489,6 +490,9 @@ class ClientArchitectureTest {
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（722）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/MaodouchatApp.kt" to 722,
+        // 2026-10-08：GlobalSearchScreen 拆小（991→483）后它挤进前 20——按实测值纳入监管
+        // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        "com/maodouchat/data/local/DatabaseMigrations.kt" to 719,
     )
 
     @Test
@@ -581,7 +585,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 807,
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 483,
         // G164b：Top-20 排名门禁纳入的 8 个
         "com/maodouchat/network/WebSocketClient.kt" to 969,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
@@ -601,6 +605,9 @@ class ClientArchitectureTest {
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（722）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/MaodouchatApp.kt" to 722,
+        // 2026-10-08：GlobalSearchScreen 拆小（991→483）后它挤进前 20——按实测值纳入监管
+        // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        "com/maodouchat/data/local/DatabaseMigrations.kt" to 719,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
