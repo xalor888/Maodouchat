@@ -31,9 +31,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -49,27 +46,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withLink
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.util.LinkPreviewPolicy
-import com.maodouchat.util.LinkPreviewPreferences
-import com.maodouchat.util.LinkPreviewRepository
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextHint
-import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.navigation.AppLinkOpener
@@ -716,295 +704,6 @@ internal fun TextBubble(
             onReactionClick = onReactionClick
         )
     }
-}
-
-
-// ─── LinkPreviewSlot ───
-@Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
-internal fun LinkPreviewSlot(
-    messageContent: String,
-    isOwnMessage: Boolean,
-    modifier: Modifier = Modifier,
-    secretChat: Boolean = false
-) {
-    val context = LocalContext.current
-    val userEnabled = remember(LinkPreviewPreferences.version) { LinkPreviewPreferences.isEnabled(context) }
-    val secretBlocksPreview = secretChat && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_LINK_PREVIEW_BLOCK)
-    val enabled = userEnabled && !secretBlocksPreview
-    val url = remember(messageContent, enabled) {
-        if (!enabled) null else LinkPreviewPolicy.firstHttpUrl(messageContent)
-    }
-    if (url == null) return
-
-    var preview by remember(url) {
-        mutableStateOf(LinkPreviewRepository.cached(url))
-    }
-
-    LaunchedEffect(url) {
-        // fetch 自带正/负缓存与 in-flight 去重；失败返回 null
-        preview = LinkPreviewRepository.fetch(url)
-    }
-
-    val card = preview ?: return
-    if (!LinkPreviewPolicy.isUseful(card)) return
-
-    LinkPreviewCard(
-        preview = card,
-        isOwnMessage = isOwnMessage,
-        modifier = modifier,
-        onOpen = {
-            if (secretChat && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_EXTERNAL_LINK_BLOCK)) {
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(com.maodouchat.R.string.secret_external_link_blocked),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-                return@LinkPreviewCard
-            }
-            com.maodouchat.navigation.AppLinkOpener.openUserFacingUrl(context, card.url)
-        }
-    )
-}
-
-
-// ─── LinkPreviewCard ───
-@Composable
-internal fun LinkPreviewCard(
-    preview: LinkPreviewPolicy.Preview,
-    isOwnMessage: Boolean,
-    onOpen: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val palette = LocalChatPalette.current
-    val bg = if (isOwnMessage) {
-        LocalChatBubbleColor.current.copy(alpha = 0.55f)
-    } else {
-        palette.chatInputBackground
-    }
-    val titleColor = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
-    val descColor = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextSecondary
-    val hostColor = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
-    val site = preview.siteName?.takeIf { it.isNotBlank() }
-        ?: LinkPreviewPolicy.displayHost(preview.url)
-
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(bg)
-            .clickable(onClick = onOpen)
-            .padding(bottom = 8.dp)
-    ) {
-        if (!preview.imageUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = OwnerScopedImageKeys.request(
-                    context = LocalContext.current,
-                    data = preview.imageUrl,
-                    sizeWidth = 640,
-                    sizeHeight = 360,
-                ),
-                contentDescription = stringResource(R.string.message_link_preview_open),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
-            )
-        }
-        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-            Text(
-                text = site,
-                style = MaterialTheme.typography.labelSmall,
-                color = hostColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (!preview.title.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = preview.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = titleColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            if (!preview.description.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = preview.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = descColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-/** 富文本消息：高亮正文中的 @token（displayName 或遗留 userId）。 */
-/** 1.17：从名片标记中提取目标用户 id（供点击打开资料）。 */
-
-// ─── CONTACT_CARD_USER_RE ───
-internal val CONTACT_CARD_USER_RE = Regex("\\[contactUser:([^\\]]+)")
-
-// ─── RichTextContent ───
-@Composable
-internal fun RichTextContent(
-    text: String,
-    mentionedUserIds: List<String>,
-    isOwnMessage: Boolean,
-    onContactCardClick: ((String) -> Unit)? = null,
-    onLinkClick: (String) -> Unit = {},
-    // 9.266：TG 式内嵌时间戳——非空时追加在正文最后一行行尾（小字号次色）
-    inlineTimeSuffix: String? = null
-) {
-    // TG 式行尾时间戳 span：两空格间隔 + 11sp 次色，与正文同段落自然折行
-    val inlineTimeColor = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
-    fun androidx.compose.ui.text.AnnotatedString.Builder.appendInlineTime(time: String) {
-        append("  ")
-        withStyle(
-            androidx.compose.ui.text.SpanStyle(
-                fontSize = 11.sp,
-                color = inlineTimeColor
-            )
-        ) {
-            append(time)
-        }
-    }
-    // 1.11：先剥离名片标记，接收端不会看到裸 [contactUser:...]（1.18 复用 ChatMarkdown 统一实现）
-    val cleanText = com.maodouchat.messaging.ChatMarkdown.stripContactCardMarker(text)
-    // 1.17：名片消息整体渲染为可点击链接（点击打开该用户资料）
-    val cardUserId = remember(text) { CONTACT_CARD_USER_RE.find(text)?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() } }
-    if (cardUserId != null) {
-        val cardUrl = "contactcard://$cardUserId"
-        val annotatedCard = androidx.compose.ui.text.buildAnnotatedString {
-            withLink(
-                androidx.compose.ui.text.LinkAnnotation.Clickable(
-                    tag = cardUrl,
-                    linkInteractionListener = androidx.compose.ui.text.LinkInteractionListener { onLinkClick(cardUrl) }
-                )
-            ) {
-                withStyle(
-                    androidx.compose.ui.text.SpanStyle(
-                        color = if (isOwnMessage) LocalSentBubbleContent.current else androidx.compose.ui.graphics.Color(0xFF4CAF50),
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-                    )
-                ) {
-                    append(cleanText.ifBlank { text })
-                }
-            }
-        }
-        Text(
-            text = annotatedCard,
-            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
-            color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
-        )
-        return
-    }
-    val mentionColor = androidx.compose.ui.graphics.Color(0xFFFFC107)
-    val hasAt = cleanText.contains('@')
-    val urlRanges = remember(cleanText) { findUrlRanges(cleanText) }
-    if (!hasAt && mentionedUserIds.isEmpty() && urlRanges.isEmpty()) {
-        if (inlineTimeSuffix == null) {
-            Text(
-                text = cleanText,
-                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
-                color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
-            )
-        } else {
-            Text(
-                text = androidx.compose.ui.text.buildAnnotatedString {
-                    append(cleanText)
-                    appendInlineTime(inlineTimeSuffix)
-                },
-                style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
-                color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
-            )
-        }
-        return
-    }
-    val annotated = androidx.compose.ui.text.buildAnnotatedString {
-        var i = 0
-        while (i < cleanText.length) {
-            // 优先匹配 URL（避免 @ 把 URL 内片段误判为 mention）
-            val urlHit = urlRanges.firstOrNull { it.first == i }
-            if (urlHit != null) {
-                val (start, end) = urlHit
-                val url = cleanText.substring(start, end)
-                withLink(
-                    androidx.compose.ui.text.LinkAnnotation.Clickable(
-                        tag = url,
-                        linkInteractionListener = androidx.compose.ui.text.LinkInteractionListener { onLinkClick(url) }
-                    )
-                ) {
-                    withStyle(androidx.compose.ui.text.SpanStyle(color = mentionColor, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline)) {
-                        append(url)
-                    }
-                }
-                i = end
-                continue
-            }
-            if (cleanText[i] != '@' || (i > 0 && !cleanText[i - 1].isWhitespace())) {
-                append(cleanText[i])
-                i++
-                continue
-            }
-            // 从 @ 扫到空白/标点
-            var j = i + 1
-            while (j < cleanText.length) {
-                val ch = cleanText[j]
-                if (ch.isWhitespace() || ch == ',' || ch == '.' || ch == '!' || ch == '?' ||
-                    ch == '，' || ch == '。' || ch == '！' || ch == '？'
-                ) break
-                j++
-            }
-            if (j > i + 1) {
-                withStyle(
-                    androidx.compose.ui.text.SpanStyle(
-                        color = mentionColor,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    )
-                ) {
-                    append(cleanText.substring(i, j))
-                }
-                i = j
-            } else {
-                append('@')
-                i++
-            }
-        }
-        // 9.266：mention/URL 混排分支同样追加行尾时间戳
-        if (inlineTimeSuffix != null) appendInlineTime(inlineTimeSuffix)
-    }
-    Text(
-        text = annotated,
-        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
-        color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
-    )
-}
-
-/** 扫描文本中的 http/https URL 起止区间（左闭右开），供 [RichTextContent] 渲染可点击链接。 */
-
-// ─── findUrlRanges ───
-internal fun findUrlRanges(text: String): List<Pair<Int, Int>> {
-    val ranges = mutableListOf<Pair<Int, Int>>()
-    var i = 0
-    while (i < text.length) {
-        val start = if (text.startsWith("http://", i) || text.startsWith("https://", i)) i else -1
-        if (start < 0) { i++; continue }
-        var end = start
-        while (end < text.length && !text[end].isWhitespace() && text[end] !in setOf('<', '>', '"', '\'')) {
-            end++
-        }
-        while (end > start && text[end - 1] in setOf('.', ',', ';', ':', '!', '?', ')', ']', '}')) {
-            end--
-        }
-        if (end > start) ranges += start to end
-        i = end.coerceAtLeast(start + 1)
-    }
-    return ranges
 }
 
 /** 输入框上方的「回复某条消息」提示条 */
