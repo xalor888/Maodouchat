@@ -181,7 +181,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private val outgoingCallController by lazy {
+    private val outgoingCallController: CallOutgoingCallController by lazy {
         CallOutgoingCallController(
             scope = viewModelScope,
             app = app,
@@ -225,7 +225,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private val incomingCallController by lazy {
+    private val incomingCallController: CallIncomingCallController by lazy {
         CallIncomingCallController(
             scope = viewModelScope,
             app = app,
@@ -272,7 +272,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private val signalingIngress by lazy {
+    private val signalingIngress: CallSignalingIngressController by lazy {
         CallSignalingIngressController(
             scope = viewModelScope,
             app = app,
@@ -354,6 +354,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType) =
         outgoingCallController.startCall(contactId, contactName, contactAvatar, callType)
+
+    fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) =
+        outgoingCallController.startGroupCall(chatId, memberIds, type)
 
 
     fun prepareIncomingCall(
