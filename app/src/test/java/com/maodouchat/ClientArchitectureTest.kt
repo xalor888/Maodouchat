@@ -455,12 +455,19 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1048,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
+        // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 807,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
         "com/maodouchat/network/WebSocketClient.kt" to 969,
-        "com/maodouchat/ui/component/MarkdownParser.kt" to 966,
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 945,
+        // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
+        "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
+        // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
+        "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 835,
+        // 输入栏杂项瘦身第一批：贴纸/杂项对话框 → ChatDetailComposerDialogs（AI 条/录音留守 ComposerExtras）
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 427,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 545,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
@@ -545,11 +552,18 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 1048,
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
+        // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 807,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 991,
         // G164b：Top-20 排名门禁纳入的 8 个
         "com/maodouchat/network/WebSocketClient.kt" to 969,
-        "com/maodouchat/ui/component/MarkdownParser.kt" to 966,
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 945,
+        // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
+        "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
+        // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
+        "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 835,
+        // 输入栏杂项瘦身第一批：贴纸/杂项对话框 → ChatDetailComposerDialogs（AI 条/录音留守 ComposerExtras）
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 427,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 545,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
