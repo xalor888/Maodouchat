@@ -39,9 +39,7 @@ internal class CallIncomingCallController(
     private val observeSignaling: () -> Unit,
     private val endCall: (notifyPeer: Boolean, errorMessage: String?, logMissed: Boolean) -> Unit,
 ) {
-    /**
-     * 准备来电界面：只展示响铃，不初始化 WebRTC，等待用户授权并接听。
-     */
+    // 只展示响铃，不初始化 WebRTC，等用户授权接听。
     fun prepareIncomingCall(
         contactId: String,
         contactName: String,
@@ -93,9 +91,6 @@ internal class CallIncomingCallController(
         observeSignaling()
     }
 
-    /**
-     * 接听来电
-     */
     fun answerCall(contactId: String? = null, contactName: String? = null, contactAvatar: String? = null, callType: CallType? = null, offerSdp: String? = null) {
         val state = currentState()
         val targetContactId = contactId ?: state.contactId

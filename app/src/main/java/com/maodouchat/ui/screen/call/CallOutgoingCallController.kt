@@ -2,7 +2,6 @@ package com.maodouchat.ui.screen.call
 
 import android.app.Application
 import com.maodouchat.R
-import com.maodouchat.call.CallGroupMesh
 import com.maodouchat.call.CallLogStore
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.GroupCallCapabilities
@@ -39,9 +38,6 @@ internal class CallOutgoingCallController(
     private val observeSignaling: () -> Unit,
     private val endCall: (notifyPeer: Boolean, errorMessage: String?, logMissed: Boolean) -> Unit,
 ) {
-    /**
-     * 发起通话
-     */
     fun startCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType) {
         if (currentState().callState != CallState.IDLE) return
         if (!RuntimeFlags.isEnabled(app, RuntimeFlags.CALLS)) {
@@ -157,7 +153,6 @@ internal class CallOutgoingCallController(
         }
     }
 
-    /** 群通话邀请：挨个向群成员发 offer（依赖 WebRTC 端已实现 group peer 池） */
     fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) {
         if (currentState().callState != CallState.IDLE) return
         val selfUserId = currentOwnerUserId()
