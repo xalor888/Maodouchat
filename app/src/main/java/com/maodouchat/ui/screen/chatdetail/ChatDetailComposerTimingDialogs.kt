@@ -200,6 +200,3 @@ internal fun disappearSecondsLabel(seconds: Int): String = when (seconds) {
     30 * 24 * 60 * 60 -> stringResource(R.string.disappear_30d)
     else -> stringResource(R.string.disappear_off)
 }
-
-
-@Composable
