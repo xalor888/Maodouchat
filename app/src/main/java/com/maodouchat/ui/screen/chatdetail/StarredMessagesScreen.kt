@@ -270,6 +270,7 @@ fun StarredMessagesScreen(
     }
 }
 
+@Composable
 private fun StarredMessageRow(
     message: Message,
     senderName: String,
