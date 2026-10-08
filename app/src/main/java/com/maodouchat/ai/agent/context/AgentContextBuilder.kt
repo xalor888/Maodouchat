@@ -25,7 +25,7 @@ class AgentContextBuilder(
         styleHint: String?
     ): MutableList<AgentChatMessage> {
         val now = Instant.now().atZone(zoneId).format(timeFormatter)
-        val systemPrompt = AgentToolPolicy.systemPrompt(now, styleHint)
+        val systemPrompt = agentSystemPrompt(now, styleHint)
         val systemMessage = AgentChatMessage(role = "system", content = systemPrompt)
 
         val working = mutableListOf<AgentChatMessage>()

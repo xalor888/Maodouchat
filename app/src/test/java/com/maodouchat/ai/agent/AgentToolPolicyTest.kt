@@ -58,7 +58,7 @@ class AgentToolPolicyTest {
 
     @Test
     fun `system prompt forbids maodou server plaintext`() {
-        val prompt = AgentToolPolicy.systemPrompt("2026-01-01 00:00:00", null)
+        val prompt = agentSystemPrompt("2026-01-01 00:00:00", null)
         assertTrue(prompt.contains("端到端加密"))
         assertTrue(prompt.contains("send_text_message"))
         assertTrue(prompt.contains("密聊"))
