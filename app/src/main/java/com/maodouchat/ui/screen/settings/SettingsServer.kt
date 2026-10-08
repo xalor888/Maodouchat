@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,12 +29,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -50,27 +46,7 @@ import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.draw.clip
 
-/**
- * 「服务器」页（G103 从 `SettingsSubScreens.kt` 拆出，原 308 行）。
- *
- * 运行时配置 API 服务器地址（8.45，免重新构建 APK）。含 `ThirdPartyServerCard`。
- *
- * 部署方安装通用 APK 后，在此填写自建服务器地址即可使用。服务器属于独立信任域；
- * 切换时会清理当前账号凭据和本机加密数据，再要求使用目标服务器账号登录。
- *
- * **拆解约束**：不直接抓应用级数据库单例（`ui/` 红线，读库只能经 ViewModel/repository）；
- * 切换服务器后需要 `rebuildImageLoader` / `disconnectRealtime` 等进程级副作用，
- * 这部分经应用实例调用，属既有形态，搬移时不改。
- */
-
-/**
- * 「服务器」页 — 运行时配置 API 服务器地址（8.45，免重新构建 APK）。
- *
- * 部署方安装通用 APK 后，在此填写自建服务器地址即可使用。服务器属于独立信任域；
- * 切换时会清理当前账号凭据和本机加密数据，再要求使用目标服务器账号登录。
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerSettingsScreen(
@@ -287,89 +263,3 @@ fun ServerSettingsScreen(
     }
 }
 
-/**
- * 9.202：第三方服务器身份卡：展示当前连接服务器的名称/简介/版本与运营方公告。
- * 官方默认服务器不展示此卡片。
- */
-@Composable
-private fun ThirdPartyServerCard() {
-    val info by com.maodouchat.network.ServerIdentity.current.collectAsState()
-    LaunchedEffect(Unit) {
-        com.maodouchat.network.ServerIdentity.refresh()
-    }
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
-            .padding(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(
-                imageVector = Icons.Outlined.Cloud,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = stringResource(R.string.settings_server_third_party_title),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = stringResource(R.string.settings_server_third_party_badge),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = stringResource(R.string.settings_server_third_party_desc),
-            style = MaterialTheme.typography.bodySmall,
-            color = LocalChatPalette.current.textSecondary
-        )
-        val serverInfo = info
-        if (serverInfo != null) {
-            Spacer(modifier = Modifier.height(10.dp))
-            androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.divider)
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = serverInfo.name,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (serverInfo.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = serverInfo.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = LocalChatPalette.current.textSecondary
-                )
-            }
-            if (serverInfo.version.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.settings_server_info_version, serverInfo.version),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = LocalChatPalette.current.textHint
-                )
-            }
-            if (serverInfo.announcement.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.settings_server_info_announcement),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = serverInfo.announcement,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = LocalChatPalette.current.textSecondary
-                )
-            }
-        }
-    }
-}
