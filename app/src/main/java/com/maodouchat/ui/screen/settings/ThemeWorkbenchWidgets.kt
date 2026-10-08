@@ -64,7 +64,7 @@ internal fun widgetSubtitle(id: String): String = when (id) {
 
 /** 包装拖拽手柄与卡片容器 */
 @Composable
-private fun DraggableWidgetWrapper(
+internal fun DraggableWidgetWrapper(
     title: String,
     subtitle: String,
     paint: com.maodouchat.theme.ThemePaint,
@@ -154,7 +154,7 @@ private fun DraggableWidgetWrapper(
 
 /** 会话气泡微件预览 */
 @Composable
-private fun ChatBubblePreviewWidget(
+internal fun ChatBubblePreviewWidget(
     paint: com.maodouchat.theme.ThemePaint,
     bubbleShape: com.maodouchat.ui.theme.BubbleShapes
 ) {
@@ -226,7 +226,7 @@ private fun ChatBubblePreviewWidget(
 
 /** 联系人名片微件预览 */
 @Composable
-private fun ContactProfileWidget(
+internal fun ContactProfileWidget(
     paint: com.maodouchat.theme.ThemePaint,
     shape: Shape
 ) {
@@ -283,7 +283,7 @@ private fun ContactProfileWidget(
 
 /** 快捷操作面板微件预览 */
 @Composable
-private fun QuickActionsWidget(
+internal fun QuickActionsWidget(
     paint: com.maodouchat.theme.ThemePaint,
     shape: Shape
 ) {
@@ -325,7 +325,7 @@ private fun QuickActionButton(
 
 /** 核心统计概览微件预览 */
 @Composable
-private fun StatsTileWidget(
+internal fun StatsTileWidget(
     paint: com.maodouchat.theme.ThemePaint,
     shape: Shape
 ) {
