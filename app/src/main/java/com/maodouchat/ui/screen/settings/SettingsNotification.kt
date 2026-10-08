@@ -6,7 +6,6 @@ import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.security.findActivity
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -364,24 +362,6 @@ fun NotificationSettingsScreen(
     }
 }
 
-@Composable
-private fun DndTimeRow(label: String, minute: Int, enabled: Boolean, onPick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onPick).padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        Text(formatDndTime(minute), style = MaterialTheme.typography.bodyMedium, color = if (enabled) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary)
-        Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(16.dp))
-    }
-}
-
-private fun formatDndTime(minuteOfDay: Int): String {
-    val safe = minuteOfDay.coerceIn(0, 1439)
-    val h = safe / 60
-    val m = safe % 60
-    return "%02d:%02d".format(h, m)
-}
 
 /**
  * 标题 + 副标题 + 开关的一行（通知/通用/AI 三页共用）。
