@@ -1,8 +1,6 @@
 package com.maodouchat.ui.screen.explore
 
 import android.app.Application
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
@@ -76,16 +74,22 @@ class ExploreOrchestrator(
     val entryNavigation: SharedFlow<String> = _entryNavigation.asSharedFlow()
 
     private val loadMoreMutex = Mutex()
-    private val commentsLoadMutex = Mutex()
     private var feedGeneration = 0L
     private var refreshJob: Job? = null
-    private var commentsGeneration = 0L
-    private var commentsJob: Job? = null
     private var postDetailGeneration = 0L
     private var postDetailJob: Job? = null
     private var privacyDefaultsGeneration = 0L
     private var privacyDefaultsJob: Job? = null
     private val likeJobs = ConcurrentHashMap<String, Job>()
+    private val commentController = ExploreCommentController(
+        application = application,
+        scope = scope,
+        commentPostUseCase = commentPostUseCase,
+        toggleLikeUseCase = toggleLikeUseCase,
+        state = { _uiState.value },
+        updateState = { transform -> _uiState.update(transform) },
+        textFn = { id, args -> text(id, *args) },
+    )
 
     init {
         val ownerId = draftOwnerId()
@@ -285,319 +289,15 @@ class ExploreOrchestrator(
         job.invokeOnCompletion { likeJobs.remove(post.id) }
     }
 
-    fun openComments(postId: String) {
-        val commentsOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || commentsOwnerUserId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
-            return
-        }
-        val generation = ++commentsGeneration
-        commentsJob?.cancel()
-        _uiState.update {
-            it.copy(
-                selectedPostId = postId,
-                comments = emptyList(),
-                commentText = "",
-                isCommentsLoading = true,
-                isLoadingOlderComments = false,
-                hasMoreComments = true,
-                isSendingComment = false
-            )
-        }
-        val job = scope.launch {
-            try {
-                if (!BackgroundSessionGate.mayContinue(commentsOwnerUserId)) {
-                    if (commentsGeneration == generation && isCurrentOwner(commentsOwnerUserId)) {
-                        _uiState.update { it.copy(isCommentsLoading = false) }
-                    }
-                    return@launch
-                }
-                commentPostUseCase.loadComments(postId = postId).fold(
-                    onSuccess = { comments ->
-                        if (commentsGeneration == generation && isCurrentOwner(commentsOwnerUserId)) {
-                            _uiState.update { state ->
-                                if (state.selectedPostId == postId) {
-                                    state.copy(
-                                        comments = comments,
-                                        isCommentsLoading = false,
-                                        hasMoreComments = comments.size >= ExplorePaging.COMMENTS_PAGE_SIZE
-                                    )
-                                } else state
-                            }
-                        }
-                    },
-                    onFailure = { error ->
-                        if (commentsGeneration == generation && isCurrentOwner(commentsOwnerUserId)) {
-                            _uiState.update { state ->
-                                if (state.selectedPostId == postId) {
-                                    state.copy(
-                                        isCommentsLoading = false,
-                                        errorMessage = error.message ?: text(R.string.explore_comments_load_failed)
-                                    )
-                                } else state
-                            }
-                        }
-                    }
-                )
-            } catch (e: CancellationException) {
-                if (commentsGeneration == generation && isCurrentOwner(commentsOwnerUserId)) {
-                    _uiState.update { it.copy(isCommentsLoading = false) }
-                }
-                throw e
-            }
-        }
-        commentsJob = job
-    }
-
-    fun closeComments() {
-        commentsGeneration++
-        commentsJob?.cancel()
-        commentsJob = null
-        _uiState.update {
-            it.copy(
-                selectedPostId = null,
-                comments = emptyList(),
-                commentText = "",
-                isSendingComment = false,
-                isCommentsLoading = false,
-                isLoadingOlderComments = false,
-                hasMoreComments = true
-            )
-        }
-    }
-
-    fun sendComment() {
-        val commentOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || commentOwnerUserId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
-            return
-        }
-        val postId = _uiState.value.selectedPostId ?: return
-        val content = _uiState.value.commentText.trim()
-        if (content.isBlank() || _uiState.value.isSendingComment) return
-        val replyTarget = _uiState.value.replyToComment
-        _uiState.update { it.copy(isSendingComment = true, errorMessage = null) }
-        scope.launch {
-            try {
-                commentPostUseCase.sendComment(
-                    ownerUserId = commentOwnerUserId,
-                    postId = postId,
-                    content = content,
-                    replyToCommentId = replyTarget?.id
-                ).fold(
-                    onSuccess = { comment ->
-                        _uiState.update { state ->
-                            val posts = ExploreFeedPolicy.incrementCommentCount(state.posts, postId)
-                            val detailPost = state.detailPost?.let { post ->
-                                if (post.id == postId) post.copy(commentCount = post.commentCount + 1) else post
-                            }
-                            if (state.selectedPostId == postId) {
-                                state.copy(
-                                    comments = state.comments + comment,
-                                    commentText = "",
-                                    replyToComment = null,
-                                    isSendingComment = false,
-                                    posts = posts,
-                                    detailPost = detailPost
-                                )
-                            } else {
-                                state.copy(posts = posts, detailPost = detailPost)
-                            }
-                        }
-                    },
-                    onFailure = { error ->
-                        _uiState.update { state ->
-                            if (state.selectedPostId == postId) {
-                                state.copy(
-                                    isSendingComment = false,
-                                    errorMessage = error.message ?: text(R.string.explore_comment_failed)
-                                )
-                            } else state
-                        }
-                    }
-                )
-            } catch (e: CancellationException) {
-                if (isCurrentOwner(commentOwnerUserId)) {
-                    _uiState.update { state ->
-                        if (state.selectedPostId == postId) state.copy(isSendingComment = false) else state
-                    }
-                }
-                throw e
-            }
-        }
-    }
-
-    fun loadOlderComments() {
-        val snapshot = _uiState.value
-        val postId = snapshot.selectedPostId ?: return
-        if (snapshot.isCommentsLoading || snapshot.isLoadingOlderComments || !snapshot.hasMoreComments) return
-        val oldest = snapshot.comments.minWithOrNull(
-            compareBy<PostCommentDto> { it.createdAt }.thenBy { it.id }
-        ) ?: return
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val generation = commentsGeneration
-        scope.launch {
-            commentsLoadMutex.withLock {
-                val state = _uiState.value
-                if (commentsGeneration != generation || state.selectedPostId != postId || state.isLoadingOlderComments) return@withLock
-                if (!com.maodouchat.session.CurrentSession.hasSession()) return@withLock
-                _uiState.update { it.copy(isLoadingOlderComments = true, errorMessage = null) }
-                try {
-                    commentPostUseCase.loadComments(
-                        postId = postId,
-                        limit = ExplorePaging.COMMENTS_PAGE_SIZE,
-                        before = oldest.createdAt,
-                        beforeId = oldest.id
-                    ).fold(
-                        onSuccess = { older ->
-                            if (commentsGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == ownerUserId) {
-                                _uiState.update { current ->
-                                    if (current.selectedPostId != postId) current else current.copy(
-                                        comments = (older + current.comments).distinctBy { it.id },
-                                        isLoadingOlderComments = false,
-                                        hasMoreComments = older.size >= ExplorePaging.COMMENTS_PAGE_SIZE
-                                    )
-                                }
-                            }
-                        },
-                        onFailure = { error ->
-                            if (commentsGeneration == generation && _uiState.value.selectedPostId == postId) {
-                                _uiState.update {
-                                    it.copy(
-                                        isLoadingOlderComments = false,
-                                        errorMessage = error.message ?: text(R.string.explore_comments_load_failed)
-                                    )
-                                }
-                            }
-                        }
-                    )
-                } catch (e: CancellationException) {
-                    if (commentsGeneration == generation && isCurrentOwner(ownerUserId) && _uiState.value.selectedPostId == postId) {
-                        _uiState.update { it.copy(isLoadingOlderComments = false) }
-                    }
-                    throw e
-                }
-            }
-        }
-    }
-
-    fun toggleCommentLike(comment: PostCommentDto) {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val postId = _uiState.value.selectedPostId ?: comment.postId
-        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
-            return
-        }
-        scope.launch {
-            toggleLikeUseCase.toggleCommentLike(
-                ownerUserId = ownerUserId,
-                postId = postId,
-                comment = comment,
-                onOptimisticUpdate = { optimisticComment ->
-                    _uiState.update { state ->
-                        state.copy(comments = state.comments.map { if (it.id == comment.id) optimisticComment else it })
-                    }
-                }
-            ).fold(
-                onSuccess = { updated ->
-                    _uiState.update { state ->
-                        state.copy(comments = state.comments.map { if (it.id == comment.id) updated else it })
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update { it.copy(errorMessage = error.message ?: text(R.string.error_operation_failed)) }
-                }
-            )
-        }
-    }
-
-    fun deleteComment(comment: PostCommentDto) {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val postId = _uiState.value.selectedPostId ?: comment.postId
-        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
-            return
-        }
-        val originalIndex = _uiState.value.comments.indexOfFirst { it.id == comment.id }
-        _uiState.update { state ->
-            state.copy(
-                comments = state.comments.filterNot { it.id == comment.id },
-                posts = ExploreFeedPolicy.decrementCommentCount(state.posts, postId)
-            )
-        }
-        scope.launch {
-            commentPostUseCase.deleteComment(ownerUserId = ownerUserId, postId = postId, comment = comment, originalIndex = originalIndex).fold(
-                onSuccess = {},
-                onFailure = { error ->
-                    _uiState.update { state ->
-                        val restored = state.comments.toMutableList().apply {
-                            val idx = originalIndex.coerceIn(0, size)
-                            add(idx, comment)
-                        }
-                        state.copy(
-                            comments = restored,
-                            posts = ExploreFeedPolicy.incrementCommentCount(state.posts, postId),
-                            errorMessage = error.message ?: text(R.string.error_operation_failed)
-                        )
-                    }
-                }
-            )
-        }
-    }
-
-    fun saveCommentEdit(comment: PostCommentDto, newText: String) {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        val postId = _uiState.value.selectedPostId ?: comment.postId
-        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
-            return
-        }
-        _uiState.update { it.copy(isSavingCommentEdit = true) }
-        scope.launch {
-            commentPostUseCase.editComment(ownerUserId = ownerUserId, postId = postId, commentId = comment.id, newContent = newText).fold(
-                onSuccess = { updated ->
-                    _uiState.update { state ->
-                        state.copy(
-                            isSavingCommentEdit = false,
-                            comments = state.comments.map { if (it.id == comment.id) updated else it }
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            isSavingCommentEdit = false,
-                            errorMessage = error.message ?: text(R.string.explore_comment_edit_failed)
-                        )
-                    }
-                }
-            )
-        }
-    }
-
-    fun reportComment(comment: PostCommentDto) {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) {
-            _uiState.update { it.copy(errorMessage = text(R.string.explore_login_required)) }
-            return
-        }
-        scope.launch {
-            commentPostUseCase.reportComment(ownerUserId = ownerUserId, commentId = comment.id, reason = "INAPPROPRIATE").fold(
-                onSuccess = {
-                    _uiState.update { it.copy(infoMessage = text(R.string.explore_report_sent)) }
-                },
-                onFailure = { error ->
-                    _uiState.update { it.copy(errorMessage = error.message ?: text(R.string.explore_report_failed)) }
-                }
-            )
-        }
-    }
-
-    fun copyComment(comment: PostCommentDto) {
-        val clipboard = application.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        clipboard?.setPrimaryClip(ClipData.newPlainText("Comment", comment.content))
-        _uiState.update { it.copy(infoMessage = text(R.string.explore_comment_copied)) }
-    }
+    fun openComments(postId: String) = commentController.openComments(postId)
+    fun closeComments() = commentController.closeComments()
+    fun sendComment() = commentController.sendComment()
+    fun loadOlderComments() = commentController.loadOlderComments()
+    fun toggleCommentLike(comment: PostCommentDto) = commentController.toggleCommentLike(comment)
+    fun deleteComment(comment: PostCommentDto) = commentController.deleteComment(comment)
+    fun saveCommentEdit(comment: PostCommentDto, newText: String) = commentController.saveCommentEdit(comment, newText)
+    fun reportComment(comment: PostCommentDto) = commentController.reportComment(comment)
+    fun copyComment(comment: PostCommentDto) = commentController.copyComment(comment)
 
     fun publishPost() {
         val state = _uiState.value
@@ -666,17 +366,9 @@ class ExploreOrchestrator(
         }
     }
 
-    fun onCommentTextChange(text: String) {
-        _uiState.update { it.copy(commentText = text) }
-    }
-
-    fun setReplyToComment(comment: PostCommentDto) {
-        _uiState.update { it.copy(replyToComment = comment) }
-    }
-
-    fun clearReplyToComment() {
-        _uiState.update { it.copy(replyToComment = null) }
-    }
+    fun onCommentTextChange(text: String) = commentController.onCommentTextChange(text)
+    fun setReplyToComment(comment: PostCommentDto) = commentController.setReplyToComment(comment)
+    fun clearReplyToComment() = commentController.clearReplyToComment()
 
     fun onVisibilitySelected(visibility: String) {
         val normalized = ExploreDraftPolicy.normalizeVisibility(visibility)
