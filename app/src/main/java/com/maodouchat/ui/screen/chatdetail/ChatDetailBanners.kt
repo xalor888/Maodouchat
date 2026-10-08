@@ -13,14 +13,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,9 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,96 +59,15 @@ import androidx.compose.runtime.setValue
 /**
  * 聊天详情页顶部的「横幅」一族（G109 从 `ChatDetailComponents.kt` 拆出）。
  *
- * 留守：实时位置共享、阅后即焚、置顶消息、群公告、未读摘要等状态横幅，以及
+ * 留守：置顶消息、群公告、未读摘要等状态横幅，以及
  * `ChatDetailBannerStack` 组装点（顺序、出现条件与开关逐字保留）。
- * 安全簇（群加密警告/密聊/安全警告）见 `ChatDetailSecurityBanners.kt`。
+ * 安全簇（群加密警告/密聊/安全警告）见 `ChatDetailSecurityBanners.kt`；
+ * 隐私/位置簇（实时位置共享、阅后即焚）见 `ChatDetailPrivacyBanners.kt`。
  *
  * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`；
  * 所需输入全部经参数显式传入。纯搬移，不改判断。
  */
 
-@Composable
-internal fun LiveLocationSharingBanner(
-    untilMs: Long?,
-    onStop: () -> Unit
-) {
-    var remaining by remember(untilMs) {
-        mutableLongStateOf(com.maodouchat.util.LiveLocationPolicy.remainingFromUntil(untilMs))
-    }
-    LaunchedEffect(untilMs) {
-        while (true) {
-            remaining = com.maodouchat.util.LiveLocationPolicy.remainingFromUntil(untilMs)
-            if (remaining <= 0L) break
-            kotlinx.coroutines.delay(1000L)
-        }
-    }
-    val label = com.maodouchat.util.LiveLocationPolicy.formatRemaining(remaining)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-    ) {
-        Icon(
-            Icons.Outlined.NearMe,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = stringResource(R.string.live_location_sharing_banner, label),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = stringResource(R.string.live_location_stop),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.clickable(onClick = onStop)
-        )
-    }
-}
-
-@Composable
-internal fun DisappearingMessagesBanner(
-    seconds: Int,
-    onChange: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
-            .clickable(onClick = onChange)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-    ) {
-        Icon(
-            Icons.Outlined.VisibilityOff,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = stringResource(R.string.disappear_banner_on, disappearSecondsLabel(seconds)),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = stringResource(R.string.disappear_banner_change),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-}
 
 @Composable
 internal fun PinnedMessagesBanner(
