@@ -13,7 +13,7 @@ private data class ThemeQuickPreset(
     val slots: Map<String, Color>
 )
 
-private val LIGHT_QUICK_PRESETS = listOf(
+internal val LIGHT_QUICK_PRESETS = listOf(
     ThemeQuickPreset(
         R.string.theme_preset_tg_green,
         listOf(Color(0xFFEFFDDE), Color(0xFFE7EBEE), Color(0xFF3390EC)),
@@ -71,7 +71,7 @@ private val LIGHT_QUICK_PRESETS = listOf(
     )
 )
 
-private val DARK_QUICK_PRESETS = listOf(
+internal val DARK_QUICK_PRESETS = listOf(
     ThemeQuickPreset(
         R.string.theme_preset_tg_night,
         listOf(Color(0xFF2B5278), Color(0xFF182533), Color(0xFF0E1621)),

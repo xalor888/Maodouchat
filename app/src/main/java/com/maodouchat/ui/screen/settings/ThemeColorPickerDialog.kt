@@ -39,7 +39,7 @@ import com.maodouchat.util.CustomThemeStore
 /** 取色器：预设色板 + HEX 输入 + RGB 滑杆（紧凑三段式，替代 TG 色轮的实用实现）。 */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun ColorPickerDialog(
+internal fun ColorPickerDialog(
     title: String,
     initial: Color,
     onDismiss: () -> Unit,
