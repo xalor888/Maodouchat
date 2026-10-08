@@ -826,27 +826,9 @@
 
     
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY).apply()"
-        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt"
-            line="602"
-            column="9"/>
-    </issue>
+    
 
-    <issue
-        id="UseKtx"
-        message="Use the KTX extension function `SharedPreferences.edit` instead?"
-        errorLine1="        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)"
-        errorLine2="        ^">
-        <location
-            file="src/main/java/com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt"
-            line="608"
-            column="9"/>
-    </issue>
+    
 
     
 
