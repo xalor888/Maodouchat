@@ -44,24 +44,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.session.CurrentSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
-internal data class BotUi(
-    val id: String,
-    val name: String,
-    val username: String,
-    val tokenPrefix: String,
-    val webhookUrl: String,
-    val enabled: Boolean,
-    val tokenOnce: String = ""
-)
+/**
+ * Bot JSON 解析簇已按簇搬到同包 `DeveloperBotsParsing.kt`。
+ */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -502,51 +493,3 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
     }
 }
 
-internal fun extractTokenOnce(raw: String?): String? {
-    val text = raw.orEmpty().trim()
-    if (text.isEmpty()) return null
-    runCatching { JSONObject(text) }.getOrNull()?.let { obj ->
-        obj.optString("tokenOnce").takeIf { it.isNotBlank() }?.let { return it }
-        obj.optJSONObject("data")?.optString("tokenOnce")?.takeIf { it.isNotBlank() }?.let { return it }
-        obj.optJSONObject("bot")?.optString("tokenOnce")?.takeIf { it.isNotBlank() }?.let { return it }
-    }
-    runCatching { JSONArray(text) }.getOrNull()?.optJSONObject(0)
-        ?.optString("tokenOnce")?.takeIf { it.isNotBlank() }?.let { return it }
-    return null
-}
-
-internal fun extractBotArray(raw: String): JSONArray? {
-    val trimmed = raw.trim()
-    if (trimmed.isEmpty()) return null
-    runCatching { JSONArray(trimmed) }.getOrNull()?.let { return it }
-    val obj = runCatching { JSONObject(trimmed) }.getOrNull() ?: return null
-    listOf("bots", "data", "items", "content").forEach { key ->
-        obj.optJSONArray(key)?.let { return it }
-    }
-    if (obj.has("id")) return JSONArray().put(obj)
-    return null
-}
-
-internal fun parseBots(raw: String): List<BotUi> {
-    val arr = extractBotArray(raw) ?: return emptyList()
-    val seen = HashSet<String>()
-    return buildList {
-        for (i in 0 until arr.length()) {
-            val o = arr.optJSONObject(i) ?: continue
-            val id = o.optString("id").trim()
-            if (id.isBlank() || !seen.add(id)) continue
-            val username = o.optString("username").trim()
-            add(
-                BotUi(
-                    id = id,
-                    name = o.optString("name").trim().ifBlank { username.ifBlank { id } },
-                    username = username,
-                    tokenPrefix = o.optString("tokenPrefix"),
-                    webhookUrl = o.optString("webhookUrl"),
-                    enabled = o.optBoolean("enabled", true),
-                    tokenOnce = o.optString("tokenOnce")
-                )
-            )
-        }
-    }
-}
