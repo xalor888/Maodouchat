@@ -500,7 +500,10 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 195,
         // 2026-10-08：贴纸簇（stickerPackLabel/PressScaleGlyphItem/StickerPackChip）搬出同包
         // ChatDetailStickerChips（545 → 466，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 466,
+        // 2026-10-08：输入栏对话框簇按专题拆分（计时/日程/消息动作 → 同包
+        // TimingDialogs/ScheduleDialogs/MessageDialogs；ReactionPickerRow 留守 Dialogs，
+        // 466 → 72，纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 72,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
@@ -626,7 +629,10 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 195,
         // 2026-10-08：贴纸簇（stickerPackLabel/PressScaleGlyphItem/StickerPackChip）搬出同包
         // ChatDetailStickerChips（545 → 466，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 466,
+        // 2026-10-08：输入栏对话框簇按专题拆分（计时/日程/消息动作 → 同包
+        // TimingDialogs/ScheduleDialogs/MessageDialogs；ReactionPickerRow 留守 Dialogs，
+        // 466 → 72，纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 72,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
