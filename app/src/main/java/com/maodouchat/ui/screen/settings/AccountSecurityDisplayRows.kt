@@ -23,6 +23,18 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import com.maodouchat.network.DeviceInfoDto
+import com.maodouchat.R
+import com.maodouchat.ui.theme.Error
+import com.maodouchat.ui.theme.OnlineGreen
+import com.maodouchat.ui.theme.LocalChatPalette
+import java.util.Locale
 
 /**
  * 账号安全页的展示行组件簇（2026-10-08 从 `SettingsAccountSecurity.kt` 按簇拆出；

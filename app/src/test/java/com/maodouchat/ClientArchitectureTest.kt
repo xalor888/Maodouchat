@@ -412,12 +412,14 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
         // 死 import 删除：文件 671 → 670 行，上限同步收紧（两份 map 一起改）。
         // 2026-10-08：展示行组件簇搬出同包 AccountSecurityDisplayRows.kt
-        // （670 → 455，纯搬移；新文件 246 行未进前 20，不纳管），两处同步收紧。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 455,
+        // （670 → 455 纯搬移；修 CI 时补 import 并清掉 53 个闲置 import → 402；
+        // 新文件 258 行未进前 20，不纳管），两处同步收紧。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 402,
         // G358：SettingsViewModel 拆分后窗口前移——SettingsGeneral 进入前 20，按实测值纳管。
-        // 2026-10-08：行组件簇搬出同包 GeneralSettingsRows.kt（873 → 342，纯搬移；
-        // 新文件 582 行未进前 20，不纳管），两处同步收紧。
-        "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 342,
+        // 2026-10-08：行组件簇搬出同包 GeneralSettingsRows.kt（873 → 342 纯搬移；
+        // 修 CI 时补 setValue import 并清掉 18 个闲置 import → 324；
+        // 新文件 583 行未进前 20，不纳管），两处同步收紧。
+        "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
         // 2026-10-08：SettingsGeneral 拆小（873→342）后挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 671,
@@ -547,8 +549,8 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 979,
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
-                "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 455,
-            "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 342,
+                "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 402,
+            "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
             "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 671,
             // 通话 VM 瘦身第二批：出站信令发送簇纯搬移到同包 CallSignalingSender（1500 → 1449）。
             // 通话 VM 瘦身第三批：群组通话网格状态簇（成员连接状态/超时重连/确定性 mesh 建边）纯搬移到

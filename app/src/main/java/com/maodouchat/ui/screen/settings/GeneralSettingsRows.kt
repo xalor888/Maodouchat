@@ -46,6 +46,7 @@ import com.maodouchat.R
 import com.maodouchat.util.AppLocaleManager
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 /**
  * 「通用」页的行组件簇（2026-10-08 从 `SettingsGeneral.kt` 按簇拆出，主屏留在原文件）。
