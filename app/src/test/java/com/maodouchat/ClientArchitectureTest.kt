@@ -523,9 +523,12 @@ class ClientArchitectureTest {
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（722）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/MaodouchatApp.kt" to 722,
-        // 2026-10-08：GlobalSearchScreen 拆小（991→483）后它挤进前 20——按实测值纳入监管
+        // 2026-10-08：SettingsScreen 拆小（936→398）后它挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/data/local/DatabaseMigrations.kt" to 719,
+        // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
+        // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
     )
 
     @Test
@@ -657,6 +660,9 @@ class ClientArchitectureTest {
         // 2026-10-08：GlobalSearchScreen 拆小（991→483）后它挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/data/local/DatabaseMigrations.kt" to 719,
+        // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
+        // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
