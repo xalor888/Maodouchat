@@ -578,5 +578,3 @@ private fun AiTaskSummary(pendingCount: Int, completedCount: Int) {
         )
     }
 }
-
-@Composable

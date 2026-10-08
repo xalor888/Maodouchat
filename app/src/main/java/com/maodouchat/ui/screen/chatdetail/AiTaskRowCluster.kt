@@ -187,7 +187,7 @@ internal fun AiTaskRow(
     }
 }
 
-private fun openTaskInCalendar(context: Context, task: AiTaskEntity) {
+internal fun openTaskInCalendar(context: Context, task: AiTaskEntity) {
     val dueAt = task.dueAt ?: return
     val description = buildString {
         task.owner?.takeIf(String::isNotBlank)?.let {
