@@ -483,8 +483,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
-        // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 580,
+        // 2026-10-08：状态簇（AiTasksUiState + AiTaskFilter）→ AiTasksUiState.kt、ViewModel 簇 → AiTasksViewModel.kt，
+        // 界面簇留守（AiTasksScreen + AiTaskSummary），580 → 303，纯搬移；上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 303,
         // 2026-10-08：VM 簇（枚举/data/VM/RecentSearches）搬出同包 GlobalSearchViewModel.kt
         // （502 行，未进前 20 不纳管）+ UseKtx 收尾（两处 .edit().apply() → edit{}）+ 删 9 个死 import，
         // 纯搬移，上限同步收紧（两份 map 一起改）。
@@ -617,8 +618,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
-        // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 580,
+        // 2026-10-08：状态簇（AiTasksUiState + AiTaskFilter）→ AiTasksUiState.kt、ViewModel 簇 → AiTasksViewModel.kt，
+        // 界面簇留守（AiTasksScreen + AiTaskSummary），580 → 303，纯搬移；上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 303,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 483,
         // G164b：Top-20 排名门禁纳入的 8 个
         "com/maodouchat/network/WebSocketClient.kt" to 969,
