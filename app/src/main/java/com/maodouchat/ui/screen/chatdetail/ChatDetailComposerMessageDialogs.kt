@@ -26,6 +26,7 @@ import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.PrimaryFixed
 
+@Composable
 internal fun pinnedPreviewText(message: Message?): String {
     if (message == null) return stringResource(R.string.chat_pinned_preview_generic)
     return when (MessagePinPolicy.previewKind(message.type)) {
