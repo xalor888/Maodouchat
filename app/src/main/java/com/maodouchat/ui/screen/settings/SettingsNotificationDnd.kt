@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.ui.theme.LocalChatPalette
 
 @Composable
-private fun DndTimeRow(label: String, minute: Int, enabled: Boolean, onPick: () -> Unit) {
+internal fun DndTimeRow(label: String, minute: Int, enabled: Boolean, onPick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onPick).padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -28,7 +28,7 @@ private fun DndTimeRow(label: String, minute: Int, enabled: Boolean, onPick: () 
     }
 }
 
-private fun formatDndTime(minuteOfDay: Int): String {
+internal fun formatDndTime(minuteOfDay: Int): String {
     val safe = minuteOfDay.coerceIn(0, 1439)
     val h = safe / 60
     val m = safe % 60
