@@ -21,32 +21,33 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GifBox
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Outline
@@ -54,8 +55,8 @@ import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.Secondary
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+
 
 /**
  * 输入框的表情/贴纸/GIF 面板（G107 从 `ChatDetailComponents.kt` 拆出，原 363 行）。
@@ -436,123 +437,4 @@ internal fun ExpressionPanel(
         )
     }
 }
-
-private val EMOJI_SEARCH_ALIASES: Map<String, List<String>> = mapOf<String, List<String>>(
-    "😂" to listOf("laugh", "lol", "笑", "哈哈"),
-    "🤣" to listOf("rofl", "laugh", "笑"),
-    "😍" to listOf("love", "heart eyes", "爱", "喜欢"),
-    "🥰" to listOf("love", "cute", "爱", "可爱"),
-    "😘" to listOf("kiss", "亲", "么么"),
-    "😎" to listOf("cool", "酷"),
-    "🤔" to listOf("think", "thinking", "思考", "嗯"),
-    "😴" to listOf("sleep", "困", "睡"),
-    "😭" to listOf("cry", "sad", "哭", "泪"),
-    "😡" to listOf("angry", "怒", "生气"),
-    "🤯" to listOf("mind blown", "震惊", "炸"),
-    "🥳" to listOf("party", "庆祝", "派对"),
-    "👍" to listOf("ok", "yes", "like", "赞", "好"),
-    "👎" to listOf("no", "dislike", "踩", "不好"),
-    "👏" to listOf("clap", "applaud", "鼓掌"),
-    "🙏" to listOf("pray", "please", "thanks", "拜托", "谢谢"),
-    "💪" to listOf("strong", "muscle", "加油", "💪"),
-    "🤝" to listOf("handshake", "deal", "握手", "合作"),
-    "😊" to listOf("smile", "happy", "笑", "开心"),
-    "🙌" to listOf("raise hands", "celebration", "举手", "耶"),
-    "🤩" to listOf("star eyes", "wow", "惊喜", "崇拜"),
-    "🥲" to listOf("tear smile", "bittersweet", "含泪笑", "无奈"),
-    "🤣" to listOf("rofl", "laugh hard", "大笑", "笑哭"),
-    "👌" to listOf("ok hand", "perfect", "没问题", "好的"),
-    "🫶" to listOf("heart hands", "care", "比心", "抱抱"),
-    "❤️" to listOf("heart", "love", "心", "爱"),
-    "💔" to listOf("broken", "heartbreak", "心碎"),
-    "🔥" to listOf("fire", "hot", "火", "热"),
-    "✨" to listOf("sparkle", "shine", "亮", "闪光"),
-    "🎉" to listOf("party", "tada", "庆祝", "撒花"),
-    "💯" to listOf("100", "perfect", "满分"),
-    "✅" to listOf("check", "done", "ok", "完成", "对"),
-    "❌" to listOf("cross", "no", "错", "叉"),
-    "👀" to listOf("eyes", "look", "看", "👀"),
-    "💀" to listOf("skull", "dead", "死", "骷髅"),
-    "💤" to listOf("zzz", "sleep", "困"),
-    "🎁" to listOf("gift", "present", "礼物"),
-    "🏆" to listOf("trophy", "win", "冠军", "奖杯"),
-    "⭐" to listOf("star", "星"),
-    "🌟" to listOf("star", "glow", "星"),
-    "❓" to listOf("question", "?", "问"),
-    "❗" to listOf("exclaim", "!", "感叹"),
-    "🫡" to listOf("salute", "respect", "敬礼", "收到"),
-    "🫠" to listOf("melt", "awkward", "融化", "尴尬"),
-    "🫶" to listOf("heart hands", "care", "比心", "爱心"),
-    "🚀" to listOf("rocket", "launch", "火箭", "起飞"),
-    "🍕" to listOf("pizza", "food", "披萨", "吃"),
-    "🍔" to listOf("burger", "food", "汉堡"),
-    "☕" to listOf("coffee", "tea", "咖啡", "茶"),
-    "🍺" to listOf("beer", "drink", "啤酒"),
-    "🎂" to listOf("cake", "birthday", "蛋糕", "生日"),
-    "⚽" to listOf("soccer", "football", "足球"),
-    "🏀" to listOf("basketball", "篮球"),
-    "🎮" to listOf("game", "play", "游戏"),
-    "🎧" to listOf("music", "headphones", "音乐", "耳机"),
-    "📚" to listOf("books", "study", "书", "学习"),
-    "✈️" to listOf("plane", "travel", "飞机", "旅行"),
-    "🐯" to listOf("tiger", "虎"),
-    "🦁" to listOf("lion", "狮"),
-    "🐸" to listOf("frog", "蛙"),
-    "🐵" to listOf("monkey", "猴"),
-    "🌈" to listOf("rainbow", "彩虹"),
-    "🐱" to listOf("cat", "猫"),
-    "🐶" to listOf("dog", "狗"),
-    "☀️" to listOf("sun", "sunny", "太阳", "晴"),
-    "🌙" to listOf("moon", "night", "月亮", "夜"),
-    "💡" to listOf("idea", "bulb", "灵感", "灯泡"),
-    "🧭" to listOf("compass", "navigate", "导航", "指南针"),
-    "📌" to listOf("pin", "bookmark", "图钉", "标记"),
-    "🧩" to listOf("puzzle", "piece", "拼图"),
-    "🛡️" to listOf("shield", "protect", "盾牌", "防护"),
-)
-
-
-private val BUILT_IN_EMOJIS = listOf(
-    "😀", "😃", "😄", "😁", "😆", "😅",
-    "😂", "🤣", "🥹", "😊", "😇", "🙂",
-    "😉", "😍", "🥰", "😘", "😗", "😙",
-    "😚", "😋", "😜", "🤪", "😝", "🤑",
-    "🤗", "🤭", "🤫", "🤔", "🤐", "🤨",
-    "😐", "😑", "😶", "😏", "😒", "🙄",
-    "😬", "😮‍💨", "🤥", "😌", "😔", "😪",
-    "🤤", "😴", "😷", "🤒", "🤕", "🤢",
-    "🤮", "🥵", "🥶", "🥴", "😵", "🤯",
-    "🤠", "🥳", "😎", "🤓", "🧐", "😕",
-    "😟", "🙁", "☹️", "😮", "😯", "😲",
-    "😳", "🥺", "😦", "😧", "😨", "😰",
-    "😥", "😢", "😭", "😱", "😖", "😣",
-    "😞", "😓", "😩", "😫", "🥱", "😤",
-    "😡", "😠", "🤬", "😈", "👿", "💀",
-    "👍", "👎", "👊", "✊", "🤛", "🤜",
-    "👏", "🙌", "👐", "🤲", "🤝", "🙏",
-    "💪", "🦾", "🦵", "🦶", "👂", "👃",
-    "👀", "👁️", "👅", "👄", "💋", "💘",
-    "❤️", "🧡", "💛", "💚", "💙", "💜",
-    "🖤", "🤍", "🤎", "💔", "❣️", "💕",
-    "💞", "💓", "💗", "💖", "💝", "💟",
-    "🔥", "✨", "⭐", "🌟", "💫", "🎉",
-    "🎊", "🎈", "🎁", "🏆", "🥇", "💯",
-    "✅", "❌", "❗", "❓", "💤", "💢",
-    "🫡", "🫠", "🫥", "🫢", "🫣", "🫤",
-    "🫶", "🫰", "🫵", "🖖", "🤙", "👋",
-    "🚀", "🌈", "🍀", "🌸", "☀️", "🌙",
-    "🐱", "🐶", "🐼", "🦊", "🐰", "🐻",
-    "🐯", "🦁", "🐨", "🐸", "🐵", "🐔",
-    "🍕", "🍔", "☕", "🍺", "🎂", "🍩",
-    "⚽", "🏀", "🎮", "🎧", "📚", "✈️",
-    "💡", "🎯",
-    "🧭",
-    "📌",
-    "🧩",
-    "🛡️",
-    "🔔", "📎", "🔗", "📝"
-
-)
-
-/** Lightweight keyword aliases for emoji panel search (zh/en). */
 
