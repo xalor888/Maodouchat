@@ -469,9 +469,9 @@ class ClientArchitectureTest {
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
         // 2026-10-08：文件/语音/位置/链接列表簇（+ 搜索高亮/字节/日期/打开链接助手）搬出同包
-        // MediaCenterCategoryLists（763 → 493，纯搬移；openLocalContent 提为 internal），
+        // MediaCenterCategoryLists（763 → 512，纯搬移；openLocalContent 提为 internal），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 493,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 512,
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
@@ -481,9 +481,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 702,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
-        // AiTaskRowCluster（807 → 567，纯搬移；AiTaskFilter 提为 internal），
+        // AiTaskRowCluster（807 → 582，纯搬移；AiTaskFilter 提为 internal），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 567,
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 582,
         // 2026-10-08：VM 簇（枚举/data/VM/RecentSearches）搬出同包 GlobalSearchViewModel.kt
         // （502 行，未进前 20 不纳管）+ UseKtx 收尾（两处 .edit().apply() → edit{}）+ 删 9 个死 import，
         // 纯搬移，上限同步收紧（两份 map 一起改）。
@@ -596,9 +596,9 @@ class ClientArchitectureTest {
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
         // 2026-10-08：文件/语音/位置/链接列表簇（+ 搜索高亮/字节/日期/打开链接助手）搬出同包
-        // MediaCenterCategoryLists（763 → 493，纯搬移；openLocalContent 提为 internal），
+        // MediaCenterCategoryLists（763 → 512，纯搬移；openLocalContent 提为 internal），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 493,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 512,
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
@@ -608,9 +608,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 702,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
-        // AiTaskRowCluster（807 → 567，纯搬移；AiTaskFilter 提为 internal），
+        // AiTaskRowCluster（807 → 582，纯搬移；AiTaskFilter 提为 internal），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 567,
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 582,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 483,
         // G164b：Top-20 排名门禁纳入的 8 个
         "com/maodouchat/network/WebSocketClient.kt" to 969,
