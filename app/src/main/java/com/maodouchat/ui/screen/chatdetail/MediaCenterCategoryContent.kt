@@ -77,7 +77,7 @@ import com.maodouchat.util.RuntimeFlags
 import java.io.File
 
 /** 媒体中心的分类内容区：按分类（图片/语音/位置/链接/文件）展示条目，
-含搜索、预览、导出；各类列表已拆到同包 MediaCenterCategoryLists。纯展示簇，数据走 ViewModel。 */
+含搜索、预览、导出；网格与图片预览已拆到同包 MediaCenterContentGrid / MediaCenterImageViewer。 */
 @Composable
 internal fun MediaCenterCategoryContent(
     category: MediaCenterCategory,
@@ -280,157 +280,6 @@ internal fun MediaCenterCategoryContent(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun MediaGrid(
-    items: List<MediaCenterItem>,
-    onOpenMessage: (String) -> Unit,
-    onPreview: (Message) -> Unit,
-    onExportActions: (Message) -> Unit,
-    secretChatId: String? = null,
-    currentUserId: String? = null
-) {
-    val context = LocalContext.current
-    val exportNeedsCache = stringResource(R.string.media_export_need_cache)
-    val gridSecretPayload = remember(secretChatId, currentUserId) {
-        if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
-        else {
-            val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
-            com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
-        }
-    }
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(112.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-        modifier = Modifier.fillMaxSize().padding(3.dp)
-    ) {
-        items(items, key = { it.message.id }, contentType = { "media_${it.message.type.name}" }) { item ->
-            val message = item.message
-            val localAvailable = remember(message.id, message.content) {
-                MediaCache.isReadableLocalUri(context, message.parsedContent())
-            }
-            Box(
-                modifier = Modifier
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .combinedClickable(
-                        onClick = {
-                            if (!localAvailable) {
-                                onOpenMessage(message.id)
-                                return@combinedClickable
-                            }
-                            if (message.type == MessageType.VIDEO) {
-                                openLocalContent(context, message.parsedContent(), message.parsedMeta().fileMimeType)
-                            } else {
-                                onPreview(message)
-                            }
-                        },
-                        onLongClick = {
-                            if (localAvailable) onExportActions(message)
-                            else Toast.makeText(context, exportNeedsCache, Toast.LENGTH_SHORT).show()
-                        }
-                    )
-            ) {
-                if (localAvailable) {
-                    AsyncImage(
-                        model = OwnerScopedImageKeys.request(
-                            context = LocalContext.current,
-                            data = message.parsedContent(),
-                            secretPayload = gridSecretPayload,
-                        ),
-                        contentDescription = message.parsedMeta().fileName ?: stringResource(R.string.media_center_media_item),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Icon(Icons.Outlined.Image, stringResource(R.string.media_center_cache_missing), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(42.dp).align(Alignment.Center))
-                }
-                if (message.type == MessageType.VIDEO) {
-                    Icon(Icons.Filled.PlayArrow, stringResource(R.string.message_preview_video), tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(34.dp).align(Alignment.Center).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f), RoundedCornerShape(18.dp)).padding(5.dp))
-                }
-                IconButton(onClick = { onOpenMessage(message.id) }, modifier = Modifier.align(Alignment.TopEnd).size(36.dp)) {
-                    Icon(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.media_center_open_message), tint = MaterialTheme.colorScheme.onPrimary)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MediaCenterImageViewer(
-    message: Message,
-    onDismiss: () -> Unit,
-    secretChatId: String? = null,
-    currentUserId: String? = null,
-    onSave: () -> Unit,
-    onShare: () -> Unit,
-) {
-    val context = LocalContext.current
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-    val secretPayload = remember(secretChatId, currentUserId) {
-        if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
-        else {
-            val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
-            com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
-        }
-    }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black),
-            contentAlignment = Alignment.Center
-        ) {
-            ZoomableAsyncImage(
-                model = OwnerScopedImageKeys.request(
-                    context = context,
-                    data = message.parsedContent(),
-                    secretPayload = secretPayload,
-                ),
-                contentDescription = stringResource(R.string.chat_fullscreen_image),
-                onSingleTap = onDismiss
-            )
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
-            ) {
-                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_close), tint = Color.White, modifier = Modifier.size(32.dp))
-            }
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    stringResource(R.string.media_viewer_hint),
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.labelSmall
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onSave) {
-                        Text(stringResource(R.string.common_save), color = Color.White)
-                    }
-                    TextButton(onClick = onShare) {
-                        Text(stringResource(R.string.common_share), color = Color.White)
-                    }
-                }
-            }
-        }
-    }
-}
-
 private fun mediaCenterItemMatches(item: MediaCenterItem, query: String): Boolean {
     val message = item.message
     val meta = message.parsedMeta()
@@ -494,20 +343,3 @@ internal fun MediaCenterCategory.labelResource(): Int = when (this) {
     MediaCenterCategory.LINKS -> R.string.media_center_links
     MediaCenterCategory.LOCATION -> R.string.media_center_location
 }
-
-
-internal fun openLocalContent(context: Context, rawUri: String, mimeType: String?) {
-    runCatching {
-        val parsed = rawUri.toUri()
-        val uri = if (parsed.scheme == "file") {
-            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", File(requireNotNull(parsed.path)))
-        } else parsed
-        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, mimeType?.takeIf(String::isNotBlank) ?: context.contentResolver.getType(uri) ?: "application/octet-stream")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        })
-    }
-}
-
-
-
