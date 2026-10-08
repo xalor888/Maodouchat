@@ -495,8 +495,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 835,
-        // 输入栏杂项瘦身第一批：贴纸/杂项对话框 → ChatDetailComposerDialogs（AI 条/录音留守 ComposerExtras）
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 425,
+        // 输入栏杂项瘦身第二批：AI 条（AiOperationStatusBar/AiDraftStreamBar）→
+        // ChatDetailAiComposerBars（录音/语音留守 ComposerExtras，425 → 195），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 195,
         // 2026-10-08：贴纸簇（stickerPackLabel/PressScaleGlyphItem/StickerPackChip）搬出同包
         // ChatDetailStickerChips（545 → 466，纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 466,
@@ -620,8 +621,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 835,
-        // 输入栏杂项瘦身第一批：贴纸/杂项对话框 → ChatDetailComposerDialogs（AI 条/录音留守 ComposerExtras）
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 425,
+        // 输入栏杂项瘦身第二批：AI 条（AiOperationStatusBar/AiDraftStreamBar）→
+        // ChatDetailAiComposerBars（录音/语音留守 ComposerExtras，425 → 195），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 195,
         // 2026-10-08：贴纸簇（stickerPackLabel/PressScaleGlyphItem/StickerPackChip）搬出同包
         // ChatDetailStickerChips（545 → 466，纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 466,
