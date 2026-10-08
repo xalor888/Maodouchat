@@ -1,14 +1,22 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import android.annotation.SuppressLint
-import android.widget.Toast
+
+/**
+ * 定时发送 / 稍后提醒相关 UI（G87 从 `ChatDetailComponents.kt` 拆出，原 419 行）。
+ *
+ * 留守：定时横幅、定时列表（底部弹窗）两个 `@Composable`，外加时间格式化与
+ * 两个本地化辅助（`scheduleRepeatLabel` 重复规则文案、`formatMuteRemaining` 禁言剩余时长）。
+ * 对话框簇（定时发送/稍后提醒时间选择）已拆到同包 `ChatDetailScheduleDialogs.kt`。
+ *
+ * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`；
+ * 所需输入全部经参数显式传入。纯搬移，不改判断。
+ */
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,25 +46,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.util.ScheduledMessage
-
-/**
- * 定时发送 / 稍后提醒相关 UI（G87 从 `ChatDetailComponents.kt` 拆出，原 419 行）。
- *
- * 四个 `@Composable`：定时横幅、定时列表（底部弹窗）、定时发送对话框、稍后提醒时间选择；
- * 外加两个本地化辅助：`scheduleRepeatLabel`（重复规则文案）与 `formatMuteRemaining`（禁言剩余时长）。
- *
- * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`；
- * 所需输入全部经参数显式传入。纯搬移，不改判断。
- */
 
 internal fun formatScheduleTime(millis: Long): String {
     return scheduleTimeFormat.get().format(java.util.Date(millis))
@@ -291,175 +286,6 @@ internal fun ScheduledMessagesListSheet(
     }
 }
 
-@Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
-internal fun ScheduleSendDialog(
-    onPickDelay: (Long) -> Unit,
-    onPickAt: (Long) -> Unit = {},
-    onDismiss: () -> Unit,
-    titleRes: Int = R.string.schedule_title,
-    // 1.07：重复定时（间隔 + 1.21 可选次数 + 1.62 工作日）
-    onPickRepeat: (Long, Int, Boolean) -> Unit = { _, _, _ -> },
-    /** 1.43：重排时允许编辑文案（onTextEdited 非空时显示文本输入框）。 */
-    initialText: String = "",
-    onTextEdited: ((String) -> Unit)? = null
-) {
-    val context = LocalContext.current
-    // 1.21：重复次数选择（0=不限）
-    var repeatCountChoice by remember { mutableIntStateOf(0) }
-    // 1.43：重排文案草稿
-    var textDraft by remember(initialText) { mutableStateOf(initialText) }
-    val options = com.maodouchat.util.ScheduledMessagePolicy.QUICK_DELAYS_MS.zip(
-        listOf(
-            R.string.schedule_delay_1m,
-            R.string.schedule_delay_5m,
-            R.string.schedule_delay_15m,
-            R.string.schedule_delay_30m,
-            R.string.schedule_delay_1h,
-            R.string.schedule_delay_2h,
-            R.string.schedule_delay_3h,
-            R.string.schedule_delay_4h,
-            R.string.schedule_delay_6h,
-            R.string.schedule_delay_12h,
-            R.string.schedule_delay_24h,
-            R.string.schedule_delay_2d,
-            R.string.schedule_delay_3d,
-            R.string.schedule_delay_7d
-        )
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(titleRes)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // 1.43：重排时编辑文案
-                if (onTextEdited != null) {
-                    OutlinedTextField(
-                        value = textDraft,
-                        onValueChange = {
-                            textDraft = it.take(com.maodouchat.util.ScheduledMessagePolicy.MAX_TEXT_LENGTH)
-                            onTextEdited(textDraft)
-                        },
-                        placeholder = { Text(stringResource(R.string.schedule_edit_hint)) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                options.forEach { (delay, label) ->
-                    TextButton(
-                        onClick = { onPickDelay(delay) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(label), color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                TextButton(
-                    onClick = {
-                        openScheduleDateTimePicker(
-                            context = context,
-                            onPicked = onPickAt,
-                            onTooSoon = {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.schedule_custom_too_soon),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            },
-                            onTooLate = {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.schedule_custom_too_late),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.schedule_custom), color = MaterialTheme.colorScheme.primary)
-                }
-                androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.textHint.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 4.dp))
-                Text(
-                    stringResource(R.string.schedule_repeat_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = LocalChatPalette.current.textSecondary,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-                )
-                // 1.07：重复定时（每日/每周）；1.21：应用所选次数；1.62：工作日重复
-                TextButton(
-                    onClick = { onPickRepeat(24L * 3600_000L, repeatCountChoice, false) },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.schedule_repeat_daily), color = MaterialTheme.colorScheme.primary) }
-                TextButton(
-                    onClick = { onPickRepeat(7L * 24 * 3600_000L, repeatCountChoice, false) },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.schedule_repeat_weekly), color = MaterialTheme.colorScheme.primary) }
-                TextButton(
-                    onClick = { onPickRepeat(24L * 3600_000L, repeatCountChoice, true) },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.schedule_repeat_weekdays), color = MaterialTheme.colorScheme.primary) }
-                Text(
-                    stringResource(R.string.schedule_repeat_count_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = LocalChatPalette.current.textSecondary,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    listOf(3, 7, 30, 0).forEach { count ->
-                        TextButton(
-                            onClick = { repeatCountChoice = count },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                if (count > 0) pluralStringResource(R.plurals.schedule_repeat_count, count, count)
-                                else stringResource(R.string.schedule_repeat_count_unlimited),
-                                color = if (repeatCountChoice == count) Primary else OnSurface,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-        }
-    )
-}
-
-/** 消息「稍后提醒」时间选择：复用定时发送档位文案，窗口 1 分钟 ~ 30 天。 */
-@Composable
-internal fun MessageReminderTimeDialog(
-    onPick: (Long) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.message_reminder_menu), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
-        text = {
-            val delays = com.maodouchat.util.MessageReminderPolicy.QUICK_DELAYS_MS
-            val labels = listOf(
-                R.string.schedule_delay_1m, R.string.schedule_delay_5m, R.string.schedule_delay_15m,
-                R.string.schedule_delay_30m, R.string.schedule_delay_1h, R.string.schedule_delay_2h,
-                R.string.schedule_delay_3h, R.string.schedule_delay_4h, R.string.schedule_delay_6h,
-                R.string.schedule_delay_12h, R.string.schedule_delay_24h, R.string.schedule_delay_2d,
-                R.string.schedule_delay_3d, R.string.schedule_delay_7d
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                delays.zip(labels).forEach { (delayMs, labelRes) ->
-                    TextButton(
-                        onClick = { onPick(delayMs) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(labelRes), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.fillMaxWidth()) }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-        }
-    )
-}
 
 /** 1.15：定时消息重复间隔 → 展示文案（0=一次性返回 null 不显示）。1.21/1.48：含次数与剩余次数。1.62：工作日重复。 */
 internal fun scheduleRepeatLabel(context: android.content.Context, intervalMs: Long, repeatCount: Int, occurrencesSent: Int, weekdaysOnly: Boolean): String? {
