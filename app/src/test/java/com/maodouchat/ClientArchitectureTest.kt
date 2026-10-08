@@ -473,7 +473,10 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
+        // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
+        // 评论框字段三助手）抽出同包 ExploreCommentController（1010 → 702，纯搬移；
+        // Orchestrator 留同签名委托），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 702,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 807,
@@ -593,7 +596,10 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 1010,
+        // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
+        // 评论框字段三助手）抽出同包 ExploreCommentController（1010 → 702，纯搬移；
+        // Orchestrator 留同签名委托），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 702,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 本轮拆分后挤进前 20：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 807,
