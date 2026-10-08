@@ -32,7 +32,7 @@ class AgentSessionEngine(
             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         val system = AgentChatMessage(
             role = "system",
-            content = AgentToolPolicy.systemPrompt(now, styleHint)
+            content = agentSystemPrompt(now, styleHint)
         )
         val working = mutableListOf<AgentChatMessage>()
         working += system
@@ -168,7 +168,7 @@ class AgentSessionEngine(
         val mode = args["mode"] ?: "polish"
         return completeText(
             provider,
-            AgentToolPolicy.rewriteInstruction(mode, args["targetLanguage"]),
+            agentRewriteInstruction(mode, args["targetLanguage"]),
             text
         ).getOrElse { it.message ?: "rewrite failed" }
     }

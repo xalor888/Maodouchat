@@ -29,7 +29,7 @@ object LocalAiGateway {
             ?: return Result.failure(IllegalStateException(missingProviderMessage()))
         val style = AgentSessionEngine.styleHintFrom(AiWritingStylePreferences.snapshot(context))
         val instruction = buildString {
-            append(AgentToolPolicy.rewriteInstruction(mode, targetLanguage))
+            append(agentRewriteInstruction(mode, targetLanguage))
             if (!style.isNullOrBlank()) append(" ").append(style)
         }
         return AgentSessionEngine().completeText(provider, instruction, text, onDelta)
@@ -40,7 +40,7 @@ object LocalAiGateway {
             ?: return Result.failure(IllegalStateException(missingProviderMessage()))
         return AgentSessionEngine().completeText(
             provider,
-            AgentToolPolicy.translateInstruction(targetLanguage),
+            agentTranslateInstruction(targetLanguage),
             text
         )
     }
@@ -57,7 +57,7 @@ object LocalAiGateway {
         val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
         return AgentSessionEngine().completeText(
             provider,
-            AgentToolPolicy.suggestInstruction(tone, count),
+            agentSuggestInstruction(tone, count),
             transcript,
             onDelta
         ).map { raw ->
@@ -79,7 +79,7 @@ object LocalAiGateway {
         val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
         return AgentSessionEngine().completeText(
             provider,
-            AgentToolPolicy.summarizeInstruction(style),
+            agentSummarizeInstruction(style),
             transcript
         )
     }
@@ -95,7 +95,7 @@ object LocalAiGateway {
         val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
         return AgentSessionEngine().completeText(
             provider,
-            AgentToolPolicy.groupAssistantInstruction(mode, query),
+            agentGroupAssistantInstruction(mode, query),
             transcript
         )
     }
