@@ -9,10 +9,10 @@ kotlin {
 dependencies {
     implementation(project(":core:model"))
 
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.20")
     testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.3")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")
 
     // 架构测试需要扫描其它 core/domain 模块的已编译类。
     //
