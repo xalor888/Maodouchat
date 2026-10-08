@@ -56,9 +56,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,6 +82,9 @@ import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.ui.theme.MaodouchatTheme
+import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.ui.theme.LocalMotionSettings
+import com.maodouchat.ui.theme.MotionTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
