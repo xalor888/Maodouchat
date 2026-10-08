@@ -44,9 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenManager
-import com.maodouchat.network.ReportResponse
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.component.EmptyState
@@ -58,13 +55,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
 /**
- * 「我的举报」与「黑名单」两页（G104 从 `SettingsSubScreens.kt` 拆出，原 232 行）。
- *
- * 两个页面共享同一套网络客户端（`ApiService` + `TokenManager`）与「空态」组件，
- * 故合成一个文件而不是两个小文件。
+ * 「我的举报」页。
  *
  * **拆解约束**：不直接抓应用级数据库单例（`ui/` 红线，读库只能经 ViewModel/repository）。
- * 纯搬移，不改判断。
  */
 
 @Composable
@@ -174,130 +167,6 @@ private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
                 color = LocalChatPalette.current.textHint,
                 modifier = Modifier.padding(top = 4.dp)
             )
-        }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalMaterial3Api::class)
-fun BlockedUsersScreen(onBack: () -> Unit = {}) {
-    val context = LocalContext.current
-    val blocked = remember { mutableStateOf<List<com.maodouchat.network.UserDto>>(emptyList()) }
-    val isLoading = remember { mutableStateOf(true) }
-    val error = remember { mutableStateOf<String?>(null) }
-    val unblockingIds = remember { mutableStateOf<Set<String>>(emptySet()) }
-    // 1.144：黑名单搜索
-    var blockedSearch by rememberSaveable { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
-    val blockedLoadFailedText = stringResource(com.maodouchat.R.string.blocked_load_failed)
-    val unblockFailedText = stringResource(com.maodouchat.R.string.blocked_unblock_failed)
-    val filteredBlocked = remember(blocked.value, blockedSearch) {
-        val q = blockedSearch.trim()
-        if (q.isBlank()) blocked.value
-        else blocked.value.filter { it.name.contains(q, ignoreCase = true) || it.id.contains(q, ignoreCase = true) }
-    }
-
-    suspend fun load() {
-        isLoading.value = true
-        error.value = null
-        com.maodouchat.data.repository.AccountSecurityNetworkRepository().blockedUserDetails()
-            .onSuccess { blocked.value = it }
-            .onFailure { error.value = blockedLoadFailedText }
-        isLoading.value = false
-    }
-    LaunchedEffect(Unit) { load() }
-
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        TopAppBar(
-            title = { Text(stringResource(com.maodouchat.R.string.settings_blocked_users), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.semantics { heading() }) },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(com.maodouchat.R.string.common_back), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-        )
-        when {
-            isLoading.value -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            }
-            error.value != null && blocked.value.isEmpty() -> EmptyState(
-                type = EmptyStateType.NETWORK_ERROR,
-                title = stringResource(com.maodouchat.R.string.blocked_load_failed),
-                actionText = stringResource(com.maodouchat.R.string.chat_load_failed_retry),
-                onAction = { scope.launch { load() } }
-            )
-            blocked.value.isEmpty() -> EmptyState(
-                type = EmptyStateType.GENERIC,
-                title = stringResource(com.maodouchat.R.string.blocked_empty)
-            )
-            else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                item(key = "blocked_search", contentType = "search") {
-                    androidx.compose.material3.OutlinedTextField(
-                        value = blockedSearch,
-                        onValueChange = { blockedSearch = it.take(100) },
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                        placeholder = { Text(stringResource(com.maodouchat.R.string.blocked_search_hint)) },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-                if (filteredBlocked.isEmpty()) {
-                    item(key = "blocked_search_empty", contentType = "empty") {
-                        Text(
-                            stringResource(com.maodouchat.R.string.blocked_search_empty),
-                            color = LocalChatPalette.current.textHint,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                } else {
-                    items(filteredBlocked, key = { it.id }) { user ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (!user.avatar.isNullOrBlank()) {
-                            coil.compose.AsyncImage(
-                                model = user.avatar,
-                                contentDescription = null,
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                modifier = Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(user.name.firstOrNull()?.toString() ?: "?", color = Color.White, style = MaterialTheme.typography.titleMedium)
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = user.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
-                        val unblocking = user.id in unblockingIds.value
-                        TextButton(
-                            enabled = !unblocking,
-                            onClick = {
-                                unblockingIds.value = unblockingIds.value + user.id
-                                scope.launch {
-                                    com.maodouchat.data.repository.AccountSecurityNetworkRepository().unblock(userId = user.id)
-                                        .onSuccess { blocked.value = blocked.value.filter { it.id != user.id } }
-                                        .onFailure { error.value = unblockFailedText }
-                                    unblockingIds.value = unblockingIds.value - user.id
-                                }
-                            }
-                        ) { Text(stringResource(com.maodouchat.R.string.blocked_unblock), color = MaterialTheme.colorScheme.primary) }
-                    }
-                    androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = LocalChatPalette.current.chatInputBorder, modifier = Modifier.padding(start = 16.dp))
-                    }
-                }
-            }
         }
     }
 }
