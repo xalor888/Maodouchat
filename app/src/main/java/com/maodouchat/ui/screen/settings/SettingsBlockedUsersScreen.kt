@@ -49,6 +49,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
+@Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
