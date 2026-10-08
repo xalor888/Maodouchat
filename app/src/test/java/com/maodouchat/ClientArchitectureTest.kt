@@ -469,9 +469,10 @@ class ClientArchitectureTest {
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
         // 2026-10-08：文件/语音/位置/链接列表簇（+ 搜索高亮/字节/日期/打开链接助手）搬出同包
-        // MediaCenterCategoryLists（763 → 513，纯搬移；openLocalContent 提为 internal；补回遗漏的 getValue import），
-        // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 513,
+        // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
+        // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
+        // 513 → 345，纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 345,
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
@@ -602,9 +603,10 @@ class ClientArchitectureTest {
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
         // 2026-10-08：文件/语音/位置/链接列表簇（+ 搜索高亮/字节/日期/打开链接助手）搬出同包
-        // MediaCenterCategoryLists（763 → 513，纯搬移；openLocalContent 提为 internal；补回遗漏的 getValue import），
-        // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 513,
+        // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
+        // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
+        // 513 → 345，纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 345,
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 479,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
