@@ -22,7 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPORT = ROOT / "app/build/reports/lint-results-debug.xml"
 
 # 白名单：依赖更新是 dependabot 的决策域；LintBaseline* 是信息性提示（不算问题）。
+# 2026-10-08：AndroidGradlePluginVersion（"有新版 Gradle 可用"，如 8.14.6）与
+# GradleDependency/NewerVersionAvailable 同类——升级已由用户搁置，不由重构循环决策。
 ALLOW = {
+    "AndroidGradlePluginVersion",
     "GradleDependency",
     "NewerVersionAvailable",
     "LintBaseline",
