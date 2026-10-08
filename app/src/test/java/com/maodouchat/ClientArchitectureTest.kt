@@ -414,7 +414,9 @@ class ClientArchitectureTest {
         // 2026-10-08：展示行组件簇搬出同包 AccountSecurityDisplayRows.kt
         // （670 → 455 纯搬移；修 CI 时补 import 并清掉 53 个闲置 import → 402；
         // 新文件 258 行未进前 20，不纳管），两处同步收紧。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 402,
+        // 2026-10-08：TotpSetupDialog 搬出同包 SettingsTotpDialog.kt（402 → 206，纯搬移；
+        // 新文件 218 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 206,
         // G358：SettingsViewModel 拆分后窗口前移——SettingsGeneral 进入前 20，按实测值纳管。
         // 2026-10-08：行组件簇搬出同包 GeneralSettingsRows.kt（873 → 342 纯搬移；
         // 修 CI 时补 setValue import 并清掉 18 个闲置 import → 324；
@@ -507,7 +509,11 @@ class ClientArchitectureTest {
         // 466 → 72，纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 72,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
-        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
+        // 2026-10-08：资料簇（ProfileCard/StatusEditorDialog/UsernameEditorDialog）→ SettingsProfileCluster.kt、
+        // 隐私簇（PrivacyDialog/PrivacySwitchRow/privacyVisibilityLabel/BlockedUsersDialog）→ SettingsPrivacyCluster.kt，
+        // 留守主屏 + SettingsGroup/SettingsItem（936 → 393，纯搬移；新文件未进前 20 不纳管），
+        // 上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 393,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
@@ -564,7 +570,7 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 979,
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
-                "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 402,
+                "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 206,
             "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
             "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 671,
             // 通话 VM 瘦身第二批：出站信令发送簇纯搬移到同包 CallSignalingSender（1500 → 1449）。
@@ -638,7 +644,7 @@ class ClientArchitectureTest {
         // 466 → 72，纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerDialogs.kt" to 72,
         "com/maodouchat/ui/theme/Motion.kt" to 939,
-        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 936,
+        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 393,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
         "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
