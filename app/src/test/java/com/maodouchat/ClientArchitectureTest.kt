@@ -516,7 +516,6 @@ class ClientArchitectureTest {
         // 修 CI：补回拆分时漏搬的 import（LocalChatPalette/LocalMotionSettings/MotionTokens/getValue/setValue），393 → 398。
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 398,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
-        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
@@ -650,7 +649,6 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/theme/Motion.kt" to 939,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 398,
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 923,
-        "com/maodouchat/ui/screen/contacts/ContactSubScreens.kt" to 860,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
