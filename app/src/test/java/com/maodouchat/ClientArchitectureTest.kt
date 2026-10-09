@@ -531,10 +531,9 @@ class ClientArchitectureTest {
         // 上限同步收紧（两份 map 一起改）。
         // 行组件按簇拆出（SwitchRow/SettingsGroup/SettingsItem → 同包两个新文件，398 → 344，纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 344,
-        // 本轮：群管理/密钥设备/通话信令三簇实现搬出为 GroupApiClient/KeyDeviceApiClient/
-        // CallSignalingApiClient（923 → 692，纯搬移；新文件均未进前 20，不纳管），
-        // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/network/api/ApiEndpointClients.kt" to 692,
+        // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
+        // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
@@ -682,10 +681,9 @@ class ClientArchitectureTest {
         // 上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/theme/MotionTransitions.kt" to 42,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 344,
-        // 本轮：群管理/密钥设备/通话信令三簇实现搬出为 GroupApiClient/KeyDeviceApiClient/
-        // CallSignalingApiClient（923 → 692，纯搬移；新文件均未进前 20，不纳管），
-        // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/network/api/ApiEndpointClients.kt" to 692,
+        // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
+        // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
