@@ -904,6 +904,8 @@ class ClientArchitectureTest {
             "ChatDetailListPaneRoute 只是把 listPane/detailPane 交给 ChatListScreen / ChatDetailRoute，两者各自带 inset",
         "app/src/main/java/com/maodouchat/ui/navigation/CallNavigation.kt" to
             "IncomingCallRoute 转发给 CallScreen.kt 的来电界面，那里有 statusBarsPadding",
+        "app/src/main/java/com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to
+            "2026-10-10：MaodouAgentScreen 拆出 5 个簇文件后，TopAppBar 被搬到 AgentTopBar（MaodouAgentTopBar.kt）里，Screen 里仍挂载 AgentTopBar，状态栏 inset 处理语义不变——只是测试的文件内扫描看不到跨文件的 TopAppBar，逐字确认过",
     )
 
     @Test
