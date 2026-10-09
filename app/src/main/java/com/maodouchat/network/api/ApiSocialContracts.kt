@@ -2,6 +2,7 @@ package com.maodouchat.network.api
 
 import com.maodouchat.network.*
 
+/** Remaining endpoints retained through ApiService during the migration. */
 interface ApiSurface : SocialApi {
     suspend fun getPublicStatus(): Result<String>
 
