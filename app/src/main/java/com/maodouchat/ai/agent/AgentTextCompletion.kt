@@ -4,6 +4,8 @@ import com.maodouchat.ai.AiWritingStylePolicy
 
 // 单轮文本直连调用：改写/翻译/摘要等走这里，不经过工具轮次。
 object AgentTextCompletion {
+    // K2 后端 bug：suspend 函数的函数类型默认参数（lambda 或函数引用都会）
+    // 在 IR lowering 抛 "has no continuation"，所以默认实现改走重载显式传入。
     suspend fun completeText(
         provider: LocalAiProvider,
         instruction: String,
@@ -14,9 +16,7 @@ object AgentTextCompletion {
             List<AgentChatMessage>,
             List<Map<String, Any?>>?,
             ((String) -> Unit)?
-        ) -> OpenAiCompatClient.Completion = { p, messages, tools, delta ->
-            OpenAiCompatClient.complete(p, messages, tools, delta)
-        }
+        ) -> OpenAiCompatClient.Completion
     ): Result<String> {
         val messages = listOf(
             AgentChatMessage(role = "system", content = instruction),
@@ -29,6 +29,16 @@ object AgentTextCompletion {
         }
     }
 
+    suspend fun completeText(
+        provider: LocalAiProvider,
+        instruction: String,
+        userContent: String,
+        onDelta: ((String) -> Unit)? = null
+    ): Result<String> =
+        completeText(provider, instruction, userContent, onDelta) { p, messages, tools, delta ->
+            OpenAiCompatClient.complete(p, messages, tools, delta)
+        }
+
     suspend fun rewriteViaModel(
         provider: LocalAiProvider,
         args: Map<String, String>,
@@ -37,9 +47,7 @@ object AgentTextCompletion {
             List<AgentChatMessage>,
             List<Map<String, Any?>>?,
             ((String) -> Unit)?
-        ) -> OpenAiCompatClient.Completion = { p, messages, tools, delta ->
-            OpenAiCompatClient.complete(p, messages, tools, delta)
-        }
+        ) -> OpenAiCompatClient.Completion
     ): String {
         val text = args["text"].orEmpty()
         if (text.isBlank()) return "Error: text required"
@@ -48,7 +56,8 @@ object AgentTextCompletion {
             provider,
             agentRewriteInstruction(mode, args["targetLanguage"]),
             text,
-            complete = complete
+            null,
+            complete
         ).getOrElse { it.message ?: "rewrite failed" }
     }
 
