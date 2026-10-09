@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.login
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
@@ -21,6 +22,8 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 
 // 登录 / 注册 / 找回密码三 tab。注册 tab 在服务器关闭注册时弹 Toast 拦截。
+// onClick 不是 composable 作用域，只能用 context.getString 取文案（与原 LoginScreen 同一处压制）。
+@SuppressLint("LocalContextGetResourceValueCall")
 @Composable
 internal fun LoginTabRow(
     selectedTab: Int,
