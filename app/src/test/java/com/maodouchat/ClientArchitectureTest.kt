@@ -551,8 +551,10 @@ class ClientArchitectureTest {
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
         // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
-        // MaodouAgentScreen（618）挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
-        "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 618,
+        // MaodouAgentScreen（618）挤进前 20 纳管；本轮按主题拆出 5 个簇文件
+        // （TopBar/引导页/消息气泡簇/审批卡/输入条，618 → 124 纯搬移；新文件均未进前 20，
+        // 滑入前 20 的 GroupPlayClassicDelegates（605）早已纳管），上限同步收紧。
+        "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 124,
     )
 
     @Test
@@ -704,8 +706,10 @@ class ClientArchitectureTest {
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
         // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
-        // MaodouAgentScreen（618）挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
-        "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 618,
+        // MaodouAgentScreen（618）挤进前 20 纳管；本轮按主题拆出 5 个簇文件
+        // （TopBar/引导页/消息气泡簇/审批卡/输入条，618 → 124 纯搬移；新文件均未进前 20，
+        // 滑入前 20 的 GroupPlayClassicDelegates（605）早已纳管），上限同步收紧。
+        "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 124,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
@@ -900,6 +904,8 @@ class ClientArchitectureTest {
             "ChatDetailListPaneRoute 只是把 listPane/detailPane 交给 ChatListScreen / ChatDetailRoute，两者各自带 inset",
         "app/src/main/java/com/maodouchat/ui/navigation/CallNavigation.kt" to
             "IncomingCallRoute 转发给 CallScreen.kt 的来电界面，那里有 statusBarsPadding",
+        "app/src/main/java/com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to
+            "2026-10-10：MaodouAgentScreen 拆出 5 个簇文件后，TopAppBar 被搬到 AgentTopBar（MaodouAgentTopBar.kt）里，Screen 里仍挂载 AgentTopBar，状态栏 inset 处理语义不变——只是测试的文件内扫描看不到跨文件的 TopAppBar，逐字确认过",
     )
 
     @Test
