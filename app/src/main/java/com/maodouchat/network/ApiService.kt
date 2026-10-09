@@ -23,8 +23,14 @@ import com.maodouchat.util.toHexString
 import com.maodouchat.network.api.ApiSurface
 import com.maodouchat.network.api.AuthApi
 import com.maodouchat.network.api.AuthApiClient
+import com.maodouchat.network.api.CallSignalingApi
+import com.maodouchat.network.api.CallSignalingApiClient
 import com.maodouchat.network.api.ConversationApi
 import com.maodouchat.network.api.ConversationApiClient
+import com.maodouchat.network.api.GroupApi
+import com.maodouchat.network.api.GroupApiClient
+import com.maodouchat.network.api.KeyDeviceApi
+import com.maodouchat.network.api.KeyDeviceApiClient
 import com.maodouchat.network.api.MediaApi
 import com.maodouchat.network.api.MediaApiClient
 import com.maodouchat.network.api.MessagingApi
@@ -114,13 +120,19 @@ object ApiService :
     AuthApi by AuthApiClient,
     MessagingApi by MessagingApiClient,
     ConversationApi by ConversationApiClient,
-    MediaApi by MediaApiClient {
+    MediaApi by MediaApiClient,
+    GroupApi by GroupApiClient,
+    KeyDeviceApi by KeyDeviceApiClient,
+    CallSignalingApi by CallSignalingApiClient {
 
     val auth: AuthApi = AuthApiClient
     val messaging: MessagingApi = MessagingApiClient
     val conversations: ConversationApi = ConversationApiClient
     val media: MediaApi = MediaApiClient
     val social: SocialApi = ApiEndpointClients
+    val groups: GroupApi = GroupApiClient
+    val keys: KeyDeviceApi = KeyDeviceApiClient
+    val calls: CallSignalingApi = CallSignalingApiClient
 
     internal val json = Json { ignoreUnknownKeys = true }
     // TokenManager is a process singleton holding applicationContext only. Reading it on
