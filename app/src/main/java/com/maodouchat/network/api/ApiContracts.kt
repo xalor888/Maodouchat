@@ -307,7 +307,7 @@ interface ConversationApi {
 ): Result<ChatDto>
 }
 
-interface MediaApi {
+interface MediaUploadApi {
     suspend fun uploadEncryptedAttachment(
     token: String,
     chatId: String,
@@ -329,6 +329,9 @@ interface MediaApi {
 
     suspend fun deleteUncommittedAttachment(token: String, attachmentId: String): Result<Unit>
 
+}
+
+interface MediaDownloadApi {
     suspend fun downloadEncryptedAttachment(
     token: String,
     attachmentId: String,
@@ -340,6 +343,9 @@ interface MediaApi {
 
     suspend fun downloadPostImage(token: String, imageUrl: String, target: java.io.File): Result<Unit>
 
+}
+
+interface MediaImageApi {
     suspend fun uploadPostImage(token: String, base64Data: String): Result<String>
 
     suspend fun discardPostImage(token: String, imageUrl: String): Result<Unit>
@@ -349,7 +355,11 @@ interface MediaApi {
     suspend fun removeAvatar(token: String): Result<Unit>
 
     suspend fun uploadGroupAvatar(token: String, chatId: String, base64Data: String): Result<String>
+
 }
+
+/** 复合门面：调用方继续用 MediaApi 类型，实现由三簇客户端分别提供。 */
+interface MediaApi : MediaUploadApi, MediaDownloadApi, MediaImageApi
 
 interface SocialApi {
     suspend fun getUsers(token: String, limit: Int = 30, offset: Int = 0): Result<List<UserDto>>
