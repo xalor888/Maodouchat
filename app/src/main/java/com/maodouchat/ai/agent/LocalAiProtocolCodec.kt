@@ -41,7 +41,7 @@ object LocalAiProtocolCodec {
         tools: List<Map<String, Any?>>?,
         stream: Boolean
     ): JSONObject =
-        LocalAiResponsesCodec.responsesBody(provider, messages, tools, stream)
+        LocalAiResponsesEncode.responsesBody(provider, messages, tools, stream)
 
     fun anthropicBody(
         provider: LocalAiProvider,
@@ -49,16 +49,16 @@ object LocalAiProtocolCodec {
         tools: List<Map<String, Any?>>?,
         stream: Boolean
     ): JSONObject =
-        LocalAiAnthropicCodec.anthropicBody(provider, messages, tools, stream)
+        LocalAiAnthropicEncode.anthropicBody(provider, messages, tools, stream)
 
     fun parseChatCompletions(payload: String): OpenAiCompatClient.Completion =
         LocalAiChatCompletionsCodec.parseChatCompletions(payload)
 
     fun parseResponses(payload: String): OpenAiCompatClient.Completion =
-        LocalAiResponsesCodec.parseResponses(payload)
+        LocalAiResponsesParse.parseResponses(payload)
 
     fun parseAnthropic(payload: String): OpenAiCompatClient.Completion =
-        LocalAiAnthropicCodec.parseAnthropic(payload)
+        LocalAiAnthropicParse.parseAnthropic(payload)
 
     fun parseSseChat(
         payload: String,
