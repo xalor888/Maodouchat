@@ -9,18 +9,14 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 // 对话簇：纯文本聊天 + 工具调用。原 OpenAiCompatClient 的 complete 整体搬入，逻辑逐行不变。
 object OpenAiCompatChatClient {
-    sealed interface Completion {
-        data class Text(val content: String) : Completion
-        data class Tools(val calls: List<AgentToolCall>, val content: String) : Completion
-        data class Error(val message: String) : Completion
-    }
+    // Completion 住在统一入口 OpenAiCompatClient：调用方都写 OpenAiCompatClient.Completion。
 
     suspend fun complete(
         provider: LocalAiProvider,
         messages: List<AgentChatMessage>,
         tools: List<Map<String, Any?>>?,
         onDelta: ((String) -> Unit)? = null
-    ): Completion = withContext(Dispatchers.IO) {
+    ): OpenAiCompatClient.Completion = withContext(Dispatchers.IO) {
         val stream = provider.stream && onDelta != null && tools.isNullOrEmpty()
         val (url, body) = when (provider.protocol) {
             LocalAiProtocol.OPENAI_CHAT_COMPLETIONS ->
@@ -40,14 +36,14 @@ object OpenAiCompatChatClient {
                 currentCoroutineContext().ensureActive()
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
-                    return@withContext Completion.Error(
+                    return@withContext OpenAiCompatClient.Completion.Error(
                         "模型接口 ${response.code}: ${payload.take(240).ifBlank { response.message }}"
                     )
                 }
                 if (stream) {
                     val deltaSink = onDelta ?: return@withContext parseByProtocol(provider.protocol, payload)
                     val streamed = LocalAiProtocolCodec.parseSseChat(payload, deltaSink)
-                    if (streamed is Completion.Error) {
+                    if (streamed is OpenAiCompatClient.Completion.Error) {
                         return@withContext parseByProtocol(provider.protocol, payload)
                     }
                     return@withContext streamed
@@ -57,11 +53,11 @@ object OpenAiCompatChatClient {
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (error: Exception) {
-            Completion.Error(error.message ?: error.javaClass.simpleName)
+            OpenAiCompatClient.Completion.Error(error.message ?: error.javaClass.simpleName)
         }
     }
 
-    internal fun parseByProtocol(protocol: LocalAiProtocol, payload: String): Completion = when (protocol) {
+    internal fun parseByProtocol(protocol: LocalAiProtocol, payload: String): OpenAiCompatClient.Completion = when (protocol) {
         LocalAiProtocol.OPENAI_CHAT_COMPLETIONS -> LocalAiProtocolCodec.parseChatCompletions(payload)
         LocalAiProtocol.OPENAI_RESPONSES -> LocalAiProtocolCodec.parseResponses(payload)
         LocalAiProtocol.ANTHROPIC_MESSAGES -> LocalAiProtocolCodec.parseAnthropic(payload)

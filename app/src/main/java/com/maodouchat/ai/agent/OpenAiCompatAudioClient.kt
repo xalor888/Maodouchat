@@ -16,10 +16,10 @@ object OpenAiCompatAudioClient {
         provider: LocalAiProvider,
         audioBase64: String,
         mimeType: String
-    ): OpenAiCompatChatClient.Completion = withContext(Dispatchers.IO) {
+    ): OpenAiCompatClient.Completion = withContext(Dispatchers.IO) {
         val bytes = runCatching { android.util.Base64.decode(audioBase64, android.util.Base64.NO_WRAP) }
             .getOrNull()
-            ?: return@withContext OpenAiCompatChatClient.Completion.Error("无法解码语音")
+            ?: return@withContext OpenAiCompatClient.Completion.Error("无法解码语音")
         val url = provider.baseUrl.trimEnd('/') + "/audio/transcriptions"
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -39,17 +39,17 @@ object OpenAiCompatAudioClient {
                 currentCoroutineContext().ensureActive()
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
-                    return@withContext OpenAiCompatChatClient.Completion.Error(
+                    return@withContext OpenAiCompatClient.Completion.Error(
                         "语音接口 ${response.code}: ${payload.take(240).ifBlank { response.message }}"
                     )
                 }
                 val text = runCatching { JSONObject(payload).optString("text") }.getOrNull().orEmpty()
-                if (text.isBlank()) OpenAiCompatChatClient.Completion.Error("语音接口没有 text") else OpenAiCompatChatClient.Completion.Text(text)
+                if (text.isBlank()) OpenAiCompatClient.Completion.Error("语音接口没有 text") else OpenAiCompatClient.Completion.Text(text)
             }
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (error: Exception) {
-            OpenAiCompatChatClient.Completion.Error(error.message ?: error.javaClass.simpleName)
+            OpenAiCompatClient.Completion.Error(error.message ?: error.javaClass.simpleName)
         }
     }
 }

@@ -3,7 +3,13 @@ package com.maodouchat.ai.agent
 // 只和用户自配的 provider 对话：聊天明文绝不发到毛豆服务器。
 // 实现已按簇拆到 OpenAiCompat{Chat,Vision,Audio}Client，这里只保留统一入口。
 object OpenAiCompatClient {
-    typealias Completion = OpenAiCompatChatClient.Completion
+    // 结果类型留在统一入口：typealias 不能当嵌套类限定符用
+    //（`is OpenAiCompatClient.Completion.Error` 会 Unresolved），簇客户端引用这里的嵌套类型。
+    sealed interface Completion {
+        data class Text(val content: String) : Completion
+        data class Tools(val calls: List<AgentToolCall>, val content: String) : Completion
+        data class Error(val message: String) : Completion
+    }
 
     suspend fun complete(
         provider: LocalAiProvider,
