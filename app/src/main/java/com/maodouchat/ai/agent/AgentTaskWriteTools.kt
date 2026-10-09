@@ -11,7 +11,7 @@ internal object AgentTaskWriteTools {
             val cleanTitle = title.trim().take(300)
             if (chatId.isBlank() || cleanTitle.isBlank()) return "Error: chatId and title required"
             if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
-            AgentMessagingReadTools.denySecretOrLockedChat(app, chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val now = System.currentTimeMillis()
             val entity = AiTaskEntity(
                 id = "task_${UUID.randomUUID()}",
