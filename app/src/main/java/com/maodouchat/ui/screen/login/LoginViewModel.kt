@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.data.repository.AuthNetworkRepository
-import com.maodouchat.data.repository.SessionNetworkRepository
 import com.maodouchat.R
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.login.LoginAccess
@@ -21,85 +20,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class LoginUiState(
-    val email: String = "",
-    val password: String = "",
-    val passwordConfirm: String = "",
-    val name: String = "",
-    val code: String = "",
-    val totpCode: String = "",
-    val requiresTotp: Boolean = false,
-    val selectedTab: Int = 0, // 0 login / 1 register / 2 reset
-    val passwordVisible: Boolean = false,
-    val isLoading: Boolean = false,
-    val isCodeSending: Boolean = false,
-    val codeSent: Boolean = false,
-    val codeCountdown: Int = 0,
-    val errorMessage: String? = null,
-    val infoMessage: String? = null,
-    val isLoggedIn: Boolean = false
-)
-
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val tokenManager = TokenManager.getInstance(application)
-    private fun text(id: Int): String = getApplication<Application>().getString(id)
+    internal val tokenManager = TokenManager.getInstance(application)
+    internal fun text(id: Int): String = getApplication<Application>().getString(id)
 
-    private val _uiState = MutableStateFlow(LoginUiState())
+    internal val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
     private var logoutJob: kotlinx.coroutines.Job? = null
 
     init {
         if (tokenManager.isLoggedIn()) {
-            // Restored session: ensure Signal store is loaded before user opens chats.
-            // App-level cold-start also does this; this covers LoginViewModel-first paths.
-            // 8.49 修复：isLoggedIn 改为初始化完成后置位（与新鲜登录路径一致）——此前同步
-            // 置 true，密钥库加载慢时用户先进聊天页看到解密失败占位
-            viewModelScope.launch {
-                val userId = tokenManager.getUserId()
-                var token = tokenManager.getToken()
-                if (userId.isNullOrBlank() || token.isNullOrBlank()) {
-                    _uiState.update {
-                        it.copy(isLoggedIn = false, errorMessage = text(R.string.error_session_expired))
-                    }
-                    return@launch
-                }
-                val accessExp = tokenManager.getAccessTokenExpiresAt()
-                if (accessExp > 0L && accessExp <= System.currentTimeMillis()) {
-                    val refreshed = runCatching {
-                        SessionNetworkRepository().refreshAccessToken()
-                    }.getOrNull()
-                    if (!refreshed.isNullOrBlank()) {
-                        token = refreshed
-                    } else if (!tokenManager.isLoggedIn()) {
-                        // 死会话（无 refresh / refresh 过期 / 服务端 401）——留在登录页并提示
-                        _uiState.update {
-                            it.copy(isLoggedIn = false, errorMessage = text(R.string.error_session_expired))
-                        }
-                        return@launch
-                    }
-                    // 瞬时网络失败：isLoggedIn 仍 true，允许本地恢复，后续 401 再走 tokenExpired
-                }
-                val localCryptoReady = try {
-                    // Always give a locally-ready but unpublished store one upload-only retry.
-                    if (!LoginAccess.signalProtocol.isInitializedFor(userId)) {
-                        LoginAccess.signalProtocol.initialize(token, userId)
-                    }
-                    LoginAccess.signalProtocol.isLocalStoreReadyFor(userId)
-                } catch (error: kotlinx.coroutines.CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    android.util.Log.w("LoginViewModel", "Signal restore for restored session failed", error)
-                    false
-                }
-                if (!localCryptoReady) {
-                    _uiState.update {
-                        it.copy(isLoggedIn = false, errorMessage = text(R.string.security_e2ee_not_ready))
-                    }
-                    return@launch
-                }
-                _uiState.update { it.copy(isLoggedIn = true, requiresTotp = false, totpCode = "") }
-            }
+            viewModelScope.launch { restoreSession() }
         }
     }
 
@@ -111,65 +43,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             fallbackMessage = fallback,
         )
 
-    fun onEmailChange(email: String) {
-        // 8.61：改邮箱后重置验证码状态/倒计时，避免旧邮箱的「已发送/倒计时」串到新邮箱
-        if (_uiState.value.email != email.trim().take(MAX_EMAIL_LEN)) {
-            countdownJob?.cancel()
-            countdownJob = null
-        }
-        _uiState.update {
-            it.copy(email = email.trim().take(MAX_EMAIL_LEN), errorMessage = null, infoMessage = null, codeSent = false, codeCountdown = 0)
-        }
-    }
-    fun onPasswordChange(password: String) {
-        _uiState.update {
-            it.copy(
-                password = password.take(MAX_PASSWORD_LEN),
-                passwordConfirm = "",
-                errorMessage = null,
-                infoMessage = null
-            )
-        }
-    }
-    fun onPasswordConfirmChange(passwordConfirm: String) {
-        _uiState.update {
-            it.copy(passwordConfirm = passwordConfirm.take(MAX_PASSWORD_LEN), errorMessage = null, infoMessage = null)
-        }
-    }
-    fun onNameChange(name: String) {
-        _uiState.update {
-            it.copy(name = name.take(MAX_NAME_LEN), errorMessage = null, infoMessage = null)
-        }
-    }
-    // 0.76：取 8 位——兼容 6 位 TOTP 验证码 + 8 位恢复码（恢复码此前被 take(6) 截断无法登录）
-    fun onTotpCodeChange(value: String) { _uiState.update { it.copy(totpCode = value.filter { ch -> ch.isDigit() }.take(8), errorMessage = null) } }
-
-    fun onCodeChange(code: String) {
-        val digits = code.filter { it.isDigit() }.take(MAX_CODE_LEN)
-        _uiState.update {
-            it.copy(code = digits, errorMessage = null, infoMessage = null)
-        }
-    }
-    fun onTabSelected(tab: Int) {
-        _uiState.update {
-            it.copy(
-                selectedTab = tab.coerceIn(0, 2),
-                errorMessage = null,
-                infoMessage = null,
-                codeSent = false,
-                code = if (tab == 0) "" else it.code,
-                passwordConfirm = if (tab == 1) it.passwordConfirm else "",
-                // 8.61：切回登录 tab 清残留 TOTP 码（服务端未启用 TOTP 时忽略，但避免串带到下次登录）
-                totpCode = if (tab == 0) "" else it.totpCode,
-                // 8.47：切 tab 清 requiresTotp 标志——否则 TOTP 提示后切到注册/找回再切回，
-                // TOTP 输入框仍残留显示
-                requiresTotp = false
-            )
-        }
-    }
-    fun togglePasswordVisibility() { _uiState.update { it.copy(passwordVisible = !it.passwordVisible) } }
-
-    private var countdownJob: Job? = null
+    internal var countdownJob: Job? = null
 
     /**
      * 发送验证码 — 立即标记 isCodeSending 避免连点
@@ -438,12 +312,5 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         countdownJob?.cancel()
         super.onCleared()
-    }
-
-    companion object {
-        private const val MAX_EMAIL_LEN = 254
-        private const val MAX_PASSWORD_LEN = 128
-        private const val MAX_NAME_LEN = 50
-        private const val MAX_CODE_LEN = 8
     }
 }
