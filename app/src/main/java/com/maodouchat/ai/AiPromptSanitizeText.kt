@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 // 上下文文本消毒簇：剥离控制字符、截断、弱化伪 system 行首标记。
-internal object AiPromptSanitizeText {
+object AiPromptSanitizeText {
 
     const val MAX_CONTEXT_TEXT_CHARS = 1_800
     const val MAX_SENDER_CHARS = 120

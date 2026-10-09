@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 // 注入意图检测簇：纯字符串模板匹配，命中任一模板即视为注入尝试。
-internal object AiPromptInjectionDetection {
+object AiPromptInjectionDetection {
 
     fun isLikelyInjectionAttempt(text: String?): Boolean {
         val body = text.orEmpty()
