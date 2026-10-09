@@ -4,7 +4,6 @@ package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.util.RuntimeFlags
 import android.annotation.SuppressLint
-import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -54,34 +53,19 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import com.maodouchat.contacts.QrScanFeedbackPolicy
 import com.maodouchat.data.model.User
-import com.maodouchat.data.repository.ContactNetworkRepository
-import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.ui.component.Avatar
-import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
-import com.maodouchat.util.QrCodeGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.security.SafetyScanStatus
 
-private data class SafetyScanResult(
-    val target: QrCodeGenerator.QrTarget.Safety,
-    val status: SafetyScanStatus
-) {
-    val matched: Boolean
-        get() = status == SafetyScanStatus.FINGERPRINT_MATCH || status == SafetyScanStatus.CODE_MATCH
-}
-
-// U02 延伸：SafetyScanStatus 已迁到 com.maodouchat.security（qp 核验与 UI 共享同一枚举）。
 /**
  * 扫一扫页 — 调用系统级 ZXing CaptureActivity 扫描，解析后：
  *  - "maodouchat:user:<id>" → 显示对方资料弹窗，提供"加好友"
  *  - "maodouchat:chat:<id>" → 跳到对应聊天
+ *
+ * 状态与结果处理已拆入 [ScanScreenUiState]，结果弹窗拆入 [ScanResultDialogs]；
+ * 本文件只留页面骨架（扫码器 UI、底部操作区、launcher 接线）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,176 +79,59 @@ fun ScanScreen(
 ) {
     val context = LocalContext.current
     if (!RuntimeFlags.isEnabled(context, RuntimeFlags.QR_CODE)) {
-        androidx.compose.material3.AlertDialog(
+        AlertDialog(
             onDismissRequest = onBack,
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = onBack) {
-                    androidx.compose.material3.Text(stringResource(R.string.common_back))
+                TextButton(onClick = onBack) {
+                    Text(stringResource(R.string.common_back))
                 }
             },
-            title = { androidx.compose.material3.Text(stringResource(R.string.contacts_scan_align)) },
-            text = { androidx.compose.material3.Text(stringResource(R.string.qr_code_disabled)) }
+            title = { Text(stringResource(R.string.contacts_scan_align)) },
+            text = { Text(stringResource(R.string.qr_code_disabled)) }
         )
         return
     }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val scanAlignPrompt = stringResource(R.string.contacts_scan_align)
-    val safetyTrustedMsg = stringResource(R.string.contacts_safety_trusted)
-    val safetyTrustFailedMsg = stringResource(R.string.contacts_safety_trust_failed)
-    var scannedTarget by remember { mutableStateOf<QrCodeGenerator.QrTarget?>(null) }
-    var scannedUser by remember { mutableStateOf<User?>(null) }
-    var scannedUserError by remember { mutableStateOf<String?>(null) }
-    var scannedUserFriendBusy by remember { mutableStateOf(false) }
-    var scannedUserFriendMessage by remember { mutableStateOf<String?>(null) }
-    var safetyScanResult by remember { mutableStateOf<SafetyScanResult?>(null) }
-    var invalidQr by remember { mutableStateOf(false) }
-    var loading by remember { mutableStateOf(false) }
-
-    // 9.280：扫码结果处理统一入口（页内嵌入扫码/相册解码/旧 CaptureActivity 兼容三路共用）
-    val handleScanResult: (String) -> Unit = handleRaw@{ raw ->
-        val target = QrCodeGenerator.parsePayload(raw)
-        invalidQr = false
-        if (target == null) {
-            scannedTarget = null
-            scannedUser = null
-            scannedUserError = null
-            scannedUserFriendBusy = false
-            scannedUserFriendMessage = null
-            safetyScanResult = null
-            invalidQr = true
-            return@handleRaw
-        }
-        when (target) {
-            is QrCodeGenerator.QrTarget.Chat -> onOpenChat(target.chatId)
-            is QrCodeGenerator.QrTarget.ChatInvite -> {
-                // P08：QR 邀请与深链统一经 JoinGroupInvite 路由，不再页内直调 join API。
-                onJoinGroupInvite(target.token)
-            }
-            is QrCodeGenerator.QrTarget.Safety -> {
-                scannedTarget = target
-                loading = true
-                scope.launch {
-                    try {
-                        // U02 延伸：核验决策收进非 ui 的 QrSafetyScanEvaluator（含 app 单例/信号访问），
-                        // 本处只做「QrTarget → 请求」「状态 → 结果」的映射。
-                        val currentUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-                        val result = withContext(Dispatchers.IO) {
-                            val status = com.maodouchat.security.QrSafetyScanEvaluator.evaluate(
-                                request = com.maodouchat.security.SafetyScanRequest(
-                                    ownerUserId = target.ownerUserId,
-                                    ownerDeviceId = target.ownerDeviceId,
-                                    peerUserId = target.peerUserId,
-                                    peerDeviceId = target.peerDeviceId,
-                                    ownerIdentityFingerprint = target.ownerIdentityFingerprint,
-                                    peerIdentityFingerprint = target.peerIdentityFingerprint,
-                                    safetyCode = target.safetyCode,
-                                ),
-                                currentUserId = currentUserId,
-                                signal = com.maodouchat.security.SignalIdentityAccess,
-                            )
-                            SafetyScanResult(target, status)
-                        }
-                        safetyScanResult = result
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        loading = false
-                        throw error
-                    } finally {
-                        loading = false
-                    }
-                }
-            }
-            is QrCodeGenerator.QrTarget.User -> {
-                scannedTarget = target
-                scannedUserError = null
-                scannedUserFriendBusy = false
-                scannedUserFriendMessage = null
-                loading = true
-                // 解析对方资料（用 Composable 内的 CoroutineScope，离开页面会自动取消）
-                val scanOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-                scope.launch {
-                    try {
-                        // U02 延伸：仓库入口收进非 ui 的 AppRepositories。
-                        val userRepo = com.maodouchat.data.repository.AppRepositories.users
-                        val cached = userRepo.getUserById(target.userId)
-                        if (cached != null) scannedUser = cached
-                        if (!com.maodouchat.session.CurrentSession.hasSession()) {
-                            if (cached == null) {
-                                scannedUserError = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
-                            }
-                            return@launch
-                        }
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = scanOwnerUserId,
-                        )
-                        ) {
-                            if (cached == null) {
-                                scannedUserError = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
-                            }
-                            return@launch
-                        }
-                        // 8.38：改用按 id 定向查询——此前全量 getUsers() 在非好友/网络失败时
-                        // 会把「有效用户码」误判为「查不到用户」，且无法区分网络错误
-                        com.maodouchat.data.repository.UserNetworkRepository().user(userId = target.userId).onSuccess { dto ->
-                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = scanOwnerUserId,
-                            )
-                            ) {
-                                return@onSuccess
-                            }
-                            val u = User(dto.id, dto.name, dto.avatar, dto.email, dto.isOnline, dto.status, lastSeen = dto.lastSeen)
-                            scannedUser = u
-                            userRepo.insertUsers(listOf(u))
-                        }.onFailure { error ->
-                            // 8.38：网络错误保留缓存，不覆盖为「查不到用户」；无缓存时给出具体错误
-                            if (cached == null) {
-                                val api = error as? ApiException
-                                scannedUserError = qrScanMessage(
-                                    context,
-                                    QrScanFeedbackPolicy.forUserLookup(
-                                        httpStatus = api?.statusCode,
-                                        isNetwork = api?.kind == ApiFailureKind.NETWORK,
-                                        isTimeout = api?.kind == ApiFailureKind.TIMEOUT
-                                    )
-                                )
-                            }
-                        }
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        loading = false
-                        throw error
-                    } finally {
-                        loading = false
-                    }
-                }
-            }
-        }
+    val state = remember {
+        ScanScreenUiState(
+            context = context,
+            scope = scope,
+            onBack = onBack,
+            onAddContact = onAddContact,
+            onOpenChat = onOpenChat,
+            onJoinGroupInvite = onJoinGroupInvite,
+            safetyTrustedMsg = context.getString(R.string.contacts_safety_trusted),
+            safetyTrustFailedMsg = context.getString(R.string.contacts_safety_trust_failed),
+        )
     }
-    
+
     // 旧 CaptureActivity 兑底路径（保留可用，主入口已改为页内嵌入扫码）
     val scanLauncher = rememberLauncherForActivityResult(ScanContract()) { result ->
         val raw = result.contents ?: return@rememberLauncherForActivityResult
-        handleScanResult(raw)
+        state.handleScanResult(raw)
     }
-    // 9.280：相册图片 QR 解码（Photo Picker 免权限，zxing core 本地解码）
+    // 相册图片 QR 解码（Photo Picker 免权限，zxing core 本地解码）
     var decodingGallery by remember { mutableStateOf(false) }
     val galleryQrLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         decodingGallery = true
         scope.launch {
-            val text = withContext(Dispatchers.IO) { decodeQrFromImage(context, uri) }
+            val text = withContext(Dispatchers.IO) { state.decodeQrFromImage(context, uri) }
             decodingGallery = false
             if (text == null) {
                 Toast.makeText(context, context.getString(R.string.contacts_gallery_qr_not_found), Toast.LENGTH_SHORT).show()
             } else {
-                handleScanResult(text)
+                state.handleScanResult(text)
             }
         }
     }
-    // 9.280：相机权限状态（页内预览需要）
+    // 相机权限状态（页内预览需要）
     var cameraGranted by remember {
         mutableStateOf(context.checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED)
     }
     val cameraPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { cameraGranted = it }
-    
+
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text(stringResource(R.string.contacts_scan), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.semantics { heading() }) },
@@ -276,7 +143,7 @@ fun ScanScreen(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
         )
 
-        // 9.280：页内嵌入扫码器（替代第三方复古 CaptureActivity 页面），实时预览 + 自定义观感
+        // 页内嵌入扫码器（替代第三方复古 CaptureActivity 页面），实时预览 + 自定义观感
         Box(modifier = Modifier.weight(1f).fillMaxWidth().background(androidx.compose.ui.graphics.Color.Black)) {
             if (cameraGranted) {
                 val barcodeView = remember {
@@ -291,15 +158,15 @@ fun ScanScreen(
                         if (!scanConsumed.value && !result.text.isNullOrBlank()) {
                             scanConsumed.value = true
                             barcodeView.pause()
-                            handleScanResult(result.text)
+                            state.handleScanResult(result.text)
                         }
                     }
                     barcodeView.resume()
                     onDispose { barcodeView.pause() }
                 }
                 // 结果弹窗关闭后恢复扫描
-                LaunchedEffect(scannedTarget, invalidQr, loading) {
-                    if (scannedTarget == null && !invalidQr && !loading) {
+                LaunchedEffect(state.scannedTarget, state.invalidQr, state.loading) {
+                    if (state.scannedTarget == null && !state.invalidQr && !state.loading) {
                         scanConsumed.value = false
                         barcodeView.resume()
                     }
@@ -329,7 +196,7 @@ fun ScanScreen(
                 }
             }
         }
-    
+
         // 底部操作区：从相册选择 + 传统扫描兑底
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -365,255 +232,8 @@ fun ScanScreen(
         }
     }
 
-    if (invalidQr) {
-        AlertDialog(
-            onDismissRequest = { invalidQr = false },
-            title = { Text(stringResource(R.string.contacts_invalid_qr_title)) },
-            text = { Text(stringResource(R.string.contacts_invalid_qr_message)) },
-            confirmButton = {
-                TextButton(onClick = { invalidQr = false }) { Text(stringResource(R.string.chat_acknowledge)) }
-            }
-        )
-    }
-
-    // 扫描结果弹窗
-    val user = scannedUser
-    if (scannedTarget is QrCodeGenerator.QrTarget.User && user != null) {
-        val alreadyFriend = remember(user.id) {
-            com.maodouchat.data.repository.FriendCacheStore.getFriendIds(context).contains(user.id)
-        }
-        AlertDialog(
-            onDismissRequest = { scannedTarget = null; scannedUser = null; scannedUserFriendMessage = null },
-            title = { Text(stringResource(R.string.contacts_found)) },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.LG, isOnline = user.isOnline)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(user.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                    if (user.status.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(user.status, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(user.id, style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                    scannedUserFriendMessage?.let { msg ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val ok = msg == stringResource(R.string.contacts_friend_request_sent)
-                        Text(
-                            msg,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Column(horizontalAlignment = Alignment.End) {
-                    if (!alreadyFriend) {
-                        TextButton(
-                            enabled = !scannedUserFriendBusy,
-                            onClick = {
-                                if (!RuntimeFlags.isEnabled(context, RuntimeFlags.FRIEND_REQUESTS)) {
-                                    scannedUserFriendMessage = context.getString(R.string.friend_requests_disabled)
-                                    return@TextButton
-                                }
-                                val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-                                if (!com.maodouchat.session.CurrentSession.hasSession()) {
-                                    scannedUserFriendMessage = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
-                                    return@TextButton
-                                }
-                                scannedUserFriendBusy = true
-                                scannedUserFriendMessage = null
-                                scope.launch {
-                                    try {
-                                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                            expectedUserId = ownerUserId,
-                                        )
-                                        ) {
-                                            scannedUserFriendMessage = qrScanMessage(context, QrScanFeedbackPolicy.forSessionExpired())
-                                            return@launch
-                                        }
-                                        ContactNetworkRepository().sendFriendRequest(userId = user.id).fold(
-                                            onSuccess = {
-                                                scannedUserFriendMessage = context.getString(R.string.contacts_friend_request_sent)
-                                            },
-                                            onFailure = { error ->
-                                                scannedUserFriendMessage = error.message
-                                                    ?: context.getString(R.string.contacts_friend_request_failed)
-                                            }
-                                        )
-                                    } catch (error: kotlinx.coroutines.CancellationException) {
-                                        throw error
-                                    } catch (error: Exception) {
-                                        scannedUserFriendMessage = error.message
-                                            ?: context.getString(R.string.contacts_friend_request_failed)
-                                    } finally {
-                                        scannedUserFriendBusy = false
-                                    }
-                                }
-                            }
-                        ) { Text(stringResource(R.string.contacts_add_friend), color = MaterialTheme.colorScheme.primary) }
-                    }
-                    TextButton(onClick = {
-                        scannedTarget = null
-                        onAddContact(user)
-                    }) { Text(stringResource(R.string.contacts_start_chat), color = MaterialTheme.colorScheme.primary) }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { scannedTarget = null; scannedUser = null; scannedUserFriendMessage = null }) {
-                    Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary)
-                }
-            }
-        )
-    } else if (scannedTarget is QrCodeGenerator.QrTarget.User && loading) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(R.string.contacts_parsing)) },
-            text = { Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
-            confirmButton = {}
-        )
-    } else if (scannedTarget is QrCodeGenerator.QrTarget.User) {
-        // 查不到用户（或网络失败且无本地缓存）
-        AlertDialog(
-            onDismissRequest = { scannedTarget = null },
-            title = { Text(stringResource(R.string.contacts_user_not_found)) },
-            text = {
-                Text(
-                    scannedUserError?.takeIf { it.isNotBlank() }
-                        ?: stringResource(R.string.contacts_user_not_found_hint)
-                )
-            },
-            confirmButton = { TextButton(onClick = { scannedTarget = null }) { Text(stringResource(R.string.chat_acknowledge)) } }
-        )
-    }
-
-    if (safetyScanResult != null) {
-        val result = safetyScanResult!!
-        AlertDialog(
-            onDismissRequest = { safetyScanResult = null; scannedTarget = null },
-            title = { Text(if (result.matched) stringResource(R.string.contacts_safety_verified) else stringResource(R.string.contacts_safety_failed)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(safetyScanMessage(result))
-                    Text(
-                        stringResource(R.string.contacts_safety_peer_device, result.target.ownerUserId, result.target.ownerDeviceId),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalChatPalette.current.textSecondary
-                    )
-                }
-            },
-            confirmButton = {
-                if (result.matched) {
-                    TextButton(onClick = {
-                        val ownerUserId = result.target.ownerUserId
-                        val ownerDeviceId = result.target.ownerDeviceId
-                        // markIdentityVerified 内部调用阻塞式 Room 查询（identityTrustDao.getTrustBlocking/upsertTrustBlocking），
-                        // 必须在 IO 线程执行，避免主线程磁盘 I/O 导致 UI 卡顿/ANR
-                        // U02 延伸：信号访问收进非 ui 的 SignalIdentityAccess。
-                        scope.launch {
-                            val ok = withContext(Dispatchers.IO) {
-                                com.maodouchat.security.SignalIdentityAccess.markIdentityVerified(ownerUserId, ownerDeviceId)
-                            }
-                            Toast.makeText(
-                                context,
-                                if (ok) safetyTrustedMsg else safetyTrustFailedMsg,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            safetyScanResult = null
-                            scannedTarget = null
-                        }
-                    }) { Text(stringResource(R.string.contacts_safety_mark_trusted), color = MaterialTheme.colorScheme.primary) }
-                } else {
-                    TextButton(onClick = { safetyScanResult = null; scannedTarget = null }) { Text(stringResource(R.string.chat_acknowledge)) }
-                }
-            },
-            dismissButton = {
-                if (result.matched) {
-                    TextButton(onClick = { safetyScanResult = null; scannedTarget = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
-                }
-            }
-        )
-    } else if (scannedTarget is QrCodeGenerator.QrTarget.Safety && loading) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(R.string.contacts_safety_verifying)) },
-            text = { Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
-            confirmButton = {}
-        )
-    }
+    ScanResultDialogs(state)
 }
-
-@Composable
-// 资源字符串均在回调/协程内读取，非组合作用域
-@SuppressLint("LocalContextGetResourceValueCall")
-private fun safetyScanMessage(result: SafetyScanResult): String = when (result.status) {
-    SafetyScanStatus.SESSION_EXPIRED -> stringResource(R.string.error_session_expired)
-    SafetyScanStatus.WRONG_ACCOUNT -> stringResource(R.string.contacts_safety_wrong_account)
-    SafetyScanStatus.WRONG_DEVICE -> stringResource(R.string.contacts_safety_use_device, result.target.peerDeviceId)
-    SafetyScanStatus.NO_SESSION -> stringResource(R.string.contacts_safety_no_session)
-    SafetyScanStatus.WRONG_DEVICE_QR -> stringResource(R.string.contacts_safety_wrong_device_qr)
-    SafetyScanStatus.FINGERPRINT_MATCH -> stringResource(R.string.contacts_safety_fingerprint_match, result.target.ownerDeviceId)
-    SafetyScanStatus.FINGERPRINT_MISMATCH -> stringResource(R.string.contacts_safety_fingerprint_mismatch)
-    SafetyScanStatus.INVALID_CODE -> stringResource(R.string.contacts_safety_invalid_code)
-    SafetyScanStatus.CODE_MATCH -> stringResource(R.string.contacts_safety_code_match, result.target.ownerDeviceId)
-    SafetyScanStatus.CODE_MISMATCH -> stringResource(R.string.contacts_safety_code_mismatch)
-}
-
-private fun qrScanMessage(context: android.content.Context, feedback: QrScanFeedbackPolicy.Feedback): String =
-    when (feedback.kind) {
-        QrScanFeedbackPolicy.Kind.INVALID_PAYLOAD -> context.getString(R.string.contacts_invalid_qr_message)
-        QrScanFeedbackPolicy.Kind.SESSION_EXPIRED -> context.getString(R.string.error_session_expired)
-        QrScanFeedbackPolicy.Kind.USER_NOT_FOUND -> context.getString(R.string.contacts_user_not_found_hint)
-        QrScanFeedbackPolicy.Kind.INVITE_INVALID_OR_EXPIRED -> context.getString(R.string.contacts_invite_invalid_or_expired)
-        QrScanFeedbackPolicy.Kind.INVITE_BLOCKED -> context.getString(R.string.contacts_invite_blocked)
-        QrScanFeedbackPolicy.Kind.GROUP_FULL -> context.getString(R.string.contacts_invite_group_full)
-        QrScanFeedbackPolicy.Kind.NETWORK -> context.getString(R.string.contacts_invite_network)
-        QrScanFeedbackPolicy.Kind.UNKNOWN -> context.getString(R.string.contacts_join_group_failed)
-    }
-
-/**
- * 9.280：从相册图片解码 QR（zxing core，本地无需网络）。
- * 大图先降采样到 1600px 内避免 OOM；解码失败/无码返回 null。
- */
-private fun decodeQrFromImage(context: android.content.Context, uri: Uri): String? = runCatching {
-    val bitmap: Bitmap = if (android.os.Build.VERSION.SDK_INT >= 28) {
-        android.graphics.ImageDecoder.decodeBitmap(
-            android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
-        ) { decoder, info, _ ->
-            val maxSide = 1600
-            if (info.size.width > maxSide || info.size.height > maxSide) {
-                decoder.setTargetSize(maxSide, maxSide)
-            }
-            decoder.setMutableRequired(true)
-        }
-    } else {
-        val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        val boundsStream = context.contentResolver.openInputStream(uri) ?: return@runCatching null
-        boundsStream.use { android.graphics.BitmapFactory.decodeStream(it, null, options) }
-        if (options.outWidth <= 0 || options.outHeight <= 0) return@runCatching null
-        val maxSide = 1600
-        var sample = 1
-        while (options.outWidth / sample > maxSide || options.outHeight / sample > maxSide) sample *= 2
-        val realOptions = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
-        val decodeStream = context.contentResolver.openInputStream(uri) ?: return@runCatching null
-        decodeStream.use { android.graphics.BitmapFactory.decodeStream(it, null, realOptions) }
-            ?: return@runCatching null
-    }
-    val w = bitmap.width
-    val h = bitmap.height
-    val pixels = IntArray(w * h)
-    bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
-    val source = com.google.zxing.RGBLuminanceSource(w, h, pixels)
-    val reader = com.google.zxing.MultiFormatReader().apply {
-        setHints(mapOf(com.google.zxing.DecodeHintType.POSSIBLE_FORMATS to listOf(com.google.zxing.BarcodeFormat.QR_CODE)))
-    }
-    // 先 Hybrid 二值化解码，失败后换 GlobalHistogram 再试一次（截图/暗色背景兼容）
-    runCatching { reader.decode(com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(source))) }
-        .recoverCatching { reader.decode(com.google.zxing.BinaryBitmap(com.google.zxing.common.GlobalHistogramBinarizer(source))) }
-        .getOrThrow()
-        .text
-}.getOrNull()
 
 @androidx.compose.ui.tooling.preview.Preview
 @Composable
