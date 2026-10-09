@@ -51,40 +51,6 @@ internal object BlindWatermarkMath {
         return Quad(ca, chh, cvv, cdd)
     }
 
-    /** 2D Haar DWT（1/√2 归一化；输入尺寸必须为偶数）。 */
-    internal fun dwt2(src: Array<FloatArray>): Quad {
-        val h = src.size
-        val w = src[0].size
-        val rows = Array(h) { FloatArray(w) }
-        for (r in 0 until h) {
-            for (c in 0 until w / 2) {
-                val a = src[r][2 * c]
-                val b = src[r][2 * c + 1]
-                rows[r][c] = ((a + b) / SQRT2).toFloat()
-                rows[r][w / 2 + c] = ((a - b) / SQRT2).toFloat()
-            }
-        }
-        val halfH = h / 2
-        val halfW = w / 2
-        val ca = Array(halfH) { FloatArray(halfW) }
-        val chh = Array(halfH) { FloatArray(halfW) }
-        val cvv = Array(halfH) { FloatArray(halfW) }
-        val cdd = Array(halfH) { FloatArray(halfW) }
-        for (r in 0 until halfH) {
-            for (c in 0 until halfW) {
-                val a0 = rows[2 * r][c]
-                val a1 = rows[2 * r + 1][c]
-                ca[r][c] = ((a0 + a1) / SQRT2).toFloat()
-                chh[r][c] = ((a0 - a1) / SQRT2).toFloat()
-                val b0 = rows[2 * r][halfW + c]
-                val b1 = rows[2 * r + 1][halfW + c]
-                cvv[r][c] = ((b0 + b1) / SQRT2).toFloat()
-                cdd[r][c] = ((b0 - b1) / SQRT2).toFloat()
-            }
-        }
-        return Quad(ca, chh, cvv, cdd)
-    }
-
     /** 2D Haar IDWT（[dwt2] 的逆）。 */
     internal fun idwt2(ca: Array<FloatArray>, chh: Array<FloatArray>, cvv: Array<FloatArray>, cdd: Array<FloatArray>): Array<FloatArray> {
         val halfH = ca.size

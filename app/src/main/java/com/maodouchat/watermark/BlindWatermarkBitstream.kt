@@ -1,5 +1,7 @@
 package com.maodouchat.watermark
 
+import kotlin.math.abs
+
 // 位流<->字节、洗牌与 kmeans：从 ReferenceBlindWatermark 拆出的纯函数簇，零行为改动。
 internal object BlindWatermarkBitstream {
 
