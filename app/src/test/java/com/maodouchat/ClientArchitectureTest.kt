@@ -500,7 +500,10 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 483,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
-        "com/maodouchat/network/WebSocketClient.kt" to 969,
+        // 2026-10-10：事件/错误枚举簇 → WebSocketEvents.kt（84）、payload 解析声明族 →
+        // WebSocketPayloads.kt（119；11 个文件级 private data class 提为 internal 供同包 transport 用，
+        // 另修两处遗留缩进；删 1 个闲置 import），969 → 770 纯搬移；新文件未进前 20，不纳管。
+        "com/maodouchat/network/WebSocketClient.kt" to 770,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
@@ -653,7 +656,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 303,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 483,
         // G164b：Top-20 排名门禁纳入的 8 个
-        "com/maodouchat/network/WebSocketClient.kt" to 969,
+        "com/maodouchat/network/WebSocketClient.kt" to 770,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
