@@ -114,13 +114,19 @@ object ApiService :
     AuthApi by AuthApiClient,
     MessagingApi by MessagingApiClient,
     ConversationApi by ConversationApiClient,
-    MediaApi by MediaApiClient {
+    MediaApi by MediaApiClient,
+    GroupApi by GroupApiClient,
+    KeyDeviceApi by KeyDeviceApiClient,
+    CallSignalingApi by CallSignalingApiClient {
 
     val auth: AuthApi = AuthApiClient
     val messaging: MessagingApi = MessagingApiClient
     val conversations: ConversationApi = ConversationApiClient
     val media: MediaApi = MediaApiClient
     val social: SocialApi = ApiEndpointClients
+    val groups: GroupApi = GroupApiClient
+    val keys: KeyDeviceApi = KeyDeviceApiClient
+    val calls: CallSignalingApi = CallSignalingApiClient
 
     internal val json = Json { ignoreUnknownKeys = true }
     // TokenManager is a process singleton holding applicationContext only. Reading it on
