@@ -211,6 +211,13 @@ class GroupPlayPolicyTest {
         "GroupPlayPolicy.kt",
         "GroupPlayClassicPolicy.kt",
         "GroupPlayModePolicy.kt",
+        "GroupPlayClassicDuel.kt",
+        "GroupPlayClassicQuiz.kt",
+        "GroupPlayClassicParty.kt",
+        "GroupPlayClassicSprint.kt",
+        "GroupPlayModeMedia.kt",
+        "GroupPlayModePrivacy.kt",
+        "GroupPlayModeSystem.kt",
         "GroupPlaySealPolicy.kt",
         "GroupPlayFieldEscape.kt",
     )

@@ -405,8 +405,8 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
-        "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 979,
-        "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
+        "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
+        "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
@@ -574,8 +574,8 @@ class ClientArchitectureTest {
             "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
-        "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 979,
-        "com/maodouchat/util/GroupPlayModePolicy.kt" to 492,
+        "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
+        "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 206,
             "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
