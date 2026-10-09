@@ -36,7 +36,7 @@ internal object LocalAiFileTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val instruction = fileInstruction(fileName, mimeType, mode, question)
-        return AgentSessionEngine().completeText(provider, instruction, decodedText.take(LocalAiFileAnalyzer.MAX_TEXT_CHARS))
+        return AgentTextCompletion.completeText(provider, instruction, decodedText.take(LocalAiFileAnalyzer.MAX_TEXT_CHARS))
     }
 
     suspend fun analyzeFile(
@@ -55,7 +55,7 @@ internal object LocalAiFileTasks {
         val instruction = fileInstruction(prepared.fileName, prepared.mimeType, mode, question)
         return when (prepared.kind) {
             LocalAiFileAnalyzer.Kind.TEXT ->
-                AgentSessionEngine().completeText(provider, instruction, prepared.text)
+                AgentTextCompletion.completeText(provider, instruction, prepared.text)
             LocalAiFileAnalyzer.Kind.PDF_PAGES -> {
                 if (!provider.hasVisionCapability()) {
                     return Result.failure(
