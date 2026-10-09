@@ -2,7 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import android.util.Log
-import androidx.work.CoroutineWorker
+import androidx.work.ListenableWorker
 import androidx.work.Data
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.network.TokenManager
@@ -12,45 +12,45 @@ import com.maodouchat.security.BackgroundSessionGate
 // 任务提醒执行簇：Worker 主逻辑（门禁校验 → 到期判断 → 通知展示/延迟重排/重试退避）。
 internal object AiTaskReminderExecution {
 
-    fun execute(
+    suspend fun execute(
         inputData: Data,
         applicationContext: Context,
         runAttemptCount: Int
-    ): CoroutineWorker.Result {
+    ): ListenableWorker.Result {
         val taskId = inputData.getString(AiTaskReminderWorkNaming.KEY_TASK_ID)
             ?.takeIf(String::isNotBlank)
-            ?: return CoroutineWorker.Result.failure()
+            ?: return ListenableWorker.Result.failure()
         val expectedUserId = inputData.getString(AiTaskReminderWorkNaming.KEY_OWNER_USER_ID)
             ?.takeIf(String::isNotBlank)
-            ?: return CoroutineWorker.Result.success()
+            ?: return ListenableWorker.Result.success()
         if (!AiTaskReminderPreferences.remindersAllowed(applicationContext)) {
-            return CoroutineWorker.Result.success()
+            return ListenableWorker.Result.success()
         }
         val tokenManager = TokenManager.getInstance(applicationContext)
         if (tokenManager.getUserId().orEmpty() != expectedUserId || tokenManager.getToken().isNullOrBlank()) {
-            return CoroutineWorker.Result.success()
+            return ListenableWorker.Result.success()
         }
 
         return try {
             val app = applicationContext as MaodouchatApp
             val dao = app.database.aiTaskDao()
-            val task = dao.getById(taskId) ?: return CoroutineWorker.Result.success()
-            val dueAt = task.dueAt ?: return CoroutineWorker.Result.success()
-            if (task.isCompleted || task.remindedAt != null) return CoroutineWorker.Result.success()
+            val task = dao.getById(taskId) ?: return ListenableWorker.Result.success()
+            val dueAt = task.dueAt ?: return ListenableWorker.Result.success()
+            if (task.isCompleted || task.remindedAt != null) return ListenableWorker.Result.success()
 
             val now = System.currentTimeMillis()
             if (dueAt > now) {
                 AiTaskReminderTaskScheduling.deferTask(applicationContext, task.id, expectedUserId, dueAt)
-                return CoroutineWorker.Result.success()
+                return ListenableWorker.Result.success()
             }
             AiTaskReminderPreferences.nextAllowedTime(applicationContext, now)?.let { nextAllowed ->
                 AiTaskReminderTaskScheduling.deferTask(applicationContext, task.id, expectedUserId, nextAllowed)
-                return CoroutineWorker.Result.success()
+                return ListenableWorker.Result.success()
             }
 
             // Room 读之后换号/登出：不能在下一个账号名下通知或打标记。
             if (!BackgroundSessionGate.mayContinue(expectedUserId = expectedUserId)) {
-                return CoroutineWorker.Result.success()
+                return ListenableWorker.Result.success()
             }
             val posted = ReminderNotificationService.showAiTaskReminder(
                 context = applicationContext,
@@ -77,12 +77,12 @@ internal object AiTaskReminderExecution {
                     )
                 }
             }
-            CoroutineWorker.Result.success()
+            ListenableWorker.Result.success()
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: Exception) {
             Log.w(TAG, "AI task reminder failed", error)
-            if (runAttemptCount < 3) CoroutineWorker.Result.retry() else CoroutineWorker.Result.failure()
+            if (runAttemptCount < 3) ListenableWorker.Result.retry() else ListenableWorker.Result.failure()
         }
     }
 
