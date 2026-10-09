@@ -1,134 +1,56 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import android.content.SharedPreferences
-import androidx.core.content.edit
-import com.maodouchat.network.TokenManager
 
-/** Account-scoped local AI consent and on-device safety preferences. */
+// AI 隐私偏好门面：账号隔离的本地 AI 同意与端侧安全偏好。实现已按簇拆到
+// AiPrivacyKeys（键名）、AiPrivacyAccountScope（账号隔离/迁移）、
+// AiPrivacyConsentReads（读取）、AiPrivacyConsentWrites（写入），这里只保留统一入口，全部透传，行为不变。
 object AiPrivacyPreferences {
-    private const val PREFS_NAME = "ai_settings"
-    const val KEY_CONSENT = "ai_consent_accepted"
-    const val KEY_USER_ENABLED = "ai_user_enabled"
-    const val KEY_LOCAL_SAFETY = "ai_local_safety_enabled"
-    const val KEY_DISMISSED_SAFETY_IDS = "ai_local_safety_dismissed_ids"
-    const val KEY_AUTO_TRANSLATE = "ai_auto_translate_incoming"
-    private const val KEY_MIGRATED = "account_scope_migrated"
-    private val migrationLock = Any()
+    const val KEY_CONSENT = AiPrivacyKeys.CONSENT
+    const val KEY_USER_ENABLED = AiPrivacyKeys.USER_ENABLED
+    const val KEY_LOCAL_SAFETY = AiPrivacyKeys.LOCAL_SAFETY
+    const val KEY_DISMISSED_SAFETY_IDS = AiPrivacyKeys.DISMISSED_SAFETY_IDS
+    const val KEY_AUTO_TRANSLATE = AiPrivacyKeys.AUTO_TRANSLATE
 
-    internal fun scopedKey(base: String, userId: String): String = "$base:$userId"
+    internal fun scopedKey(base: String, userId: String): String =
+        AiPrivacyKeys.scopedKey(base, userId)
 
     fun consentAccepted(context: Context): Boolean =
-        account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_CONSENT, it.userId), false) } ?: false
+        AiPrivacyConsentReads.consentAccepted(context)
 
-    /** 设置里的用户总开关；缺省 false，须用户打开后聊天/搜索才画 AI 图标。 */
     fun userEnabled(context: Context): Boolean =
-        account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_USER_ENABLED, it.userId), false) } ?: false
+        AiPrivacyConsentReads.userEnabled(context)
 
-    /**
-     * Fail-closed 本机模型上下文门闩。
-     * 无登录账号、未明确同意、或已撤销时一律 false——后台 OCR / 画像 / 情绪回复 / 周报
-     * 不得把消息正文发给用户配置的模型。聊天明文也不经毛豆 /api/ai。
-     */
     fun mayUploadCloudContext(context: Context): Boolean =
-        userEnabled(context) && consentAccepted(context)
+        AiPrivacyConsentReads.mayUploadCloudContext(context)
 
     fun localSafetyEnabled(context: Context): Boolean =
-        account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_LOCAL_SAFETY, it.userId), false) } ?: false
+        AiPrivacyConsentReads.localSafetyEnabled(context)
 
     fun dismissedSafetyMessageIds(context: Context): Set<String> =
-        account(context)?.let {
-            it.prefs.getStringSet(scopedKey(KEY_DISMISSED_SAFETY_IDS, it.userId), emptySet())?.toSet().orEmpty()
-        }.orEmpty()
-
-    fun setConsentAccepted(context: Context, accepted: Boolean) =
-        putBoolean(context, KEY_CONSENT, accepted)
-
-    fun setUserEnabled(context: Context, enabled: Boolean) =
-        putBoolean(context, KEY_USER_ENABLED, enabled)
-
-    fun setLocalSafetyEnabled(context: Context, enabled: Boolean) =
-        putBoolean(context, KEY_LOCAL_SAFETY, enabled)
+        AiPrivacyConsentReads.dismissedSafetyMessageIds(context)
 
     fun autoTranslateIncoming(context: Context): Boolean =
-        account(context)?.let { it.prefs.getBoolean(scopedKey(KEY_AUTO_TRANSLATE, it.userId), false) } ?: false
+        AiPrivacyConsentReads.autoTranslateIncoming(context)
+
+    fun setConsentAccepted(context: Context, accepted: Boolean) =
+        AiPrivacyConsentWrites.setConsentAccepted(context, accepted)
+
+    fun setUserEnabled(context: Context, enabled: Boolean) =
+        AiPrivacyConsentWrites.setUserEnabled(context, enabled)
+
+    fun setLocalSafetyEnabled(context: Context, enabled: Boolean) =
+        AiPrivacyConsentWrites.setLocalSafetyEnabled(context, enabled)
 
     fun setAutoTranslateIncoming(context: Context, enabled: Boolean) =
-        putBoolean(context, KEY_AUTO_TRANSLATE, enabled)
+        AiPrivacyConsentWrites.setAutoTranslateIncoming(context, enabled)
 
-    fun setDismissedSafetyMessageIds(context: Context, messageIds: Set<String>) {
-        val account = account(context) ?: return
-        account.prefs.edit {
-            putStringSet(scopedKey(KEY_DISMISSED_SAFETY_IDS, account.userId), messageIds.toSet())
-        }
-    }
+    fun setDismissedSafetyMessageIds(context: Context, messageIds: Set<String>) =
+        AiPrivacyConsentWrites.setDismissedSafetyMessageIds(context, messageIds)
 
-    /**
-     * 一键开启全部 AI 核心能力与隐私授权：
-     * 包括：用户总开关、本机处理授权、自动翻译、端侧消息安全提醒与图片 OCR。
-     */
-    fun enableAllDefaults(context: Context) {
-        val account = account(context) ?: return
-        account.prefs.edit {
-            putBoolean(scopedKey(KEY_CONSENT, account.userId), true)
-            putBoolean(scopedKey(KEY_USER_ENABLED, account.userId), true)
-            putBoolean(scopedKey(KEY_LOCAL_SAFETY, account.userId), true)
-            putBoolean(scopedKey(KEY_AUTO_TRANSLATE, account.userId), true)
-        }
-        ImageOcrPreferences.setEnabled(context, true)
-    }
+    fun enableAllDefaults(context: Context) =
+        AiPrivacyConsentWrites.enableAllDefaults(context)
 
-    fun revoke(context: Context) {
-        val account = account(context) ?: return
-        account.prefs.edit {
-            putBoolean(scopedKey(KEY_CONSENT, account.userId), false)
-            putBoolean(scopedKey(KEY_USER_ENABLED, account.userId), false)
-            putBoolean(scopedKey(KEY_LOCAL_SAFETY, account.userId), false)
-            remove(scopedKey(KEY_DISMISSED_SAFETY_IDS, account.userId))
-        }
-    }
-
-    private fun putBoolean(context: Context, key: String, value: Boolean) {
-        val account = account(context) ?: return
-        account.prefs.edit { putBoolean(scopedKey(key, account.userId), value) }
-    }
-
-    private fun account(context: Context): AccountPreferences? {
-        val appContext = context.applicationContext
-        val userId = TokenManager.getInstance(appContext).getUserId()?.takeIf(String::isNotBlank) ?: return null
-        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        migrateLegacy(prefs, userId)
-        return AccountPreferences(prefs, userId)
-    }
-
-    /** The first authenticated account after upgrade claims the former device-global consent. */
-    private fun migrateLegacy(prefs: SharedPreferences, userId: String) {
-        val marker = scopedKey(KEY_MIGRATED, userId)
-        if (prefs.getBoolean(marker, false)) return
-        synchronized(migrationLock) {
-            if (prefs.getBoolean(marker, false)) return
-            prefs.edit {
-                listOf(KEY_CONSENT, KEY_LOCAL_SAFETY).forEach { key ->
-                    val target = scopedKey(key, userId)
-                    if (!prefs.contains(target) && prefs.contains(key)) {
-                        putBoolean(target, prefs.getBoolean(key, false))
-                    }
-                    remove(key)
-                }
-                val dismissedTarget = scopedKey(KEY_DISMISSED_SAFETY_IDS, userId)
-                if (!prefs.contains(dismissedTarget) && prefs.contains(KEY_DISMISSED_SAFETY_IDS)) {
-                    putStringSet(
-                        dismissedTarget,
-                        prefs.getStringSet(KEY_DISMISSED_SAFETY_IDS, emptySet())?.toSet().orEmpty()
-                    )
-                }
-                remove(KEY_DISMISSED_SAFETY_IDS)
-                // apply() 异步落盘但同步更新内存缓存，同进程后续 account() 立即读到新值；
-                // 与同文件其他迁移路径一致，避免在主/UI 线程做同步 commit() 导致 jank/ANR。
-                putBoolean(marker, true)
-            }
-        }
-    }
-
-    private data class AccountPreferences(val prefs: SharedPreferences, val userId: String)
+    fun revoke(context: Context) =
+        AiPrivacyConsentWrites.revoke(context)
 }
