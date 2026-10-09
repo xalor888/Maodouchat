@@ -546,8 +546,8 @@ class ClientArchitectureTest {
         // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
-        // 2026-10-10：DatabaseMigrations 按版本簇拆分（719 → 80）后 MaodouAgentScreen（618）
-        // 挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
+        // MaodouAgentScreen（618）挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 618,
     )
 
@@ -696,8 +696,8 @@ class ClientArchitectureTest {
         // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
-        // 2026-10-10：DatabaseMigrations 按版本簇拆分（719 → 80）后 MaodouAgentScreen（618）
-        // 挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
+        // MaodouAgentScreen（618）挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 618,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
