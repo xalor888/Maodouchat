@@ -115,16 +115,6 @@ suspend fun postBotCallback(
     return executeForText(req, "bot_callback").map { true }
 }
 
-private suspend fun <T> runIoCatching(block: () -> T): Result<T> = withContext(Dispatchers.IO) {
-    try {
-        Result.success(block())
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Throwable) {
-        Result.failure(error)
-    }
-}
-
 suspend fun deleteBot(token: String, botId: String): Result<String> {
     val req = Request.Builder()
         .url("${ApiConfig.BASE_URL}/api/bots/$botId")

@@ -2,6 +2,7 @@ package com.maodouchat.network.api
 
 import com.maodouchat.network.*
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.serialization.KSerializer
 
 // 客户端设置（会话文件夹/偏好/资料）：从 ApiEndpointClients 按主题拆出，纯搬移。

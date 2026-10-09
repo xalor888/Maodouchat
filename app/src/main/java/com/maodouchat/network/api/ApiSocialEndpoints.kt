@@ -5,6 +5,7 @@ import com.maodouchat.BuildConfig
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.KSerializer
 
 // 社交用户域（用户/隐私/通知/推送/拉黑）：从 ApiEndpointClients 按主题拆出，纯搬移。
