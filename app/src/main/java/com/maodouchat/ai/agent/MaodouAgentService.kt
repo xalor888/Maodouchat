@@ -113,7 +113,7 @@ object MaodouAgentService {
         ballState.value = BallState.RUNNING
         errorMessage.value = null
         val app = context.applicationContext as? MaodouchatApp ?: MaodouchatApp.instance
-        val style = AgentSessionEngine.styleHintFrom(AiWritingStylePreferences.snapshot(context))
+        val style = AgentTextCompletion.styleHintFrom(AiWritingStylePreferences.snapshot(context))
         val history = messages.toList().filter { it.role != "system" }
         turnJob = app.applicationScope.launch {
             AgentSessionEngine().runTurn(

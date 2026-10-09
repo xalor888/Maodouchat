@@ -15,18 +15,18 @@ internal object LocalAiTextTasks {
     ): Result<String> {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
-        val style = AgentSessionEngine.styleHintFrom(AiWritingStylePreferences.snapshot(context))
+        val style = AgentTextCompletion.styleHintFrom(AiWritingStylePreferences.snapshot(context))
         val instruction = buildString {
             append(agentRewriteInstruction(mode, targetLanguage))
             if (!style.isNullOrBlank()) append(" ").append(style)
         }
-        return AgentSessionEngine().completeText(provider, instruction, text, onDelta)
+        return AgentTextCompletion.completeText(provider, instruction, text, onDelta)
     }
 
     suspend fun translate(context: Context, text: String, targetLanguage: String): Result<String> {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
-        return AgentSessionEngine().completeText(
+        return AgentTextCompletion.completeText(
             provider,
             agentTranslateInstruction(targetLanguage),
             text
@@ -43,7 +43,7 @@ internal object LocalAiTextTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
-        return AgentSessionEngine().completeText(
+        return AgentTextCompletion.completeText(
             provider,
             agentSuggestInstruction(tone, count),
             transcript,
@@ -65,7 +65,7 @@ internal object LocalAiTextTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
-        return AgentSessionEngine().completeText(
+        return AgentTextCompletion.completeText(
             provider,
             agentSummarizeInstruction(style),
             transcript
@@ -81,7 +81,7 @@ internal object LocalAiTextTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
-        return AgentSessionEngine().completeText(
+        return AgentTextCompletion.completeText(
             provider,
             agentGroupAssistantInstruction(mode, query),
             transcript
