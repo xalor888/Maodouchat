@@ -209,6 +209,9 @@ class GroupPlayPolicyTest {
      */
     private val POLICY_CLUSTER_FILES = setOf(
         "GroupPlayPolicy.kt",
+        // 本轮：委托墙按目标拆出的两个新对象，属同一声明族。
+        "GroupPlayClassicDelegates.kt",
+        "GroupPlayModeDelegates.kt",
         "GroupPlayClassicPolicy.kt",
         "GroupPlayModePolicy.kt",
         "GroupPlayClassicDuel.kt",

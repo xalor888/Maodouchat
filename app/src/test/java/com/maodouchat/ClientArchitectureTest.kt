@@ -464,6 +464,9 @@ class ClientArchitectureTest {
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
         // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
+        // 本轮：GroupPlayPolicy 拆小（858 → 601）后 ExtendedFilledIcons（652）
+        // 被挤进前 20——纳管（vendored 图标文件，纯登记上限）。
+        "androidx/compose/material/icons/filled/ExtendedFilledIcons.kt" to 652,
         // G163b：监控阈值从 1100 降到 1000。这 5 个文件此前卡在 1000–1100 的
         // **盲带**里——可以在无人知晓的情况下从 1000 长到 1100，只有越过 1100
         // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
@@ -614,6 +617,9 @@ class ClientArchitectureTest {
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
         // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
+        // 本轮：GroupPlayPolicy 拆小（858 → 601）后 ExtendedFilledIcons（652）
+        // 被挤进前 20——纳管（vendored 图标文件，纯登记上限）。
+        "androidx/compose/material/icons/filled/ExtendedFilledIcons.kt" to 652,
         // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
         // 通话泡瘦身第一批：链接预览簇 → LinkPreviewBubble、富文本簇 → RichTextBubble
         // （1050 → 749，纯搬移；死 import 同步清理），上限同步收紧（两份 map 一起改）。
