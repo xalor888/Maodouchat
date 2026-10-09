@@ -5,7 +5,7 @@ import com.maodouchat.security.ChatLockSession
 import kotlinx.coroutines.flow.first
 
 // Agent 工具执行簇：任务/草稿/通话/通知只读查询。
-// 从 AgentMessagingReadTools 按簇搬出，函数体逐字一致；密聊/锁定过滤复用 AgentMessagingReadTools 的门闩。
+// 从 AgentMessagingReadTools 按簇搬出，函数体逐字一致；密聊/锁定过滤复用 AgentMessagingReadGates 的门闩。
 internal object AgentTaskReadTools {
         internal suspend fun listDrafts(app: MaodouchatApp, userId: String): String {
             val drafts = app.database.chatDraftDao().observeForOwner(userId).first()
@@ -24,14 +24,14 @@ internal object AgentTaskReadTools {
         }
 
         internal suspend fun getDraft(app: MaodouchatApp, userId: String, chatId: String): String {
-            AgentMessagingReadTools.denySecretOrLockedChat(app, chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             if (chatId.isBlank()) return "Error: chatId required"
             val draft = app.database.chatDraftDao().get(userId, chatId)
             return if (draft == null || draft.text.isBlank()) "No draft." else draft.text.take(AgentToolPolicy.MAX_DRAFT_CHARS)
         }
 
         internal suspend fun listTasks(app: MaodouchatApp, limit: Int): String {
-            val blocked = AgentMessagingReadTools.blockedChatIds(app)
+            val blocked = AgentMessagingReadGates.blockedChatIds(app)
             val tasks = app.database.aiTaskDao().listRecent(limit.coerceIn(1, 80))
                 .filter { it.chatId.isBlank() || it.chatId !in blocked }
                 .take(limit.coerceIn(1, 40))
@@ -42,7 +42,7 @@ internal object AgentTaskReadTools {
         }
 
         internal suspend fun listMissedCalls(app: MaodouchatApp, limit: Int): String {
-            val secretPeers = AgentMessagingReadTools.secretPeerIds(app)
+            val secretPeers = AgentMessagingReadGates.secretPeerIds(app)
             val calls = app.database.missedCallDao().observeRecent().first()
                 .filter { it.callerId !in secretPeers }
                 .take(limit.coerceIn(1, 30))
@@ -53,8 +53,8 @@ internal object AgentTaskReadTools {
         }
 
         internal suspend fun listNotifications(app: MaodouchatApp, limit: Int): String {
-            val blocked = AgentMessagingReadTools.blockedChatIds(app)
-            val secretPeers = AgentMessagingReadTools.secretPeerIds(app)
+            val blocked = AgentMessagingReadGates.blockedChatIds(app)
+            val secretPeers = AgentMessagingReadGates.secretPeerIds(app)
             val items = app.notificationCenter.items.value
                 .filter { item ->
                     val chatId = item.extra["chatId"].orEmpty()

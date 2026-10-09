@@ -64,7 +64,7 @@ internal object AgentGroupWriteTools {
         }
 
         internal suspend fun deleteChat(app: MaodouchatApp, chatId: String): String {
-            AgentMessagingReadTools.denySecretOrLockedChat(app, chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             if (chatId.isBlank()) return "Error: chatId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             ApiService.deleteChat(token, chatId).getOrElse { return AgentToolHost.fail(it) }

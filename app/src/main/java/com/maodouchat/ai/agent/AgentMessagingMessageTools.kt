@@ -17,7 +17,7 @@ internal object AgentMessagingMessageTools {
         internal suspend fun starMessage(app: MaodouchatApp, messageId: String, starred: Boolean?): String {
             if (messageId.isBlank() || starred == null) return "Error: messageId and starred required"
             val message = app.database.messageDao().getMessageById(messageId) ?: return "Error: message not found"
-            AgentMessagingReadTools.denySecretOrLockedChat(app, message.chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, message.chatId)?.let { return it }
             if (message.starred == starred) return "Already starred=$starred"
             val token = TokenManager.getInstance(app).getToken().orEmpty()
             if (token.isNotBlank()) {
@@ -38,7 +38,7 @@ internal object AgentMessagingMessageTools {
         internal suspend fun deleteLocalMessage(app: MaodouchatApp, messageId: String): String {
             if (messageId.isBlank()) return "Error: messageId required"
             val message = app.database.messageDao().getMessageById(messageId) ?: return "Error: message not found"
-            AgentMessagingReadTools.denySecretOrLockedChat(app, message.chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, message.chatId)?.let { return it }
             LocalMessageStore(app.database.messageDao(), app.database).deleteMessage(messageId)
             return "Deleted local message $messageId"
         }
@@ -48,7 +48,7 @@ internal object AgentMessagingMessageTools {
             AgentToolHost.token(app) ?: return "Error: not signed in"
             val local = app.database.messageDao().getMessageById(messageId)
                 ?: return "Error: message not found"
-            AgentMessagingReadTools.denySecretOrLockedChat(app, local.chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, local.chatId)?.let { return it }
             val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
             if (local.senderId != ownerUserId) return "Error: only the sender can revoke this message"
             val chat = app.database.chatDao().getChatById(local.chatId)
@@ -78,7 +78,7 @@ internal object AgentMessagingMessageTools {
             AgentToolHost.token(app) ?: return "Error: not signed in"
             val local = app.database.messageDao().getMessageById(messageId)
                 ?: return "Error: message not found"
-            AgentMessagingReadTools.denySecretOrLockedChat(app, local.chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, local.chatId)?.let { return it }
             val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
             val normalizedEmoji = emoji.trim().take(16)
             val current = local.toDomain()
@@ -105,7 +105,7 @@ internal object AgentMessagingMessageTools {
         }
 
         internal suspend fun pinMessage(app: MaodouchatApp, chatId: String, messageId: String): String {
-            AgentMessagingReadTools.denySecretOrLockedChat(app, chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             if (chatId.isBlank() || messageId.isBlank()) return "Error: chatId and messageId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val result = ApiService.togglePinnedMessage(token, chatId, messageId).getOrElse { return AgentToolHost.fail(it) }

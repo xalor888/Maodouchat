@@ -10,7 +10,7 @@ internal object AgentMessagingChatTools {
             val chatId = args["chatId"].orEmpty()
             if (chatId.isBlank()) return "Error: chatId required"
             if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
-            AgentMessagingReadTools.denySecretOrLockedChat(app, chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val repo = ChatRepository(app.database.chatDao(), app.database.userDao())
             val changed = mutableListOf<String>()
             AgentToolHost.parseBool(args["pinned"])?.let {

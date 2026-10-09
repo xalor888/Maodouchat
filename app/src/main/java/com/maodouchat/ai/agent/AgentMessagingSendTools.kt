@@ -17,7 +17,7 @@ internal object AgentMessagingSendTools {
             val body = text.trim().take(AgentToolPolicy.MAX_TEXT_SEND_CHARS)
             if (chatId.isBlank() || body.isBlank()) return "Error: chatId and text required"
             val chat = app.database.chatDao().getChatById(chatId) ?: return "Error: chat not found"
-            AgentMessagingReadTools.denySecretOrLockedChat(app, chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val meta = MessageMeta(aiAssisted = true, aiAssistantMode = "agent")
             val content = JsonFormat.composeContentWithMeta(body, meta)
             val message = Message(
@@ -47,7 +47,7 @@ internal object AgentMessagingSendTools {
         internal suspend fun setDraft(app: MaodouchatApp, userId: String, chatId: String, text: String): String {
             if (chatId.isBlank()) return "Error: chatId required"
             if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
-            AgentMessagingReadTools.denySecretOrLockedChat(app, chatId)?.let { return it }
+            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val body = text.trim().take(AgentToolPolicy.MAX_DRAFT_CHARS)
             if (body.isBlank()) {
                 app.database.chatDraftDao().delete(userId, chatId)
