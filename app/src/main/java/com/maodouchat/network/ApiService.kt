@@ -23,8 +23,14 @@ import com.maodouchat.util.toHexString
 import com.maodouchat.network.api.ApiSurface
 import com.maodouchat.network.api.AuthApi
 import com.maodouchat.network.api.AuthApiClient
+import com.maodouchat.network.api.CallSignalingApi
+import com.maodouchat.network.api.CallSignalingApiClient
 import com.maodouchat.network.api.ConversationApi
 import com.maodouchat.network.api.ConversationApiClient
+import com.maodouchat.network.api.GroupApi
+import com.maodouchat.network.api.GroupApiClient
+import com.maodouchat.network.api.KeyDeviceApi
+import com.maodouchat.network.api.KeyDeviceApiClient
 import com.maodouchat.network.api.MediaApi
 import com.maodouchat.network.api.MediaApiClient
 import com.maodouchat.network.api.MessagingApi
