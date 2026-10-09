@@ -144,8 +144,6 @@ suspend fun setBotEnabled(token: String, botId: String, enabled: Boolean): Resul
     return executeForText(req, "bot_enabled")
 }
 
-/** 活跃公告（含本用户 acked 状态），返回 JSON 字符串由调用方解析。 */
-
 /** 推送 HMAC 校验密钥（经认证通道下发；返回 JSON 字符串由调用方解析，key 为 null 表示未配置）。 */
 
 suspend fun getPushVerifyKey(token: String): Result<String> {

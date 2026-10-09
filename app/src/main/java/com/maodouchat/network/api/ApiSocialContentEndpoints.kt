@@ -102,8 +102,6 @@ suspend fun editPostComment(token: String, postId: String, commentId: String, co
 
 /** 1.93：动态点赞者列表。 */
 
-/** 1.93：动态点赞者列表。 */
-
 suspend fun getPostLikers(token: String, postId: String, limit: Int): Result<PostLikersResponse> =
     send(
         Request.Builder()
@@ -113,8 +111,6 @@ suspend fun getPostLikers(token: String, postId: String, limit: Int): Result<Pos
             .build(),
         PostLikersResponse.serializer()
     )
-
-/** 1.00：删除自己的评论。 */
 
 /** 1.00：删除自己的评论。 */
 
@@ -129,8 +125,6 @@ suspend fun deleteComment(token: String, postId: String, commentId: String): Res
 
 /** 1.52：点赞评论。 */
 
-/** 1.52：点赞评论。 */
-
 suspend fun likeComment(token: String, postId: String, commentId: String): Result<CommentLikeResponse> =
     send(
         Request.Builder()
@@ -140,8 +134,6 @@ suspend fun likeComment(token: String, postId: String, commentId: String): Resul
             .build(),
         CommentLikeResponse.serializer()
     )
-
-/** 1.52：取消点赞评论。 */
 
 /** 1.52：取消点赞评论。 */
 
@@ -178,6 +170,4 @@ suspend fun getFriends(token: String): Result<List<UserDto>> =
 
 suspend fun removeFriend(token: String, friendId: String): Result<Unit> =
     sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/friends/$friendId").addHeader("Authorization", "Bearer $token").delete().build())
-
-// ─── 9.3xx：群邀请同意流程 ─────────────────
 }

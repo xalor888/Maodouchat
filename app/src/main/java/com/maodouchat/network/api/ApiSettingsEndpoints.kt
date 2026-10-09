@@ -20,15 +20,11 @@ suspend fun putChatFolders(token: String, folders: List<ChatFolderDto>): Result<
 
 // ─── 客户端外观/列表偏好云同步 ────────────
 
-// ─── 客户端外观/列表偏好云同步 ────────────
-
 suspend fun getClientPrefs(token: String): Result<ClientPrefsDto> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/client-prefs").addHeader("Authorization", "Bearer $token").get().build(), ClientPrefsDto.serializer())
 
 suspend fun putClientPrefs(token: String, request: ClientPrefsUpdateRequest): Result<ClientPrefsDto> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/client-prefs").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(ClientPrefsUpdateRequest.serializer(), request))).build(), ClientPrefsDto.serializer())
-
-// ─── 头像上传 + 修改资料 ─────────────────
 
 suspend fun updateProfile(token: String, name: String?, status: String?): Result<UserDto> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/profile").addHeader("Authorization", "Bearer $token").put(jsonBody(json.encodeToString(UpdateProfileRequest.serializer(), UpdateProfileRequest(name = name, status = status)))).build(), UserDto.serializer())

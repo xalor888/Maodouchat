@@ -75,8 +75,6 @@ suspend fun getActiveAnnouncements(token: String): Result<String> {
 
 /** 公告已读确认。 */
 
-/** 公告已读确认。 */
-
 suspend fun ackAnnouncement(token: String, announcementId: String): Result<String> {
     val req = Request.Builder()
         .url("${ApiConfig.BASE_URL}/api/announcements/$announcementId/ack")
@@ -85,6 +83,4 @@ suspend fun ackAnnouncement(token: String, announcementId: String): Result<Strin
         .build()
     return executeForText(req, "announcement_ack")
 }
-
-/** 推送 HMAC 校验密钥（经认证通道下发；返回 JSON 字符串由调用方解析，key 为 null 表示未配置）。 */
 }

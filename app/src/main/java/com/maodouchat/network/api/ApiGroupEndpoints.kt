@@ -31,8 +31,6 @@ suspend fun cancelGroupInvitation(token: String, inviteId: String): Result<Unit>
 suspend fun getChatGroupInvitations(token: String, chatId: String): Result<List<GroupInvitationDto>> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/chats/$chatId/invitations").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(GroupInvitationDto.serializer()))
 
-// ─── 会话文件夹云同步 ─────────────────
-
 suspend fun createGroupPoll(
     token: String,
     chatId: String,

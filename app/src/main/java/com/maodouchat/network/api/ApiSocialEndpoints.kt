@@ -33,11 +33,6 @@ suspend fun getUsers(token: String, limit: Int, offset: Int): Result<List<UserDt
  * 客户端按页循环直到返回空或达到 [maxUsers] 上限，避免群成员列表只显示前 30 人。
  */
 
-/**
- * 翻页拉取全部可搜索用户（群加人候选等场景）。服务端每页最多 100 人，
- * 客户端按页循环直到返回空或达到 [maxUsers] 上限，避免群成员列表只显示前 30 人。
- */
-
 suspend fun getAllSearchableUsers(
     token: String,
     pageSize: Int,
@@ -88,12 +83,8 @@ suspend fun getCurrentUser(token: String): Result<UserDto> =
 
 /** 获取当前用户公开信息（含用户名） */
 
-/** 获取当前用户公开信息（含用户名） */
-
 suspend fun getCurrentUserPublic(token: String): Result<CurrentUserPublicResponse> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/me/public").addHeader("Authorization", "Bearer $token").get().build(), CurrentUserPublicResponse.serializer())
-
-/** 获取公开个人主页信息（无需认证） */
 
 /** 获取公开个人主页信息（无需认证） */
 
@@ -104,8 +95,6 @@ suspend fun getPublicProfile(username: String): Result<PublicProfileResponse> {
 
 /** 设置用户名 */
 
-/** 设置用户名 */
-
 suspend fun setUsername(token: String, username: String): Result<SetUsernameResponse> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/me/username").addHeader("Authorization", "Bearer $token")
         .put(jsonBody(json.encodeToString(SetUsernameRequest.serializer(), SetUsernameRequest(username)))).build(),
@@ -113,12 +102,8 @@ suspend fun setUsername(token: String, username: String): Result<SetUsernameResp
 
 /** 清除用户名 */
 
-/** 清除用户名 */
-
 suspend fun clearUsername(token: String): Result<Unit> =
     sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/me/username").addHeader("Authorization", "Bearer $token").delete().build())
-
-/** 高级搜索 */
 
 /** 高级搜索 */
 
@@ -181,8 +166,6 @@ suspend fun removePushToken(token: String, deviceId: String): Result<Unit> = sen
 
 /** WebRTC 信令 REST：走 executeWithRefresh，长通话 JWT 过期后仍可挂断/补发 */
 
-/** WebRTC 信令 REST：走 executeWithRefresh，长通话 JWT 过期后仍可挂断/补发 */
-
 suspend fun blockUser(token: String, userId: String): Result<Unit> =
     sendUnit(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/block/$userId").addHeader("Authorization", "Bearer $token").post(ByteArray(0).toRequestBody(null)).build())
 
@@ -194,6 +177,4 @@ suspend fun getBlockedUsers(token: String): Result<List<String>> =
 
 suspend fun getBlockedUserDetails(token: String): Result<List<UserDto>> =
     send(Request.Builder().url("${ApiConfig.BASE_URL}/api/users/blocks/details").addHeader("Authorization", "Bearer $token").get().build(), ListSerializer(UserDto.serializer()))
-
-// ─── 发现页 / 动态 ─────────────────────────
 }
