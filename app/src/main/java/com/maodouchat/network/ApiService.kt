@@ -123,60 +123,8 @@ object ApiService :
         return use { it.body?.string() ?: "" }
     }
 
-    private fun parseErrorResponse(body: String): ErrorResponse? = try {
-        json.decodeFromString(ErrorResponse.serializer(), body)
-    } catch (e: Exception) {
-        android.util.Log.w("ApiService", "parseError: non-JSON error body", e)
-        null
-    }
-
-    internal fun parseError(body: String): String? {
-        return parseErrorResponse(body)?.error?.takeIf { it.isNotBlank() }
-    }
-
-    private fun parseRetryAfterSeconds(body: String, headerValue: String? = null): Long? {
-        val fromBody = parseErrorResponse(body)?.retryAfterSeconds?.takeIf { it > 0L }
-        if (fromBody != null) return fromBody.coerceAtMost(86_400L)
-        val raw = headerValue?.trim().orEmpty()
-        if (raw.isEmpty()) return null
-        raw.toLongOrNull()?.takeIf { it > 0L }?.let { return it.coerceAtMost(86_400L) }
-        // HTTP-date Retry-After is rare for our APIs; ignore parse failures.
-        return null
-    }
-
-    private fun apiExceptionFromHttp(
-        statusCode: Int,
-        body: String,
-        retryAfterHeader: String? = null,
-        url: String? = null
-    ): ApiException {
-        val error = parseErrorResponse(body)
-        // 9.305：服务端错误必须带端点上下文——实测群分发 500 只有笼统「服务器内部错误」，
-        // 无法定位是哪个接口炸的；4xx/5xx 一律记录（路径去 query 防敏感参数泄漏）
-        if (statusCode >= 400) {
-            android.util.Log.w("ApiService", "HTTP $statusCode ${url?.substringBefore('?') ?: "?"} code=${error?.code} msg=${error?.error} body=${body.take(200)}")
-        }
-        return ApiException(
-            kind = ApiFailureKind.HTTP,
-            statusCode = statusCode,
-            serverMessage = error?.error,
-            serverCode = error?.code,
-            retryAfterSeconds = parseRetryAfterSeconds(body, retryAfterHeader)
-        )
-    }
-
-    private data class HttpResult(val code: Int, val isSuccessful: Boolean, val body: String)
-
-    private fun sessionChangedResult(): HttpResult = HttpResult(
-        code = 409,
-        isSuccessful = false,
-        body = "{\"error\":\"session_changed\",\"code\":\"SESSION_CHANGED\"}"
-    )
-
-    private fun sessionChangedException(): ApiException = apiExceptionFromHttp(
-        sessionChangedResult().code,
-        sessionChangedResult().body
-    )
+    // HTTP 错误语义已抽到同包 ApiHttpErrors；11 个端点客户端仍走这里，签名不变。
+    internal fun parseError(body: String): String? = ApiHttpErrors.parseError(body)
 
     private fun accessTokenSubject(token: String?): String? = runCatching {
         val payload = token?.split('.')?.getOrNull(1)?.takeIf { it.isNotBlank() } ?: return@runCatching null
@@ -204,7 +152,7 @@ object ApiService :
         return AuthenticatedRequestSession(manager, expectedUserId, accessToken)
     }
 
-    private suspend fun executeRequest(request: Request): HttpResult =
+    private suspend fun executeRequest(request: Request): ApiHttpErrors.HttpResult =
         // Blocking OkHttp execute stays on IO. Never call this from Main.
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine { continuation ->
@@ -212,7 +160,7 @@ object ApiService :
                 continuation.invokeOnCancellation { call.cancel() }
                 try {
                     val response = call.execute()
-                    val result = HttpResult(response.code, response.isSuccessful, response.readBodyAndClose())
+                    val result = ApiHttpErrors.HttpResult(response.code, response.isSuccessful, response.readBodyAndClose())
                     if (continuation.isActive) continuation.resumeWith(Result.success(result))
                 } catch (error: CancellationException) {
                     // Parent cancel must not resume failure as network error.
@@ -229,44 +177,44 @@ object ApiService :
             }
         }
 
-    private suspend fun executeWithRefresh(request: Request): HttpResult {
+    private suspend fun executeWithRefresh(request: Request): ApiHttpErrors.HttpResult {
         val authorization = request.header("Authorization")
         if (authorization.isNullOrBlank()) return executeRequest(request)
-        val session = authenticatedRequestSession(request) ?: return sessionChangedResult()
+        val session = authenticatedRequestSession(request) ?: return ApiHttpErrors.sessionChangedResult()
         val failedAccess = session.accessToken
         val manager = session.manager
         val expectedUserId = session.userId
 
         val firstResult = executeRequest(request)
-        if (manager.getUserId() != expectedUserId) return sessionChangedResult()
+        if (manager.getUserId() != expectedUserId) return ApiHttpErrors.sessionChangedResult()
         if (firstResult.code != 401) {
             return firstResult
         }
 
         when (val refresh = refreshAccessToken(failedAccessToken = failedAccess, expectedUserId = expectedUserId)) {
             is RefreshOutcome.Success -> {
-                if (manager.getUserId() != expectedUserId) return sessionChangedResult()
+                if (manager.getUserId() != expectedUserId) return ApiHttpErrors.sessionChangedResult()
                 val retryRequest = request.newBuilder()
                     .header("Authorization", "Bearer ${refresh.token}")
                     .build()
                 val retryResult = executeRequest(retryRequest)
-                if (manager.getUserId() != expectedUserId) return sessionChangedResult()
+                if (manager.getUserId() != expectedUserId) return ApiHttpErrors.sessionChangedResult()
                 if (retryResult.code == 401) {
                     emitTokenExpired(expectedUserId)
                 }
                 return retryResult
             }
             RefreshOutcome.SessionDead -> {
-                if (manager.getUserId() != expectedUserId) return sessionChangedResult()
+                if (manager.getUserId() != expectedUserId) return ApiHttpErrors.sessionChangedResult()
                 emitTokenExpired(expectedUserId)
                 return firstResult
             }
             RefreshOutcome.TransientFailure -> {
-                if (manager.getUserId() != expectedUserId) return sessionChangedResult()
+                if (manager.getUserId() != expectedUserId) return ApiHttpErrors.sessionChangedResult()
                 // 429/5xx/解析失败：保留会话，让调用方当普通失败处理，禁止清 E2EE 库
                 return firstResult
             }
-            RefreshOutcome.SessionChanged -> return sessionChangedResult()
+            RefreshOutcome.SessionChanged -> return ApiHttpErrors.sessionChangedResult()
         }
     }
 
@@ -400,7 +348,7 @@ object ApiService :
             if (response.isSuccessful) {
                 Result.success(json.decodeFromString(serializer, response.body))
             } else {
-                Result.failure(apiExceptionFromHttp(response.code, response.body, url = request.url.toString()))
+                Result.failure(ApiHttpErrors.apiExceptionFromHttp(response.code, response.body, url = request.url.toString()))
             }
         } catch (e: CancellationException) {
             throw e
@@ -423,7 +371,7 @@ object ApiService :
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(apiExceptionFromHttp(response.code, response.body, url = request.url.toString()))
+                Result.failure(ApiHttpErrors.apiExceptionFromHttp(response.code, response.body, url = request.url.toString()))
             }
         } catch (e: CancellationException) {
             throw e
@@ -468,11 +416,11 @@ object ApiService :
     internal suspend fun executeStreamingWithRefresh(request: Request): Response {
         val hasAuthorization = !request.header("Authorization").isNullOrBlank()
         val session = authenticatedRequestSession(request)
-        if (hasAuthorization && session == null) throw sessionChangedException()
+        if (hasAuthorization && session == null) throw ApiHttpErrors.sessionChangedException()
         var response = executeStreamingCall(request)
         if (session != null && session.manager.getUserId() != session.userId) {
             response.close()
-            throw sessionChangedException()
+            throw ApiHttpErrors.sessionChangedException()
         }
         if (response.code != 401 || session == null) return response
         return when (val refresh = refreshAccessToken(
@@ -482,7 +430,7 @@ object ApiService :
             is RefreshOutcome.Success -> {
                 if (session.manager.getUserId() != session.userId) {
                     response.close()
-                    throw sessionChangedException()
+                    throw ApiHttpErrors.sessionChangedException()
                 }
                 response.close()
                 response = executeStreamingCall(
@@ -490,7 +438,7 @@ object ApiService :
                 )
                 if (session.manager.getUserId() != session.userId) {
                     response.close()
-                    throw sessionChangedException()
+                    throw ApiHttpErrors.sessionChangedException()
                 }
                 if (response.code == 401) emitTokenExpired(session.userId)
                 response
@@ -498,7 +446,7 @@ object ApiService :
             RefreshOutcome.SessionDead -> {
                 if (session.manager.getUserId() != session.userId) {
                     response.close()
-                    throw sessionChangedException()
+                    throw ApiHttpErrors.sessionChangedException()
                 }
                 emitTokenExpired(session.userId)
                 response
@@ -506,7 +454,7 @@ object ApiService :
             RefreshOutcome.TransientFailure -> response
             RefreshOutcome.SessionChanged -> {
                 response.close()
-                throw sessionChangedException()
+                throw ApiHttpErrors.sessionChangedException()
             }
         }
     }
