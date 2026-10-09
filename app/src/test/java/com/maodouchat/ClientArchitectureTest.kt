@@ -402,7 +402,10 @@ class ClientArchitectureTest {
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
         // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 293,
-        "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
+        // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
+        // GroupPlayModeDelegates（206），父对象只留骰子/投票/签到/抽奖实现 +
+        // 同名一行委托（858 → 601；两新文件未进前 20，不纳管）。
+        "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
@@ -571,7 +574,9 @@ class ClientArchitectureTest {
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
         // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 293,
-            "com/maodouchat/util/GroupPlayPolicy.kt" to 858,
+            // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
+            // GroupPlayModeDelegates（206），父对象只留同名一行委托（858 → 601）。
+            "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
