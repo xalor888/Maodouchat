@@ -291,6 +291,7 @@ override suspend fun deleteUncommittedAttachment(token: String, attachmentId: St
             .delete()
             .build()
     )
+}
 
 internal fun File.sha256Hex(): String = sha256Hex(0L, length())
 
@@ -314,5 +315,4 @@ internal fun File.sha256Hex(offset: Long, length: Long): String {
         require(remaining == 0L) { "attachment_source_changed" }
     }
     return digest.digest().toHexString()
-}
 }
