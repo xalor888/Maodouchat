@@ -404,8 +404,12 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 293,
         // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
         // GroupPlayModeDelegates（206），父对象只留骰子/投票/签到/抽奖实现 +
-        // 同名一行委托（858 → 601；两新文件未进前 20，不纳管）。
+        // 同名一行委托（858 → 601；GroupPlayModeDelegates（206）未进前 20 不纳管；
+        // GroupPlayClassicDelegates（605）当时未进窗口，见下条补纳管）。
         "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
+        // 2026-10-10：ApiEndpointClients（692 → 139）拆出后 GroupPlayClassicDelegates（605）
+        // 滑进前 20——按判据纳入监管（两份 map 一起加）。
+        "com/maodouchat/util/GroupPlayClassicDelegates.kt" to 605,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
@@ -591,6 +595,9 @@ class ClientArchitectureTest {
             // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
             // GroupPlayModeDelegates（206），父对象只留同名一行委托（858 → 601）。
             "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
+            // 2026-10-10：ApiEndpointClients（692 → 139）拆出后 GroupPlayClassicDelegates（605）
+            // 滑进前 20——按判据纳入监管（两份 map 一起加）。
+            "com/maodouchat/util/GroupPlayClassicDelegates.kt" to 605,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
