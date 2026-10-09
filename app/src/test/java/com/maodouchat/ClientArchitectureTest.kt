@@ -404,8 +404,12 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 293,
         // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
         // GroupPlayModeDelegates（206），父对象只留骰子/投票/签到/抽奖实现 +
-        // 同名一行委托（858 → 601；两新文件未进前 20，不纳管）。
+        // 同名一行委托（858 → 601；GroupPlayModeDelegates（206）未进前 20 不纳管；
+        // GroupPlayClassicDelegates（605）当时未进窗口，见下条补纳管）。
         "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
+        // 2026-10-10：ApiEndpointClients（692 → 139）拆出后 GroupPlayClassicDelegates（605）
+        // 滑进前 20——按判据纳入监管（两份 map 一起加）。
+        "com/maodouchat/util/GroupPlayClassicDelegates.kt" to 605,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
@@ -531,10 +535,9 @@ class ClientArchitectureTest {
         // 上限同步收紧（两份 map 一起改）。
         // 行组件按簇拆出（SwitchRow/SettingsGroup/SettingsItem → 同包两个新文件，398 → 344，纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 344,
-        // 本轮：群管理/密钥设备/通话信令三簇实现搬出为 GroupApiClient/KeyDeviceApiClient/
-        // CallSignalingApiClient（923 → 692，纯搬移；新文件均未进前 20，不纳管），
-        // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/network/api/ApiEndpointClients.kt" to 692,
+        // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
+        // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
@@ -547,8 +550,8 @@ class ClientArchitectureTest {
         // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
-        // 2026-10-10：DatabaseMigrations 按版本簇拆分（719 → 80）后 MaodouAgentScreen（618）
-        // 挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
+        // MaodouAgentScreen（618）挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 618,
     )
 
@@ -592,6 +595,9 @@ class ClientArchitectureTest {
             // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
             // GroupPlayModeDelegates（206），父对象只留同名一行委托（858 → 601）。
             "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
+            // 2026-10-10：ApiEndpointClients（692 → 139）拆出后 GroupPlayClassicDelegates（605）
+            // 滑进前 20——按判据纳入监管（两份 map 一起加）。
+            "com/maodouchat/util/GroupPlayClassicDelegates.kt" to 605,
         // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
@@ -682,10 +688,9 @@ class ClientArchitectureTest {
         // 上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/theme/MotionTransitions.kt" to 42,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 344,
-        // 本轮：群管理/密钥设备/通话信令三簇实现搬出为 GroupApiClient/KeyDeviceApiClient/
-        // CallSignalingApiClient（923 → 692，纯搬移；新文件均未进前 20，不纳管），
-        // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/network/api/ApiEndpointClients.kt" to 692,
+        // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
+        // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
@@ -698,8 +703,8 @@ class ClientArchitectureTest {
         // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
-        // 2026-10-10：DatabaseMigrations 按版本簇拆分（719 → 80）后 MaodouAgentScreen（618）
-        // 挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
+        // MaodouAgentScreen（618）挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 618,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
