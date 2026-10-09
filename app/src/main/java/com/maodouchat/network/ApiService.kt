@@ -152,7 +152,7 @@ object ApiService :
         return AuthenticatedRequestSession(manager, expectedUserId, accessToken)
     }
 
-    private suspend fun executeRequest(request: Request): HttpResult =
+    private suspend fun executeRequest(request: Request): ApiHttpErrors.HttpResult =
         // Blocking OkHttp execute stays on IO. Never call this from Main.
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine { continuation ->
@@ -177,7 +177,7 @@ object ApiService :
             }
         }
 
-    private suspend fun executeWithRefresh(request: Request): HttpResult {
+    private suspend fun executeWithRefresh(request: Request): ApiHttpErrors.HttpResult {
         val authorization = request.header("Authorization")
         if (authorization.isNullOrBlank()) return executeRequest(request)
         val session = authenticatedRequestSession(request) ?: return ApiHttpErrors.sessionChangedResult()
