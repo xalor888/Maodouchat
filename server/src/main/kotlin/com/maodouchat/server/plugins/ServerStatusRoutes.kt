@@ -9,7 +9,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonElement
 
 /** 公开服务器状态：维护模式 / 功能开关快照（带缓存）。 */
 internal fun Route.configureServerStatusRoutes(cacheService: CacheService) {

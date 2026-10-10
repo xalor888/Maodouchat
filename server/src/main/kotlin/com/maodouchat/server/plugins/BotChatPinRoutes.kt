@@ -12,7 +12,6 @@ import io.ktor.server.routing.post
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonElement
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.WsMessage
 
