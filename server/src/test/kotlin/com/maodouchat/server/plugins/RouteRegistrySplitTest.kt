@@ -61,7 +61,7 @@ class RouteRegistrySplitTest {
 
     @Test
     fun `primary Bot sender uses atomic service publishing`() {
-        val core = source("BotCoreRouting.kt")
+        val core = source("BotCoreSendRoutes.kt")
         val sender = core.substringAfter("post(\"/api/bot/sendMessage\")")
             .substringBefore("post(\"/api/bot/editMessage\")")
 
@@ -179,6 +179,9 @@ class RouteRegistrySplitTest {
         )
         val BOT_ROUTE_MODULES = listOf(
             "BotCoreRouting.kt",
+            "BotCoreSendRoutes.kt",
+            "BotCoreEditRoutes.kt",
+            "BotCoreChatRoutes.kt",
             "BotPresentationRouting.kt",
             "BotInfoRouting.kt",
             "BotCommandRouting.kt",
@@ -220,6 +223,9 @@ class RouteRegistrySplitTest {
             "BotGeoQueryRoutes.kt",
             "BotGeoMiscRoutes.kt",
             "BotMessagingVariantsRouting.kt",
+            "BotMessagingSendVariantsRoutes.kt",
+            "BotMessagingMemberRoutes.kt",
+            "BotMessagingCommandRoutes.kt",
             "BotPollEditRouting.kt",
             "BotReactionRouting.kt",
             "BotChatMiscRouting.kt",

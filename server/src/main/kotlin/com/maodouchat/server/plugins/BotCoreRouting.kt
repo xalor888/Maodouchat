@@ -5,20 +5,13 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.service.GroupInvitationService
-import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.GroupMembershipService
-import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.*
-import io.ktor.server.application.call
 import io.ktor.server.request.*
-import io.ktor.server.response.respond
 import io.ktor.server.routing.*
-import java.util.UUID
-import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
-/** Bot API application adapter. Compatibility-only probes and hint surfaces live separately. */
+/** Bot 核心门面：发送 / 编辑 / 查询 3 簇（零行为改动；Bot API 用自有 token）。 */
 internal fun Route.configureBotCoreRoutes(
     userRepo: UserRepository,
     starMessageRepo: StarMessageRepository,
@@ -40,105 +33,13 @@ internal fun Route.configureBotCoreRoutes(
 
     configureBotInfoRoutes(botSendRateLimiter, conversationParticipantRepo)
 
-    post("/api/bot/sendMessage") {
-        val bot = call.requireBot() ?: return@post
-        // 每 bot 限流：防单 bot 向 200 人群高频广播（WS fanout + FCM push 风暴）
-        // 9.138：此前 60/min 与 30/min 两次 acquire 打在同一 limiter/bucket 上——
-        // 每次调用烧 2 个 token，60 档完全被 30 档遮蔽且语义混乱；只保留 30/min 档
-        if (!botSendRateLimiter.acquire(bot.id, maxPerMinute = 30)) {
-            return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("发送太频繁，请稍后再试"))
-        }
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val req = parseBotSendMessage(
-            obj,
-            silentSendEnabled = com.maodouchat.server.service.RuntimeConfigService.isSilentSendEnabled(),
-        )
-        val chatId = req.chatId
-        val text = req.text
-        val msgType = when {
-            req.parseMode == "MARKDOWN" || req.parseMode == "MD" -> "MARKDOWN"
-            else -> "TEXT"
-        }
-        if (msgType == "MARKDOWN" && !com.maodouchat.server.service.RuntimeConfigService.isMarkdownEnabled()) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("markdown disabled by admin"))
-        }
-        if (chatId.isBlank() || text.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/text required"))
-        }
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        // 8.33 修复：与用户发消息一致，广播频道仅创建者可发——bot 若被加入频道
-        //（invite 时作为成员加入）不得绕过单向上行约束
-        if (conversationParticipantRepo.chatType(chatId) == ChatType.CHANNEL && !conversationParticipantRepo.isChannelOwner(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("频道为单向广播，仅创建者可发送消息"))
-        }
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "sendMessage")
-        // Bots send as system-visible plaintext channel (not E2EE peer).
-        val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
-        val now = System.currentTimeMillis()
-        var contentOut = if (!req.replyToId.isNullOrBlank()) {
-            // Lightweight reply marker for bot plaintext channel (client may ignore).
-            text + "\n[replyTo:" + req.replyToId + "]"
-        } else text
-        val keyboardRows = req.keyboardRows
-        val forceReplyFlag = req.forceReply
-        if (!keyboardRows.isNullOrEmpty() || forceReplyFlag) {
-            val metaObj = kotlinx.serialization.json.buildJsonObject {
-                if (!keyboardRows.isNullOrEmpty()) {
-                    put(
-                        "inlineKeyboard",
-                        kotlinx.serialization.json.JsonArray(
-                            keyboardRows.map { row ->
-                                kotlinx.serialization.json.JsonArray(
-                                    row.map { btn ->
-                                        kotlinx.serialization.json.buildJsonObject {
-                                            put("text", kotlinx.serialization.json.JsonPrimitive(btn["text"].orEmpty()))
-                                            put("callbackData", kotlinx.serialization.json.JsonPrimitive(btn["callbackData"].orEmpty()))
-                                        }
-                                    }
-                                )
-                            }
-                        )
-                    )
-                }
-                if (forceReplyFlag) put("forceReply", kotlinx.serialization.json.JsonPrimitive(true))
-            }
-            contentOut = contentOut + "<meta>" + metaObj.toString() + "</meta>"
-        }
-        val botMessage = runCatching {
-            publishBotServiceMessage(
-                userRepository = userRepo,
-                participantRepository = conversationParticipantRepo,
-                serviceMessageRepository = serviceMessageRepo,
-                json = json,
-                botId = bot.id,
-                chatId = chatId,
-                messageId = msgId,
-                content = contentOut,
-                timestamp = now,
-                type = msgType,
-            )
-        }.getOrNull()
-        if (botMessage == null) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
-        }
-        com.maodouchat.server.service.BotWebhookService.notifyChatEvent(
-            chatId = chatId,
-            event = "bot_message",
-            messageId = msgId,
-            senderId = bot.id,
-            type = "TEXT",
-            textPreview = text.take(200)
-        )
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("messageId", msgId)
-        }
+    configureBotCoreSendRoutes(
+        userRepo = userRepo,
+        serviceMessageRepo = serviceMessageRepo,
+        conversationParticipantRepo = conversationParticipantRepo,
+        botSendRateLimiter = botSendRateLimiter,
+        json = json,
     )
-    }
 
     configureBotCommandRoutes(botSendRateLimiter)
 
@@ -164,108 +65,20 @@ put("messageId", msgId)
 
     configureBotCallbackRoutes(botSendRateLimiter)
 
-    post("/api/bot/editMessage") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-
-        if (!com.maodouchat.server.service.RuntimeConfigService.isMessageEditEnabled()) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("message_edit_disabled"))
-        }
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val parsed = parseBotEditMessage(obj)
-        val messageId = parsed.messageId
-        val text = parsed.text
-        if (messageId.isBlank() || text.isBlank()) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId/text required"))
-        }
-        var contentOut = text
-        val keyboardRows = parsed.keyboardRows
-        val forceReplyFlag = parsed.forceReply
-        if (!keyboardRows.isNullOrEmpty() || forceReplyFlag) {
-            val metaObj = kotlinx.serialization.json.buildJsonObject {
-                if (!keyboardRows.isNullOrEmpty()) {
-                    put(
-                        "inlineKeyboard",
-                        kotlinx.serialization.json.JsonArray(
-                            keyboardRows.map { row ->
-                                kotlinx.serialization.json.JsonArray(
-                                    row.map { btn ->
-                                        kotlinx.serialization.json.buildJsonObject {
-                                            put("text", kotlinx.serialization.json.JsonPrimitive(btn["text"].orEmpty()))
-                                            put("callbackData", kotlinx.serialization.json.JsonPrimitive(btn["callbackData"].orEmpty()))
-                                        }
-                                    }
-                                )
-                            }
-                        )
-                    )
-                }
-                if (forceReplyFlag) put("forceReply", kotlinx.serialization.json.JsonPrimitive(true))
-            }
-            contentOut = contentOut + "<meta>" + metaObj.toString() + "</meta>"
-        }
-        val editedAt = System.currentTimeMillis()
-        val edited = runCatching {
-            serviceMessageRepo.editOwn(messageId, bot.id, contentOut, editedAt)
-        }.getOrNull()
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("edit failed"))
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, messageId, "editMessage")
-        val chatIdForEdit = edited.chatId
-        if (!chatIdForEdit.isNullOrBlank()) {
-            // 被移出聊天的 bot 不应再向其历史消息广播编辑给当前成员
-            if (!conversationParticipantRepo.isParticipant(chatIdForEdit, bot.id)) {
-                call.respond(
-        buildJsonObject {
-put("status", "ok")
-put("messageId", messageId)
-        }
+    configureBotCoreEditRoutes(
+        userRepo = userRepo,
+        serviceMessageRepo = serviceMessageRepo,
+        conversationParticipantRepo = conversationParticipantRepo,
+        botSendRateLimiter = botSendRateLimiter,
+        json = json,
+        messagingV2Repository = messagingV2Repository,
     )
-                return@post
-            }
-            fanoutBotEvent(
-                userRepo = userRepo,
-                participantRepository = conversationParticipantRepo,
-                json = json,
-                botId = bot.id,
-                chatId = chatIdForEdit,
-                event = com.maodouchat.server.messaging.v2.ServiceMessagingV2Event(
-                    action = "EDIT",
-                    targetMessageId = messageId,
-                    content = contentOut,
-                    editedAt = editedAt,
-                ),
-                messagingV2Repository = messagingV2Repository,
-            )
-        }
-        call.respond(
-        buildJsonObject {
-put("status", "ok")
-put("messageId", messageId)
-        }
-    )
-    }
 
-    get("/api/bot/getChat") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val chatId = call.requireNonBlankParamOr400("chatId", "chatId required") ?: return@get
-        val chat = conversationQueryRepo.getById(chatId)
-            ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        val members = conversationParticipantRepo.participantIds(chatId)
-        call.respond(
-            buildJsonObject {
-                put("id", chat.id)
-                put("isGroup", chat.isGroup)
-                put("title", (chat.groupName ?: ""))
-                put("description", (chat.groupAnnouncement ?: ""))
-                put("announcement", (chat.groupAnnouncement ?: ""))
-                put("memberCount", members.size)
-                put("botIsMember", (bot.id in members))
-            }
-        )
-    }
+    configureBotCoreChatRoutes(
+        conversationParticipantRepo = conversationParticipantRepo,
+        conversationQueryRepo = conversationQueryRepo,
+        botSendRateLimiter = botSendRateLimiter,
+    )
 
     configureBotChatAdminRoutes(
         groupProfileRepo = groupProfileRepo,
