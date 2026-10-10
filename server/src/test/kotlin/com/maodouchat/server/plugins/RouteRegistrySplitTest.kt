@@ -150,6 +150,9 @@ class RouteRegistrySplitTest {
         val ENDPOINT_DECLARATION = Regex("(?m)^\\s*(get|post|put|delete|patch)\\(\\\"")
         val ADMIN_ROUTE_MODULES = listOf(
             "AdminManagementRouting.kt",
+            "AdminSessionRoutes.kt",
+            "AdminUserSessionRoutes.kt",
+            "AdminOpsRoutes.kt",
             "AdminObservabilityRouting.kt",
             "AdminModerationRouting.kt",
             "AdminContentRouting.kt",
@@ -162,6 +165,9 @@ class RouteRegistrySplitTest {
             "AdminExportsUserRoutes.kt",
             "AdminBulkChatRoutes.kt",
             "AdminBulkUserRoutes.kt",
+            "AdminBulkSessionRoutes.kt",
+            "AdminBulkDispositionRoutes.kt",
+            "AdminBulkProfileRoutes.kt",
         )
         val BOT_ROUTE_MODULES = listOf(
             "BotCoreRouting.kt",
