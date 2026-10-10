@@ -427,14 +427,21 @@ fun Application.configureRouting(
             cacheService = cacheService,
             rateLimiter = publicProfileRateLimiter,
         )
-        configureAuthRoutes(
+        configureAuthAccountRoutes(
+            userRepo = userRepo,
+            authTokenRepo = authTokenRepo,
+            loginIpRateLimiter = loginIpRateLimiter,
+            loginEmailRateLimiter = loginEmailRateLimiter,
+            sendCodeRateLimiter = sendCodeRateLimiter,
+            sendCodeIpRateLimiter = sendCodeIpRateLimiter,
+            sessionService = sessionService,
+        )
+        configureAuthLoginRoutes(
             userRepo = userRepo,
             authTokenRepo = authTokenRepo,
             pushTokenRepo = pushTokenRepo,
             loginIpRateLimiter = loginIpRateLimiter,
             loginEmailRateLimiter = loginEmailRateLimiter,
-            sendCodeRateLimiter = sendCodeRateLimiter,
-            sendCodeIpRateLimiter = sendCodeIpRateLimiter,
             loginGate = loginGate,
             sessionService = sessionService,
         )
@@ -450,11 +457,8 @@ configureEncryptedAttachmentRoutes(
             rateLimiter = aiRateLimiter,
             messagingV2Repository = messagingV2Repository,
         )
-        configureAuthenticatedSessionRoutes(
-            userRepo = userRepo,
+        configureAuthSessionRoutes(
             mfaService = com.maodouchat.server.service.MfaService(),
-            authTokenRepo = authTokenRepo,
-            pushTokenRepo = pushTokenRepo,
             sessionService = sessionService,
             totpManageRateLimiter = totpManageRateLimiter,
         )

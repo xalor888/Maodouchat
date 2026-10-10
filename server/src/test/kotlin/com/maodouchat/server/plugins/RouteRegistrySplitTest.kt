@@ -97,7 +97,9 @@ class RouteRegistrySplitTest {
     fun `priority route families are delegated with endpoint parity`() {
         val registry = source("Routing.kt")
         val modules = listOf(
-            source("AuthRouting.kt"),
+            source("AuthAccountRoutes.kt"),
+            source("AuthLoginRoutes.kt"),
+            source("AuthSessionRoutes.kt"),
             source("AccountRouting.kt"),
             source("AttachmentRouting.kt"),
             source("ReportModerationRouting.kt"),
@@ -111,8 +113,9 @@ class RouteRegistrySplitTest {
         )
 
         listOf(
-            "configureAuthRoutes(",
-            "configureAuthenticatedSessionRoutes(",
+            "configureAuthAccountRoutes(",
+            "configureAuthLoginRoutes(",
+            "configureAuthSessionRoutes(",
             "configureAccountRoutes(",
             "configureEncryptedAttachmentRoutes(",
             "configureReportModerationRoutes(",
