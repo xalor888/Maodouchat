@@ -73,7 +73,13 @@ class RouteRegistrySplitTest {
     @Test
     fun `primary registry delegates public update and profile routes`() {
         val registry = source("Routing.kt")
-        val update = source("PublicUpdateRouting.kt")
+        val update = listOf(
+            "PublicUpdateRouting.kt",
+            "PublicAppUpdateRoutes.kt",
+            "InternalAppUpdateRoutes.kt",
+            "ServerStatusRoutes.kt",
+            "WebRtcBinaryRoutes.kt",
+        ).joinToString("\n") { source(it) }
         val profile = source("PublicProfileRouting.kt")
 
         assertTrue("configurePublicUpdateRoutes(cacheService)" in registry)
@@ -230,6 +236,9 @@ class RouteRegistrySplitTest {
             "BotPresentationHintVisualRoutes.kt",
             "BotPresentationProbesRouting.kt",
             "BotChatInviteRouting.kt",
+            "BotChatInviteLinkRoutes.kt",
+            "BotChatAvatarRoutes.kt",
+            "BotChatPinRoutes.kt",
             "BotMediaSendRoutes.kt",
             "BotMediaImageRoutes.kt",
             "BotMediaAudioDocRoutes.kt",
