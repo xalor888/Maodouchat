@@ -7,6 +7,7 @@ import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.navigation.AppLinkDestination
 import com.maodouchat.navigation.AppLinkRouter
+import com.maodouchat.navigation.parseLegacyCenterDeeplink
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 

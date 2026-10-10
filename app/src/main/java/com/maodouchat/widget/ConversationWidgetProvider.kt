@@ -12,6 +12,7 @@ import androidx.core.app.RemoteInput
 import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.navigation.sanitizeChatIdStrict
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.quickreply.SyncVerdict
 

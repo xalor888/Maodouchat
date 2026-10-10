@@ -4,6 +4,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import com.maodouchat.navigation.AppLinkDestination
 import com.maodouchat.navigation.AppLinkRouter
+import com.maodouchat.navigation.parseLegacyCenterDeeplink
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween

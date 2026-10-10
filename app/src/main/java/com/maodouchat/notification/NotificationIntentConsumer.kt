@@ -11,6 +11,12 @@ import com.maodouchat.navigation.AppLinkDestination
 import com.maodouchat.navigation.AppLinkParseResult
 import com.maodouchat.navigation.AppLinkRouter
 import com.maodouchat.navigation.NotificationTarget
+import com.maodouchat.navigation.parseDeepLink
+import com.maodouchat.navigation.sanitizeCallIdStrict
+import com.maodouchat.navigation.sanitizeChatIdStrict
+import com.maodouchat.navigation.sanitizeMessageIdStrict
+import com.maodouchat.navigation.sanitizePostIdStrict
+import com.maodouchat.navigation.sanitizeUserIdStrict
 
 /**
  * 系统入口 Intent 消费（P08：自 `MainActivity` 逐字迁出）。

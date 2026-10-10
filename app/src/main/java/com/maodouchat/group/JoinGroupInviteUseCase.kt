@@ -5,6 +5,8 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ChatDto
 import com.maodouchat.navigation.AppLinkRouter
+import com.maodouchat.navigation.sanitizeChatInviteToken
+import com.maodouchat.navigation.sanitizeInviteCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
