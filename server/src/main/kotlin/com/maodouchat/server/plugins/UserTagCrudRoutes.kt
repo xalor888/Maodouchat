@@ -16,6 +16,8 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /** 用户标签 CRUD 与标签下用户查询。 */
 fun Application.configureUserTagCrudRoutes(userTagRepo: UserTagRepository) {
@@ -91,3 +93,7 @@ fun Application.configureUserTagCrudRoutes(userTagRepo: UserTagRepository) {
 }
 
 private fun UserTagRepository.TagRow.toDto(): UserTagDto = UserTagDto(
+    id = id, name = name, color = color, description = description,
+    isSystem = isSystem, riskLevel = riskLevel, createdAt = createdAt,
+    updatedAt = updatedAt, userCount = userCount
+)

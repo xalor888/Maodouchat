@@ -80,4 +80,6 @@ fun Application.configureUserTagAssignmentRoutes(userTagRepo: UserTagRepository)
 }
 
 private fun UserTagRepository.AssignmentRow.toDto(): UserTagAssignmentDto = UserTagAssignmentDto(
+    userId = userId, tagId = tagId, source = source, assignedBy = assignedBy, createdAt = createdAt
+)
 private const val MAX_TAGS_PER_ASSIGNMENT = 20
