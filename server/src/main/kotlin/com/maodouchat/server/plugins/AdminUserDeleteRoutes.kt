@@ -8,6 +8,7 @@ import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
+import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 
