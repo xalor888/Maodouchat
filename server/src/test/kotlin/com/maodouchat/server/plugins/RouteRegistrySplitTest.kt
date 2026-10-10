@@ -175,6 +175,11 @@ class RouteRegistrySplitTest {
             "AdminBulkUserRoutes.kt",
             "AdminBulkSessionRoutes.kt",
             "AdminBulkDispositionRoutes.kt",
+            "AdminBulkBanRoutes.kt",
+            "AdminBulkSuspendRoutes.kt",
+            "AdminBulkMessageRestrictRoutes.kt",
+            "AdminBulkPostRestrictRoutes.kt",
+            "AdminBulkClearRestrictionsRoutes.kt",
             "AdminBulkProfileRoutes.kt",
         )
         val BOT_ROUTE_MODULES = listOf(
