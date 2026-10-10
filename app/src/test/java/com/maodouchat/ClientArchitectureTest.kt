@@ -232,8 +232,8 @@ class ClientArchitectureTest {
      * 3. 再拆出「只读 `TokenManager`（会话令牌）」这一类 —— 那是「ui 读会话态」，
      *    与「ui 自己发请求」是两个不同的问题、不同的修法：
      *    - [frozenUiApiCallers]（**0 个，已清零**）：结构上违分层，已全部搬进 repository；
-     *    - [frozenUiTokenReaders]（**1 个**，令牌自持化 + 2026-09-28 收口后由 31 一路降下来）：仅剩 LoginViewModel
-     *      （登录页即会话拥有者）；其余读者已改走 CurrentSession / SessionContextProvider，
+     *    - [frozenUiTokenReaders]（**2 个**，令牌自持化 + 2026-09-28 收口后由 31 一路降下来）：LoginViewModel
+     *      及其拆出的同包簇 LoginSessionRestore（登录页即会话拥有者）；其余读者已改走 CurrentSession / SessionContextProvider，
      *      修法是让图片层自己拿令牌，而不是 ViewModel 传——**这才是下一段工作**，
      *      它与「调不调 API」无关，所以 api 清零不等于这条也清零。
      *
@@ -274,6 +274,8 @@ class ClientArchitectureTest {
      * 2026-09-28 收口后：本名单已到 **1**（仅剩 `LoginViewModel`）——「只做装配」的四个已全部离场
      * （ChatDetailDeps/ChatListPorts 装配参数自持化、ChatRealtimeController 收 SessionContextProvider、
      * GroupDetailViewModel 更早已收口），IdentityVerificationController 改走 CurrentSession.snapshot()。
+     * 2026-10-10：LoginViewModel 按主题拆出 LoginSessionRestore（纯搬移，零行为改动），会话恢复一族的
+     * 读令牌随之搬出——同一逻辑读者，按重分类口径加进名单（2 个），不是新增读者。
      */
     // G328c 完成：**空名单**。`ui/` 层从此不允许直连 `ApiService`/`ApiEndpointClients`——
     // 传输层调用一律经 `data/repository` 的薄仓库。历史值见 git：
@@ -290,6 +292,9 @@ class ClientArchitectureTest {
         // 各非 ui 构造器自持默认值（AttachmentDownloadCoordinator / 两个 conversation 工厂）。
         // 仅剩 LoginViewModel——登录页本身就是会话的拥有者，读凭据是其职责。
         "com/maodouchat/ui/screen/login/LoginViewModel.kt",
+        // 2026-10-10：LoginViewModel 按主题拆出 LoginSessionRestore（纯搬移），会话恢复一族
+        // （getUserId/getToken/过期检查/isLoggedIn）的读令牌随之搬出——同一逻辑读者，重分类加进名单。
+        "com/maodouchat/ui/screen/login/LoginSessionRestore.kt",
     )
 
     @Test
