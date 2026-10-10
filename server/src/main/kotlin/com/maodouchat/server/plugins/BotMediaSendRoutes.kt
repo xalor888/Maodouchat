@@ -1,9 +1,7 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.GroupMembershipService
 import io.ktor.http.*
 import io.ktor.server.application.call
@@ -12,8 +10,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
 
-/** Bot 媒体发送与附件/成员辅助（自 BotCoreRouting.kt 拆分，B12）。 */
-internal fun Route.configureBotMediaRoutes(
+/** Bot 媒体发送类端点（贴纸/语音/文档/照片/视频/动图/音频/文件读取）。 */
+internal fun Route.configureBotMediaSendRoutes(
     userRepo: UserRepository,
     serviceMessageRepo: ServiceMessageRepository,
     groupMembershipService: GroupMembershipService,
@@ -110,90 +108,6 @@ put("messageId", msgId)
 put("duration", duration)
 put("size", size)
 put("type", "VOICE")
-        }
-    )
-    }
-
-    get("/api/bot/getInviteLink") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        if (!com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled()) {
-            return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
-        }
-        val chatId = parseBotGetInviteLinkChatId(call.request.queryParameters)
-            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        // 9.242：邀请 token 是管理者级信息（持 token 可拉人入群）——与 pin/unpin 的
-        // isOwnerOrAdmin 口径对齐（当前 bot 入群即 ADMIN，防御未来成员角色变化）
-        if (!conversationParticipantRepo.isOwnerOrAdmin(chatId, bot.id)) {
-            return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot is not a manager of this chat"))
-        }
-        // Read-only invite snapshot; rotation uses exportChatInviteLink
-        val chat = conversationQueryRepo.getById(chatId)
-            ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
-        val tokenState = conversationQueryRepo.getGroupInviteTokenState(chatId)
-        val invite = tokenState?.token.orEmpty()
-        val expiresAt = tokenState?.expiresAt ?: 0L
-        val maxUses = tokenState?.maxUses ?: 0
-        val used = tokenState?.usedCount ?: 0
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "getInviteLink")
-        call.respond(
-        buildJsonObject {
-put("chatId", chatId)
-put("title", (chat.groupName ?: ""))
-put("inviteToken", invite)
-put("inviteLink", if (invite.isNotBlank()) "maodouchat:chat-invite:v1:$invite" else "")
-put("expiresAt", expiresAt)
-put("maxUses", maxUses)
-put("usedCount", used)
-put("hasInvite", invite.isNotBlank())
-        }
-    )
-    }
-
-    post("/api/bot/demoteChatMember") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val chatId: String
-        val userId: String
-        when (val parsed = parseBotDemoteChatMemberFields(obj)) {
-            is BotDemoteChatMemberFieldsResult.Ok -> {
-                chatId = parsed.fields.chatId
-                userId = parsed.fields.userId
-            }
-            BotDemoteChatMemberFieldsResult.Invalid ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/userId required"))
-        }
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        val commit = groupMembershipService.updateRole(
-            chatId = chatId,
-            ownerId = bot.id,
-            targetUserId = userId,
-            role = "MEMBER",
-            requireBotDeliverable = true
-        )
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "demoteChatMember")
-        if (commit.result != com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("demote failed: ${commit.result}"))
-        }
-        notifyGroupRevisionChangedWithData(
-            json = json,
-            chatId = chatId,
-            reason = "MEMBER_ROLE_CHANGED",
-            actorId = bot.id,
-            targetUserId = userId,
-            memberRevision = commit.memberRevisionAfter ?: 0L,
-            recipientIds = commit.recipientsBefore,
-        )
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("userId", userId)
-put("role", "MEMBER")
         }
     )
     }
@@ -299,72 +213,6 @@ put("type", "IMAGE")
     )
     }
 
-    get("/api/bot/getFile") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val id = parseBotGetFileId(call.request.queryParameters)
-            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId or fileId required"))
-        val msg = serviceMessageRepo.getById(id)
-            ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("message not found"))
-        if (!conversationParticipantRepo.isParticipant(msg.chatId, bot.id)) {
-            return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        val content = msg.content
-        val isBotMedia = content.contains("[botFileName:") || content.contains("[botPhotoSize:") ||
-            content.startsWith("📎 ") || content.startsWith("🖼 ")
-        if (!isBotMedia && msg.senderId != bot.id) {
-            return@get call.respond(
-                HttpStatusCode.Forbidden,
-                ErrorResponse("not a bot media envelope (E2EE peer content is not downloadable)")
-            )
-        }
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, msg.chatId, null, "getFile")
-        call.respond(
-        buildJsonObject {
-put("messageId", msg.id)
-put("chatId", msg.chatId)
-put("type", msg.type)
-put("content", content.take(4000))
-put("timestamp", msg.timestamp)
-put("note", "E2EE peer attachments are not exposed; bot plaintext media metadata only")
-        }
-    )
-    }
-
-    get("/api/bot/getMyDescription") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "getMyDescription")
-        call.respond(
-        buildJsonObject {
-put("botId", bot.id)
-put("description", (bot.description ?: ""))
-put("name", bot.name)
-put("username", bot.username)
-        }
-    )
-    }
-
-    post("/api/bot/deleteUpdates") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = parseJsonObjectEnvelopeOrNull(body)
-        val upTo = when (
-            val parsed = parseBotDeleteUpdatesFields(obj, parseRawOrNull(call.request.queryParameters, "upToId"))
-        ) {
-            is BotDeleteUpdatesFieldsResult.Ok -> parsed.fields.upTo
-            BotDeleteUpdatesFieldsResult.Invalid ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("upToId required"))
-        }
-        val n = com.maodouchat.server.repository.BotRepository.deleteUpdates(bot.id, upTo)
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "deleteUpdates")
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("deleted", n)
-put("upToId", upTo)
-        }
-    )
-    }
-
     post("/api/bot/sendVideo") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         if (!com.maodouchat.server.service.RuntimeConfigService.isMediaUploadEnabled()) {
@@ -457,107 +305,6 @@ put("type", "GIF")
     )
     }
 
-    get("/api/bot/getMyName") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "getMyName")
-        call.respond(
-        buildJsonObject {
-put("botId", bot.id)
-put("name", bot.name)
-put("username", bot.username)
-        }
-    )
-    }
-
-    post("/api/bot/setChatPermissions") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val chatId: String
-        val canSend: Boolean
-        val until: Long
-        when (val parsed = parseBotSetChatPermissionsFields(obj)) {
-            is BotSetChatPermissionsFieldsResult.Ok -> {
-                chatId = parsed.fields.chatId
-                canSend = parsed.fields.canSend
-                until = parsed.fields.until
-            }
-            BotSetChatPermissionsFieldsResult.Invalid ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/canSendMessages required"))
-        }
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        // Group default: mute-all via member mute of non-admins is not stored as a single flag.
-        // Approximate Telegram setChatPermissions by muting all non-admin members when canSend=false.
-        val members = conversationParticipantRepo.participantIds(chatId)
-        val muteUntil = if (canSend) 0L else {
-            if (until > System.currentTimeMillis()) until
-            else System.currentTimeMillis() + 24L * 3600_000L
-        }
-        // 8.48 修复 M8：一次事务批量静音非管理员成员（此前逐成员 isOwnerOrAdmin +
-        // 独立事务静音 ≈5 次查询/人，500 人群 ≈2500 次）
-        val nonBotMembers = members.filter { it != bot.id }
-        val bulkMutation = if (nonBotMembers.isEmpty()) {
-            GroupBulkMuteResult(GroupMemberMutationResult.UPDATED)
-        } else {
-            groupModerationRepo.updateMembersMute(
-            chatId = chatId,
-            actorId = bot.id,
-            targetUserIds = nonBotMembers,
-            mutedUntil = muteUntil,
-            requireBotDeliverable = true
-        )
-        }
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "setChatPermissions")
-        if (bulkMutation.result != GroupMemberMutationResult.UPDATED) {
-            return@post call.respond(
-                HttpStatusCode.Forbidden,
-                ErrorResponse("set permissions failed: ${bulkMutation.result}")
-            )
-        }
-        val changed = bulkMutation.updatedCount
-        if (changed > 0) {
-            notifyGroupRevisionChanged(conversationQueryRepo, conversationParticipantRepo, json, chatId, "CHAT_PERMISSIONS", bot.id)
-        }
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("chatId", chatId)
-put("canSendMessages", canSend)
-put("muteUntil", muteUntil)
-put("membersUpdated", changed)
-        }
-    )
-    }
-
-    post("/api/bot/logEvent") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val fields = when (val parsed = parseBotLogEventFields(obj)) {
-            is BotLogEventFieldsResult.Ok -> parsed.fields
-            BotLogEventFieldsResult.InvalidType ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("event, name, chatId and userId must be strings"))
-        }
-        val chatId = fields.chatId
-        val userId = fields.userId
-        val event = fields.event
-        if (chatId != null && !conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        if (userId != null && (chatId == null || !conversationParticipantRepo.isParticipant(chatId, userId))) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("user is not in chat"))
-        }
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, userId, "logEvent:$event")
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("event", event)
-        }
-    )
-    }
-
     post("/api/bot/sendAudio") {
         val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
         if (!com.maodouchat.server.service.RuntimeConfigService.isMediaUploadEnabled()) {
@@ -602,6 +349,37 @@ put("messageId", msgId)
 put("size", size)
 put("duration", duration)
 put("type", "FILE")
+        }
+    )
+    }
+
+    get("/api/bot/getFile") {
+        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
+        val id = parseBotGetFileId(call.request.queryParameters)
+            ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("messageId or fileId required"))
+        val msg = serviceMessageRepo.getById(id)
+            ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("message not found"))
+        if (!conversationParticipantRepo.isParticipant(msg.chatId, bot.id)) {
+            return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
+        }
+        val content = msg.content
+        val isBotMedia = content.contains("[botFileName:") || content.contains("[botPhotoSize:") ||
+            content.startsWith("📎 ") || content.startsWith("🖼 ")
+        if (!isBotMedia && msg.senderId != bot.id) {
+            return@get call.respond(
+                HttpStatusCode.Forbidden,
+                ErrorResponse("not a bot media envelope (E2EE peer content is not downloadable)")
+            )
+        }
+        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, msg.chatId, null, "getFile")
+        call.respond(
+        buildJsonObject {
+put("messageId", msg.id)
+put("chatId", msg.chatId)
+put("type", msg.type)
+put("content", content.take(4000))
+put("timestamp", msg.timestamp)
+put("note", "E2EE peer attachments are not exposed; bot plaintext media metadata only")
         }
     )
     }

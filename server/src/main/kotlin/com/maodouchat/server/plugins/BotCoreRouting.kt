@@ -333,7 +333,31 @@ put("messageId", messageId)
         messagingV2Repository = messagingV2Repository,
     )
 
-    configureBotMediaRoutes(
+    configureBotMediaSendRoutes(
+        userRepo = userRepo,
+        serviceMessageRepo = serviceMessageRepo,
+        groupMembershipService = groupMembershipService,
+        groupModerationRepo = groupModerationRepo,
+        conversationParticipantRepo = conversationParticipantRepo,
+        conversationQueryRepo = conversationQueryRepo,
+        botSendRateLimiter = botSendRateLimiter,
+        json = json,
+        messagingV2Repository = messagingV2Repository,
+    )
+
+    configureBotMediaGroupRoutes(
+        userRepo = userRepo,
+        serviceMessageRepo = serviceMessageRepo,
+        groupMembershipService = groupMembershipService,
+        groupModerationRepo = groupModerationRepo,
+        conversationParticipantRepo = conversationParticipantRepo,
+        conversationQueryRepo = conversationQueryRepo,
+        botSendRateLimiter = botSendRateLimiter,
+        json = json,
+        messagingV2Repository = messagingV2Repository,
+    )
+
+    configureBotMediaProfileRoutes(
         userRepo = userRepo,
         serviceMessageRepo = serviceMessageRepo,
         groupMembershipService = groupMembershipService,
