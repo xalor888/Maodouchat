@@ -23,7 +23,7 @@ import com.kyant.shapes.Capsule
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RowScope.LiquidBottomTab(
+internal fun RowScope.LiquidBottomTab(
     selected: Boolean,
     contentColor: Color,
     onClick: () -> Unit,
