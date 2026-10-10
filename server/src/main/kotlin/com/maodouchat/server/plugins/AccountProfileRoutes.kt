@@ -1,0 +1,242 @@
+package com.maodouchat.server.plugins
+
+import com.maodouchat.server.model.*
+import com.maodouchat.server.repository.*
+import com.maodouchat.server.config.ServerConfig
+import com.maodouchat.server.service.BlobStore
+import com.maodouchat.server.service.CacheService
+import io.ktor.http.*
+import io.ktor.server.application.call
+import io.ktor.server.auth.*
+import io.ktor.server.response.respond
+import io.ktor.server.routing.*
+import kotlinx.serialization.json.*
+
+/** 账号资料：me/他人资料/头像/用户名/改密/注销。 */
+internal fun Route.configureAccountProfileRoutes(
+    userRepo: UserRepository,
+    postRepo: PostRepository,
+    sessionService: com.maodouchat.server.service.SessionService,
+    cacheService: CacheService,
+    groupMediaReferenceRepo: GroupMediaReferenceRepository,
+    encryptedAttachmentRepo: EncryptedAttachmentRepository,
+    conversationParticipantRepo: ConversationParticipantRepository,
+    conversationQueryRepo: ConversationQueryRepository,
+    userSearchRateLimiter: BoundedRateLimiter,
+    avatarRateLimiter: BoundedRateLimiter,
+    json: Json,
+) {
+    authenticate("auth-jwt") {
+
+        get("/api/users/me") {
+            val userId = call.requireUserId()
+            val user = userRepo.getById(userId)
+            if (user != null) call.respond(user)
+            else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+        }
+
+        get("/api/users/{id}") {
+            val viewerId = call.optionalUserId()
+            val id = call.requirePathParamOr400("id", "缺少用户 ID") ?: return@get
+            val user = userRepo.getPublicById(id, viewerId = viewerId)
+            if (user != null) {
+                call.respond(
+                    user.copy(isOnline = user.isOnline && userRepo.shouldShowOnlineTo(user.id, viewerId))
+                )
+            } else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+        }
+
+        post("/api/users/avatar") {
+            val userId = call.requireUserId()
+            // 8.33 修复：封禁用户不得更换头像/资料（与 profile 修改一致）
+            if (call.rejectIfSuspended(userRepo, userId)) return@post
+            if (!avatarRateLimiter.acquire(userId, maxPerMinute = 10)) {
+                call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("头像操作过于频繁，请稍后再试"))
+                return@post
+            }
+            val req = call.receiveJson<UploadAvatarRequest>(MAX_UPLOAD_JSON_BODY_CHARS)
+            if (req == null) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@post }
+            val avatarUrl = try {
+                com.maodouchat.server.service.FileStorageService.saveAvatar(req.base64Data, userId)
+            } catch (e: IllegalArgumentException) {
+                // 不把内部校验明细回传给客户端，仅服务端日志保留上下文
+                call.application.log.warn("Avatar upload rejected for user {}: {}", userId, e.message)
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("头像数据无效"))
+                return@post
+            }
+            val replacement = try {
+                userRepo.replaceAvatar(userId, avatarUrl)
+            } catch (error: Throwable) {
+                com.maodouchat.server.service.FileStorageService.deleteAvatarUrl(avatarUrl, userId)
+                throw error
+            }
+            if (replacement == null) {
+                com.maodouchat.server.service.FileStorageService.deleteAvatarUrl(avatarUrl, userId)
+                call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+                return@post
+            }
+            if (replacement.previousUrl != replacement.currentUrl) {
+                com.maodouchat.server.service.FileStorageService.deleteAvatarUrl(replacement.previousUrl, userId)
+            }
+            call.respond(
+            buildJsonObject {
+put("status", "ok")
+put("avatarUrl", avatarUrl)
+            }
+        )
+        }
+
+        delete("/api/users/avatar") {
+            val userId = call.requireUserId()
+            val replacement = userRepo.replaceAvatar(userId, null)
+            if (replacement == null) {
+                call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+                return@delete
+            }
+            com.maodouchat.server.service.FileStorageService.deleteAvatarUrl(replacement.previousUrl, userId)
+            call.respondOk()
+        }
+
+        put("/api/users/profile") {
+            val userId = call.optionalUserId()
+            if (userId == null) { call.respond(HttpStatusCode.Unauthorized, ErrorResponse("未认证")); return@put }
+            // 8.33 修复：封禁用户不得修改资料（此前仅部分写路径有检查）
+            if (call.rejectIfSuspended(userRepo, userId)) return@put
+            val req = call.receiveJson<UpdateProfileRequest>()
+            if (req == null) { call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效")); return@put }
+            val before = userRepo.getById(userId)
+            userRepo.updateProfile(userId, name = req.name, status = req.status)
+            val updated = userRepo.getById(userId)
+            // 0.93：资料变更失效公开主页缓存
+            before?.username?.let { cacheService.invalidateUserProfile("user_profile:$it") }
+            if (updated != null) call.respond(updated)
+            else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+        }
+
+        put("/api/users/me/username") {
+            val userId = call.optionalUserId()
+            if (userId == null) { call.respond(HttpStatusCode.Unauthorized, ErrorResponse("未认证")); return@put }
+            // 8.38：封禁用户不得改用户名（与头像/资料/附近位置一致）；且设置带限流防占用枚举
+            if (call.rejectIfSuspended(userRepo, userId)) return@put
+            if (!userSearchRateLimiter.acquire("username:$userId", maxPerMinute = 10)) {
+                call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作过于频繁，请稍后再试"))
+                return@put
+            }
+            val obj = call.receiveBoundedText()?.let(::parseJsonObjectEnvelopeOrNull)
+                ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
+            val username = parseAccountUsername(obj)
+            // 8.40：格式非法 400、已占用 409 分离（此前一律 409，客户端无法区分参数错误与冲突）
+            if (username.length !in 3..50 || !username.all { it.isLetterOrDigit() || it == '_' || it == '-' }) {
+                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("用户名格式无效（3-50 位字母/数字/_/-）"))
+            }
+            val result = userRepo.setUsername(userId, username)
+            if (result != null) {
+                // 0.93：用户名变更失效旧/新公开主页缓存
+                cacheService.invalidateUserProfile("user_profile:$username")
+                call.respond(
+            buildJsonObject {
+put("ok", true)
+put("username", result)
+            }
+        )
+            } else {
+                call.respond(HttpStatusCode.Conflict, ErrorResponse("用户名不可用（已占用或格式无效）"))
+            }
+        }
+
+        delete("/api/users/me/username") {
+            val userId = call.optionalUserId()
+            if (userId == null) { call.respond(HttpStatusCode.Unauthorized, ErrorResponse("未认证")); return@delete }
+            if (call.rejectIfSuspended(userRepo, userId)) return@delete
+            userRepo.clearUsername(userId)
+            call.respond(
+            buildJsonObject {
+put("ok", true)
+            }
+        )
+        }
+
+        get("/api/users/me/public") {
+            val userId = call.requireUserId()
+            val user = userRepo.getPublicMe(userId)
+            if (user != null) {
+                val publicProfileUrl = user.username?.let { "${ServerConfig.baseUrl.trimEnd('/')}/u/${it}" }
+                call.respond(
+            buildJsonObject {
+putJsonElement("user", user)
+put("publicProfileUrl", publicProfileUrl)
+            }
+        )
+            } else call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
+        }
+
+        post("/api/users/change-password") {
+            val userId = call.requireUserId()
+            val req = call.receiveJsonOr400<ChangePasswordRequest>() ?: return@post
+            if (req.oldPassword.isBlank() || !isValidPassword(req.newPassword)) {
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("新密码至少 6 位"))
+                return@post
+            }
+            val ok = userRepo.changePassword(userId, req.oldPassword, req.newPassword)
+            if (ok) {
+                sessionService.revokeAllUserSessions(userId)
+                // 与 logout-all 一致：旧设备会话已废，推送 token 必须清掉，否则仍收消息/来电推送
+                disconnectUserSessions(userId, "密码已修改，请重新登录")
+                call.respondOk()
+            } else {
+                // 403：勿用 401 — 客户端 executeWithRefresh 会把带 Authorization 的 401 当会话过期并清库
+                call.respond(HttpStatusCode.Forbidden, ErrorResponse("原密码错误", code = "WRONG_PASSWORD"))
+            }
+        }
+
+        delete("/api/users/me") {
+            val userId = call.requireUserId()
+            val groupAvatarCandidates = groupMediaReferenceRepo.avatarUrlsForParticipant(userId)
+            // 8.33 修复：删号会 bump memberRevision（含群主转让），但此前无广播，剩余成员残留成员列表
+            val groupSnapshots = conversationParticipantRepo.groupMembershipSnapshotForDeletion(userId)
+            val req = call.receiveJsonOr400<DeleteAccountRequest>() ?: return@delete
+            if (req.password.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("请输入当前密码"))
+                return@delete
+            }
+            val deactivation = userRepo.deleteAccount(userId, req.password)
+            if (deactivation == null) {
+                // 403：凭证错误，非 access token 失效
+                call.respond(HttpStatusCode.Forbidden, ErrorResponse("密码错误或账号已注销", code = "WRONG_PASSWORD"))
+            } else {
+                // 空会话级联删除的附件行已不在 DB；先清磁盘，再清仍挂在其他会话上的本人上传
+                deactivation.orphanedAttachmentIds.forEach(BlobStore::delete)
+                encryptedAttachmentRepo.deleteForUploader(userId).forEach(BlobStore::delete)
+                postRepo.deleteAllPostsForAuthor(userId)
+                com.maodouchat.server.service.FileStorageService.deletePostImagesForUser(userId)
+                groupAvatarCandidates
+                    .filterNot(groupMediaReferenceRepo::isAvatarUrlReferenced)
+                    .forEach { url ->
+                        com.maodouchat.server.service.FileStorageService.deleteGroupAvatarUrl(url)
+                    }
+                com.maodouchat.server.service.FileStorageService.deleteAvatarUrl(deactivation.avatarUrl, userId)
+                // 与 logout-all / 改密码一致：吊销已签发的 access token（版本号）并清推送 token，
+                // 否则注销后旧 JWT 在 TTL 内仍可调用 API；推送 token 不清则已注销设备仍收消息/来电。
+                sessionService.revokeAllUserSessions(userId)
+                disconnectUserSessions(userId, "账号已注销")
+                // 8.33：注销后向各群剩余成员广播成员变更（含自动群主转让），客户端即时刷新成员列表
+                groupSnapshots.forEach { (chatId, recipients) ->
+                    val remaining = recipients.filter { it != userId }
+                    if (remaining.isNotEmpty()) {
+                        notifyGroupRevisionChanged(
+                            queryRepository = conversationQueryRepo,
+                            participantRepository = conversationParticipantRepo,
+                            json = json,
+                            chatId = chatId,
+                            reason = "MEMBER_REMOVED",
+                            actorId = userId,
+                            targetUserId = userId,
+                            recipientIds = remaining
+                        )
+                    }
+                }
+                call.respond(DeleteAccountResponse(deletedAt = deactivation.deletedAt))
+            }
+        }
+    }
+}
