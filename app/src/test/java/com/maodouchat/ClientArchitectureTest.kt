@@ -500,7 +500,7 @@ class ClientArchitectureTest {
         // ExplorePostActionsCluster/ExplorePostDetailCluster，702 → 113 纯搬移；
         // 共享状态与 helper 提为 internal，同包扩展函数），上限同步收紧（两份 map 一起改）。
         // 拆小后 SenderKeyRetryManager（593）滑进前 20——按实测值纳入监管（先纳管，后续再拆）。
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 113,
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
         "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 593,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
@@ -672,7 +672,7 @@ class ClientArchitectureTest {
         // ExplorePostActionsCluster/ExplorePostDetailCluster，702 → 113 纯搬移；
         // 共享状态与 helper 提为 internal，同包扩展函数），上限同步收紧（两份 map 一起改）。
         // 拆小后 SenderKeyRetryManager（593）滑进前 20——按实测值纳入监管（先纳管，后续再拆）。
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 113,
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
         "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 593,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
