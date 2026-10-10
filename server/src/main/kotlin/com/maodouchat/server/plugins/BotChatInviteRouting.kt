@@ -1,16 +1,9 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.db.*
-import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.GroupInvitationService
-import com.maodouchat.server.service.BlobStore
-import io.ktor.http.*
-import io.ktor.server.application.call
-import io.ktor.server.request.*
-import io.ktor.server.response.respond
-import io.ktor.server.routing.*
-import kotlinx.serialization.json.*
+import io.ktor.server.routing.Route
+import kotlinx.serialization.json.Json
 
 /** Bot 邀请链接/群头像/取消置顶（自 BotCoreRouting.kt 拆分，B12）。 */
 internal fun Route.configureBotChatInviteRoutes(
@@ -25,62 +18,14 @@ internal fun Route.configureBotChatInviteRoutes(
     json: Json,
     messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
 ) {
-
-    post("/api/bot/unpinAllChatMessages") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        if (!com.maodouchat.server.repository.BotRepository.isBotDeliverable(bot.id)) {
-            return@post call.respondBotUnavailable()
-        }
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val fields = when (val parsed = parseBotUnpinAllChatMessagesFields(obj)) {
-            is BotUnpinAllChatMessagesFieldsResult.Ok -> parsed.fields
-            BotUnpinAllChatMessagesFieldsResult.MissingRequired ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-        }
-        val chatId = fields.chatId
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        val chat = conversationQueryRepo.getById(chatId)
-            ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
-        val actorIsManager = if (chat.isGroup) conversationParticipantRepo.isOwnerOrAdmin(chatId, bot.id) else true
-        val outcome = pinnedMessageRepo.clearAll(
-            chatId = chatId,
-            actorId = bot.id,
-            actorIsManager = actorIsManager,
-            requireBotDeliverable = true
-        )
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "unpinAllChatMessages")
-        if (outcome.result == com.maodouchat.server.repository.PinnedMessageRepository.PinResult.FORBIDDEN) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        }
-        if (outcome.result == com.maodouchat.server.repository.PinnedMessageRepository.PinResult.NOT_FOUND) {
-            return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
-        }
-        val payload = PinnedMessagesUpdatedPayload(chatId, bot.id, outcome.pins)
-        val pinJson = json.encodeToString(
-            WsMessage.serializer(),
-            WsMessage(
-                "PINNED_MESSAGES_UPDATED",
-                json.encodeToString(PinnedMessagesUpdatedPayload.serializer(), payload)
-            )
-        )
-        val fanoutPids = conversationParticipantRepo.participantIds(chatId)
-        val botBlockedIds = try { userRepo.blockedEitherWayIdsInTx(bot.id, fanoutPids) } catch (_: Exception) { emptySet() }
-        fanoutPids.forEach { pid ->
-            if (pid in botBlockedIds) return@forEach
-            LocalRealtimeBus.publish(pid, pinJson)
-        }
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("chatId", chatId)
-putJsonElement("pins", outcome.pins)
-put("count", 0)
-        }
+    configureBotChatPinRoutes(
+        userRepo = userRepo,
+        pinnedMessageRepo = pinnedMessageRepo,
+        conversationParticipantRepo = conversationParticipantRepo,
+        conversationQueryRepo = conversationQueryRepo,
+        botSendRateLimiter = botSendRateLimiter,
+        json = json,
     )
-    }
 
     configureBotPollRoutes(
         userRepo = userRepo,
@@ -91,170 +36,19 @@ put("count", 0)
         messagingV2Repository = messagingV2Repository,
     )
 
-    post("/api/bot/exportChatInviteLink") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        if (!com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled()) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
-        }
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val fields = when (val parsed = parseBotExportChatInviteLinkFields(obj)) {
-            is BotExportChatInviteLinkFieldsResult.Ok -> parsed.fields
-            BotExportChatInviteLinkFieldsResult.MissingRequired ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-        }
-        val chatId = fields.chatId
-        val rotate = fields.rotate
-        val expiresIn = fields.expiresInSeconds
-        val maxUses = fields.maxUses
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        // 8.63：广播频道不开放邀请加入——与 App 侧 invite-token 路由一致拦截（此前 Bot 可给频道生成邀请）
-        if (conversationParticipantRepo.chatType(chatId) == ChatType.CHANNEL) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("频道不支持邀请加入"))
-        }
-        val expiresAt = System.currentTimeMillis() + expiresIn * 1000L
-        val mutation = groupInvitationService.configureToken(
-            chatId = chatId,
-            actorId = bot.id,
-            rotate = rotate,
-            expiresAt = expiresAt,
-            maxUses = maxUses,
-            requireBotDeliverable = true
-        )
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "exportChatInviteLink")
-        if (mutation.result != com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("invite failed: ${mutation.result}"))
-        }
-        val inv = mutation.invite
-            ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invite missing"))
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("chatId", chatId)
-put("inviteLink", "maodouchat:chat-invite:v1:${inv.token}")
-put("token", inv.token)
-put("expiresAt", inv.expiresAt)
-put("maxUses", inv.maxUses)
-put("usedCount", inv.usedCount)
-        }
+    configureBotChatInviteLinkRoutes(
+        groupInvitationService = groupInvitationService,
+        conversationParticipantRepo = conversationParticipantRepo,
+        conversationQueryRepo = conversationQueryRepo,
+        botSendRateLimiter = botSendRateLimiter,
+        json = json,
     )
-    }
 
-    post("/api/bot/setChatPhoto") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val fields = when (val parsed = parseBotSetChatPhotoFields(obj)) {
-            is BotSetChatPhotoFieldsResult.Ok -> parsed.fields
-            BotSetChatPhotoFieldsResult.MissingRequired ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId/photoBase64 required"))
-        }
-        val chatId = fields.chatId
-        val base64 = fields.base64
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        val avatarUrl = try {
-            com.maodouchat.server.service.FileStorageService.saveGroupAvatar(base64, chatId)
-        } catch (error: IllegalArgumentException) {
-            return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse(error.message ?: "invalid photo"))
-        }
-        var committed = false
-        try {
-            val mutation = groupProfileRepo.updateAvatar(
-                chatId = chatId,
-                actorId = bot.id,
-                avatarUrl = avatarUrl,
-                requireBotDeliverable = true
-            )
-            com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "setChatPhoto")
-            if (mutation.result != com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED) {
-                return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("set photo failed: ${mutation.result}"))
-            }
-            committed = true
-            com.maodouchat.server.service.FileStorageService.deleteGroupAvatarUrl(mutation.previousAvatarUrl, chatId)
-            notifyGroupRevisionChanged(conversationQueryRepo, conversationParticipantRepo, json, chatId, "AVATAR_UPDATED", bot.id)
-            call.respond(
-        buildJsonObject {
-put("ok", true)
-put("chatId", chatId)
-put("avatarUrl", avatarUrl)
-        }
+    configureBotChatAvatarRoutes(
+        groupProfileRepo = groupProfileRepo,
+        conversationParticipantRepo = conversationParticipantRepo,
+        conversationQueryRepo = conversationQueryRepo,
+        botSendRateLimiter = botSendRateLimiter,
+        json = json,
     )
-        } finally {
-            if (!committed) {
-                com.maodouchat.server.service.FileStorageService.deleteGroupAvatarUrl(avatarUrl, chatId)
-            }
-        }
-    }
-
-
-    post("/api/bot/revokeChatInviteLink") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        if (!com.maodouchat.server.service.RuntimeConfigService.isGroupInvitesEnabled()) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("group_invites_disabled"))
-        }
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val fields = when (val parsed = parseBotRevokeChatInviteLinkFields(obj)) {
-            is BotRevokeChatInviteLinkFieldsResult.Ok -> parsed.fields
-            BotRevokeChatInviteLinkFieldsResult.MissingRequired ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-        }
-        val chatId = fields.chatId
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        val mutation = groupInvitationService.revokeToken(
-            chatId = chatId,
-            actorId = bot.id,
-            requireBotDeliverable = true
-        )
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "revokeChatInviteLink")
-        if (mutation != com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("revoke failed: $mutation"))
-        }
-        notifyGroupRevisionChanged(conversationQueryRepo, conversationParticipantRepo, json, chatId, "INVITE_REVOKED", bot.id)
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("chatId", chatId)
-put("revoked", true)
-        }
-    )
-    }
-
-    post("/api/bot/deleteChatPhoto") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val chatId = when (val parsed = parseBotDeleteChatPhotoFields(obj)) {
-            is BotDeleteChatPhotoFieldsResult.Ok -> parsed.fields.chatId
-            BotDeleteChatPhotoFieldsResult.MissingRequired ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatId required"))
-        }
-        if (!conversationParticipantRepo.isParticipant(chatId, bot.id)) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot not in chat"))
-        }
-        val mutation = groupProfileRepo.clearAvatar(
-            chatId = chatId,
-            actorId = bot.id,
-            requireBotDeliverable = true
-        )
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "deleteChatPhoto")
-        if (mutation.result != com.maodouchat.server.repository.GroupMemberMutationResult.UPDATED) {
-            return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("delete photo failed: ${mutation.result}"))
-        }
-        com.maodouchat.server.service.FileStorageService.deleteGroupAvatarUrl(mutation.previousAvatarUrl, chatId)
-        notifyGroupRevisionChanged(conversationQueryRepo, conversationParticipantRepo, json, chatId, "AVATAR_CLEARED", bot.id)
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-put("chatId", chatId)
-put("cleared", true)
-        }
-    )
-    }
 }
