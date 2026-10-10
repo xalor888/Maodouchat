@@ -1,5 +1,6 @@
 package com.maodouchat.contacts
 
+import com.maodouchat.navigation.sanitizeChatInviteToken
 import java.nio.charset.StandardCharsets
 
 /**
