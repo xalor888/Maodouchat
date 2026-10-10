@@ -7,9 +7,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -30,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.maodouchat.ui.theme.LocalMotionSettings
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.screen.chatlist.BottomNavBar
