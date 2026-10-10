@@ -34,30 +34,49 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-/**
- * V2 消息路由的 JSON 编解码器。`ignoreUnknownKeys = true` 是刻意的向前兼容选择：
- * 新版客户端在请求体里加字段时，旧版服务端不得 400。
- * 保持 `internal` 可见性，供 MessagingV2ForwardCompatTest 直接引用同一份配置做兼容性断言。
- */
-internal val messagingV2Json = Json { ignoreUnknownKeys = true }
-internal val messageIdV2 = Regex("^[A-Za-z0-9._:-]{1,100}$")
-internal val conversationIdV2 = Regex("^[A-Za-z0-9._:-]{1,50}$")
-internal val ciphertextTypeV2 = Regex("^[A-Z0-9_-]{1,32}$")
-internal val messageKindsV2 = setOf("DATA", "EVENT", "RECEIPT", "SENDER_KEY", "KEY_REQUEST")
+/** V2 快照簇：GET /conversations/{conversationId}/snapshot。 */
+internal fun Route.configureMessagingV2SnapshotRoutes(
+    repository: MessagingV2Repository,
+) {
 
-/** V2 消息路由门面：保留原签名，按域委托给簇。 */
-fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
-    val messageRateLimiter = BoundedRateLimiter()
-    routing {
-        authenticate("auth-jwt") {
-            route("/api/v2") {
-                configureMessagingV2SnapshotRoutes(repository)
-                configureMessagingV2SendRoutes(
-                    repository = repository,
-                    messageRateLimiter = messageRateLimiter,
-                )
-                configureMessagingV2InboxRoutes(repository)
-            }
+    get("/conversations/{conversationId}/snapshot") {
+        val binding = call.deviceSessionBinding(repository)
+        if (binding == null) {
+            call.respond(
+                HttpStatusCode.Conflict,
+                ErrorResponse("当前登录会话尚未绑定已确认设备", "DEVICE_NOT_READY"),
+            )
+            return@get
         }
+        val conversationId = call.parameters["conversationId"]
+        if (conversationId == null || !conversationIdV2.matches(conversationId)) {
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse("会话 ID 无效", "INVALID_CONVERSATION_ID"),
+            )
+            return@get
+        }
+        val snapshot = try {
+            repository.conversationSnapshot(conversationId, binding.userId, binding.deviceId)
+        } catch (error: MessagingV2ConversationNotFoundException) {
+            call.respond(
+                HttpStatusCode.NotFound,
+                ErrorResponse("会话不存在", "CONVERSATION_NOT_FOUND"),
+            )
+            return@get
+        } catch (error: MessagingV2NotParticipantException) {
+            call.respond(
+                HttpStatusCode.Forbidden,
+                ErrorResponse("无权访问该会话", "NOT_PARTICIPANT"),
+            )
+            return@get
+        } catch (error: MessagingV2BlockedConversationException) {
+            call.respond(
+                HttpStatusCode.Forbidden,
+                ErrorResponse("存在屏蔽关系，无法访问该会话设备", "CONVERSATION_BLOCKED"),
+            )
+            return@get
+        }
+        call.respond(snapshot)
     }
 }

@@ -34,30 +34,45 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-/**
- * V2 消息路由的 JSON 编解码器。`ignoreUnknownKeys = true` 是刻意的向前兼容选择：
- * 新版客户端在请求体里加字段时，旧版服务端不得 400。
- * 保持 `internal` 可见性，供 MessagingV2ForwardCompatTest 直接引用同一份配置做兼容性断言。
- */
-internal val messagingV2Json = Json { ignoreUnknownKeys = true }
-internal val messageIdV2 = Regex("^[A-Za-z0-9._:-]{1,100}$")
-internal val conversationIdV2 = Regex("^[A-Za-z0-9._:-]{1,50}$")
-internal val ciphertextTypeV2 = Regex("^[A-Z0-9_-]{1,32}$")
-internal val messageKindsV2 = setOf("DATA", "EVENT", "RECEIPT", "SENDER_KEY", "KEY_REQUEST")
+/** V2 收件箱簇：GET /inbox、POST /inbox/ack。 */
+internal fun Route.configureMessagingV2InboxRoutes(
+    repository: MessagingV2Repository,
+) {
 
-/** V2 消息路由门面：保留原签名，按域委托给簇。 */
-fun Application.configureMessagingV2Routing(repository: MessagingV2Repository) {
-    val messageRateLimiter = BoundedRateLimiter()
-    routing {
-        authenticate("auth-jwt") {
-            route("/api/v2") {
-                configureMessagingV2SnapshotRoutes(repository)
-                configureMessagingV2SendRoutes(
-                    repository = repository,
-                    messageRateLimiter = messageRateLimiter,
-                )
-                configureMessagingV2InboxRoutes(repository)
-            }
+    get("/inbox") {
+        val binding = call.deviceSessionBinding(repository)
+        if (binding == null) {
+            call.respond(
+                HttpStatusCode.Conflict,
+                ErrorResponse("当前登录会话尚未绑定已确认设备", "DEVICE_NOT_READY"),
+            )
+            return@get
         }
+        val limit = parseAdminListLimit(call.request.queryParameters, defaultLimit = 100, maxLimit = 500)
+        call.respond(repository.pending(binding.userId, binding.deviceId, limit))
+    }
+
+    post("/inbox/ack") {
+        val binding = call.deviceSessionBinding(repository)
+        if (binding == null) {
+            call.respond(
+                HttpStatusCode.Conflict,
+                ErrorResponse("当前登录会话尚未绑定已确认设备", "DEVICE_NOT_READY"),
+            )
+            return@post
+        }
+        val request = runCatching {
+            val ackBody = call.receiveBoundedText(maxChars = 64_000) ?: return@runCatching null
+            messagingV2Json.decodeFromString<AcknowledgeEnvelopesV2Request>(ackBody)
+        }.getOrNull()
+        if (
+            request == null || request.envelopeIds.size !in 1..500 ||
+            request.envelopeIds.any { !messageIdV2.matches(it) }
+        ) {
+            call.respond(HttpStatusCode.BadRequest, ErrorResponse("ACK 参数无效", "INVALID_ACK"))
+            return@post
+        }
+        val acknowledged = repository.acknowledge(binding.userId, binding.deviceId, request.envelopeIds.toSet())
+        call.respond(AcknowledgeEnvelopesV2Response(acknowledged))
     }
 }
