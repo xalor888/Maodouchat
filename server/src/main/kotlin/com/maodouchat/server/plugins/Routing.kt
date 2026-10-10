@@ -362,19 +362,29 @@ fun Application.configureRouting(
             chatFolderRepository = chatFolderRepo,
             clientPrefsRepository = clientPrefsRepo,
         )
-        configureGroupAdministrationRoutes(
+        configureGroupAdminMemberRoutes(
             userRepo = userRepo,
             membershipService = groupMembershipService,
             profileRepository = groupProfileRepo,
             moderationRepository = groupModerationRepo,
+            queryRepository = conversationQueryRepo,
+            participantRepository = conversationParticipantRepo,
+            json = json,
+        )
+        configureGroupAdminProfileRoutes(
+            userRepo = userRepo,
+            profileRepository = groupProfileRepo,
             invitationService = groupInvitationService,
             queryRepository = conversationQueryRepo,
+            participantRepository = conversationParticipantRepo,
+            avatarRateLimiter = avatarRateLimiter,
+            json = json,
+        )
+        configureGroupAdminAuditRoutes(
             participantRepository = conversationParticipantRepo,
             auditRepository = groupAuditRepo,
             signalKeyRepository = signalKeyRepo,
             senderKeyRepository = senderKeyDistributionRepo,
-            avatarRateLimiter = avatarRateLimiter,
-            json = json,
         )
         configureSignalKeyRoutes(
             signalKeyRepository = signalKeyRepo,
@@ -449,7 +459,14 @@ fun Application.configureRouting(
         // ─── 官网静态页面（无需认证） ─────────────
 
         configurePublicSiteRoutes()
-configureEncryptedAttachmentRoutes(
+configureEncryptedAttachmentUploadSessionRoutes(
+            userRepo = userRepo,
+            encryptedAttachmentRepo = encryptedAttachmentRepo,
+            conversationParticipantRepo = conversationParticipantRepo,
+            conversationQueryRepo = conversationQueryRepo,
+            rateLimiter = aiRateLimiter,
+        )
+        configureEncryptedAttachmentDownloadRoutes(
             userRepo = userRepo,
             encryptedAttachmentRepo = encryptedAttachmentRepo,
             conversationParticipantRepo = conversationParticipantRepo,
