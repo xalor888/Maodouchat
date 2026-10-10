@@ -9,17 +9,7 @@ import io.ktor.server.request.path
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
-import java.security.MessageDigest
 
-// MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
-private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
-
-/**
- * Ktor plugin that adds Cache-Control headers, ETag generation,
- * and conditional request (304 Not Modified) handling.
- *
- * Configurable TTL per route prefix with auto-matching.
- */
 val CachingPlugin = createApplicationPlugin(name = "MaodouchatCaching") {
     val routeTtls = mutableMapOf<String, Long>()
 
@@ -135,9 +125,6 @@ fun Route.cacheApiResponse(maxAgeSeconds: Int = 30) {
     }
 }
 
-/**
- * Compute ETag (SHA-256 truncated to 16 hex chars).
- */
 fun computeETag(content: ByteArray): String {
     val digest = sha256ThreadLocal.get().apply { reset() }.digest(content)
     return digest.take(16).joinToString("") { "%02x".format(it) }
