@@ -71,7 +71,8 @@ fun Application.configureAdminEnhanceRouting(
 ) {
     configureUserTagRoutes(userTagRepo)
 
-    configureAnnouncementRoutes(announcementRepo, userTagRepo, fcmPushService, pushTokenRepo)
+    configureAnnouncementClientRoutes(announcementRepo, userTagRepo)
+    configureAnnouncementAdminRoutes(announcementRepo, userTagRepo, fcmPushService, pushTokenRepo)
 
     routing {
 
