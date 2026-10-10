@@ -146,8 +146,11 @@ class RouteRegistrySplitTest {
             "AdminDiagnosticsRouting.kt",
             "AdminUsersRouting.kt",
             "AdminSystemRouting.kt",
-            "AdminExportsRouting.kt",
-            "AdminBulkRouting.kt",
+            "AdminExportsContentRoutes.kt",
+            "AdminExportsOpsRoutes.kt",
+            "AdminExportsUserRoutes.kt",
+            "AdminBulkChatRoutes.kt",
+            "AdminBulkUserRoutes.kt",
         )
         val BOT_ROUTE_MODULES = listOf(
             "BotCoreRouting.kt",
