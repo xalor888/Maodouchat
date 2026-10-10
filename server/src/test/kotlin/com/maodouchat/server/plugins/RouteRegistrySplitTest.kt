@@ -255,12 +255,16 @@ class RouteRegistrySplitTest {
             "BotMessagingMemberRoutes.kt",
             "BotMessagingCommandRoutes.kt",
             "BotPollEditRouting.kt",
+            "BotPollEditInfoRoutes.kt",
+            "BotPollEditOpsRoutes.kt",
             "BotReactionRouting.kt",
             "BotCommandStatsRoutes.kt",
             "BotMessageFormatRoutes.kt",
             "BotReactionCoreRoutes.kt",
             "BotChatMiscRouting.kt",
             "BotPollQuizRouting.kt",
+            "BotPollQuizInfoRoutes.kt",
+            "BotPollQuizSendRoutes.kt",
         )
     }
 }
