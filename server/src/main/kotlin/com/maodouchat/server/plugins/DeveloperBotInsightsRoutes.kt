@@ -154,6 +154,7 @@ private fun buildTestPayload(botId: String, botUsername: String): String {
             "date": ${System.currentTimeMillis()}
         }
     }"""
+}
 
 /** HMAC-SHA256 hex digest, matching BotWebhookService signing. */
 // Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
