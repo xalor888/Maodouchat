@@ -8,6 +8,7 @@ import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 enum class GlobalSearchMode { KEYWORD, AI }
@@ -131,7 +132,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
         _uiState.update { it.copy(recentSearches = emptyList()) }
     }
 
-    private fun recordRecentSearch(query: String) {
+    internal fun recordRecentSearch(query: String) {
         val trimmed = query.trim().take(100)
         if (trimmed.isBlank()) return
         val updated = RecentSearches.push(getApplication(), trimmed)
