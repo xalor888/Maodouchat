@@ -1,5 +1,6 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.repository.*
 import io.ktor.server.routing.Route
 
 /** 附件直传 / 下载（含 Range）/ 删除。 */
