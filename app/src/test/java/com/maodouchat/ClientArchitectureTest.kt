@@ -496,7 +496,12 @@ class ClientArchitectureTest {
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
         // 评论框字段三助手）抽出同包 ExploreCommentController（1010 → 702，纯搬移；
         // Orchestrator 留同签名委托），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 702,
+        // 2026-10-10：按主题拆出 4 个簇文件（ExploreFeedCluster/ExploreComposerCluster/
+        // ExplorePostActionsCluster/ExplorePostDetailCluster，702 → 113 纯搬移；
+        // 共享状态与 helper 提为 internal，同包扩展函数），上限同步收紧（两份 map 一起改）。
+        // 拆小后 SenderKeyRetryManager（593）滑进前 20——按实测值纳入监管（先纳管，后续再拆）。
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
+        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 593,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
@@ -663,7 +668,12 @@ class ClientArchitectureTest {
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
         // 评论框字段三助手）抽出同包 ExploreCommentController（1010 → 702，纯搬移；
         // Orchestrator 留同签名委托），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 702,
+        // 2026-10-10：按主题拆出 4 个簇文件（ExploreFeedCluster/ExploreComposerCluster/
+        // ExplorePostActionsCluster/ExplorePostDetailCluster，702 → 113 纯搬移；
+        // 共享状态与 helper 提为 internal，同包扩展函数），上限同步收紧（两份 map 一起改）。
+        // 拆小后 SenderKeyRetryManager（593）滑进前 20——按实测值纳入监管（先纳管，后续再拆）。
+        "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
+        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 593,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
