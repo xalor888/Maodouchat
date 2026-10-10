@@ -5,13 +5,11 @@ import com.maodouchat.server.model.DeviceInfoResponse
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateDeviceNameRequest
 import com.maodouchat.server.model.UploadKeysRequest
-import com.maodouchat.server.repository.ConversationQueryRepository
-import com.maodouchat.server.repository.SignalKeyRepository
-import com.maodouchat.server.repository.PreKeyUpload
 import com.maodouchat.server.repository.ConfirmDeviceResult
+import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.DeleteDeviceResult
-import com.maodouchat.server.service.RuntimeConfigService
-import com.maodouchat.server.service.SealedSenderCertificateService
+import com.maodouchat.server.repository.PreKeyUpload
+import com.maodouchat.server.repository.SignalKeyRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
@@ -21,14 +19,9 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 
-/** Authenticated Signal device-key lifecycle and sealed-sender certificate adapter. */
-internal fun Route.configureSignalKeyRoutes(
+/** Signal 设备密钥生命周期：密钥包上传、预密钥拉取、设备管理。 */
+internal fun Route.configureSignalKeyMaterialRoutes(
     signalKeyRepository: SignalKeyRepository,
     conversationQueryRepository: ConversationQueryRepository,
     preKeyFetchLimiter: BoundedRateLimiter,
@@ -253,40 +246,6 @@ internal fun Route.configureSignalKeyRoutes(
             }
             call.respond(bundles.map { it.toDevicePreKeyBundleResponse() })
         }
-
-        get("/api/e2ee/sealed-sender/certificate") {
-            val userId = call.requireUserId()
-            if (!RuntimeConfigService.isSealedSenderEnabled()) {
-                call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("sealed sender disabled"))
-                return@get
-            }
-            val deviceId = parseIntOrDefault(call.request.queryParameters, "deviceId", 1)
-            val issued = SealedSenderCertificateService.issue(userId, deviceId) ?: run {
-                call.respond(HttpStatusCode.InternalServerError, ErrorResponse("failed to issue certificate"))
-                return@get
-            }
-            call.respond(buildJsonObject {
-                put("certificate", issued.certificate)
-                put("expiresAt", issued.expiresAt)
-                put("deviceId", issued.deviceId)
-                put("userId", issued.userId)
-                put("version", "v1")
-            })
-        }
-
-        post("/api/e2ee/sealed-sender/verify") {
-            val body = call.receiveBoundedTextOrEmpty()
-            val certificate = parseSealedSenderCertificate(body)
-            val verified = SealedSenderCertificateService.verify(certificate)
-            call.respond(buildJsonObject {
-                put("ok", verified != null)
-                if (verified != null) {
-                    put("userId", verified.userId)
-                    put("deviceId", verified.deviceId)
-                    put("expiresAt", verified.expiresAt)
-                }
-            })
-        }
     }
 }
 
@@ -298,4 +257,3 @@ private suspend fun io.ktor.server.application.ApplicationCall.requireDeviceId()
     }
     return deviceId
 }
-

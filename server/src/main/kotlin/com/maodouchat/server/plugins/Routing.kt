@@ -333,7 +333,7 @@ fun Application.configureRouting(
             participantRepository = conversationParticipantRepo,
             json = json,
         )
-        configureConversationRoutes(
+        configureConversationLifecycleRoutes(
             userRepo = userRepo,
             commandService = conversationCommandService,
             queryRepository = conversationQueryRepo,
@@ -341,6 +341,9 @@ fun Application.configureRouting(
             pushService = pushService,
             createRateLimiter = createChatRateLimiter,
             json = json,
+        )
+        configureConversationQueryRoutes(
+            queryRepository = conversationQueryRepo,
         )
         configureGroupInvitationRoutes(
             userRepo = userRepo,
@@ -386,11 +389,12 @@ fun Application.configureRouting(
             signalKeyRepository = signalKeyRepo,
             senderKeyRepository = senderKeyDistributionRepo,
         )
-        configureSignalKeyRoutes(
+        configureSignalKeyMaterialRoutes(
             signalKeyRepository = signalKeyRepo,
             conversationQueryRepository = conversationQueryRepo,
             preKeyFetchLimiter = preKeyFetchTracker,
         )
+        configureSealedSenderRoutes()
         configureCallSignalingRoutes(
             userRepository = userRepo,
             callSignalingService = com.maodouchat.server.service.CallSignalingService(

@@ -4,34 +4,31 @@ import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.CreateChatRequest
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.JoinGroupInviteRequest
-import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.repository.ConversationQueryRepository
-import com.maodouchat.server.service.CreateConversationCommand
-import com.maodouchat.server.service.CreateConversationOutcome
-import com.maodouchat.server.service.CreateConversationResult
-import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.BlobStore
+import com.maodouchat.server.service.ConversationCommandService
+import com.maodouchat.server.service.CreateConversationCommand
+import com.maodouchat.server.service.CreateConversationOutcome
+import com.maodouchat.server.service.CreateConversationResult
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.FileStorageService
+import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
-import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** Core conversation lifecycle HTTP adapter. */
-internal fun Route.configureConversationRoutes(
+/** 会话生命周期：创建、邀请加入、退出/删除。 */
+internal fun Route.configureConversationLifecycleRoutes(
     userRepo: UserRepository,
     commandService: ConversationCommandService,
     queryRepository: ConversationQueryRepository,
@@ -41,11 +38,6 @@ internal fun Route.configureConversationRoutes(
     json: Json,
 ) {
     authenticate("auth-jwt") {
-        get("/api/chats") {
-            val userId = call.requireUserId()
-            call.respond(queryRepository.listForUser(userId))
-        }
-
         post("/api/chats") {
             val userId = call.requireUserId()
             if (!createRateLimiter.acquire(userId, maxPerMinute = 20)) {
@@ -149,16 +141,6 @@ internal fun Route.configureConversationRoutes(
             val chat = queryRepository.getForParticipant(consumed.chatId, userId) ?: run {
                 call.respond(HttpStatusCode.InternalServerError, ErrorResponse("群聊状态异常，请刷新"))
                 return@post
-            }
-            call.respond(chat)
-        }
-
-        get("/api/chats/{id}") {
-            val userId = call.requireUserId()
-            val chatId = call.requireNonBlankParamOr400("id", "聊天 ID 无效") ?: return@get
-            val chat = queryRepository.getForParticipant(chatId, userId) ?: run {
-                call.respond(HttpStatusCode.NotFound, ErrorResponse("聊天不存在"))
-                return@get
             }
             call.respond(chat)
         }
