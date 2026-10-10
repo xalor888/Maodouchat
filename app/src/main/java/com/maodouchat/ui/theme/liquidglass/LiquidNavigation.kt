@@ -9,18 +9,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -35,17 +29,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -69,7 +59,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
-private val LocalLiquidNavigationScale = compositionLocalOf { { 1f } }
+internal val LocalLiquidNavigationScale = compositionLocalOf { { 1f } }
 
 internal fun snapNavigationIndex(value: Float, tabsCount: Int): Int {
     require(tabsCount > 0) { "tabsCount must be positive" }
@@ -321,56 +311,6 @@ fun LiquidBottomTabs(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun RowScope.LiquidBottomTab(
-    selected: Boolean,
-    contentColor: Color,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
-    onLongClickLabel: String? = null,
-    interactive: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    val scale = LocalLiquidNavigationScale.current
-    Column(
-        Modifier
-            .then(if (interactive) Modifier.clip(Capsule()) else Modifier)
-            .then(
-                if (interactive) {
-                    Modifier.combinedClickable(
-                        onClick = onClick,
-                        onLongClick = onLongClick,
-                        onLongClickLabel = onLongClickLabel,
-                    )
-                } else {
-                    Modifier
-                },
-            )
-            .then(
-                if (interactive) {
-                    Modifier.semantics {
-                        this.selected = selected
-                        role = Role.Tab
-                    }
-                } else {
-                    Modifier
-                },
-            )
-            .fillMaxHeight()
-            .weight(1f)
-            .graphicsLayer {
-                scaleX = scale()
-                scaleY = scale()
-            },
-        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
-            content()
-        }
-    }
-}
 
 private fun Color.luminance(): Float =
     (0.2126f * red) + (0.7152f * green) + (0.0722f * blue)
