@@ -1,47 +1,25 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.AdminAccess
-import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.DispositionService
-import com.maodouchat.server.service.RuntimeConfigService
-import com.maodouchat.server.service.csvCell
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.HttpHeaders
-import io.ktor.server.application.Application
-import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
-import io.ktor.server.auth.principal
-import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.request.receiveText
-import io.ktor.server.response.header
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondBytes
-import io.ktor.server.response.respondText
-import io.ktor.server.routing.get
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
-import io.ktor.server.routing.put
-import io.ktor.server.routing.delete
-import io.ktor.server.routing.route
-import io.ktor.server.routing.routing
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** 管理后台子域路由（从 AdminManagementRouting.kt 拆出）。 */
-internal fun Route.configureAdminBulkRoutes(
+/** 管理后台批量用户处置路由（从 AdminBulkRouting.kt 按域拆出）。 */
+
+internal fun Route.configureAdminBulkUserRoutes(
     authTokenRepo: AuthTokenRepository,
-    groupInvitationService: GroupInvitationService,
     userDispositionService: com.maodouchat.server.service.UserDispositionService,
 ) {
     val adminManagementRepo = com.maodouchat.server.repository.AdminManagementRepository()
-    val aiRepo = com.maodouchat.server.repository.AiRepository()
     post("/users/bulk-force-logout") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -82,8 +60,6 @@ put("count", okIds.size)
         }
     )
     }
-
-
     post("/users/bulk-ban") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -113,9 +89,6 @@ put("count", banned.size)
         }
     )
     }
-
-
-
     post("/users/bulk-unban") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -137,9 +110,6 @@ put("count", updated.size)
         }
     )
     }
-
-
-
     post("/users/bulk-suspend-days") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -167,7 +137,6 @@ put("count", updated.size)
         }
     )
     }
-
 post("/users/bulk-message-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -192,9 +161,6 @@ put("count", updated.size)
         }
     )
     }
-
-
-
     post("/users/bulk-message-unrestrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -216,41 +182,6 @@ put("count", updated.size)
         }
     )
     }
-
-get("/ai-usage-export") {
-        if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
-        val adminId = call.requireUserId()
-        val limit = parseExportLimit(call.request.queryParameters, 2000, 10000)
-        // Metadata only — never export prompt/body
-        val rows = aiRepo.auditExportRows(limit).map { row ->
-            listOf(
-                csvCell(row.id),
-                csvCell(row.userId),
-                csvCell(row.feature.take(40)),
-                csvCell(row.status),
-                csvCell(row.inputChars.toString()),
-                csvCell(row.contextMessages.toString()),
-                csvCell((row.durationMs ?: 0L).toString()),
-                csvCell((row.error ?: "").replace("\n", " ").take(80)),
-                csvCell(row.createdAt.toString()),
-                csvCell(row.inputTokens?.toString() ?: ""),
-                csvCell(row.outputTokens?.toString() ?: "")
-            ).joinToString(",")
-        }
-        val csv = buildString {
-            appendLine("id,userId,feature,status,inputChars,contextMessages,durationMs,error,createdAt,inputTokens,outputTokens")
-            rows.forEach { appendLine(it) }
-        }
-        recordAdminAudit(actorId = adminId, action = "ai_usage_export", detail = "count=${rows.size}")
-        call.response.header(
-            HttpHeaders.ContentDisposition,
-            "attachment; filename=\"maodouchat-ai-usage.csv\""
-        )
-        call.respondText(csv, io.ktor.http.ContentType.Text.CSV)
-    }
-
-
-
     post("/users/bulk-post-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -274,9 +205,6 @@ put("count", updated.size)
         }
     )
     }
-
-
-
     post("/users/bulk-post-unrestrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -296,7 +224,6 @@ put("count", updated.size)
         }
     )
     }
-
 post("/users/bulk-set-message-restrict-until") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -326,9 +253,6 @@ put("count", updated.size)
         }
     )
     }
-
-
-
     post("/users/bulk-set-searchable-false") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -349,8 +273,6 @@ put("count", updated.size)
         }
     )
     }
-
-
     post("/users/bulk-set-searchable-true") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -371,8 +293,6 @@ put("count", updated.size)
         }
     )
     }
-
-
     post("/users/bulk-set-show-status") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -396,8 +316,6 @@ put("showStatus", showStatus)
         }
     )
     }
-
-
     post("/users/bulk-set-show-online") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -421,8 +339,6 @@ put("showOnline", showOnline)
         }
     )
     }
-
-
     post("/users/bulk-set-searchable") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -446,8 +362,6 @@ put("searchable", searchable)
         }
     )
     }
-
-
     post("/users/bulk-disable-totp") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -468,28 +382,6 @@ put("count", updated.size)
         }
     )
     }
-
-
-    post("/chats/bulk-clear-invite-tokens") {
-        if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        val actorId = call.requireUserId()
-        val body = runCatching { call.receiveBoundedText(MAX_ADMIN_JSON_BODY_CHARS) }.getOrNull().orEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val ids = parseAdminBulkIdList(obj, "chatIds", 100)
-        if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("chatIds required"))
-        val updated = groupInvitationService.adminRevokeTokens(ids)
-        val skipped = ids.filter { it !in updated }
-        recordAdminAudit(actorId = actorId, action = "bulk_clear_invite_tokens", detail = "count=${updated.size}")
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-putJsonElement("updated", updated)
-putJsonElement("skipped", skipped)
-put("count", updated.size)
-        }
-    )
-    }
-
 post("/users/bulk-set-suspend-until") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -521,7 +413,6 @@ put("suspendedUntil", until)
         }
     )
     }
-
 post("/users/bulk-clear-all-restrictions") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -541,7 +432,6 @@ put("count", updated.size)
         }
     )
     }
-
 post("/users/bulk-clear-message-and-post-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -561,7 +451,6 @@ put("count", updated.size)
         }
     )
     }
-
 post("/users/bulk-force-token-bump") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -608,7 +497,6 @@ put("count", updated.size)
         }
     )
     }
-
 post("/users/bulk-clear-suspend") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -628,7 +516,6 @@ put("count", updated.size)
         }
     )
     }
-
 post("/users/bulk-clear-message-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -648,7 +535,6 @@ put("count", updated.size)
         }
     )
     }
-
 post("/users/bulk-message-restrict-days") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -674,7 +560,6 @@ put("count", updated.size)
         }
     )
     }
-
 post("/users/bulk-clear-post-restrict") {
         if (!call.isAdminUser()) return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         val actorId = call.requireUserId()
@@ -694,6 +579,4 @@ put("count", updated.size)
         }
     )
     }
-
-
 }

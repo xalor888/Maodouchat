@@ -170,11 +170,15 @@ internal fun Application.configureAdminManagementRouting(
 
             // ─── 系统安全快照 + 运营配置（见 AdminSystemRouting.kt） ───
             configureAdminSystemRoutes()
-            configureAdminExportsRoutes(authTokenRepo)
-            configureAdminBulkRoutes(
+            configureAdminExportsUserRoutes(authTokenRepo)
+            configureAdminExportsContentRoutes(authTokenRepo)
+            configureAdminExportsOpsRoutes()
+            configureAdminBulkUserRoutes(
                 authTokenRepo = authTokenRepo,
-                groupInvitationService = groupInvitationService,
                 userDispositionService = UserDispositionService(userRepo),
+            )
+            configureAdminBulkChatRoutes(
+                groupInvitationService = groupInvitationService,
             )
 
             get("/users/{id}/sessions") {
