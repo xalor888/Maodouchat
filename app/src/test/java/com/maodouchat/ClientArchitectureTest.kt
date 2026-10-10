@@ -905,7 +905,9 @@ class ClientArchitectureTest {
      * 这条**不是**风格偏好——它对应的是一次真机可见的 bug。
      */
     private val destinationsAllowedWithoutInsets: Map<String, String> = mapOf(
-        "app/src/main/java/com/maodouchat/ui/navigation/MainContainerRoute.kt" to
+        // 2026-10-10：ChatDetailListPaneRoute 从 MainContainerRoute.kt 整声明搬到
+        // 同包 ChatDetailListPaneRoute.kt（纯搬移），豁免键随定义文件迁移。
+        "app/src/main/java/com/maodouchat/ui/navigation/ChatDetailListPaneRoute.kt" to
             "ChatDetailListPaneRoute 只是把 listPane/detailPane 交给 ChatListScreen / ChatDetailRoute，两者各自带 inset",
         "app/src/main/java/com/maodouchat/ui/navigation/CallNavigation.kt" to
             "IncomingCallRoute 转发给 CallScreen.kt 的来电界面，那里有 statusBarsPadding",
