@@ -5,7 +5,7 @@ import org.jetbrains.exposed.sql.Table
 /**
  * 群玩法 B3：群签到 / 群接龙 / 群 PK 数据表。
  *
- * 与 GroupPolls/GroupPollVotes（位于 Database.kt）同属公开群内元数据，
+ * 与 GroupPolls/GroupPollVotes 同属公开群内元数据（现均位于本文件），
  * 明文存储即可。表结构均为轻量自增主键 + chatId 复合索引，避免全表扫描。
  */
 
@@ -99,4 +99,27 @@ object GroupPkVotes : Table("group_pk_votes") {
     init {
         index("idx_group_pk_votes_pk", false, pkId)
     }
+}
+
+object GroupPolls : Table("group_polls") {
+    val id = varchar("id", 64)
+    val chatId = varchar("chat_id", 64).index()
+    val creatorId = varchar("creator_id", 64)
+    val question = varchar("question", 500)
+    val optionsJson = text("options_json") // JSON array of strings
+    val multi = bool("multi").default(false)
+    val anonymous = bool("anonymous").default(false)
+    val closed = bool("closed").default(false)
+    val createdAt = long("created_at")
+    val closesAt = long("closes_at").nullable()
+    override val primaryKey = PrimaryKey(id)
+}
+
+
+object GroupPollVotes : Table("group_poll_votes") {
+    val pollId = varchar("poll_id", 64)
+    val userId = varchar("user_id", 64)
+    val optionIndex = integer("option_index")
+    val votedAt = long("voted_at")
+    override val primaryKey = PrimaryKey(pollId, userId, optionIndex)
 }
