@@ -153,7 +153,7 @@ fun Application.configureDeveloperRouting() {
 
 // ─── Bot token authentication helper ───────────────
 
-private suspend fun authenticateBot(call: ApplicationCall): BotRepository.BotDto? {
+private suspend fun authenticateBotToken(call: ApplicationCall): BotRepository.BotDto? {
     val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
     val token = headerToken.ifBlank { bearer }
@@ -171,7 +171,7 @@ private suspend fun authenticateBot(call: ApplicationCall): BotRepository.BotDto
 
 /**
  * Unified auth for /api/developer/ routes. Accepts EITHER:
- *  - a bot token (X-Bot-Token / Bearer), via [authenticateBot], OR
+ *  - a bot token (X-Bot-Token / Bearer), via [authenticateBotToken], OR
  *  - a dev_session JWT (Authorization: Bearer), in which case the target bot is
  *    resolved from the path {id} (or ?bot_id= query for id-less routes) and must
  *    be owned by the dev-session user.
@@ -208,7 +208,7 @@ internal suspend fun authenticateDeveloperBot(call: ApplicationCall): BotReposit
         }
     }
     // No dev_session JWT -> fall back to bot-token auth.
-    return authenticateBot(call)
+    return authenticateBotToken(call)
 }
 
 /** 8.131：仅校验开发者身份（dev_session 或 bot token），不解析具体 bot——供 capabilities 等 bot 无关端点。 */
@@ -229,7 +229,7 @@ internal suspend fun authenticateDeveloperIdentity(call: ApplicationCall): Boole
             return true
         }
     }
-    return authenticateBot(call) != null
+    return authenticateBotToken(call) != null
 }
 
 // ─── Dashboard builder ─────────────────────────────
