@@ -53,7 +53,23 @@ internal fun Route.configureBotPresentationRoutes(
         json = json,
     )
 
-    configureBotPresentationHintsRoutes(
+    configureBotPresentationHintCardsRoutes(
+        userRepository = userRepository,
+        participantRepository = participantRepository,
+        serviceMessageRepository = serviceMessageRepository,
+        botRateLimiter = botRateLimiter,
+        json = json,
+    )
+
+    configureBotPresentationHintSafetyRoutes(
+        userRepository = userRepository,
+        participantRepository = participantRepository,
+        serviceMessageRepository = serviceMessageRepository,
+        botRateLimiter = botRateLimiter,
+        json = json,
+    )
+
+    configureBotPresentationHintMediaRoutes(
         userRepository = userRepository,
         participantRepository = participantRepository,
         serviceMessageRepository = serviceMessageRepository,
