@@ -120,7 +120,7 @@ class RouteRegistrySplitTest {
             "configureSocialPostCoreRoutes(",
             "configureSocialPostLikeRoutes(",
             "configureSocialPostCommentRoutes(",
-            "configureSocialPostFileRoutes("
+            "configureSocialPostFileRoutes(",
             "configurePublicSiteRoutes()",
             "configurePollLegacyRoutes(",
         ).forEach { registration -> assertTrue(registration in registry, registration) }
