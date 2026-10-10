@@ -4,39 +4,24 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.interfaces.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import com.maodouchat.server.auth.JwtConfig
-import com.maodouchat.server.common.postPinnedWebhookJson
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
-import com.maodouchat.server.model.WebhookTestResult
 import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.ConversationParticipantRepository
+import com.maodouchat.server.repository.DeveloperAnalyticsRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.call
 import io.ktor.server.response.respond
-import io.ktor.server.routing.delete
-import io.ktor.server.routing.get
-import io.ktor.server.routing.post
-import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.jsonObject
 import java.util.Date
 import java.util.UUID
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
-import java.nio.charset.StandardCharsets
 
 // ═══ Developer-account session (dev_session JWT) ═══
 // A short-lived JWT minted from email+password login, carrying a
@@ -49,23 +34,31 @@ import java.nio.charset.StandardCharsets
 // issuer，于是两类令牌在 `JwtConfig.verifier` 眼里是同一族，隔离只靠一个 `token_use`
 // 字符串；现在 dev_session 有独立 verifier，拿 access token 或主密钥以外的任何
 // 输入都构造不出可被接受的后台会话。
+
 private const val DEV_SESSION_VALIDITY_MS = 2L * 60 * 60 * 1000 // 2 小时
+
 private const val TOKEN_USE_DEV_SESSION = "dev_session"
+
 private const val JWT_ISSUER = "maodouchat"
 
 // Stateless repo wrappers; safe to share across requests (all ops open their own transactions).
-private val devUserRepo = UserRepository()
-private val devAuthTokenRepo = AuthTokenRepository()
-private val devParticipantRepo = ConversationParticipantRepository()
-private val devJson = Json { ignoreUnknownKeys = true }
+
+internal val devUserRepo = UserRepository()
+
+internal val devAuthTokenRepo = AuthTokenRepository()
+
+internal val devParticipantRepo = ConversationParticipantRepository()
+
+internal val devJson = Json { ignoreUnknownKeys = true }
 
 /**
  * dev_session 专用验证器。按密钥值缓存——[ServerConfig.developerSessionSecret] 是
  * `get()`（每次读环境/系统属性），测试会在同一 JVM 内切换 JWT_SECRET，缓存必须跟着变。
  */
+
 private var cachedDevSessionVerifier: Pair<String, JWTVerifier>? = null
 
-private fun devSessionVerifier(): JWTVerifier {
+internal fun devSessionVerifier(): JWTVerifier {
     val secret = ServerConfig.developerSessionSecret
     cachedDevSessionVerifier?.let { if (it.first == secret) return it.second }
     val verifier = JWT.require(Algorithm.HMAC256(secret)).withIssuer(JWT_ISSUER).build()
@@ -74,7 +67,8 @@ private fun devSessionVerifier(): JWTVerifier {
 }
 
 /** Mint a 2-hour dev_session JWT for [userId]. */
-private fun mintDevSessionToken(userId: String, tokenVersion: Long): String {
+
+internal fun mintDevSessionToken(userId: String, tokenVersion: Long): String {
     val algorithm = Algorithm.HMAC256(ServerConfig.developerSessionSecret)
     val expiresAt = System.currentTimeMillis() + DEV_SESSION_VALIDITY_MS
     return JWT.create()
@@ -95,7 +89,8 @@ private fun mintDevSessionToken(userId: String, tokenVersion: Long): String {
  * dev_session purpose, and re-checks isAccessTokenAllowed so suspension /
  * version rotation revoke it.
  */
-private fun devSessionUserId(call: ApplicationCall): String? {
+
+internal fun devSessionUserId(call: ApplicationCall): String? {
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull() ?: return null
     val decoded = runCatching { devSessionVerifier().verify(bearer) }.getOrNull() ?: return null
     if (decoded.getClaim("token_use").asString() != TOKEN_USE_DEV_SESSION) return null
@@ -106,12 +101,13 @@ private fun devSessionUserId(call: ApplicationCall): String? {
 }
 
 /** Return the bot only if it exists and is owned by [userId]; else null. */
-private fun devSessionOwnedBot(botId: String, userId: String): BotRepository.BotDto? {
+
+internal fun devSessionOwnedBot(botId: String, userId: String): BotRepository.BotDto? {
     val bot = BotRepository.get(botId) ?: return null
     return if (bot.ownerUserId == userId) bot else null
 }
 
-private suspend fun ApplicationCall.rejectIfDeveloperMaintenance(): Boolean {
+internal suspend fun ApplicationCall.rejectIfDeveloperMaintenance(): Boolean {
     if (!RuntimeConfigService.isMaintenanceMode()) return false
     respond(
         HttpStatusCode.ServiceUnavailable,
@@ -122,7 +118,7 @@ private suspend fun ApplicationCall.rejectIfDeveloperMaintenance(): Boolean {
     return true
 }
 
-private suspend fun ApplicationCall.respondDeveloperBotUnavailable() {
+internal suspend fun ApplicationCall.respondDeveloperBotUnavailable() {
     respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable or disabled", code = "BOT_UNAVAILABLE"))
 }
 
@@ -135,147 +131,14 @@ private suspend fun ApplicationCall.respondDeveloperBotUnavailable() {
  *                                (minted from email+password login). Lets a developer
  *                                manage ALL their bots without per-bot tokens.
  */
+
 fun Application.configureDeveloperRouting() {
-    val developerAnalytics = com.maodouchat.server.repository.DeveloperAnalyticsRepository()
-    val developerLoginRateLimiter = BoundedRateLimiter()
-    /** 8.131：开发者登录按账号限流（防轮换源 IP 爆破，与主登录 loginEmailRateLimiter 同策略）。 */
-    val developerLoginEmailRateLimiter = BoundedRateLimiter()
-    val developerBotCreateRateLimiter = BoundedRateLimiter()
-    val developerBotTokenRateLimiter = BoundedRateLimiter()
-    val developerWebhookTestRateLimiter = BoundedRateLimiter()
-    val developerBotSettingsRateLimiter = BoundedRateLimiter()
+    val developerAnalytics = DeveloperAnalyticsRepository()
 
     routing {
         route("/api/developer") {
-            // ─── Dashboard ────────────────────────
-            get("/dashboard") {
-                val bot = authenticateDeveloperBot(call) ?: return@get
-                val dashboard = developerAnalytics.dashboard(bot.id)
-                call.respond(dashboard)
-            }
-
-            // ─── Per-bot analytics ────────────────
-            get("/bots/{id}/analytics") {
-                val bot = authenticateDeveloperBot(call) ?: return@get
-                val targetBotId = parseRawOrEmpty(call.parameters, "id")
-                if (targetBotId != bot.id) {
-                    return@get call.respond(
-                        HttpStatusCode.Forbidden,
-                        ErrorResponse("无权访问该机器人数据")
-                    )
-                }
-                val days = parseDeveloperAnalyticsDays(call.request.queryParameters)
-                val analytics = developerAnalytics.analytics(targetBotId, days)
-                call.respond(analytics)
-            }
-
-            // ─── Structured logs ──────────────────
-            get("/bots/{id}/logs") {
-                val bot = authenticateDeveloperBot(call) ?: return@get
-                val targetBotId = parseRawOrEmpty(call.parameters, "id")
-                if (targetBotId != bot.id) {
-                    return@get call.respond(
-                        HttpStatusCode.Forbidden,
-                        ErrorResponse("无权访问该机器人日志")
-                    )
-                }
-                val limit = parseAdminListLimit(call.request.queryParameters)
-                val offset = parseAdminListOffset(call.request.queryParameters)
-                val commandFilter = parseDeveloperCommandFilter(call.request.queryParameters)
-                val sinceMs = parseOptionalLong(call.request.queryParameters, "since")
-
-                val logs = developerAnalytics.commandLogs(
-                    botId = targetBotId,
-                    commandFilter = commandFilter,
-                    sinceMs = sinceMs,
-                    limit = limit,
-                    offset = offset,
-                )
-                call.respond(logs)
-            }
-
-            // ─── Test webhook ─────────────────────
-            post("/bots/{id}/test-webhook") {
-                val bot = authenticateDeveloperBot(call) ?: return@post
-                if (call.rejectIfDeveloperMaintenance()) return@post
-                if (!developerWebhookTestRateLimiter.acquire(bot.id, maxPerMinute = 10)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                val targetBotId = parseRawOrEmpty(call.parameters, "id")
-                if (targetBotId != bot.id) {
-                    return@post call.respond(
-                        HttpStatusCode.Forbidden,
-                        ErrorResponse("无权操作该机器人")
-                    )
-                }
-                val webhookUrl = bot.webhookUrl
-                if (webhookUrl.isNullOrBlank()) {
-                    return@post call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse("该机器人未设置 webhook URL")
-                    )
-                }
-                val testPayload = buildTestPayload(bot.id, bot.username)
-                // 使用与真实 webhook 一致的 HMAC-SHA256 签名（signing input = "{ts}.{body}"，密钥为 bot.tokenHash）
-                val tokenHash = BotRepository.getTokenHash(bot.id)
-                val ts = System.currentTimeMillis()
-                val headers = mutableMapOf(
-                    "User-Agent" to "Maodouchat-BotWebhook-Test/1.0",
-                    "X-Maodouchat-Timestamp" to ts.toString()
-                )
-                if (tokenHash != null) {
-                    val signature = hmacSha256Hex(tokenHash, "$ts.$testPayload")
-                    headers["X-Maodouchat-Signature"] = "sha256=$signature"
-                }
-                val startTime = System.currentTimeMillis()
-                val result = try {
-                    val responseSnapshot = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        postPinnedWebhookJson(
-                            url = webhookUrl,
-                            body = testPayload,
-                            headers = headers,
-                            connectTimeoutMs = 4_000,
-                            readTimeoutMs = 6_000,
-                            maxResponseBodyBytes = 500
-                        )
-                    }
-                    val elapsed = System.currentTimeMillis() - startTime
-                    WebhookTestResult(
-                        success = responseSnapshot.statusCode in 200..299,
-                        statusCode = responseSnapshot.statusCode,
-                        responseBody = responseSnapshot.body,
-                        latencyMs = elapsed,
-                        error = null
-                    )
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    val elapsed = System.currentTimeMillis() - startTime
-                    WebhookTestResult(
-                        success = false,
-                        statusCode = 0,
-                        responseBody = "",
-                        latencyMs = elapsed,
-                        error = e.message?.take(200)
-                    )
-                }
-                call.respond(result)
-            }
-
-            // ─── Capability manifest ──────────────
-            get("/capabilities") {
-                // 8.131：manifest 与具体 bot 无关——dev_session 无需 bot id（此前一个 bot
-                // 都没有的开发者取不到这份 bot 无关的能力清单）；bot token 仍可用
-                if (!authenticateDeveloperIdentity(call)) return@get
-                call.respond(buildCapabilityManifest())
-            }
-
-            // ─── Comprehensive health check ───────
-            get("/health") {
-                val bot = authenticateDeveloperBot(call) ?: return@get
-                val health = developerAnalytics.health(bot.id)
-                call.respond(health)
-            }
+            configureDeveloperBotInsightsRoutes(developerAnalytics)
+            configureDeveloperPortalRoutes(developerAnalytics)
         }
 
         // ═══ Developer-account routes (dev_session JWT auth) ═══
@@ -283,254 +146,7 @@ fun Application.configureDeveloperRouting() {
         // bots without needing each bot's token. Auth via Authorization: Bearer
         // <dev_session JWT>, validated by authenticateDevSession().
         route("/api/developer-account") {
-            val userRepo = devUserRepo
-            val authTokenRepo = devAuthTokenRepo
-
-            // ─── Login (email + password) ────────
-            post("/login") {
-                if (!developerLoginRateLimiter.acquire(
-                        call.remoteHost(),
-                        maxPerMinute = ServerConfig.authRateLimitPerMinute
-                    )
-                ) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("登录过于频繁，请稍后再试"))
-                }
-                val body = call.receiveBoundedText().orEmpty()
-                val obj = call.requireJsonObjectOr400(body) ?: return@post
-                val (email, password, totpCode) = parseDeveloperLoginFields(obj)
-                if (email.isBlank() || password.isBlank()) {
-                    return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("邮箱或密码不能为空"))
-                }
-                // 8.131：与主登录一致补按账号限流——此前仅按 IP 限流，攻击者轮换源 IP
-                // 即可对同一开发者账号无限爆破（主登录早有 loginEmailRateLimiter 堵这个洞）
-                val emailKey = runCatching { email.normalizedEmail() }.getOrDefault(email)
-                if (!developerLoginEmailRateLimiter.acquire(emailKey, maxPerMinute = ServerConfig.authRateLimitPerMinute)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("该账号尝试过于频繁，请稍后再试"))
-                }
-                val loginResult = userRepo.loginWithFactors(email, password, totpCode)
-                when {
-                    !loginResult.passwordOk -> {
-                        call.respond(HttpStatusCode.Unauthorized, ErrorResponse("邮箱或密码错误", code = "AUTH_INVALID"))
-                    }
-                    loginResult.totpEnabled && !loginResult.totpOk -> {
-                        // 200 so the console can surface the TOTP step without treating it as a transport error.
-                        call.respond(
-                            DevLoginResponse(
-                                requiresTotp = true,
-                                token = "",
-                                userId = "",
-                                email = email,
-                                name = "",
-                                bots = emptyList()
-                            )
-                        )
-                    }
-                    loginResult.user != null -> {
-                        val user = checkNotNull(loginResult.user)
-                        // 失败闭合：未配置开发者白名单时拒绝所有人，避免任意已登录账号绕过权限获取开发者会话（权限提升）。
-                        // 必须通过 DEVELOPER_USER_IDS 显式授权才允许创建/管理机器人。
-                        if (user.id !in ServerConfig.developerUserIds) {
-                            call.respond(HttpStatusCode.Forbidden, ErrorResponse("开发者功能未启用或需要开发者权限"))
-                            return@post
-                        }
-                        val tokenVersion = authTokenRepo.getAccessTokenVersion(user.id)
-                        val devToken = mintDevSessionToken(user.id, tokenVersion)
-                        val bots = BotRepository.listByOwner(user.id)
-                        call.respond(
-                            DevLoginResponse(
-                                requiresTotp = false,
-                                token = devToken,
-                                userId = user.id,
-                                email = user.email,
-                                name = user.name,
-                                bots = bots
-                            )
-                        )
-                    }
-                    else -> {
-                        call.respond(HttpStatusCode.Unauthorized, ErrorResponse("邮箱或密码错误", code = "AUTH_INVALID"))
-                    }
-                }
-            }
-
-            // ─── Current user + bot list ─────────
-            get("/me") {
-                val userId = devSessionUserId(call)
-                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                val user = userRepo.getById(userId)
-                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("用户不存在"))
-                val bots = BotRepository.listByOwner(userId)
-                call.respond(DevMeResponse(userId = user.id, email = user.email, name = user.name, bots = bots))
-            }
-
-            // ─── Create bot ──────────────────────
-            post("/bots") {
-                val userId = devSessionUserId(call)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                if (call.rejectIfDeveloperMaintenance()) return@post
-                if (!RuntimeConfigService.isBotsAllowed()) {
-                    return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("bot platform disabled"))
-                }
-                if (!developerBotCreateRateLimiter.acquire(userId, maxPerMinute = 5)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建机器人太频繁，请稍后再试"))
-                }
-                val body = call.receiveBoundedText().orEmpty()
-                val obj = call.requireJsonObjectOr400(body) ?: return@post
-                val (name, username, description) = parseDeveloperBotCreateFields(obj)
-                when (val result = BotRepository.create(userId, name, username, description)) {
-                    is BotRepository.BotCreateResult.Success -> call.respond(result.bot)
-                    BotRepository.BotCreateResult.UsernameTaken ->
-                        call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人用户名已被占用"))
-                    BotRepository.BotCreateResult.MaxBotsReached ->
-                        call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人数量已达上限"))
-                    BotRepository.BotCreateResult.InvalidInput ->
-                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法）"))
-                    BotRepository.BotCreateResult.OwnerInvalid ->
-                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("开发者账号状态不可用"))
-                }
-            }
-
-            // ─── Rotate token ────────────────────
-            post("/bots/{id}/token") {
-                val userId = devSessionUserId(call)
-                    ?: return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                if (call.rejectIfDeveloperMaintenance()) return@post
-                if (!developerBotTokenRateLimiter.acquire(userId, maxPerMinute = 10)) {
-                    return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@post
-                val bot = BotRepository.regenerateToken(botId, userId)
-                    ?: return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
-                call.respond(bot)
-            }
-
-            // ─── Set webhook ─────────────────────
-            put("/bots/{id}/webhook") {
-                val userId = devSessionUserId(call)
-                    ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                if (call.rejectIfDeveloperMaintenance()) return@put
-                if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
-                    return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@put
-                val body = call.receiveBoundedText().orEmpty()
-                val url = parseDeveloperWebhookUrl(body)
-                if (!url.isNullOrBlank() && !BotRepository.isAllowedWebhookUrl(url)) {
-                    return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("webhook 无效"))
-                }
-                // secret is accepted for forward-compat but not persisted (no repo column yet).
-                val bot = BotRepository.setWebhook(botId, userId, url)
-                    ?: return@put call.respondDeveloperBotUnavailable()
-                call.respond(bot)
-            }
-
-            // ─── Delete bot ──────────────────────
-            delete("/bots/{id}") {
-                val userId = devSessionUserId(call)
-                    ?: return@delete call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                if (call.rejectIfDeveloperMaintenance()) return@delete
-                if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
-                    return@delete call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@delete
-                // 与 REST 删除机器人一致：删除会 bump 群成员版本；此前开发者账号路径只删 DB，
-                // 客户端成员列表会残留已删除 bot。
-                val affectedGroupIds = BotRepository.groupChatIdsFor(botId)
-                val ok = BotRepository.delete(botId, userId)
-                if (!ok) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
-                val groupSnapshots = devParticipantRepo.groupRevisionAndParticipantIds(affectedGroupIds)
-                groupSnapshots.forEach { (chatId, snapshot) ->
-                    notifyGroupRevisionChangedWithData(
-                        json = devJson,
-                        chatId = chatId,
-                        reason = "BOT_REMOVED",
-                        actorId = userId,
-                        targetUserId = botId,
-                        memberRevision = snapshot.first,
-                        recipientIds = snapshot.second
-                    )
-                }
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-                }
-            )
-            }
-
-            // ─── Enable / disable ────────────────
-            put("/bots/{id}/enabled") {
-                val userId = devSessionUserId(call)
-                    ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                if (call.rejectIfDeveloperMaintenance()) return@put
-                if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
-                    return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@put
-                val body = call.receiveBoundedText().orEmpty()
-                val enabled = parseDeveloperBotEnabled(body)
-                    ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("enabled required"))
-                val bot = BotRepository.setEnabled(botId, userId, enabled)
-                    ?: return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
-                call.respond(bot)
-            }
-
-            // ─── Set command menu ────────────────
-            put("/bots/{id}/commands") {
-                val userId = devSessionUserId(call)
-                    ?: return@put call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                if (call.rejectIfDeveloperMaintenance()) return@put
-                if (!developerBotSettingsRateLimiter.acquire(userId, maxPerMinute = 60)) {
-                    return@put call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("操作太频繁，请稍后再试"))
-                }
-                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@put
-                if (devSessionOwnedBot(botId, userId) == null) {
-                    return@put call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作该机器人"))
-                }
-                val body = call.receiveBoundedText().orEmpty()
-                val obj = call.requireJsonObjectOr400(body) ?: return@put
-                // 8.48 以来逐项严格校验，任一条目非法即 400（禁止静默丢弃后误清空菜单）；
-                // 仅显式传空数组 = 合法清空。抽取逻辑见 parseDeveloperBotCommands。
-                val defs = when (val parsed = parseDeveloperBotCommands(obj)) {
-                    is DeveloperBotCommandsParseResult.Ok -> parsed.defs.map { (command, description) ->
-                        BotRepository.BotCommandDef(command = command, description = description)
-                    }
-                    is DeveloperBotCommandsParseResult.Invalid -> return@put call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(parsed.message)
-                    )
-                }
-                val normalized = BotRepository.normalizeCommands(defs)
-                    ?: return@put call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse("invalid commands (max 100, unique a-z0-9_, description required)")
-                    )
-                val saved = BotRepository.setMyCommands(botId, normalized)
-                    ?: return@put call.respondDeveloperBotUnavailable()
-                call.respond(
-                buildJsonObject {
-put("ok", true)
-putJsonElement("commands", saved)
-put("count", saved.size)
-                }
-            )
-            }
-
-            // ─── Get command menu ────────────────
-            get("/bots/{id}/commands") {
-                val userId = devSessionUserId(call)
-                    ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("开发者会话无效或已过期"))
-                val botId = call.requirePathParamOr400("id", "missing botId") ?: return@get
-                if (devSessionOwnedBot(botId, userId) == null) {
-                    return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作该机器人"))
-                }
-                val commands = BotRepository.getMyCommands(botId)
-                call.respond(
-                buildJsonObject {
-putJsonElement("commands", commands)
-put("count", commands.size)
-                }
-            )
-            }
+            configureDeveloperAccountRoutes()
         }
     }
 }
@@ -561,7 +177,8 @@ private suspend fun authenticateBot(call: ApplicationCall): BotRepository.BotDto
  *    be owned by the dev-session user.
  * Returns the bot the request is scoped to, or null (after responding 401/403).
  */
-private suspend fun authenticateDeveloperBot(call: ApplicationCall): BotRepository.BotDto? {
+
+internal suspend fun authenticateDeveloperBot(call: ApplicationCall): BotRepository.BotDto? {
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
     if (bearer.isNotBlank()) {
         val decoded = runCatching { devSessionVerifier().verify(bearer) }.getOrNull()
@@ -595,7 +212,8 @@ private suspend fun authenticateDeveloperBot(call: ApplicationCall): BotReposito
 }
 
 /** 8.131：仅校验开发者身份（dev_session 或 bot token），不解析具体 bot——供 capabilities 等 bot 无关端点。 */
-private suspend fun authenticateDeveloperIdentity(call: ApplicationCall): Boolean {
+
+internal suspend fun authenticateDeveloperIdentity(call: ApplicationCall): Boolean {
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
     if (bearer.isNotBlank()) {
         val decoded = runCatching { devSessionVerifier().verify(bearer) }.getOrNull()
@@ -621,83 +239,6 @@ private suspend fun authenticateDeveloperIdentity(call: ApplicationCall): Boolea
 
 
 // ─── Developer health check ────────────────────────
-
-
-// ─── Capability manifest ───────────────────────────
-
-private fun buildCapabilityManifest(): CapabilityManifestResponse {
-    return CapabilityManifestResponse(
-        version = "1.0",
-        messaging = MessagingCapabilities(
-            canSendMessage = true,
-            canSendImages = RuntimeConfigService.isImageSendEnabled(),
-            canSendVideos = RuntimeConfigService.isVideoSendEnabled(),
-            canSendFiles = RuntimeConfigService.isFileShareEnabled(),
-            canSendVoice = RuntimeConfigService.isVoiceMessagesEnabled(),
-            canSendMarkdown = RuntimeConfigService.isMarkdownEnabled(),
-            maxMessageLength = 4_096,
-            supportsReply = true,
-            supportsForward = RuntimeConfigService.isMessageForwardingEnabled(),
-            supportsPin = RuntimeConfigService.isMessagePinEnabled(),
-            supportsEdit = RuntimeConfigService.isMessageEditEnabled(),
-            supportsRevoke = RuntimeConfigService.isMessageRevokeEnabled(),
-            supportsReaction = RuntimeConfigService.isReactionsEnabled()
-        ),
-        groups = GroupCapabilities(
-            canJoinGroups = true,
-            canCreateGroups = false,
-            maxGroupSize = RuntimeConfigService.getInt(RuntimeConfigService.KEY_MAX_GROUP_SIZE, 200),
-            canReadGroupHistory = true,
-            canManageMembers = false,
-            supportsGroupPlay = RuntimeConfigService.isGroupPlayEnabled(),
-            supportsPolls = RuntimeConfigService.isPollsEnabled()
-        ),
-        ai = AiCapabilities(
-            clientAiEnabled = RuntimeConfigService.isAiEnabled(),
-            contentModerationEnabled = RuntimeConfigService.isAiContentModerationEnabled()
-        ),
-        integrations = IntegrationCapabilities(
-            webhookSupported = true,
-            webhookMaxRetries = 3,
-            webhookTimeoutSeconds = 15,
-            supportedUpdateTypes = listOf(
-                "message", "callback_query", "inline_query",
-                "command", "member_join", "member_leave"
-            ),
-            maxCommands = 100
-        )
-    )
-}
-
-// ─── Test payload builder ──────────────────────────
-
-private fun buildTestPayload(botId: String, botUsername: String): String {
-    return """{
-        "update_id": ${System.currentTimeMillis()},
-        "type": "test",
-        "bot_id": "$botId",
-        "bot_username": "$botUsername",
-        "timestamp": ${System.currentTimeMillis()},
-        "message": {
-            "message_id": "test_${System.currentTimeMillis()}",
-            "from": {"id": "system", "name": "Maodouchat Test"},
-            "chat": {"id": "test_chat", "type": "private"},
-            "text": "This is a test webhook delivery from Maodouchat.",
-            "date": ${System.currentTimeMillis()}
-        }
-    }"""
-}
-
-/** HMAC-SHA256 hex digest, matching BotWebhookService signing. */
-// Mac 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
-private val hmacSha256MacThreadLocal = ThreadLocal.withInitial { Mac.getInstance("HmacSHA256") }
-
-private fun hmacSha256Hex(secret: String, message: String): String {
-    val mac = hmacSha256MacThreadLocal.get().apply { reset() }
-    mac.init(SecretKeySpec(secret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
-    val raw = mac.doFinal(message.toByteArray(StandardCharsets.UTF_8))
-    return raw.joinToString("") { "%02x".format(it) }
-}
 
 // ─── Response data classes ─────────────────────────
 
@@ -773,7 +314,9 @@ data class DevMeResponse(
     val bots: List<BotRepository.BotDto>
 )
 
+
 /** UTC 日起点（与 AdminRouting trends 的 dayStartNorm 一致），供 analytics 点位对齐 SQL CAST(ts/86400000)。 */
+
 internal fun unixDayStartMs(epochMs: Long, dayMs: Long = 86_400_000L): Long =
     epochMs - (epochMs % dayMs)
 
