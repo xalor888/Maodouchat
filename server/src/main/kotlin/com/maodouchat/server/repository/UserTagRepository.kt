@@ -24,7 +24,7 @@ import java.util.UUID
 
 /**
  * `RiskEvents.matched` 的列宽（`varchar(280)`）。来源与
- * `CoreTables.RiskEvents` 上那句「与 `ModerationRuleRepository.MAX_MATCHED_LENGTH`(280) 对齐」同源；
+ * `SocialTables.RiskEvents` 上那句「与 `ModerationRuleRepository.MAX_MATCHED_LENGTH`(280) 对齐」同源；
  * 但后者在 private companion 里取不到，所以在写入侧独立声明一份并在超长时截断。
  */
 private const val MAX_RISK_EVENT_MATCHED_LENGTH = 280

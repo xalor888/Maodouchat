@@ -91,7 +91,7 @@ data class AdminMessageSearchFilter(
  * repository 管 SQL。这一条是 `ServerArchitectureTest` 的棘轮在守的契约。
  *
  * 各方法的 SQL 都是从对应路由的 handler 内**逐字**搬过来的（搬迁前后行为一致），
- * 唯一的改动是把 `Chats` / `RiskEvents` 等表的列名对齐到 `db/CoreTables.kt` 的真实定义。
+ * 唯一的改动是把 `Chats` / `RiskEvents` 等表的列名对齐到 `db/` 下各表文件的真实定义。
  */
 class AdminManagementRepository {
 
