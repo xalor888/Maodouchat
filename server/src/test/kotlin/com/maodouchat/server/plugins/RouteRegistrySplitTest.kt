@@ -101,7 +101,11 @@ class RouteRegistrySplitTest {
             source("AccountRouting.kt"),
             source("AttachmentRouting.kt"),
             source("ReportModerationRouting.kt"),
-            source("SocialPostRouting.kt"),
+            source("SocialPostStarPinRoutes.kt"),
+            source("SocialPostCoreRoutes.kt"),
+            source("SocialPostLikeRoutes.kt"),
+            source("SocialPostCommentRoutes.kt"),
+            source("SocialPostFileRoutes.kt"),
             source("PublicSiteRouting.kt"),
             source("PollLegacyRouting.kt"),
         )
@@ -112,7 +116,11 @@ class RouteRegistrySplitTest {
             "configureAccountRoutes(",
             "configureEncryptedAttachmentRoutes(",
             "configureReportModerationRoutes(",
-            "configureSocialPostRoutes(",
+            "configureSocialPostStarPinRoutes(",
+            "configureSocialPostCoreRoutes(",
+            "configureSocialPostLikeRoutes(",
+            "configureSocialPostCommentRoutes(",
+            "configureSocialPostFileRoutes("
             "configurePublicSiteRoutes()",
             "configurePollLegacyRoutes(",
         ).forEach { registration -> assertTrue(registration in registry, registration) }
