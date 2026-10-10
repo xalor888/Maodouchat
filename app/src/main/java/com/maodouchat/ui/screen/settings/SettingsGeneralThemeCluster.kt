@@ -10,7 +10,7 @@ internal fun GeneralSettingsViewModel.setThemeMode(mode: String) {
     if (_uiState.value.themeMode == normalized) return
     prefsRevision++
     com.maodouchat.util.ThemePreferences.setMode(context, normalized)
-    prefs.edit { putString(KEY_THEME, normalized) }
+    prefs.edit { putString(GeneralSettingsViewModel.KEY_THEME, normalized) }
     _uiState.update { it.copy(themeMode = normalized) }
     pushClientPrefs()
 }
