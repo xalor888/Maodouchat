@@ -26,7 +26,9 @@ internal fun Route.configureGroupAdminProfileCoreRoutes(
     configureGroupAdminProfileAvatarRoutes(
         userRepo = userRepo,
         profileRepository = profileRepository,
+        queryRepository = queryRepository,
         participantRepository = participantRepository,
         avatarRateLimiter = avatarRateLimiter,
+        json = json,
     )
 }

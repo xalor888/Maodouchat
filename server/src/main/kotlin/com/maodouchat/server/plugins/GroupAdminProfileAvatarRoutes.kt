@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UploadAvatarRequest
 import com.maodouchat.server.repository.ConversationParticipantRepository
+import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupMemberMutationResult
 import com.maodouchat.server.repository.GroupProfileRepository
 import com.maodouchat.server.repository.UserRepository
@@ -13,6 +14,7 @@ import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -20,8 +22,10 @@ import kotlinx.serialization.json.put
 internal fun Route.configureGroupAdminProfileAvatarRoutes(
     userRepo: UserRepository,
     profileRepository: GroupProfileRepository,
+    queryRepository: ConversationQueryRepository,
     participantRepository: ConversationParticipantRepository,
     avatarRateLimiter: BoundedRateLimiter,
+    json: Json,
 ) {
     authenticate("auth-jwt") {
 
