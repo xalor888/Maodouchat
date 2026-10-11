@@ -254,6 +254,8 @@ class RouteRegistrySplitTest {
             "BotPollSendRoutes.kt",
             "BotPollVoteRoutes.kt",
             "BotChatModerationRouting.kt",
+            "BotChatLeaveRoutes.kt",
+            "BotChatDeleteMessageRoutes.kt",
             "BotMessageForwardingRouting.kt",
             "BotMessageForwardRoutes.kt",
             "BotMemberPromotionRouting.kt",
