@@ -1,0 +1,128 @@
+package com.maodouchat.server.plugins
+
+import com.maodouchat.server.config.ServerConfig
+import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.AdminManagementRepository
+import com.maodouchat.server.service.RuntimeConfigService
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.call
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonElement
+
+/** 管理后台系统只读面（安全快照 / 运营配置查询）。 */
+internal fun Route.configureAdminSystemQueryRoutes(
+    adminManagementRepository: AdminManagementRepository,
+) {
+
+    get("/security-snapshot") {
+        if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
+        val now = System.currentTimeMillis()
+        val sealedOn = RuntimeConfigService.isSealedSenderEnabled()
+        val botsOn = RuntimeConfigService.isBotsAllowed()
+        val aiOn = RuntimeConfigService.isAiEnabled()
+        val maint = RuntimeConfigService.isMaintenanceMode()
+        val regOpen = RuntimeConfigService.isRegistrationAllowed()
+        val ipBlocks = RuntimeConfigService.ipBlocklist().size
+        val msgRate = RuntimeConfigService.maxMessagePerMinute()
+        val online = try {
+            com.maodouchat.server.plugins.ConnectionRegistry.onlineUserIds().size
+        } catch (_: Exception) {
+            0
+        }
+        val (users, riskOpen) = adminManagementRepository.systemOverviewStats()
+        call.respond(
+        buildJsonObject {
+put("generatedAt", now)
+put("ConnectionRegistry.onlineUsers", online)
+put("usersTotal", users)
+put("openRiskEvents", riskOpen)
+put("flags", buildJsonObject {
+put("sealedSenderEnabled", sealedOn)
+put("botsAllowed", botsOn)
+put("aiEnabled", aiOn)
+put("maintenanceMode", maint)
+put("registrationOpen", regOpen)
+put("pqxdhPreview", RuntimeConfigService.isPqxdhPreviewEnabled())
+put("captureAlertEnabled", RuntimeConfigService.isCaptureAlertEnabled())
+put("mediaUploadEnabled", RuntimeConfigService.isMediaUploadEnabled())
+put("groupPlayEnabled", RuntimeConfigService.isGroupPlayEnabled())
+put("linkPreviewEnabled", RuntimeConfigService.isLinkPreviewEnabled())
+put("voiceMessagesEnabled", RuntimeConfigService.isVoiceMessagesEnabled())
+put("reactionsEnabled", RuntimeConfigService.isReactionsEnabled())
+put("stickersEnabled", RuntimeConfigService.isStickersEnabled())
+put("silentSendEnabled", RuntimeConfigService.isSilentSendEnabled())
+put("callsEnabled", RuntimeConfigService.isCallsEnabled())
+put("scheduledMessagesEnabled", RuntimeConfigService.isScheduledMessagesEnabled())
+put("viewOnceEnabled", RuntimeConfigService.isViewOnceEnabled())
+put("liveLocationEnabled", RuntimeConfigService.isLiveLocationEnabled())
+put("markdownEnabled", RuntimeConfigService.isMarkdownEnabled())
+put("typingIndicatorsEnabled", RuntimeConfigService.isTypingIndicatorsEnabled())
+put("readReceiptsEnabled", RuntimeConfigService.isReadReceiptsEnabled())
+put("presenceEnabled", RuntimeConfigService.isPresenceEnabled())
+put("messageStarringEnabled", RuntimeConfigService.isMessageStarringEnabled())
+put("chatExportEnabled", RuntimeConfigService.isChatExportEnabled())
+put("messageForwardingEnabled", RuntimeConfigService.isMessageForwardingEnabled())
+put("globalSearchEnabled", RuntimeConfigService.isGlobalSearchEnabled())
+put("friendRequestsEnabled", RuntimeConfigService.isFriendRequestsEnabled())
+put("chatFoldersEnabled", RuntimeConfigService.isChatFoldersEnabled())
+put("postsEnabled", RuntimeConfigService.isPostsEnabled())
+put("blockReportEnabled", RuntimeConfigService.isBlockReportEnabled())
+put("chatArchiveEnabled", RuntimeConfigService.isChatArchiveEnabled())
+put("nearbyEnabled", RuntimeConfigService.isNearbyEnabled())
+put("chatPinEnabled", RuntimeConfigService.isChatPinEnabled())
+put("markedUnreadEnabled", RuntimeConfigService.isMarkedUnreadEnabled())
+put("chatMuteEnabled", RuntimeConfigService.isChatMuteEnabled())
+put("disappearingMessagesEnabled", RuntimeConfigService.isDisappearingMessagesEnabled())
+put("chatLockEnabled", RuntimeConfigService.isChatLockEnabled())
+put("messageEditEnabled", RuntimeConfigService.isMessageEditEnabled())
+put("messagePinEnabled", RuntimeConfigService.isMessagePinEnabled())
+put("messageRevokeEnabled", RuntimeConfigService.isMessageRevokeEnabled())
+put("pollsEnabled", RuntimeConfigService.isPollsEnabled())
+put("appLockEnabled", RuntimeConfigService.isAppLockEnabled())
+put("chatDraftsEnabled", RuntimeConfigService.isChatDraftsEnabled())
+put("groupInvitesEnabled", RuntimeConfigService.isGroupInvitesEnabled())
+put("mentionsEnabled", RuntimeConfigService.isMentionsEnabled())
+put("nudgeEnabled", RuntimeConfigService.isNudgeEnabled())
+put("safetyCodeEnabled", RuntimeConfigService.isSafetyCodeEnabled())
+put("qrCodeEnabled", RuntimeConfigService.isQrCodeEnabled())
+put("contactCardEnabled", RuntimeConfigService.isContactCardEnabled())
+put("spoilerMediaEnabled", RuntimeConfigService.isSpoilerMediaEnabled())
+put("autoDownloadEnabled", RuntimeConfigService.isAutoDownloadEnabled())
+put("staticLocationEnabled", RuntimeConfigService.isStaticLocationEnabled())
+put("fileShareEnabled", RuntimeConfigService.isFileShareEnabled())
+put("secretChatEnabled", RuntimeConfigService.isSecretChatEnabled())
+put("screenSecureRuntimeEnabled", RuntimeConfigService.isScreenSecureRuntimeEnabled())
+put("imageSendEnabled", RuntimeConfigService.isImageSendEnabled())
+put("videoSendEnabled", RuntimeConfigService.isVideoSendEnabled())
+put("gifSendEnabled", RuntimeConfigService.isGifSendEnabled())
+put("blindWatermarkEnabled", RuntimeConfigService.isBlindWatermarkEnabled())
+})
+put("limits", buildJsonObject {
+put("maxMessagePerMin", msgRate)
+put("ipBlocklistCount", ipBlocks)
+put("maxGroupSize", RuntimeConfigService.getInt(RuntimeConfigService.KEY_MAX_GROUP_SIZE, 200))
+put("minAppVersion", RuntimeConfigService.minAppVersion())
+put("maxBotsPerUser", RuntimeConfigService.maxBotsPerUser())
+})
+put("banner", RuntimeConfigService.get(RuntimeConfigService.KEY_GLOBAL_BANNER))
+put("forceE2eeBanner", RuntimeConfigService.get(RuntimeConfigService.KEY_FORCE_E2EE_BANNER))
+put("publicAnnouncement", RuntimeConfigService.get(RuntimeConfigService.KEY_PUBLIC_ANNOUNCEMENT))
+        }
+    )
+    }
+
+get("/settings") {
+        if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
+        call.respond(
+        buildJsonObject {
+putJsonElement("settings", RuntimeConfigService.all())
+putJsonElement("defaults", RuntimeConfigService.defaults())
+put("envAllowRegistration", ServerConfig.allowRegistration)
+        }
+    )
+    }
+}
