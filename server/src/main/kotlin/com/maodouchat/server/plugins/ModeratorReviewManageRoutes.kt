@@ -13,8 +13,7 @@ import com.maodouchat.server.messaging.v2.MessagingV2Repository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
-import io.ktor.server.request.parameters
-import io.ktor.server.request.request
+import io.ktor.server.request.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
