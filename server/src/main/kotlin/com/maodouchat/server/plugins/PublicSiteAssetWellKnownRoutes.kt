@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.config.ServerConfig
 import io.ktor.http.HttpHeaders
+import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
