@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ChatFoldersSyncRequest
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ChatFolderRepository
+import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
