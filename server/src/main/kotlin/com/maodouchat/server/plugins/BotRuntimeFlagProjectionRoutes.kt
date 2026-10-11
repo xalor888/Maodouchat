@@ -1,35 +1,30 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.service.RuntimeConfigService
-import io.ktor.server.application.call
-import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 
 /** Runtime-flag projections backed by one ordered catalog instead of copied response builders. */
 internal fun Route.configureBotRuntimeFlagProjectionRoutes(botRateLimiter: BoundedRateLimiter) {
-    BOT_RUNTIME_FLAG_PROJECTIONS.forEach { projection ->
-        get("/api/bot/${projection.path}") {
-            val bot = call.requireRateLimitedBot(botRateLimiter) ?: return@get
-            BotRepository.logCommand(bot.id, null, null, projection.path)
-            call.respond(buildJsonObject {
-                put("ok", true)
-                projection.flagNames.forEach { name -> put(name, readBotRuntimeFlag(name)) }
-                put("serverTime", System.currentTimeMillis())
-            })
-        }
-    }
+    configureBotRuntimeFlagProjectionCoreRoutes(
+        botRateLimiter = botRateLimiter,
+    )
+    configureBotRuntimeFlagProjectionChatRoutes(
+        botRateLimiter = botRateLimiter,
+    )
+    configureBotRuntimeFlagProjectionSocialRoutes(
+        botRateLimiter = botRateLimiter,
+    )
+    configureBotRuntimeFlagProjectionSecureRoutes(
+        botRateLimiter = botRateLimiter,
+    )
 }
 
-private data class BotRuntimeFlagProjection(
+internal data class BotRuntimeFlagProjection(
     val path: String,
     val flagNames: List<String>,
 )
 
-private val BOT_CORE_FLAGS = listOf(
+internal val BOT_CORE_FLAGS = listOf(
     "chatArchiveEnabled", "nearbyEnabled", "chatPinEnabled", "markedUnreadEnabled",
     "chatMuteEnabled", "disappearingMessagesEnabled", "chatLockEnabled", "messageEditEnabled",
     "messagePinEnabled", "messageRevokeEnabled", "pollsEnabled", "appLockEnabled",
@@ -48,69 +43,7 @@ private val BOT_CORE_FLAGS = listOf(
     "secretStarBlockEnabled",
 )
 
-private val BOT_RUNTIME_FLAG_PROJECTIONS = listOf(
-    BotRuntimeFlagProjection(
-        "getRuntimeFlags",
-        BOT_CORE_FLAGS + listOf("postsEnabled", "blockReportEnabled", "markdownEnabled", "groupPlayEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getMuteArchiveFlags",
-        BOT_CORE_FLAGS.drop(4) + listOf("chatArchiveEnabled", "chatPinEnabled", "markedUnreadEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getPrivacyFlags",
-        BOT_CORE_FLAGS.drop(6) + listOf(
-            "disappearingMessagesEnabled", "chatMuteEnabled", "captureAlertEnabled", "sealedSenderEnabled",
-        ),
-    ),
-    BotRuntimeFlagProjection(
-        "getMessagePolicyFlags",
-        BOT_CORE_FLAGS.drop(8) + listOf(
-            "messageEditEnabled", "messageForwardingEnabled", "messageStarringEnabled",
-        ),
-    ),
-    BotRuntimeFlagProjection(
-        "getEngagementFlags",
-        BOT_CORE_FLAGS.drop(10) + listOf("reactionsEnabled", "groupPlayEnabled", "messageStarringEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getComposerFlags",
-        BOT_CORE_FLAGS.drop(12) + listOf("markdownEnabled", "typingIndicatorsEnabled", "aiEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getSocialFlags",
-        BOT_CORE_FLAGS.drop(13) + listOf("friendRequestsEnabled", "nearbyEnabled", "postsEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getIdentityFlags",
-        BOT_CORE_FLAGS.drop(17) + listOf("nudgeEnabled", "safetyCodeEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getMediaFlags",
-        BOT_CORE_FLAGS.drop(19) + listOf("mediaUploadEnabled", "viewOnceEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getLocationFlags",
-        listOf("staticLocationEnabled", "liveLocationEnabled", "fileShareEnabled", "mediaUploadEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getPrivacySecureFlags",
-        listOf("secretChatEnabled", "screenSecureRuntimeEnabled", "captureAlertEnabled", "sealedSenderEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getMediaSendFlags",
-        listOf("imageSendEnabled", "videoSendEnabled", "fileShareEnabled", "mediaUploadEnabled"),
-    ),
-    BotRuntimeFlagProjection(
-        "getMediaPrivacyFlags",
-        listOf(
-            "gifSendEnabled", "blindWatermarkEnabled", "imageSendEnabled", "stickersEnabled",
-            "screenSecureRuntimeEnabled", "secretChatEnabled",
-        ),
-    ),
-)
-
-private fun readBotRuntimeFlag(name: String): Boolean = when (name) {
+internal fun readBotRuntimeFlag(name: String): Boolean = when (name) {
     "aiEnabled" -> RuntimeConfigService.isAiEnabled()
     "appLockEnabled" -> RuntimeConfigService.isAppLockEnabled()
     "autoDownloadEnabled" -> RuntimeConfigService.isAutoDownloadEnabled()
