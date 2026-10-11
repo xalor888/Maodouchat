@@ -57,6 +57,7 @@ internal fun Route.configureBotCoreRoutes(
     configureBotMemberRoutes(
         groupMembershipService = groupMembershipService,
         groupModerationRepo = groupModerationRepo,
+        groupInvitationService = groupInvitationService,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
         botSendRateLimiter = botSendRateLimiter,
@@ -113,6 +114,7 @@ internal fun Route.configureBotCoreRoutes(
 
     configureBotMemberPromotionRoutes(
         groupMembershipService = groupMembershipService,
+        groupModerationRepo = groupModerationRepo,
         groupInvitationService = groupInvitationService,
         conversationParticipantRepo = conversationParticipantRepo,
         conversationQueryRepo = conversationQueryRepo,
