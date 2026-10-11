@@ -35,7 +35,13 @@ class RouteRegistrySplitTest {
     fun `admin registry delegates and observability remains registered`() {
         val registry = source("AdminRouting.kt")
         val management = source("AdminManagementRouting.kt")
-        val observability = source("AdminObservabilityRouting.kt")
+        // Observability 已按域拆为 3 个实现簇（health / analytics / audit），路径断言覆盖全部簇文件。
+        val observability = listOf(
+            "AdminObservabilityRouting.kt",
+            "AdminObservabilityHealthRoutes.kt",
+            "AdminObservabilityAnalyticsRoutes.kt",
+            "AdminObservabilityAuditRoutes.kt",
+        ).joinToString("\n") { source(it) }
 
         assertTrue(registry.lineSequence().count() <= 30)
         assertTrue("configureAdminManagementRouting(" in registry)
@@ -178,6 +184,9 @@ class RouteRegistrySplitTest {
             "AdminUserSessionRoutes.kt",
             "AdminOpsRoutes.kt",
             "AdminObservabilityRouting.kt",
+            "AdminObservabilityHealthRoutes.kt",
+            "AdminObservabilityAnalyticsRoutes.kt",
+            "AdminObservabilityAuditRoutes.kt",
             "AdminModerationRouting.kt",
             "AdminReportRoutes.kt",
             "AdminModerationRuleRoutes.kt",
