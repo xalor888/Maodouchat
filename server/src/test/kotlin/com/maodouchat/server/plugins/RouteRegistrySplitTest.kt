@@ -139,6 +139,8 @@ class RouteRegistrySplitTest {
             source("SocialPostFileRoutes.kt"),
             source("PublicSiteRouting.kt"),
             source("PollLegacyRouting.kt"),
+            source("PollLegacyQueryRoutes.kt"),
+            source("PollLegacyManageRoutes.kt"),
         )
 
         listOf(
