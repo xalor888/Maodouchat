@@ -111,6 +111,9 @@ class RouteRegistrySplitTest {
         val modules = listOf(
             source("AuthAccountRoutes.kt"),
             source("AuthLoginRoutes.kt"),
+            source("AuthLoginLoginRoutes.kt"),
+            source("AuthLoginRefreshRoutes.kt"),
+            source("AuthLoginLogoutRoutes.kt"),
             source("AuthSessionRoutes.kt"),
             source("AccountProfileReadRoutes.kt"),
             source("AccountProfileWriteRoutes.kt"),
@@ -129,6 +132,8 @@ class RouteRegistrySplitTest {
             source("ReportUserBlockRoutes.kt"),
             source("ReportUserReportRoutes.kt"),
             source("ModeratorReviewRoutes.kt"),
+            source("ModeratorReviewQueryRoutes.kt"),
+            source("ModeratorReviewManageRoutes.kt"),
             source("AdminModerationRoutes.kt"),
             source("SocialPostStarPinRoutes.kt"),
             source("SocialPostReadRoutes.kt"),
