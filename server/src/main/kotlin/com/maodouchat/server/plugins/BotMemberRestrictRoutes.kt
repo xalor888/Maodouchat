@@ -1,5 +1,7 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.model.ChatType
+import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.GroupMembershipService
 import com.maodouchat.server.service.GroupInvitationService

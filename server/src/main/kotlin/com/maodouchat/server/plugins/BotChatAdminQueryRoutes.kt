@@ -1,5 +1,6 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.*
 import io.ktor.http.*
 import io.ktor.server.application.call
