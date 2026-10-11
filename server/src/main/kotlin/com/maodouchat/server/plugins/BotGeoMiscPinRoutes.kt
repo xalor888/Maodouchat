@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.PinnedMessageRepository
@@ -13,7 +14,6 @@ import io.ktor.server.routing.post
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonElement
 
 /** Bot 取消置顶消息。 */
 internal fun Route.configureBotGeoMiscPinRoutes(
