@@ -223,6 +223,8 @@ class RouteRegistrySplitTest {
             "AdminObservabilityAuditRoutes.kt",
             "AdminModerationRouting.kt",
             "AdminReportRoutes.kt",
+            "AdminReportQueryRoutes.kt",
+            "AdminReportWriteRoutes.kt",
             "AdminModerationRuleRoutes.kt",
             "AdminRiskEventRoutes.kt",
             "AdminContentRouting.kt",
