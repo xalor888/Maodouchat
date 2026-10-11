@@ -15,7 +15,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonElement
 
 /** Bot 消息置顶（pinChatMessage）。 */
 internal fun Route.configureBotChatActionPinRoutes(
