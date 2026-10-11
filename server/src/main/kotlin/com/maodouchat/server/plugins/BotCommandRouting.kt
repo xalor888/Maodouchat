@@ -1,65 +1,11 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.model.*
-import io.ktor.http.*
-import io.ktor.server.application.call
-import io.ktor.server.response.respond
-import io.ktor.server.routing.*
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.*
+import io.ktor.server.routing.Route
 
-/** Bot 命令集（getMyCommands / setMyCommands）。 */
-internal fun Route.configureBotCommandRoutes(botSendRateLimiter: BoundedRateLimiter) {
-
-    get("/api/bot/getMyCommands") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@get
-        val commands = com.maodouchat.server.repository.BotRepository.getMyCommands(bot.id)
-        call.respond(
-        buildJsonObject {
-putJsonElement("commands", commands)
-put("count", commands.size)
-        }
-    )
-    }
-
-    post("/api/bot/setMyCommands") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        val body = call.receiveBoundedTextOrEmpty()
-        val obj = call.requireJsonObjectOr400(body) ?: return@post
-        val defs = when (val parsed = parseBotSetMyCommandsFields(obj)) {
-            is BotSetMyCommandsFieldsResult.Ok -> parsed.fields.commands
-            BotSetMyCommandsFieldsResult.Invalid ->
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("commands array required"))
-        }
-        val normalized = com.maodouchat.server.repository.BotRepository.normalizeCommands(defs)
-            ?: return@post call.respond(
-                HttpStatusCode.BadRequest,
-                ErrorResponse("invalid commands (max 100, unique a-z0-9_, description required)")
-            )
-        val saved = com.maodouchat.server.repository.BotRepository.setMyCommands(bot.id, normalized)
-            ?: return@post call.respondBotUnavailable()
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "setMyCommands")
-        call.respond(
-        buildJsonObject {
-put("ok", true)
-putJsonElement("commands", saved)
-put("count", saved.size)
-        }
-    )
-    }
-
-    post("/api/bot/deleteMyCommands") {
-        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
-        if (!com.maodouchat.server.repository.BotRepository.clearMyCommands(bot.id)) {
-            return@post call.respondBotUnavailable()
-        }
-        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "deleteMyCommands")
-        call.respond(
-            buildJsonObject {
-                put("ok", true)
-                put("commands", buildJsonArray { })
-                put("count", 0)
-            }
-        )
-    }
+/** Bot 命令集（查询/写拆为独立簇，本函数只做委托）。 */
+internal fun Route.configureBotCommandRoutes(
+    botSendRateLimiter: BoundedRateLimiter,
+) {
+    configureBotCommandQueryRoutes(botSendRateLimiter)
+    configureBotCommandWriteRoutes(botSendRateLimiter)
 }

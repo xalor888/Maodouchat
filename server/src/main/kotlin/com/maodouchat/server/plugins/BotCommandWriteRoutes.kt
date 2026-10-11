@@ -1,0 +1,55 @@
+package com.maodouchat.server.plugins
+
+import com.maodouchat.server.model.ErrorResponse
+import io.ktor.http.*
+import io.ktor.server.application.call
+import io.ktor.server.response.respond
+import io.ktor.server.routing.*
+import kotlinx.serialization.json.*
+
+/** Bot 命令集写操作（setMyCommands / deleteMyCommands）。 */
+internal fun Route.configureBotCommandWriteRoutes(
+    botSendRateLimiter: BoundedRateLimiter,
+) {
+
+    post("/api/bot/setMyCommands") {
+        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
+        val body = call.receiveBoundedTextOrEmpty()
+        val obj = call.requireJsonObjectOr400(body) ?: return@post
+        val defs = when (val parsed = parseBotSetMyCommandsFields(obj)) {
+            is BotSetMyCommandsFieldsResult.Ok -> parsed.fields.commands
+            BotSetMyCommandsFieldsResult.Invalid ->
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("commands array required"))
+        }
+        val normalized = com.maodouchat.server.repository.BotRepository.normalizeCommands(defs)
+            ?: return@post call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse("invalid commands (max 100, unique a-z0-9_, description required)")
+            )
+        val saved = com.maodouchat.server.repository.BotRepository.setMyCommands(bot.id, normalized)
+            ?: return@post call.respondBotUnavailable()
+        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "setMyCommands")
+        call.respond(
+        buildJsonObject {
+put("ok", true)
+putJsonElement("commands", saved)
+put("count", saved.size)
+        }
+    )
+    }
+
+    post("/api/bot/deleteMyCommands") {
+        val bot = call.requireRateLimitedBot(botSendRateLimiter) ?: return@post
+        if (!com.maodouchat.server.repository.BotRepository.clearMyCommands(bot.id)) {
+            return@post call.respondBotUnavailable()
+        }
+        com.maodouchat.server.repository.BotRepository.logCommand(bot.id, null, null, "deleteMyCommands")
+        call.respond(
+            buildJsonObject {
+                put("ok", true)
+                put("commands", buildJsonArray { })
+                put("count", 0)
+            }
+        )
+    }
+}
