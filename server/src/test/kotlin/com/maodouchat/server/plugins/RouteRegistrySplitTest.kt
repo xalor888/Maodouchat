@@ -244,6 +244,8 @@ class RouteRegistrySplitTest {
             "BotPresentationHintGeoRoutes.kt",
             "BotPresentationHintVisualRoutes.kt",
             "BotPresentationProbesRouting.kt",
+            "BotPresentationProbesHealthRoutes.kt",
+            "BotPresentationProbesFlagsRoutes.kt",
             "BotChatInviteRouting.kt",
             "BotChatInviteLinkRoutes.kt",
             "BotChatAvatarRoutes.kt",
