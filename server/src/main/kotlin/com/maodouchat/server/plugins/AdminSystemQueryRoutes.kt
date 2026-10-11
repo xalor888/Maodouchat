@@ -11,7 +11,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonElement
 
 /** 管理后台系统只读面（安全快照 / 运营配置查询）。 */
 internal fun Route.configureAdminSystemQueryRoutes(

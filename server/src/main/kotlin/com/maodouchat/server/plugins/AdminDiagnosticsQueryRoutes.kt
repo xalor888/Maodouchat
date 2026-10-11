@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AdminManagementRepository
 import com.maodouchat.server.repository.AiRepository
+import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.service.AdminAiAuditPolicy
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

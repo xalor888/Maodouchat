@@ -9,7 +9,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.put
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonElement
 
 /** 管理后台系统写操作（运营配置更新）。 */
 internal fun Route.configureAdminSystemWriteRoutes() {
