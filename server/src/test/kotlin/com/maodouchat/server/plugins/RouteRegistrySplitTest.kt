@@ -158,6 +158,8 @@ class RouteRegistrySplitTest {
             source("SocialPostCommentRoutes.kt"),
             source("SocialPostCommentReadRoutes.kt"),
             source("SocialPostCommentWriteRoutes.kt"),
+            source("SocialPostCommentContentRoutes.kt"),
+            source("SocialPostCommentLikeRoutes.kt"),
             source("SocialPostFileRoutes.kt"),
             source("PublicSiteRouting.kt"),
             source("PollLegacyRouting.kt"),
