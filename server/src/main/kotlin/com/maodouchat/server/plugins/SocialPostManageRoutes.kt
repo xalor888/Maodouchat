@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.repository.attachReference
+import com.maodouchat.server.repository.evaluate
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.ModerationEngine
 import io.ktor.http.*

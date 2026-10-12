@@ -4,6 +4,10 @@ import com.maodouchat.server.model.CreateAnnouncementRequest
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateAnnouncementRequest
 import com.maodouchat.server.repository.AnnouncementRepository
+import com.maodouchat.server.repository.create
+import com.maodouchat.server.repository.delete as deleteAnnouncement
+import com.maodouchat.server.repository.get
+import com.maodouchat.server.repository.update
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -103,7 +107,7 @@ delete("/announcements/{id}") {
     if (!call.isAdminUser()) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))
     val actorId = call.requireUserId()
     val id = call.requirePathParamOr400("id", "缺少公告 ID") ?: return@delete
-    if (!announcementRepo.delete(id)) {
+    if (!announcementRepo.deleteAnnouncement(id)) {
         return@delete call.respond(HttpStatusCode.Conflict, ErrorResponse("仅未发布的草稿可删除；已发布公告请使用取消"))
     }
     recordAdminAudit(actorId, "ANNOUNCEMENT_DELETED", "id=$id")

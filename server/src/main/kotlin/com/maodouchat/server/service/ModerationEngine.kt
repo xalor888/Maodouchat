@@ -1,6 +1,7 @@
 package com.maodouchat.server.service
 
 import com.maodouchat.server.repository.ModerationRuleRepository
+import com.maodouchat.server.repository.recordAiDecision
 import org.slf4j.LoggerFactory
 
 /**

@@ -4,6 +4,11 @@ import com.maodouchat.server.model.CreateModerationRuleRequest
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateModerationRuleRequest
 import com.maodouchat.server.repository.ModerationRuleRepository
+import com.maodouchat.server.repository.createRule
+import com.maodouchat.server.repository.deleteRule
+import com.maodouchat.server.repository.getRules
+import com.maodouchat.server.repository.ruleExists
+import com.maodouchat.server.repository.updateRule
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
