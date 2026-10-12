@@ -4,6 +4,7 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.GroupMembershipService
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import kotlinx.serialization.json.Json
 
