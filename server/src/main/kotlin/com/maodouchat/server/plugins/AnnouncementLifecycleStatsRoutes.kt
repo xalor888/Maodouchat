@@ -3,6 +3,8 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.AnnouncementStatsResponse
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AnnouncementRepository
+import com.maodouchat.server.repository.ackedCount
+import com.maodouchat.server.repository.stats
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

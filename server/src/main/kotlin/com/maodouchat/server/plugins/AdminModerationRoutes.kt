@@ -2,6 +2,11 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.repository.acknowledgeRiskEvent
+import com.maodouchat.server.repository.getRiskEvents
+import com.maodouchat.server.repository.getRules
+import com.maodouchat.server.repository.ruleExists
+import com.maodouchat.server.repository.updateRule
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.auth.*

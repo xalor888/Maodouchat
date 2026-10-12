@@ -5,6 +5,10 @@ import com.maodouchat.server.model.AnnouncementAckResponse
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AnnouncementRepository
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.repository.ackedAnnouncementIds
+import com.maodouchat.server.repository.activeForUser
+import com.maodouchat.server.repository.isAckVisibleToUser
+import com.maodouchat.server.repository.markAcked
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
