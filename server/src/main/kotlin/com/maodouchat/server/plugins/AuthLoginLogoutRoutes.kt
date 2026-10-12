@@ -5,6 +5,8 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.RefreshTokenRequest
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.revokeAccessTokenFromAuthorizationHeader
+import com.maodouchat.server.repository.revokeAndGetSession
 import com.maodouchat.server.repository.PushTokenRepository
 import com.maodouchat.server.service.SessionService
 import io.ktor.http.HttpHeaders

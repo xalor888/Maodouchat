@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.rotateAccessTokenVersion
 import com.maodouchat.server.service.DispositionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

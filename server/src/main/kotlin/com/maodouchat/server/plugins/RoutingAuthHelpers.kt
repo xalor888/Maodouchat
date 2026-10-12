@@ -5,6 +5,8 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.AuthResponse
 import com.maodouchat.server.model.UserResponse
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.getAccessTokenVersion
+import com.maodouchat.server.repository.issueRefreshToken
 import com.maodouchat.server.repository.IssuedRefreshToken
 import io.ktor.http.HttpHeaders
 import io.ktor.server.application.ApplicationCall

@@ -3,6 +3,7 @@ package com.maodouchat.server.service
 import com.maodouchat.server.repository.purgeAdminOperationalData
 import com.maodouchat.server.repository.AiRepository
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.deleteExpired
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.FriendRepository
 import com.maodouchat.server.repository.GroupAuditRepository

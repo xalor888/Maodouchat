@@ -1,6 +1,8 @@
 package com.maodouchat.server.service
 
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.revokeSession
+import com.maodouchat.server.repository.rotateAccessTokenVersion
 import com.maodouchat.server.repository.PushTokenRepository
 
 /**
