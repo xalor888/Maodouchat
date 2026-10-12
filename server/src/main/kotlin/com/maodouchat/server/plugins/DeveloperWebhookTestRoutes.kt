@@ -4,6 +4,7 @@ import com.maodouchat.server.common.postPinnedWebhookJson
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.DeveloperAnalyticsRepository
+import com.maodouchat.server.repository.getTokenHash
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

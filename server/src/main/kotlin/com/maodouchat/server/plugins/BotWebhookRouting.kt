@@ -1,6 +1,9 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
+import com.maodouchat.server.repository.isAllowedWebhookUrl
+import com.maodouchat.server.repository.logCommand
+import com.maodouchat.server.repository.setWebhookByToken
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -17,7 +20,7 @@ internal fun Route.configureBotWebhookRoutes(botSendRateLimiter: BoundedRateLimi
         val url = when (
             val parsed = parseBotSetWebhookFields(
                 obj,
-                com.maodouchat.server.repository.BotRepository::isAllowedWebhookUrl,
+                { com.maodouchat.server.repository.BotRepository.isAllowedWebhookUrl(it) },
             )
         ) {
             is BotSetWebhookFieldsResult.Ok -> parsed.fields.url

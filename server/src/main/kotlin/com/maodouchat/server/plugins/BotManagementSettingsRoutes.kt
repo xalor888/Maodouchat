@@ -2,6 +2,10 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.isAllowedWebhookUrl
+import com.maodouchat.server.repository.regenerateToken
+import com.maodouchat.server.repository.setEnabled
+import com.maodouchat.server.repository.setWebhook
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

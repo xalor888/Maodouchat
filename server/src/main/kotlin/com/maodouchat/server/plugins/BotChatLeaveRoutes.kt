@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.LeaveConversationResult
+import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.ConversationCommandService
 import io.ktor.http.HttpStatusCode

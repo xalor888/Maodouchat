@@ -3,6 +3,9 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.ConversationParticipantRepository
+import com.maodouchat.server.repository.delete as deleteBot
+import com.maodouchat.server.repository.groupChatIdsFor
+import com.maodouchat.server.repository.setEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -30,7 +33,7 @@ internal fun Route.configureDeveloperAccountBotLifecycleRoutes(
         // 与 REST 删除机器人一致：删除会 bump 群成员版本；此前开发者账号路径只删 DB，
         // 客户端成员列表会残留已删除 bot。
         val affectedGroupIds = BotRepository.groupChatIdsFor(botId)
-        val ok = BotRepository.delete(botId, userId)
+        val ok = BotRepository.deleteBot(botId, userId)
         if (!ok) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
         val groupSnapshots = devParticipantRepo.groupRevisionAndParticipantIds(affectedGroupIds)
         groupSnapshots.forEach { (chatId, snapshot) ->

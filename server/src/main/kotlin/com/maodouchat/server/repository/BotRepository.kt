@@ -48,19 +48,19 @@ private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInsta
 object BotRepository {
     // 8.48 修复 L1：收件箱事件 JSON 上限——超过即拒写（take 截断会从多字节字符/JSON token
     // 中间切断产生损坏行，bot 轮询解析抛异常）。正常事件远小于该值。
-    private const val MAX_UPDATE_JSON_CHARS = 16_000
+    internal const val MAX_UPDATE_JSON_CHARS = 16_000
     // 9.237：单 bot 收件箱积压上限（超限 FIFO 淘汰最旧，见 evictOldestInboxLocked）
-    private const val MAX_INBOX_PENDING_PER_BOT = 500L
+    internal const val MAX_INBOX_PENDING_PER_BOT = 500L
     // 9.238：单 bot 命令日志上限（超限 FIFO 淘汰最旧，见 evictOldestCommandLogsLocked）
-    private const val MAX_COMMAND_LOGS_PER_BOT = 2_000L
-    private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-    private val logger = org.slf4j.LoggerFactory.getLogger(BotRepository::class.java)
-    private val botUsernamePattern = Regex("^[a-z][a-z0-9_]{2,31}$")
-    private val botCommandPattern = Regex("^[a-z][a-z0-9_]{0,31}$")
-    private val ipv4HexLiteralPattern = Regex("""^0x[0-9a-f]+$""")
-    private val ipv4DigitsPattern = Regex("""\d+""")
+    internal const val MAX_COMMAND_LOGS_PER_BOT = 2_000L
+    internal val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+    internal val logger = org.slf4j.LoggerFactory.getLogger(BotRepository::class.java)
+    internal val botUsernamePattern = Regex("^[a-z][a-z0-9_]{2,31}$")
+    internal val botCommandPattern = Regex("^[a-z][a-z0-9_]{0,31}$")
+    internal val ipv4HexLiteralPattern = Regex("""^0x[0-9a-f]+$""")
+    internal val ipv4DigitsPattern = Regex("""\d+""")
     // SecureRandom 线程安全，每次生成 token 都 new 会反复播种，对象级复用。
-    private val secureRandom = SecureRandom()
+    internal val secureRandom = SecureRandom()
 
     @Serializable
     data class BotDto(
@@ -118,261 +118,8 @@ object BotRepository {
             .map { it.toDto() }
     }
 
-    fun create(ownerUserId: String, name: String, username: String, description: String?): BotCreateResult {
-        val n = name.trim().take(120)
-        val u = normalizeUsername(username) ?: return BotCreateResult.InvalidInput
-        if (n.isBlank()) return BotCreateResult.InvalidInput
-        val maxBots = try {
-            com.maodouchat.server.service.RuntimeConfigService.maxBotsPerUser()
-        } catch (_: Exception) { 20 }
-        val id = "bot_" + UUID.randomUUID().toString().replace("-", "").take(16)
-        val token = generateToken()
-        val now = System.currentTimeMillis()
-        return try {
-            transaction {
-                val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                    ?: return@transaction BotCreateResult.OwnerInvalid
-                if (owner[Users.deletedAt] != null) return@transaction BotCreateResult.OwnerInvalid
-                if (owner[Users.suspendedUntil] > now) return@transaction BotCreateResult.OwnerInvalid
-                val owned = BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }.count()
-                if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction BotCreateResult.MaxBotsReached
-                if (BotApps.selectAll().where { BotApps.username eq u }.firstOrNull() != null) {
-                    return@transaction BotCreateResult.UsernameTaken
-                }
-                // Bot identity is also a Users row so message.senderId FK remains valid.
-                Users.insert {
-                    it[Users.id] = id
-                    it[Users.email] = "$id@bots.maodouchat.local"
-                    it[Users.passwordHash] = "!" // unusable password
-                    it[Users.name] = n
-                    it[Users.searchable] = false
-                    it[Users.lastSeen] = now
-                }
-                BotApps.insert {
-                    it[BotApps.id] = id
-                    it[BotApps.ownerUserId] = ownerUserId
-                    it[BotApps.name] = n
-                    it[BotApps.username] = u
-                    it[BotApps.description] = description?.trim()?.take(500)
-                    it[BotApps.tokenHash] = hashToken(token)
-                    it[BotApps.tokenPrefix] = token.take(8)
-                    it[BotApps.webhookUrl] = null
-                    it[BotApps.enabled] = true
-                    it[BotApps.commandsJson] = encodeCommands(DEFAULT_COMMANDS)
-                    it[BotApps.createdAt] = now
-                    it[BotApps.updatedAt] = now
-                }
-                BotCreateResult.Success(
-                    BotApps.selectAll().where { BotApps.id eq id }.first().toDto().copy(tokenOnce = token)
-                )
-            }
-        } catch (error: Exception) {
-            if (isUniqueViolation(error)) BotCreateResult.UsernameTaken else throw error
-        }
-    }
-
-    fun regenerateToken(botId: String, ownerUserId: String): BotDto? {
-        val token = generateToken()
-        val now = System.currentTimeMillis()
-        return transaction {
-            val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (owner[Users.deletedAt] != null || owner[Users.suspendedUntil] > now) return@transaction null
-            val updated = BotApps.update({
-                (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
-            }) {
-                it[tokenHash] = hashToken(token)
-                it[tokenPrefix] = token.take(8)
-                it[updatedAt] = now
-            }
-            if (updated != 1) return@transaction null
-            BotApps.selectAll().where { BotApps.id eq botId }.first().toDto().copy(tokenOnce = token)
-        }
-    }
-
-    fun setWebhook(botId: String, ownerUserId: String, url: String?): BotDto? {
-        val clean = url?.trim()?.take(500)
-        if (!clean.isNullOrBlank() && !isAllowedWebhookUrl(clean)) {
-            return null
-        }
-        val now = System.currentTimeMillis()
-        return transaction {
-            val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (owner[Users.deletedAt] != null || owner[Users.suspendedUntil] > now) return@transaction null
-            val updated = BotApps.update({
-                (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
-            }) {
-                it[webhookUrl] = clean
-                it[updatedAt] = now
-            }
-            if (updated != 1) return@transaction null
-            BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
-        }
-    }
-
-
-    fun setWebhookByToken(botId: String, url: String?): BotDto? {
-        val clean = url?.trim()?.take(500)
-        if (!clean.isNullOrBlank() && !isAllowedWebhookUrl(clean)) {
-            return null
-        }
-        val now = System.currentTimeMillis()
-        return transaction {
-            val bot = BotApps.selectAll()
-                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-                .forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
-            val updated = BotApps.update({ BotApps.id eq botId }) {
-                it[webhookUrl] = clean
-                it[updatedAt] = now
-            }
-            if (updated != 1) return@transaction null
-            BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
-        }
-    }
-
-    fun countPendingUpdates(botId: String, offset: Long = 0): Long = transaction {
-        val now = System.currentTimeMillis()
-        val bot = BotApps.selectAll()
-            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-            .firstOrNull() ?: return@transaction 0L
-        if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction 0L
-        BotUpdateInbox.selectAll()
-            .where {
-                (BotUpdateInbox.botId eq botId) and
-                    (BotUpdateInbox.id greater offset.coerceAtLeast(0L))
-            }
-            .count()
-    }
-
-
-    fun setEnabled(botId: String, ownerUserId: String, enabled: Boolean): BotDto? {
-        val now = System.currentTimeMillis()
-        return transaction {
-            val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (owner[Users.deletedAt] != null || owner[Users.suspendedUntil] > now) return@transaction null
-            val updated = BotApps.update({
-                (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
-            }) {
-                it[BotApps.enabled] = enabled
-                it[updatedAt] = now
-            }
-            if (updated != 1) return@transaction null
-            BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
-        }
-    }
 
     
-    fun delete(botId: String, ownerUserId: String): Boolean {
-        return transaction {
-            val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                ?: return@transaction false
-            if (owner[Users.deletedAt] != null) return@transaction false
-            if (owner[Users.suspendedUntil] > System.currentTimeMillis()) return@transaction false
-            BotApps.selectAll().where {
-                (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
-            }.forUpdate().firstOrNull() ?: return@transaction false
-            val chatIds = ChatParticipants.select(ChatParticipants.chatId)
-                .where { ChatParticipants.userId eq botId }
-                .map { it[ChatParticipants.chatId] }
-                .distinct()
-                .sorted()
-            val lockedChats = if (chatIds.isEmpty()) emptyList() else Chats.selectAll()
-                .where { Chats.id inList chatIds }
-                .orderBy(Chats.id to org.jetbrains.exposed.sql.SortOrder.ASC)
-                .forUpdate()
-                .toList()
-            // 8.37：bot 可能是群主——删除前先转移所有权（与 UserRepository.removeOwnedBots 一致：
-            // ADMIN > MEMBER > joinedAt 选后继 + OWNERSHIP_TRANSFERRED 审计），避免群变无主
-            val now = System.currentTimeMillis()
-            lockedChats.filter { it[Chats.isGroup] }.forEach { chat ->
-                val chatId = chat[Chats.id]
-                val participants = ChatParticipants.selectAll()
-                    .where { ChatParticipants.chatId eq chatId }
-                    .toList()
-                if (participants.any { it[ChatParticipants.userId] == botId && it[ChatParticipants.role] == "OWNER" }) {
-                    val successor = participants
-                        .filterNot { it[ChatParticipants.userId] == botId }
-                        .sortedWith(
-                            compareByDescending<org.jetbrains.exposed.sql.ResultRow> {
-                                when (it[ChatParticipants.role]) {
-                                    "ADMIN" -> 2
-                                    "MEMBER" -> 1
-                                    else -> 0
-                                }
-                            }.thenBy { it[ChatParticipants.joinedAt] }
-                                .thenBy { it[ChatParticipants.userId] }
-                        )
-                        .firstOrNull()
-                    if (successor != null) {
-                        val successorId = successor[ChatParticipants.userId]
-                        ChatParticipants.update({
-                            (ChatParticipants.chatId eq chatId) and
-                                (ChatParticipants.userId eq successorId)
-                        }) { it[ChatParticipants.role] = "OWNER" }
-                        GroupAuditLogs.insert {
-                            it[GroupAuditLogs.id] = "gal_${java.util.UUID.randomUUID()}"
-                            it[GroupAuditLogs.chatId] = chatId
-                            it[GroupAuditLogs.actorId] = ownerUserId
-                            it[GroupAuditLogs.action] = "OWNERSHIP_TRANSFERRED"
-                            it[GroupAuditLogs.targetUserId] = successorId
-                            it[GroupAuditLogs.createdAt] = now
-                        }
-                    }
-                }
-            }
-            // Drop memberships first so history/fanout no longer targets the bot identity.
-            lockedChats.forEach { chat ->
-                deleteMessagingV2ParticipantStateInTx(chat[Chats.id], botId)
-            }
-            ChatUserSettings.deleteWhere { ChatUserSettings.userId eq botId }
-            ChatParticipants.deleteWhere { ChatParticipants.userId eq botId }
-            // 9.124：bot 可经 /api/bot/sendPoll 以自身身份创建群投票——删除 bot 时连投票
-            // 及其选项投票一并清掉（与 UserRepository.removeOwnedBots 的 deletePollsCreatedBy 对齐），
-            // 否则群内残留创建者已注销的孤儿投票。
-            val botPollIds = GroupPolls.select(GroupPolls.id)
-                .where { GroupPolls.creatorId eq botId }
-                .orderBy(GroupPolls.id to org.jetbrains.exposed.sql.SortOrder.ASC)
-                .forUpdate()
-                .map { it[GroupPolls.id] }
-            if (botPollIds.isNotEmpty()) {
-                GroupPollVotes.deleteWhere { GroupPollVotes.pollId inList botPollIds }
-                GroupPolls.deleteWhere { GroupPolls.id inList botPollIds }
-            }
-            GroupPollVotes.deleteWhere { GroupPollVotes.userId eq botId }
-            StarMessages.deleteWhere { StarMessages.userId eq botId }
-            ServiceMessageReactions.deleteWhere { ServiceMessageReactions.botUserId eq botId }
-            lockedChats.filter { it[Chats.isGroup] }.forEach { chat ->
-                Chats.update({ Chats.id eq chat[Chats.id] }) {
-                    it[Chats.memberRevision] = chat[Chats.memberRevision] + 1
-                }
-            }
-            BotCommandLogs.deleteWhere {
-                (BotCommandLogs.botId eq botId) or (BotCommandLogs.userId eq botId)
-            }
-            BotUpdateInbox.deleteWhere { BotUpdateInbox.botId eq botId }
-            if (BotApps.deleteWhere {
-                    (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
-                } != 1
-            ) return@transaction false
-            // Keep a tombstone so historical v2 sender attribution remains stable.
-            Users.update({ Users.id eq botId }) {
-                it[Users.name] = "deleted-bot"
-                it[Users.status] = ""
-                it[Users.avatar] = null
-                it[Users.isOnline] = false
-                it[Users.showOnline] = false
-                it[Users.showStatus] = false
-                it[Users.searchable] = false
-                it[Users.lastSeen] = 0
-                it[Users.deletedAt] = System.currentTimeMillis()
-            }
-            true
-        }
-    }
 
     fun authenticate(token: String): BotDto? {
         val hash = hashToken(token.trim())
@@ -395,48 +142,13 @@ object BotRepository {
         }
     }
 
-    /** Returns the stored token hash for a bot, or null if not found. Used for webhook signing. */
-    fun getTokenHash(botId: String): String? = transaction {
-        BotApps.selectAll().where { BotApps.id eq botId }
-            .firstOrNull()?.get(BotApps.tokenHash)
-    }
-
-    /** 8.33：bot 所在全部会话（删除 bot 后需要向这些群广播 memberRevision）。 */
-    fun groupChatIdsFor(botId: String): List<String> = transaction {
-        ChatParticipants.select(ChatParticipants.chatId)
-            .where { ChatParticipants.userId eq botId }
-            .map { it[ChatParticipants.chatId] }
-            .distinct()
-    }
-
-
-    fun enqueueUpdate(botId: String, updateJson: String) {
-        if (updateJson.length > MAX_UPDATE_JSON_CHARS) {
-            logger.warn("Bot update json too large ({} chars), dropping for {}", updateJson.length, botId)
-            return
-        }
-        transaction {
-            val now = System.currentTimeMillis()
-            val bot = BotApps.selectAll()
-                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-                .forUpdate()
-                .firstOrNull() ?: return@transaction
-            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction
-            evictOldestInboxLocked(botId)
-            BotUpdateInbox.insert {
-                it[BotUpdateInbox.botId] = botId
-                it[BotUpdateInbox.updateJson] = updateJson
-                it[createdAt] = now
-            }
-        }
-    }
 
     /**
      * 9.237：每 bot 积压封顶——停止轮询的 bot 不得让 bot_update_inbox 无限增长
      * （否则其所在群聊的消息洪泛可廉价放大 DB 写入）；超限按 FIFO 淘汰最旧，
      * 保留最近事件。须在事务内调用。
      */
-    private fun evictOldestInboxLocked(botId: String) {
+    internal fun evictOldestInboxLocked(botId: String) {
         val pending = BotUpdateInbox.selectAll().where { BotUpdateInbox.botId eq botId }.count()
         if (pending < MAX_INBOX_PENDING_PER_BOT) return
         val overflow = (pending - MAX_INBOX_PENDING_PER_BOT + 1L).coerceAtLeast(1L).toInt()
@@ -450,109 +162,6 @@ object BotRepository {
         }
     }
 
-    internal fun isOwnerDeliverable(ownerUserId: String, now: Long): Boolean {
-        val owner = Users.selectAll().where { Users.id eq ownerUserId }.firstOrNull() ?: return false
-        return owner[Users.deletedAt] == null &&
-            owner[Users.suspendedUntil] <= now &&
-            owner[Users.messageRestrictedUntil] <= now &&
-            owner[Users.postRestrictedUntil] <= now
-    }
-
-    /** Transaction-local bot availability check for write paths outside BotRepository. */
-    internal fun isBotDeliverableInTx(botId: String, now: Long): Boolean {
-        val bot = BotApps.selectAll()
-            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-            .forUpdate()
-            .firstOrNull() ?: return false
-        return isOwnerDeliverable(bot[BotApps.ownerUserId], now)
-    }
-
-    fun isBotDeliverable(botId: String): Boolean = transaction {
-        isBotDeliverableInTx(botId, System.currentTimeMillis())
-    }
-
-    /** Validate callback ownership/membership and enqueue it atomically with the audit row. */
-    fun enqueueCallbackIfAuthorized(
-        chatId: String,
-        userId: String,
-        botId: String,
-        messageId: String,
-        callbackData: String,
-        updateJson: String
-    ): Boolean = transaction {
-        if (!isBoundedId(chatId) || !isBoundedId(userId) || !isBoundedId(botId) || !isBoundedId(messageId)) {
-            return@transaction false
-        }
-        if (callbackData.isBlank() || callbackData.length > MAX_CALLBACK_DATA_LENGTH) return@transaction false
-        // 8.48：超限拒写，避免 take 截断产生损坏 JSON 行
-        if (updateJson.length > MAX_UPDATE_JSON_CHARS) return@transaction false
-        val now = System.currentTimeMillis()
-        // Bot deletion uses bot -> chat; lock in the same order before writing bot-owned rows.
-        val botRow = BotApps.selectAll()
-            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-            .forUpdate()
-            .firstOrNull() ?: return@transaction false
-        val owner = Users.selectAll().where { Users.id eq botRow[BotApps.ownerUserId] }.firstOrNull()
-        if (owner == null || owner[Users.deletedAt] != null ||
-            owner[Users.suspendedUntil] > now ||
-            owner[Users.messageRestrictedUntil] > now ||
-            owner[Users.postRestrictedUntil] > now
-        ) return@transaction false
-        Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-            ?: return@transaction false
-        val participants = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.toList()
-        if (participants.none { it[ChatParticipants.userId] == userId } ||
-            participants.none { it[ChatParticipants.userId] == botId }
-        ) return@transaction false
-        val message = ServiceMessages.selectAll().where {
-            (ServiceMessages.id eq messageId) and ServiceMessages.deletedAt.isNull()
-        }.firstOrNull()
-            ?: return@transaction false
-        if (message[ServiceMessages.chatId] != chatId || message[ServiceMessages.senderId] != botId) return@transaction false
-        if (!containsCallbackData(message[ServiceMessages.content], callbackData)) return@transaction false
-        evictOldestInboxLocked(botId)
-        BotUpdateInbox.insert {
-            it[BotUpdateInbox.botId] = botId
-            it[BotUpdateInbox.updateJson] = updateJson
-            it[createdAt] = now
-        }
-        BotCommandLogs.insert {
-            it[id] = "bcl_" + UUID.randomUUID().toString().replace("-", "").take(16)
-            it[BotCommandLogs.botId] = botId
-            it[BotCommandLogs.chatId] = chatId
-            it[BotCommandLogs.userId] = userId
-            it[BotCommandLogs.command] = "callback:" + callbackData.take(40)
-            it[createdAt] = now
-        }
-        true
-    }
-
-    fun getUpdates(botId: String, offset: Long = 0, limit: Int = 50): List<Pair<Long, String>> = transaction {
-        val now = System.currentTimeMillis()
-        val bot = BotApps.selectAll()
-            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-            .firstOrNull() ?: return@transaction emptyList()
-        if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction emptyList()
-        BotUpdateInbox.selectAll()
-            .where {
-                (BotUpdateInbox.botId eq botId) and
-                    (BotUpdateInbox.id greater offset.coerceAtLeast(0L))
-            }
-            .orderBy(BotUpdateInbox.id to org.jetbrains.exposed.sql.SortOrder.ASC)
-            .limit(limit.coerceIn(1, 100))
-            .map { it[BotUpdateInbox.id] to it[BotUpdateInbox.updateJson] }
-    }
-
-    fun deleteUpdates(botId: String, upToId: Long): Int = transaction {
-        val now = System.currentTimeMillis()
-        val bot = BotApps.selectAll()
-            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-            .firstOrNull() ?: return@transaction 0
-        if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction 0
-        BotUpdateInbox.deleteWhere {
-            (BotUpdateInbox.botId eq botId) and (BotUpdateInbox.id lessEq upToId)
-        }
-    }
 
     /**
      * 清理超过保留期仍未消费的 bot 更新收件箱（默认 30 天）。
@@ -566,30 +175,9 @@ object BotRepository {
         }
     }
 
-    fun logCommand(botId: String, chatId: String?, userId: String?, command: String) {
-        transaction {
-            val now = System.currentTimeMillis()
-            val bot = BotApps.selectAll()
-                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-                .forUpdate()
-                .firstOrNull() ?: return@transaction
-            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction
-            // 9.238：命令日志同样封顶——slash 命令洪泛不得让 bot_command_logs 无限增长；
-            // 控制台只翻页读最近记录，FIFO 淘汰最旧不影响可见性
-            evictOldestCommandLogsLocked(botId)
-            BotCommandLogs.insert {
-                it[id] = "bcl_" + UUID.randomUUID().toString().replace("-", "").take(16)
-                it[BotCommandLogs.botId] = botId
-                it[BotCommandLogs.chatId] = chatId
-                it[BotCommandLogs.userId] = userId
-                it[BotCommandLogs.command] = command.take(120)
-                it[createdAt] = System.currentTimeMillis()
-            }
-        }
-    }
 
     /** 9.238：单 bot 命令日志封顶（FIFO 淘汰最旧）。须在事务内调用。 */
-    private fun evictOldestCommandLogsLocked(botId: String) {
+    internal fun evictOldestCommandLogsLocked(botId: String) {
         val total = BotCommandLogs.selectAll().where { BotCommandLogs.botId eq botId }.count()
         if (total < MAX_COMMAND_LOGS_PER_BOT) return
         val overflow = (total - MAX_COMMAND_LOGS_PER_BOT + 1L).coerceAtLeast(1L).toInt()
@@ -613,55 +201,13 @@ object BotRepository {
         val createdAt: Long
     )
 
-    fun listCommandLogs(botId: String, limit: Int = 50, offset: Int = 0): List<CommandLogDto> = transaction {
-        BotCommandLogs.selectAll()
-            .where { BotCommandLogs.botId eq botId }
-            .orderBy(
-                BotCommandLogs.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                BotCommandLogs.id to org.jetbrains.exposed.sql.SortOrder.DESC
-            )
-            .limit(limit.coerceIn(1, 200), offset.toLong().coerceAtLeast(0))
-            .map {
-                CommandLogDto(
-                    id = it[BotCommandLogs.id],
-                    botId = it[BotCommandLogs.botId],
-                    chatId = it[BotCommandLogs.chatId],
-                    userId = it[BotCommandLogs.userId],
-                    command = it[BotCommandLogs.command],
-                    createdAt = it[BotCommandLogs.createdAt]
-                )
-            }
-    }
-
-
-    /**
-     * 管理后台专用启停：不校验 owner（管理员跨 owner 操作），只按 botId 更新并回读。
-     * 返回 null 表示 bot 不存在。此前这段写在 `plugins/AdminDiagnosticsRouting.kt` 的裸事务里。
-     */
-    fun setAdminEnabled(botId: String, enabled: Boolean): BotDto? = transaction {
-        val updated = BotApps.update({ BotApps.id eq botId }) {
-            it[BotApps.enabled] = enabled
-            it[updatedAt] = System.currentTimeMillis()
-        }
-        if (updated != 1) return@transaction null
-        BotApps.selectAll().where { BotApps.id eq botId }.firstOrNull()?.toDto()
-    }
 
     fun get(botId: String): BotDto? = transaction {
         BotApps.selectAll().where { BotApps.id eq botId }.firstOrNull()?.toDto()
     }
 
-    fun adminList(limit: Int = 50, offset: Int = 0): List<BotDto> = transaction {
-        BotApps.selectAll()
-            .orderBy(
-                BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-                BotApps.id to org.jetbrains.exposed.sql.SortOrder.DESC
-            )
-            .limit(limit.coerceIn(1, 200), offset.toLong().coerceAtLeast(0))
-            .map { it.toDto() }
-    }
 
-    private fun org.jetbrains.exposed.sql.ResultRow.toDto() = BotDto(
+    internal fun org.jetbrains.exposed.sql.ResultRow.toDto() = BotDto(
         id = this[BotApps.id],
         ownerUserId = this[BotApps.ownerUserId],
         name = this[BotApps.name],
@@ -675,244 +221,25 @@ object BotRepository {
         updatedAt = this[BotApps.updatedAt]
     )
 
-    private fun normalizeUsername(raw: String): String? {
+    internal fun normalizeUsername(raw: String): String? {
         val u = raw.trim().lowercase().removePrefix("@")
         if (!botUsernamePattern.matches(u)) return null
         return u
     }
 
-    private fun generateToken(): String {
+    internal fun generateToken(): String {
         val bytes = ByteArray(32)
         secureRandom.nextBytes(bytes)
         return "mdc_" + bytes.joinToString("") { "%02x".format(it) }
     }
 
-    private fun hashToken(token: String): String {
+    internal fun hashToken(token: String): String {
         val md = sha256ThreadLocal.get().apply { reset() }
         return md.digest(token.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     }
 
 
-    fun listEnabledBotsInChat(chatId: String): List<ChatBotSummary> = transaction {
-        val now = System.currentTimeMillis()
-        val botIds = ChatParticipants.selectAll()
-            .where { ChatParticipants.chatId eq chatId }
-            .map { it[ChatParticipants.userId] }
-            .filter { it.startsWith("bot_") }
-        if (botIds.isEmpty()) return@transaction emptyList()
-        BotApps.selectAll()
-            .where { (BotApps.id inList botIds) and (BotApps.enabled eq true) }
-            .mapNotNull { row ->
-                if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) return@mapNotNull null
-                ChatBotSummary(
-                    id = row[BotApps.id],
-                    username = row[BotApps.username],
-                    name = row[BotApps.name],
-                    enabled = true
-                )
-            }
-            .sortedBy { it.username }
-    }
-
-    fun listCommandsForChat(chatId: String): List<ChatBotCommandItem> = transaction {
-        val now = System.currentTimeMillis()
-        val botIds = ChatParticipants.selectAll()
-            .where { ChatParticipants.chatId eq chatId }
-            .map { it[ChatParticipants.userId] }
-            .filter { it.startsWith("bot_") }
-        if (botIds.isEmpty()) return@transaction emptyList()
-        BotApps.selectAll()
-            .where { (BotApps.id inList botIds) and (BotApps.enabled eq true) }
-            .flatMap { row ->
-                if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) return@flatMap emptyList()
-                parseCommands(row[BotApps.commandsJson]).map { cmd ->
-                    ChatBotCommandItem(
-                        botId = row[BotApps.id],
-                        username = row[BotApps.username],
-                        name = row[BotApps.name],
-                        command = cmd.command,
-                        description = cmd.description
-                    )
-                }
-            }
-            .sortedWith(compareBy({ it.username }, { it.command }))
-    }
-
-    fun findEnabledBotByUsername(username: String): BotDto? {
-        val u = normalizeUsername(username) ?: return null
-        return transaction {
-            val now = System.currentTimeMillis()
-            val row = BotApps.selectAll()
-                .where { (BotApps.username eq u) and (BotApps.enabled eq true) }
-                .firstOrNull() ?: return@transaction null
-            if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) return@transaction null
-            row.toDto()
-        }
-    }
-
-    fun enqueueUserCommand(
-        chatId: String,
-        userId: String,
-        text: String,
-        botIdHint: String? = null
-    ): List<Pair<String, String>> = transaction {
-        val cleaned = com.maodouchat.server.bot.BotCommandPolicy.sanitizeInboxText(text)
-            ?: return@transaction emptyList()
-        val now = System.currentTimeMillis()
-        val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
-            ?: return@transaction emptyList()
-        if (chat[Chats.chatType] == ChatType.SECRET) return@transaction emptyList()
-        val participants = ChatParticipants.selectAll().where { ChatParticipants.chatId eq chatId }.toList()
-        if (participants.none { it[ChatParticipants.userId] == userId }) return@transaction emptyList()
-        val isGroup = chat[Chats.isGroup]
-        val botIds = participants.map { it[ChatParticipants.userId] }.filter { it.startsWith("bot_") }
-        if (botIds.isEmpty()) return@transaction emptyList()
-        val isDirectWithBot = !isGroup && botIds.size == 1 && participants.size == 2
-        if (!com.maodouchat.server.bot.BotCommandPolicy.shouldAcceptInbox(cleaned, isDirectWithBot)) {
-            return@transaction emptyList()
-        }
-        val slash = com.maodouchat.server.bot.BotCommandPolicy.parseSlash(cleaned)
-        val mention = com.maodouchat.server.bot.BotCommandPolicy.parseMention(cleaned)
-        val targetedUsername = slash?.targetUsername ?: mention?.username
-        val targeted = when {
-            !botIdHint.isNullOrBlank() -> botIds.filter { it == botIdHint }
-            targetedUsername != null -> {
-                val match = BotApps.selectAll()
-                    .where { (BotApps.username eq targetedUsername) and (BotApps.id inList botIds) }
-                    .map { it[BotApps.id] }
-                if (match.isEmpty()) return@transaction emptyList()
-                match
-            }
-            else -> botIds
-        }
-        if (targeted.isEmpty()) return@transaction emptyList()
-        val rows = BotApps.selectAll()
-            .where { (BotApps.id inList targeted) and (BotApps.enabled eq true) }
-            .toList()
-        val delivered = ArrayList<Pair<String, String>>()
-        for (row in rows) {
-            val botId = row[BotApps.id]
-            if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) continue
-            val commandName = slash?.command ?: mention?.username ?: "message"
-            val payload = kotlinx.serialization.json.buildJsonObject {
-                put("update_type", kotlinx.serialization.json.JsonPrimitive("message"))
-                put("event", kotlinx.serialization.json.JsonPrimitive("user_command"))
-                put("chatId", kotlinx.serialization.json.JsonPrimitive(chatId))
-                put("senderId", kotlinx.serialization.json.JsonPrimitive(userId))
-                put("text", kotlinx.serialization.json.JsonPrimitive(cleaned.take(500)))
-                put("type", kotlinx.serialization.json.JsonPrimitive("TEXT"))
-                if (slash != null) {
-                    put("command", kotlinx.serialization.json.JsonPrimitive(slash.command))
-                    put("arguments", kotlinx.serialization.json.JsonPrimitive(slash.arguments))
-                }
-                put("ts", kotlinx.serialization.json.JsonPrimitive(now))
-            }.toString()
-            if (payload.length > MAX_UPDATE_JSON_CHARS) continue
-            evictOldestInboxLocked(botId)
-            BotUpdateInbox.insert {
-                it[BotUpdateInbox.botId] = botId
-                it[BotUpdateInbox.updateJson] = payload
-                it[createdAt] = now
-            }
-            evictOldestCommandLogsLocked(botId)
-            BotCommandLogs.insert {
-                it[id] = "bcl_" + UUID.randomUUID().toString().replace("-", "").take(16)
-                it[BotCommandLogs.botId] = botId
-                it[BotCommandLogs.chatId] = chatId
-                it[BotCommandLogs.userId] = userId
-                it[BotCommandLogs.command] = "/$commandName".take(120)
-                it[createdAt] = now
-            }
-            delivered += botId to payload
-        }
-        delivered
-    }
-
-    fun getMyCommands(botId: String): List<BotCommandDef> {
-        return transaction {
-            val now = System.currentTimeMillis()
-            val bot = BotApps.selectAll()
-                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-                .firstOrNull() ?: return@transaction emptyList()
-            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction emptyList()
-            parseCommands(bot[BotApps.commandsJson])
-        }
-    }
-
-    fun setMyCommands(botId: String, commands: List<BotCommandDef>): List<BotCommandDef>? {
-        val normalized = normalizeCommands(commands) ?: return null
-        val json = encodeCommands(normalized)
-        val now = System.currentTimeMillis()
-        return transaction {
-            val bot = BotApps.selectAll()
-                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-                .forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
-            val updated = BotApps.update({ BotApps.id eq botId }) {
-                it[commandsJson] = json
-                it[updatedAt] = now
-            }
-            if (updated == 1) normalized else null
-        }
-    }
-
-    fun setMyDescription(botId: String, description: String?): BotDto? {
-        val clean = description?.trim()?.take(500)
-        val now = System.currentTimeMillis()
-        return transaction {
-            val bot = BotApps.selectAll()
-                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-                .forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
-            val updated = BotApps.update({ BotApps.id eq botId }) {
-                it[BotApps.description] = clean
-                it[updatedAt] = now
-            }
-            if (updated != 1) return@transaction null
-            BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
-        }
-    }
-
-    fun setMyName(botId: String, name: String): BotDto? {
-        val clean = name.trim().take(120)
-        if (clean.isBlank()) return null
-        val now = System.currentTimeMillis()
-        return transaction {
-            val bot = BotApps.selectAll()
-                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-                .forUpdate().firstOrNull()
-                ?: return@transaction null
-            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
-            val updated = BotApps.update({ BotApps.id eq botId }) {
-                it[BotApps.name] = clean
-                it[updatedAt] = now
-            }
-            if (updated != 1) return@transaction null
-            Users.update({ Users.id eq botId }) {
-                it[Users.name] = clean
-            }
-            BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
-        }
-    }
-
-    fun clearMyCommands(botId: String): Boolean {
-        val now = System.currentTimeMillis()
-        return transaction {
-            val bot = BotApps.selectAll()
-                .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-                .forUpdate().firstOrNull()
-                ?: return@transaction false
-            if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction false
-            BotApps.update({ BotApps.id eq botId }) {
-                it[commandsJson] = null
-                it[updatedAt] = now
-            } == 1
-        }
-    }
-
-    private fun parseCommands(raw: String?): List<BotCommandDef> {
+    internal fun parseCommands(raw: String?): List<BotCommandDef> {
         if (raw.isNullOrBlank()) return emptyList()
         return try {
             val el = json.parseToJsonElement(raw)
@@ -933,27 +260,13 @@ object BotRepository {
         }
     }
 
-    internal fun normalizeCommands(commands: List<BotCommandDef>): List<BotCommandDef>? {
-        if (commands.size > 100) return null
-        val out = ArrayList<BotCommandDef>(commands.size)
-        val seen = HashSet<String>()
-        for (c in commands) {
-            val command = c.command.trim().lowercase().removePrefix("/")
-            val description = c.description.trim().take(256)
-            if (!botCommandPattern.matches(command)) return null
-            if (description.isBlank()) return null
-            if (!seen.add(command)) return null
-            out.add(BotCommandDef(command = command, description = description))
-        }
-        return out
-    }
 
-    private val DEFAULT_COMMANDS = listOf(
+    internal val DEFAULT_COMMANDS = listOf(
         BotCommandDef(command = "start", description = "开始使用"),
         BotCommandDef(command = "help", description = "帮助"),
     )
 
-    private fun encodeCommands(commands: List<BotCommandDef>): String {
+    internal fun encodeCommands(commands: List<BotCommandDef>): String {
         val arr = kotlinx.serialization.json.buildJsonArray {
             for (c in commands) {
                 add(
@@ -967,7 +280,7 @@ object BotRepository {
         return arr.toString()
     }
 
-    private fun containsCallbackData(content: String, callbackData: String): Boolean {
+    internal fun containsCallbackData(content: String, callbackData: String): Boolean {
         val open = content.lastIndexOf("<meta>")
         val close = content.lastIndexOf("</meta>")
         if (open < 0 || close <= open || close + 7 != content.length) return false
@@ -986,49 +299,17 @@ object BotRepository {
         }
     }
 
-    private fun isBoundedId(value: String): Boolean =
+    internal fun isBoundedId(value: String): Boolean =
         value.isNotBlank() && value.length <= 80 && value.all { it.isLetterOrDigit() || it == '_' || it == '-' }
 
-    internal fun isAllowedWebhookUrl(url: String): Boolean {
-        return try {
-            val u = java.net.URI(url)
-            val scheme = (u.scheme ?: "").lowercase()
-            val host = (u.host ?: "").lowercase()
-            if (host.isBlank() || u.userInfo != null || u.fragment != null) return false
-            when (scheme) {
-                "https" -> !isBlockedSsrfHost(host)
-                "http" -> allowLoopbackWebhook() && host in setOf("localhost", "127.0.0.1", "::1", "[::1]")
-                else -> false
-            }
-        } catch (_: Exception) {
-            false
-        }
-    }
 
-    /** Revalidate immediately before every outbound request. DNS failures are blocked. */
-    internal fun isWebhookDeliveryAllowed(url: String): Boolean {
-        if (!isAllowedWebhookUrl(url)) return false
-        return try {
-            val uri = java.net.URI(url)
-            val scheme = uri.scheme?.lowercase().orEmpty()
-            val host = uri.host?.lowercase().orEmpty()
-            when {
-                scheme == "http" -> allowLoopbackWebhook() && host in setOf("localhost", "127.0.0.1", "::1", "[::1]")
-                scheme == "https" -> host.isNotBlank() && !resolvesToBlockedIp(host)
-                else -> false
-            }
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    private fun allowLoopbackWebhook(): Boolean =
+    internal fun allowLoopbackWebhook(): Boolean =
         System.getenv("BOT_WEBHOOK_ALLOW_LOOPBACK")?.trim()?.equals("true", ignoreCase = true) == true
 
-    private const val MAX_CALLBACK_DATA_LENGTH = 128
-    private const val MAX_CALLBACK_META_LENGTH = 16_000
+    internal const val MAX_CALLBACK_DATA_LENGTH = 128
+    internal const val MAX_CALLBACK_META_LENGTH = 16_000
 
-    private fun isBlockedSsrfHost(host: String): Boolean {
+    internal fun isBlockedSsrfHost(host: String): Boolean {
         val h = host.removeSurrounding("[", "]").trimEnd('.').lowercase()
         if (h in setOf("metadata.google.internal", "169.254.169.254")) return true
         if (h == "localhost" || h.endsWith(".localhost")) return true
@@ -1043,7 +324,7 @@ object BotRepository {
         return false
     }
 
-    private fun isBlockedIpv4Literal(host: String): Boolean {
+    internal fun isBlockedIpv4Literal(host: String): Boolean {
         if (host.matches(ipv4HexLiteralPattern)) return true
         val parts = host.split(".")
         if (parts.size !in 1..4) return false
@@ -1074,26 +355,6 @@ object BotRepository {
             (a == 203 && b == 0 && c == 113)
     }
 
-    /**
-     * DNS 解析后校验每个 IP 是否落入 SSRF 封禁段。
-     * 仅在发送时（已处于 Dispatchers.IO）调用，作为主机名字符串校验之外的纵深防御，
-     * 防止域名注册后通过 DNS rebinding 解析到内网/元数据地址。
-     * 解析失败按 fail-closed 处理（视为封禁），避免向无法解析的主机发起请求。
-     */
-    internal fun resolvesToBlockedIp(host: String): Boolean {
-        return try {
-            java.net.InetAddress.getAllByName(host).any { addr ->
-                addr.isLoopbackAddress ||
-                    addr.isSiteLocalAddress ||
-                    addr.isLinkLocalAddress ||
-                    addr.isAnyLocalAddress ||
-                    addr.isMulticastAddress ||
-                    isBlockedSsrfHost(addr.hostAddress ?: "")
-            }
-        } catch (_: Exception) {
-            true
-        }
-    }
 
     /**
      * 清理超过保留期的 bot 命令日志（默认 180 天），防止长期累积。
