@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getPrivacy
+import com.maodouchat.server.repository.updatePrivacyWithTransitions
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.auth.*

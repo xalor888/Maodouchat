@@ -6,6 +6,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.LoginRequest
 import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.loginWithFactors
 import com.maodouchat.server.service.LoginAttemptGate
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
