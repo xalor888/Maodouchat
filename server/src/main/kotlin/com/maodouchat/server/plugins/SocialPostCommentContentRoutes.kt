@@ -4,6 +4,7 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.ModerationRuleRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.isBlockedEitherWay
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.ModerationEngine

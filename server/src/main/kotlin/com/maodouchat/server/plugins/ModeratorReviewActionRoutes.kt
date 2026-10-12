@@ -7,6 +7,7 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.applyModerationRestriction
 import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.SessionService
 import io.ktor.http.HttpStatusCode

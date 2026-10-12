@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.blockedEitherWayIdsInTx
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.CancellationException

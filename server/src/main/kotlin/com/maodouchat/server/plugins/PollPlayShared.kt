@@ -4,6 +4,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.PollRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getSuspendedUntil
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall

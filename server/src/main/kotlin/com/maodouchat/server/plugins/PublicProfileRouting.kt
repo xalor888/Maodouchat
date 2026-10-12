@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.findByUsername
 import com.maodouchat.server.service.CacheService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders

@@ -6,6 +6,7 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.PinnedMessageRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.blockedEitherWayIdsInTx
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

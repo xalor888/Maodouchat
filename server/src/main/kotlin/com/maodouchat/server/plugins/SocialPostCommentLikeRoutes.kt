@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.isBlockedEitherWay
 import com.maodouchat.server.service.FcmPushService
 import io.ktor.http.*
 import io.ktor.server.application.*
