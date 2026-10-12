@@ -33,18 +33,18 @@ fun ModerationRuleRepository.updateRule(ruleId: String, request: UpdateModeratio
     val name = request.name?.trim()?.take(100)
     if (name != null && name.isBlank()) return@transaction null
     val scope = request.scope?.trim()?.uppercase()
-    if (scope != null && scope !in ALLOWED_SCOPES) return@transaction null
+    if (scope != null && scope !in ModerationRuleRepository.ALLOWED_SCOPES) return@transaction null
     val matchType = request.matchType?.trim()?.uppercase()
-    if (matchType != null && matchType !in ALLOWED_MATCH_TYPES) return@transaction null
+    if (matchType != null && matchType !in ModerationRuleRepository.ALLOWED_MATCH_TYPES) return@transaction null
     val pattern = request.pattern?.trim()?.take(2_000)
     if (pattern != null && pattern.isBlank()) return@transaction null
     val action = request.action?.trim()?.uppercase()
-    if (action != null && action !in ALLOWED_ACTIONS) return@transaction null
+    if (action != null && action !in ModerationRuleRepository.ALLOWED_ACTIONS) return@transaction null
     val escalationAction = request.escalationAction?.trim()?.uppercase()
-    if (escalationAction != null && escalationAction !in ALLOWED_ACTIONS) return@transaction null
+    if (escalationAction != null && escalationAction !in ModerationRuleRepository.ALLOWED_ACTIONS) return@transaction null
     val effectiveMatchType = matchType ?: existing[ModerationRules.matchType]
     val effectivePattern = pattern ?: existing[ModerationRules.pattern]
-    if (effectiveMatchType == "REGEX" && runCatching { compileModerationRegex(effectivePattern) }.isFailure) {
+    if (effectiveMatchType == "REGEX" && runCatching { ModerationRuleRepository.compileModerationRegex(effectivePattern) }.isFailure) {
         return@transaction null
     }
     ModerationRules.update({ ModerationRules.id eq ruleId }) {
@@ -58,7 +58,7 @@ fun ModerationRuleRepository.updateRule(ruleId: String, request: UpdateModeratio
         request.enabled?.let { value -> it[ModerationRules.enabled] = value }
         action?.let { value -> it[ModerationRules.action] = value }
         request.hitThreshold?.let { value -> it[ModerationRules.hitThreshold] = value.coerceIn(0, 10_000) }
-        request.windowMs?.let { value -> it[ModerationRules.windowMs] = value.coerceIn(0L, MAX_WINDOW_MS) }
+        request.windowMs?.let { value -> it[ModerationRules.windowMs] = value.coerceIn(0L, ModerationRuleRepository.MAX_WINDOW_MS) }
         escalationAction?.let { value -> it[ModerationRules.escalationAction] = value }
         request.priority?.let { value -> it[ModerationRules.priority] = value.coerceIn(0, 10_000) }
         it[ModerationRules.updatedAt] = System.currentTimeMillis()
@@ -73,12 +73,12 @@ fun ModerationRuleRepository.createRule(request: CreateModerationRuleRequest): S
     val pattern = request.pattern.trim().take(2_000)
     val action = request.action.trim().uppercase()
     require(name.isNotBlank() && pattern.isNotBlank()) { "规则名称和匹配内容不能为空" }
-    require(scope in ALLOWED_SCOPES) { "规则范围无效" }
-    require(matchType in ALLOWED_MATCH_TYPES) { "匹配类型无效" }
-    require(action in ALLOWED_ACTIONS) { "规则动作无效" }
+    require(scope in ModerationRuleRepository.ALLOWED_SCOPES) { "规则范围无效" }
+    require(matchType in ModerationRuleRepository.ALLOWED_MATCH_TYPES) { "匹配类型无效" }
+    require(action in ModerationRuleRepository.ALLOWED_ACTIONS) { "规则动作无效" }
     // Validate with the exact same RE2/J engine and flags used by evaluate().
     if (matchType == "REGEX") {
-        require(runCatching { compileModerationRegex(pattern) }.isSuccess) { "正则表达式语法无效" }
+        require(runCatching { ModerationRuleRepository.compileModerationRegex(pattern) }.isSuccess) { "正则表达式语法无效" }
     }
     val id = "rule_${UUID.randomUUID()}"
     val now = System.currentTimeMillis()
@@ -91,7 +91,7 @@ fun ModerationRuleRepository.createRule(request: CreateModerationRuleRequest): S
         it[ModerationRules.pattern] = pattern
         it[ModerationRules.action] = action
         it[ModerationRules.hitThreshold] = request.hitThreshold.coerceIn(0, 10_000)
-        it[ModerationRules.windowMs] = request.windowMs.coerceIn(0L, MAX_WINDOW_MS)
+        it[ModerationRules.windowMs] = request.windowMs.coerceIn(0L, ModerationRuleRepository.MAX_WINDOW_MS)
         it[ModerationRules.escalationAction] = null
         it[ModerationRules.enabled] = request.enabled
         it[ModerationRules.priority] = request.priority.coerceIn(0, 10_000)

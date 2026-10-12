@@ -14,18 +14,18 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
-fun ModerationRuleRepository.evaluate(userId: String, source: String, content: String, referenceId: String? = null): Evaluation {
+fun ModerationRuleRepository.evaluate(userId: String, source: String, content: String, referenceId: String? = null): ModerationRuleRepository.Evaluation {
     val normalizedSource = source.trim().uppercase()
     val now = System.currentTimeMillis()
     // RE2/J is linear-time, but bounding user input also caps allocation and overall rule-evaluation work.
-    val boundedContent = content.take(MAX_EVALUATE_CONTENT_LENGTH)
+    val boundedContent = content.take(ModerationRuleRepository.MAX_EVALUATE_CONTENT_LENGTH)
 
     // Only database reads/counts happen here. User-controlled regex compilation and matching must not
     // hold a JDBC connection or transaction open.
     val rules = transaction {
-        val previousCleanup = lastCleanupAt.get()
-        if (now - previousCleanup >= CLEANUP_INTERVAL_MS && lastCleanupAt.compareAndSet(previousCleanup, now)) {
-            RiskEvents.deleteWhere { RiskEvents.createdAt less now - EVENT_RETENTION_MS }
+        val previousCleanup = ModerationRuleRepository.lastCleanupAt.get()
+        if (now - previousCleanup >= ModerationRuleRepository.CLEANUP_INTERVAL_MS && ModerationRuleRepository.lastCleanupAt.compareAndSet(previousCleanup, now)) {
+            RiskEvents.deleteWhere { RiskEvents.createdAt less now - ModerationRuleRepository.EVENT_RETENTION_MS }
         }
         ModerationRules.selectAll()
             .where { ModerationRules.enabled eq true }
@@ -58,10 +58,10 @@ fun ModerationRuleRepository.evaluate(userId: String, source: String, content: S
     val pendingEvents = rules.mapNotNull { rule ->
         val matchedText: String? = when (rule.matchType) {
             "FREQUENCY" -> "${rule.recentCount + 1}/${rule.hitThreshold}"
-            "REGEX" -> findRegexMatch(rule.pattern, boundedContent)?.take(MAX_MATCHED_LENGTH)
+            "REGEX" -> findRegexMatch(rule.pattern, boundedContent)?.take(ModerationRuleRepository.MAX_MATCHED_LENGTH)
             // KEYWORD/URL are deliberately literal matches, not regular expressions.
             "KEYWORD", "URL" -> if (boundedContent.contains(rule.pattern, ignoreCase = true)) {
-                rule.pattern.take(MAX_MATCHED_LENGTH)
+                rule.pattern.take(ModerationRuleRepository.MAX_MATCHED_LENGTH)
             } else {
                 null
             }
@@ -85,7 +85,7 @@ fun ModerationRuleRepository.evaluate(userId: String, source: String, content: S
             ruleId = rule.id,
             action = effectiveAction,
             matched = matchedText,
-            needsReview = effectiveAction in REVIEW_ACTIONS
+            needsReview = effectiveAction in ModerationRuleRepository.REVIEW_ACTIONS
         )
     }
 
@@ -111,18 +111,18 @@ fun ModerationRuleRepository.evaluate(userId: String, source: String, content: S
     val matches = pendingEvents
         .mapIndexed { index, event -> Triple(event, insertedIds.getOrNull(index), index) }
         .filter { it.first.action != "OBSERVED" }
-        .map { (event, eventId, _) -> RuleMatch(event.ruleId, event.action, event.matched, event.needsReview, eventId) }
-    val strongest = matches.maxByOrNull { ACTION_RANK[it.action] ?: 0 }
+        .map { (event, eventId, _) -> ModerationRuleRepository.RuleMatch(event.ruleId, event.action, event.matched, event.needsReview, eventId) }
+    val strongest = matches.maxByOrNull { ModerationRuleRepository.ACTION_RANK[it.action] ?: 0 }
     return when (strongest?.action) {
-        "AUTO_DELETE" -> Evaluation(true, strongest.action, "内容触发安全规则，已被拦截", matches)
-        "AUTO_HOLD" -> Evaluation(true, strongest.action, "内容已进入安全审核，请稍后再试", matches)
-        "AUTO_RATE_LIMIT" -> Evaluation(true, strongest.action, "操作过于频繁，请稍后再试", matches)
-        else -> Evaluation(false, strongest?.action, matches = matches)
+        "AUTO_DELETE" -> ModerationRuleRepository.Evaluation(true, strongest.action, "内容触发安全规则，已被拦截", matches)
+        "AUTO_HOLD" -> ModerationRuleRepository.Evaluation(true, strongest.action, "内容已进入安全审核，请稍后再试", matches)
+        "AUTO_RATE_LIMIT" -> ModerationRuleRepository.Evaluation(true, strongest.action, "操作过于频繁，请稍后再试", matches)
+        else -> ModerationRuleRepository.Evaluation(false, strongest?.action, matches = matches)
     }
 }
 
 private fun ModerationRuleRepository.findRegexMatch(pattern: String, content: String): String? {
-    val compiled = runCatching { compileModerationRegex(pattern) }.getOrNull() ?: return null
+    val compiled = runCatching { ModerationRuleRepository.compileModerationRegex(pattern) }.getOrNull() ?: return null
     val matcher = compiled.matcher(content)
     return if (matcher.find()) matcher.group() else null
 }

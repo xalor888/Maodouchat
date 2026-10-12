@@ -18,7 +18,7 @@ import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
-fun AnnouncementRepository.get(id: String, now: Long = System.currentTimeMillis()): AnnouncementRow? = transaction {
+fun AnnouncementRepository.get(id: String, now: Long = System.currentTimeMillis()): AnnouncementRepository.AnnouncementRow? = transaction {
     SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
         .firstOrNull()?.let { it.toAnnouncementRow().withDerivedStatus(now) }
 }
@@ -30,7 +30,7 @@ fun AnnouncementRepository.list(
     limit: Int = 50,
     offset: Long = 0,
     now: Long = System.currentTimeMillis()
-): List<AnnouncementRow> = transaction {
+): List<AnnouncementRepository.AnnouncementRow> = transaction {
     var base = SystemAnnouncements.selectAll()
     status?.takeIf { it.isNotBlank() }?.let { raw ->
         val st = raw.uppercase().take(20)
@@ -56,7 +56,7 @@ fun AnnouncementRepository.list(
         .map { it.toAnnouncementRow().withDerivedStatus(now) }
 }
 
-fun AnnouncementRepository.activeForUser(userId: String, now: Long, userTagIds: List<String>): List<AnnouncementRow> = transaction {
+fun AnnouncementRepository.activeForUser(userId: String, now: Long, userTagIds: List<String>): List<AnnouncementRepository.AnnouncementRow> = transaction {
     val rows = SystemAnnouncements.selectAll().where {
         (SystemAnnouncements.status eq "ACTIVE") and
             (SystemAnnouncements.startsAt lessEq now) and
@@ -71,7 +71,7 @@ fun AnnouncementRepository.activeForUser(userId: String, now: Long, userTagIds: 
 }
 
 /** 公告统计：目标受众规模 + 发布信息（供管理后台展示）。 */
-fun AnnouncementRepository.stats(id: String): AnnouncementStats? = transaction {
+fun AnnouncementRepository.stats(id: String): AnnouncementRepository.AnnouncementStats? = transaction {
     val row = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
         .firstOrNull() ?: return@transaction null
     val audience = row[SystemAnnouncements.targetAudience]
@@ -83,7 +83,7 @@ fun AnnouncementRepository.stats(id: String): AnnouncementStats? = transaction {
     } else {
         0L
     }
-    AnnouncementStats(
+    AnnouncementRepository.AnnouncementStats(
         recipientCount = recipientCount,
         audience = audience,
         targetTagId = tagId,
@@ -94,6 +94,7 @@ fun AnnouncementRepository.stats(id: String): AnnouncementStats? = transaction {
 }
 
 private fun AnnouncementRepository.AnnouncementRow.withDerivedStatus(now: Long): AnnouncementRepository.AnnouncementRow =
+    if (status == "ACTIVE" && expiresAt in 1 until now) copy(status = "EXPIRED") else this
 
 private fun ResultRow.toAnnouncementRow(): AnnouncementRepository.AnnouncementRow = AnnouncementRepository.AnnouncementRow(
     id = this[SystemAnnouncements.id],

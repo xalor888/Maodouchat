@@ -40,7 +40,7 @@ fun ModerationRuleRepository.recordAiDecision(
         it[RiskEvents.sourceValue] = source.trim().uppercase().take(20)
         it[RiskEvents.ruleId] = com.maodouchat.server.service.AiContentModerationPolicy.RULE_ID
         it[RiskEvents.action] = action.take(20)
-        it[RiskEvents.matched] = matched?.take(MAX_MATCHED_LENGTH)
+        it[RiskEvents.matched] = matched?.take(ModerationRuleRepository.MAX_MATCHED_LENGTH)
         it[RiskEvents.referenceId] = referenceId
         it[RiskEvents.needsReview] = needsReview
         it[RiskEvents.createdAt] = System.currentTimeMillis()

@@ -23,7 +23,7 @@ fun AnnouncementRepository.create(
     expiresAt: Long,
     createdBy: String?,
     asDraft: Boolean = false
-): AnnouncementRow = transaction {
+): AnnouncementRepository.AnnouncementRow = transaction {
     val now = System.currentTimeMillis()
     val id = UUID.randomUUID().toString()
     // 草稿必须显式 asDraft：此前 create 只写 ACTIVE/SCHEDULED，管理端删除仅允许 DRAFT，
@@ -61,7 +61,7 @@ fun AnnouncementRepository.update(
     targetTagId: String?,
     startsAt: Long?,
     expiresAt: Long?
-): AnnouncementRow? = transaction {
+): AnnouncementRepository.AnnouncementRow? = transaction {
     val existing = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
         .firstOrNull() ?: return@transaction null
     val now = System.currentTimeMillis()
@@ -102,7 +102,7 @@ fun AnnouncementRepository.update(
 }
 
 /** 手动发布：DRAFT/SCHEDULED → ACTIVE，立即生效。 */
-fun AnnouncementRepository.publish(id: String, operatorId: String): AnnouncementRow? = transaction {
+fun AnnouncementRepository.publish(id: String, operatorId: String): AnnouncementRepository.AnnouncementRow? = transaction {
     val row = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
         .firstOrNull() ?: return@transaction null
     val now = System.currentTimeMillis()
@@ -122,7 +122,7 @@ fun AnnouncementRepository.publish(id: String, operatorId: String): Announcement
 }
 
 /** 取消公告：ACTIVE/SCHEDULED → CANCELLED（保留记录，用户端不再可见）。 */
-fun AnnouncementRepository.cancel(id: String, operatorId: String): AnnouncementRow? = transaction {
+fun AnnouncementRepository.cancel(id: String, operatorId: String): AnnouncementRepository.AnnouncementRow? = transaction {
     val row = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
         .firstOrNull() ?: return@transaction null
     val now = System.currentTimeMillis()
