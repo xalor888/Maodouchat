@@ -6,6 +6,7 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.GroupAuditRepository
 import com.maodouchat.server.repository.SenderKeyDistributionRepository
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.getDeviceIdForAuthSession
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call

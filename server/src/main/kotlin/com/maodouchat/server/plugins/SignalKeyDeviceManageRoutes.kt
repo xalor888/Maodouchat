@@ -6,6 +6,10 @@ import com.maodouchat.server.model.UpdateDeviceNameRequest
 import com.maodouchat.server.repository.ConfirmDeviceResult
 import com.maodouchat.server.repository.DeleteDeviceResult
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.confirmDevice
+import com.maodouchat.server.repository.deleteDeviceAndRevokeSessionsGuarded
+import com.maodouchat.server.repository.getDeviceIdForAuthSession
+import com.maodouchat.server.repository.updateDeviceName
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

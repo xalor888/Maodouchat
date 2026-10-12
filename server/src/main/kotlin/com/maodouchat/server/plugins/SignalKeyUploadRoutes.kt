@@ -10,6 +10,7 @@ import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.DeleteDeviceResult
 import com.maodouchat.server.repository.PreKeyUpload
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.uploadKeyPackage
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
