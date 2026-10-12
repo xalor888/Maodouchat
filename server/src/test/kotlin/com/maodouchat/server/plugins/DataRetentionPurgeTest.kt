@@ -21,6 +21,7 @@ import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.SenderKeyDistributionRepository
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.expireStalePending
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll

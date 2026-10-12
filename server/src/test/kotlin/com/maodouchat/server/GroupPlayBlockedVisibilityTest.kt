@@ -24,6 +24,7 @@ import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.GroupInvitationRepository
 import com.maodouchat.server.repository.PollRepository
+import com.maodouchat.server.repository.consumeToken
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList

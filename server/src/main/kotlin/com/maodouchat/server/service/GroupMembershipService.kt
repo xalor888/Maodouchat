@@ -5,6 +5,14 @@ import com.maodouchat.server.repository.AddOwnedBotResult
 import com.maodouchat.server.repository.GroupMemberMutationResult
 import com.maodouchat.server.repository.GroupMembershipRepository
 import com.maodouchat.server.repository.TransferOwnershipResult
+import com.maodouchat.server.repository.addMembers
+import com.maodouchat.server.repository.addOwnedBot
+import com.maodouchat.server.repository.lockChat
+import com.maodouchat.server.repository.memberRevision
+import com.maodouchat.server.repository.participantIds
+import com.maodouchat.server.repository.removeMember
+import com.maodouchat.server.repository.transferOwnership
+import com.maodouchat.server.repository.updateRole
 import org.jetbrains.exposed.sql.transactions.transaction
 
 /**

@@ -4,6 +4,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.SendFriendRequestBody
 import com.maodouchat.server.repository.FriendRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.sendRequest
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
