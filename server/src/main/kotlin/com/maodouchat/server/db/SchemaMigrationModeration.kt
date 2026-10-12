@@ -97,6 +97,20 @@ internal fun backfillModerationRules() {
 
 
 
+private data class SeedModerationRule(
+    val id: String,
+    val name: String,
+    val description: String,
+    val scope: String,
+    val matchType: String,
+    val pattern: String,
+    val action: String,
+    val windowMs: Long,
+    val hitThreshold: Int,
+    val escalationAction: String?,
+    val priority: Int
+)
+
 private val DEFAULT_MODERATION_RULES = listOf(
     SeedModerationRule(
         id = "rule_spam_keywords",

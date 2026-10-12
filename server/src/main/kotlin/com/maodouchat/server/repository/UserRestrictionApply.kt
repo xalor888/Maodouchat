@@ -1,5 +1,6 @@
 package com.maodouchat.server.repository
 
+import com.maodouchat.server.db.MODERATION_AUDIT_DETAIL_MAX_CHARS
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.Users
 import org.jetbrains.exposed.sql.and
