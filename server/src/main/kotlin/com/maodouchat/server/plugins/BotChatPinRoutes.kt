@@ -1,20 +1,22 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.PinnedMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.blockedEitherWayIdsInTx
+import com.maodouchat.server.repository.isBotDeliverable
+import com.maodouchat.server.repository.logCommand
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import com.maodouchat.server.model.ErrorResponse
-import com.maodouchat.server.model.WsMessage
 
 /** Bot 取消群置顶消息。 */
 internal fun Route.configureBotChatPinRoutes(

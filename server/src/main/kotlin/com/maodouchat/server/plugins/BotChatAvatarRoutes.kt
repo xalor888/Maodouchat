@@ -1,17 +1,18 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupProfileRepository
+import com.maodouchat.server.repository.logCommand
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import com.maodouchat.server.model.ErrorResponse
 
 /** Bot 群头像：设置 / 删除。 */
 internal fun Route.configureBotChatAvatarRoutes(

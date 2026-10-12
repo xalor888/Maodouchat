@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.repository.BotRepository
+import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

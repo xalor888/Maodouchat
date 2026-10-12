@@ -4,19 +4,27 @@ import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.BotWebhookOutbox
 import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.Users
-import kotlinx.coroutines.CoroutineScope
+import com.maodouchat.server.repository.enqueueUpdate
+import com.maodouchat.server.repository.logCommand
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.util.UUID
+import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicLong
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.slf4j.LoggerFactory
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
@@ -27,13 +35,7 @@ import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
-import java.util.UUID
-import java.util.concurrent.Semaphore
-import java.util.concurrent.atomic.AtomicLong
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
+import org.slf4j.LoggerFactory
 
 /**
  * Fire-and-forget webhook delivery for bots that joined a chat.

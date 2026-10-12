@@ -3,6 +3,9 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.create
+import com.maodouchat.server.repository.delete as deleteBot
+import com.maodouchat.server.repository.groupChatIdsFor
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -60,7 +63,7 @@ get("/api/bots") {
         val botId = call.requirePathParamOr400("botId", "missing botId") ?: return@delete
         // 8.33 修复：删除 bot 会 bump memberRevision，但此前无广播，客户端成员列表残留
         val affectedGroupIds = com.maodouchat.server.repository.BotRepository.groupChatIdsFor(botId)
-        val ok = com.maodouchat.server.repository.BotRepository.delete(botId, userId)
+        val ok = com.maodouchat.server.repository.BotRepository.deleteBot(botId, userId)
         if (!ok) return@delete call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权操作"))
         val groupSnapshots = conversationParticipantRepo.groupRevisionAndParticipantIds(affectedGroupIds)
         groupSnapshots.forEach { (chatId, snapshot) ->

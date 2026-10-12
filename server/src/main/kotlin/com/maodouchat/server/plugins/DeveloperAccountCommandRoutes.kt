@@ -2,6 +2,9 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.BotRepository
+import com.maodouchat.server.repository.getMyCommands
+import com.maodouchat.server.repository.normalizeCommands
+import com.maodouchat.server.repository.setMyCommands
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

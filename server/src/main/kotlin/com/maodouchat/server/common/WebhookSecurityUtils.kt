@@ -1,5 +1,6 @@
 package com.maodouchat.server.common
 
+import com.maodouchat.server.repository.isAllowedWebhookUrl
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.Inet4Address
