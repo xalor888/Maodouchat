@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AdminExportRepository
+import com.maodouchat.server.repository.recordAuditExport
 import com.maodouchat.server.service.AdminExportService
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
