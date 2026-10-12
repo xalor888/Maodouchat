@@ -11,9 +11,11 @@ import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.messaging.v2.MessagingV2Repository
 import com.maodouchat.server.plugins.*
 import com.maodouchat.server.repository.PostRepository
+import com.maodouchat.server.repository.PublishResult
 import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.publish
 import com.maodouchat.server.service.CallInviteRateLimiter
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -345,7 +347,7 @@ class PostgresPlaintextSweepIntegrationTest {
                     )
                 }
                 assertTrue(
-                    publishResult is ServiceMessageRepository.PublishResult.Published,
+                    publishResult is PublishResult.Published,
                     "ServiceMessageRepository.publish 必须成功，实际 $publishResult",
                 )
 

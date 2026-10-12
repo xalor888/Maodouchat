@@ -9,7 +9,9 @@ import com.maodouchat.server.db.SignalDevices
 import com.maodouchat.server.db.SignalKeys
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
+import com.maodouchat.server.repository.PublishResult
 import com.maodouchat.server.repository.ServiceMessageRepository
+import com.maodouchat.server.repository.publish
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
@@ -138,7 +140,7 @@ class ServerPlaintextSweepTest {
             timestamp = 9_000L,
             recipientUserIds = setOf("alice", "bob"),
         )
-        assertTrue(result is ServiceMessageRepository.PublishResult.Published, "bot 发布应当成功：$result")
+        assertTrue(result is PublishResult.Published, "bot 发布应当成功：$result")
 
         val hits = sweep(botPlaintextSentinel)
         assertTrue(

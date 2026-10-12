@@ -4,6 +4,8 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.deleteOwn
+import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.logCommand
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

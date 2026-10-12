@@ -30,8 +30,8 @@ internal fun Route.configureReportUserReportRoutes(
             }
             val req = call.receiveJsonOr400<CreateReportRequest>() ?: return@post
             when (val result = reportRepo.createReport(uid, req)) {
-                is ReportWorkflow.CreateResult.Success -> call.respond(HttpStatusCode.Created, result.report)
-                is ReportWorkflow.CreateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+                is CreateResult.Success -> call.respond(HttpStatusCode.Created, result.report)
+                is CreateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
             }
         }
 

@@ -3,10 +3,13 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.config.AdminAccess
 import com.maodouchat.server.model.ApplyReportActionRequest
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.ExecuteActionResult
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.applyModerationRestriction
+import com.maodouchat.server.repository.executeActionAfterBusinessSuccess
+import com.maodouchat.server.repository.getReport
 import com.maodouchat.server.service.SessionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -95,20 +98,20 @@ post("/reports/{reportId}/action") {
             },
         )
     ) {
-        is ReportWorkflow.ExecuteActionResult.Failure -> {
+        is ExecuteActionResult.Failure -> {
             val status = if (mark.message == "举报不存在") HttpStatusCode.NotFound else HttpStatusCode.BadRequest
             return@post call.respond(status, ErrorResponse(mark.message))
         }
-        is ReportWorkflow.ExecuteActionResult.AlreadyDone ->
+        is ExecuteActionResult.AlreadyDone ->
             return@post call.respond(
                 buildJsonObject {
                     put("status", "resolved")
                     put("action", (mark.report.actionTaken ?: "NO_ACTION"))
                 }
             )
-        is ReportWorkflow.ExecuteActionResult.BusinessActionFailed ->
+        is ExecuteActionResult.BusinessActionFailed ->
             return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("处置执行失败，请稍后重试"))
-        is ReportWorkflow.ExecuteActionResult.Completed -> {
+        is ExecuteActionResult.Completed -> {
             if (action == "SUSPEND_24H") {
                 frozenRestrictionTargetUserId?.let { targetUserId ->
                     sessionService.revokeAllUserSessions(targetUserId)
