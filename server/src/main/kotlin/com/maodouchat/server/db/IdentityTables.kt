@@ -38,6 +38,7 @@ object Users : Table("users") {
     override val primaryKey = PrimaryKey(id)
 }
 
+
 object AuthSessions : Table("auth_sessions") {
     val id = varchar("id", 80)
     val userId = varchar("user_id", 50)
@@ -51,6 +52,7 @@ object AuthSessions : Table("auth_sessions") {
         index("idx_auth_sessions_user_device", false, userId, signalDeviceId)
     }
 }
+
 
 object RefreshTokens : Table("refresh_tokens") {
     val tokenHash = varchar("token_hash", 64)
@@ -66,6 +68,7 @@ object RefreshTokens : Table("refresh_tokens") {
     }
 }
 
+
 object RevokedAccessTokens : Table("revoked_access_tokens") {
     val tokenId = varchar("token_id", 80)
     val userId = varchar("user_id", 50) references Users.id
@@ -78,6 +81,7 @@ object RevokedAccessTokens : Table("revoked_access_tokens") {
         index("idx_revoked_access_tokens_expires_at", false, expiresAt)
     }
 }
+
 
 object PushTokens : Table("push_tokens") {
     val userId = varchar("user_id", 50) references Users.id
@@ -93,6 +97,7 @@ object PushTokens : Table("push_tokens") {
         index("idx_push_tokens_user_id", false, userId)
     }
 }
+
 
 object ClientPrefs : Table("client_prefs") {
     val userId = varchar("user_id", 50) references Users.id
@@ -116,6 +121,7 @@ object ClientPrefs : Table("client_prefs") {
     override val primaryKey = PrimaryKey(userId)
 }
 
+
 object SystemSettings : Table("system_settings") {
     val key = varchar("key", 64)
     val value = text("value")
@@ -123,6 +129,7 @@ object SystemSettings : Table("system_settings") {
     val updatedBy = varchar("updated_by", 50).nullable()
     override val primaryKey = PrimaryKey(key)
 }
+
 
 object NotificationPreferences : Table("notification_preferences") {
     val userId = varchar("user_id", 50) references Users.id
