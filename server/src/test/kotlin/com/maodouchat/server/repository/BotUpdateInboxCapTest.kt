@@ -17,7 +17,7 @@ import kotlin.test.assertIs
 
 /**
  * 9.237：bot 收件箱积压封顶——停止轮询的 bot 不得让 bot_update_inbox 无限增长。
- * 超限按 FIFO 淘汰最旧，保留最近事件（与 BotRepository.MAX_INBOX_PENDING_PER_BOT=500 对齐）。
+ * 超限按 FIFO 淘汰最旧，保留最近事件（与 MAX_INBOX_PENDING_PER_BOT=500 对齐）。
  */
 class BotUpdateInboxCapTest {
 

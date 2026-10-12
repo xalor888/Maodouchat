@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
+import com.maodouchat.server.repository.get
 import com.maodouchat.server.repository.listCommandLogs
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

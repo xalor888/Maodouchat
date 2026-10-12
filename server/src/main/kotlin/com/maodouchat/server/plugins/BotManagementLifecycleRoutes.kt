@@ -6,6 +6,7 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.create
 import com.maodouchat.server.repository.delete as deleteBot
 import com.maodouchat.server.repository.groupChatIdsFor
+import com.maodouchat.server.repository.listByOwner
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

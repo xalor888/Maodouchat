@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.get
 import com.maodouchat.server.repository.isBotDeliverable
 import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.service.RuntimeConfigService
