@@ -2,6 +2,12 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.closePoll
+import com.maodouchat.server.repository.createPoll
+import com.maodouchat.server.repository.getPoll
+import com.maodouchat.server.repository.isMember
+import com.maodouchat.server.repository.isMuted
+import com.maodouchat.server.repository.vote
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
