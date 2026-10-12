@@ -204,94 +204,6 @@ class UserRepository {
         }
     }
 
-    fun isModerator(userId: String): Boolean {
-        return transaction {
-            Users.selectAll().where { Users.id eq userId }
-                .firstOrNull()
-                ?.takeIf { it[Users.deletedAt] == null }
-                ?.get(Users.isModerator) == true
-        }
-    }
-
-    fun getMessageRestrictionUntil(userId: String): Long = getRestrictionUntil(userId, Restriction.MESSAGE)
-
-    fun getPostRestrictionUntil(userId: String): Long = getRestrictionUntil(userId, Restriction.POST)
-
-    fun getSuspendedUntil(userId: String): Long = getRestrictionUntil(userId, Restriction.SUSPEND)
-
-    fun applyModerationRestriction(userId: String, action: String): Long? {
-        val normalizedAction = action.trim().uppercase()
-        val duration = when (normalizedAction) {
-            "RESTRICT_MESSAGES_24H" -> 24L * 60L * 60L * 1000L
-            "RESTRICT_POSTS_7D" -> 7L * 24L * 60L * 60L * 1000L
-            "SUSPEND_24H" -> 24L * 60L * 60L * 1000L
-            else -> return null
-        }
-        val now = System.currentTimeMillis()
-        val until = now + duration
-        return transaction {
-            val row = Users.selectAll().where { Users.id eq userId }.firstOrNull()
-                ?.takeIf { it[Users.deletedAt] == null } ?: return@transaction null
-            Users.update({ Users.id eq userId }) {
-                when (normalizedAction) {
-                    "RESTRICT_MESSAGES_24H" -> it[Users.messageRestrictedUntil] = maxOf(row[Users.messageRestrictedUntil], until)
-                    "RESTRICT_POSTS_7D" -> it[Users.postRestrictedUntil] = maxOf(row[Users.postRestrictedUntil], until)
-                    "SUSPEND_24H" -> it[Users.suspendedUntil] = maxOf(row[Users.suspendedUntil], until)
-                }
-            }
-            until
-        }
-    }
-
-    /**
-     * B11：管理员处置统一入口——写字段 + 审计同一事务（actor/reason/before-after 入 audit detail）。
-     * 替代路由层散落的裸 Users.update + ModerationAuditLog.insert。
-     */
-    fun applyUserSuspension(actorId: String, userId: String, until: Long, auditDetail: String): Boolean = transaction {
-        val changed = Users.update({ (Users.id eq userId) and Users.deletedAt.isNull() }) {
-            it[suspendedUntil] = until
-        }
-        if (changed == 0) return@transaction false
-        ModerationAuditLog.insert {
-            it[ModerationAuditLog.userId] = userId
-            it[ModerationAuditLog.action] = "ADMIN_STATUS_UPDATE"
-            it[ModerationAuditLog.detail] = auditDetail.take(MODERATION_AUDIT_DETAIL_MAX_CHARS)
-            it[ModerationAuditLog.actorId] = actorId
-            it[createdAt] = System.currentTimeMillis()
-        }
-        true
-    }
-
-    fun applyUserPostRestriction(actorId: String, userId: String, until: Long, auditDetail: String): Boolean = transaction {
-        val changed = Users.update({ (Users.id eq userId) and Users.deletedAt.isNull() }) {
-            it[postRestrictedUntil] = until
-        }
-        if (changed == 0) return@transaction false
-        ModerationAuditLog.insert {
-            it[ModerationAuditLog.userId] = userId
-            it[ModerationAuditLog.action] = "ADMIN_POST_RESTRICT"
-            it[ModerationAuditLog.detail] = auditDetail.take(MODERATION_AUDIT_DETAIL_MAX_CHARS)
-            it[ModerationAuditLog.actorId] = actorId
-            it[createdAt] = System.currentTimeMillis()
-        }
-        true
-    }
-
-    fun applyUserMessageRestriction(actorId: String, userId: String, until: Long, auditDetail: String): Boolean = transaction {
-        val changed = Users.update({ (Users.id eq userId) and Users.deletedAt.isNull() }) {
-            it[messageRestrictedUntil] = until
-        }
-        if (changed == 0) return@transaction false
-        ModerationAuditLog.insert {
-            it[ModerationAuditLog.userId] = userId
-            it[ModerationAuditLog.action] = "ADMIN_MESSAGE_RESTRICT"
-            it[ModerationAuditLog.detail] = auditDetail.take(MODERATION_AUDIT_DETAIL_MAX_CHARS)
-            it[ModerationAuditLog.actorId] = actorId
-            it[createdAt] = System.currentTimeMillis()
-        }
-        true
-    }
-
     /** B13：批量处置字段（SUSPEND/POST/MESSAGE 单项，或组合清除）。 */
     enum class UserDispositionField { SUSPEND, POST, MESSAGE, MESSAGE_AND_POST, ALL }
 
@@ -300,236 +212,18 @@ class UserRepository {
 
     data class BulkDispositionResult(val updated: List<String>, val skipped: List<String>)
 
-    /**
-     * B13：批量处置统一命令——批量存在性检查 + 单事务逐 id 写入 + 逐 id 审计。
-     * 收敛 AdminBulkRouting 里 ~15 段「skip 自己/主管理员/不存在 → update → audit」重复实现。
-     */
-    fun applyBulkDisposition(
-        actorId: String,
-        ids: List<String>,
-        field: UserDispositionField,
-        mode: UserDispositionMode,
-        until: Long,
-        action: String,
-        detailFor: (effective: Long) -> String,
-    ): BulkDispositionResult {
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        transaction {
-            ids.forEach { id ->
-                if (id == actorId || AdminAccess.isAdmin(id) || id !in existing) {
-                    skipped += id
-                    return@forEach
-                }
-                val row = Users.selectAll().where { Users.id eq id }.firstOrNull()
-                if (row == null) {
-                    skipped += id
-                    return@forEach
-                }
-                val effective = when (mode) {
-                    UserDispositionMode.CLEAR -> 0L
-                    UserDispositionMode.SET -> until
-                    UserDispositionMode.EXTEND -> if (until <= 0L) 0L else maxOf(currentDisposition(row, field), until)
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    when (field) {
-                        UserDispositionField.SUSPEND -> it[Users.suspendedUntil] = effective
-                        UserDispositionField.POST -> it[Users.postRestrictedUntil] = effective
-                        UserDispositionField.MESSAGE -> it[Users.messageRestrictedUntil] = effective
-                        UserDispositionField.MESSAGE_AND_POST -> {
-                            it[Users.messageRestrictedUntil] = effective
-                            it[Users.postRestrictedUntil] = effective
-                        }
-                        UserDispositionField.ALL -> {
-                            it[Users.messageRestrictedUntil] = effective
-                            it[Users.postRestrictedUntil] = effective
-                            it[Users.suspendedUntil] = effective
-                        }
-                    }
-                }
-                ModerationAuditLog.insert {
-                    it[ModerationAuditLog.userId] = id
-                    it[ModerationAuditLog.action] = action
-                    it[ModerationAuditLog.detail] = detailFor(effective).take(200)
-                    it[ModerationAuditLog.actorId] = actorId
-                    it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-                }
-                updated += id
-            }
-        }
-        return BulkDispositionResult(updated, skipped)
-    }
-
-    private fun currentDisposition(row: ResultRow, field: UserDispositionField): Long = when (field) {
-        UserDispositionField.SUSPEND -> row[Users.suspendedUntil]
-        UserDispositionField.POST -> row[Users.postRestrictedUntil]
-        UserDispositionField.MESSAGE -> row[Users.messageRestrictedUntil]
-        UserDispositionField.MESSAGE_AND_POST -> maxOf(row[Users.messageRestrictedUntil], row[Users.postRestrictedUntil])
-        UserDispositionField.ALL -> maxOf(row[Users.suspendedUntil], row[Users.postRestrictedUntil], row[Users.messageRestrictedUntil])
-    }
-
     /** B13：批量用户设置字段（searchable/showStatus/showOnline 布尔开关）。 */
     enum class UserSettingsField { SEARCHABLE, SHOW_STATUS, SHOW_ONLINE }
-
-    /** B13：批量布尔开关统一命令——存在性检查 + 单事务写入，无逐 id 审计（路由统一 count 审计）。 */
-    fun applyBulkUserSettings(
-        actorId: String,
-        ids: List<String>,
-        field: UserSettingsField,
-        value: Boolean,
-    ): BulkDispositionResult {
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        transaction {
-            ids.forEach { id ->
-                if (shouldSkipBulk(actorId, id, existing, skipSelf = true)) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    when (field) {
-                        UserSettingsField.SEARCHABLE -> it[Users.searchable] = value
-                        UserSettingsField.SHOW_STATUS -> it[Users.showStatus] = value
-                        UserSettingsField.SHOW_ONLINE -> it[Users.showOnline] = value
-                    }
-                }
-                updated += id
-            }
-        }
-        return BulkDispositionResult(updated, skipped)
-    }
-
-    /** B13：批量关闭 TOTP——允许对自身（含主管理员自己）操作，仅跳过其他主管理员。 */
-    fun applyBulkDisableTotp(actorId: String, ids: List<String>): BulkDispositionResult {
-        val existing = transaction {
-            Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
-        }
-        val updated = mutableListOf<String>()
-        val skipped = mutableListOf<String>()
-        transaction {
-            ids.forEach { id ->
-                if (shouldSkipBulk(actorId, id, existing, skipSelf = false)) {
-                    skipped += id
-                    return@forEach
-                }
-                Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
-                    it[Users.totpSecret] = null
-                    it[Users.totpEnabled] = false
-                }
-                updated += id
-            }
-        }
-        return BulkDispositionResult(updated, skipped)
-    }
-
-    private fun shouldSkipBulk(actorId: String, id: String, existing: Set<String>, skipSelf: Boolean): Boolean {
-        if (id !in existing) return true
-        return if (skipSelf) (id == actorId || AdminAccess.isAdmin(id)) else (AdminAccess.isAdmin(id) && id != actorId)
-    }
-
-    /** B13：授予/撤销 moderator——写字段 + 审计同一事务（以 update 影响行数为准）。 */
-    fun setModerator(actorId: String, userId: String, enabled: Boolean): Boolean = transaction {
-        val changed = Users.update({ (Users.id eq userId) and Users.deletedAt.isNull() }) {
-            it[Users.isModerator] = enabled
-        }
-        if (changed == 0) return@transaction false
-        ModerationAuditLog.insert {
-            it[ModerationAuditLog.userId] = userId
-            it[ModerationAuditLog.action] = if (enabled) "ADMIN_GRANT_MODERATOR" else "ADMIN_REVOKE_MODERATOR"
-            it[ModerationAuditLog.detail] = "enabled=$enabled"
-            it[ModerationAuditLog.actorId] = actorId
-            it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-        }
-        true
-    }
-
-    /** B13：关闭用户 TOTP——写字段 + 审计同一事务。 */
-    fun disableTotp(actorId: String, userId: String): Boolean = transaction {
-        val changed = Users.update({ (Users.id eq userId) and Users.deletedAt.isNull() }) {
-            it[Users.totpSecret] = null
-            it[Users.totpEnabled] = false
-        }
-        if (changed == 0) return@transaction false
-        ModerationAuditLog.insert {
-            it[ModerationAuditLog.userId] = userId
-            it[ModerationAuditLog.action] = "ADMIN_DISABLE_TOTP"
-            it[ModerationAuditLog.detail] = "admin disabled totp"
-            it[ModerationAuditLog.actorId] = actorId
-            it[ModerationAuditLog.createdAt] = System.currentTimeMillis()
-        }
-        true
-    }
-
-    private fun getRestrictionUntil(userId: String, restriction: Restriction): Long {
-        return transaction {
-            val row = Users.selectAll().where { Users.id eq userId }.firstOrNull()
-                ?.takeIf { it[Users.deletedAt] == null } ?: return@transaction 0L
-            when (restriction) {
-                Restriction.MESSAGE -> row[Users.messageRestrictedUntil]
-                Restriction.POST -> row[Users.postRestrictedUntil]
-                Restriction.SUSPEND -> row[Users.suspendedUntil]
-            }.takeIf { it > System.currentTimeMillis() } ?: 0L
-        }
-    }
 
     /**
      * 修改密码：先校验旧密码，成功后用 BCrypt cost=12 重哈希
      * @return true 改密成功；false 用户不存在或旧密码错误
      */
-    private val credentialService = CredentialService()
+    internal val credentialService = CredentialService()
 
-    fun register(name: String, email: String, password: String): UserResponse? =
-        credentialService.register(name, email, password)
+    internal val accountLifecycleService = AccountLifecycleService()
 
-    fun login(email: String, password: String): UserResponse? =
-        credentialService.login(email, password)
-
-    fun loginWithFactors(email: String, password: String, totpCode: String?): CredentialService.LoginResult =
-        credentialService.loginWithFactors(email, password, totpCode)
-
-    fun changePassword(userId: String, oldPassword: String, newPassword: String): Boolean =
-        credentialService.changePassword(userId, oldPassword, newPassword)
-
-    fun resetPasswordByEmail(email: String, newPassword: String): String? =
-        credentialService.resetPasswordByEmail(email, newPassword)
-
-    fun verifyPassword(userId: String, password: String): Boolean =
-        credentialService.verifyPassword(userId, password)
-
-    /** 管理后台二次确认（口令 + 账号启用 TOTP 时的第二因子）。见 [CredentialService.verifyAdminCredentials]。 */
-    fun verifyAdminCredentials(
-        userId: String,
-        password: String,
-        totpCode: String?,
-    ): CredentialService.AdminCredentialCheck =
-        credentialService.verifyAdminCredentials(userId, password, totpCode)
-
-    private val accountLifecycleService = AccountLifecycleService()
-    private val mfaService = com.maodouchat.server.service.MfaService()
-
-    fun deleteAccount(userId: String, password: String): AccountDeactivationResult? = accountLifecycleService.deleteAccount(userId, password)
-    fun adminDeactivateAccount(userId: String, actorId: String): AccountDeactivationResult? = accountLifecycleService.adminDeactivateAccount(userId, actorId)
-
-
-    private val privacyService = PrivacyService()
-
-    fun getPrivacy(userId: String): UserPrivacyResponse? = privacyService.getPrivacy(userId)
-    fun updatePrivacyWithTransitions(
-        userId: String,
-        showOnline: Boolean? = null,
-        showStatus: Boolean? = null,
-        searchable: Boolean? = null,
-        defaultPostVisibility: String? = null,
-        onlineVisibility: String? = null
-    ): PrivacyUpdateResult? = privacyService.updatePrivacyWithTransitions(userId, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
-
-
+    internal val privacyService = PrivacyService()
 
     private fun blockedUserIdsInTx(viewerId: String): Set<String> {
         val blockedByMe = BlockedUsers.selectAll()
@@ -552,55 +246,9 @@ class UserRepository {
     }
 
     /** 通过唯一用户名查找用户（不含 @ 前缀，大小写不敏感）——公开主页专用（匿名脱敏）。 */
-    private val profileService = ProfileService()
+    internal val profileService = ProfileService()
 
-    fun updateProfile(userId: String, name: String? = null, status: String? = null) =
-        profileService.updateProfile(userId, name, status)
-
-    fun replaceAvatar(userId: String, avatarUrl: String?): AvatarReplacementResult? =
-        profileService.replaceAvatar(userId, avatarUrl)
-
-    fun isCurrentAvatarUrl(avatarUrl: String): Boolean =
-        profileService.isCurrentAvatarUrl(avatarUrl)
-
-    fun findByUsername(username: String): UserResponse? =
-        profileService.findByUsername(username)
-
-    fun setUsername(userId: String, username: String): String? =
-        profileService.setUsername(userId, username)
-
-    fun clearUsername(userId: String): Boolean =
-        profileService.clearUsername(userId)
-
-    private val blockService = BlockService()
-
-    fun blockUser(blockerId: String, blockedId: String): Boolean = blockService.blockUser(blockerId, blockedId)
-    fun unblockUser(blockerId: String, blockedId: String) = blockService.unblockUser(blockerId, blockedId)
-    fun getBlockedUsers(userId: String): List<String> = blockService.getBlockedUsers(userId)
-    fun hasBlocked(blockerId: String, blockedId: String): Boolean = blockService.hasBlocked(blockerId, blockedId)
-    fun isBlockedEitherWay(a: String, b: String): Boolean = blockService.isBlockedEitherWay(a, b)
-    fun blockedEitherWayIdsInTx(viewerId: String, targetIds: List<String>): Set<String> = blockService.blockedEitherWayIdsInTx(viewerId, targetIds)
-    fun hasBlockedPairInTx(userIds: List<String>): Boolean = blockService.hasBlockedPairInTx(userIds)
-
-    fun getBlockedUserDetails(userId: String): List<UserResponse> {
-        return transaction {
-            val blockedIds = BlockedUsers.selectAll()
-                .where { BlockedUsers.blockerId eq userId }
-                .map { it[BlockedUsers.blockedId] }
-            if (blockedIds.isEmpty()) {
-                emptyList()
-            } else {
-                Users.selectAll()
-                    .where { Users.id inList blockedIds }
-                    .map { it.toPublicUser() }
-                    .sortedBy { blockedIds.indexOf(it.id) }
-            }
-        }
-    }
-
-
-    fun isUniqueViolation(error: Throwable): Boolean =
-        com.maodouchat.server.service.isUniqueViolation(error)
+    internal val blockService = BlockService()
 
     private companion object {
         private const val MAX_NAME_LENGTH = 50
@@ -662,4 +310,4 @@ data class PrivacyUpdateResult(
     val statusRevoked: Boolean
 )
 
-private enum class Restriction { MESSAGE, POST, SUSPEND }
+internal enum class Restriction { MESSAGE, POST, SUSPEND }
