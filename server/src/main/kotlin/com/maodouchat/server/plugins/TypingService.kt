@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.blockedEitherWayIdsInTx
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 

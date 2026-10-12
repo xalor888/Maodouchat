@@ -2,6 +2,7 @@ package com.maodouchat.server.service
 
 import com.maodouchat.server.config.AdminAccess
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.isModerator
 
 /**
  * B13：管理身份——master（MASTER_ADMINS 静态/动态）与 moderator（Users.isModerator）两级角色。

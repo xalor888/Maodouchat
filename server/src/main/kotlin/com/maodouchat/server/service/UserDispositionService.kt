@@ -1,6 +1,12 @@
 package com.maodouchat.server.service
 
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.applyBulkDisableTotp
+import com.maodouchat.server.repository.applyBulkDisposition
+import com.maodouchat.server.repository.applyBulkUserSettings
+import com.maodouchat.server.repository.applyUserMessageRestriction
+import com.maodouchat.server.repository.applyUserPostRestriction
+import com.maodouchat.server.repository.applyUserSuspension
 
 /**
  * B13：用户治理写命令门面——单用户封禁/禁动态/禁消息的「校验截止时间 → 模板校验 → 审计明细

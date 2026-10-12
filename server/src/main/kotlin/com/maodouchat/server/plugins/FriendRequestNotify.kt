@@ -4,6 +4,7 @@ import com.maodouchat.server.model.FriendRequestEventPayload
 import com.maodouchat.server.model.FriendRequestResponse
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.blockedEitherWayIdsInTx
 import com.maodouchat.server.service.FcmPushService
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.encodeToString

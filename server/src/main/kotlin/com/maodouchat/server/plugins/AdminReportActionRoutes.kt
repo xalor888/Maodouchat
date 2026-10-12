@@ -6,6 +6,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.applyModerationRestriction
 import com.maodouchat.server.service.SessionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

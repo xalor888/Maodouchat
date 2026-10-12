@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.clearUsername
+import com.maodouchat.server.repository.setUsername
 import com.maodouchat.server.service.CacheService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

@@ -22,6 +22,7 @@ import com.maodouchat.server.db.GroupInvitations
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.deleteAccount
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert

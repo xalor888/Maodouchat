@@ -5,6 +5,8 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getMessageRestrictionUntil
+import com.maodouchat.server.repository.getSuspendedUntil
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.CallInviteRateLimiter
