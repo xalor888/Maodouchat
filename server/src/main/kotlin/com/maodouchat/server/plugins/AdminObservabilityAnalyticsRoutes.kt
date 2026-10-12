@@ -3,6 +3,12 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.service.OperationsQueryService
+import com.maodouchat.server.service.dashboard
+import com.maodouchat.server.service.onlineUsers
+import com.maodouchat.server.service.ranking
+import com.maodouchat.server.service.richTrends
+import com.maodouchat.server.service.storage
+import com.maodouchat.server.service.trends
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

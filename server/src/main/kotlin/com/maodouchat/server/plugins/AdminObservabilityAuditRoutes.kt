@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.service.OperationsQueryService
+import com.maodouchat.server.service.auditLogs
+import com.maodouchat.server.service.auditLogsExport
 import com.maodouchat.server.service.csvCell
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
