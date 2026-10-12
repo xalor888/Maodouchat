@@ -11,6 +11,8 @@ import com.maodouchat.server.repository.isAccessTokenAllowed
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.authenticate
+import com.maodouchat.server.repository.get
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
