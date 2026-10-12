@@ -45,7 +45,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.int
@@ -67,97 +66,10 @@ private val attachmentChunkPathRegex = Regex("^/api/attachments/[^/]+/chunks?$")
 private val RoutingInstalledKey = AttributeKey<Unit>("MaodouchatRoutingInstalled")
 private val RoutingPushServiceKey = AttributeKey<FcmPushService>("MaodouchatRoutingPushService")
 
-private fun loadPublicHtml(page: String): String? =
-    Thread.currentThread().contextClassLoader?.getResource("public/$page.html")?.readText()
-        ?: object {}.javaClass.classLoader.getResource("public/$page.html")?.readText()
-
-private suspend fun ApplicationCall.respondPublicHtml(page: String, fallback: String = "<h1>毛豆聊天</h1>") {
-    response.header(HttpHeaders.CacheControl, "no-cache, must-revalidate")
-    respondText(loadPublicHtml(page) ?: fallback, ContentType.Text.Html)
-}
-
-/** MASTER_ADMINS inherit the limited content-review permissions even when isModerator is false. */
-
-
-internal suspend fun notifyGroupRevisionChanged(
-    queryRepository: ConversationQueryRepository,
-    participantRepository: ConversationParticipantRepository,
-    json: Json,
-    chatId: String,
-    reason: String,
-    actorId: String,
-    targetUserId: String? = null,
-    recipientIds: List<String>? = null
-) {
-    val chat = queryRepository.getById(chatId) ?: return
-    if (!chat.isGroup) return
-    notifyGroupRevisionChangedWithData(
-        json = json,
-        chatId = chatId,
-        reason = reason,
-        actorId = actorId,
-        targetUserId = targetUserId,
-        memberRevision = chat.memberRevision,
-        recipientIds = recipientIds ?: participantRepository.participantIds(chatId)
-    )
-}
-
-/** 批量快照已就绪时的广播入口（避免逐群 getChatById + getParticipantIds）。 */
-internal suspend fun notifyGroupRevisionChangedWithData(
-    json: Json,
-    chatId: String,
-    reason: String,
-    actorId: String,
-    targetUserId: String? = null,
-    memberRevision: Long,
-    recipientIds: List<String>
-) {
-    val payload = GroupRevisionChangedPayload(
-        chatId = chatId,
-        memberRevision = memberRevision,
-        reason = reason,
-        actorId = actorId,
-        targetUserId = targetUserId
-    )
-    val message = json.encodeToString(
-        WsMessage.serializer(),
-        WsMessage("GROUP_REVISION_CHANGED", json.encodeToString(GroupRevisionChangedPayload.serializer(), payload))
-    )
-    val recipients = recipientIds.distinct()
-    recipients.forEach { LocalRealtimeBus.publish(it, message) }
-}
-
 internal suspend fun ApplicationCall.respondBotUnavailable() {
     respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable or disabled", code = "BOT_UNAVAILABLE"))
 }
 
-/** 9.3xx：群邀请事件（CREATED/ACCEPTED/DECLINED/CANCELLED）实时推送；CREATED 额外 FCM 唤醒离线被邀请人。 */
-internal suspend fun notifyGroupInvite(
-    json: Json,
-    invite: GroupInvitationDto,
-    action: String,
-    pushService: FcmPushService
-) {
-    val payload = json.encodeToString(
-        GroupInviteEventPayload.serializer(),
-        GroupInviteEventPayload(action = action, invite = invite)
-    )
-    val envelope = json.encodeToString(WsMessage.serializer(), WsMessage("GROUP_INVITE", payload))
-    // 目标用户实时感知邀请；邀请人/管理员侧同步状态（撤销/拒绝）
-    LocalRealtimeBus.publish(invite.userId, envelope)
-    if (invite.inviterId.isNotBlank() && invite.inviterId != invite.userId) {
-        LocalRealtimeBus.publish(invite.inviterId, envelope)
-    }
-    if (action == "CREATED") {
-        pushService.enqueueGroupInvite(
-            recipientId = invite.userId,
-            fromUserId = invite.inviterId,
-            inviteId = invite.id,
-            chatId = invite.chatId,
-            action = action
-        )
-    }
-}
 
 fun Application.configureRouting(
     userRepo: UserRepository,
