@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AdminManagementRepository
+import com.maodouchat.server.repository.dissolveGroupChat
+import com.maodouchat.server.repository.listAdminChats
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*

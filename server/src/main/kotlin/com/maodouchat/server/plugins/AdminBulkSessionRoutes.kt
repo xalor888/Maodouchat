@@ -4,6 +4,8 @@ import com.maodouchat.server.config.AdminAccess
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.repository.recordAudit
+import com.maodouchat.server.repository.recordAuditBatch
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

@@ -1,6 +1,9 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
+import com.maodouchat.server.repository.getUserAdmin
+import com.maodouchat.server.repository.getUserDetail
+import com.maodouchat.server.repository.listUsers
 import com.maodouchat.server.service.DispositionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

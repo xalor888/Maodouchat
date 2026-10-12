@@ -33,6 +33,7 @@ import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.repository.searchMessageMetadata
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.CallInviteRateLimiter
 import io.ktor.client.request.get
@@ -46,6 +47,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.application.Application
 import io.ktor.server.testing.testApplication
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -53,11 +59,6 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * G61：把「服务端不得把人类聊天明文返回给管理端」从**一个入口**扩展到**全部管理端入口**。

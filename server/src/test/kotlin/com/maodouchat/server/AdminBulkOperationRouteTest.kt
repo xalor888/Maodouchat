@@ -9,6 +9,7 @@ import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.recordAudit
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.CallInviteRateLimiter
 import io.ktor.client.request.*
@@ -16,17 +17,17 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.testing.*
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.Database
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * G56 安全网：管理后台**批量**操作端点的行为契约。
