@@ -6,41 +6,21 @@ import com.maodouchat.server.repository.PollRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
+import io.ktor.server.request.*
 import io.ktor.server.response.respond
-import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-/** 群 PK 写入簇：创建 / 投票 / 关闭。 */
-internal fun Route.configurePollPkManageRoutes() {
+/** 群 PK 簇：PK 本体的详情/投票/关闭（从 PollPkQueryRoutes、PollPkManageRoutes 按域拆出）。 */
+internal fun Route.configurePollPkCoreRoutes() {
     authenticate("auth-jwt") {
-        post("/api/chats/{chatId}/pk") {
+        get("/api/pk/{pkId}") {
             val userId = call.requireUserId()
-            if (call.rejectIfSuspendedForPolls(userId)) return@post
-            val chatId = call.requirePathParamOr400("chatId", "missing chatId") ?: return@post
-            // 8.47：成员校验先于限流（同 checkin 口径）
-            if (!PollRepository.isMember(chatId, userId)) {
-                return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("无权访问该群"))
-            }
-            if (call.rejectIfMutedForPolls(chatId, userId)) return@post
-            if (!pollRateLimiter.acquire("$userId:$chatId:pk_create", maxPerMinute = 10)) {
-                return@post call.respond(HttpStatusCode.TooManyRequests, ErrorResponse("创建 PK 过于频繁"))
-            }
-            val obj = call.requireJsonObjectOr400(call.receiveBoundedTextOrEmpty(MAX_BODY_CHARS)) ?: return@post
-            val fields = parsePkCreateFields(obj)
-            if (fields.leftTitle.isBlank() || fields.rightTitle.isBlank() ||
-                fields.leftTitle.length > MAX_PK_TITLE_LENGTH || fields.rightTitle.length > MAX_PK_TITLE_LENGTH
-            ) {
-                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("PK 双方标题无效"))
-            }
-            // 8.32 一致性：非成员 403（与群管理端点一致），其余失败保持 400
-            val pk = GroupCheckinRepository.createPk(chatId, userId, fields.leftTitle, fields.rightTitle)
-                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("无法创建 PK"))
-            broadcastGroupPlayUpdate(chatId, "pk_created") { viewerId ->
-                GroupCheckinRepository.getPk(pk.id, viewerId)
-            }
+            val pkId = call.requirePathParamOr400("pkId", "missing pkId") ?: return@get
+            val pk = GroupCheckinRepository.getPk(pkId, userId)
+                ?: return@get call.respond(HttpStatusCode.NotFound, ErrorResponse("PK 不存在"))
             call.respond(pk)
         }
-
         post("/api/pk/{pkId}/vote") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
@@ -64,7 +44,6 @@ internal fun Route.configurePollPkManageRoutes() {
             }
             call.respond(pk)
         }
-
         post("/api/pk/{pkId}/close") {
             val userId = call.requireUserId()
             if (call.rejectIfSuspendedForPolls(userId)) return@post
@@ -76,8 +55,5 @@ internal fun Route.configurePollPkManageRoutes() {
             }
             call.respond(pk)
         }
-
     }
 }
-
-private const val MAX_PK_TITLE_LENGTH = 120
