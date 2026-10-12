@@ -10,6 +10,7 @@ import com.maodouchat.server.db.GroupInvitations
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.model.ChatType
+import com.maodouchat.server.repository.create
 import java.util.concurrent.atomic.AtomicInteger
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
