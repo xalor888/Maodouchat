@@ -7,7 +7,6 @@ import com.maodouchat.server.service.FcmPushService
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-/** 群邀请通知簇：群邀请事件实时推送（从 Routing.kt 按域拆出）。 */
 /** 9.3xx：群邀请事件（CREATED/ACCEPTED/DECLINED/CANCELLED）实时推送；CREATED 额外 FCM 唤醒离线被邀请人。 */
 internal suspend fun notifyGroupInvite(
     json: Json,
