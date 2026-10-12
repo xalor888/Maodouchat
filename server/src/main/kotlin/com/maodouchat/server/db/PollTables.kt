@@ -115,7 +115,6 @@ object GroupPolls : Table("group_polls") {
     override val primaryKey = PrimaryKey(id)
 }
 
-
 object GroupPollVotes : Table("group_poll_votes") {
     val pollId = varchar("poll_id", 64)
     val userId = varchar("user_id", 64)

@@ -20,7 +20,6 @@ object BotApps : Table("bot_apps") {
     override val primaryKey = PrimaryKey(id)
 }
 
-
 object BotCommandLogs : Table("bot_command_logs") {
     val id = varchar("id", 64)
     val botId = varchar("bot_id", 64).index()
@@ -32,7 +31,6 @@ object BotCommandLogs : Table("bot_command_logs") {
 }
 
 /** B12：webhook 投递 outbox/死信（重启可重放 PENDING，失败入 DEAD 供审计/重放）。 */
-
 
 object BotWebhookOutbox : Table("bot_webhook_outbox") {
     val id = varchar("id", 100)
@@ -49,7 +47,6 @@ object BotWebhookOutbox : Table("bot_webhook_outbox") {
     val updatedAt = long("updated_at")
     override val primaryKey = PrimaryKey(id)
 }
-
 
 object BotUpdateInbox : Table("bot_update_inbox") {
     val id = long("id").autoIncrement()
