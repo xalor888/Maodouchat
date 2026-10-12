@@ -3,7 +3,7 @@ package com.maodouchat.server.repository
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.Users
 import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.and
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
