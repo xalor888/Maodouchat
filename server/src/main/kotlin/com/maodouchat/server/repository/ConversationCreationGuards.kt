@@ -62,3 +62,4 @@ internal fun ConversationParticipantValidation.throwIfInvalid() {
 }
 
 internal fun ConversationCreationRepository.pairKey(userId1: String, userId2: String): String =
+    listOf(userId1, userId2).sorted().joinToString(":")
