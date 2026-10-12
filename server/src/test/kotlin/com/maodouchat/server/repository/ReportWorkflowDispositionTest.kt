@@ -37,7 +37,7 @@ class ReportWorkflowDispositionTest {
             resolutionNote = "reviewed",
         ) { false }
 
-        assertTrue(failed is ReportWorkflow.ExecuteActionResult.BusinessActionFailed)
+        assertTrue(failed is ExecuteActionResult.BusinessActionFailed)
         transaction {
             val report = Reports.selectAll().where { Reports.id eq "report-1" }.single()
             assertEquals("OPEN", report[Reports.status])
@@ -51,7 +51,7 @@ class ReportWorkflowDispositionTest {
             resolutionNote = "reviewed",
         ) { true }
 
-        assertTrue(completed is ReportWorkflow.ExecuteActionResult.Completed)
+        assertTrue(completed is ExecuteActionResult.Completed)
         transaction {
             val report = Reports.selectAll().where { Reports.id eq "report-1" }.single()
             assertEquals("RESOLVED", report[Reports.status])

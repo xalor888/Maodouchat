@@ -3,7 +3,9 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateReportStatusRequest
 import com.maodouchat.server.repository.ReportWorkflow
+import com.maodouchat.server.repository.UpdateResult
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.updateReportStatus
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
@@ -26,8 +28,8 @@ internal fun Route.configureModeratorReviewStatusRoutes(
             val reportId = parseRawOrEmpty(call.parameters, "reportId")
             val req = call.receiveJsonOr400<UpdateReportStatusRequest>() ?: return@put
             when (val result = reportRepo.updateReportStatus(reportId, uid, req.status, req.resolutionNote)) {
-                is ReportWorkflow.UpdateResult.Success -> call.respond(result.report)
-                is ReportWorkflow.UpdateResult.Failure -> {
+                is UpdateResult.Success -> call.respond(result.report)
+                is UpdateResult.Failure -> {
                     // 8.42：资源不存在 404、状态冲突 409 与参数错误 400 分离
                     val status = when (result.message) {
                         "举报不存在" -> HttpStatusCode.NotFound

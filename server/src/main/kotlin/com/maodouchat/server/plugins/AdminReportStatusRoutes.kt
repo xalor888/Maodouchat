@@ -3,6 +3,8 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateReportStatusRequest
 import com.maodouchat.server.repository.ReportWorkflow
+import com.maodouchat.server.repository.UpdateResult
+import com.maodouchat.server.repository.updateReportStatus
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -20,8 +22,8 @@ put("/reports/{reportId}/status") {
     val req = call.receiveAdminJson<UpdateReportStatusRequest>()
         ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("参数无效"))
     when (val result = reportRepo.updateReportStatus(reportId, actorId, req.status, req.resolutionNote)) {
-        is ReportWorkflow.UpdateResult.Success -> call.respond(result.report)
-        is ReportWorkflow.UpdateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
+        is UpdateResult.Success -> call.respond(result.report)
+        is UpdateResult.Failure -> call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
     }
 }
 }

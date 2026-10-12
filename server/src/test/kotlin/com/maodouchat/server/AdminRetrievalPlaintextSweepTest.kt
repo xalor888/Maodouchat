@@ -28,11 +28,13 @@ import com.maodouchat.server.repository.AdminManagementRepository
 import com.maodouchat.server.repository.AdminMessageSearchFilter
 import com.maodouchat.server.repository.AnnouncementRepository
 import com.maodouchat.server.repository.PostRepository
+import com.maodouchat.server.repository.PublishResult
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.repository.publish
 import com.maodouchat.server.repository.searchMessageMetadata
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.CallInviteRateLimiter
@@ -254,7 +256,7 @@ class AdminRetrievalPlaintextSweepTest {
             type = "TEXT",
             recipientUserIds = setOf("sweep_a", "sweep_b"),
         )
-        return published is ServiceMessageRepository.PublishResult.Published
+        return published is PublishResult.Published
     }
 
     private suspend fun io.ktor.client.HttpClient.adminToken(): String {

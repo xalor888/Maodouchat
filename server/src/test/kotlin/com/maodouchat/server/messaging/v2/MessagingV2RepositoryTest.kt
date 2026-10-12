@@ -16,8 +16,12 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.CreateReportRequest
 import com.maodouchat.server.model.MessageResponse
 import com.maodouchat.server.db.initDatabase
+import com.maodouchat.server.repository.CreateResult
+import com.maodouchat.server.repository.PublishResult
 import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.ServiceMessageRepository
+import com.maodouchat.server.repository.createReport
+import com.maodouchat.server.repository.publish
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
@@ -452,9 +456,9 @@ class MessagingV2RepositoryTest {
             ),
         )
 
-        assertTrue(reported is ReportWorkflow.CreateResult.Success)
-        assertEquals("group-1", (reported as ReportWorkflow.CreateResult.Success).report.chatId)
-        assertTrue(internal is ReportWorkflow.CreateResult.Failure)
+        assertTrue(reported is CreateResult.Success)
+        assertEquals("group-1", (reported as CreateResult.Success).report.chatId)
+        assertTrue(internal is CreateResult.Failure)
     }
 
     @Test
@@ -484,8 +488,8 @@ class MessagingV2RepositoryTest {
             recipientUserIds = setOf("alice", "bob", "carol"),
         )
 
-        assertTrue(result is ServiceMessageRepository.PublishResult.Published)
-        val published = result as ServiceMessageRepository.PublishResult.Published
+        assertTrue(result is PublishResult.Published)
+        val published = result as PublishResult.Published
         assertEquals(3, published.mailbox.envelopeCount)
         transaction {
             assertEquals(1, ServiceMessages.selectAll().count())
