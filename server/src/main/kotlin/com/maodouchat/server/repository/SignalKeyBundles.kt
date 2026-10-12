@@ -4,6 +4,7 @@ import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.RefreshTokens
 import com.maodouchat.server.db.SignalDevices
 import com.maodouchat.server.db.SignalKeys
+import com.maodouchat.server.repository.SignalKeyRepository.UploadKeyPackageResult
 import com.maodouchat.server.service.IdentitySecurityEventPolicy
 import com.maodouchat.server.service.IdentitySecurityEventRecorder
 import org.jetbrains.exposed.sql.*
