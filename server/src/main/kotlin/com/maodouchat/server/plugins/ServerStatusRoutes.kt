@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.service.CacheService
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.getPublicStatus
+import com.maodouchat.server.service.putPublicStatus
 import io.ktor.http.ContentType
 import io.ktor.server.response.respondText
 import io.ktor.server.application.call

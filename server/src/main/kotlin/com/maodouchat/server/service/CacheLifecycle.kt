@@ -39,7 +39,7 @@ internal fun CacheService.closeResources() {
         customCaches.values.forEach { it.clear() }
         customCaches.clear()
     }
-    clearInstance(this)
+    CacheService.clearInstance(this)
 }
 
 internal fun CacheService.nextLifecycleId(): Long {
