@@ -1,6 +1,32 @@
 package com.maodouchat.server.service
 
 import com.maodouchat.server.repository.AdminExportRepository
+import com.maodouchat.server.repository.auditExportRows
+import com.maodouchat.server.repository.blockedUsers
+import com.maodouchat.server.repository.botCommandStats
+import com.maodouchat.server.repository.bots
+import com.maodouchat.server.repository.chatSettings
+import com.maodouchat.server.repository.chats
+import com.maodouchat.server.repository.disappearingChats
+import com.maodouchat.server.repository.friendships
+import com.maodouchat.server.repository.groupInvites
+import com.maodouchat.server.repository.identityUsers
+import com.maodouchat.server.repository.messageStats
+import com.maodouchat.server.repository.moderationAudit
+import com.maodouchat.server.repository.mutedChats
+import com.maodouchat.server.repository.onlinePresence
+import com.maodouchat.server.repository.pinnedMessages
+import com.maodouchat.server.repository.pollVotes
+import com.maodouchat.server.repository.polls
+import com.maodouchat.server.repository.privacyFlags
+import com.maodouchat.server.repository.pushTokens
+import com.maodouchat.server.repository.reports
+import com.maodouchat.server.repository.reportsMeta
+import com.maodouchat.server.repository.restrictedUsers
+import com.maodouchat.server.repository.riskEvents
+import com.maodouchat.server.repository.sessionsSummary
+import com.maodouchat.server.repository.totpUsers
+import com.maodouchat.server.repository.users
 
 /**
  * M2：管理后台 CSV 导出的组装层。

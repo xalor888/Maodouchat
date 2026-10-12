@@ -2,6 +2,9 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AdminExportRepository
+import com.maodouchat.server.repository.deviceAnomalies
+import com.maodouchat.server.repository.deviceAnomalyCount
+import com.maodouchat.server.repository.deviceSequences
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
