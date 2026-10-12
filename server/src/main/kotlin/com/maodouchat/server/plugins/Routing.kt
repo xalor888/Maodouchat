@@ -60,9 +60,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
-// 附件分块上传路径：拦截器里每个请求都在重新编译，提到文件级复用。
-private val attachmentChunkPathRegex = Regex("^/api/attachments/[^/]+/chunks?$")
-
+// attachmentChunkPathRegex 现居 RateLimitConfig.kt（internal，同包共享）。
 private val RoutingInstalledKey = AttributeKey<Unit>("MaodouchatRoutingInstalled")
 private val RoutingPushServiceKey = AttributeKey<FcmPushService>("MaodouchatRoutingPushService")
 
