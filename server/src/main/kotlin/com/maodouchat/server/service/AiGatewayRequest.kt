@@ -21,17 +21,6 @@ import kotlinx.serialization.json.jsonObject
 @Serializable
 internal data class OpenAiInputMessage(val role: String, val content: JsonElement)
 
-@Serializable
-internal data class ChatMessage(val role: String, val content: JsonElement)
-
-@Serializable
-internal data class ChatCompletionsRequest(
-    val model: String,
-    val messages: List<ChatMessage>,
-    @kotlinx.serialization.SerialName("max_tokens") val maxTokens: Int,
-    val stream: Boolean
-)
-
 internal suspend fun AiGatewayService.createResponse(
     developerMessage: String,
     userMessage: String
@@ -132,7 +121,7 @@ internal fun AiGatewayService.buildChatRequest(
 ): ChatCompletionsRequest = ChatCompletionsRequest(
     model = model,
     messages = input.map { msg ->
-        ChatMessage(
+        ChatCompletionsMessage(
             role = OpenAiCompatibleCodec.chatRole(msg.role),
             content = OpenAiCompatibleCodec.chatContent(msg.content)
         )
