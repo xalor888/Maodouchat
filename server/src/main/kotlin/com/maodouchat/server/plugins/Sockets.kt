@@ -4,6 +4,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.isAccessTokenAllowed
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.UserRepository

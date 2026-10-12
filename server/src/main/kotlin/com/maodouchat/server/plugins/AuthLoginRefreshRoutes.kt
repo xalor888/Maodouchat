@@ -4,6 +4,7 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.RefreshTokenRequest
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.rotateIfEligible
 import com.maodouchat.server.repository.IssuedRefreshToken
 import com.maodouchat.server.repository.UserRepository
 import io.ktor.http.HttpStatusCode

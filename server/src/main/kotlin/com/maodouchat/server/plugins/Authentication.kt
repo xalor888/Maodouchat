@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.isAccessTokenAllowed
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*

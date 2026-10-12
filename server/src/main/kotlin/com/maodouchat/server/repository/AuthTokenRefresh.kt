@@ -24,7 +24,7 @@ import java.util.UUID
 fun AuthTokenRepository.issueRefreshToken(userId: String, existingSessionId: String? = null): IssuedRefreshToken {
     val token = generateRefreshToken()
     val now = System.currentTimeMillis()
-    val expiresAt = now + REFRESH_TOKEN_VALIDITY_MS
+    val expiresAt = now + AuthTokenRepository.REFRESH_TOKEN_VALIDITY_MS
     val hash = hashToken(token)
     val sessionId = existingSessionId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString()
     transaction {
@@ -51,7 +51,7 @@ fun AuthTokenRepository.issueRefreshToken(userId: String, existingSessionId: Str
                 .where { (AuthSessions.userId eq userId) and AuthSessions.revokedAt.isNull() }
                 .orderBy(AuthSessions.createdAt to SortOrder.ASC)
                 .toList()
-            val excess = activeSessions.size - MAX_ACTIVE_SESSIONS
+            val excess = activeSessions.size - AuthTokenRepository.MAX_ACTIVE_SESSIONS
             if (excess > 0) {
                 activeSessions.take(excess).forEach { row ->
                     val staleSessionId = row[AuthSessions.id]
@@ -93,22 +93,22 @@ fun AuthTokenRepository.issueRefreshToken(userId: String, existingSessionId: Str
  * 单事务原子轮换：行锁 → 校验用户/封禁 → 通过后才 revoke。
  * 封禁/账号缺失时不吊销 refresh，避免 peek→consume 竞态把有效 token 烧掉。
  */
-fun AuthTokenRepository.rotateIfEligible(refreshToken: String): RotateRefreshResult {
+fun AuthTokenRepository.rotateIfEligible(refreshToken: String): AuthTokenRepository.RotateRefreshResult {
     val hash = hashToken(refreshToken)
     val now = System.currentTimeMillis()
     val replacementToken = generateRefreshToken()
     val replacementHash = hashToken(replacementToken)
-    val replacementExpiresAt = now + REFRESH_TOKEN_VALIDITY_MS
+    val replacementExpiresAt = now + AuthTokenRepository.REFRESH_TOKEN_VALIDITY_MS
     return transaction {
         val initialRow = RefreshTokens.selectAll()
             .where { RefreshTokens.tokenHash eq hash }
             .firstOrNull()
-            ?: return@transaction RotateRefreshResult.InvalidToken
+            ?: return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
         val userId = initialRow[RefreshTokens.userId]
         val sessionId = initialRow[RefreshTokens.sessionId]
         val user = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
         if (user == null || user[Users.deletedAt] != null) {
-            return@transaction RotateRefreshResult.UserMissing
+            return@transaction AuthTokenRepository.RotateRefreshResult.UserMissing
         }
         val session = sessionId.takeIf { it.isNotBlank() }?.let { id ->
             AuthSessions.selectAll()
@@ -121,13 +121,13 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): RotateRefreshRes
             .where { RefreshTokens.tokenHash eq hash }
             .forUpdate()
             .firstOrNull()
-            ?: return@transaction RotateRefreshResult.InvalidToken
+            ?: return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
         if (row[RefreshTokens.revokedAt] != null) {
             if (session != null && session[AuthSessions.revokedAt] == null) {
                 revokeSessionInCurrentTransaction(userId, sessionId, now)
-                return@transaction RotateRefreshResult.SessionCompromised(userId, sessionId)
+                return@transaction AuthTokenRepository.RotateRefreshResult.SessionCompromised(userId, sessionId)
             }
-            return@transaction RotateRefreshResult.InvalidToken
+            return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
         }
         if (row[RefreshTokens.expiresAt] <= now) {
             val hasActiveReplacement = sessionId.isNotBlank() && RefreshTokens.selectAll().where {
@@ -140,16 +140,16 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): RotateRefreshRes
             if (!hasActiveReplacement && session != null && session[AuthSessions.revokedAt] == null) {
                 revokeSessionInCurrentTransaction(userId, sessionId, now)
             }
-            return@transaction RotateRefreshResult.InvalidToken
+            return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
         }
         if (user[Users.suspendedUntil] > now) {
-            return@transaction RotateRefreshResult.UserSuspended
+            return@transaction AuthTokenRepository.RotateRefreshResult.UserSuspended
         }
         if (session == null || session[AuthSessions.revokedAt] != null) {
             RefreshTokens.update({ RefreshTokens.tokenHash eq hash }) {
                 it[revokedAt] = now
             }
-            return@transaction RotateRefreshResult.InvalidToken
+            return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
         }
         RefreshTokens.update({ RefreshTokens.tokenHash eq hash }) {
             it[revokedAt] = now
@@ -165,7 +165,7 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): RotateRefreshRes
             it[expiresAt] = replacementExpiresAt
             it[revokedAt] = null
         }
-        RotateRefreshResult.Success(userId, sessionId, replacementToken, replacementExpiresAt)
+        AuthTokenRepository.RotateRefreshResult.Success(userId, sessionId, replacementToken, replacementExpiresAt)
     }
 }
 
@@ -177,7 +177,7 @@ fun AuthTokenRepository.revoke(refreshToken: String): Boolean {
  * 吊销 refresh 所属的整个登录会话，并返回其身份供 WebSocket / 推送清理。
  * 旧版 refresh 没有 sessionId 时只吊销该 token，且不能再用于轮换。
  */
-fun AuthTokenRepository.revokeAndGetSession(refreshToken: String): RevokedSession? {
+fun AuthTokenRepository.revokeAndGetSession(refreshToken: String): AuthTokenRepository.RevokedSession? {
     val hash = hashToken(refreshToken)
     val now = System.currentTimeMillis()
     return transaction {
@@ -223,7 +223,7 @@ fun AuthTokenRepository.revokeAndGetSession(refreshToken: String): RevokedSessio
                 it[revokedAt] = now
             }
         }
-        RevokedSession(userId, sessionId)
+        AuthTokenRepository.RevokedSession(userId, sessionId)
     }
 }
 
@@ -240,7 +240,7 @@ fun AuthTokenRepository.revokeSession(userId: String, sessionId: String): Boolea
     }
 }
 
-fun AuthTokenRepository.listActiveRefreshSessions(userId: String, includeRevoked: Boolean = false): List<RefreshSessionRow> = transaction {
+fun AuthTokenRepository.listActiveRefreshSessions(userId: String, includeRevoked: Boolean = false): List<AuthTokenRepository.RefreshSessionRow> = transaction {
     val now = System.currentTimeMillis()
     val activeSessionIds = if (includeRevoked) emptySet() else {
         AuthSessions.select(AuthSessions.id).where {
@@ -261,7 +261,7 @@ fun AuthTokenRepository.listActiveRefreshSessions(userId: String, includeRevoked
                         row[RefreshTokens.sessionId] !in activeSessionIds
                     )
             ) return@mapNotNull null
-            RefreshSessionRow(
+            AuthTokenRepository.RefreshSessionRow(
                 tokenHashPrefix = row[RefreshTokens.tokenHash].take(12),
                 createdAt = row[RefreshTokens.createdAt],
                 expiresAt = row[RefreshTokens.expiresAt],
@@ -314,14 +314,14 @@ fun AuthTokenRepository.countActiveRefreshSessionsBatch(userIds: List<String>): 
     userIds.associateWith { counts[it] ?: 0 }
 }
 
-fun AuthTokenRepository.revokeByHashPrefixWithSessions(userId: String, prefix: String): RevokeByPrefixResult {
+fun AuthTokenRepository.revokeByHashPrefixWithSessions(userId: String, prefix: String): AuthTokenRepository.RevokeByPrefixResult {
     val p = prefix.trim().lowercase()
     // 8.34 修复：8 字符（32bit）SHA-256 前缀可碰撞误吊销无关会话 → 下限提高到 12 字符
-    if (p.length < 12) return RevokeByPrefixResult(0, emptySet())
+    if (p.length < 12) return AuthTokenRepository.RevokeByPrefixResult(0, emptySet())
     val now = System.currentTimeMillis()
     return transaction {
         Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
-            ?: return@transaction RevokeByPrefixResult(0, emptySet())
+            ?: return@transaction AuthTokenRepository.RevokeByPrefixResult(0, emptySet())
         val candidates = RefreshTokens.selectAll()
             .where {
                 (RefreshTokens.userId eq userId) and
@@ -361,7 +361,7 @@ fun AuthTokenRepository.revokeByHashPrefixWithSessions(userId: String, prefix: S
         legacyHashes.forEach { tokenHash ->
             RefreshTokens.update({ RefreshTokens.tokenHash eq tokenHash }) { it[revokedAt] = now }
         }
-        RevokeByPrefixResult(
+        AuthTokenRepository.RevokeByPrefixResult(
             // 准确统计：被撤销的 refresh token 总数 = 各会话撤销的 token 数 + 遗留哈希数，
             // 而非会话数（一个会话可能含多条 refresh token，旧算法会低估）。
             count = revokedTokenCount + legacyHashes.size,
@@ -404,7 +404,7 @@ fun AuthTokenRepository.deleteExpired(now: Long = System.currentTimeMillis()): I
         // 8.34 修复：AuthSessions 行此前只置 revokedAt 从不物理删除，表随登录次数无界增长
         //（每用户每次登录一行，注销才硬删）。超过保留期（90 天）的已吊销会话行硬删，
         // 其 refresh token 已在上面/会话撤销时清理，无外键残留。
-        AuthSessions.deleteWhere { AuthSessions.revokedAt less now - SESSION_ROW_RETENTION_MS }
+        AuthSessions.deleteWhere { AuthSessions.revokedAt less now - AuthTokenRepository.SESSION_ROW_RETENTION_MS }
         refreshDeleted
     }
 }

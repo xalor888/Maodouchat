@@ -7,6 +7,7 @@ import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.isAccessTokenAllowed
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.UserRepository
