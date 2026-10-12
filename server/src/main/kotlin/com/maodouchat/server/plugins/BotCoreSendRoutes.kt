@@ -4,6 +4,8 @@ import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.BotWebhookService
+import com.maodouchat.server.service.notifyChatEvent
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.request.*
@@ -105,7 +107,7 @@ internal fun Route.configureBotCoreSendRoutes(
             if (botMessage == null) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
             }
-            com.maodouchat.server.service.BotWebhookService.notifyChatEvent(
+            BotWebhookService.notifyChatEvent(
                 chatId = chatId,
                 event = "bot_message",
                 messageId = msgId,

@@ -8,6 +8,8 @@ import com.maodouchat.server.service.GroupMembershipService
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.get
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.BotWebhookService
+import com.maodouchat.server.service.notifyChatEvent
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -64,7 +66,7 @@ internal fun Route.configureBotInteractionManageRoutes(
                 val bot = com.maodouchat.server.repository.BotRepository.get(botId)
                     ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("bot not found"))
                 if (addResult == AddOwnedBotResult.ADDED) {
-                    com.maodouchat.server.service.BotWebhookService.notifyChatEvent(
+                    BotWebhookService.notifyChatEvent(
                         chatId = chatId,
                         event = "bot_added",
                         senderId = userId,
