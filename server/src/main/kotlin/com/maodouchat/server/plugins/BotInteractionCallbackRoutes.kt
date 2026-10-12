@@ -5,6 +5,8 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.enqueueCallbackIfAuthorized
 import com.maodouchat.server.repository.get
+import com.maodouchat.server.service.BotWebhookService
+import com.maodouchat.server.service.notifyBotDirect
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -69,7 +71,7 @@ internal fun Route.configureBotInteractionCallbackRoutes(
         }
         // Targeted webhook for this bot only (avoid fan-out double enqueue).
         try {
-            com.maodouchat.server.service.BotWebhookService.notifyBotDirect(
+            BotWebhookService.notifyBotDirect(
                 botId = bot.id,
                 bodyJson = payload
             )

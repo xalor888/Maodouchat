@@ -5,6 +5,8 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.enqueueUserCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.BotWebhookService
+import com.maodouchat.server.service.notifyBotDirect
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -61,7 +63,7 @@ internal fun Route.configureBotInteractionInboxRoutes(
         }
         delivered.forEach { (botId, payload) ->
             try {
-                com.maodouchat.server.service.BotWebhookService.notifyBotDirect(
+                BotWebhookService.notifyBotDirect(
                     botId = botId,
                     bodyJson = payload
                 )

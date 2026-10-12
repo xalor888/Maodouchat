@@ -19,6 +19,9 @@ import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.TurnCredentialService
 import com.maodouchat.server.service.CallInviteRateLimiter
 import com.maodouchat.server.service.WebRtcBinaryService
+import com.maodouchat.server.service.BotWebhookService
+import com.maodouchat.server.service.shutdown
+import com.maodouchat.server.service.start
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -146,10 +149,10 @@ fun Application.configureRouting(
     ).start(aiSummaryCleanupScope)
     val (cacheService, cacheLifecycleId) =
         com.maodouchat.server.service.CacheService.acquireLifecycle()
-    val webhookLifecycleId = com.maodouchat.server.service.BotWebhookService.start()
+    val webhookLifecycleId = BotWebhookService.start()
     environment.monitor.subscribe(ApplicationStopped) {
         aiSummaryCleanupScope.cancel()
-        com.maodouchat.server.service.BotWebhookService.shutdown(webhookLifecycleId)
+        BotWebhookService.shutdown(webhookLifecycleId)
         cacheService.shutdown(cacheLifecycleId)
         pushService.shutdown()
     }
