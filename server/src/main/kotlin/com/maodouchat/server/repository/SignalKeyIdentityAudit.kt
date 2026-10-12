@@ -12,7 +12,7 @@ import org.jetbrains.exposed.sql.update
  * B03：同槽身份不一致 → 审计事件 + 吊销当前 auth session（会话风险收敛）。
  * 必须在已持有用户行锁的事务内调用。
  */
-private fun recordIdentityMismatchAndRevokeSessionInTx(
+internal fun recordIdentityMismatchAndRevokeSessionInTx(
     userId: String,
     deviceId: Int,
     authSessionId: String,

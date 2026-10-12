@@ -155,7 +155,14 @@ private fun verifyKeyPackageSignature(
 
 /** Validate the actual Curve point, not merely that the field looks like Base64. */
 private fun isValidPreKeyUpload(preKey: PreKeyUpload): Boolean =
-
+    preKey.keyId in 1..16_777_215 &&
+        runCatching {
+            val encoded = Base64.getDecoder().decode(preKey.publicKeyBase64)
+            Curve.decodePoint(encoded, 0)
+        }.isSuccess
 
 /** A request containing one id with two different public keys is nondeterministic. */
 private fun hasConflictingPreKeyIds(preKeys: List<PreKeyUpload>): Boolean =
+    preKeys.groupBy { it.keyId }.values.any { entries ->
+        entries.map { it.publicKeyBase64 }.distinct().size > 1
+    }

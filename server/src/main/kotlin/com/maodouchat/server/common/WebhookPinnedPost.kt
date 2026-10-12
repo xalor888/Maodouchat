@@ -169,7 +169,7 @@ private fun String.isIpLiteralHost(): Boolean {
 }
 
 
-private val WEBHOOK_HTTP_HEADER_NAME = Regex("^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$")
+internal val WEBHOOK_HTTP_HEADER_NAME = Regex("^[!#\$%&'*+.^_`|~0-9A-Za-z-]+$")
 
 
 private val WEBHOOK_RESERVED_REQUEST_HEADERS = setOf(

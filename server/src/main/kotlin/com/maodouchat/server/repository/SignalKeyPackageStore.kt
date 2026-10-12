@@ -14,7 +14,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
 /** Must run inside an open transaction that already holds a user-scoped lock. */
-private fun upsertSingleKeyInTx(userId: String, deviceId: Int, type: String, data: String) {
+internal fun upsertSingleKeyInTx(userId: String, deviceId: Int, type: String, data: String) {
     SignalKeys.deleteWhere {
         (SignalKeys.userId eq userId) and
             (SignalKeys.deviceId eq deviceId) and
@@ -32,7 +32,7 @@ private fun upsertSingleKeyInTx(userId: String, deviceId: Int, type: String, dat
 
 
 /** Must run inside an open transaction that already holds a user-scoped lock. */
-private fun touchDeviceInTx(userId: String, deviceId: Int, deviceName: String? = null) {
+internal fun touchDeviceInTx(userId: String, deviceId: Int, deviceName: String? = null) {
     val normalizedName = deviceName?.trim()?.take(50)?.takeIf { it.isNotBlank() }
     val existing = SignalDevices.selectAll().where {
         (SignalDevices.userId eq userId) and (SignalDevices.deviceId eq deviceId)
@@ -65,7 +65,7 @@ private fun touchDeviceInTx(userId: String, deviceId: Int, deviceName: String? =
 
 
 /** Must run inside an open transaction. */
-private fun lockUserRow(userId: String) {
+internal fun lockUserRow(userId: String) {
     com.maodouchat.server.db.Users.selectAll()
         .where { com.maodouchat.server.db.Users.id eq userId }
         .forUpdate()
