@@ -5,6 +5,7 @@ import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.ConversationCreationRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.create
 import org.jetbrains.exposed.sql.Database
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random

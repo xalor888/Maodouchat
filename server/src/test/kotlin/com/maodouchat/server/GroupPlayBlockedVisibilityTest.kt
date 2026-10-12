@@ -28,6 +28,7 @@ import com.maodouchat.server.repository.checkinForViewer
 import com.maodouchat.server.repository.checkinRanking
 import com.maodouchat.server.repository.closePk
 import com.maodouchat.server.repository.consumeToken
+import com.maodouchat.server.repository.create
 import com.maodouchat.server.repository.createChain
 import com.maodouchat.server.repository.getChain
 import com.maodouchat.server.repository.getPk
