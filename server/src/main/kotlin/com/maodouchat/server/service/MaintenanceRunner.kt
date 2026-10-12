@@ -12,6 +12,7 @@ import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.purgeConsumedPreKeys
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

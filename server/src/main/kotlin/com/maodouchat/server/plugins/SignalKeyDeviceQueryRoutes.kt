@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.DeviceInfoResponse
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.getDeviceInfos
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
