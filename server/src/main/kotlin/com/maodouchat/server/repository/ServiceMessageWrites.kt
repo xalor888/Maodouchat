@@ -138,6 +138,25 @@ private fun ServiceMessageRepository.insertServiceMessageInTransaction(
     )
 }
 fun ServiceMessageRepository.editOwn(messageId: String, botUserId: String, newContent: String, editedAt: Long): MessageResponse? =
+    transaction {
+        if (!BotRepository.isBotDeliverableInTx(botUserId, System.currentTimeMillis())) {
+            return@transaction null
+        }
+        val message = ServiceMessages.selectAll().where {
+            (ServiceMessages.id eq messageId) and ServiceMessages.deletedAt.isNull()
+        }.forUpdate().firstOrNull() ?: return@transaction null
+        if (message[ServiceMessages.senderId] != botUserId) return@transaction null
+        val chatId = message[ServiceMessages.chatId]
+        ChatParticipants.selectAll().where {
+            (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq botUserId)
+        }.forUpdate().firstOrNull() ?: return@transaction null
+        val clean = stripInlineMetaPreservingTrailing(newContent).take(MAX_CONTENT_LENGTH)
+        ServiceMessages.update({ ServiceMessages.id eq messageId }) {
+            it[content] = clean
+            it[ServiceMessages.editedAt] = editedAt
+        }
+        toMessageResponse(message).copy(content = clean, editedAt = editedAt)
+    }
 fun ServiceMessageRepository.deleteOwn(messageId: String, botUserId: String): MessageResponse? = transaction {
     if (!BotRepository.isBotDeliverableInTx(botUserId, System.currentTimeMillis())) {
         return@transaction null
@@ -163,7 +182,7 @@ fun ServiceMessageRepository.deleteOwn(messageId: String, botUserId: String): Me
     StarMessages.deleteWhere { StarMessages.messageId eq messageId }
     PinnedMessages.deleteWhere { PinnedMessages.messageId eq messageId }
     ServiceMessageReactions.deleteWhere { ServiceMessageReactions.messageId eq messageId }
-    message.toResponse()
+    toMessageResponse(message)
 }
 fun ServiceMessageRepository.setReaction(messageId: String, botUserId: String, emoji: String): List<MessageReactionResponse>? = try {
     transaction {

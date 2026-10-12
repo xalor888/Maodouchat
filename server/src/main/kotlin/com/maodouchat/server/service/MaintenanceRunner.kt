@@ -2,6 +2,7 @@ package com.maodouchat.server.service
 
 import com.maodouchat.server.repository.expireStalePending
 import com.maodouchat.server.repository.purgeAdminOperationalData
+import com.maodouchat.server.repository.purgeResolvedOlderThan
 import com.maodouchat.server.repository.AiRepository
 import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.deleteExpired

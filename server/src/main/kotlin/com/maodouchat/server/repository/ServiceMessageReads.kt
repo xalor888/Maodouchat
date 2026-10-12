@@ -16,7 +16,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 fun ServiceMessageRepository.getById(messageId: String): MessageResponse? = transaction {
     ServiceMessages.selectAll().where {
         (ServiceMessages.id eq messageId) and ServiceMessages.deletedAt.isNull()
-    }.firstOrNull()?.toResponse()
+    }.firstOrNull()?.let { toMessageResponse(it) }
 }
 fun ServiceMessageRepository.list(chatId: String, limit: Int, viewerBotId: String): List<MessageResponse> = transaction {
     val isMember = ChatParticipants.selectAll().where {
@@ -27,7 +27,7 @@ fun ServiceMessageRepository.list(chatId: String, limit: Int, viewerBotId: Strin
         (ServiceMessages.chatId eq chatId) and ServiceMessages.deletedAt.isNull()
     }.orderBy(ServiceMessages.timestamp to SortOrder.DESC)
         .limit(limit.coerceIn(1, 100))
-        .map { it.toResponse() }
+        .map { toMessageResponse(it) }
         .reversed()
 }
 fun ServiceMessageRepository.metadata(messageId: String): ServiceMessageMetadata? = transaction {
@@ -42,7 +42,7 @@ fun ServiceMessageRepository.metadata(messageId: String): ServiceMessageMetadata
         messageId = messageId,
         chatId = transport[MessagingV2Messages.conversationId],
         senderId = transport[MessagingV2Messages.senderUserId],
-        serviceMessage = service?.toResponse(),
+        serviceMessage = service?.let { toMessageResponse(it) },
     )
 }
 fun ServiceMessageRepository.reactions(messageId: String): List<MessageReactionResponse> = transaction {
