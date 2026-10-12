@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AdminManagementRepository
+import com.maodouchat.server.repository.listAdminComments
+import com.maodouchat.server.repository.listAdminPosts
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

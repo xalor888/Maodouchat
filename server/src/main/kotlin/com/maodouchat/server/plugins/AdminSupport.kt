@@ -6,6 +6,7 @@ import com.maodouchat.server.db.Posts
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.PostAdminResponse
 import com.maodouchat.server.model.UserAdminResponse
+import com.maodouchat.server.repository.recordAudit
 import com.maodouchat.server.service.DispositionService
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.jwt.JWTPrincipal
