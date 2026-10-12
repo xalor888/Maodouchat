@@ -2,6 +2,12 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.service.AttachmentCommitService
 import com.maodouchat.server.service.UploadSessionService
+import com.maodouchat.server.service.createReplacingPending
+import com.maodouchat.server.service.createUploadSession
+import com.maodouchat.server.service.hasCapacityFor
+import com.maodouchat.server.service.markUploaded
+import com.maodouchat.server.service.removeUncommitted
+import com.maodouchat.server.service.updateUploadProgress
 
 data class EncryptedAttachmentRecord(
     val id: String,
