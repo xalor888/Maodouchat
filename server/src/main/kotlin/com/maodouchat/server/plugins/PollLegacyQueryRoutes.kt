@@ -1,6 +1,9 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.getPoll
+import com.maodouchat.server.repository.isMember
+import com.maodouchat.server.repository.listChatPolls
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate

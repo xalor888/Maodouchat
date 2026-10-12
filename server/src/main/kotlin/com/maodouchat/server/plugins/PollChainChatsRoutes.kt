@@ -3,6 +3,10 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.GroupCheckinRepository
 import com.maodouchat.server.repository.PollRepository
+import com.maodouchat.server.repository.createChain
+import com.maodouchat.server.repository.getChain
+import com.maodouchat.server.repository.isMember
+import com.maodouchat.server.repository.listChains
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
