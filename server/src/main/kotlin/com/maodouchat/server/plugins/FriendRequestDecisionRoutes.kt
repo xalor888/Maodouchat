@@ -4,6 +4,9 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.FriendRequestResponse
 import com.maodouchat.server.repository.FriendRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.acceptRequest
+import com.maodouchat.server.repository.cancelRequest
+import com.maodouchat.server.repository.rejectRequest
 import com.maodouchat.server.service.FcmPushService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

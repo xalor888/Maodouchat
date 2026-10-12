@@ -9,6 +9,10 @@ import com.maodouchat.server.repository.ConversationLifecycleRepository
 import com.maodouchat.server.repository.ConversationCreationRepository
 import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.addMembers
+import com.maodouchat.server.repository.removeMember
+import com.maodouchat.server.repository.transferOwnership
+import com.maodouchat.server.repository.updateRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

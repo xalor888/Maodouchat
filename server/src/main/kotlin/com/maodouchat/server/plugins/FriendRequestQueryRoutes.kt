@@ -1,6 +1,8 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.repository.FriendRepository
+import com.maodouchat.server.repository.listIncoming
+import com.maodouchat.server.repository.listOutgoing
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
