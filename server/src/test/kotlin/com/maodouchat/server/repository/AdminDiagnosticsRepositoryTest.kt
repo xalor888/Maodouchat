@@ -8,8 +8,6 @@ import com.maodouchat.server.db.PushTokens
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
-import com.maodouchat.server.repository.listPushTokens
-import com.maodouchat.server.repository.opsSnapshot
 import com.maodouchat.server.service.AdminAiAuditPolicy
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
