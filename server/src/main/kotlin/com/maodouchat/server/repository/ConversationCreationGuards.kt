@@ -58,7 +58,7 @@ internal fun ConversationCreationRepository.reject(failure: ConversationCreation
 
 internal fun ConversationParticipantValidation.throwIfInvalid() {
     val failure = failure ?: return
-    reject(failure, missingUserId)
+    throw ConversationCreationRejected(failure, missingUserId)
 }
 
 internal fun ConversationCreationRepository.pairKey(userId1: String, userId2: String): String =

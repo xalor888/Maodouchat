@@ -44,4 +44,3 @@ fun ConversationCreationRepository.create(
 }
 
 internal const val ROLE_MEMBER = "MEMBER"
-private const val ROLE_OWNER = "OWNER"
