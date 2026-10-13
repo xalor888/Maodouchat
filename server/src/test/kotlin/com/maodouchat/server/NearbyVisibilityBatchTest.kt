@@ -5,6 +5,7 @@ import com.maodouchat.server.db.UserLocations
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.NearbyRepository
+import com.maodouchat.server.repository.getNearby
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
