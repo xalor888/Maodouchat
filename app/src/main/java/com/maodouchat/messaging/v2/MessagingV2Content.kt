@@ -8,44 +8,6 @@ import com.maodouchat.util.ChatTextDisplayPolicy
 import com.maodouchat.util.JsonFormat
 import kotlinx.serialization.Serializable
 
-/** Encrypted application payload. Transport metadata is intentionally not duplicated here. */
-@Serializable
-data class MessagingV2Content(
-    val version: Int = 1,
-    val type: String,
-    val body: String = "",
-    val replyToMessageId: String? = null,
-    val attachmentIds: List<String> = emptyList(),
-    val mentionedUserIds: List<String> = emptyList(),
-    val expiresInSeconds: Int = 0,
-    val attributes: Map<String, String> = emptyMap(),
-    /**
-     * Structured message metadata introduced in content version 2. Version 1 encoded this in a
-     * trailing `<meta>` marker; readers accept that form through [ContentPayloadCodec], but new
-     * command paths do not create it.
-     */
-    val metadata: MessageMeta? = null,
-    /** Optional encrypted domain event. DATA messages leave this null. */
-    val event: MessagingV2Event? = null,
-)
-
-/**
- * Typed domain representation of a user-visible encrypted payload.
- *
- * `Message.content` remains a local display field. This type is the application boundary that
- * keeps transport metadata structured rather than treating the display text as a wire format.
- */
-data class DecodedContentPayload(
-    val type: MessageType,
-    val body: String,
-    val metadata: MessageMeta = MessageMeta(),
-    val replyToMessageId: String? = metadata.replyToId,
-    val attachmentIds: List<String> = metadata.attachmentId?.let(::listOf) ?: emptyList(),
-    val mentionedUserIds: List<String> = metadata.mentions,
-    val expiresInSeconds: Int = 0,
-    val attributes: Map<String, String> = emptyMap(),
-)
-
 /** Versioned read/write adapter for v2 content and the legacy `<meta>` representation. */
 object ContentPayloadCodec {
     private const val STRUCTURED_VERSION = 2
@@ -132,31 +94,3 @@ object ContentPayloadCodec {
     private data class LegacyBody(val body: String, val metadata: MessageMeta)
 }
 
-/**
- * Client-visible mutation carried inside the same durable device envelope as normal messages.
- * The server only stores/forwards this structure as ciphertext; ordering and idempotency are
- * enforced by the inbox coordinator before the local projection is changed.
- */
-@Serializable
-data class MessagingV2Event(
-    val action: String,
-    val targetMessageId: String,
-    val content: String? = null,
-    val editedAt: Long? = null,
-    val reactionEmoji: String? = null,
-    val reactions: List<MessageReaction> = emptyList(),
-    val status: String? = null,
-    val throughMessageId: String? = null,
-)
-
-object MessagingV2EventAction {
-    const val EDIT = "EDIT"
-    const val REVOKE = "REVOKE"
-    const val DELETE = "DELETE"
-    const val REACTION_SET = "REACTION_SET"
-    /** Legacy compatibility only. Receivers may merge only the envelope sender's entry. */
-    const val REACTION_SNAPSHOT = "REACTION_SNAPSHOT"
-    const val DELIVERY_RECEIPT = "DELIVERY_RECEIPT"
-    const val READ_RECEIPT = "READ_RECEIPT"
-    const val PLAY_RECEIPT = "PLAY_RECEIPT"
-}
