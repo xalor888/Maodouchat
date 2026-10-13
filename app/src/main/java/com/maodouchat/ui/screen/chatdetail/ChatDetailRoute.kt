@@ -571,64 +571,13 @@ internal fun ChatDetailRoute(
     // B4 本地 AI 聚合：会话画像 / 本周周报（仅非密聊会话，密聊不参与避免落可搜索缓存）
     // G335：AI 三块结果的「值/加载中/失败」收进持有类（见 ChatDetailAiResultState.kt）
     val aiResults = remember { ChatDetailAiResultState() }
-    // 8.47：消息分类（纯本地词典统计）
-    LaunchedEffect(aiPanels.showMessageClassify, state.chat?.id) {
-        if (!aiPanels.showMessageClassify) return@LaunchedEffect
-        val chatId = state.chat?.id ?: return@LaunchedEffect
-        aiResults.classifyLoading = true
-        aiResults.classifyFailed = false
-        aiResults.chatClassifications = emptyList()
-        // G73：经端口调用，不再自己抓 app 数据库单例
-        val result = withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching { viewModel.aiChatClassificationSource.classify(chatId) }
-        }
-        aiResults.classifyLoading = false
-        aiResults.classifyFailed = result.isFailure
-        result.getOrNull()?.let { aiResults.chatClassifications = it }
-    }
-    LaunchedEffect(aiResults.emotionReplyRequested, state.chat?.id) {
-        if (!aiResults.emotionReplyRequested) return@LaunchedEffect
-        aiResults.emotionReplyRequested = false
-        val chatId = state.chat?.id ?: return@LaunchedEffect
-        // G73：经端口调用，不再自己抓 app 数据库单例
-        val reply = withContext(kotlinx.coroutines.Dispatchers.IO) {
-            viewModel.aiEmotionReplySource.reply(chatId)
-        }
-        if (reply.isNotBlank()) {
-            viewModel.onInputChange(reply)
-            Toast.makeText(context, context.getString(R.string.chat_ai_emotion_reply_generated), Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(context, context.getString(R.string.chat_ai_emotion_reply_failed), Toast.LENGTH_SHORT).show()
-        }
-    }
-    LaunchedEffect(aiPanels.showConversationProfile, state.chat?.id) {
-        if (!aiPanels.showConversationProfile) return@LaunchedEffect
-        val chatId = state.chat?.id ?: return@LaunchedEffect
-        aiResults.conversationProfileLoading = true
-        aiResults.conversationProfileFailed = false
-        // G73：经 ViewModel 暴露的端口调用，不再自己抓 app 数据库单例
-        val built = withContext(kotlinx.coroutines.Dispatchers.IO) {
-            viewModel.aiConversationProfileSource.build(chatId)
-        }
-        if (built.local.messageCount > 0 || !built.narrative.isNullOrBlank()) {
-            aiResults.conversationProfile = built
-        } else {
-            aiResults.conversationProfileFailed = true
-        }
-        aiResults.conversationProfileLoading = false
-    }
-    LaunchedEffect(aiPanels.showWeeklyReport, state.chat?.id) {
-        if (!aiPanels.showWeeklyReport) return@LaunchedEffect
-        val chatId = state.chat?.id ?: return@LaunchedEffect
-        aiResults.weeklyReportLoading = true
-        aiResults.weeklyReportFailed = false
-        // G73：经端口调用，不再自己抓 app 数据库单例
-        aiResults.weeklyReport = withContext(kotlinx.coroutines.Dispatchers.IO) {
-            viewModel.aiWeeklyReportSource.generate(chatId)
-        }
-        aiResults.weeklyReportFailed = aiResults.weeklyReport == null
-        aiResults.weeklyReportLoading = false
-    }
+    // G389：4 个 AI 结果副作用（消息分类/情感回复/会话画像/本周周报）抽到 ChatDetailAiResultEffects.kt，纯搬移。
+    ChatDetailAiResultEffects(
+        aiPanels = aiPanels,
+        aiResults = aiResults,
+        state = state,
+        viewModel = viewModel,
+    )
 
     LaunchedEffect(secretActive, state.chat?.id) {
         if (!secretActive) return@LaunchedEffect
