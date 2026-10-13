@@ -9,6 +9,7 @@ import com.maodouchat.server.repository.get
 import com.maodouchat.server.repository.listUsersByTag
 import com.maodouchat.server.repository.publish
 import com.maodouchat.server.service.FcmPushService
+import com.maodouchat.server.service.enqueueAnnouncement
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

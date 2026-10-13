@@ -4,6 +4,7 @@ import com.maodouchat.server.model.GroupInvitationDto
 import com.maodouchat.server.model.GroupInviteEventPayload
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.service.FcmPushService
+import com.maodouchat.server.service.enqueueGroupInvite
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 

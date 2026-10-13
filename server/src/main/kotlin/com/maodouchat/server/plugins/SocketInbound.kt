@@ -10,6 +10,7 @@ import com.maodouchat.server.repository.getSuspendedUntil
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.CallInviteRateLimiter
+import com.maodouchat.server.service.enqueueIncomingCall
 import io.ktor.websocket.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

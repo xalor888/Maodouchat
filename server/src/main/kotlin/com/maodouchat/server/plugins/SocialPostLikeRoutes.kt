@@ -4,6 +4,7 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.FcmPushService
+import com.maodouchat.server.service.enqueuePostInteraction
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
