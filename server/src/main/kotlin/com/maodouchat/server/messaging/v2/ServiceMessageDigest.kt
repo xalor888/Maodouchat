@@ -5,10 +5,10 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 // MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
-internal val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+internal val serviceDigestSha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
 
 internal fun ServiceMessagePublisher.digestService(message: MessageResponse, content: String): String {
-    val digest = sha256ThreadLocal.get().apply { reset() }
+    val digest = serviceDigestSha256ThreadLocal.get().apply { reset() }
     listOf(
         message.id,
         message.chatId,
@@ -31,7 +31,7 @@ internal fun ServiceMessagePublisher.digestServiceEvent(
     clientTimestamp: Long,
     content: String,
 ): String {
-    val digest = sha256ThreadLocal.get().apply { reset() }
+    val digest = serviceDigestSha256ThreadLocal.get().apply { reset() }
     listOf(id, conversationId, senderUserId, clientTimestamp.toString(), content).forEach { value ->
         val bytes = value.toByteArray(Charsets.UTF_8)
         digest.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(bytes.size).array())
