@@ -3,27 +3,6 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.data.model.Chat
 import kotlinx.coroutines.CancellationException
 
-data class OutgoingConversationRequest(
-    val ownerUserId: String,
-    val authToken: String,
-    val activeConversationId: String,
-    val constructorConversationId: String,
-    val paintedConversation: Chat?,
-    val activeContactId: String,
-    val createSecretConversation: Boolean,
-)
-
-data class ResolvedOutgoingConversation(
-    val conversation: Chat,
-    val peerUserId: String?,
-)
-
-data class OutgoingConversationErrors(
-    val notLoggedIn: () -> String,
-    val recipientNotReady: () -> String,
-    val cannotSendToSelf: () -> String,
-)
-
 /**
  * Resolves the durable conversation authority before an outgoing envelope is staged.
  * Existing local conversations stay sendable offline; network access is only required
