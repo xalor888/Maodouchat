@@ -2,12 +2,6 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.data.model.MessageType
 
-internal data class MessagingV2ArrivalDecision(
-    val unreadDelta: Int,
-    val shouldAttemptNotification: Boolean,
-    val shouldSendDeliveryReceipt: Boolean,
-)
-
 /** Pure policy for effects caused by one decrypted inbox message. */
 internal object MessagingV2ArrivalPolicy {
     fun evaluate(
