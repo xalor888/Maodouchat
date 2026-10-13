@@ -1,13 +1,12 @@
 package com.maodouchat.server.repository
 
-// 公告生命周期簇：创建/更新/发布/取消/删除，原 AnnouncementRepository 成员按域拆出的顶层扩展函数。
+// 公告起草簇：创建与编辑草稿/调度公告（原 AnnouncementLifecycle 扩展按域拆出，零行为改动）。
+
 import com.maodouchat.server.db.SystemAnnouncements
 import java.util.UUID
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -99,52 +98,4 @@ fun AnnouncementRepository.update(
     // 并发期间被取消 → UPDATE no-op，返回 null（路由按不存在处理）
     if (updated == 0) return@transaction null
     get(id)
-}
-
-/** 手动发布：DRAFT/SCHEDULED → ACTIVE，立即生效。 */
-fun AnnouncementRepository.publish(id: String, operatorId: String): AnnouncementRepository.AnnouncementRow? = transaction {
-    val row = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
-        .firstOrNull() ?: return@transaction null
-    val now = System.currentTimeMillis()
-    // CAS：允许 DRAFT/SCHEDULED/ACTIVE（create 时 startsAt<=now 的公告直接是 ACTIVE，
-    // 重复 publish 幂等成功）；CANCELLED 不在白名单 → 已取消的公告不会被重新发布。
-    val updated = SystemAnnouncements.update({
-        (SystemAnnouncements.id eq id) and
-            (SystemAnnouncements.status inList listOf("DRAFT", "SCHEDULED", "ACTIVE"))
-    }) {
-        it[status] = "ACTIVE"
-        it[startsAt] = now
-        it[updatedAt] = now
-        it[publishedAt] = now
-    }
-    if (updated == 0) return@transaction null
-    get(id)
-}
-
-/** 取消公告：ACTIVE/SCHEDULED → CANCELLED（保留记录，用户端不再可见）。 */
-fun AnnouncementRepository.cancel(id: String, operatorId: String): AnnouncementRepository.AnnouncementRow? = transaction {
-    val row = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
-        .firstOrNull() ?: return@transaction null
-    val now = System.currentTimeMillis()
-    // CAS：仅在 ACTIVE/SCHEDULED 时生效，防止并发下把刚发布的公告以外状态覆盖掉
-    val updated = SystemAnnouncements.update({
-        (SystemAnnouncements.id eq id) and
-            (SystemAnnouncements.status inList listOf("ACTIVE", "SCHEDULED"))
-    }) {
-        it[status] = "CANCELLED"
-        it[updatedAt] = now
-        it[cancelledAt] = now
-        it[cancelledBy] = operatorId
-    }
-    if (updated == 0) return@transaction null
-    get(id)
-}
-
-/** 硬删除：仅限从未发布的 DRAFT；已发布公告一律走 cancel 保留审计痕迹。 */
-fun AnnouncementRepository.delete(id: String): Boolean = transaction {
-    val row = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
-        .firstOrNull() ?: return@transaction false
-    if (row[SystemAnnouncements.status] != "DRAFT") return@transaction false
-    SystemAnnouncements.deleteWhere { SystemAnnouncements.id eq id }
-    true
 }
