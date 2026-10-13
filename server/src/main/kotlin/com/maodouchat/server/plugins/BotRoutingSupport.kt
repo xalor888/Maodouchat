@@ -35,3 +35,7 @@ internal suspend fun ApplicationCall.requireRateLimitedBot(
     val bot = requireBot() ?: return null
     return if (acquireBotRequestPermit(rateLimiter, bot.id)) bot else null
 }
+
+internal suspend fun ApplicationCall.respondBotUnavailable() {
+    respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable or disabled", code = "BOT_UNAVAILABLE"))
+}
