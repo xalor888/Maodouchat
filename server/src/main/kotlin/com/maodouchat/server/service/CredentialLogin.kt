@@ -14,18 +14,18 @@ fun CredentialService.login(email: String, password: String): UserResponse? {
     return if (result.passwordOk && !result.totpEnabled) result.user else null
 }
 
-fun CredentialService.loginWithFactors(email: String, password: String, totpCode: String?): LoginResult {
+fun CredentialService.loginWithFactors(email: String, password: String, totpCode: String?): CredentialService.LoginResult {
     return transaction {
         val normalizedEmail = email.normalizedEmail()
         val user = Users.selectAll().where { Users.email eq normalizedEmail }.forUpdate().firstOrNull()
-            ?: return@transaction LoginResult(null, false, false, false)
-        if (user[Users.deletedAt] != null) return@transaction LoginResult(null, false, false, false)
+            ?: return@transaction CredentialService.LoginResult(null, false, false, false)
+        if (user[Users.deletedAt] != null) return@transaction CredentialService.LoginResult(null, false, false, false)
         if (user[Users.suspendedUntil] > System.currentTimeMillis()) {
-            return@transaction LoginResult(null, false, false, false)
+            return@transaction CredentialService.LoginResult(null, false, false, false)
         }
         val hash = user[Users.passwordHash]
         val passwordOk = BCrypt.verifyer().verify(password.toCharArray(), hash).verified
-        if (!passwordOk) return@transaction LoginResult(null, false, false, false)
+        if (!passwordOk) return@transaction CredentialService.LoginResult(null, false, false, false)
         val enabled = user[Users.totpEnabled] && !user[Users.totpSecret].isNullOrBlank()
         val secret = user[Users.totpSecret].orEmpty()
         val totpOk = if (!enabled) true else {
@@ -40,7 +40,7 @@ fun CredentialService.loginWithFactors(email: String, password: String, totpCode
                 it[Users.lastSeen] = System.currentTimeMillis()
             }
         }
-        LoginResult(
+        CredentialService.LoginResult(
             user = if (passwordOk && totpOk) user.toPrivateUser(isOnlineOverride = false) else null,
             passwordOk = true,
             totpEnabled = enabled,
