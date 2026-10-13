@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateProfileRequest
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.updateProfile
 import com.maodouchat.server.service.CacheService
 import com.maodouchat.server.service.invalidateUserProfile

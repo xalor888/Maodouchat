@@ -4,8 +4,10 @@ import com.maodouchat.server.common.CallSignalingValidators.isValidCallId
 import com.maodouchat.server.common.CallSignalingValidators.isValidGroupSignalMetadata
 import com.maodouchat.server.common.CallSignalingValidators.isValidSignalPayload
 import com.maodouchat.server.model.SendSignalRequest
+import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.isBlockedEitherWay
 import com.maodouchat.server.repository.latestCursor
+import com.maodouchat.server.repository.shareConversation
 import io.ktor.http.HttpStatusCode
 
 // 信令准入校验：payload/callId 格式、目标用户存在、群元数据、双向拉黑、共同会话；epoch/sequence 顺序准入。

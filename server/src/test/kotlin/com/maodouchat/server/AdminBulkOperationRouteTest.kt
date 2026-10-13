@@ -9,6 +9,7 @@ import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.createDefaultUsers
 import com.maodouchat.server.repository.recordAudit
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.CallInviteRateLimiter

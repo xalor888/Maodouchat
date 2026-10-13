@@ -1,6 +1,7 @@
 package com.maodouchat.server.common
 
 import com.maodouchat.server.repository.ConversationQueryRepository
+import com.maodouchat.server.repository.getById
 
 /**
  * G45：通话信令校验的**唯一**归属地。

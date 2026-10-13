@@ -34,6 +34,7 @@ import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.repository.createDefaultUsers
 import com.maodouchat.server.repository.publish
 import com.maodouchat.server.repository.searchMessageMetadata
 import com.maodouchat.server.service.AiGateway

@@ -8,6 +8,7 @@ import com.maodouchat.server.plugins.configureSerialization
 import com.maodouchat.server.plugins.configureStatusPages
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.createDefaultUsers
 import com.maodouchat.server.service.AiGateway
 import io.ktor.client.request.get
 import io.ktor.client.request.header

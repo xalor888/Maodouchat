@@ -7,6 +7,7 @@ import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.PinnedMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.blockedEitherWayIdsInTx
+import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.isBotDeliverable
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.repository.clearAll

@@ -8,6 +8,7 @@ import com.maodouchat.server.db.migration.appliedMigrationVersion
 import com.maodouchat.server.db.migration.expectedMigrationVersion
 import com.maodouchat.server.db.migration.runDatabaseMigrations
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.createDefaultUsers
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll

@@ -27,6 +27,7 @@ import com.maodouchat.server.repository.AnnouncementRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserTagRepository
 import com.maodouchat.server.messaging.v2.MessagingV2Repository
+import com.maodouchat.server.repository.createDefaultUsers
 import com.maodouchat.server.service.AiGatewayService
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.CallInviteRateLimiter

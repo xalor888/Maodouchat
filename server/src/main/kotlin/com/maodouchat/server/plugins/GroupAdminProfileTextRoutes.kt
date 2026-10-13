@@ -7,6 +7,7 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupProfileRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getById
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call

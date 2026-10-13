@@ -5,6 +5,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.RegisterWithCodeRequest
 import com.maodouchat.server.repository.AuthTokenRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getByEmail
 import com.maodouchat.server.repository.isUniqueViolation
 import com.maodouchat.server.repository.register
 import com.maodouchat.server.service.RuntimeConfigService

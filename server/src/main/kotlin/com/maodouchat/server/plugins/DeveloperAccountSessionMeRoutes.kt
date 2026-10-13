@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.listByOwner
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

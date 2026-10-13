@@ -4,6 +4,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.JoinGroupInviteRequest
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getForParticipant
 import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.server.application.call
