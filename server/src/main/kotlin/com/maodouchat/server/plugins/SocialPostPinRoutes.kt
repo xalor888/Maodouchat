@@ -5,6 +5,8 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.PinnedMessageRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.list
+import com.maodouchat.server.repository.toggle
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.*
 import io.ktor.server.application.*

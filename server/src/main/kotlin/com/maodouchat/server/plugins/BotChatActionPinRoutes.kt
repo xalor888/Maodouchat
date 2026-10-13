@@ -9,6 +9,7 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.blockedEitherWayIdsInTx
 import com.maodouchat.server.repository.isBotDeliverable
 import com.maodouchat.server.repository.logCommand
+import com.maodouchat.server.repository.toggle
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
