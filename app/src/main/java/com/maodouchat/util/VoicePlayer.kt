@@ -66,19 +66,8 @@ object VoicePlayer {
         }
     }
 
-    private val _state = MutableStateFlow(State())
-    val state: StateFlow<State> = _state.asStateFlow()
-
-    data class State(
-        val messageId: String? = null,
-        val isPlaying: Boolean = false,
-        val progress: Float = 0f,
-        val durationMs: Long = 0L,
-        /** 0.5 / 1.0 / 1.5 / 2.0 */
-        val speed: Float = 1f,
-        /** true = 听筒，false = 扬声器（媒体） */
-        val earpiece: Boolean = false,
-    )
+    private val _state = MutableStateFlow(VoicePlayerState())
+    val state: StateFlow<VoicePlayerState> = _state.asStateFlow()
 
     /** 允许的播放倍速（循环切换）。 */
     val SPEED_STEPS: FloatArray = floatArrayOf(1f, 1.5f, 2f, 0.5f)
@@ -124,7 +113,7 @@ object VoicePlayer {
                     val duration = p.duration.toLong().coerceAtLeast(0L)
                     applyPlaybackSpeed(p, speed)
                     applyAudioRoute(earpiece)
-                    _state.value = State(
+                    _state.value = VoicePlayerState(
                         messageId = messageId,
                         isPlaying = true,
                         progress = 0f,
@@ -286,7 +275,7 @@ object VoicePlayer {
         // 否则用户已选的听筒/扬声器设置会被还原成默认。
         if (!keepRoutePreference) restoreAudioRoute()
         val prev = _state.value
-        _state.value = State(speed = prev.speed, earpiece = prev.earpiece)
+        _state.value = VoicePlayerState(speed = prev.speed, earpiece = prev.earpiece)
     }
 
     private fun buildAttributes(earpiece: Boolean): AudioAttributes {
