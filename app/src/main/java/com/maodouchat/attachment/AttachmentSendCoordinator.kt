@@ -1,30 +1,13 @@
 package com.maodouchat.attachment
 
 import android.content.Context
-import android.net.Uri
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
-import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.JsonFormat
-import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
-
-internal data class AttachmentSendRequest(
-    val messageId: String,
-    val sourceUri: Uri,
-    val type: MessageType,
-    val initialMetadata: MediaCache.LocalFileMetadata,
-    val voiceDurationMs: Long?,
-    val optimisticMessage: Message,
-)
-
-internal sealed interface AttachmentSendResult {
-    data object ExistingTransfer : AttachmentSendResult
-    data class Queued(val message: Message) : AttachmentSendResult
-}
 
 /**
  * Owns the handoff from a chat command to the durable attachment transfer pipeline.

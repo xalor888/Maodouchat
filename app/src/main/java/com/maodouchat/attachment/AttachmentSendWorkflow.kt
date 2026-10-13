@@ -1,7 +1,6 @@
 package com.maodouchat.attachment
 
 import android.content.Context
-import android.net.Uri
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
@@ -15,25 +14,6 @@ import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-internal data class AttachmentSendCommand(
-    val messageId: String,
-    val sourceUri: Uri,
-    val type: MessageType,
-    val chatId: String,
-    val senderId: String,
-    val existingMessage: Message? = null,
-    val forwardedFrom: String? = null,
-    val metadataOverride: MediaCache.LocalFileMetadata? = null,
-    val voiceDurationMs: Long? = null,
-    val viewOnce: Boolean = false,
-    val spoilerMedia: Boolean = false,
-)
-
-internal sealed interface AttachmentSendWorkflowResult {
-    data class Existing(val message: Message) : AttachmentSendWorkflowResult
-    data class Queued(val message: Message) : AttachmentSendWorkflowResult
-}
 
 /**
  * Application-level attachment send workflow.
@@ -161,8 +141,6 @@ internal class AttachmentSendWorkflow(
         }
     }
 }
-
-internal class AttachmentTooLargeException : IllegalStateException("attachment_too_large")
 
 private val RELIABLE_ATTACHMENT_TYPES = setOf(
     MessageType.IMAGE,
