@@ -23,7 +23,6 @@ import com.maodouchat.messaging.DecryptEnvelopeGate
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.IdentityKey
-import org.signal.libsignal.protocol.InvalidMessageException
 import org.signal.libsignal.protocol.NoSessionException
 import org.signal.libsignal.protocol.SignalProtocolAddress
 import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage
@@ -445,22 +444,3 @@ class SignalProtocol(
         val epoch: Long
     )
 }
-
-enum class SenderKeyDistOutcome {
-    Installed,
-    Skipped,
-    Failed
-}
-
-internal object SenderKeyDistributionFailurePolicy {
-    fun outcomeFor(error: Throwable): SenderKeyDistOutcome = when (error) {
-        is InvalidMessageException,
-        is IllegalArgumentException -> SenderKeyDistOutcome.Skipped
-        else -> SenderKeyDistOutcome.Failed
-    }
-}
-
-class NoRecipientDevicesException : IllegalStateException()
-
-class SignalStorePersistenceException(cause: Throwable) :
-    java.io.IOException("signal_store_persistence_failed", cause)
