@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.SignalMessageResponse
 import com.maodouchat.server.service.CallSignalingService
+import com.maodouchat.server.service.pending
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond

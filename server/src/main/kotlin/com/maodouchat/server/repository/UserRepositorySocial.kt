@@ -3,7 +3,14 @@ package com.maodouchat.server.repository
 // 资料/用户名/拉黑社交簇：原 UserRepository 成员按域拆出的顶层扩展函数（同包调用，零行为改动）。
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.UserResponse
+import com.maodouchat.server.service.blockUser
+import com.maodouchat.server.service.blockedEitherWayIdsInTx
+import com.maodouchat.server.service.getBlockedUsers
+import com.maodouchat.server.service.hasBlocked
+import com.maodouchat.server.service.hasBlockedPairInTx
+import com.maodouchat.server.service.isBlockedEitherWay
 import com.maodouchat.server.service.toPublicUser
+import com.maodouchat.server.service.unblockUser
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.selectAll
