@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ClientPrefsUpdateRequest
 import com.maodouchat.server.repository.ClientPrefsRepository
+import com.maodouchat.server.repository.get as getClientPrefs
+import com.maodouchat.server.repository.update as updateClientPrefs
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
@@ -17,13 +19,13 @@ internal fun Route.configureClientSyncPrefRoutes(
 
         get("/api/client-prefs") {
             val userId = call.requireUserId()
-            call.respond(clientPrefsRepository.get(userId))
+            call.respond(clientPrefsRepository.getClientPrefs(userId))
         }
 
         put("/api/client-prefs") {
             val userId = call.requireUserId()
             val request = call.receiveJsonOr400<ClientPrefsUpdateRequest>() ?: return@put
-            call.respond(clientPrefsRepository.update(userId, request))
+            call.respond(clientPrefsRepository.updateClientPrefs(userId, request))
         }
     }
 }
