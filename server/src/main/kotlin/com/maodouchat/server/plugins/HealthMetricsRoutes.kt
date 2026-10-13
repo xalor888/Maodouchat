@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.service.CacheService
+import com.maodouchat.server.service.cacheStats
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode

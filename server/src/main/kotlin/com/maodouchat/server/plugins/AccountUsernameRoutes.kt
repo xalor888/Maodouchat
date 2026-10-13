@@ -5,6 +5,7 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.clearUsername
 import com.maodouchat.server.repository.setUsername
 import com.maodouchat.server.service.CacheService
+import com.maodouchat.server.service.invalidateUserProfile
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate

@@ -5,6 +5,8 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.findByUsername
 import com.maodouchat.server.service.CacheService
+import com.maodouchat.server.service.getUserProfile
+import com.maodouchat.server.service.putUserProfile
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
