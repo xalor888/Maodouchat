@@ -5,7 +5,7 @@ package com.maodouchat.server.service
 internal fun AdminExportService.encodeRow(row: List<Any?>): String =
     row.joinToString(",") { cell -> csvCell(cell) }
 
-internal fun AdminExportService.csv(header: String, rows: List<List<Any?>>): CsvExport = CsvExport(
+internal fun AdminExportService.csv(header: String, rows: List<List<Any?>>): AdminExportService.CsvExport = AdminExportService.CsvExport(
     body = buildString {
         appendLine(header)
         rows.forEach { row -> appendLine(encodeRow(row)) }

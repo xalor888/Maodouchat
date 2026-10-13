@@ -34,7 +34,7 @@ fun AdminExportService.riskEventsCsv(limit: Int) = csv(
  * 该格式是原 `buildAuditExportCsv` 的行为：UTF-8 BOM 开头、`\r\n` 分隔，
  * 句尾还有一个空行；Excel 依赖 BOM 才不会把中文当乱码。逐字保留。
  */
-fun AdminExportService.auditExportCsv(scope: String, fromMs: Long, toMs: Long, limit: Int): CsvExport {
+fun AdminExportService.auditExportCsv(scope: String, fromMs: Long, toMs: Long, limit: Int): AdminExportService.CsvExport {
     val rows = repository.auditExportRows(scope, fromMs, toMs, limit)
     val header = when (scope) {
         "ADMIN_AUDIT" -> "id,actorId,targetUserId,action,detail,createdAt"
@@ -46,5 +46,5 @@ fun AdminExportService.auditExportCsv(scope: String, fromMs: Long, toMs: Long, l
         else -> ""
     }
     val body = rows.joinToString("\r\n") { row -> encodeRow(row) }
-    return CsvExport(body = "\uFEFF$header\r\n$body\r\n", rowCount = rows.size)
+    return AdminExportService.CsvExport(body = "\uFEFF$header\r\n$body\r\n", rowCount = rows.size)
 }
