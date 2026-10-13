@@ -11,22 +11,6 @@ import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-internal data class AttachmentPreparationRequest(
-    val messageId: String,
-    val sourceUri: Uri,
-    val type: MessageType,
-    val initialMetadata: MediaCache.LocalFileMetadata,
-    val voiceDurationMs: Long?
-)
-
-internal data class PreparedAttachment(
-    val chatId: String,
-    val sourceUri: String,
-    val fileName: String,
-    val mimeType: String,
-    val plainSize: Long
-)
-
 internal class AttachmentPreparationExecutor(
     context: Context,
     private val ownerUserId: () -> String?,
