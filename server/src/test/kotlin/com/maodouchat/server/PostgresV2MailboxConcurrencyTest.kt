@@ -33,6 +33,7 @@ import java.util.UUID
 import java.util.concurrent.CyclicBarrier
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import com.maodouchat.server.repository.recordMinute
 
 /**
  * V2 设备邮箱在**真 PostgreSQL** 上的并发/幂等证据（G21 / M4）。

@@ -15,6 +15,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.put
 import kotlinx.serialization.json.Json
+import com.maodouchat.server.repository.updateAnnouncement
+import com.maodouchat.server.repository.updateName
 
 /** 群资料：改名/公告。 */
 internal fun Route.configureGroupAdminProfileTextRoutes(

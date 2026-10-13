@@ -7,6 +7,8 @@ import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
+import com.maodouchat.server.repository.updateAnnouncement
+import com.maodouchat.server.repository.updateName
 
 /** Bot 群资料写操作（setChatTitle / setChatDescription）。 */
 internal fun Route.configureBotChatAdminWriteRoutes(

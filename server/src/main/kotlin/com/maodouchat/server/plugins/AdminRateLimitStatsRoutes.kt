@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
+import com.maodouchat.server.repository.prune
+import com.maodouchat.server.repository.recordMinute
 
 /** 限流仪表盘 + 手动采样 + 统计采样器。 */
 internal fun Route.configureAdminRateLimitStatsRoutes(

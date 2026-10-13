@@ -9,6 +9,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import kotlinx.serialization.json.*
+import com.maodouchat.server.service.disableTotp
 
 /** 管理后台：单用户 TOTP 关闭（从 AdminUserSessionRoutes 按域拆出）。 */
 internal fun Route.configureAdminUserSessionTotpRoutes(

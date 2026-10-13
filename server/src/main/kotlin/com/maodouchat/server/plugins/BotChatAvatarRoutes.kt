@@ -15,6 +15,8 @@ import io.ktor.server.routing.post
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.maodouchat.server.repository.clearAvatar
+import com.maodouchat.server.repository.updateAvatar
 
 /** Bot 群头像：设置 / 删除。 */
 internal fun Route.configureBotChatAvatarRoutes(
