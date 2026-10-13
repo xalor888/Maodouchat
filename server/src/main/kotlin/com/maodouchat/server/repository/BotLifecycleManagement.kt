@@ -1,6 +1,6 @@
 package com.maodouchat.server.repository
 
-// bot 生命周期簇（创建/删除/启停/webhook 设置/管理查询）：原 BotRepository 成员按域拆出的顶层扩展函数（同包调用，零行为改动）。
+// bot 开发者侧生命周期：创建/令牌轮换/webhook/启停/删除（原 BotLifecycle 簇成员按域迁出，零行为改动）。
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.BotUpdateInbox
@@ -27,6 +27,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
+
 
 fun BotRepository.create(ownerUserId: String, name: String, username: String, description: String?): BotRepository.BotCreateResult {
     val n = name.trim().take(120)
@@ -81,6 +82,7 @@ fun BotRepository.create(ownerUserId: String, name: String, username: String, de
     }
 }
 
+
 fun BotRepository.regenerateToken(botId: String, ownerUserId: String): BotRepository.BotDto? {
     val token = generateToken()
     val now = System.currentTimeMillis()
@@ -99,6 +101,7 @@ fun BotRepository.regenerateToken(botId: String, ownerUserId: String): BotReposi
         BotApps.selectAll().where { BotApps.id eq botId }.first().toDto().copy(tokenOnce = token)
     }
 }
+
 
 fun BotRepository.setWebhook(botId: String, ownerUserId: String, url: String?): BotRepository.BotDto? {
     val clean = url?.trim()?.take(500)
@@ -121,6 +124,7 @@ fun BotRepository.setWebhook(botId: String, ownerUserId: String, url: String?): 
     }
 }
 
+
 fun BotRepository.setWebhookByToken(botId: String, url: String?): BotRepository.BotDto? {
     val clean = url?.trim()?.take(500)
     if (!clean.isNullOrBlank() && !isAllowedWebhookUrl(clean)) {
@@ -142,6 +146,7 @@ fun BotRepository.setWebhookByToken(botId: String, url: String?): BotRepository.
     }
 }
 
+
 fun BotRepository.setEnabled(botId: String, ownerUserId: String, enabled: Boolean): BotRepository.BotDto? {
     val now = System.currentTimeMillis()
     return transaction {
@@ -158,6 +163,7 @@ fun BotRepository.setEnabled(botId: String, ownerUserId: String, enabled: Boolea
         BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
     }
 }
+
 
 fun BotRepository.delete(botId: String, ownerUserId: String): Boolean {
     return transaction {
@@ -265,35 +271,4 @@ fun BotRepository.delete(botId: String, ownerUserId: String): Boolean {
         }
         true
     }
-}
-
-/** 8.33：bot 所在全部会话（删除 bot 后需要向这些群广播 memberRevision）。 */
-fun BotRepository.groupChatIdsFor(botId: String): List<String> = transaction {
-    ChatParticipants.select(ChatParticipants.chatId)
-        .where { ChatParticipants.userId eq botId }
-        .map { it[ChatParticipants.chatId] }
-        .distinct()
-}
-
-/**
- * 管理后台专用启停：不校验 owner（管理员跨 owner 操作），只按 botId 更新并回读。
- * 返回 null 表示 bot 不存在。此前这段写在 `plugins/AdminDiagnosticsRouting.kt` 的裸事务里。
- */
-fun BotRepository.setAdminEnabled(botId: String, enabled: Boolean): BotRepository.BotDto? = transaction {
-    val updated = BotApps.update({ BotApps.id eq botId }) {
-        it[BotApps.enabled] = enabled
-        it[updatedAt] = System.currentTimeMillis()
-    }
-    if (updated != 1) return@transaction null
-    BotApps.selectAll().where { BotApps.id eq botId }.firstOrNull()?.toDto()
-}
-
-fun BotRepository.adminList(limit: Int = 50, offset: Int = 0): List<BotRepository.BotDto> = transaction {
-    BotApps.selectAll()
-        .orderBy(
-            BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,
-            BotApps.id to org.jetbrains.exposed.sql.SortOrder.DESC
-        )
-        .limit(limit.coerceIn(1, 200), offset.toLong().coerceAtLeast(0))
-        .map { it.toDto() }
 }
