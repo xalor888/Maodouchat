@@ -4,6 +4,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupInviteAcceptResult
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getById
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.GroupInvitationService
 import io.ktor.http.HttpStatusCode

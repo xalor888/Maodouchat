@@ -8,6 +8,7 @@ import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.ConversationCreationRepository
 import com.maodouchat.server.repository.create
+import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.removeMember
 import com.maodouchat.server.repository.transferOwnership
 import com.maodouchat.server.service.GroupMembershipService

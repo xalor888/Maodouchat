@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ConversationQueryRepository
+import com.maodouchat.server.repository.getForParticipant
+import com.maodouchat.server.repository.listForUser
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate

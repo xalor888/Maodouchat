@@ -15,6 +15,7 @@ import com.maodouchat.server.messaging.v2.OutboundEnvelope
 import com.maodouchat.server.messaging.v2.SendMessageV2Command
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.createDefaultUsers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

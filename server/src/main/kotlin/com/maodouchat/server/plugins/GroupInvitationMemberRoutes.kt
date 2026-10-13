@@ -7,6 +7,7 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupMemberMutationResult
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getById
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.GroupMembershipService

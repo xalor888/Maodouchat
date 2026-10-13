@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.setOnline
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json

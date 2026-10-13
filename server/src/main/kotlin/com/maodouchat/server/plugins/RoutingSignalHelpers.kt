@@ -6,6 +6,7 @@ import com.maodouchat.server.model.PreKeyBundleResponse
 import com.maodouchat.server.model.UploadKeysRequest
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.DeviceBundle
+import com.maodouchat.server.repository.shareConversation
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond

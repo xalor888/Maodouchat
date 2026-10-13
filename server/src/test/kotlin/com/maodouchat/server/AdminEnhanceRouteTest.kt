@@ -12,6 +12,7 @@ import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.RateLimitStatsRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.repository.createDefaultUsers
 import com.maodouchat.server.service.AiGateway
 import io.ktor.client.request.get
 import io.ktor.client.request.header

@@ -3,6 +3,10 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getById
+import com.maodouchat.server.repository.getPublicById
+import com.maodouchat.server.repository.getPublicMe
+import com.maodouchat.server.repository.shouldShowOnlineTo
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.auth.*

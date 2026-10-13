@@ -6,6 +6,8 @@ import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.ConversationCreationRepository
 import com.maodouchat.server.repository.create
+import com.maodouchat.server.repository.getById
+import com.maodouchat.server.repository.listForUser
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction

@@ -23,6 +23,7 @@ import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.UserTagRepository
 import com.maodouchat.server.repository.create
+import com.maodouchat.server.repository.createDefaultUsers
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.CallInviteRateLimiter
 import io.ktor.client.request.get
