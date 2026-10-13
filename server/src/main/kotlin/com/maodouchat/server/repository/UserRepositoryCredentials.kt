@@ -3,6 +3,13 @@ package com.maodouchat.server.repository
 // 凭据（注册/登录/改密）委托簇：原 UserRepository 成员按域拆出的顶层扩展函数（同包调用，零行为改动）。
 import com.maodouchat.server.model.UserResponse
 import com.maodouchat.server.service.CredentialService
+import com.maodouchat.server.service.changePassword
+import com.maodouchat.server.service.login
+import com.maodouchat.server.service.loginWithFactors
+import com.maodouchat.server.service.register
+import com.maodouchat.server.service.resetPasswordByEmail
+import com.maodouchat.server.service.verifyAdminCredentials
+import com.maodouchat.server.service.verifyPassword
 
 fun UserRepository.register(name: String, email: String, password: String): UserResponse? =
     credentialService.register(name, email, password)
