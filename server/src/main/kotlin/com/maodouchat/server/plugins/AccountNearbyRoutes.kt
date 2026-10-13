@@ -5,6 +5,10 @@ import com.maodouchat.server.model.NearbyLocationStatusResponse
 import com.maodouchat.server.model.UpdateNearbyLocationRequest
 import com.maodouchat.server.repository.NearbyRepository
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.getNearby
+import com.maodouchat.server.repository.getStatus
+import com.maodouchat.server.repository.stopSharing
+import com.maodouchat.server.repository.updateLocation
 import com.maodouchat.server.service.RuntimeConfigService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
