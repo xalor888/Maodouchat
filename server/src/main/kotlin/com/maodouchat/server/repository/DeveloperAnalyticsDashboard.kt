@@ -138,6 +138,6 @@ fun DeveloperAnalyticsRepository.analytics(botId: String, days: Int): BotAnalyti
     }
 }
 
-private fun DeveloperAnalyticsRepository.unixDayStartMs(epochMs: Long, dayMs: Long = this.dayMs): Long =
+private fun DeveloperAnalyticsRepository.unixDayStartMs(epochMs: Long, dayMs: Long): Long =
     epochMs - Math.floorMod(epochMs, dayMs)
 
