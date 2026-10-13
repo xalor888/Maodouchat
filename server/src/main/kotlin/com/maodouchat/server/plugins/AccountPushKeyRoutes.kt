@@ -1,5 +1,6 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.service.pushKeyForUser
 import io.ktor.server.application.call
 import io.ktor.server.auth.*
 import io.ktor.server.response.respond
@@ -16,7 +17,7 @@ internal fun Route.configureAccountPushKeyRoutes() {
             if (secret.isBlank() || secret.startsWith("dev-only-")) {
                 call.respond(buildJsonObject { put("key", JsonNull) })
             } else {
-                call.respond(buildJsonObject { put("key", com.maodouchat.server.service.FcmPushService.pushKeyForUser(userId)) })
+                call.respond(buildJsonObject { put("key", pushKeyForUser(userId)) })
             }
         }
     }

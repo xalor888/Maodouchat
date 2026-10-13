@@ -18,31 +18,31 @@ class FcmPushServiceTest {
     @Test
     fun `permanent token failures cover unregistered not found and sender mismatch`() {
         assertTrue(
-            FcmPushService.isPermanentTokenFailure(
+            isPermanentTokenFailure(
                 404,
                 """{"error":{"status":"NOT_FOUND","message":"Requested entity was not found."}}"""
             )
         )
         assertTrue(
-            FcmPushService.isPermanentTokenFailure(
+            isPermanentTokenFailure(
                 404,
                 """{"error":{"status":"UNREGISTERED","details":[{"errorCode":"UNREGISTERED"}]}}"""
             )
         )
         assertTrue(
-            FcmPushService.isPermanentTokenFailure(
+            isPermanentTokenFailure(
                 400,
                 """{"error":{"status":"INVALID_ARGUMENT","message":"The registration token is not a valid FCM registration token"}}"""
             )
         )
         assertTrue(
-            FcmPushService.isPermanentTokenFailure(
+            isPermanentTokenFailure(
                 400,
                 """{"error":{"status":"SENDER_ID_MISMATCH"}}"""
             )
         )
         assertTrue(
-            FcmPushService.isPermanentTokenFailure(
+            isPermanentTokenFailure(
                 400,
                 "registration-token-not-registered"
             )
@@ -52,32 +52,32 @@ class FcmPushServiceTest {
     @Test
     fun `payload encoding invalid argument does not look like a dead token`() {
         assertFalse(
-            FcmPushService.isPermanentTokenFailure(
+            isPermanentTokenFailure(
                 400,
                 """{"error":{"status":"INVALID_ARGUMENT","message":"Invalid JSON payload received. Unknown name ttl at android"}}"""
             )
         )
-        assertFalse(FcmPushService.isPermanentTokenFailure(401, "UNREGISTERED"))
-        assertFalse(FcmPushService.isPermanentTokenFailure(429, "UNREGISTERED"))
-        assertFalse(FcmPushService.isPermanentTokenFailure(500, "NOT_FOUND"))
+        assertFalse(isPermanentTokenFailure(401, "UNREGISTERED"))
+        assertFalse(isPermanentTokenFailure(429, "UNREGISTERED"))
+        assertFalse(isPermanentTokenFailure(500, "NOT_FOUND"))
     }
 
     @Test
     fun `transient http failures are 429 and 5xx`() {
-        assertTrue(FcmPushService.isTransientHttpFailure(429))
-        assertTrue(FcmPushService.isTransientHttpFailure(500))
-        assertTrue(FcmPushService.isTransientHttpFailure(503))
-        assertFalse(FcmPushService.isTransientHttpFailure(400))
-        assertFalse(FcmPushService.isTransientHttpFailure(401))
-        assertFalse(FcmPushService.isTransientHttpFailure(404))
-        assertFalse(FcmPushService.isTransientHttpFailure(200))
+        assertTrue(isTransientHttpFailure(429))
+        assertTrue(isTransientHttpFailure(500))
+        assertTrue(isTransientHttpFailure(503))
+        assertFalse(isTransientHttpFailure(400))
+        assertFalse(isTransientHttpFailure(401))
+        assertFalse(isTransientHttpFailure(404))
+        assertFalse(isTransientHttpFailure(200))
     }
 
     @Test
     fun `incoming call uses short ttl other types keep 24h`() {
-        assertEquals("60s", FcmPushService.ttlFor("INCOMING_CALL"))
-        assertEquals("86400s", FcmPushService.ttlFor("GROUP_INVITE"))
-        assertEquals("86400s", FcmPushService.ttlFor(null))
+        assertEquals("60s", ttlFor("INCOMING_CALL"))
+        assertEquals("86400s", ttlFor("GROUP_INVITE"))
+        assertEquals("86400s", ttlFor(null))
     }
 
     @Test
@@ -89,24 +89,24 @@ class FcmPushServiceTest {
         )
         val midnightUtc = Instant.parse("2026-01-01T00:30:00Z").toEpochMilli()
         val noonUtc = Instant.parse("2026-01-01T12:00:00Z").toEpochMilli()
-        assertTrue(FcmPushService.isInDoNotDisturb(settings, offsetMinutes = 0, nowMillis = midnightUtc))
-        assertFalse(FcmPushService.isInDoNotDisturb(settings, offsetMinutes = 0, nowMillis = noonUtc))
+        assertTrue(isInDoNotDisturb(settings, offsetMinutes = 0, nowMillis = midnightUtc))
+        assertFalse(isInDoNotDisturb(settings, offsetMinutes = 0, nowMillis = noonUtc))
         // UTC+8 08:30 is still inside 22:00–07:00 overnight window? 00:30 UTC + 480 = 08:30 local → open
-        assertFalse(FcmPushService.isInDoNotDisturb(settings, offsetMinutes = 8 * 60, nowMillis = midnightUtc))
+        assertFalse(isInDoNotDisturb(settings, offsetMinutes = 8 * 60, nowMillis = midnightUtc))
     }
 
     @Test
     fun `same start and end minute or disabled dnd never quiets`() {
         val now = Instant.parse("2026-01-01T23:00:00Z").toEpochMilli()
         assertFalse(
-            FcmPushService.isInDoNotDisturb(
+            isInDoNotDisturb(
                 NotificationSettingsResponse(dndEnabled = true, dndStartMinute = 100, dndEndMinute = 100),
                 offsetMinutes = 0,
                 nowMillis = now
             )
         )
         assertFalse(
-            FcmPushService.isInDoNotDisturb(
+            isInDoNotDisturb(
                 NotificationSettingsResponse(dndEnabled = false, dndStartMinute = 22 * 60, dndEndMinute = 7 * 60),
                 offsetMinutes = 0,
                 nowMillis = now
@@ -124,9 +124,9 @@ class FcmPushServiceTest {
         val nineUtc = Instant.parse("2026-01-01T09:00:00Z").toEpochMilli()
         val almostEnd = Instant.parse("2026-01-01T16:59:00Z").toEpochMilli()
         val end = Instant.parse("2026-01-01T17:00:00Z").toEpochMilli()
-        assertTrue(FcmPushService.isInDoNotDisturb(settings, 0, nineUtc))
-        assertTrue(FcmPushService.isInDoNotDisturb(settings, 0, almostEnd))
-        assertFalse(FcmPushService.isInDoNotDisturb(settings, 0, end))
+        assertTrue(isInDoNotDisturb(settings, 0, nineUtc))
+        assertTrue(isInDoNotDisturb(settings, 0, almostEnd))
+        assertFalse(isInDoNotDisturb(settings, 0, end))
         val localMinute = Instant.ofEpochMilli(nineUtc).atOffset(ZoneOffset.UTC).let { it.hour * 60 + it.minute }
         assertEquals(9 * 60, localMinute)
     }
@@ -140,12 +140,12 @@ class FcmPushServiceTest {
             "fromUserId" to "u1",
             "recipientId" to "u2"
         )
-        val signed = FcmPushService.signPayload("u2", data)
+        val signed = signPayload("u2", data)
         assertTrue(signed["ts"].orEmpty().isNotBlank())
         assertTrue(signed["sig"].orEmpty().matches(Regex("[0-9a-f]{64}")))
         val ts = signed.getValue("ts")
         val canonical = data.keys.sorted().joinToString("&") { "$it=${data[it]}" }
-        val expected = hmacHex(FcmPushService.pushKeyForUser("u2"), "$canonical&ts=$ts")
+        val expected = hmacHex(pushKeyForUser("u2"), "$canonical&ts=$ts")
         assertTrue(MessageDigest.isEqual(expected.toByteArray(), signed.getValue("sig").toByteArray()))
         assertEquals("GROUP_INVITE", signed["type"])
         assertFalse("ciphertext" in signed.values.joinToString())

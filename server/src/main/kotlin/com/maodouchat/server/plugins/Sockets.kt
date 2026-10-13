@@ -11,6 +11,7 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.getSuspendedUntil
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.CallInviteRateLimiter
+import com.maodouchat.server.service.shutdown
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.routing.*

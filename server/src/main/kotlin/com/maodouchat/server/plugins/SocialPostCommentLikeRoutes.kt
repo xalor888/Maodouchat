@@ -5,6 +5,7 @@ import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.isBlockedEitherWay
 import com.maodouchat.server.service.FcmPushService
+import com.maodouchat.server.service.enqueuePostInteraction
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
