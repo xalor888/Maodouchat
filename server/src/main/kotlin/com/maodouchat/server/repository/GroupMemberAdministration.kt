@@ -6,6 +6,7 @@ import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.Users
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
 
