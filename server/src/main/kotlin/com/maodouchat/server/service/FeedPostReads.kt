@@ -1,12 +1,13 @@
 package com.maodouchat.server.service
 
+// 动态帖子读取簇：feed 流、单条与作者聚合查询（原 FeedPostQueries 扩展按域拆出，零行为改动）。
+
 import com.maodouchat.server.db.PostComments
 import com.maodouchat.server.db.PostLikes
 import com.maodouchat.server.db.Posts
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.PostResponse
 import com.maodouchat.server.repository.PostJson
-import com.maodouchat.server.repository.PostVisibility
 import com.maodouchat.server.repository.VisibilityPolicy
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
@@ -21,66 +22,6 @@ import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-
-/** 动态帖子查询簇：feed 流、单条/作者查询、可见性判定与批量聚合（自 FeedQueryService 迁出，零行为改动）。 */
-private fun FeedQueryService.batchAggregatePostMeta(
-    postIds: List<String>,
-    currentUserId: String,
-    blockedUserIds: Set<String> = emptySet()
-): PostMeta {
-    if (postIds.isEmpty()) return PostMeta(emptyMap(), emptyMap(), emptySet())
-    val likeCountExpr = PostLikes.userId.count()
-    val likeBase = PostLikes.select(PostLikes.postId, likeCountExpr)
-        .where { PostLikes.postId inList postIds }
-    val likeQuery = if (blockedUserIds.isEmpty()) {
-        likeBase
-    } else {
-        likeBase.andWhere { PostLikes.userId notInList blockedUserIds.toList() }
-    }
-    val likeCounts = likeQuery
-        .groupBy(PostLikes.postId)
-        .associate { it[PostLikes.postId] to it[likeCountExpr].toInt() }
-    val commentCountExpr = PostComments.id.count()
-    val commentBase = PostComments.select(PostComments.postId, commentCountExpr)
-        .where { PostComments.postId inList postIds }
-    val commentQuery = if (blockedUserIds.isEmpty()) {
-        commentBase
-    } else {
-        commentBase.andWhere { PostComments.authorId notInList blockedUserIds.toList() }
-    }
-    val commentCounts = commentQuery
-        .groupBy(PostComments.postId)
-        .associate { it[PostComments.postId] to it[commentCountExpr].toInt() }
-    val likedByMe = PostLikes
-        .select(PostLikes.postId)
-        .where { (PostLikes.postId inList postIds) and (PostLikes.userId eq currentUserId) }
-        .map { it[PostLikes.postId] }
-        .toSet()
-    return PostMeta(likeCounts, commentCounts, likedByMe)
-}
-
-private data class PostMeta(
-    val likeCounts: Map<String, Int>,
-    val commentCounts: Map<String, Int>,
-    val likedByMe: Set<String>
-)
-
-private fun ResultRow.toPostResponse(currentUserId: String, meta: PostMeta): PostResponse {
-    val postId = this[Posts.id]
-    return PostResponse(
-        id = postId,
-        author = toPublicUser(),
-        content = this[Posts.content],
-        imageUrls = PostJson.decodeImageUrls(this[Posts.imageUrls]),
-        visibility = VisibilityPolicy.normalize(this[Posts.visibility]),
-        createdAt = this[Posts.createdAt],
-        editedAt = this[Posts.editedAt],
-        likeCount = meta.likeCounts[postId] ?: 0,
-        commentCount = meta.commentCounts[postId] ?: 0,
-        likedByMe = postId in meta.likedByMe,
-        isMine = this[Posts.authorId] == currentUserId
-    )
-}
 
 fun FeedQueryService.getFeed(
     currentUserId: String,
@@ -152,6 +93,7 @@ fun FeedQueryService.getFeed(
     }
 }
 
+
 fun FeedQueryService.getPostById(postId: String, currentUserId: String): PostResponse? {
     return transaction {
         val contactIds = SocialGraphService.contactIds(currentUserId)
@@ -167,25 +109,6 @@ fun FeedQueryService.getPostById(postId: String, currentUserId: String): PostRes
     }
 }
 
-fun FeedQueryService.isAuthor(postId: String, userId: String): Boolean {
-    return transaction {
-        Posts.selectAll().where { Posts.id eq postId }
-            .firstOrNull()
-            ?.get(Posts.authorId) == userId
-    }
-}
-
-fun FeedQueryService.getPostAuthorId(postId: String): String? {
-    return transaction {
-        Posts.selectAll().where { Posts.id eq postId }.firstOrNull()?.get(Posts.authorId)
-    }
-}
-
-fun FeedQueryService.exists(postId: String): Boolean {
-    return transaction {
-        !Posts.selectAll().where { Posts.id eq postId }.empty()
-    }
-}
 
 fun FeedQueryService.getPostsByAuthor(
     currentUserId: String,
@@ -229,11 +152,61 @@ fun FeedQueryService.getPostsByAuthor(
     }
 }
 
-fun FeedQueryService.canView(postId: String, userId: String): Boolean {
-    return transaction {
-        PostVisibility.canViewInTransaction(postId, userId, lockPost = false)
+
+private fun FeedQueryService.batchAggregatePostMeta(
+    postIds: List<String>,
+    currentUserId: String,
+    blockedUserIds: Set<String> = emptySet()
+): PostMeta {
+    if (postIds.isEmpty()) return PostMeta(emptyMap(), emptyMap(), emptySet())
+    val likeCountExpr = PostLikes.userId.count()
+    val likeBase = PostLikes.select(PostLikes.postId, likeCountExpr)
+        .where { PostLikes.postId inList postIds }
+    val likeQuery = if (blockedUserIds.isEmpty()) {
+        likeBase
+    } else {
+        likeBase.andWhere { PostLikes.userId notInList blockedUserIds.toList() }
     }
+    val likeCounts = likeQuery
+        .groupBy(PostLikes.postId)
+        .associate { it[PostLikes.postId] to it[likeCountExpr].toInt() }
+    val commentCountExpr = PostComments.id.count()
+    val commentBase = PostComments.select(PostComments.postId, commentCountExpr)
+        .where { PostComments.postId inList postIds }
+    val commentQuery = if (blockedUserIds.isEmpty()) {
+        commentBase
+    } else {
+        commentBase.andWhere { PostComments.authorId notInList blockedUserIds.toList() }
+    }
+    val commentCounts = commentQuery
+        .groupBy(PostComments.postId)
+        .associate { it[PostComments.postId] to it[commentCountExpr].toInt() }
+    val likedByMe = PostLikes
+        .select(PostLikes.postId)
+        .where { (PostLikes.postId inList postIds) and (PostLikes.userId eq currentUserId) }
+        .map { it[PostLikes.postId] }
+        .toSet()
+    return PostMeta(likeCounts, commentCounts, likedByMe)
 }
+
+
+private fun ResultRow.toPostResponse(currentUserId: String, meta: PostMeta): PostResponse {
+    val postId = this[Posts.id]
+    return PostResponse(
+        id = postId,
+        author = toPublicUser(),
+        content = this[Posts.content],
+        imageUrls = PostJson.decodeImageUrls(this[Posts.imageUrls]),
+        visibility = VisibilityPolicy.normalize(this[Posts.visibility]),
+        createdAt = this[Posts.createdAt],
+        editedAt = this[Posts.editedAt],
+        likeCount = meta.likeCounts[postId] ?: 0,
+        commentCount = meta.commentCounts[postId] ?: 0,
+        likedByMe = postId in meta.likedByMe,
+        isMine = this[Posts.authorId] == currentUserId
+    )
+}
+
 
 private fun ResultRow.isPostVisibleTo(
     currentUserId: String,
@@ -242,6 +215,7 @@ private fun ResultRow.isPostVisibleTo(
 ): Boolean = VisibilityPolicy.isVisible(
     this[Posts.visibility], this[Posts.authorId], currentUserId, contactIds, blockedUserIds,
 )
+
 
 private fun PostJson.decodeImageUrls(value: String): List<String> {
     return try {
