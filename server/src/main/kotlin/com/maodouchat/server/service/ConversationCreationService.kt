@@ -1,18 +1,11 @@
 package com.maodouchat.server.service
 
-import com.maodouchat.server.repository.ConversationCreationFailure
+import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.repository.ConversationCreationRejected
 import com.maodouchat.server.repository.ConversationCreationRepository
-import com.maodouchat.server.repository.ConversationParticipantValidation
-import com.maodouchat.server.repository.GroupMemberMutationResult
-import com.maodouchat.server.repository.GroupInviteResult
 import com.maodouchat.server.repository.CreatedConversation
-import com.maodouchat.server.repository.create
 import com.maodouchat.server.repository.getOrCreateDirect
-import com.maodouchat.server.repository.getOrCreateSecret
 import com.maodouchat.server.repository.validateParticipants
-
-import com.maodouchat.server.model.ChatType
 import org.jetbrains.exposed.sql.transactions.transaction
 
 data class CreateConversationCommand(
@@ -48,8 +41,8 @@ data class CreateConversationOutcome(
 
 /** Coordinates validated, atomic conversation creation and initial group invitations. */
 class ConversationCreationService(
-    private val creationRepository: ConversationCreationRepository,
-    private val invitationService: GroupInvitationService,
+    internal val creationRepository: ConversationCreationRepository,
+    internal val invitationService: GroupInvitationService,
 ) {
     fun create(
         actorId: String,
@@ -88,171 +81,7 @@ class ConversationCreationService(
     fun getOrCreateDirect(userId1: String, userId2: String): CreatedConversation =
         creationRepository.getOrCreateDirect(userId1, userId2)
 
-    private fun createPaired(command: NormalizedCommand.Valid): CreateConversationOutcome {
-        val created = if (command.chatType == ChatType.SECRET) {
-            creationRepository.getOrCreateSecret(command.allParticipantIds[0], command.allParticipantIds[1])
-        } else {
-            creationRepository.getOrCreateDirect(command.allParticipantIds[0], command.allParticipantIds[1])
-        }
-        return CreateConversationOutcome(
-            CreateConversationResult.CREATED,
-            conversationId = created.id,
-            chatType = command.chatType,
-        )
-    }
-
-    private fun createChannel(
-        actorId: String,
-        command: NormalizedCommand.Valid,
-    ): CreateConversationOutcome {
-        val created = creationRepository.create(
-            participantIds = command.allParticipantIds,
-            isGroup = true,
-            groupName = command.groupName,
-            creatorId = actorId,
-            chatType = ChatType.CHANNEL,
-        )
-        return CreateConversationOutcome(
-            CreateConversationResult.CREATED,
-            conversationId = created.id,
-            chatType = ChatType.CHANNEL,
-        )
-    }
-
-    private fun createGroup(
-        actorId: String,
-        command: NormalizedCommand.Valid,
-        maxGroupMembers: Int,
-    ): CreateConversationOutcome {
-        val created = creationRepository.create(
-            participantIds = listOf(actorId),
-            isGroup = true,
-            groupName = command.groupName,
-            creatorId = actorId,
-            chatType = ChatType.GROUP,
-        )
-        if (command.inviteeIds.isNotEmpty()) {
-            val invitations = invitationService.inviteMembers(
-                created.id,
-                actorId,
-                command.inviteeIds,
-                maxGroupMembers,
-            )
-            if (invitations.result != GroupMemberMutationResult.UPDATED) {
-                throw CreationAbort(invitations.toCreationOutcome(ChatType.GROUP))
-            }
-            return CreateConversationOutcome(
-                CreateConversationResult.CREATED,
-                conversationId = created.id,
-                chatType = ChatType.GROUP,
-                invitedUserIds = invitations.invitedUserIds,
-            )
-        }
-        return CreateConversationOutcome(
-            CreateConversationResult.CREATED,
-            conversationId = created.id,
-            chatType = ChatType.GROUP,
-        )
-    }
-
-    private fun normalize(
-        actorId: String,
-        command: CreateConversationCommand,
-        maxGroupMembers: Int,
-        maxChannelMembers: Int,
-    ): NormalizedCommand {
-        val chatType = command.chatType?.trim()?.takeIf(String::isNotEmpty)
-            ?: if (command.isGroup) ChatType.GROUP else ChatType.DIRECT
-        if (chatType !in CHAT_TYPES) return NormalizedCommand.Rejected(CreateConversationResult.INVALID_TYPE)
-        if (command.isGroup && chatType in DIRECT_TYPES) {
-            return NormalizedCommand.Rejected(CreateConversationResult.INVALID_TYPE_SHAPE)
-        }
-        val participantIds = command.participantIds.map(String::trim)
-        if (participantIds.any { it.isEmpty() || it.length > MAX_USER_ID_LENGTH }) {
-            return NormalizedCommand.Rejected(CreateConversationResult.INVALID_PARTICIPANT)
-        }
-        if (participantIds.distinct().size != participantIds.size) {
-            return NormalizedCommand.Rejected(CreateConversationResult.DUPLICATE_PARTICIPANT)
-        }
-        val isGroupConversation = chatType in GROUP_TYPES
-        if (!isGroupConversation && participantIds.isEmpty()) {
-            return NormalizedCommand.Rejected(CreateConversationResult.EMPTY_PARTICIPANTS)
-        }
-        if (!isGroupConversation && actorId in participantIds) {
-            return NormalizedCommand.Rejected(CreateConversationResult.SELF_DIRECT)
-        }
-        val allParticipants = (participantIds + actorId).distinct()
-        if (!isGroupConversation && allParticipants.size != 2) {
-            return NormalizedCommand.Rejected(CreateConversationResult.DIRECT_MEMBER_COUNT)
-        }
-        val groupName = command.groupName?.trim()?.takeIf(String::isNotEmpty)
-        if (isGroupConversation && groupName != null && groupName.length > MAX_GROUP_NAME_LENGTH) {
-            return NormalizedCommand.Rejected(CreateConversationResult.GROUP_NAME_TOO_LONG)
-        }
-        val memberLimit = if (chatType == ChatType.CHANNEL) maxChannelMembers else maxGroupMembers
-        if (isGroupConversation && allParticipants.size > memberLimit.coerceAtLeast(0)) {
-            return NormalizedCommand.Rejected(CreateConversationResult.MEMBER_LIMIT_EXCEEDED)
-        }
-        return NormalizedCommand.Valid(
-            chatType = chatType,
-            groupName = groupName,
-            allParticipantIds = allParticipants,
-            inviteeIds = participantIds.filterNot { it == actorId },
-        )
-    }
-
-    private fun ConversationParticipantValidation.toOutcome(chatType: String): CreateConversationOutcome =
-        when (failure) {
-            ConversationCreationFailure.PARTICIPANT_NOT_FOUND -> CreateConversationOutcome(
-                CreateConversationResult.PARTICIPANT_NOT_FOUND,
-                chatType = chatType,
-                missingUserId = missingUserId,
-            )
-            ConversationCreationFailure.PARTICIPANT_BLOCKED -> CreateConversationOutcome(
-                CreateConversationResult.PARTICIPANT_BLOCKED,
-                chatType = chatType,
-            )
-            else -> CreateConversationOutcome(CreateConversationResult.INVITATION_FAILED, chatType = chatType)
-        }
-
-    private fun ConversationCreationRejected.toOutcome(chatType: String): CreateConversationOutcome = when (failure) {
-        ConversationCreationFailure.PARTICIPANT_NOT_FOUND -> CreateConversationOutcome(
-            CreateConversationResult.PARTICIPANT_NOT_FOUND,
-            chatType = chatType,
-            missingUserId = userId,
-        )
-        ConversationCreationFailure.PARTICIPANT_BLOCKED -> CreateConversationOutcome(
-            CreateConversationResult.PARTICIPANT_BLOCKED,
-            chatType = chatType,
-        )
-        ConversationCreationFailure.DIRECT_SELF -> CreateConversationOutcome(
-            CreateConversationResult.SELF_DIRECT,
-            chatType = chatType,
-        )
-        ConversationCreationFailure.PARTICIPANTS_EMPTY -> CreateConversationOutcome(
-            CreateConversationResult.EMPTY_PARTICIPANTS,
-            chatType = chatType,
-        )
-        ConversationCreationFailure.CREATOR_NOT_PARTICIPANT -> CreateConversationOutcome(
-            CreateConversationResult.INVALID_PARTICIPANT,
-            chatType = chatType,
-        )
-    }
-
-    private fun GroupInviteResult.toCreationOutcome(chatType: String): CreateConversationOutcome = when (result) {
-        GroupMemberMutationResult.MEMBER_LIMIT_EXCEEDED ->
-            CreateConversationOutcome(CreateConversationResult.MEMBER_LIMIT_EXCEEDED, chatType = chatType)
-        GroupMemberMutationResult.USER_NOT_FOUND -> CreateConversationOutcome(
-            CreateConversationResult.PARTICIPANT_NOT_FOUND,
-            chatType = chatType,
-            missingUserId = missingUserId,
-        )
-        GroupMemberMutationResult.BLOCKED ->
-            CreateConversationOutcome(CreateConversationResult.PARTICIPANT_BLOCKED, chatType = chatType)
-        else -> CreateConversationOutcome(CreateConversationResult.INVITATION_FAILED, chatType = chatType)
-    }
-
-    private sealed interface NormalizedCommand {
+    internal sealed interface NormalizedCommand {
         data class Valid(
             val chatType: String,
             val groupName: String?,
@@ -265,9 +94,9 @@ class ConversationCreationService(
         }
     }
 
-    private class CreationAbort(val outcome: CreateConversationOutcome) : RuntimeException()
+    internal class CreationAbort(val outcome: CreateConversationOutcome) : RuntimeException()
 
-    private companion object {
+    internal companion object {
         const val MAX_USER_ID_LENGTH = 50
         const val MAX_GROUP_NAME_LENGTH = 50
         val CHAT_TYPES = setOf(ChatType.DIRECT, ChatType.GROUP, ChatType.CHANNEL, ChatType.SECRET)
