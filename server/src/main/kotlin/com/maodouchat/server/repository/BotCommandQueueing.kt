@@ -1,6 +1,7 @@
 package com.maodouchat.server.repository
 
-// bot 命令与回调投递簇（用户命令入站/回调鉴权入队/可用性判定）：原 BotRepository 成员按域拆出的顶层扩展函数（同包调用，零行为改动）。
+// bot 命令入队簇：回调鉴权入队 / 用户命令入站（原 BotCommandDelivery 扩展按域拆出，零行为改动）。
+
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.BotUpdateInbox
@@ -19,27 +20,6 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
-
-internal fun BotRepository.isOwnerDeliverable(ownerUserId: String, now: Long): Boolean {
-    val owner = Users.selectAll().where { Users.id eq ownerUserId }.firstOrNull() ?: return false
-    return owner[Users.deletedAt] == null &&
-        owner[Users.suspendedUntil] <= now &&
-        owner[Users.messageRestrictedUntil] <= now &&
-        owner[Users.postRestrictedUntil] <= now
-}
-
-/** Transaction-local bot availability check for write paths outside BotRepository. */
-internal fun BotRepository.isBotDeliverableInTx(botId: String, now: Long): Boolean {
-    val bot = BotApps.selectAll()
-        .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-        .forUpdate()
-        .firstOrNull() ?: return false
-    return isOwnerDeliverable(bot[BotApps.ownerUserId], now)
-}
-
-fun BotRepository.isBotDeliverable(botId: String): Boolean = transaction {
-    isBotDeliverableInTx(botId, System.currentTimeMillis())
-}
 
 /** Validate callback ownership/membership and enqueue it atomically with the audit row. */
 fun BotRepository.enqueueCallbackIfAuthorized(
@@ -96,6 +76,7 @@ fun BotRepository.enqueueCallbackIfAuthorized(
     }
     true
 }
+
 
 fun BotRepository.enqueueUserCommand(
     chatId: String,
