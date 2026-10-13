@@ -505,8 +505,12 @@ class ClientArchitectureTest {
         // ExplorePostActionsCluster/ExplorePostDetailCluster，702 → 113 纯搬移；
         // 共享状态与 helper 提为 internal，同包扩展函数），上限同步收紧（两份 map 一起改）。
         // 拆小后 SenderKeyRetryManager（593）滑进前 20——按实测值纳入监管（先纳管，后续再拆）。
+        // 本轮：SenderKeyRetryManager 按簇拆出分发引擎/任务队列/模型 3 文件
+        // （593 → 320，纯搬移；调用点改走 distributor/taskQueue 委托），上限同步收紧（两份 map 一起改）。
+        // 拆小后 ChatDetailMessageActionsSheet（523）滑进前 20——按实测值纳入监管（两份 map 一起加）。
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
-        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 593,
+        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 320,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailMessageActionsSheet.kt" to 523,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
@@ -682,8 +686,12 @@ class ClientArchitectureTest {
         // ExplorePostActionsCluster/ExplorePostDetailCluster，702 → 113 纯搬移；
         // 共享状态与 helper 提为 internal，同包扩展函数），上限同步收紧（两份 map 一起改）。
         // 拆小后 SenderKeyRetryManager（593）滑进前 20——按实测值纳入监管（先纳管，后续再拆）。
+        // 本轮：SenderKeyRetryManager 按簇拆出分发引擎/任务队列/模型 3 文件
+        // （593 → 320，纯搬移；调用点改走 distributor/taskQueue 委托），上限同步收紧（两份 map 一起改）。
+        // 拆小后 ChatDetailMessageActionsSheet（523）滑进前 20——按实测值纳入监管（两份 map 一起加）。
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
-        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 593,
+        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 320,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailMessageActionsSheet.kt" to 523,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
