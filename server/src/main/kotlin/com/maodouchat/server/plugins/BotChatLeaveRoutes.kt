@@ -5,6 +5,7 @@ import com.maodouchat.server.repository.LeaveConversationResult
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.ConversationCommandService
+import com.maodouchat.server.service.deleteGroupAvatarUrl
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

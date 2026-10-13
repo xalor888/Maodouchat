@@ -5,6 +5,8 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.GroupProfileRepository
 import com.maodouchat.server.repository.logCommand
+import com.maodouchat.server.service.deleteGroupAvatarUrl
+import com.maodouchat.server.service.saveGroupAvatar
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

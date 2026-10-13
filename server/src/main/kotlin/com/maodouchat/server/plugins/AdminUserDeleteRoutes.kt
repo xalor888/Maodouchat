@@ -7,6 +7,9 @@ import com.maodouchat.server.repository.GroupMediaReferenceRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.adminDeactivateAccount
+import com.maodouchat.server.service.deleteAvatarUrl
+import com.maodouchat.server.service.deleteGroupAvatarUrl
+import com.maodouchat.server.service.deletePostImagesForUser
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
