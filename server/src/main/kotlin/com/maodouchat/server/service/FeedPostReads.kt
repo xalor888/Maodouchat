@@ -189,6 +189,11 @@ private fun FeedQueryService.batchAggregatePostMeta(
     return PostMeta(likeCounts, commentCounts, likedByMe)
 }
 
+private data class PostMeta(
+    val likeCounts: Map<String, Int>,
+    val commentCounts: Map<String, Int>,
+    val likedByMe: Set<String>
+)
 
 private fun ResultRow.toPostResponse(currentUserId: String, meta: PostMeta): PostResponse {
     val postId = this[Posts.id]
