@@ -3,26 +3,6 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.data.model.Message
 import kotlinx.coroutines.CancellationException
 
-internal sealed interface MessageMutationProjection {
-    data class Remove(val messageId: String) : MessageMutationProjection
-    data class Set(val message: Message) : MessageMutationProjection
-}
-
-internal sealed interface ConversationMessageMutationOutcome {
-    data class Applied(
-        val removePinnedReference: Boolean,
-        val localProjectionError: Throwable? = null,
-        val authoritativeElsewhere: Boolean = false,
-    ) : ConversationMessageMutationOutcome
-
-    data class Failed(
-        val error: Throwable,
-        val rolledBack: Boolean,
-    ) : ConversationMessageMutationOutcome
-
-    data object Ignored : ConversationMessageMutationOutcome
-}
-
 /**
  * Owns optimistic mutation ordering around the durable v2 event boundary.
  * Only failures before outbox commit may roll UI state back.
