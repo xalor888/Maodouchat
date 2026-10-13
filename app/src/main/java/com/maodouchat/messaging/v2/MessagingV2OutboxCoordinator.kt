@@ -177,4 +177,3 @@ class MessagingV2OutboxCoordinator(
         const val SENDER_KEY_COVERAGE_PENDING = "sender_key_coverage_pending"
     }
 }
-

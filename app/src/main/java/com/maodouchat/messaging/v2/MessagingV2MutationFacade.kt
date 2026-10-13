@@ -179,4 +179,3 @@ internal class MessagingV2MutationFacade(
         firstFailure?.let { throw it }
     }
 }
-

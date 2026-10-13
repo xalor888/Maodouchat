@@ -125,4 +125,3 @@ class MessagingV2MessageGateway(
         type: MessageType = message.type,
     ): Boolean = retryOutcome(message, groupRevision, body, type) is MessagingV2MessageGatewayOutcome.Staged
 }
-
