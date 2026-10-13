@@ -2,9 +2,7 @@ package com.maodouchat.data.repository
 
 import android.content.Context
 import android.util.Log
-import androidx.core.content.edit
 import com.maodouchat.data.local.AppDatabase
-import com.maodouchat.data.local.entity.NotificationCenterItemEntity
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
@@ -16,7 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.json.JSONObject
 
 /**
  * 应用通知中心聚合仓库。
@@ -38,6 +35,7 @@ class NotificationCenterRepository(context: Context) {
     private val appContext = context.applicationContext
     private val tokenManager = TokenManager.getInstance(appContext)
     private val database: AppDatabase by lazy { AppDatabase.getInstance(appContext) }
+    private val legacyMigration by lazy { NotificationCenterLegacyMigration(appContext, database) }
     private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val accountLock = Any()
     @Volatile private var loadedUserId: String? = null
@@ -377,41 +375,10 @@ class NotificationCenterRepository(context: Context) {
 
     private fun bindCurrentAccountLocked(userId: String) {
         if (loadedUserId == userId) return
-        if (userId.isNotBlank()) migrateLegacy(userId)
+        if (userId.isNotBlank()) legacyMigration.migrateIfNeeded(userId)
         loadedUserId = userId
         _items.value = if (userId.isBlank()) emptyList() else loadFromDisk(userId)
     }
-
-    private fun migrateLegacy(userId: String) {
-        // 旧 SharedPreferences 快照一次性导入 Room：Room 为空且 prefs 有数据时搬运后删键。
-        // 此后 prefs 不再被读写（`notification_center` 键彻底退役）。
-        if (roomItems(userId).isNotEmpty()) return
-        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        for (key in listOf(accountItemsKey(userId), KEY_ITEMS)) {
-            val raw = prefs.getString(key, null)?.takeIf { it.isNotBlank() } ?: continue
-            val items = runCatching {
-                val arr = org.json.JSONArray(raw)
-                (0 until arr.length()).mapNotNull { index ->
-                    runCatching { NotificationCenterItem.fromJson(arr.getJSONObject(index)) }.getOrNull()
-                }
-            }.getOrNull().orEmpty()
-            if (items.isNotEmpty()) {
-                runCatching {
-                    kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-                        database.notificationCenterDao().replaceAllBlocking(userId, items.map { it.toEntity(userId) })
-                    }
-                }
-            }
-            runCatching { prefs.edit { remove(key) } }
-            if (key == accountItemsKey(userId)) break
-        }
-    }
-
-    private fun roomItems(userId: String): List<NotificationCenterItemEntity> = runCatching {
-        kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-            database.notificationCenterDao().itemsForOwnerBlocking(userId)
-        }
-    }.getOrDefault(emptyList())
 
     private fun loadFromDisk(userId: String): List<NotificationCenterItem> {
         // 注意：调用方含主线程，Room 禁止主线程查询，此处经 runBlocking(Dispatchers.IO)
@@ -445,51 +412,8 @@ class NotificationCenterRepository(context: Context) {
         }
     }
 
-    private fun accountItemsKey(userId: String): String = "$KEY_ITEMS:$userId"
-
     companion object {
-        private const val PREFS = "notification_center"
-        private const val KEY_ITEMS = "items"
         private const val MAX_KEEP = 520
         private const val MAX_AGE_MS = 180L * 24L * 3600L * 1000L
-    }
-}
-
-data class NotificationCenterItem(
-    val id: String,
-    val type: String,            // MESSAGE | MISSED_CALL | AI_TASK | POST_INTERACTION | FRIEND_REQUEST | GROUP_INVITE | REPORT | SECURITY
-    val mergeKey: String,        // 用于合并同类同主键的通知
-    val title: String,
-    val subtitle: String? = null,
-    val preview: String? = null,
-    val deeplink: String? = null,
-    val extra: Map<String, String> = emptyMap(),
-    val read: Boolean = false,
-    val count: Int = 1,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
-) {
-    companion object {
-        // 注：旧 JSON 读写（toJson/fromJson）已随 Room 迁移删除；
-        // 一次性 prefs 导入仍复用 fromJson（见 migrateLegacy）。
-        fun fromJson(json: JSONObject): NotificationCenterItem {
-            val extraJson = json.optJSONObject("extra")
-            val extraMap = if (extraJson == null) emptyMap()
-                else extraJson.keys().asSequence().associateWith { extraJson.optString(it) }
-            return NotificationCenterItem(
-                id = json.getString("id"),
-                type = json.getString("type"),
-                mergeKey = json.optString("mergeKey", json.optString("id", "")),
-                title = json.optString("title", ""),
-                subtitle = json.optString("subtitle", "").takeIf { it.isNotBlank() },
-                preview = json.optString("preview", "").takeIf { it.isNotBlank() },
-                deeplink = json.optString("deeplink", "").takeIf { it.isNotBlank() },
-                extra = extraMap,
-                read = json.optBoolean("read", false),
-                count = json.optInt("count", 1).coerceAtLeast(1),
-                createdAt = json.optLong("createdAt", System.currentTimeMillis()),
-                updatedAt = json.optLong("updatedAt", System.currentTimeMillis())
-            )
-        }
     }
 }
