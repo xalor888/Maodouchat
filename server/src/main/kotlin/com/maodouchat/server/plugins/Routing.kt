@@ -67,10 +67,6 @@ import kotlinx.serialization.json.putJsonObject
 private val RoutingInstalledKey = AttributeKey<Unit>("MaodouchatRoutingInstalled")
 private val RoutingPushServiceKey = AttributeKey<FcmPushService>("MaodouchatRoutingPushService")
 
-internal suspend fun ApplicationCall.respondBotUnavailable() {
-    respond(HttpStatusCode.Forbidden, ErrorResponse("bot unavailable or disabled", code = "BOT_UNAVAILABLE"))
-}
-
 
 fun Application.configureRouting(
     userRepo: UserRepository,
@@ -542,10 +538,3 @@ configureEncryptedAttachmentUploadSessionRoutes(
         )
     }
 }
-
-@kotlinx.serialization.Serializable
-internal data class PinnedMessagesUpdatedPayload(
-    val chatId: String,
-    val actorId: String,
-    val pins: List<PinnedMessageResponse>
-)

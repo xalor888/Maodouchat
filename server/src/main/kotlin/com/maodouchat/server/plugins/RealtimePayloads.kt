@@ -1,5 +1,7 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.model.PinnedMessageResponse
+
 internal fun wsRestrictionMessage(until: Long, action: String): String =
     restrictionMessage(until, action)
 
@@ -45,3 +47,10 @@ internal data class IncomingSignalingPayload(
 
 @kotlinx.serialization.Serializable
 internal data class TypingPayload(val userId: String, val chatId: String, val isTyping: Boolean)
+
+@kotlinx.serialization.Serializable
+internal data class PinnedMessagesUpdatedPayload(
+    val chatId: String,
+    val actorId: String,
+    val pins: List<PinnedMessageResponse>
+)

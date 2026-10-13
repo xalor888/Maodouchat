@@ -903,7 +903,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [x] `AppNotifier` 全局巨型入口删除（文件已物理删除；四服务 + `NotificationSlotPolicy` + `NotificationIntents` + `NotificationInfrastructure` 替代）。
 - [x] Notification Center、Scheduled Message、Reminder 等业务 JSON SharedPreferences store 删除（定时/提醒 Room 36→37；归档忽略 37→38；语音已播 38→39；通知中心本轮迁入 Room 39→40：`notification_center_items` 表 + DAO + 一次性 prefs 导入 + 登出清理，旧 JSON 读写删除；调用方 API 零变更——内存 StateFlow 仍是真相源，磁盘经 `runBlocking(IO)`/后台协程桥接）。
 - [ ] 页面、Widget、Worker、AI 直接访问 `MaodouchatApp`/DAO/Signal/Token 的路径归零。
-- [ ] 服务端 `Routing.kt` 只保留模块注册，不再包含领域 endpoint/事务。
+- [x] 服务端 `Routing.kt` 只保留模块注册，不再包含领域 endpoint/事务。（2026-10-13 实测：`transaction {`=0，`routing {}` 内联端点=0；最后两个领域残留——`respondBotUnavailable()` 搬 `BotRoutingSupport.kt`、`PinnedMessagesUpdatedPayload` 搬 `RealtimePayloads.kt`，同包零 import 改动。）
 - [x] `BotApiRouting.kt`、`AdminRouting.kt` 巨型实现删除并由子域 routes 替代。
 - [x] `Database.kt` 启动期 create/backfill/drop 逻辑删除（Database.kt 47 行仅留 datasource，migrationRunner 接管）。
 - [x] 旧人类消息 REST/WS API、v1 消息表和 legacy repository 删除（Messaging V2 全量接管，历史 v1 表在 migration v2 彻底退役）。
