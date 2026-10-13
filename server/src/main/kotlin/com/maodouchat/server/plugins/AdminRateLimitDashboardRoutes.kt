@@ -9,6 +9,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
+import com.maodouchat.server.repository.lastSnapshotAt
+import com.maodouchat.server.repository.summarize
 
 /** 限流仪表盘查询。 */
 internal fun Route.configureAdminRateLimitDashboardRoutes(

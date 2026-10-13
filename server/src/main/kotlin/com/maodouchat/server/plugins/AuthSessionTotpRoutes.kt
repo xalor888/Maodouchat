@@ -7,6 +7,11 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import com.maodouchat.server.service.beginTotpSetup
+import com.maodouchat.server.service.confirmTotpSetup
+import com.maodouchat.server.service.disableTotp
+import com.maodouchat.server.service.isTotpEnabled
+import com.maodouchat.server.service.regenerateBackupCodes
 
 /** 登录后会话管理：TOTP 状态/恢复码/启用/确认/停用。 */
 internal fun Route.configureAuthSessionTotpRoutes(

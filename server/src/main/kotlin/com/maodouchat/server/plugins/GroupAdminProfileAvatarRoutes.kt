@@ -19,6 +19,7 @@ import io.ktor.server.routing.post
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.maodouchat.server.repository.updateAvatar
 
 /** 群资料：头像上传。 */
 internal fun Route.configureGroupAdminProfileAvatarRoutes(

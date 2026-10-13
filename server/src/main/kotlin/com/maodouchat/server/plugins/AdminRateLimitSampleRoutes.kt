@@ -11,6 +11,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.maodouchat.server.repository.recordMinute
 
 /** 限流手动采样。 */
 internal fun Route.configureAdminRateLimitSampleRoutes(

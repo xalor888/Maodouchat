@@ -20,6 +20,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.maodouchat.server.service.beginTotpSetup
+import com.maodouchat.server.service.confirmTotpSetup
+import com.maodouchat.server.service.isTotpEnabled
 
 /**
  * XAL-29：登录会话轮换/重用、资料更新、TOTP 已启用守卫、推送 token 长度、偏好写入。
