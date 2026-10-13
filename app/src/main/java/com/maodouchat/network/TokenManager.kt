@@ -246,13 +246,6 @@ class TokenManager private constructor(private val context: Context) {
         runCatching { prefs.getLong(ApiConfig.Prefs.LAST_SYNC_AT_KEY, 0L) }.getOrDefault(0L)
 
     /**
-     * Per-chat incremental sync cursor (timestamp + optional message id for same-ms stability).
-     * A single global cursor would advance when opening a newer chat and permanently skip
-     * older un-synced messages in other chats.
-     */
-    data class SyncCursor(val timestampMs: Long, val messageId: String = "")
-
-    /**
      * 仅更新时间戳时不得清空 messageId：
      * 同毫秒消息数 > 一页时，空 id 会让服务端/客户端在同一 ts 上反复拉满页。
      * 时间戳前进才重置 id；时间戳相同则保留原 id。

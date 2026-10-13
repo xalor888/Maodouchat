@@ -30,8 +30,6 @@ import org.webrtc.VideoTrack
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
-class WebRTCException(message: String) : IllegalStateException(message)
-
 /**
  * WebRTC 音视频通话管理器
  */

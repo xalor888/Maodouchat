@@ -57,3 +57,5 @@ data class CallIceServer(
         }
     }
 }
+
+class WebRTCException(message: String) : IllegalStateException(message)
