@@ -622,8 +622,7 @@ class WebRTCManager(
         peerConnectionFactory = null
         runCatching { eglBase?.release() }
         eglBase = null
-        lastStatsSnapshot = null
-        statsRequestInFlight = false
+        statsCollector.reset()
         _callState.value = CallState.DISCONNECTED
     }
 
@@ -1221,9 +1220,7 @@ class WebRTCManager(
         audioController.stop()
         userMuted = false
         onIceCandidate = null
-        lastStatsSnapshot = null
-        statsRequestGeneration.incrementAndGet()
-        statsRequestInFlight = false
+        statsCollector.reset()
     }
 
     private fun disposeVideoResources(
@@ -1298,119 +1295,15 @@ class WebRTCManager(
         return null
     }
 
-    /**
-     * 当前主链路的连接统计快照。用于驱动 UI 上的"网络质量"指示器（绿/黄/红）。
-     * 群通话取当前状态为 CONNECTED/successful 的第一个 PeerConnection。
-     *
-     * getStats 为异步回调；本方法立即返回最近一次采样结果，并触发下一次采样。
-     */
-    data class ConnectionStatsSnapshot(
-        val rttMs: Long?,
-        val packetLossPercent: Double?,
-        val availableOutgoingBitrateKbps: Double?
+    // G390：连接统计采样簇（WebRTCConnectionStatsSnapshot + WebRTCConnectionStatsCollector）抽到 WebRTCConnectionStats.kt。
+    private val statsCollector = WebRTCConnectionStatsCollector(
+        directConnection = { peerConnection },
+        groupConnections = { peerConnections.values },
+        isReleased = { released },
     )
 
-    @Volatile
-    private var lastStatsSnapshot: ConnectionStatsSnapshot? = null
-
-    @Volatile
-    private var statsRequestInFlight: Boolean = false
-    private val statsRequestGeneration = AtomicLong(0L)
-
-    @Synchronized
-    fun getConnectionStatsSnapshot(): ConnectionStatsSnapshot? {
-        if (released) return null
-        val pc = selectStatsPeerConnection()
-        if (pc != null && !statsRequestInFlight) {
-            val requestGeneration = statsRequestGeneration.incrementAndGet()
-            statsRequestInFlight = true
-            runCatching {
-                pc.getStats { report ->
-                    try {
-                        if (
-                            !released &&
-                            statsRequestGeneration.get() == requestGeneration &&
-                            isManagedPeerConnection(pc)
-                        ) {
-                            lastStatsSnapshot = parseStatsReport(report)
-                        }
-                    } finally {
-                        if (statsRequestGeneration.get() == requestGeneration) {
-                            statsRequestInFlight = false
-                        }
-                    }
-                }
-            }.onFailure {
-                if (statsRequestGeneration.get() == requestGeneration) {
-                    statsRequestInFlight = false
-                }
-            }
-        }
-        return lastStatsSnapshot
-    }
-
-    private fun selectStatsPeerConnection(): PeerConnection? {
-        peerConnection?.let { return it }
-        peerConnections.values.firstOrNull()?.let { return it }
-        return null
-    }
-
-    private fun isManagedPeerConnection(connection: PeerConnection): Boolean =
-        peerConnection === connection || peerConnections.values.any { candidate -> candidate === connection }
-
-    private fun parseStatsReport(report: org.webrtc.RTCStatsReport): ConnectionStatsSnapshot? {
-        var rttMs: Long? = null
-        var packetsLost = 0L
-        var packetsReceived = 0L
-        var availableBitrateKbps: Double? = null
-        try {
-            val statsMap = report.statsMap ?: return null
-            for ((_, stats) in statsMap) {
-                val type = stats.type?.lowercase().orEmpty()
-                val members = stats.members ?: continue
-                when (type) {
-                    "candidate-pair" -> {
-                        val selected = members["selected"] as? Boolean
-                            ?: (members["nominated"] as? Boolean)
-                        if (selected == true) {
-                            readStatNumber(members["currentRoundTripTime"])?.let { rttSec ->
-                                rttMs = (rttSec * 1000.0).toLong()
-                            }
-                            readStatNumber(members["availableOutgoingBitrate"])?.let { bps ->
-                                availableBitrateKbps = bps / 1000.0
-                            }
-                        }
-                    }
-                    "inbound-rtp" -> {
-                        val media = (members["kind"] as? String)
-                            ?: (members["mediaType"] as? String)
-                            ?: ""
-                        if (media == "audio" || media == "video" || media.isEmpty()) {
-                            readStatNumber(members["packetsLost"])?.let { packetsLost += it.toLong() }
-                            readStatNumber(members["packetsReceived"])?.let { packetsReceived += it.toLong() }
-                        }
-                    }
-                    "remote-inbound-rtp" -> {
-                        if (rttMs == null) {
-                            readStatNumber(members["roundTripTime"])?.let { rttSec ->
-                                rttMs = (rttSec * 1000.0).toLong()
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (_: Throwable) {
-            return lastStatsSnapshot
-        }
-        val lossPercent = packetLossPercent(packetsLost, packetsReceived)
-        if (rttMs == null && lossPercent == null && availableBitrateKbps == null) {
-            return lastStatsSnapshot
-        }
-        return ConnectionStatsSnapshot(
-            rttMs = rttMs,
-            packetLossPercent = lossPercent,
-            availableOutgoingBitrateKbps = availableBitrateKbps
-        )
-    }
+    /** 当前主链路的连接统计快照。实现见 [WebRTCConnectionStatsCollector]。 */
+    fun getConnectionStatsSnapshot(): WebRTCConnectionStatsSnapshot? =
+        statsCollector.getConnectionStatsSnapshot()
 
 }
