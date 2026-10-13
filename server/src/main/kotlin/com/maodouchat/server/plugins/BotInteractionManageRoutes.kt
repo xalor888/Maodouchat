@@ -9,6 +9,7 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.get
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.BotWebhookService
+import com.maodouchat.server.service.isBotsAllowed
 import com.maodouchat.server.service.notifyChatEvent
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

@@ -5,6 +5,10 @@ import com.maodouchat.server.model.UpdateChatSettingsRequest
 import com.maodouchat.server.repository.ConversationSettingsMutationResult
 import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isChatArchiveEnabled
+import com.maodouchat.server.service.isChatMuteEnabled
+import com.maodouchat.server.service.isChatPinEnabled
+import com.maodouchat.server.service.isMarkedUnreadEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate

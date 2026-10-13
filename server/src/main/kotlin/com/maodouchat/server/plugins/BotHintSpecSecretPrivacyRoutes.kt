@@ -7,6 +7,17 @@ import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isSecretAutoDisappearEnabled
+import com.maodouchat.server.service.isSecretExternalLinkBlockEnabled
+import com.maodouchat.server.service.isSecretLastSeenBlockEnabled
+import com.maodouchat.server.service.isSecretLinkPreviewBlockEnabled
+import com.maodouchat.server.service.isSecretListPreviewBlockEnabled
+import com.maodouchat.server.service.isSecretNotifPreviewBlockEnabled
+import com.maodouchat.server.service.isSecretPresenceBlockEnabled
+import com.maodouchat.server.service.isSecretReactionBlockEnabled
+import com.maodouchat.server.service.isSecretReadReceiptBlockEnabled
+import com.maodouchat.server.service.isSecretStarBlockEnabled
+import com.maodouchat.server.service.isSecretTypingBlockEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -76,15 +87,15 @@ internal fun Route.configureBotHintSpecSecretPrivacyRoutes(
 }
 
 private val BOT_HINT_SPEC_SECRET_PRIVACY = listOf(
-    BotHintSpec("sendSecretAutoDisappearHint", RuntimeConfigService::isSecretAutoDisappearEnabled, "secret_auto_disappear_disabled", "Secret chats auto-enable 24h disappearing when timer is off", "MARK:AUTO24H "),
-    BotHintSpec("sendSecretLinkPreviewHint", RuntimeConfigService::isSecretLinkPreviewBlockEnabled, "secret_link_preview_block_disabled", "Secret chats block link previews to avoid external fetches", "LINK:PREVIEW "),
-    BotHintSpec("sendSecretExternalLinkHint", RuntimeConfigService::isSecretExternalLinkBlockEnabled, "secret_external_link_block_disabled", "Secret chats can block opening external links", "LINK:EXTERNAL "),
-    BotHintSpec("sendSecretNotifPreviewHint", RuntimeConfigService::isSecretNotifPreviewBlockEnabled, "secret_notif_preview_block_disabled", "Secret chat notifications hide sender and body previews", "NOTIFY:SECRET "),
-    BotHintSpec("sendSecretListPreviewHint", RuntimeConfigService::isSecretListPreviewBlockEnabled, "secret_list_preview_block_disabled", "Secret chats hide message previews in the chat list", "NOTIFY:LIST "),
-    BotHintSpec("sendSecretReactionHint", RuntimeConfigService::isSecretReactionBlockEnabled, "secret_reaction_block_disabled", "Secret chats block reactions to reduce metadata leaks", "META:REACT ", sanitize = true),
-    BotHintSpec("sendSecretStarHint", RuntimeConfigService::isSecretStarBlockEnabled, "secret_star_block_disabled", "Secret chats block starring to avoid cloud-side favorites metadata", "META:STAR ", sanitize = true),
-    BotHintSpec("sendSecretTypingHint", RuntimeConfigService::isSecretTypingBlockEnabled, "secret_typing_block_disabled", "Secret chats block typing indicators to avoid presence side-channel", "META:TYPING ", sanitize = true),
-    BotHintSpec("sendSecretReadReceiptHint", RuntimeConfigService::isSecretReadReceiptBlockEnabled, "secret_read_receipt_block_disabled", "Secret chats block read receipts to avoid observation side-channel", "META:READ ", sanitize = true),
-    BotHintSpec("sendSecretPresenceHint", RuntimeConfigService::isSecretPresenceBlockEnabled, "secret_presence_block_disabled", "Secret chats block presence/online to avoid online side-channel", "META:PRESENCE ", sanitize = true),
-    BotHintSpec("sendSecretLastSeenHint", RuntimeConfigService::isSecretLastSeenBlockEnabled, "secret_last_seen_block_disabled", "Secret chats block last seen to avoid observation side-channel", "META:LASTSEEN ", sanitize = true),
+    BotHintSpec("sendSecretAutoDisappearHint", { RuntimeConfigService.isSecretAutoDisappearEnabled() }, "secret_auto_disappear_disabled", "Secret chats auto-enable 24h disappearing when timer is off", "MARK:AUTO24H "),
+    BotHintSpec("sendSecretLinkPreviewHint", { RuntimeConfigService.isSecretLinkPreviewBlockEnabled() }, "secret_link_preview_block_disabled", "Secret chats block link previews to avoid external fetches", "LINK:PREVIEW "),
+    BotHintSpec("sendSecretExternalLinkHint", { RuntimeConfigService.isSecretExternalLinkBlockEnabled() }, "secret_external_link_block_disabled", "Secret chats can block opening external links", "LINK:EXTERNAL "),
+    BotHintSpec("sendSecretNotifPreviewHint", { RuntimeConfigService.isSecretNotifPreviewBlockEnabled() }, "secret_notif_preview_block_disabled", "Secret chat notifications hide sender and body previews", "NOTIFY:SECRET "),
+    BotHintSpec("sendSecretListPreviewHint", { RuntimeConfigService.isSecretListPreviewBlockEnabled() }, "secret_list_preview_block_disabled", "Secret chats hide message previews in the chat list", "NOTIFY:LIST "),
+    BotHintSpec("sendSecretReactionHint", { RuntimeConfigService.isSecretReactionBlockEnabled() }, "secret_reaction_block_disabled", "Secret chats block reactions to reduce metadata leaks", "META:REACT ", sanitize = true),
+    BotHintSpec("sendSecretStarHint", { RuntimeConfigService.isSecretStarBlockEnabled() }, "secret_star_block_disabled", "Secret chats block starring to avoid cloud-side favorites metadata", "META:STAR ", sanitize = true),
+    BotHintSpec("sendSecretTypingHint", { RuntimeConfigService.isSecretTypingBlockEnabled() }, "secret_typing_block_disabled", "Secret chats block typing indicators to avoid presence side-channel", "META:TYPING ", sanitize = true),
+    BotHintSpec("sendSecretReadReceiptHint", { RuntimeConfigService.isSecretReadReceiptBlockEnabled() }, "secret_read_receipt_block_disabled", "Secret chats block read receipts to avoid observation side-channel", "META:READ ", sanitize = true),
+    BotHintSpec("sendSecretPresenceHint", { RuntimeConfigService.isSecretPresenceBlockEnabled() }, "secret_presence_block_disabled", "Secret chats block presence/online to avoid online side-channel", "META:PRESENCE ", sanitize = true),
+    BotHintSpec("sendSecretLastSeenHint", { RuntimeConfigService.isSecretLastSeenBlockEnabled() }, "secret_last_seen_block_disabled", "Secret chats block last seen to avoid observation side-channel", "META:LASTSEEN ", sanitize = true),
 )

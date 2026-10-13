@@ -9,6 +9,7 @@ import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.list
 import com.maodouchat.server.repository.toggle
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isMessagePinEnabled
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*

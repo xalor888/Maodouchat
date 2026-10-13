@@ -14,6 +14,7 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.authenticate
 import com.maodouchat.server.repository.get
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isMaintenanceMode
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond

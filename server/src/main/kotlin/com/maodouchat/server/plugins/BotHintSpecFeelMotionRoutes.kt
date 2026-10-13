@@ -7,6 +7,12 @@ import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isChatAnimationsEnabled
+import com.maodouchat.server.service.isHapticsEnabled
+import com.maodouchat.server.service.isInAppSoundsEnabled
+import com.maodouchat.server.service.isNavTransitionsEnabled
+import com.maodouchat.server.service.isRecentsExclusionEnabled
+import com.maodouchat.server.service.isScreenshotDetectEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -76,10 +82,10 @@ internal fun Route.configureBotHintSpecFeelMotionRoutes(
 }
 
 private val BOT_HINT_SPEC_FEEL_MOTION = listOf(
-    BotHintSpec("sendSoundscapeHint", RuntimeConfigService::isInAppSoundsEnabled, "in_app_sounds_disabled", "In-app sounds can be toggled by admins", "FEEL:SOUND "),
-    BotHintSpec("sendHapticsHint", RuntimeConfigService::isHapticsEnabled, "haptics_disabled", "Haptics can be toggled by admins", "FEEL:HAPTIC "),
-    BotHintSpec("sendMotionHint", RuntimeConfigService::isChatAnimationsEnabled, "chat_animations_disabled", "Chat animations can be toggled by admins", "MOTION:CHAT "),
-    BotHintSpec("sendNavHint", RuntimeConfigService::isNavTransitionsEnabled, "nav_transitions_disabled", "Navigation transitions can be toggled by admins", "MOTION:NAV "),
-    BotHintSpec("sendCaptureDetectHint", RuntimeConfigService::isScreenshotDetectEnabled, "screenshot_detect_disabled", "Screenshot detection can be toggled by admins", "SHIELD:DETECT "),
-    BotHintSpec("sendRecentsHint", RuntimeConfigService::isRecentsExclusionEnabled, "recents_exclusion_disabled", "Recents exclusion can be toggled by admins", "SHIELD:RECENTS "),
+    BotHintSpec("sendSoundscapeHint", { RuntimeConfigService.isInAppSoundsEnabled() }, "in_app_sounds_disabled", "In-app sounds can be toggled by admins", "FEEL:SOUND "),
+    BotHintSpec("sendHapticsHint", { RuntimeConfigService.isHapticsEnabled() }, "haptics_disabled", "Haptics can be toggled by admins", "FEEL:HAPTIC "),
+    BotHintSpec("sendMotionHint", { RuntimeConfigService.isChatAnimationsEnabled() }, "chat_animations_disabled", "Chat animations can be toggled by admins", "MOTION:CHAT "),
+    BotHintSpec("sendNavHint", { RuntimeConfigService.isNavTransitionsEnabled() }, "nav_transitions_disabled", "Navigation transitions can be toggled by admins", "MOTION:NAV "),
+    BotHintSpec("sendCaptureDetectHint", { RuntimeConfigService.isScreenshotDetectEnabled() }, "screenshot_detect_disabled", "Screenshot detection can be toggled by admins", "SHIELD:DETECT "),
+    BotHintSpec("sendRecentsHint", { RuntimeConfigService.isRecentsExclusionEnabled() }, "recents_exclusion_disabled", "Recents exclusion can be toggled by admins", "SHIELD:RECENTS "),
 )

@@ -3,6 +3,12 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isCallsEnabled
+import com.maodouchat.server.service.isChatFontScaleEnabled
+import com.maodouchat.server.service.isChatWallpaperEnabled
+import com.maodouchat.server.service.isGifSendEnabled
+import com.maodouchat.server.service.isVideoCallEnabled
+import com.maodouchat.server.service.isVoiceCallEnabled
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -30,15 +36,15 @@ internal fun Route.configureBotProbeFlagCallAppearanceRoutes(
 
 private val BOT_PROBE_FLAG_CALL_APPEARANCE = listOf(
     BotFlagProbe("getCallMediaFlags", "getCallMediaFlags", 60, listOf(
-        flag("callsEnabled", RuntimeConfigService::isCallsEnabled),
-        flag("voiceCallEnabled", RuntimeConfigService::isVoiceCallEnabled),
-        flag("videoCallEnabled", RuntimeConfigService::isVideoCallEnabled),
-        flag("gifSendEnabled", RuntimeConfigService::isGifSendEnabled),
+        flag("callsEnabled", { RuntimeConfigService.isCallsEnabled() }),
+        flag("voiceCallEnabled", { RuntimeConfigService.isVoiceCallEnabled() }),
+        flag("videoCallEnabled", { RuntimeConfigService.isVideoCallEnabled() }),
+        flag("gifSendEnabled", { RuntimeConfigService.isGifSendEnabled() }),
     )),
     BotFlagProbe("getAppearanceFlags", "getAppearanceFlags", 60, listOf(
-        flag("chatWallpaperEnabled", RuntimeConfigService::isChatWallpaperEnabled),
-        flag("chatFontScaleEnabled", RuntimeConfigService::isChatFontScaleEnabled),
-        flag("voiceCallEnabled", RuntimeConfigService::isVoiceCallEnabled),
-        flag("videoCallEnabled", RuntimeConfigService::isVideoCallEnabled),
+        flag("chatWallpaperEnabled", { RuntimeConfigService.isChatWallpaperEnabled() }),
+        flag("chatFontScaleEnabled", { RuntimeConfigService.isChatFontScaleEnabled() }),
+        flag("voiceCallEnabled", { RuntimeConfigService.isVoiceCallEnabled() }),
+        flag("videoCallEnabled", { RuntimeConfigService.isVideoCallEnabled() }),
     )),
 )

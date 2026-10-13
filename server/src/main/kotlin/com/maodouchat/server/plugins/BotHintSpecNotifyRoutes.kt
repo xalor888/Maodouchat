@@ -7,6 +7,13 @@ import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isDndEnabled
+import com.maodouchat.server.service.isNotificationPreviewEnabled
+import com.maodouchat.server.service.isNotificationSoundEnabled
+import com.maodouchat.server.service.isPushNotificationsEnabled
+import com.maodouchat.server.service.isRingtoneEnabled
+import com.maodouchat.server.service.isTaskRemindersEnabled
+import com.maodouchat.server.service.isUnreadPriorityEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -76,11 +83,11 @@ internal fun Route.configureBotHintSpecNotifyRoutes(
 }
 
 private val BOT_HINT_SPEC_NOTIFY = listOf(
-    BotHintSpec("sendUnreadHint", RuntimeConfigService::isUnreadPriorityEnabled, "unread_priority_disabled", "Unread priority can be toggled by admins", "NOTIFY:UNREAD "),
-    BotHintSpec("sendRingtoneHint", RuntimeConfigService::isRingtoneEnabled, "ringtone_disabled", "Ringtone can be toggled by admins", "NOTIFY:RING "),
-    BotHintSpec("sendSoundHint", RuntimeConfigService::isNotificationSoundEnabled, "notification_sound_disabled", "Notification sound can be toggled by admins", "ALERT:SOUND "),
-    BotHintSpec("sendPreviewHint", RuntimeConfigService::isNotificationPreviewEnabled, "notification_preview_disabled", "Notification preview can be toggled by admins", "ALERT:PREVIEW "),
-    BotHintSpec("sendPushHint", RuntimeConfigService::isPushNotificationsEnabled, "push_notifications_disabled", "Push notifications can be toggled by admins", "PUSH:MASTER "),
-    BotHintSpec("sendTaskReminderHint", RuntimeConfigService::isTaskRemindersEnabled, "task_reminders_disabled", "Task reminders can be toggled by admins", "PUSH:TASK "),
-    BotHintSpec("sendDndHint", RuntimeConfigService::isDndEnabled, "dnd_disabled", "Do-not-disturb windows can be toggled by admins", "QUIET:DND "),
+    BotHintSpec("sendUnreadHint", { RuntimeConfigService.isUnreadPriorityEnabled() }, "unread_priority_disabled", "Unread priority can be toggled by admins", "NOTIFY:UNREAD "),
+    BotHintSpec("sendRingtoneHint", { RuntimeConfigService.isRingtoneEnabled() }, "ringtone_disabled", "Ringtone can be toggled by admins", "NOTIFY:RING "),
+    BotHintSpec("sendSoundHint", { RuntimeConfigService.isNotificationSoundEnabled() }, "notification_sound_disabled", "Notification sound can be toggled by admins", "ALERT:SOUND "),
+    BotHintSpec("sendPreviewHint", { RuntimeConfigService.isNotificationPreviewEnabled() }, "notification_preview_disabled", "Notification preview can be toggled by admins", "ALERT:PREVIEW "),
+    BotHintSpec("sendPushHint", { RuntimeConfigService.isPushNotificationsEnabled() }, "push_notifications_disabled", "Push notifications can be toggled by admins", "PUSH:MASTER "),
+    BotHintSpec("sendTaskReminderHint", { RuntimeConfigService.isTaskRemindersEnabled() }, "task_reminders_disabled", "Task reminders can be toggled by admins", "PUSH:TASK "),
+    BotHintSpec("sendDndHint", { RuntimeConfigService.isDndEnabled() }, "dnd_disabled", "Do-not-disturb windows can be toggled by admins", "QUIET:DND "),
 )

@@ -1,6 +1,20 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isAiContentModerationEnabled
+import com.maodouchat.server.service.isAiEnabled
+import com.maodouchat.server.service.isFileShareEnabled
+import com.maodouchat.server.service.isGroupPlayEnabled
+import com.maodouchat.server.service.isImageSendEnabled
+import com.maodouchat.server.service.isMarkdownEnabled
+import com.maodouchat.server.service.isMessageEditEnabled
+import com.maodouchat.server.service.isMessageForwardingEnabled
+import com.maodouchat.server.service.isMessagePinEnabled
+import com.maodouchat.server.service.isMessageRevokeEnabled
+import com.maodouchat.server.service.isPollsEnabled
+import com.maodouchat.server.service.isReactionsEnabled
+import com.maodouchat.server.service.isVideoSendEnabled
+import com.maodouchat.server.service.isVoiceMessagesEnabled
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route

@@ -8,6 +8,7 @@ import com.maodouchat.server.repository.delete as deleteBot
 import com.maodouchat.server.repository.groupChatIdsFor
 import com.maodouchat.server.repository.listByOwner
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isBotsAllowed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

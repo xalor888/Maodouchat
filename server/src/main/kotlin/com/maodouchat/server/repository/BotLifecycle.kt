@@ -15,6 +15,7 @@ import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.deleteMessagingV2ParticipantStateInTx
 import com.maodouchat.server.service.isUniqueViolation
+import com.maodouchat.server.service.maxBotsPerUser
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and

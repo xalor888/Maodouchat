@@ -9,6 +9,7 @@ import com.maodouchat.server.repository.getByEmail
 import com.maodouchat.server.repository.isUniqueViolation
 import com.maodouchat.server.repository.register
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isRegistrationAllowed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

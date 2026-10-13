@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isPostsEnabled
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*

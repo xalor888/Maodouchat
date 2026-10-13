@@ -5,6 +5,8 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.BotWebhookService
+import com.maodouchat.server.service.isMarkdownEnabled
+import com.maodouchat.server.service.isSilentSendEnabled
 import com.maodouchat.server.service.notifyChatEvent
 import io.ktor.http.*
 import io.ktor.server.application.call

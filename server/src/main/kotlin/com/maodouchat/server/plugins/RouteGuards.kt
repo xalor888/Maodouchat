@@ -6,6 +6,7 @@ import com.maodouchat.server.repository.getMessageRestrictionUntil
 import com.maodouchat.server.repository.getPostRestrictionUntil
 import com.maodouchat.server.repository.getSuspendedUntil
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isMaintenanceMode
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respond

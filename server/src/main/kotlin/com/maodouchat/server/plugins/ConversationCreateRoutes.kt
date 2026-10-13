@@ -13,6 +13,8 @@ import com.maodouchat.server.service.CreateConversationResult
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isChannelsEnabled
+import com.maodouchat.server.service.isSecretChatEnabled
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.http.HttpStatusCode
