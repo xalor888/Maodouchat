@@ -19,17 +19,6 @@ import com.maodouchat.util.JsonFormat
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
 
-data class ForwardBatchResult(
-    val forwardedCount: Int,
-    val failedCount: Int,
-    val firstError: Throwable? = null,
-    val attachmentFailed: Boolean = false,
-)
-
-class ConversationForwardSessionException(message: String) : IllegalStateException(message)
-class ConversationForwardUnsupportedException(val messageType: MessageType) :
-    IllegalArgumentException("forward_type_unsupported:$messageType")
-
 /**
  * Owns forwarding order and the durable commit boundary.
  *
