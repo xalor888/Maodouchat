@@ -1,34 +1,21 @@
 package com.maodouchat.server.service
 
-import com.maodouchat.server.db.CommentLikes
+// 动态评论/点赞分页簇：评论流与点赞者列表（原 FeedCommentQueries 扩展按域拆出，零行为改动）。
+
 import com.maodouchat.server.db.PostComments
 import com.maodouchat.server.db.PostLikes
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.model.PostCommentResponse
 import com.maodouchat.server.model.UserResponse
 import com.maodouchat.server.repository.PostVisibility
-import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.innerJoin
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-
-/** 动态评论/点赞查询簇：评论分页、点赞者列表、评论点赞批量填充（自 FeedQueryService 迁出，零行为改动）。 */
-/** 评论分页迭代上限：游标按可见评论推进后，前几批被拉黑作者也不再「饿死」可见评论。 */
-private const val MAX_COMMENT_PAGINATION_ITERATIONS = 20
-
-fun FeedQueryService.getCommentAuthorId(commentId: String): String? {
-    return transaction {
-        PostComments.selectAll().where { PostComments.id eq commentId }.firstOrNull()?.get(PostComments.authorId)
-    }
-}
 
 fun FeedQueryService.getComments(
     postId: String,
@@ -94,6 +81,7 @@ fun FeedQueryService.getComments(
     }
 }
 
+
 fun FeedQueryService.listPostLikers(postId: String, currentUserId: String, limit: Int = 50): List<UserResponse>? {
     val boundedLimit = limit.coerceIn(1, 100)
     return transaction {
@@ -137,71 +125,6 @@ fun FeedQueryService.listPostLikers(postId: String, currentUserId: String, limit
     }
 }
 
-internal fun FeedQueryService.getCommentById(
-    commentId: String,
-    currentUserId: String,
-    blockedUserIds: Set<String> = emptySet()
-): PostCommentResponse? {
-    return (PostComments innerJoin Users)
-        .selectAll()
-        .where { PostComments.id eq commentId }
-        .firstOrNull()
-        ?.let {
-            enrichCommentLikes(
-                listOf(it.toCommentResponse(currentUserId)),
-                currentUserId,
-                blockedUserIds
-            ).firstOrNull()
-        }
-}
 
-fun FeedQueryService.getComment(commentId: String, currentUserId: String): PostCommentResponse? {
-    return transaction {
-        val blockedUserIds = SocialGraphService.blockedEitherWayUserIds(currentUserId)
-        getCommentById(commentId, currentUserId, blockedUserIds)
-    }
-}
-
-private fun ResultRow.toCommentResponse(currentUserId: String): PostCommentResponse {
-    val commentId = this[PostComments.id]
-    return PostCommentResponse(
-        id = commentId,
-        postId = this[PostComments.postId],
-        author = toPublicUser(),
-        content = this[PostComments.content],
-        createdAt = this[PostComments.createdAt],
-        isMine = this[PostComments.authorId] == currentUserId,
-        parentId = this[PostComments.parentId],
-        // 点赞数/已赞在 enrichCommentLikes 批量填充（避免 N+1）
-        likeCount = 0,
-        likedByMe = false
-    )
-}
-
-private fun FeedQueryService.enrichCommentLikes(
-    comments: List<PostCommentResponse>,
-    userId: String,
-    blockedUserIds: Set<String> = emptySet()
-): List<PostCommentResponse> {
-    if (comments.isEmpty()) return comments
-    val ids = comments.map { it.id }
-    val countExpr = CommentLikes.commentId.count()
-    val base = CommentLikes.select(CommentLikes.commentId, countExpr)
-        .where { CommentLikes.commentId inList ids }
-    val query = if (blockedUserIds.isEmpty()) {
-        base
-    } else {
-        base.andWhere { CommentLikes.userId notInList blockedUserIds.toList() }
-    }
-    val likeCounts = query
-        .groupBy(CommentLikes.commentId)
-        .associate { it[CommentLikes.commentId] to it[countExpr].toInt() }
-    val likedByMe = CommentLikes
-        .select(CommentLikes.commentId)
-        .where { (CommentLikes.commentId inList ids) and (CommentLikes.userId eq userId) }
-        .map { it[CommentLikes.commentId] }
-        .toSet()
-    return comments.map {
-        it.copy(likeCount = likeCounts[it.id] ?: 0, likedByMe = it.id in likedByMe)
-    }
-}
+/** 评论分页迭代上限：游标按可见评论推进后，前几批被拉黑作者也不再「饿死」可见评论。 */
+private const val MAX_COMMENT_PAGINATION_ITERATIONS = 20

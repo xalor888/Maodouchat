@@ -1,11 +1,11 @@
 package com.maodouchat.server.repository
 
-import com.maodouchat.server.db.ChatParticipants
+// 群投票写入簇：创建 / 投票 / 关闭（原 PollVoting 扩展按域拆出，零行为改动）。
+
 import com.maodouchat.server.db.Chats
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
 import kotlinx.serialization.encodeToString
-import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
@@ -14,8 +14,6 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
-
-/** 群投票写入簇：创建 / 投票 / 关闭（含 DTO 组装与校验 helpers）。 */
 
 fun PollRepository.createPoll(
     chatId: String,
@@ -48,7 +46,7 @@ fun PollRepository.createPoll(
             it[GroupPolls.chatId] = chatId
             it[GroupPolls.creatorId] = creatorId
             it[GroupPolls.question] = q
-            it[GroupPolls.optionsJson] = json.encodeToString(opts)
+            it[GroupPolls.optionsJson] = pollOptionsJson.encodeToString(opts)
             it[GroupPolls.multi] = multi
             it[GroupPolls.anonymous] = anonymous
             it[GroupPolls.closed] = false
@@ -59,6 +57,7 @@ fun PollRepository.createPoll(
         toPollDto(row, creatorId)
     }
 }
+
 
 fun PollRepository.vote(
     pollId: String,
@@ -102,6 +101,7 @@ fun PollRepository.vote(
     }
 }
 
+
 fun PollRepository.closePoll(
     pollId: String,
     userId: String,
@@ -129,67 +129,24 @@ fun PollRepository.closePoll(
     }
 }
 
-internal fun PollRepository.toPollDto(
-    row: ResultRow,
-    viewerId: String,
-    forceClosed: Boolean = false,
-    preloadedVotes: List<ResultRow> = emptyList(),
-    blocked: Set<String>? = null
-): PollRepository.PollDto {
-    val pollId = row[GroupPolls.id]
-    val options = decodeOptions(row)
-    val blocked = blocked ?: ConversationVisibility.blockedUserIdsInTx(viewerId)
-    // 8.48：列表路径由调用方批量预取；单条路径（空）此处回查
-    val votes = (if (preloadedVotes.isNotEmpty()) preloadedVotes else
-        GroupPollVotes.selectAll().where { GroupPollVotes.pollId eq pollId }.toList()
-        ).filter { it[GroupPollVotes.userId] !in blocked }
-    val counts = IntArray(options.size)
-    val voters = mutableSetOf<String>()
-    val my = mutableListOf<Int>()
-    for (v in votes) {
-        val idx = v[GroupPollVotes.optionIndex]
-        val uid = v[GroupPollVotes.userId]
-        if (idx in counts.indices) counts[idx]++
-        voters += uid
-        if (uid == viewerId) my += idx
-    }
-    return PollRepository.PollDto(
-        id = pollId,
-        chatId = row[GroupPolls.chatId],
-        creatorId = row[GroupPolls.creatorId],
-        question = row[GroupPolls.question],
-        options = options,
-        multi = row[GroupPolls.multi],
-        anonymous = row[GroupPolls.anonymous],
-        closed = forceClosed || row[GroupPolls.closed] || ((row[GroupPolls.closesAt] ?: Long.MAX_VALUE) <= System.currentTimeMillis()),
-        createdAt = row[GroupPolls.createdAt],
-        closesAt = row[GroupPolls.closesAt],
-        counts = counts.toList(),
-        myVotes = my.distinct().sorted(),
-        totalVoters = voters.size
-    )
-}
 
-internal fun PollRepository.decodeOptions(row: org.jetbrains.exposed.sql.ResultRow): List<String> = runCatching {
-    json.decodeFromString<List<String>>(row[GroupPolls.optionsJson])
-}.getOrDefault(emptyList())
+internal val pollOptionsJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
-internal fun PollRepository.isMemberInTransaction(chatId: String, userId: String): Boolean =
-    ChatParticipants.selectAll().where {
-        (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq userId)
-    }.count() > 0
+
+internal const val MIN_OPTIONS = 2
+
+
+internal const val MAX_OPTIONS = 12
+
+
+internal const val MAX_QUESTION_LENGTH = 200
+
+
+internal const val MAX_OPTION_LENGTH = 80
+
+
+internal const val MAX_POLL_DURATION_MS = 30L * 24L * 60L * 60L * 1_000L
+
 
 internal fun PollRepository.isValidId(value: String): Boolean =
     value.isNotBlank() && value.length <= 64 && value.all { it.isLetterOrDigit() || it == '_' || it == '-' }
-
-private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-
-private const val MIN_OPTIONS = 2
-
-private const val MAX_OPTIONS = 12
-
-private const val MAX_QUESTION_LENGTH = 200
-
-private const val MAX_OPTION_LENGTH = 80
-
-private const val MAX_POLL_DURATION_MS = 30L * 24L * 60L * 60L * 1_000L
