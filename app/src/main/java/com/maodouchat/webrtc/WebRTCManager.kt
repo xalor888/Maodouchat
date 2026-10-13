@@ -30,67 +30,7 @@ import org.webrtc.VideoTrack
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * 通话状态
- */
-enum class CallState {
-    IDLE, CALLING, RINGING, CONNECTED, DISCONNECTED
-}
-
-/**
- * 通话类型
- */
-enum class CallType { AUDIO, VIDEO, GROUP;
-
-    companion object {
-        /**
-         * 从 SDP 文本推断通话类型。仅当存在真实视频媒体行（以 `m=video ` 开头且端口非 0）时判为视频，
-         * 避免把 `m=video` 子串误匹配进属性行（如 `a=...`），或把被拒绝/禁用的 `m=video 0 ...` 当作视频。
-         */
-        fun detectFromSdp(sdp: String?): CallType {
-            if (sdp.isNullOrBlank()) return AUDIO
-            for (line in sdp.lineSequence()) {
-                val trimmed = line.trim()
-                if (trimmed.startsWith("m=video", ignoreCase = true)) {
-                    // 9.166：标签已按忽略大小写匹配，直接按固定长度 7 剥离（removePrefix 无
-                    // ignoreCase 重载）——此前大小写剥离不一致，`M=video` 行端口解析为 0，
-                    // 视频通话被误判为 AUDIO，相机永不协商
-                    val port = trimmed.substring(7).trimStart()
-                        .takeWhile { it.isDigit() }.toIntOrNull() ?: 0
-                    if (port != 0) return VIDEO
-                }
-            }
-            return AUDIO
-        }
-    }
-}
-
-enum class GroupPeerConnectionState { CONNECTING, CONNECTED, RECONNECTING, DISCONNECTED, FAILED, REJECTED, BUSY, NO_ANSWER }
-
 class WebRTCException(message: String) : IllegalStateException(message)
-
-data class CallIceServer(
-    val urls: List<String>,
-    val username: String = "",
-    val credential: String = ""
-) {
-    companion object {
-        fun defaultStun(): List<CallIceServer> = listOf(
-            CallIceServer(listOf("stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"))
-        )
-
-        /** True when no TURN/TURNS URL is present (NAT may fail; public STUN only). */
-        fun isStunOnly(servers: List<CallIceServer>): Boolean {
-            if (servers.isEmpty()) return true
-            return servers.none { server ->
-                server.urls.any { url ->
-                    url.startsWith("turn:", ignoreCase = true) ||
-                        url.startsWith("turns:", ignoreCase = true)
-                }
-            }
-        }
-    }
-}
 
 /**
  * WebRTC 音视频通话管理器

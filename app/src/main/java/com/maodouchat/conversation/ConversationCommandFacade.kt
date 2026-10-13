@@ -16,18 +16,6 @@ import com.maodouchat.domain.messaging.SendFailureReason
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-sealed interface ConversationCommandOutcome {
-    data class Staged(val message: Message) : ConversationCommandOutcome
-    data class Rejected(val reason: ConversationCommandRejection) : ConversationCommandOutcome
-}
-
-enum class ConversationCommandRejection {
-    EMPTY_TEXT,
-    CHAT_UNAVAILABLE,
-    TERMINAL_MESSAGE,
-    SECRET_CONVERSATION,
-    LOCKED_CONVERSATION,
-}
 
 /**
  * Injectable message command API for conversation entry points.
