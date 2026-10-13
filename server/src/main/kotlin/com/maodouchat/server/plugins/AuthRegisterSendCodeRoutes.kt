@@ -5,6 +5,7 @@ import com.maodouchat.server.model.SendCodeRequest
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.getByEmail
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isRegistrationAllowed
 import com.maodouchat.server.service.sendVerificationCode
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call

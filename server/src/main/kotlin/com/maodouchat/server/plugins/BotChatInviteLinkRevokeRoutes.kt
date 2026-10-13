@@ -5,6 +5,7 @@ import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.GroupInvitationService
+import com.maodouchat.server.service.isGroupInvitesEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

@@ -7,6 +7,12 @@ import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isPqxdhPreviewEnabled
+import com.maodouchat.server.service.isSealedSenderEnabled
+import com.maodouchat.server.service.isSecretChatExportBlockEnabled
+import com.maodouchat.server.service.isSecretCopyBlockEnabled
+import com.maodouchat.server.service.isSecretForwardBlockEnabled
+import com.maodouchat.server.service.isSecretMediaExportBlockEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -76,10 +82,10 @@ internal fun Route.configureBotHintSpecSecretLeakRoutes(
 }
 
 private val BOT_HINT_SPEC_SECRET_LEAK = listOf(
-    BotHintSpec("sendSecretCopyHint", RuntimeConfigService::isSecretCopyBlockEnabled, "secret_copy_block_disabled", "Secret chat copy block can be toggled by admins", "LEAK:COPY "),
-    BotHintSpec("sendSecretExportHint", RuntimeConfigService::isSecretMediaExportBlockEnabled, "secret_media_export_block_disabled", "Secret media export block can be toggled by admins", "LEAK:EXPORT "),
-    BotHintSpec("sendSecretForwardHint", RuntimeConfigService::isSecretForwardBlockEnabled, "secret_forward_block_disabled", "Secret chat forward block can be toggled by admins", "VAULT:FORWARD "),
-    BotHintSpec("sendSecretChatExportHint", RuntimeConfigService::isSecretChatExportBlockEnabled, "secret_chat_export_block_disabled", "Secret chat export block can be toggled by admins", "VAULT:EXPORT "),
-    BotHintSpec("sendSealedSenderHint", RuntimeConfigService::isSealedSenderEnabled, "sealed_sender_disabled", "Sealed sender certs hide sender metadata on delivery hops", "SEAL:CERT "),
-    BotHintSpec("sendPqxdhHint", RuntimeConfigService::isPqxdhPreviewEnabled, "pqxdh_preview_disabled", "PQXDH preview can be toggled by admins", "SEAL:PQXDH "),
+    BotHintSpec("sendSecretCopyHint", { RuntimeConfigService.isSecretCopyBlockEnabled() }, "secret_copy_block_disabled", "Secret chat copy block can be toggled by admins", "LEAK:COPY "),
+    BotHintSpec("sendSecretExportHint", { RuntimeConfigService.isSecretMediaExportBlockEnabled() }, "secret_media_export_block_disabled", "Secret media export block can be toggled by admins", "LEAK:EXPORT "),
+    BotHintSpec("sendSecretForwardHint", { RuntimeConfigService.isSecretForwardBlockEnabled() }, "secret_forward_block_disabled", "Secret chat forward block can be toggled by admins", "VAULT:FORWARD "),
+    BotHintSpec("sendSecretChatExportHint", { RuntimeConfigService.isSecretChatExportBlockEnabled() }, "secret_chat_export_block_disabled", "Secret chat export block can be toggled by admins", "VAULT:EXPORT "),
+    BotHintSpec("sendSealedSenderHint", { RuntimeConfigService.isSealedSenderEnabled() }, "sealed_sender_disabled", "Sealed sender certs hide sender metadata on delivery hops", "SEAL:CERT "),
+    BotHintSpec("sendPqxdhHint", { RuntimeConfigService.isPqxdhPreviewEnabled() }, "pqxdh_preview_disabled", "PQXDH preview can be toggled by admins", "SEAL:PQXDH "),
 )

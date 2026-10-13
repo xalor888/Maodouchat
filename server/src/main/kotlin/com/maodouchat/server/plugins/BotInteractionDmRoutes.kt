@@ -8,6 +8,7 @@ import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.isBotDeliverable
 import com.maodouchat.server.service.ConversationCommandService
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isBotsAllowed
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

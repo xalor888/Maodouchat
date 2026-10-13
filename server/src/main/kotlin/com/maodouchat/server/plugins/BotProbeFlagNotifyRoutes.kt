@@ -3,6 +3,15 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isChatFontScaleEnabled
+import com.maodouchat.server.service.isChatWallpaperEnabled
+import com.maodouchat.server.service.isDndEnabled
+import com.maodouchat.server.service.isNotificationPreviewEnabled
+import com.maodouchat.server.service.isNotificationSoundEnabled
+import com.maodouchat.server.service.isPushNotificationsEnabled
+import com.maodouchat.server.service.isRingtoneEnabled
+import com.maodouchat.server.service.isTaskRemindersEnabled
+import com.maodouchat.server.service.isUnreadPriorityEnabled
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -30,26 +39,26 @@ internal fun Route.configureBotProbeFlagNotifyRoutes(
 
 private val BOT_PROBE_FLAG_NOTIFY = listOf(
     BotFlagProbe("getNotifyFlags", "getNotifyFlags", 60, listOf(
-        flag("unreadPriorityEnabled", RuntimeConfigService::isUnreadPriorityEnabled),
-        flag("ringtoneEnabled", RuntimeConfigService::isRingtoneEnabled),
-        flag("chatWallpaperEnabled", RuntimeConfigService::isChatWallpaperEnabled),
-        flag("chatFontScaleEnabled", RuntimeConfigService::isChatFontScaleEnabled),
+        flag("unreadPriorityEnabled", { RuntimeConfigService.isUnreadPriorityEnabled() }),
+        flag("ringtoneEnabled", { RuntimeConfigService.isRingtoneEnabled() }),
+        flag("chatWallpaperEnabled", { RuntimeConfigService.isChatWallpaperEnabled() }),
+        flag("chatFontScaleEnabled", { RuntimeConfigService.isChatFontScaleEnabled() }),
     )),
     BotFlagProbe("getAlertMediaFlags", "getAlertMediaFlags", 60, listOf(
-        flag("notificationSoundEnabled", RuntimeConfigService::isNotificationSoundEnabled),
-        flag("notificationPreviewEnabled", RuntimeConfigService::isNotificationPreviewEnabled),
-        flag("unreadPriorityEnabled", RuntimeConfigService::isUnreadPriorityEnabled),
-        flag("ringtoneEnabled", RuntimeConfigService::isRingtoneEnabled),
+        flag("notificationSoundEnabled", { RuntimeConfigService.isNotificationSoundEnabled() }),
+        flag("notificationPreviewEnabled", { RuntimeConfigService.isNotificationPreviewEnabled() }),
+        flag("unreadPriorityEnabled", { RuntimeConfigService.isUnreadPriorityEnabled() }),
+        flag("ringtoneEnabled", { RuntimeConfigService.isRingtoneEnabled() }),
     )),
     BotFlagProbe("getPushFlags", "getPushFlags", 60, listOf(
-        flag("pushNotificationsEnabled", RuntimeConfigService::isPushNotificationsEnabled),
-        flag("taskRemindersEnabled", RuntimeConfigService::isTaskRemindersEnabled),
-        flag("notificationSoundEnabled", RuntimeConfigService::isNotificationSoundEnabled),
-        flag("notificationPreviewEnabled", RuntimeConfigService::isNotificationPreviewEnabled),
+        flag("pushNotificationsEnabled", { RuntimeConfigService.isPushNotificationsEnabled() }),
+        flag("taskRemindersEnabled", { RuntimeConfigService.isTaskRemindersEnabled() }),
+        flag("notificationSoundEnabled", { RuntimeConfigService.isNotificationSoundEnabled() }),
+        flag("notificationPreviewEnabled", { RuntimeConfigService.isNotificationPreviewEnabled() }),
     )),
     BotFlagProbe("getQuietFlags", "getQuietFlags", 60, listOf(
-        flag("dndEnabled", RuntimeConfigService::isDndEnabled),
-        flag("pushNotificationsEnabled", RuntimeConfigService::isPushNotificationsEnabled),
-        flag("taskRemindersEnabled", RuntimeConfigService::isTaskRemindersEnabled),
+        flag("dndEnabled", { RuntimeConfigService.isDndEnabled() }),
+        flag("pushNotificationsEnabled", { RuntimeConfigService.isPushNotificationsEnabled() }),
+        flag("taskRemindersEnabled", { RuntimeConfigService.isTaskRemindersEnabled() }),
     )),
 )

@@ -3,6 +3,15 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isPqxdhPreviewEnabled
+import com.maodouchat.server.service.isRecentsExclusionEnabled
+import com.maodouchat.server.service.isScreenshotDetectEnabled
+import com.maodouchat.server.service.isSealedSenderEnabled
+import com.maodouchat.server.service.isSecretChatEnabled
+import com.maodouchat.server.service.isSecretChatExportBlockEnabled
+import com.maodouchat.server.service.isSecretCopyBlockEnabled
+import com.maodouchat.server.service.isSecretForwardBlockEnabled
+import com.maodouchat.server.service.isSecretMediaExportBlockEnabled
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -30,20 +39,20 @@ internal fun Route.configureBotProbeFlagSecretLeakRoutes(
 
 private val BOT_PROBE_FLAG_SECRET_LEAK = listOf(
     BotFlagProbe("getSecretLeakFlags", "getSecretLeakFlags", 60, listOf(
-        flag("secretCopyBlockEnabled", RuntimeConfigService::isSecretCopyBlockEnabled),
-        flag("secretMediaExportBlockEnabled", RuntimeConfigService::isSecretMediaExportBlockEnabled),
-        flag("screenshotDetectEnabled", RuntimeConfigService::isScreenshotDetectEnabled),
-        flag("recentsExclusionEnabled", RuntimeConfigService::isRecentsExclusionEnabled),
+        flag("secretCopyBlockEnabled", { RuntimeConfigService.isSecretCopyBlockEnabled() }),
+        flag("secretMediaExportBlockEnabled", { RuntimeConfigService.isSecretMediaExportBlockEnabled() }),
+        flag("screenshotDetectEnabled", { RuntimeConfigService.isScreenshotDetectEnabled() }),
+        flag("recentsExclusionEnabled", { RuntimeConfigService.isRecentsExclusionEnabled() }),
     )),
     BotFlagProbe("getSecretVaultFlags", "getSecretVaultFlags", 61, listOf(
-        flag("secretForwardBlockEnabled", RuntimeConfigService::isSecretForwardBlockEnabled),
-        flag("secretChatExportBlockEnabled", RuntimeConfigService::isSecretChatExportBlockEnabled),
-        flag("secretCopyBlockEnabled", RuntimeConfigService::isSecretCopyBlockEnabled),
-        flag("secretMediaExportBlockEnabled", RuntimeConfigService::isSecretMediaExportBlockEnabled),
+        flag("secretForwardBlockEnabled", { RuntimeConfigService.isSecretForwardBlockEnabled() }),
+        flag("secretChatExportBlockEnabled", { RuntimeConfigService.isSecretChatExportBlockEnabled() }),
+        flag("secretCopyBlockEnabled", { RuntimeConfigService.isSecretCopyBlockEnabled() }),
+        flag("secretMediaExportBlockEnabled", { RuntimeConfigService.isSecretMediaExportBlockEnabled() }),
     )),
     BotFlagProbe("getSealedCryptoFlags", "getSealedCryptoFlags", 62, listOf(
-        flag("sealedSenderEnabled", RuntimeConfigService::isSealedSenderEnabled),
-        flag("pqxdhPreview", RuntimeConfigService::isPqxdhPreviewEnabled),
-        flag("secretChatEnabled", RuntimeConfigService::isSecretChatEnabled),
+        flag("sealedSenderEnabled", { RuntimeConfigService.isSealedSenderEnabled() }),
+        flag("pqxdhPreview", { RuntimeConfigService.isPqxdhPreviewEnabled() }),
+        flag("secretChatEnabled", { RuntimeConfigService.isSecretChatEnabled() }),
     )),
 )

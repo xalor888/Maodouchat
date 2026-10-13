@@ -2,6 +2,8 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.service.isContactCardEnabled
+import com.maodouchat.server.service.isMarkdownEnabled
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

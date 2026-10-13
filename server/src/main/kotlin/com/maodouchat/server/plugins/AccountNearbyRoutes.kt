@@ -10,6 +10,7 @@ import com.maodouchat.server.repository.getStatus
 import com.maodouchat.server.repository.stopSharing
 import com.maodouchat.server.repository.updateLocation
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isNearbyEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.auth.authenticate

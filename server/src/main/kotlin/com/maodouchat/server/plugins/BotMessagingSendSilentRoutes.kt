@@ -6,6 +6,7 @@ import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.insert
 import com.maodouchat.server.repository.logCommand
+import com.maodouchat.server.service.isSilentSendEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

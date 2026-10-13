@@ -5,6 +5,10 @@ import com.maodouchat.server.model.BotHealthStatus
 import com.maodouchat.server.model.DeveloperHealthResponse
 import com.maodouchat.server.model.ServerHealthStatus
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isAiEnabled
+import com.maodouchat.server.service.isBotsAllowed
+import com.maodouchat.server.service.isMaintenanceMode
+import com.maodouchat.server.service.isMediaUploadEnabled
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.selectAll

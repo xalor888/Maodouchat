@@ -2,6 +2,9 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.service.isMarkdownEnabled
+import com.maodouchat.server.service.isMentionsEnabled
+import com.maodouchat.server.service.isNudgeEnabled
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

@@ -9,6 +9,7 @@ import com.maodouchat.server.service.ModerationEngine
 import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.isOwnedPostImageFilename
 import com.maodouchat.server.service.isOwnedPostImageUrl
+import com.maodouchat.server.service.isPostsEnabled
 import com.maodouchat.server.service.savePostImage
 import io.ktor.http.*
 import io.ktor.server.application.*

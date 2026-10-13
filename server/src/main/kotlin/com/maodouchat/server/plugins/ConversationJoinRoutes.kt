@@ -7,6 +7,7 @@ import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.getForParticipant
 import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isGroupInvitesEnabled
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.http.HttpStatusCode

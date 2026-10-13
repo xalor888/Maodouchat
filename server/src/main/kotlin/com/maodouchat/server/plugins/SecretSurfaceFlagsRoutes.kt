@@ -3,6 +3,14 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isSecret2faGateEnabled
+import com.maodouchat.server.service.isSecretAutoDestroyEnabled
+import com.maodouchat.server.service.isSecretDeviceVerifyEnabled
+import com.maodouchat.server.service.isSecretForwardWhitelistEnabled
+import com.maodouchat.server.service.isSecretNewDeviceRiskEnabled
+import com.maodouchat.server.service.isSecretScreenshotBurnEnabled
+import com.maodouchat.server.service.isSecretSessionNoticeEnabled
+import com.maodouchat.server.service.isSecretSimChangeProtectionEnabled
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route

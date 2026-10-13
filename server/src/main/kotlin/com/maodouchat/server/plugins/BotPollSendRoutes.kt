@@ -3,6 +3,8 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.repository.createPoll
+import com.maodouchat.server.service.isGroupPlayEnabled
+import com.maodouchat.server.service.isPollsEnabled
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.response.respond

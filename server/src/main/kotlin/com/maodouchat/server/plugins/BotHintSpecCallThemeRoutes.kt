@@ -7,6 +7,10 @@ import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.logCommand
 import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.isChatFontScaleEnabled
+import com.maodouchat.server.service.isChatWallpaperEnabled
+import com.maodouchat.server.service.isVideoCallEnabled
+import com.maodouchat.server.service.isVoiceCallEnabled
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -76,8 +80,8 @@ internal fun Route.configureBotHintSpecCallThemeRoutes(
 }
 
 private val BOT_HINT_SPEC_CALL_THEME = listOf(
-    BotHintSpec("sendVoiceCallHint", RuntimeConfigService::isVoiceCallEnabled, "voice_call_disabled", "Voice call can be toggled separately from master calls", "CALL:VOICE "),
-    BotHintSpec("sendVideoCallHint", RuntimeConfigService::isVideoCallEnabled, "video_call_disabled", "Video call can be toggled separately from master calls", "CALL:VIDEO "),
-    BotHintSpec("sendWallpaperHint", RuntimeConfigService::isChatWallpaperEnabled, "chat_wallpaper_disabled", "Chat wallpaper can be toggled by admins", "THEME:WALL "),
-    BotHintSpec("sendFontScaleHint", RuntimeConfigService::isChatFontScaleEnabled, "chat_font_scale_disabled", "Chat font scale can be toggled by admins", "THEME:FONT "),
+    BotHintSpec("sendVoiceCallHint", { RuntimeConfigService.isVoiceCallEnabled() }, "voice_call_disabled", "Voice call can be toggled separately from master calls", "CALL:VOICE "),
+    BotHintSpec("sendVideoCallHint", { RuntimeConfigService.isVideoCallEnabled() }, "video_call_disabled", "Video call can be toggled separately from master calls", "CALL:VIDEO "),
+    BotHintSpec("sendWallpaperHint", { RuntimeConfigService.isChatWallpaperEnabled() }, "chat_wallpaper_disabled", "Chat wallpaper can be toggled by admins", "THEME:WALL "),
+    BotHintSpec("sendFontScaleHint", { RuntimeConfigService.isChatFontScaleEnabled() }, "chat_font_scale_disabled", "Chat font scale can be toggled by admins", "THEME:FONT "),
 )
