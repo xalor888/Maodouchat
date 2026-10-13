@@ -1,8 +1,7 @@
 package com.maodouchat.server.repository
 
-import com.maodouchat.server.db.BlockedUsers
-import com.maodouchat.server.db.BotApps
-import com.maodouchat.server.db.Friendships
+// 管理导出·投票簇：投票与投票记录元数据导出（原 AdminExportSocial 扩展按域拆出，零行为改动）。
+
 import com.maodouchat.server.db.GroupPollVotes
 import com.maodouchat.server.db.GroupPolls
 import org.jetbrains.exposed.sql.SortOrder
@@ -10,36 +9,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-
-/** 好友关系图元数据 only — no message bodies。 */
-fun AdminExportRepository.friendships(limit: Int): List<List<Any?>> = transaction {
-    Friendships.selectAll()
-        .orderBy(
-            Friendships.createdAt to SortOrder.DESC,
-            Friendships.userLowId to SortOrder.DESC,
-            Friendships.userHighId to SortOrder.DESC,
-        )
-        .limit(limit)
-        .map { row ->
-            listOf(
-                row[Friendships.userLowId],
-                row[Friendships.userHighId],
-                row[Friendships.createdAt].toString(),
-            )
-        }
-}
-
-/** 只有拉黑边 — no message bodies。 */
-fun AdminExportRepository.blockedUsers(limit: Int): List<List<Any?>> = transaction {
-    BlockedUsers.selectAll()
-        .limit(limit)
-        .map { row ->
-            listOf(
-                row[BlockedUsers.blockerId],
-                row[BlockedUsers.blockedId],
-            )
-        }
-}
 
 fun AdminExportRepository.polls(limit: Int): List<List<Any?>> = transaction {
     val polls = GroupPolls.selectAll()
@@ -88,26 +57,6 @@ fun AdminExportRepository.pollVotes(limit: Int): List<List<Any?>> = transaction 
                 row[GroupPollVotes.userId],
                 row[GroupPollVotes.optionIndex].toString(),
                 row[GroupPollVotes.votedAt].toString(),
-            )
-        }
-}
-
-/** 只导出元数据：token 只含前缀，绝不导出 tokenHash。 */
-fun AdminExportRepository.bots(limit: Int): List<List<Any?>> = transaction {
-    BotApps.selectAll()
-        .orderBy(BotApps.createdAt to SortOrder.DESC)
-        .limit(limit)
-        .map { row ->
-            listOf(
-                row[BotApps.id],
-                row[BotApps.name],
-                row[BotApps.username],
-                row[BotApps.ownerUserId],
-                row[BotApps.tokenPrefix],
-                row[BotApps.webhookUrl] ?: "",
-                row[BotApps.enabled].toString(),
-                row[BotApps.createdAt].toString(),
-                row[BotApps.updatedAt].toString(),
             )
         }
 }
