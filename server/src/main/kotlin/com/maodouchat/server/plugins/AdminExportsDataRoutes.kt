@@ -13,6 +13,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.maodouchat.server.repository.auditExportRows
 
 /** 管理后台运维域：AI 特性开关 / 运行时配置 / AI 用量审计导出（从 AdminExportsOpsRoutes 按域拆出）。 */
 internal fun Route.configureAdminExportsDataRoutes() {

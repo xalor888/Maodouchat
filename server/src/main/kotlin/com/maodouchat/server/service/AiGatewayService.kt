@@ -2,6 +2,7 @@ package com.maodouchat.server.service
 
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.repository.AiRepository
+import com.maodouchat.server.repository.sumTokensForUserToday
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
