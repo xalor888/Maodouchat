@@ -10,6 +10,7 @@ import com.maodouchat.server.service.PostCommandService
 import com.maodouchat.server.service.PostInteractionService
 import com.maodouchat.server.service.allReferencedImageFilenames
 import com.maodouchat.server.service.canView
+import com.maodouchat.server.service.commentLikeCount
 import com.maodouchat.server.service.createPost
 import com.maodouchat.server.service.deleteAllPostsForAuthor
 import com.maodouchat.server.service.deleteCommentForModeration
@@ -30,8 +31,14 @@ import com.maodouchat.server.service.getFeed
 import com.maodouchat.server.service.getPostAuthorId
 import com.maodouchat.server.service.getPostById
 import com.maodouchat.server.service.getPostsByAuthor
+import com.maodouchat.server.service.hasLiked
 import com.maodouchat.server.service.isAuthor
+import com.maodouchat.server.service.likeComment
+import com.maodouchat.server.service.likePost
 import com.maodouchat.server.service.listPostLikers
+import com.maodouchat.server.service.purgeOrphanedCommentLikes
+import com.maodouchat.server.service.unlikeComment
+import com.maodouchat.server.service.unlikePost
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
