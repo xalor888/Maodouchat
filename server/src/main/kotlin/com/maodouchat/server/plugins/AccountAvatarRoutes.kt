@@ -4,6 +4,8 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UploadAvatarRequest
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.replaceAvatar
+import com.maodouchat.server.service.deleteAvatarUrl
+import com.maodouchat.server.service.saveAvatar
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.application.log

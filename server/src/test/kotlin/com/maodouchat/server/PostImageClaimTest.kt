@@ -4,6 +4,7 @@ import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.service.FileStorageService
+import com.maodouchat.server.service.resolveFile
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction

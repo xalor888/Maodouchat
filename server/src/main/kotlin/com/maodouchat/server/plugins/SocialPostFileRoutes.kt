@@ -4,6 +4,9 @@ import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.FcmPushService
+import com.maodouchat.server.service.avatarUrl
+import com.maodouchat.server.service.groupAvatarFilename
+import com.maodouchat.server.service.resolveFile
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*

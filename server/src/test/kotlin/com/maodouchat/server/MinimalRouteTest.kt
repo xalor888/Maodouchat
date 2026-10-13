@@ -20,6 +20,7 @@ import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.AiGatewayResult
 import com.maodouchat.server.service.CallInviteRateLimiter
+import com.maodouchat.server.service.deleteGroupAvatarUrl
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.client.plugins.websocket.*
