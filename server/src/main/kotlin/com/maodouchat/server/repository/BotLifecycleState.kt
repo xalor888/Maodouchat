@@ -1,6 +1,7 @@
 package com.maodouchat.server.repository
 
-// bot 开发者侧生命周期：创建/令牌轮换/webhook/启停/删除（原 BotLifecycle 簇成员按域迁出，零行为改动）。
+// bot 启停与删除簇：启用/禁用与完整清理删除（原 BotLifecycleManagement 扩展按域拆出，零行为改动）。
+
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.BotCommandLogs
 import com.maodouchat.server.db.BotUpdateInbox
@@ -14,8 +15,6 @@ import com.maodouchat.server.db.ServiceMessageReactions
 import com.maodouchat.server.db.StarMessages
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.deleteMessagingV2ParticipantStateInTx
-import com.maodouchat.server.service.isUniqueViolation
-import com.maodouchat.server.service.maxBotsPerUser
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
@@ -27,125 +26,6 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
-
-
-fun BotRepository.create(ownerUserId: String, name: String, username: String, description: String?): BotRepository.BotCreateResult {
-    val n = name.trim().take(120)
-    val u = normalizeUsername(username) ?: return BotRepository.BotCreateResult.InvalidInput
-    if (n.isBlank()) return BotRepository.BotCreateResult.InvalidInput
-    val maxBots = try {
-        com.maodouchat.server.service.RuntimeConfigService.maxBotsPerUser()
-    } catch (_: Exception) { 20 }
-    val id = "bot_" + UUID.randomUUID().toString().replace("-", "").take(16)
-    val token = generateToken()
-    val now = System.currentTimeMillis()
-    return try {
-        transaction {
-            val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                ?: return@transaction BotRepository.BotCreateResult.OwnerInvalid
-            if (owner[Users.deletedAt] != null) return@transaction BotRepository.BotCreateResult.OwnerInvalid
-            if (owner[Users.suspendedUntil] > now) return@transaction BotRepository.BotCreateResult.OwnerInvalid
-            val owned = BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }.count()
-            if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction BotRepository.BotCreateResult.MaxBotsReached
-            if (BotApps.selectAll().where { BotApps.username eq u }.firstOrNull() != null) {
-                return@transaction BotRepository.BotCreateResult.UsernameTaken
-            }
-            // Bot identity is also a Users row so message.senderId FK remains valid.
-            Users.insert {
-                it[Users.id] = id
-                it[Users.email] = "$id@bots.maodouchat.local"
-                it[Users.passwordHash] = "!" // unusable password
-                it[Users.name] = n
-                it[Users.searchable] = false
-                it[Users.lastSeen] = now
-            }
-            BotApps.insert {
-                it[BotApps.id] = id
-                it[BotApps.ownerUserId] = ownerUserId
-                it[BotApps.name] = n
-                it[BotApps.username] = u
-                it[BotApps.description] = description?.trim()?.take(500)
-                it[BotApps.tokenHash] = hashToken(token)
-                it[BotApps.tokenPrefix] = token.take(8)
-                it[BotApps.webhookUrl] = null
-                it[BotApps.enabled] = true
-                it[BotApps.commandsJson] = encodeCommands(DEFAULT_COMMANDS)
-                it[BotApps.createdAt] = now
-                it[BotApps.updatedAt] = now
-            }
-            BotRepository.BotCreateResult.Success(
-                BotApps.selectAll().where { BotApps.id eq id }.first().toDto().copy(tokenOnce = token)
-            )
-        }
-    } catch (error: Exception) {
-        if (isUniqueViolation(error)) BotRepository.BotCreateResult.UsernameTaken else throw error
-    }
-}
-
-
-fun BotRepository.regenerateToken(botId: String, ownerUserId: String): BotRepository.BotDto? {
-    val token = generateToken()
-    val now = System.currentTimeMillis()
-    return transaction {
-        val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-            ?: return@transaction null
-        if (owner[Users.deletedAt] != null || owner[Users.suspendedUntil] > now) return@transaction null
-        val updated = BotApps.update({
-            (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
-        }) {
-            it[tokenHash] = hashToken(token)
-            it[tokenPrefix] = token.take(8)
-            it[updatedAt] = now
-        }
-        if (updated != 1) return@transaction null
-        BotApps.selectAll().where { BotApps.id eq botId }.first().toDto().copy(tokenOnce = token)
-    }
-}
-
-
-fun BotRepository.setWebhook(botId: String, ownerUserId: String, url: String?): BotRepository.BotDto? {
-    val clean = url?.trim()?.take(500)
-    if (!clean.isNullOrBlank() && !isAllowedWebhookUrl(clean)) {
-        return null
-    }
-    val now = System.currentTimeMillis()
-    return transaction {
-        val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-            ?: return@transaction null
-        if (owner[Users.deletedAt] != null || owner[Users.suspendedUntil] > now) return@transaction null
-        val updated = BotApps.update({
-            (BotApps.id eq botId) and (BotApps.ownerUserId eq ownerUserId)
-        }) {
-            it[webhookUrl] = clean
-            it[updatedAt] = now
-        }
-        if (updated != 1) return@transaction null
-        BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
-    }
-}
-
-
-fun BotRepository.setWebhookByToken(botId: String, url: String?): BotRepository.BotDto? {
-    val clean = url?.trim()?.take(500)
-    if (!clean.isNullOrBlank() && !isAllowedWebhookUrl(clean)) {
-        return null
-    }
-    val now = System.currentTimeMillis()
-    return transaction {
-        val bot = BotApps.selectAll()
-            .where { (BotApps.id eq botId) and (BotApps.enabled eq true) }
-            .forUpdate().firstOrNull()
-            ?: return@transaction null
-        if (!isOwnerDeliverable(bot[BotApps.ownerUserId], now)) return@transaction null
-        val updated = BotApps.update({ BotApps.id eq botId }) {
-            it[webhookUrl] = clean
-            it[updatedAt] = now
-        }
-        if (updated != 1) return@transaction null
-        BotApps.selectAll().where { BotApps.id eq botId }.first().toDto()
-    }
-}
-
 
 fun BotRepository.setEnabled(botId: String, ownerUserId: String, enabled: Boolean): BotRepository.BotDto? {
     val now = System.currentTimeMillis()
