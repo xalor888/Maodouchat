@@ -13,17 +13,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
-data class PreparedMessageV2(
-    val groupRevision: Long?,
-    val attachmentIds: List<String> = emptyList(),
-    val envelopes: List<EncryptedDeviceEnvelopeRequestV2>,
-)
-
-fun interface MessagingV2EnvelopePreparer {
-    /** Resolves the current membership/device snapshot and encrypts for every destination device. */
-    suspend fun prepare(token: String, message: MessagingV2OutboxEntity): PreparedMessageV2
-}
-
 /** Persistent send state machine. Screens enqueue local commands and never perform transport. */
 class MessagingV2OutboxCoordinator(
     private val dao: MessagingV2Dao,

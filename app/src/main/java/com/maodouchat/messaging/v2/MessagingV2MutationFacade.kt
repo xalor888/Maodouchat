@@ -6,18 +6,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
-internal fun interface MessagingV2EventOutbox {
-    suspend fun enqueue(
-        conversationId: String,
-        event: MessagingV2Event,
-        groupRevision: Long?,
-    )
-}
-
-internal data class MessagingV2MutationCommit(
-    val localProjectionError: Throwable? = null,
-)
-
 /**
  * Owns the durable message-mutation boundary. UI callers may stage optimistic state, but a
  * mutation is accepted only after its encrypted event is durable in the v2 outbox.
