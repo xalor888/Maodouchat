@@ -5,6 +5,11 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateUserTagRequest
 import com.maodouchat.server.model.UserTagDto
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.repository.createTag
+import com.maodouchat.server.repository.deleteTag
+import com.maodouchat.server.repository.listTags
+import com.maodouchat.server.repository.listUsersByTag
+import com.maodouchat.server.repository.updateTag
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call

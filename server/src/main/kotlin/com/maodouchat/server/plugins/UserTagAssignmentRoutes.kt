@@ -6,6 +6,10 @@ import com.maodouchat.server.model.RiskTagSummary
 import com.maodouchat.server.model.RiskTagSummaryResponse
 import com.maodouchat.server.model.UserTagAssignmentDto
 import com.maodouchat.server.repository.UserTagRepository
+import com.maodouchat.server.repository.assignTags
+import com.maodouchat.server.repository.detachTag
+import com.maodouchat.server.repository.listTags
+import com.maodouchat.server.repository.userAssignments
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.call

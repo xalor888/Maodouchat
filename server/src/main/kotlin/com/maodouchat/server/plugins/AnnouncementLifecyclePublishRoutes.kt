@@ -6,6 +6,7 @@ import com.maodouchat.server.repository.PushTokenRepository
 import com.maodouchat.server.repository.UserTagRepository
 import com.maodouchat.server.repository.cancel
 import com.maodouchat.server.repository.get
+import com.maodouchat.server.repository.listUsersByTag
 import com.maodouchat.server.repository.publish
 import com.maodouchat.server.service.FcmPushService
 import io.ktor.http.HttpStatusCode

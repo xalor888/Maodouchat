@@ -1,33 +1,11 @@
 package com.maodouchat.server.repository
 
-import com.maodouchat.server.db.RiskEvents
 import com.maodouchat.server.db.UserTagAssignments
 import com.maodouchat.server.db.UserTags
-import com.maodouchat.server.db.Users
 import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.batchInsert
-import org.jetbrains.exposed.sql.count
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.or
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
-import java.util.UUID
 
-/**
- * `RiskEvents.matched` 的列宽（`varchar(280)`）。来源与
- * `ModerationTables.RiskEvents` 上那句「与 `ModerationRuleRepository.MAX_MATCHED_LENGTH`(280) 对齐」同源；
- * 但后者在 private companion 里取不到，所以在写入侧独立声明一份并在超长时截断。
- */
-private const val MAX_RISK_EVENT_MATCHED_LENGTH = 280
+// RiskEvents.matched 列宽 280；ModerationRuleRepository 里那份是 private companion 取不到，写入侧独立声明。
+internal const val MAX_RISK_EVENT_MATCHED_LENGTH = 280
 
 /**
  * 用户标签仓储：运营给用户打的风险/分群标签，与风控联动。
@@ -54,216 +32,24 @@ class UserTagRepository {
         val assignedBy: String?,
         val createdAt: Long
     )
-
-    fun createTag(
-        name: String,
-        color: String,
-        description: String?,
-        riskLevel: String,
-        isSystem: Boolean,
-        createdBy: String?
-    ): TagRow = transaction {
-        val now = System.currentTimeMillis()
-        val id = UUID.randomUUID().toString()
-        UserTags.insert {
-            it[UserTags.id] = id
-            it[UserTags.name] = name.trim().take(60)
-            it[UserTags.color] = color.take(20).ifBlank { "#64748b" }
-            it[UserTags.description] = description?.take(300)
-            it[UserTags.isSystem] = isSystem
-            it[UserTags.riskLevel] = riskLevel.uppercase().take(20)
-            it[UserTags.createdBy] = createdBy
-            it[UserTags.createdAt] = now
-            it[UserTags.updatedAt] = now
-        }
-        getTag(id) ?: error("user tag insert failed")
-    }
-
-    fun getTag(id: String): TagRow? = transaction {
-        UserTags.selectAll().where { UserTags.id eq id }.firstOrNull()?.let { it.toTagRow(0) }
-    }
-
-    fun listTags(query: String? = null): List<TagRow> = transaction {
-        val base = if (query?.isNotBlank() == true) {
-            val escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-            UserTags.selectAll().where {
-                (UserTags.name like "%$escaped%") or (UserTags.description like "%$escaped%")
-            }
-        } else UserTags.selectAll()
-        val rows = base.orderBy(UserTags.createdAt to SortOrder.ASC).toList()
-        // 8.48 修复 M8：批量 count 赋值（此前逐标签查 count → N+1）
-        val tagIds = rows.map { it[UserTags.id] }
-        val countByTag = if (tagIds.isEmpty()) emptyMap() else
-            UserTagAssignments
-                .select(UserTagAssignments.tagId, UserTagAssignments.userId.count())
-                .where { UserTagAssignments.tagId inList tagIds }
-                .groupBy(UserTagAssignments.tagId)
-                .associate { it[UserTagAssignments.tagId] to it[UserTagAssignments.userId.count()] }
-        rows.map { row -> row.toTagRow(countByTag[row[UserTags.id]] ?: 0L) }
-    }
-
-    fun updateTag(
-        id: String,
-        name: String?,
-        color: String?,
-        description: String?,
-        riskLevel: String?
-    ): TagRow? = transaction {
-        val row = UserTags.selectAll().where { UserTags.id eq id }.firstOrNull() ?: return@transaction null
-        val now = System.currentTimeMillis()
-        UserTags.update({ UserTags.id eq id }) {
-            name?.let { n -> it[UserTags.name] = n.trim().take(60) }
-            color?.let { c -> it[UserTags.color] = c.take(20).ifBlank { "#64748b" } }
-            it[UserTags.description] = description?.take(300)
-            riskLevel?.let { r -> it[UserTags.riskLevel] = r.uppercase().take(20) }
-            it[UserTags.updatedAt] = now
-        }
-        getTag(id)
-    }
-
-    /** 删除标签（级联移除所有赋值）。系统内置标签不可删除。 */
-    fun deleteTag(id: String): Boolean = transaction {
-        val row = UserTags.selectAll().where { UserTags.id eq id }.firstOrNull() ?: return@transaction false
-        if (row[UserTags.isSystem]) return@transaction false
-        UserTagAssignments.deleteWhere { UserTagAssignments.tagId eq id }
-        UserTags.deleteWhere { UserTags.id eq id }
-        true
-    }
-
-    /** 标签下的用户列表（可按用户名/邮箱搜索，分页）。 */
-    fun listUsersByTag(tagId: String, query: String?, limit: Int, offset: Long): List<AssignmentRow> = transaction {
-        val matchingUserIds = if (query?.isNotBlank() == true) {
-            val escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-            Users.selectAll().where {
-                (Users.name like "%$escaped%") or (Users.email like "%$escaped%")
-            }.map { it[Users.id] }.toSet()
-        } else null
-        if (matchingUserIds != null && matchingUserIds.isEmpty()) return@transaction emptyList()
-        UserTagAssignments.selectAll().where {
-            UserTagAssignments.tagId eq tagId
-        }.let { q ->
-            if (matchingUserIds != null && matchingUserIds.isNotEmpty()) {
-                q.andWhere { UserTagAssignments.userId inList matchingUserIds }
-            } else q
-        }.orderBy(
-            UserTagAssignments.createdAt to SortOrder.DESC,
-            UserTagAssignments.tagId to SortOrder.DESC,
-            UserTagAssignments.userId to SortOrder.DESC
-        )
-            .limit(limit, offset)
-            .map { it.toAssignmentRow() }
-    }
-
-    fun assignTags(
-        userId: String,
-        tagIds: List<String>,
-        source: String,
-        assignedBy: String?
-    ): List<AssignmentRow>? = transaction {
-        val now = System.currentTimeMillis()
-        val distinctTagIds = tagIds.distinct()
-        val existingTagIds = UserTags.selectAll()
-            .where { UserTags.id inList distinctTagIds }
-            .map { it[UserTags.id] }
-            .toSet()
-        val ids = distinctTagIds.filter { it in existingTagIds }
-        // 串行化同一用户的并发打标（两个管理员/风控同时打标同一用户）：
-        // PG 上事务内 catch 唯一冲突后再 SELECT 必 500，锁住用户行后 exists 检查即准确，
-        // (tagId, userId) PK 竞态从源头消除（与项目内 chat 行锁串行化模式一致）。
-        // 9.140：用户不存在时返回 null 由路由映射 404——此前忽略 null 继续 INSERT，
-        // 悬空 FK 触发约束异常返回 500
-        Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
-            ?: return@transaction null
-        val existingAssignmentIds = UserTagAssignments.selectAll()
-            .where {
-                (UserTagAssignments.userId eq userId) and (UserTagAssignments.tagId inList ids)
-            }
-            .map { it[UserTagAssignments.tagId] }
-            .toSet()
-        val toInsert = ids.filter { it !in existingAssignmentIds }
-        if (toInsert.isNotEmpty()) {
-            UserTagAssignments.batchInsert(toInsert) { tagId ->
-                this[UserTagAssignments.tagId] = tagId
-                this[UserTagAssignments.userId] = userId
-                this[UserTagAssignments.assignmentSource] = source.uppercase().take(20).ifBlank { "MANUAL" }
-                this[UserTagAssignments.assignedBy] = assignedBy
-                this[UserTagAssignments.createdAt] = now
-            }
-            // 8.44：高危标签打标时联动写入风控事件，供风控看板实时展示并支持按 needsReview 过滤。
-            // 只写 RiskEvents 真实存在的列（id/userId/source/ruleId/action/matched/referenceId/
-            // needsReview/createdAt）——标签本身的级别与名称编码进 matched，标签 id 进 referenceId。
-            val riskTags = UserTags.selectAll()
-                .where { (UserTags.id inList toInsert) and (UserTags.riskLevel inList listOf("HIGH", "CRITICAL")) }
-                .toList()
-            for (t in riskTags) {
-                val riskLevel = t[UserTags.riskLevel]
-                val tagName = t[UserTags.name]
-                RiskEvents.insert {
-                    it[RiskEvents.id] = UUID.randomUUID().toString()
-                    it[RiskEvents.userId] = userId
-                    it[RiskEvents.sourceValue] = "USER_TAG_ASSIGNED"
-                    it[RiskEvents.ruleId] = null
-                    it[RiskEvents.action] = "TAGGED"
-                    it[RiskEvents.matched] = "$riskLevel/$tagName · 操作人=${assignedBy ?: "system"}"
-                        .take(MAX_RISK_EVENT_MATCHED_LENGTH)
-                    it[RiskEvents.referenceId] = t[UserTags.id]
-                    it[RiskEvents.needsReview] = true
-                    it[RiskEvents.createdAt] = now
-                }
-            }
-        }
-        userAssignments(userId)
-    }
-
-    fun detachTag(userId: String, tagId: String): Boolean = transaction {
-        UserTagAssignments.deleteWhere {
-            (UserTagAssignments.tagId eq tagId) and (UserTagAssignments.userId eq userId)
-        } > 0
-    }
-
-    fun userAssignments(userId: String): List<AssignmentRow> = transaction {
-        UserTagAssignments.selectAll().where { UserTagAssignments.userId eq userId }
-            .orderBy(
-                UserTagAssignments.createdAt to SortOrder.DESC,
-                UserTagAssignments.tagId to SortOrder.DESC,
-                UserTagAssignments.userId to SortOrder.DESC
-            )
-            .map { it.toAssignmentRow() }
-    }
-
-    fun userTagIds(userId: String): List<String> = transaction {
-        UserTagAssignments.selectAll().where { UserTagAssignments.userId eq userId }
-            .map { it[UserTagAssignments.tagId] }
-    }
-
-    /** 带风险级别标签的赋值：用于风控联动（风险打标自动处置）。 */
-    fun riskAssignments(userId: String): List<AssignmentRow> = transaction {
-        val rows = UserTagAssignments.selectAll().where { UserTagAssignments.userId eq userId }.toList()
-        // 8.48 修复 M9：批量回查标签（此前 filter 内逐条查 → N+1）
-        val tagIds = rows.map { it[UserTagAssignments.tagId] }.distinct()
-        val riskByTag = if (tagIds.isEmpty()) emptyMap() else
-            UserTags.selectAll().where { UserTags.id inList tagIds }
-                .associate { it[UserTags.id] to (it[UserTags.riskLevel] in setOf("HIGH", "CRITICAL")) }
-        rows.filter { riskByTag[it[UserTagAssignments.tagId]] == true }.map { it.toAssignmentRow() }
-    }
-
-    private fun ResultRow.toTagRow(userCount: Long): TagRow = TagRow(
-        id = this[UserTags.id],
-        name = this[UserTags.name],
-        color = this[UserTags.color],
-        description = this[UserTags.description],
-        isSystem = this[UserTags.isSystem],
-        riskLevel = this[UserTags.riskLevel],
-        createdAt = this[UserTags.createdAt],
-        updatedAt = this[UserTags.updatedAt],
-        userCount = userCount
-    )
-
-    private fun ResultRow.toAssignmentRow(): AssignmentRow = AssignmentRow(
-        userId = this[UserTagAssignments.userId],
-        tagId = this[UserTagAssignments.tagId],
-        source = this[UserTagAssignments.assignmentSource],
-        assignedBy = this[UserTagAssignments.assignedBy],
-        createdAt = this[UserTagAssignments.createdAt]
-    )
 }
+
+internal fun ResultRow.toTagRow(userCount: Long): UserTagRepository.TagRow = UserTagRepository.TagRow(
+    id = this[UserTags.id],
+    name = this[UserTags.name],
+    color = this[UserTags.color],
+    description = this[UserTags.description],
+    isSystem = this[UserTags.isSystem],
+    riskLevel = this[UserTags.riskLevel],
+    createdAt = this[UserTags.createdAt],
+    updatedAt = this[UserTags.updatedAt],
+    userCount = userCount
+)
+
+internal fun ResultRow.toAssignmentRow(): UserTagRepository.AssignmentRow = UserTagRepository.AssignmentRow(
+    userId = this[UserTagAssignments.userId],
+    tagId = this[UserTagAssignments.tagId],
+    source = this[UserTagAssignments.assignmentSource],
+    assignedBy = this[UserTagAssignments.assignedBy],
+    createdAt = this[UserTagAssignments.createdAt]
+)
