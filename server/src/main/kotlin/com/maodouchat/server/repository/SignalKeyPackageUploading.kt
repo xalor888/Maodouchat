@@ -1,12 +1,12 @@
 package com.maodouchat.server.repository
 
-// key package 上传与校验簇：原 SignalKeyBundles 顶层声明按域拆出的簇（同包调用，零行为改动）。
+// 密钥包上传簇：上传 key package 并入库（原 SignalKeyPackageUpload 扩展按域拆出，零行为改动）。
+
 import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.SignalKeys
 import com.maodouchat.server.repository.SignalKeyRepository.UploadKeyPackageResult
 import com.maodouchat.server.service.IdentitySecurityEventPolicy
 import com.maodouchat.server.service.IdentitySecurityEventRecorder
-import java.util.Base64
 import java.util.UUID
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
@@ -16,7 +16,6 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import org.signal.libsignal.protocol.ecc.Curve
 
 fun SignalKeyRepository.uploadKeyPackage(
     userId: String,
@@ -138,31 +137,3 @@ fun SignalKeyRepository.uploadKeyPackage(
         UploadKeyPackageResult.UPLOADED
     }
 }
-
-
-/** 9.298：密钥包上传验签——identity 验 signedPreKey，格式/签名任一异常都拒绝。 */
-private fun verifyKeyPackageSignature(
-    identityKeyBase64: String,
-    signedPreKeyBase64: String,
-    signatureBase64: String
-): Boolean = runCatching {
-    val identityPublic = Curve.decodePoint(Base64.getDecoder().decode(identityKeyBase64), 0)
-    val signedPreKeyPublic = Curve.decodePoint(Base64.getDecoder().decode(signedPreKeyBase64), 0)
-    val signature = Base64.getDecoder().decode(signatureBase64)
-    Curve.verifySignature(identityPublic, signedPreKeyPublic.serialize(), signature)
-}.getOrDefault(false)
-
-
-/** Validate the actual Curve point, not merely that the field looks like Base64. */
-private fun isValidPreKeyUpload(preKey: PreKeyUpload): Boolean =
-    preKey.keyId in 1..16_777_215 &&
-        runCatching {
-            val encoded = Base64.getDecoder().decode(preKey.publicKeyBase64)
-            Curve.decodePoint(encoded, 0)
-        }.isSuccess
-
-/** A request containing one id with two different public keys is nondeterministic. */
-private fun hasConflictingPreKeyIds(preKeys: List<PreKeyUpload>): Boolean =
-    preKeys.groupBy { it.keyId }.values.any { entries ->
-        entries.map { it.publicKeyBase64 }.distinct().size > 1
-    }
