@@ -3,7 +3,6 @@ package com.maodouchat.widget
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
 
@@ -19,22 +18,6 @@ import com.maodouchat.domain.messaging.PrivacyAction
  * - App 锁或 PIN 锁定时标题只显示应用名、正文只显示通用脱敏文案；
  * - App 锁定时角标强制 0。
  */
-data class WidgetRowLabels(
-    val appName: String,
-    val genericPreview: String,
-    val lockedPreview: String,
-    val attachmentLabel: String,
-)
-
-data class WidgetChatInput(
-    val chat: Chat,
-    val caps: ConversationPrivacyCapabilities,
-)
-
-data class WidgetRowsResult(
-    val rows: List<ConversationWidgetData.WidgetRow>,
-    val totalUnread: Int,
-)
 
 fun widgetChatTitle(chat: Chat, ownerUserId: String): String? {
     if (chat.isGroup) return chat.groupName?.takeIf { it.isNotBlank() }
