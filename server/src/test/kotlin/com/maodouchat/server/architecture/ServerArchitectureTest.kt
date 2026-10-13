@@ -411,7 +411,8 @@ class ServerArchitectureTest {
             "MailboxRetentionService.kt" to "2",
             "MessageAdmissionPolicy.kt" to "6",
             "MessageMetadataStore.kt" to "8",
-            "ServiceMessagePublisher.kt" to "5",
+            "ServiceMessageEventPublish.kt" to "5",
+            "ServiceMessagePublish.kt" to "5",
         )
 
         /** G217b 冻结值：messaging/ 里每文件的 Exposed import 数。 */
@@ -421,7 +422,8 @@ class ServerArchitectureTest {
             "MailboxRetentionService.kt" to "11",
             "MessageAdmissionPolicy.kt" to "7",
             "MessageMetadataStore.kt" to "7",
-            "ServiceMessagePublisher.kt" to "7",
+            "ServiceMessageEventPublish.kt" to "7",
+            "ServiceMessagePublish.kt" to "7",
         )
     }
 }
