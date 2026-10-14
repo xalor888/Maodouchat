@@ -14,17 +14,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
-enum class LocationFailure {
-    PERMISSION_REQUIRED,
-    SERVICES_DISABLED,
-    UNAVAILABLE
-}
-
-class LocationException(
-    val failure: LocationFailure,
-    cause: Throwable? = null
-) : Exception(cause)
-
 object LocationProvider {
     private const val FRESH_LOCATION_MS = 2L * 60L * 1000L
     private const val REQUEST_TIMEOUT_MS = 12_000L
