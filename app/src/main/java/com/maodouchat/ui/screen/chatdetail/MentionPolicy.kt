@@ -13,25 +13,6 @@ object MentionPolicy {
     const val EVERYONE_ID: String = "__everyone__"
     private const val AI_PREFIX = "@AI"
 
-    data class ActiveQuery(
-        /** `@` 在全文中的起始下标 */
-        val atIndex: Int,
-        /** `@` 之后、光标之前的过滤串（不含 @） */
-        val filter: String,
-    )
-
-    data class Candidate(
-        val userId: String,
-        val displayName: String,
-        val isEveryone: Boolean = false,
-    )
-
-    data class InsertResult(
-        val text: String,
-        /** 建议光标位置（插入段末尾） */
-        val cursor: Int,
-    )
-
     /**
      * 在 [cursor] 处是否处于「正在输入 @xxx」状态。
      * 规则：从 cursor 向前找最近未转义的 `@`，且中间无空白换行；`@` 前为文首或空白。

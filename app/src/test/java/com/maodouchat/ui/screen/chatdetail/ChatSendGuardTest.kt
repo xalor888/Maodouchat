@@ -70,8 +70,8 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Reject>(result)
-        assertEquals(ChatSendGuard.SendRejectReason.BLANK, result.reason)
+        assertIs<SendDecision.Reject>(result)
+        assertEquals(SendRejectReason.BLANK, result.reason)
     }
 
     @Test
@@ -85,7 +85,7 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(result)
+        assertIs<SendDecision.Allow>(result)
         assertEquals(ChatSendGuard.MAX_TEXT_LENGTH, result.text.length, "超长文本必须被截断到上限")
     }
 
@@ -99,7 +99,7 @@ class ChatSendGuardTest {
             forceText = "定时消息立即发",
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(result)
+        assertIs<SendDecision.Allow>(result)
         assertEquals("定时消息立即发", result.text)
         assertFalse(result.clearDraft, "forceText 发送不得清用户草稿")
     }
@@ -107,11 +107,11 @@ class ChatSendGuardTest {
     @Test
     fun `a missing session is rejected with a diagnosable reason`() {
         val noToken = ChatSendGuard.checkSend(state(), ownerUserId = "me", token = "", silent = null, forceText = "hi", mentionsEnabled = true)
-        assertIs<ChatSendGuard.SendDecision.Reject>(noToken)
-        assertEquals(ChatSendGuard.SendRejectReason.NO_SESSION, noToken.reason)
+        assertIs<SendDecision.Reject>(noToken)
+        assertEquals(SendRejectReason.NO_SESSION, noToken.reason)
 
         val noOwner = ChatSendGuard.checkSend(state(), ownerUserId = "", token = "tok", silent = null, forceText = "hi", mentionsEnabled = true)
-        assertEquals(ChatSendGuard.SendRejectReason.NO_SESSION, (noOwner as ChatSendGuard.SendDecision.Reject).reason)
+        assertEquals(SendRejectReason.NO_SESSION, (noOwner as SendDecision.Reject).reason)
     }
 
     @Test
@@ -124,8 +124,8 @@ class ChatSendGuardTest {
             forceText = "hi",
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Reject>(result)
-        assertEquals(ChatSendGuard.SendRejectReason.BLOCKED, result.reason)
+        assertIs<SendDecision.Reject>(result)
+        assertEquals(SendRejectReason.BLOCKED, result.reason)
     }
 
     @Test
@@ -138,8 +138,8 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Reject>(result)
-        assertEquals(ChatSendGuard.SendRejectReason.ALREADY_SENDING, result.reason)
+        assertIs<SendDecision.Reject>(result)
+        assertEquals(SendRejectReason.ALREADY_SENDING, result.reason)
     }
 
     // ─── 群 @所有人 ───
@@ -155,7 +155,7 @@ class ChatSendGuardTest {
                 forceText = null,
                 mentionsEnabled = true,
             )
-            assertIs<ChatSendGuard.SendDecision.Allow>(result, "$role 应当可以 @所有人")
+            assertIs<SendDecision.Allow>(result, "$role 应当可以 @所有人")
         }
     }
 
@@ -169,8 +169,8 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Reject>(result)
-        assertEquals(ChatSendGuard.SendRejectReason.MENTION_EVERYONE_FORBIDDEN, result.reason)
+        assertIs<SendDecision.Reject>(result)
+        assertEquals(SendRejectReason.MENTION_EVERYONE_FORBIDDEN, result.reason)
     }
 
     @Test
@@ -183,7 +183,7 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(result, "角色未加载时必须 fail-open，否则刚进群的管理员被误拦")
+        assertIs<SendDecision.Allow>(result, "角色未加载时必须 fail-open，否则刚进群的管理员被误拦")
     }
 
     @Test
@@ -196,7 +196,7 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = false,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(result, "功能关着时不该有 @ 权限判定")
+        assertIs<SendDecision.Allow>(result, "功能关着时不该有 @ 权限判定")
         assertTrue(result.meta.mentions.isEmpty(), "功能关着时不得提取任何 mention")
     }
 
@@ -210,7 +210,7 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(result)
+        assertIs<SendDecision.Allow>(result)
         assertTrue(result.meta.mentions.isEmpty(), "直聊没有 @所有人 语义")
     }
 
@@ -228,7 +228,7 @@ class ChatSendGuardTest {
             mentionsEnabled = true,
             replyTarget = reply,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(result)
+        assertIs<SendDecision.Allow>(result)
         assertEquals("m0", result.meta.replyToId)
         assertTrue(result.meta.markdown, "看起来是 markdown 必须标记")
         assertTrue(result.meta.silent, "silentSend 必须带进 meta")
@@ -244,7 +244,7 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(result)
+        assertIs<SendDecision.Allow>(result)
         assertTrue(result.consumeSilent, "用了 silentSend 就必须一次性消费掉")
     }
 
@@ -258,7 +258,7 @@ class ChatSendGuardTest {
             forceText = null,
             mentionsEnabled = true,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(explicitOff)
+        assertIs<SendDecision.Allow>(explicitOff)
         assertFalse(explicitOff.meta.silent, "显式 false 必须覆盖粘性开关")
         assertFalse(explicitOff.consumeSilent, "没有消费粘性开关")
     }
@@ -275,7 +275,7 @@ class ChatSendGuardTest {
             mentionsEnabled = true,
             forcedMeta = forced,
         )
-        assertIs<ChatSendGuard.SendDecision.Allow>(result)
+        assertIs<SendDecision.Allow>(result)
         assertEquals(forced, result.meta, "forcedMeta 必须原样采用")
     }
 
@@ -285,26 +285,26 @@ class ChatSendGuardTest {
     fun `retry only accepts my own failed message`() {
         val mine = msg("m1", senderId = "me", status = MessageStatus.FAILED)
         val ok = ChatSendGuard.checkRetry(state(messages = listOf(mine)), messageId = "m1", ownerUserId = "me", token = "tok")
-        assertIs<ChatSendGuard.RetryDecision.Allow>(ok)
+        assertIs<RetryDecision.Allow>(ok)
         assertEquals(mine, ok.message)
 
         // 别人的失败消息
         val theirs = msg("m2", senderId = "u2", status = MessageStatus.FAILED)
         val notMine = ChatSendGuard.checkRetry(state(messages = listOf(theirs)), messageId = "m2", ownerUserId = "me", token = "tok")
-        assertIs<ChatSendGuard.RetryDecision.Reject>(notMine)
-        assertEquals(ChatSendGuard.RetryRejectReason.NOT_MY_MESSAGE, notMine.reason)
+        assertIs<RetryDecision.Reject>(notMine)
+        assertEquals(RetryRejectReason.NOT_MY_MESSAGE, notMine.reason)
 
         // 已发送的消息不得重试
         val sent = msg("m3", senderId = "me", status = MessageStatus.SENT)
         val notFailed = ChatSendGuard.checkRetry(state(messages = listOf(sent)), messageId = "m3", ownerUserId = "me", token = "tok")
         assertEquals(
-            ChatSendGuard.RetryRejectReason.NOT_FAILED,
-            (notFailed as ChatSendGuard.RetryDecision.Reject).reason,
+            RetryRejectReason.NOT_FAILED,
+            (notFailed as RetryDecision.Reject).reason,
         )
 
         // 不存在的消息
         val missing = ChatSendGuard.checkRetry(state(), messageId = "nope", ownerUserId = "me", token = "tok")
-        assertEquals(ChatSendGuard.RetryRejectReason.NOT_FOUND, (missing as ChatSendGuard.RetryDecision.Reject).reason)
+        assertEquals(RetryRejectReason.NOT_FOUND, (missing as RetryDecision.Reject).reason)
     }
 
     @Test
@@ -312,7 +312,7 @@ class ChatSendGuardTest {
         val image = msg("m4", type = MessageType.IMAGE, status = MessageStatus.FAILED)
         val result = ChatSendGuard.checkRetry(state(messages = listOf(image)), messageId = "m4", ownerUserId = "me", token = "tok")
 
-        assertIs<ChatSendGuard.RetryDecision.NeedsAttachmentRetry>(result)
+        assertIs<RetryDecision.NeedsAttachmentRetry>(result)
         assertEquals(image, result.message)
     }
 
@@ -320,16 +320,16 @@ class ChatSendGuardTest {
     fun `retry rejects a missing session`() {
         val mine = msg("m5")
         val result = ChatSendGuard.checkRetry(state(messages = listOf(mine)), messageId = "m5", ownerUserId = "me", token = "")
-        assertIs<ChatSendGuard.RetryDecision.Reject>(result)
-        assertEquals(ChatSendGuard.RetryRejectReason.NO_SESSION, result.reason)
+        assertIs<RetryDecision.Reject>(result)
+        assertEquals(RetryRejectReason.NO_SESSION, result.reason)
     }
 
     @Test
     fun `retry rejects an unsupported message type instead of crashing`() {
         val weird = msg("m6", type = MessageType.SK_DIST, status = MessageStatus.FAILED)
         val result = ChatSendGuard.checkRetry(state(messages = listOf(weird)), messageId = "m6", ownerUserId = "me", token = "tok")
-        assertIs<ChatSendGuard.RetryDecision.Reject>(result)
-        assertEquals(ChatSendGuard.RetryRejectReason.UNSUPPORTED_TYPE, result.reason)
+        assertIs<RetryDecision.Reject>(result)
+        assertEquals(RetryRejectReason.UNSUPPORTED_TYPE, result.reason)
     }
 
     @Test
@@ -338,7 +338,7 @@ class ChatSendGuardTest {
             .forEach { type ->
                 val m = msg("m-${type.name}", type = type)
                 val result = ChatSendGuard.checkRetry(state(messages = listOf(m)), messageId = m.id, ownerUserId = "me", token = "tok")
-                assertIs<ChatSendGuard.RetryDecision.Allow>(result, "$type 应当走文本重试路径")
+                assertIs<RetryDecision.Allow>(result, "$type 应当走文本重试路径")
             }
     }
 
@@ -351,7 +351,7 @@ class ChatSendGuardTest {
             silent = null,
             forceText = null,
             mentionsEnabled = true,
-        ) as ChatSendGuard.SendDecision.Allow
+        ) as SendDecision.Allow
 
         // 乐观气泡的构造已归 ChatSendIntentFactory（G68），守卫只负责给出「要发什么」。
         // 这里断言 Allow 决策自含全部必要字段，工厂不需要再猜。

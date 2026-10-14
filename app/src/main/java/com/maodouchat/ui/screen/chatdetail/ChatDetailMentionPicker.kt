@@ -50,7 +50,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
  */
 @Composable
 internal fun MentionCandidatePicker(
-    candidates: List<MentionPolicy.Candidate>,
+    candidates: List<Candidate>,
     everyoneLabel: String,
     modifier: Modifier = Modifier,
     showCountHint: Boolean = true,

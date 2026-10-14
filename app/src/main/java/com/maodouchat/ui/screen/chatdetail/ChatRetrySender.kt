@@ -36,7 +36,7 @@ internal class ChatRetrySender(
         // G66：重试准入同样走纯函数（归属、状态、类型三条一起判）
         val retryOwnerUserId = ownerUserId()
         val decision = ChatSendGuard.checkRetry(currentState(), messageId, retryOwnerUserId, token())
-        if (decision is ChatSendGuard.RetryDecision.NeedsAttachmentRetry) {
+        if (decision is RetryDecision.NeedsAttachmentRetry) {
             return sendAttachmentRetry(
                 decision.message.parsedContent().toUri(),
                 decision.message.type,
@@ -44,8 +44,8 @@ internal class ChatRetrySender(
                 decision.message,
             )
         }
-        if (decision is ChatSendGuard.RetryDecision.Reject) {
-            if (decision.reason == ChatSendGuard.RetryRejectReason.NO_SESSION) {
+        if (decision is RetryDecision.Reject) {
+            if (decision.reason == RetryRejectReason.NO_SESSION) {
                 updateState { it.copy(groupEncryptionWarning = string(R.string.error_session_expired)) }
             }
             return

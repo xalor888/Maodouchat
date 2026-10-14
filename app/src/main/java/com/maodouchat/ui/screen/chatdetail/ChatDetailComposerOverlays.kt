@@ -62,8 +62,8 @@ internal fun ChatDetailComposerOverlays(
     showDraftTranslationLanguages: Boolean,
     // 面板状态
     expressionMode: String,
-    mentionQuery: MentionPolicy.ActiveQuery?,
-    mentionCandidates: List<MentionPolicy.Candidate>,
+    mentionQuery: ActiveQuery?,
+    mentionCandidates: List<Candidate>,
     everyoneLabel: String,
     // 回调
     onExpressionModeChange: (String) -> Unit,
