@@ -62,9 +62,6 @@ import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.rememberMotionPulse
 import kotlin.math.roundToInt
 
-/** Reply preview model for quote bars (chat detail + text bubbles). */
-data class ReplyPreview(val senderName: String, val preview: String)
-
 // 语音波形高度常量
 internal val WaveHeights = listOf(0.3f, 0.7f, 1f, 0.5f, 0.9f, 0.4f, 0.6f, 0.2f)
 
