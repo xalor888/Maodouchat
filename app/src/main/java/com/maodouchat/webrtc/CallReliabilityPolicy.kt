@@ -2,8 +2,6 @@ package com.maodouchat.webrtc
 
 import java.util.concurrent.atomic.AtomicLong
 
-enum class CallMediaPermission { MICROPHONE, CAMERA }
-
 object CallReliabilityPolicy {
     /** ICE DISCONNECTED grace before treating the call as failed (ms). */
     const val ICE_RECONNECT_GRACE_MS = 10_000L
@@ -51,14 +49,6 @@ object CallReliabilityPolicy {
         "FAILED" -> if (restartAttempts < ICE_MAX_RESTART_ATTEMPTS) IceReconnectAction.RESTART_ICE else IceReconnectAction.END_NOW
         else -> IceReconnectAction.IGNORE
     }
-}
-
-enum class IceReconnectAction {
-    START_GRACE,
-    CANCEL_GRACE,
-    RESTART_ICE,
-    END_NOW,
-    IGNORE
 }
 
 /**
