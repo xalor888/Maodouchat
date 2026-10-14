@@ -4,12 +4,6 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.maodouchat.explore.policy.ExploreDraftPolicy
 
-data class ExploreDraft(
-    val composerText: String = "",
-    val selectedVisibility: String = "PRIVATE",
-    val imageUris: List<String> = emptyList()
-)
-
 interface DraftRepository {
     fun getDraft(ownerUserId: String, defaultVisibility: String? = null): ExploreDraft
     fun saveComposerText(ownerUserId: String, text: String)
