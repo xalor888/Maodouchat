@@ -1,6 +1,7 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.network.TokenManager
+import com.maodouchat.notification.AnnouncementData
 import com.maodouchat.notification.AnnouncementPolicy
 import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.ui.screen.chatlist.ChatListAnnouncementCoordinator
@@ -68,7 +69,7 @@ class ChatListAnnouncementCoordinatorTest {
 
     @Test
     fun ackAnnouncementDedupesWhileInFlight() = runTest(dispatcher) {
-        val item = AnnouncementPolicy.AnnouncementData(
+        val item = AnnouncementData(
             id = "a1",
             title = "T",
             content = "C",

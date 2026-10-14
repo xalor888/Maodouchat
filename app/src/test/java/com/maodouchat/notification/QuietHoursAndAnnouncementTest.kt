@@ -57,7 +57,7 @@ class QuietHoursAndAnnouncementTest {
         expiresAt: Long = Long.MAX_VALUE,
         status: String = "ACTIVE",
         acked: Boolean = false
-    ) = AnnouncementPolicy.AnnouncementData(
+    ) = AnnouncementData(
         id = id, title = "t$id", content = "c$id",
         level = level, startsAt = startsAt, expiresAt = expiresAt, status = status, acked = acked
     )

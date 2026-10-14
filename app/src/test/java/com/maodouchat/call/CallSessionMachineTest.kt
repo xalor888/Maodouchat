@@ -11,12 +11,12 @@ class CallSessionMachineTest {
         val machine = CallSessionMachine()
         val started = machine.beginOutgoing("peer-1")
 
-        assertEquals(CallSessionMachine.Phase.OUTGOING_RINGING, started.phase)
+        assertEquals(Phase.OUTGOING_RINGING, started.phase)
         assertTrue(machine.isCurrent(started.epoch))
-        assertEquals(CallSessionMachine.Phase.CONNECTING, machine.markConnecting(started.epoch).phase)
-        assertEquals(CallSessionMachine.Phase.CONNECTED, machine.markConnected(started.epoch).phase)
-        assertEquals(CallSessionMachine.Phase.ENDING, machine.beginEnding(started.epoch).phase)
-        assertEquals(CallSessionMachine.Phase.ENDED, machine.finish(started.epoch).phase)
+        assertEquals(Phase.CONNECTING, machine.markConnecting(started.epoch).phase)
+        assertEquals(Phase.CONNECTED, machine.markConnected(started.epoch).phase)
+        assertEquals(Phase.ENDING, machine.beginEnding(started.epoch).phase)
+        assertEquals(Phase.ENDED, machine.finish(started.epoch).phase)
         assertFalse(machine.isCurrent(started.epoch))
     }
 
@@ -31,6 +31,6 @@ class CallSessionMachineTest {
         machine.markConnected(first.epoch)
 
         assertEquals(second.epoch, machine.snapshot().epoch)
-        assertEquals(CallSessionMachine.Phase.OUTGOING_RINGING, machine.snapshot().phase)
+        assertEquals(Phase.OUTGOING_RINGING, machine.snapshot().phase)
     }
 }

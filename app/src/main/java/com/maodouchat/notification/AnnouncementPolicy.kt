@@ -54,18 +54,7 @@ object AnnouncementPolicy {
             a.level == "EMERGENCY" || a.level == "MAINTENANCE"
         }
 
-    /** 公告数据模型（与服务端 AnnouncementDto 对齐的字段子集，客户端只消费这些）。 */
-    data class AnnouncementData(
-        val id: String,
-        val title: String,
-        val content: String,
-        val level: String,
-        val startsAt: Long,
-        val expiresAt: Long,
-        val status: String,
-        val acked: Boolean = false
-    )
-
+    /** 公告数据模型见 [AnnouncementData]（与服务端 AnnouncementDto 对齐的字段子集，客户端只消费这些）。 */
     /**
      * 解析 `/api/announcements/active` JSON 载荷并做展示过滤。
      * 解析失败返回空列表（调用方保持既有公告不变）。

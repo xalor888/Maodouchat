@@ -32,7 +32,7 @@ data class ChatListUiState(
     /** 正在删除中的会话 id，防止双击删除并发重复清理本地数据 */
     val deletingChatIds: Set<String> = emptySet(),
     /** 服务端活跃公告（未读 + 生效窗口内，已按优先级排序） */
-    val activeAnnouncements: List<com.maodouchat.notification.AnnouncementPolicy.AnnouncementData> = emptyList(),
+    val activeAnnouncements: List<com.maodouchat.notification.AnnouncementData> = emptyList(),
     /** 8.47：智能归档建议（纯本地启发式；采纳走现有归档流程） */
     val archiveSuggestions: List<com.maodouchat.ai.AiArchiveSuggestion.Suggestion> = emptyList(),
     /** 1.103：对端正在输入（chatId -> userId，3s 过期） */
