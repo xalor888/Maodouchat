@@ -10,15 +10,6 @@ import org.signal.libsignal.protocol.state.PreKeyBundle
 import kotlin.concurrent.withLock
 
 /**
- * 发现候选设备与独立单设备会话建立结果。
- */
-internal data class SessionCoverage(
-    val candidateDeviceIds: List<Int>,
-    val establishedDeviceIds: List<Int>,
-    val failuresByDevice: Map<Int, Throwable>,
-)
-
-/**
  * Signal 直接会话管理器（M03 解耦）。
  * 遵循 [DirectSessionManager] 端口。
  * 负责 1:1 双向棘轮会话建立、多设备并发锁、过期会话清理与设备路由解析。
