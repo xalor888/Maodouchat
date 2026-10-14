@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,13 +44,6 @@ import com.maodouchat.ui.theme.liquidglass.snapNavigationIndex as glassSnapNavig
 
 /** 一级页列表滚过悬浮底栏所需的底部留白（64 胶囊 + 外边距 + 导航条余量）。 */
 val FloatingBottomBarContentPadding = 128.dp
-
-data class LiquidBottomTabItem(
-    val icon: ImageVector,
-    val selectedIcon: ImageVector = icon,
-    val label: String,
-    val badgeCount: Int = 0
-)
 
 internal fun snapNavigationIndex(value: Float, tabsCount: Int): Int =
     glassSnapNavigationIndex(value, tabsCount)
