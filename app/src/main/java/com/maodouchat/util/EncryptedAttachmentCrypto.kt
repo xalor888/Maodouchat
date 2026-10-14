@@ -18,20 +18,6 @@ import javax.crypto.CipherOutputStream
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-enum class AttachmentCryptoFailure {
-    TOO_LARGE,
-    READ_FAILED,
-    SIZE_MISMATCH,
-    INTEGRITY_FAILED,
-    INVALID_REFERENCE,
-    UNSUPPORTED_MEDIA_CONTENT
-}
-
-class AttachmentCryptoException(
-    val failure: AttachmentCryptoFailure,
-    cause: Throwable? = null
-) : Exception(failure.name, cause)
-
 object EncryptedAttachmentCrypto {
     // SecureRandom 线程安全，每次加密附件都 new 会反复播种，对象级复用。
     private val secureRandom = SecureRandom()
