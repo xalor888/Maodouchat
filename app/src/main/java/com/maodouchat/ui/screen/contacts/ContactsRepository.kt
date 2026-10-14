@@ -10,13 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 
-data class ContactsSession(val ownerUserId: String)
-
-data class ContactsLoadResult(
-    val users: List<User>,
-    val failure: Throwable? = null,
-    val sessionMissing: Boolean = false,
-)
 
 interface ContactsRepository {
     fun currentSession(): ContactsSession?

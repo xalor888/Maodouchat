@@ -17,15 +17,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.data.repository.UserNetworkRepository
 
-data class MyQrCodeUiState(
-    val userName: String = "",
-    val userId: String = "",
-    val userAvatar: String? = null,
-    val qrBitmap: android.graphics.Bitmap? = null,
-    val isLoading: Boolean = true,
-    val errorMessage: String? = null
-)
-
 class MyQrCodeViewModel(application: Application) : AndroidViewModel(application) {
     // G72：经 AppDatabase.getInstance(context) 这个中立入口取库，不再 import/转型 MaodouchatApp。
     // 装配点只剩 data 层的单例访问，ui 层从此不认识应用类（ClientArchitectureTest 的名单因此能收紧）。
