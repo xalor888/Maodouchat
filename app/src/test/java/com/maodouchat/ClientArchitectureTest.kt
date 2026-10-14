@@ -369,7 +369,7 @@ class ClientArchitectureTest {
 
         // G343/G344/G346/G350/G351/G352：顶栏+横幅栈+搜索/多选+时间线区+上下半区弹窗簇抽出（2525 → 2277 → 2185 → 2114 → 1987 → 1691 → 1386，纯搬移），上限同步收紧（两份 map 一起改）。
         // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1026,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1017,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -422,7 +422,7 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 333,
         // 死 import 删除：文件 671 → 670 行，上限同步收紧（两份 map 一起改）。
         // 2026-10-08：展示行组件簇搬出同包 AccountSecurityDisplayRows.kt
         // （670 → 455 纯搬移；修 CI 时补 import 并清掉 53 个闲置 import → 402；
@@ -599,7 +599,7 @@ class ClientArchitectureTest {
         // 「两份相等」这条弱断言（见下方 G165 的说明——真正的外部基线是与 git HEAD 比）。
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1026,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1017,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。
@@ -626,7 +626,7 @@ class ClientArchitectureTest {
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 336,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 333,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 206,
             "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
             "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 671,

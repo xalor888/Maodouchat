@@ -32,8 +32,6 @@ import android.net.Uri
  * 作为 ChatDetailViewModel 的扩展函数，访问 internal 成员。
  */
 
-internal data class AiRequestSnapshot(val userId: String, val chatId: String)
-
 internal fun ChatDetailViewModel.captureAiRequestSnapshot(): AiRequestSnapshot? {
     val userId = com.maodouchat.session.CurrentSession.ownerUserId()
     val chatId = activeChatId
@@ -333,4 +331,3 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
             )
         }
     }
-
