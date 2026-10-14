@@ -124,16 +124,6 @@ internal class ComposerState private constructor(
     }
 }
 
-internal data class ComposerStateSnapshot(
-    val attachMenuVisible: Boolean,
-    val expressionPanelVisible: Boolean,
-    val expressionMode: String,
-    val aiMenuVisible: Boolean,
-    val translationLanguagesVisible: Boolean,
-    val quickPhrasesVisible: Boolean,
-    val contactCardPickerVisible: Boolean,
-)
-
 @Composable
 internal fun rememberComposerState(): ComposerState = rememberSaveable(saver = ComposerState.Saver) {
     ComposerState()
