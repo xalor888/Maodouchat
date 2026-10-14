@@ -34,13 +34,13 @@ class PinSecurityPolicyTest {
         assertTrue(stored.formattedString.startsWith("pbkdf2$" + testIter + "$"))
 
         val match = PinSecurityPolicy.verifyPin("5678", stored.formattedString, minDesiredIterations = testIter)
-        assertTrue(match is PinSecurityPolicy.VerificationOutcome.Success)
-        val success = match as PinSecurityPolicy.VerificationOutcome.Success
+        assertTrue(match is VerificationOutcome.Success)
+        val success = match as VerificationOutcome.Success
         assertFalse(success.needsUpgrade)
         assertNull(success.upgradedHash)
 
         val mismatch = PinSecurityPolicy.verifyPin("9999", stored.formattedString, minDesiredIterations = testIter)
-        assertEquals(PinSecurityPolicy.VerificationOutcome.Mismatch, mismatch)
+        assertEquals(VerificationOutcome.Mismatch, mismatch)
     }
 
     @Test
@@ -59,8 +59,8 @@ class PinSecurityPolicyTest {
 
         // Verify with legacy SHA-256 hash (no pbkdf2 prefix)
         val outcome = PinSecurityPolicy.verifyPin(pin, legacyHash, salt, minDesiredIterations = 1000)
-        assertTrue(outcome is PinSecurityPolicy.VerificationOutcome.Success)
-        val success = outcome as PinSecurityPolicy.VerificationOutcome.Success
+        assertTrue(outcome is VerificationOutcome.Success)
+        val success = outcome as VerificationOutcome.Success
         assertTrue("Legacy SHA-256 must require upgrade", success.needsUpgrade)
         assertNotNull(success.upgradedHash)
         assertTrue(success.upgradedHash!!.isPbkdf2)

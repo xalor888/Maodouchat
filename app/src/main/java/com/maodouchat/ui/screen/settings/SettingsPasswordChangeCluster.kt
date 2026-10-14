@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.settings
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
+import com.maodouchat.security.Reason
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -73,7 +74,7 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                         com.maodouchat.security.SecureSessionAccess.manager
                             .purgeLocalSession(
                                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
-                                    com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
+                                    Reason.LOGOUT
                                 ),
                                 expectedOwnerUserId = ownerUserId
                             )

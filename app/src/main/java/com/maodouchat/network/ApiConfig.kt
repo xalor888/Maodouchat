@@ -2,6 +2,7 @@ package com.maodouchat.network
 
 import android.content.Context
 import com.maodouchat.BuildConfig
+import com.maodouchat.security.Reason
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
@@ -136,7 +137,7 @@ object ApiConfig {
         return try {
             app.secureSessionManager.purgeLocalSession(
                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
-                    com.maodouchat.security.LogoutStorePolicy.Reason.TRUST_DOMAIN_CHANGE
+                    Reason.TRUST_DOMAIN_CHANGE
                 )
             )
         } catch (error: kotlinx.coroutines.CancellationException) {

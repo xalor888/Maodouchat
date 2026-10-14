@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.maodouchat.security.pin.PinSecurityPolicy.RateLimiter
 import com.maodouchat.security.pin.PinSecurityPolicy.AuthenticatedSessionCache
-import com.maodouchat.security.pin.PinSecurityPolicy.VerificationOutcome
+import com.maodouchat.security.pin.VerificationOutcome
 
 interface PinLockRepository {
     suspend fun hasPin(targetId: String): Boolean

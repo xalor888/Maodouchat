@@ -10,6 +10,7 @@ import com.maodouchat.login.LoginAccess
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.toUserFacingMessage
 import com.maodouchat.push.PushRegistrationManager
+import com.maodouchat.security.Reason
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -302,7 +303,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         logoutJob = viewModelScope.launch {
             LoginAccess.secureSessionManager.purgeLocalSession(
                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
-                    com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
+                    Reason.LOGOUT
                 )
             )
             _uiState.update { LoginUiState() }

@@ -8,14 +8,6 @@ package com.maodouchat.security
  */
 object LogoutStorePolicy {
 
-    enum class Reason {
-        LOGOUT,
-        TOKEN_EXPIRED,
-        ACCOUNT_SWITCH,
-        DELETE_ACCOUNT,
-        TRUST_DOMAIN_CHANGE
-    }
-
     fun destroyEncryptedDatabase(reason: Reason): Boolean = when (reason) {
         Reason.LOGOUT, Reason.TOKEN_EXPIRED -> false
         Reason.ACCOUNT_SWITCH, Reason.DELETE_ACCOUNT, Reason.TRUST_DOMAIN_CHANGE -> true

@@ -4,6 +4,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenExpiredEventPolicy
 import com.maodouchat.security.LogoutStorePolicy
+import com.maodouchat.security.Reason
 
 object TokenExpirySessionPurge {
 
@@ -20,7 +21,7 @@ object TokenExpirySessionPurge {
         return try {
             MaodouchatApp.instance.secureSessionManager.purgeLocalSession(
                 destroyEncryptedDatabase = LogoutStorePolicy.destroyEncryptedDatabase(
-                    LogoutStorePolicy.Reason.TOKEN_EXPIRED
+                    Reason.TOKEN_EXPIRED
                 ),
                 expectedOwnerUserId = event.ownerUserId,
             )
