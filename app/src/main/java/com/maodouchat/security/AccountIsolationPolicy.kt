@@ -4,12 +4,6 @@ package com.maodouchat.security
  * W2-02: pure rules for logout / account-switch data boundaries.
  * Keeps SecureSessionManager free of branching that is hard to unit-test without Android.
  */
-enum class AccountSwitchAction {
-    /** Same account (or first login with no prior owner) — keep local encrypted store. */
-    KEEP_LOCAL_DATA,
-    /** Different owner detected — must destroy encrypted DB + cancel workers. */
-    PURGE_LOCAL_DATA
-}
 
 object AccountIsolationPolicy {
     /**
