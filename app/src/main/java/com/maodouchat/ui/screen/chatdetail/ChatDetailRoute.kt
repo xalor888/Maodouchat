@@ -61,14 +61,6 @@ import com.maodouchat.ui.component.ParticleState
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 
-/** 8.43：图片发送前预览的待确认项（URI + 单次查看/剧透标记，选取时刻捕获）。 */
-internal enum class ParticleAction { DELETE, REVOKE }
-
-internal data class TranslationLanguageOption(
-    val wireValue: String,
-    val labelResource: Int
-)
-
 internal val translationLanguageOptions = listOf(
     TranslationLanguageOption("中文", R.string.chat_language_chinese),
     TranslationLanguageOption("English", R.string.chat_language_english),
@@ -1023,4 +1015,3 @@ internal fun ChatDetailRoute(
     } // secret watermark Box
     } // CompositionLocalProvider (chat font scale)
 }
-
