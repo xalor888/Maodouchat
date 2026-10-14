@@ -50,13 +50,6 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 签到排行项。 */
-data class CheckinRankItem(
-    val userId: String,
-    val streak: Int,
-    val totalCount: Int
-)
-
 class GroupCheckinViewModel(application: Application, savedStateHandle: SavedStateHandle) :
     AndroidViewModel(application) {
 
