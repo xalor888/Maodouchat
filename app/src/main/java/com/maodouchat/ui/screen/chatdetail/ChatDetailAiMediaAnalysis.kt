@@ -165,8 +165,6 @@ internal fun ChatDetailViewModel.analyzeFileMessage(
     }
 }
 
-internal data class PreparedAiFile(val base64: String, val fileName: String, val mimeType: String)
-
 internal fun ChatDetailViewModel.resolveAiFileInput(message: Message, base64: String): PreparedAiFile? {
     val metadata = message.parsedMeta()
     val storedName = metadata.fileName?.trim()?.takeIf(String::isNotBlank)

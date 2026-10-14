@@ -15,27 +15,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.notification.NotificationCenterType
-
-internal enum class NotifFilter {
-    ALL,
-    UNREAD,
-    MESSAGE,
-    MISSED_CALL,
-    AI_TASK,
-    POST_INTERACTION,
-    FRIEND_REQUEST;
-
-    fun matches(item: NotificationCenterItem): Boolean = when (this) {
-        ALL -> true
-        UNREAD -> !item.read
-        MESSAGE -> item.type == NotificationCenterType.MESSAGE
-        MISSED_CALL -> item.type == NotificationCenterType.MISSED_CALL
-        AI_TASK -> item.type == NotificationCenterType.AI_TASK
-        POST_INTERACTION -> item.type == NotificationCenterType.POST_INTERACTION
-        FRIEND_REQUEST -> item.type == NotificationCenterType.FRIEND_REQUEST
-    }
-}
 
 @Composable
 internal fun NotificationFilterStrip(
@@ -123,4 +102,3 @@ internal fun notifRelativeTime(timestamp: Long): String {
         else -> stringResource(R.string.notif_center_days_ago, (diff / 86_400_000).toInt())
     }
 }
-
