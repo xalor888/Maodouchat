@@ -38,11 +38,6 @@ interface RealtimeTransport {
     fun sendPresence(foreground: Boolean): Boolean
 }
 
-data class RealtimeTransportEvent(
-    val connectionGeneration: Long,
-    val event: WebSocketEvent,
-)
-
 class AccountScopedRealtimeConnectionManager(
     private val sessionContextProvider: SessionContextProvider,
     private val transport: RealtimeTransport,

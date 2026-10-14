@@ -27,7 +27,7 @@ import androidx.compose.runtime.Composable
  */
 @Composable
 internal fun ChatListAnnouncementBanner(
-    priorityAnnouncement: com.maodouchat.notification.AnnouncementPolicy.AnnouncementData?,
+    priorityAnnouncement: com.maodouchat.notification.AnnouncementData?,
     onAck: (String) -> Unit,
 ) {
     if (priorityAnnouncement != null) {
