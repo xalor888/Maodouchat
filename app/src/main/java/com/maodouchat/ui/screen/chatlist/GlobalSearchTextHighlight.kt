@@ -4,18 +4,6 @@ package com.maodouchat.ui.screen.chatlist
  * W1-05: pure helpers for stable keyword highlighting / snippet windows in global search.
  * Keeps Compose free of scoring/snippet math so unit tests stay hermetic.
  */
-data class HighlightSpan(val start: Int, val end: Int) {
-    init {
-        require(start >= 0 && end >= start)
-    }
-}
-
-data class SearchSnippet(
-    val text: String,
-    /** Spans relative to [text], not the original full body. */
-    val highlights: List<HighlightSpan>
-)
-
 object GlobalSearchTextHighlight {
     // 高亮片段空白折叠：每次调用重复编译正则，提到对象级复用。
     private val snippetWhitespaceRegex = Regex("\\s+")

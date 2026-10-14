@@ -4,11 +4,6 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.network.UpdateChatSettingsRequest
 
-data class SettingsToggleMutation(
-    val optimistic: Chat,
-    val request: UpdateChatSettingsRequest,
-)
-
 fun bumpOptimisticSettingsClock(chat: Chat, nowMs: Long): Chat =
     chat.copy(settingsUpdatedAt = maxOf(nowMs, chat.settingsUpdatedAt + 1L))
 

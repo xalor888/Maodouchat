@@ -51,11 +51,6 @@ fun applyPresenceProjection(
     )
 }
 
-data class AdminBroadcastProjection(
-    val item: NotificationCenterItem,
-    val bannerText: String,
-)
-
 /**
  * 管理广播 → 通知中心条目 + 横幅。空正文返回 null（调用方直接忽略）。
  * `title`/`senderLabel` 由调用方完成字符串资源解析后传入。
