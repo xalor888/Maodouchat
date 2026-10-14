@@ -32,8 +32,6 @@ import com.maodouchat.ui.theme.UnreadRed
 
 private const val SENDER_KEY_TARGET_PAGE = 20
 
-enum class SenderKeyTargetFilter { ALL, FAILED, PENDING, SENT }
-
 @Composable
 fun GroupSenderKeyStatusSection(
     status: SenderKeyDistributionStatusDto?,
