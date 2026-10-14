@@ -43,7 +43,7 @@ class IdentitySafetyPolicyTest {
             IdentitySafetyPolicy.aggregateTrust(states)
         )
         assertTrue(IdentitySafetyPolicy.isStickyWarning(IdentitySafetyPolicy.aggregateTrust(states)))
-        assertEquals(IdentitySafetyPolicy.WarningKind.CHANGED, IdentitySafetyPolicy.warningKind(SignalProtocol.IdentityTrustState.CHANGED))
+        assertEquals(WarningKind.CHANGED, IdentitySafetyPolicy.warningKind(SignalProtocol.IdentityTrustState.CHANGED))
     }
 
     @Test
@@ -57,7 +57,7 @@ class IdentitySafetyPolicyTest {
             IdentitySafetyPolicy.aggregateTrust(states)
         )
         assertFalse(IdentitySafetyPolicy.canVerifyAny(states))
-        assertEquals(IdentitySafetyPolicy.WarningKind.NONE, IdentitySafetyPolicy.warningKind(SignalProtocol.IdentityTrustState.VERIFIED))
+        assertEquals(WarningKind.NONE, IdentitySafetyPolicy.warningKind(SignalProtocol.IdentityTrustState.VERIFIED))
     }
 
     @Test

@@ -199,10 +199,10 @@ internal class SignalContentEnvelopeDecryptor(
 
     internal fun rememberDecryptOutcome(senderId: String, fingerprint: String, result: DecryptResult) {
         when (DecryptFailurePolicy.trackingAction(result)) {
-            DecryptFailurePolicy.TrackingAction.CLEAR -> context.decryptRetryTracker.clear(fingerprint)
-            DecryptFailurePolicy.TrackingAction.RECORD_FAILURE ->
+            TrackingAction.CLEAR -> context.decryptRetryTracker.clear(fingerprint)
+            TrackingAction.RECORD_FAILURE ->
                 context.decryptRetryTracker.recordCryptoFailure(senderId, fingerprint)
-            DecryptFailurePolicy.TrackingAction.MARK_TERMINAL -> context.decryptRetryTracker.markTerminal(fingerprint)
+            TrackingAction.MARK_TERMINAL -> context.decryptRetryTracker.markTerminal(fingerprint)
         }
     }
 }

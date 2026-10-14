@@ -49,7 +49,4 @@ object IdentitySafetyPolicy {
         SignalProtocol.IdentityTrustState.VERIFIED -> WarningKind.NONE
     }
 
-    enum class WarningKind {
-        CHANGED, UNKNOWN, TRUSTED, NONE
-    }
 }

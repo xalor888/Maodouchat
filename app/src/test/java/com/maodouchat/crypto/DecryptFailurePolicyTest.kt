@@ -17,7 +17,7 @@ class DecryptFailurePolicyTest {
             DecryptResult.NotForThisDevice,
         )
         stop.forEach { result ->
-            assertEquals(DecryptFailurePolicy.Disposition.STOP, DecryptFailurePolicy.disposition(result))
+            assertEquals(Disposition.STOP, DecryptFailurePolicy.disposition(result))
             assertTrue(DecryptFailurePolicy.shouldStop(result, previousAttempts = 0))
         }
     }
@@ -25,11 +25,11 @@ class DecryptFailurePolicyTest {
     @Test
     fun duplicateIsRememberedAsTerminalRatherThanCleared() {
         assertEquals(
-            DecryptFailurePolicy.TrackingAction.MARK_TERMINAL,
+            TrackingAction.MARK_TERMINAL,
             DecryptFailurePolicy.trackingAction(DecryptResult.Duplicate)
         )
         assertEquals(
-            DecryptFailurePolicy.TrackingAction.CLEAR,
+            TrackingAction.CLEAR,
             DecryptFailurePolicy.trackingAction(DecryptResult.Success("ok"))
         )
     }
@@ -55,7 +55,7 @@ class DecryptFailurePolicyTest {
             DecryptResult.Failed,
         )
         retry.forEach { result ->
-            assertEquals(DecryptFailurePolicy.Disposition.RETRY, DecryptFailurePolicy.disposition(result))
+            assertEquals(Disposition.RETRY, DecryptFailurePolicy.disposition(result))
             assertFalse(DecryptFailurePolicy.shouldStop(result, previousAttempts = 0))
             assertFalse(DecryptFailurePolicy.shouldStop(result, previousAttempts = 4))
             assertTrue(DecryptFailurePolicy.shouldStop(result, previousAttempts = 5))
