@@ -8,28 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 媒体导出请求参数。
- */
-data class MediaExportRequest(
-    val rawUri: String,
-    val mimeType: String,
-    val displayName: String,
-    val isSecretChat: Boolean,
-    val chooserTitle: String = "",
-)
-
-/**
- * 媒体导出执行结果。
- */
-sealed interface MediaExportResult {
-    data object Success : MediaExportResult
-    data object SecretBlocked : MediaExportResult
-    data class Failure(val cause: Throwable? = null) : MediaExportResult
-
-    val isSuccess: Boolean get() = this is Success
-}
-
-/**
  * 媒体下载/导出用例。
  * Media Center 只消费本地媒体投影；保存到系统相册及调用系统分享均统一经由此用例调度，
  * 封装密聊隐私门禁与媒体读取校验。
