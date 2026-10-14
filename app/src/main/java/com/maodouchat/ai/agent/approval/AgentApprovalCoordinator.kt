@@ -1,28 +1,7 @@
 package com.maodouchat.ai.agent.approval
 
 import java.security.MessageDigest
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-
-enum class ApprovalStatus {
-    PENDING,
-    APPROVED,
-    REJECTED,
-    CANCELLED
-}
-
-data class AgentApprovalRecord(
-    val approvalId: String = UUID.randomUUID().toString(),
-    val toolName: String,
-    val idempotencyKey: String = UUID.randomUUID().toString(),
-    val argumentsHash: String,
-    val createdAt: Long = System.currentTimeMillis(),
-    val status: ApprovalStatus = ApprovalStatus.PENDING
-) {
-    fun isApproved(): Boolean = status == ApprovalStatus.APPROVED
-    fun isCancelledOrRejected(): Boolean =
-        status == ApprovalStatus.CANCELLED || status == ApprovalStatus.REJECTED
-}
 
 /**
  * Manages approval records and idempotency keys to guarantee that:
