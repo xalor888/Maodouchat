@@ -3,12 +3,6 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.network.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CancellationException
 
-data class GroupMessagingSession(
-    val ownerUserId: String,
-    val authToken: String,
-    val deviceId: Int,
-)
-
 /**
  * Protocol owner for group epoch invalidation and Sender Key coverage.
  *
