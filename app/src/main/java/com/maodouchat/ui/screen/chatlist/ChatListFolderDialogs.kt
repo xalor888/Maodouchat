@@ -40,6 +40,8 @@ import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.maodouchat.call.Direction
+import com.maodouchat.call.State
 
 /**
  * 会话列表的「未拨来电 + 文件夹管理」弹层（G137 从 `ChatListScreen.kt` 拆出，原 222 行）。
@@ -114,8 +116,8 @@ internal fun ChatListFolderDialogs(
                                 peerId = mc.callerId,
                                 peerName = mc.callerName,
                                 video = mc.callType.equals("VIDEO", ignoreCase = true),
-                                direction = com.maodouchat.call.CallLogStore.Direction.INCOMING,
-                                state = com.maodouchat.call.CallLogStore.State.MISSED,
+                                direction = Direction.INCOMING,
+                                state = State.MISSED,
                                 at = mc.receivedAt,
                                 durationMs = 0L
                             )

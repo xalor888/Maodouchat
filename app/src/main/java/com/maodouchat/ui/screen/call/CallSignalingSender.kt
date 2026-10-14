@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.webrtc.IceCandidate
 import org.webrtc.SessionDescription
+import com.maodouchat.webrtc.SignalingException
 
 /**
  * 出站信令发送（offer/answer/ice-candidate/busy/hang-up…）：WS-first，
@@ -83,7 +84,7 @@ internal class CallSignalingSender(
                     val message = text(R.string.call_error_with_reason, arrayOf(errorPrefix, failureReason(error)))
                     if (
                         normalizedType == "offer" &&
-                        error is WebRTCSignaling.SignalingException &&
+                        error is SignalingException &&
                         error.code == "CALL_INVITE_RATE_LIMITED"
                     ) {
                         onEndCall(failureReason(error))

@@ -1,6 +1,6 @@
 package com.maodouchat.call
 
-import com.maodouchat.webrtc.WebRTCSignaling.SignalMessage
+import com.maodouchat.webrtc.SignalMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

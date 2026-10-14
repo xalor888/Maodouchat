@@ -1,6 +1,6 @@
 package com.maodouchat.call
 
-import com.maodouchat.webrtc.WebRTCSignaling.SignalMessage
+import com.maodouchat.webrtc.SignalMessage
 
 /**
  * 来电 offer 选择纯策略（P03）。

@@ -4,7 +4,6 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.WebSocketClient
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
@@ -15,47 +14,7 @@ import kotlinx.serialization.json.Json
  */
 object WebRTCSignaling {
 
-    enum class FailureOperation { SEND, FETCH, HANG_UP }
-
-    class SignalingException(
-        val operation: FailureOperation,
-        val statusCode: Int? = null,
-        val code: String? = null,
-        val retryAfterSeconds: Long? = null
-    ) :
-        Exception("WebRTC signaling ${operation.name.lowercase()} failed")
-
     private val json = Json { ignoreUnknownKeys = true }
-
-    @Serializable
-    private data class SendSignalRequest(
-        val toUserId: String,
-        val type: String,
-        val payload: String,
-        val callId: String = "",
-        val groupId: String = "",
-        val groupMemberIds: List<String> = emptyList(),
-        val groupInvite: Boolean = false,
-        val epoch: Long = 0,
-        val sequence: Long = 0,
-        val idempotencyKey: String = "",
-    )
-
-    @Serializable
-    data class SignalMessage(
-        val id: String,
-        val fromUserId: String,
-        val type: String,
-        val payload: String,
-        val timestamp: Long,
-        val callId: String = "",
-        val groupId: String = "",
-        val groupMemberIds: List<String> = emptyList(),
-        val groupInvite: Boolean = false,
-        val epoch: Long = 0,
-        val sequence: Long = 0,
-        val idempotencyKey: String = "",
-    )
 
     /**
      * 通过 WebSocket 发送信令消息（优先，实时）

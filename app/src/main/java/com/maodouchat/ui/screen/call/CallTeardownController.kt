@@ -1,13 +1,13 @@
 package com.maodouchat.ui.screen.call
 
 import android.app.Application
-import com.maodouchat.call.CallLogStore
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.CallSessionMachine
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.telecom.MaodouchatConnectionService
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.webrtc.CallState
+import com.maodouchat.call.State
 
 // 通话拆卸簇：从 CallViewModel 纯搬移——endCall 全量收尾（job 停摆、媒体释放、
 // 通知/Telecom 清理、通话记录回写、对端挂断信令、会话字段复位）。
@@ -45,7 +45,7 @@ internal class CallTeardownController(
     private val mediaBridge: CallMediaBridge,
     private val hangUpSender: CallHangUpSender,
     private val foregroundService: CallForegroundServiceController,
-    private val writeCallLog: (CallLogStore.State) -> Unit,
+    private val writeCallLog: (State) -> Unit,
 ) {
     fun endCall(notifyPeer: Boolean, errorMessage: String? = null, logMissed: Boolean = true) {
         if (endingCall()) return
@@ -76,14 +76,14 @@ internal class CallTeardownController(
         if (logMissed) {
             writeCallLog(
                 if (currentState().callState == CallState.CONNECTED)
-                    CallLogStore.State.ANSWERED
+                    State.ANSWERED
                 else
-                    CallLogStore.State.MISSED
+                    State.MISSED
             )
         } else {
             // 8.53：主动拒接（logMissed=false）——仅回写已接通话时长，不落 MISSED
             if (currentState().callState == CallState.CONNECTED) {
-                writeCallLog(CallLogStore.State.ANSWERED)
+                writeCallLog(State.ANSWERED)
             }
         }
 

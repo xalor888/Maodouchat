@@ -2,7 +2,6 @@ package com.maodouchat.ui.screen.call
 
 import android.app.Application
 import com.maodouchat.R
-import com.maodouchat.call.CallLogStore
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.GroupCallCapabilities
 import com.maodouchat.util.RuntimeFlags
@@ -11,6 +10,7 @@ import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.maodouchat.call.State
 
 // 呼出一族：从 CallViewModel 纯搬移；VM 留同签名委托。
 internal class CallOutgoingCallController(
@@ -25,7 +25,7 @@ internal class CallOutgoingCallController(
     private val groupMemberIds: () -> Set<String>,
     private val setGroupMemberIds: (Set<String>) -> Unit,
     private val currentOwnerUserId: () -> String,
-    private val writeCallLog: (CallLogStore.State) -> Unit,
+    private val writeCallLog: (State) -> Unit,
     private val webRtcSetup: CallWebRtcSetupController,
     private val mediaBridge: CallMediaBridge,
     private val groupMesh: CallGroupMesh,
@@ -115,7 +115,7 @@ internal class CallOutgoingCallController(
         foregroundService.start()
         // 8.46 修复：振铃超时改到 offer 发出后启动（此前在 createWebRtcManager 之前——
         // 慢网下载 ~10MB 原生库 + 拉取 TURN 可能 >30s，超时在对端还没开始振铃时就触发挂断）
-        writeCallLog(CallLogStore.State.MISSED)
+        writeCallLog(State.MISSED)
 
         scope.launch {
             try {
