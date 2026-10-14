@@ -489,7 +489,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 749,
         // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 368,
         // 2026-10-08：文件/语音/位置/链接列表簇（+ 搜索高亮/字节/日期/打开链接助手）搬出同包
         // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
         // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
@@ -673,7 +673,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 749,
         // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 377,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 368,
         // 2026-10-08：文件/语音/位置/链接列表簇（+ 搜索高亮/字节/日期/打开链接助手）搬出同包
         // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
         // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
