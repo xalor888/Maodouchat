@@ -51,18 +51,6 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** 群 PK 列表项。 */
-data class PkListItem(
-    val id: String,
-    val leftTitle: String,
-    val rightTitle: String,
-    val active: Boolean,
-    val leftCount: Int,
-    val rightCount: Int,
-    val totalVoters: Int,
-    val myChoice: String?
-)
-
 class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHandle) :
     AndroidViewModel(application) {
 
