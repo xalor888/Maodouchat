@@ -9,6 +9,7 @@ import com.maodouchat.data.local.entity.ChatEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.security.LogoutStorePolicy
+import com.maodouchat.security.Reason
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -53,27 +54,27 @@ class ClientDataLifecycleTest {
     fun logoutStorePolicyIsExplicitAndConsistent() {
         assertFalse(
             "同账号登出必须**保留**加密库（重登要能解密历史）",
-            LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.LOGOUT),
+            LogoutStorePolicy.destroyEncryptedDatabase(Reason.LOGOUT),
         )
         assertFalse(
             "token 过期同样保留",
-            LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.TOKEN_EXPIRED),
+            LogoutStorePolicy.destroyEncryptedDatabase(Reason.TOKEN_EXPIRED),
         )
         assertTrue(
             "换号必须毁库",
-            LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.ACCOUNT_SWITCH),
+            LogoutStorePolicy.destroyEncryptedDatabase(Reason.ACCOUNT_SWITCH),
         )
         assertTrue(
             "删号必须毁库",
-            LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.DELETE_ACCOUNT),
+            LogoutStorePolicy.destroyEncryptedDatabase(Reason.DELETE_ACCOUNT),
         )
         assertTrue(
             "信任域变更必须毁库",
-            LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.TRUST_DOMAIN_CHANGE),
+            LogoutStorePolicy.destroyEncryptedDatabase(Reason.TRUST_DOMAIN_CHANGE),
         )
 
         // 派生策略必须与主策略一致：不一致会让「保留库但清了缓存」这类组合出现。
-        LogoutStorePolicy.Reason.entries.forEach { reason ->
+        Reason.entries.forEach { reason ->
             val expected = LogoutStorePolicy.destroyEncryptedDatabase(reason)
             assertEquals(
                 "普通媒体缓存的清理策略必须与主策略一致（reason=$reason）",
@@ -169,7 +170,7 @@ class ClientDataLifecycleTest {
         assertTrue("控制组失败：标记必须真的写进本地库，实际=$before", before?.content?.contains(marker) == true)
 
         // 按**生产策略**决定是否毁库（换号 = true），再跑**生产**清理。
-        val destroy = LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.ACCOUNT_SWITCH)
+        val destroy = LogoutStorePolicy.destroyEncryptedDatabase(Reason.ACCOUNT_SWITCH)
         assertTrue("换号策略必须是毁库，否则本条用例测不到清理", destroy)
         val purged = runBlocking {
             app.secureSessionManager.purgeLocalSession(

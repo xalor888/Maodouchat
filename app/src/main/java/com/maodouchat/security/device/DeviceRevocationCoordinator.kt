@@ -6,11 +6,6 @@ import com.maodouchat.network.WebSocketClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-sealed interface DeviceRevocationResult {
-    data class RemoteDeviceRevoked(val deviceId: Int) : DeviceRevocationResult
-    object CurrentDeviceRevoked : DeviceRevocationResult
-}
-
 interface DeviceRevocationHandler {
     suspend fun removeRemoteDevice(token: String, deviceId: Int): Result<Unit>
     suspend fun invalidateSignalDeviceSession(deviceId: Int)

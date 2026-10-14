@@ -7,14 +7,7 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
 /**
- * 统一 PIN 锁安全策略引擎。
- *
- * 提供：
- * 1. PBKDF2 (600,000 轮) + 16 字节安全随机盐加密；
- * 2. 旧版 SHA-256 哈希透明校验并提示升级；
- * 3. 恒定时间比较，抵抗时序侧信道攻击；
- * 4. 连续失败阶梯退避与限流（防止暴力穷举）；
- * 5. 内存级解锁会话缓存（TTL 自动失效与账号隔离）。
+ * 统一 PIN 锁安全策略：PBKDF2 哈希、旧版 SHA-256 透明升级、失败退避限流、内存解锁会话缓存。
  */
 object PinSecurityPolicy {
     // SecureRandom 线程安全，每次生成 salt 都 new 会反复播种，对象级复用。
@@ -123,20 +116,6 @@ object PinSecurityPolicy {
             )
         }
     }
-
-    sealed interface VerificationOutcome {
-        data class Success(val needsUpgrade: Boolean, val upgradedHash: StoredPinHash? = null) : VerificationOutcome
-        object Mismatch : VerificationOutcome
-        object Corrupted : VerificationOutcome
-    }
-
-    data class StoredPinHash(
-        val formattedString: String,
-        val saltHex: String,
-        val hashHex: String,
-        val iterations: Int,
-        val isPbkdf2: Boolean
-    )
 
     /**
      * PIN 尝试限流与阶梯退避器

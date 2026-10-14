@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.settings
 
 import com.maodouchat.R
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
+import com.maodouchat.security.Reason
 import com.maodouchat.settings.model.SettingsUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -34,7 +35,7 @@ internal class SettingsAccountController(
             withContext(NonCancellable) {
                 com.maodouchat.security.SecureSessionAccess.manager.purgeLocalSession(
                     destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
-                        com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
+                        Reason.LOGOUT
                     ),
                     expectedOwnerUserId = ownerUserId.takeIf { it.isNotBlank() }
                 )
@@ -73,7 +74,7 @@ internal class SettingsAccountController(
                         withContext(NonCancellable) {
                             com.maodouchat.security.SecureSessionAccess.manager.purgeLocalSession(
                                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
-                                    com.maodouchat.security.LogoutStorePolicy.Reason.LOGOUT
+                                    Reason.LOGOUT
                                 ),
                                 expectedOwnerUserId = ownerUserId
                             )
@@ -125,7 +126,7 @@ internal class SettingsAccountController(
                         val purged = withContext(kotlinx.coroutines.NonCancellable) {
                             val result = com.maodouchat.security.SecureSessionAccess.manager.purgeLocalSession(
                                 destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
-                                    com.maodouchat.security.LogoutStorePolicy.Reason.DELETE_ACCOUNT
+                                    Reason.DELETE_ACCOUNT
                                 ),
                                 expectedOwnerUserId = deleteOwnerUserId
                             )

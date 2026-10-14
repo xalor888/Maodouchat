@@ -9,15 +9,15 @@ class LogoutStorePolicyTest {
 
     @Test
     fun sameAccountLogoutKeepsEncryptedStore() {
-        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.LOGOUT))
-        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.TOKEN_EXPIRED))
+        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(Reason.LOGOUT))
+        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(Reason.TOKEN_EXPIRED))
     }
 
     @Test
     fun accountSwitchAndDeleteDestroyEncryptedStore() {
-        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.ACCOUNT_SWITCH))
-        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.DELETE_ACCOUNT))
-        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(LogoutStorePolicy.Reason.TRUST_DOMAIN_CHANGE))
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.ACCOUNT_SWITCH))
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.DELETE_ACCOUNT))
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.TRUST_DOMAIN_CHANGE))
     }
 
     @Test
@@ -28,7 +28,7 @@ class LogoutStorePolicyTest {
 
     @Test
     fun keepStoreLogoutKeepsMediaCoilTransfersAndSenderKeyWork() {
-        val keep = listOf(LogoutStorePolicy.Reason.LOGOUT, LogoutStorePolicy.Reason.TOKEN_EXPIRED)
+        val keep = listOf(Reason.LOGOUT, Reason.TOKEN_EXPIRED)
         keep.forEach { reason ->
             assertFalse(reason.name, LogoutStorePolicy.destroyEncryptedDatabase(reason))
             assertFalse(reason.name, LogoutStorePolicy.wipeOrdinaryMediaCache(reason))
@@ -41,9 +41,9 @@ class LogoutStorePolicyTest {
     @Test
     fun destroyStoreLogoutWipesMediaCoilTransfersAndSenderKeyWork() {
         val destroy = listOf(
-            LogoutStorePolicy.Reason.ACCOUNT_SWITCH,
-            LogoutStorePolicy.Reason.DELETE_ACCOUNT,
-            LogoutStorePolicy.Reason.TRUST_DOMAIN_CHANGE
+            Reason.ACCOUNT_SWITCH,
+            Reason.DELETE_ACCOUNT,
+            Reason.TRUST_DOMAIN_CHANGE
         )
         destroy.forEach { reason ->
             assertTrue(reason.name, LogoutStorePolicy.destroyEncryptedDatabase(reason))
@@ -56,7 +56,7 @@ class LogoutStorePolicyTest {
 
     @Test
     fun mediaCacheFollowsEncryptedStoreRuleForEveryReason() {
-        LogoutStorePolicy.Reason.entries.forEach { reason ->
+        Reason.entries.forEach { reason ->
             val destroy = LogoutStorePolicy.destroyEncryptedDatabase(reason)
             assertEquals(reason.name, destroy, LogoutStorePolicy.wipeOrdinaryMediaCache(reason))
             assertEquals(reason.name, destroy, LogoutStorePolicy.wipeCoilDiskCache(reason))

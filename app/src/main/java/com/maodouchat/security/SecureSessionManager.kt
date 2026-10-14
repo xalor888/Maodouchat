@@ -423,7 +423,7 @@ class SecureSessionManager(
         ) {
             purgeLocalSession(
                 destroyEncryptedDatabase = LogoutStorePolicy.destroyEncryptedDatabase(
-                    LogoutStorePolicy.Reason.ACCOUNT_SWITCH
+                    Reason.ACCOUNT_SWITCH
                 )
             )
         }
