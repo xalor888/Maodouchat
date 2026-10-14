@@ -109,15 +109,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class MediaCenterUiState(
-    val items: List<MediaCenterItem> = emptyList(),
-    val isLoading: Boolean = true,
-    /** null while checking lock; true when PIN required and process not unlocked */
-    val isChatLocked: Boolean? = null,
-    val chatName: String = "",
-    val isSecretChat: Boolean = false,
-)
-
 class MediaCenterViewModel(application: Application, savedStateHandle: SavedStateHandle) : AndroidViewModel(application) {
     val chatId: String = savedStateHandle["chatId"] ?: ""
     // U02 延伸：仓库入口收进非 ui 的 AppRepositories（不再从 Application 强转后自取 database）。

@@ -5,13 +5,6 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.network.AiContextMessage
 
-internal data class AiContextSenders(
-    val currentUserId: String,
-    val currentUserLabel: String,
-    val fallbackLabel: String,
-    val namesByUserId: Map<String, String>
-)
-
 internal fun buildPlainAiContextMessages(
     messages: List<Message>,
     senders: AiContextSenders,

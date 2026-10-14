@@ -43,7 +43,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,12 +54,6 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.screen.chatdetail.group.GroupMemberSectionUtils.roleLabel
 import com.maodouchat.ui.theme.LocalChatPalette
-
-data class GroupFeatureAction(
-    val label: String,
-    val icon: ImageVector,
-    val onClick: () -> Unit
-)
 
 @Composable
 fun GroupHeader(
