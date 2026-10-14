@@ -12,9 +12,6 @@ import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CancellationException
 import java.io.File
 
-/** M07：附件上传 + finalize 编排的处置结果（Worker 据此映射到 WorkManager Result）。 */
-enum class AttachmentTransferDisposition { SUCCESS, RETRY, FAILURE }
-
 /**
  * M07：附件上传/finalize 编排用例。Worker 只调用 [execute]，不再直读全局 Application/API；
  * 全局依赖（app/tokenManager/dao/ApiService）都在本用例内封装。
