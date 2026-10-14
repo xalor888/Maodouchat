@@ -47,14 +47,7 @@ import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
 import com.maodouchat.ui.theme.Primary
 
-enum class EmptyStateType {
-    CHAT_LIST, SEARCH, CONTACTS, MOMENTS, NETWORK_ERROR, GENERIC
-}
 
-/**
- * A polished empty/error state component with animated icon entry.
- * Provides consistent empty states across the app.
- */
 @Composable
 fun EmptyState(
     modifier: Modifier = Modifier,
