@@ -23,14 +23,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-internal data class SafetyScanResult(
-    val target: QrCodeGenerator.QrTarget.Safety,
-    val status: SafetyScanStatus
-) {
-    val matched: Boolean
-        get() = status == SafetyScanStatus.FINGERPRINT_MATCH || status == SafetyScanStatus.CODE_MATCH
-}
-
 /**
  * 扫一扫页的可变状态与结果处理：从 ScanScreen 拆出的非 UI 簇。
  * 所有 state 原先是 ScanScreen 内的 remember 局部变量，语义不变（remember 一次、读写触发重组）。

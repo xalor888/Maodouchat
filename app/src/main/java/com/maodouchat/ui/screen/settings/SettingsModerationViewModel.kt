@@ -4,12 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
-import com.maodouchat.network.ReportResponse
-import com.maodouchat.network.RiskEventResponse
-import com.maodouchat.network.ModerationRuleResponse
 import com.maodouchat.network.UpdateModerationRuleRequest
-import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,18 +21,6 @@ import kotlinx.coroutines.sync.Mutex
  * **拆解约束**：不直接抓应用级数据库单例；网络经 `data/repository` 的薄仓库（G328c 起不再直连 `ApiService`），会话态经 `CurrentSession`。
  * 纯搬移，不改判断。
  */
-
-data class ModerationUiState(
-    val isLoading: Boolean = true,
-    val isUpdating: Boolean = false,
-    val section: String = "REPORTS",
-    val statusFilter: String = "OPEN",
-    val reports: List<ReportResponse> = emptyList(),
-    val riskEvents: List<RiskEventResponse> = emptyList(),
-    val rules: List<ModerationRuleResponse> = emptyList(),
-    val errorMessage: String? = null,
-    val infoMessage: String? = null
-)
 
 class ModerationViewModel(application: Application) : AndroidViewModel(application) {
     private var reportsGeneration = 0L
