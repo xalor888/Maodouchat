@@ -37,11 +37,6 @@ import com.maodouchat.ui.theme.AvatarGradients
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.SurfaceVariant
 
-data class GroupParticipant(
-    val name: String,
-    val avatarUrl: String? = null
-)
-
 @Composable
 fun GroupAvatar(
     participants: List<GroupParticipant>,

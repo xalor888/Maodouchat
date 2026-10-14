@@ -29,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -37,13 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
-
-data class BottomNavItem(
-    val icon: ImageVector,
-    val selectedIcon: ImageVector,
-    val label: String,
-    val badgeCount: Int = 0
-)
 
 /** 贴底导航与悬浮胶囊共用的控件尺寸，关掉悬浮底栏后按钮不应被撑大。 */
 internal object PinnedBottomNavMetrics {
