@@ -61,17 +61,6 @@ internal fun MissedCallsCard(calls: List<MissedCall>, onOpen: () -> Unit) {
     }
 }
 
-internal data class CallLogRow(
-    val id: String,
-    val peerId: String,
-    val peerName: String,
-    val video: Boolean,
-    val direction: com.maodouchat.call.CallLogStore.Direction,
-    val state: com.maodouchat.call.CallLogStore.State,
-    val at: Long,
-    val durationMs: Long
-)
-
 private fun formatCallDuration(durationMs: Long): String {
     if (durationMs <= 0L) return ""
     val totalSec = (durationMs / 1000).toInt()

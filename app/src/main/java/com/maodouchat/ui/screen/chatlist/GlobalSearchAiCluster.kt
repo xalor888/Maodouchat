@@ -123,9 +123,3 @@ fun GlobalSearchViewModel.performAiSearch(query: String) {
         }
     }
 }
-
-private data class AiSearchOutcome(
-    val hits: List<GlobalSearchHit>,
-    val excludedChats: Int,
-    val noContext: Boolean
-)
