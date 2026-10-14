@@ -7,8 +7,6 @@ import com.maodouchat.network.TokenManager
 import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.data.repository.PostNetworkRepository
 
-data class FeedSession(val ownerUserId: String)
-
 interface FeedRepository {
     fun currentSession(): FeedSession?
     fun isCurrent(session: FeedSession): Boolean
@@ -40,8 +38,6 @@ class FeedController(private val repository: FeedRepository) {
         return if (repository.isCurrent(session)) result else Result.failure(FeedSessionChangedException())
     }
 }
-
-class FeedSessionChangedException : IllegalStateException("Feed session changed")
 
 internal class AndroidFeedRepository(application: Application) : FeedRepository {
     private val tokenManager = TokenManager.getInstance(application)

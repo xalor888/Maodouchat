@@ -8,11 +8,6 @@ import com.maodouchat.explore.repository.PostMutationRepository
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.ReportResponse
 
-sealed class PublishPostValidation {
-    object Valid : PublishPostValidation()
-    data class Invalid(val reason: String) : PublishPostValidation()
-}
-
 class PublishPostUseCase(
     private val mutationRepository: PostMutationRepository,
     private val draftRepository: DraftRepository,
