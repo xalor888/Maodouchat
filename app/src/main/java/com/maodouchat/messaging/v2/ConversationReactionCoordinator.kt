@@ -7,18 +7,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
-internal sealed interface ConversationReactionOutcome {
-    data class Applied(
-        val localProjectionError: Throwable? = null,
-    ) : ConversationReactionOutcome
-
-    data class Failed(
-        val error: Throwable,
-    ) : ConversationReactionOutcome
-
-    data object Ignored : ConversationReactionOutcome
-}
-
 /** Serializes actor-scoped reaction toggles per message around the durable v2 commit boundary. */
 internal class ConversationReactionCoordinator(
     private val facade: MessagingV2MutationFacade,

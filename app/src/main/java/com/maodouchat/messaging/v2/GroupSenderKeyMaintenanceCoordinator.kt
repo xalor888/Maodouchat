@@ -3,27 +3,6 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.network.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CancellationException
 
-sealed interface GroupSenderKeyMaintenanceOutcome {
-    data object Skipped : GroupSenderKeyMaintenanceOutcome
-
-    data class Ready(
-        val status: SenderKeyDistributionStatusDto?,
-        val localHasSenderKey: Boolean,
-    ) : GroupSenderKeyMaintenanceOutcome
-
-    data class Pending(
-        val status: SenderKeyDistributionStatusDto?,
-        val localHasSenderKey: Boolean,
-        val error: Throwable,
-        val retryQueueError: Throwable? = null,
-    ) : GroupSenderKeyMaintenanceOutcome
-
-    data class Failed(
-        val error: Throwable,
-        val retryQueueError: Throwable? = null,
-    ) : GroupSenderKeyMaintenanceOutcome
-}
-
 /** Owns manual/automatic Sender Key coverage retries without UI-held epoch state. */
 class GroupSenderKeyMaintenanceCoordinator(
     private val ensureCoverage: suspend (conversationId: String, epoch: Long) -> Result<SenderKeyDistributionStatusDto?>,
