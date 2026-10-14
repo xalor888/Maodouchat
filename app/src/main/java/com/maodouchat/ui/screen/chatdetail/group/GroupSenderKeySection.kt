@@ -29,6 +29,7 @@ import com.maodouchat.network.SenderKeyDistributionStatusDto
 import com.maodouchat.group.GroupMemberUi
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
+import com.maodouchat.crypto.Reason
 
 private const val SENDER_KEY_TARGET_PAGE = 20
 
@@ -133,9 +134,9 @@ fun GroupSenderKeyStatusSection(
         Button(onClick = onRedistribute, enabled = !isUpdating, modifier = Modifier.fillMaxWidth()) {
             Text(
                 when (assessment.reason) {
-                    SenderKeyCoveragePolicy.Reason.FAILED_TARGETS ->
+                    Reason.FAILED_TARGETS ->
                         stringResource(R.string.group_detail_retry_failed_devices)
-                    SenderKeyCoveragePolicy.Reason.PENDING_TARGETS ->
+                    Reason.PENDING_TARGETS ->
                         stringResource(R.string.group_detail_retry_pending_devices)
                     else -> stringResource(R.string.group_detail_redistribute_key)
                 }
@@ -215,22 +216,22 @@ fun GroupSenderKeyStatusSection(
 }
 
 @Composable
-fun senderKeyReasonLabel(reason: SenderKeyCoveragePolicy.Reason): String =
+fun senderKeyReasonLabel(reason: Reason): String =
     stringResource(
         when (reason) {
-            SenderKeyCoveragePolicy.Reason.LOCAL_MISSING ->
+            Reason.LOCAL_MISSING ->
                 R.string.group_detail_key_reason_local_missing
-            SenderKeyCoveragePolicy.Reason.EPOCH_MISMATCH ->
+            Reason.EPOCH_MISMATCH ->
                 R.string.group_detail_key_reason_epoch_mismatch
-            SenderKeyCoveragePolicy.Reason.FAILED_TARGETS ->
+            Reason.FAILED_TARGETS ->
                 R.string.group_detail_key_reason_failed
-            SenderKeyCoveragePolicy.Reason.PENDING_TARGETS ->
+            Reason.PENDING_TARGETS ->
                 R.string.group_detail_key_reason_pending
-            SenderKeyCoveragePolicy.Reason.UNKNOWN_TARGETS ->
+            Reason.UNKNOWN_TARGETS ->
                 R.string.group_detail_key_reason_unknown
-            SenderKeyCoveragePolicy.Reason.NO_SERVER_RECORD ->
+            Reason.NO_SERVER_RECORD ->
                 R.string.group_detail_key_reason_no_record
-            SenderKeyCoveragePolicy.Reason.COMPLETE ->
+            Reason.COMPLETE ->
                 R.string.group_detail_key_reason_complete
         }
     )

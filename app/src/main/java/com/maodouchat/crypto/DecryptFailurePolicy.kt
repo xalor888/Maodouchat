@@ -13,19 +13,6 @@ object DecryptFailurePolicy {
     const val MAX_RETRY_ATTEMPTS = 5
     const val MAX_TRACKED_ENVELOPES = 256
 
-    enum class Disposition {
-        /** 调用方应视为终态：ACK、写入占位、不再对同一密文调 SessionCipher。 */
-        STOP,
-        /** 会话/身份/epoch 仍可能恢复，允许再试。 */
-        RETRY,
-    }
-
-    enum class TrackingAction {
-        CLEAR,
-        RECORD_FAILURE,
-        MARK_TERMINAL,
-    }
-
     fun disposition(result: DecryptResult): Disposition = when (result) {
         is DecryptResult.Success,
         DecryptResult.Duplicate,
@@ -99,9 +86,9 @@ class DecryptRetryTracker(
      */
     fun shouldAcknowledge(envelopeId: String, result: DecryptResult): Boolean {
         if (envelopeId.isBlank()) {
-            return DecryptFailurePolicy.disposition(result) == DecryptFailurePolicy.Disposition.STOP
+            return DecryptFailurePolicy.disposition(result) == Disposition.STOP
         }
-        if (DecryptFailurePolicy.disposition(result) == DecryptFailurePolicy.Disposition.STOP) {
+        if (DecryptFailurePolicy.disposition(result) == Disposition.STOP) {
             attempts.remove(envelopeId)
             return true
         }
