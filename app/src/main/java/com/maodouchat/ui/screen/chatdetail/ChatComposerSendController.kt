@@ -65,11 +65,11 @@ internal class ChatComposerSendController(
             replyTarget = replyTarget,
             forcedMeta = forcedMeta,
         )
-        if (decision is ChatSendGuard.SendDecision.Reject) {
+        if (decision is SendDecision.Reject) {
             updateState { it.copy(groupEncryptionWarning = sendRejectMessage(decision.reason)) }
             return false
         }
-        val allowed = decision as ChatSendGuard.SendDecision.Allow
+        val allowed = decision as SendDecision.Allow
         // G68：待发意图统一走工厂（chatId 回落、id 生成、SENDING 初态都在那里）
         val optimistic = ChatSendIntentFactory.build(
             chatId = ChatSendIntentFactory.effectiveChatId(activeChatId(), chatId()),
@@ -172,13 +172,13 @@ internal class ChatComposerSendController(
     }
 
     /** G66：把守卫拒绝原因映射成用户可见文案（资源字符串只应出现在编排层）。 */
-    private fun sendRejectMessage(reason: ChatSendGuard.SendRejectReason): String = when (reason) {
-        ChatSendGuard.SendRejectReason.ALREADY_SENDING -> text(R.string.chat_send_in_flight)
-        ChatSendGuard.SendRejectReason.BLANK -> text(R.string.chat_send_empty)
-        ChatSendGuard.SendRejectReason.NO_SESSION -> text(R.string.error_session_expired)
-        ChatSendGuard.SendRejectReason.BLOCKED ->
+    private fun sendRejectMessage(reason: SendRejectReason): String = when (reason) {
+        SendRejectReason.ALREADY_SENDING -> text(R.string.chat_send_in_flight)
+        SendRejectReason.BLANK -> text(R.string.chat_send_empty)
+        SendRejectReason.NO_SESSION -> text(R.string.error_session_expired)
+        SendRejectReason.BLOCKED ->
             text(R.string.chat_blocked_user_status, currentState().contact.displayName)
-        ChatSendGuard.SendRejectReason.MENTION_EVERYONE_FORBIDDEN ->
+        SendRejectReason.MENTION_EVERYONE_FORBIDDEN ->
             text(R.string.chat_mention_everyone_restricted)
     }
 }
