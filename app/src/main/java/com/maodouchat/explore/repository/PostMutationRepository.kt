@@ -1,14 +1,11 @@
 package com.maodouchat.explore.repository
 
-import com.maodouchat.network.CommentLikeResponse
 import com.maodouchat.network.PostCommentDto
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.ReportResponse
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient
 import com.maodouchat.security.BackgroundSessionGate
-
-class MutationSessionChangedException : IllegalStateException("Session changed during post mutation")
 
 interface PostMutationRepository {
     val journal: PostMutationJournal
