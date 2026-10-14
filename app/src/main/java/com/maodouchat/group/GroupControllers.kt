@@ -10,15 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 拥有/可管理的 Bot 信息 UI 模型。
- */
-data class GroupOwnedBotUi(
-    val id: String,
-    val name: String,
-    val username: String,
-)
-
-/**
  * 群邀请控制器（U06）。
  * 独立管理群邀请码的获取、轮换、时效与最大次数配置。
  */
