@@ -7,12 +7,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URI
 
-sealed interface ServerSwitchResult {
-    data class Success(val oldUrl: String, val newUrl: String) : ServerSwitchResult
-    data object Unchanged : ServerSwitchResult
-    data class Failure(val reason: String, val rolledBack: Boolean) : ServerSwitchResult
-}
-
 /**
  * Transaction coordinator ensuring safe, atomic switching between backend server hosts.
  * Protects against credential replay attacks and cross-domain token leaks.
