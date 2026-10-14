@@ -3,16 +3,6 @@ package com.maodouchat.group
 import com.maodouchat.network.ChatDto
 import kotlinx.coroutines.CancellationException
 
-data class GroupMutationCommit(
-    val committed: Boolean = true,
-    val refreshedChat: ChatDto? = null,
-    val refreshError: Throwable? = null,
-    val reconciliationError: Throwable? = null,
-) {
-    val hasPostCommitWarning: Boolean
-        get() = refreshError != null || reconciliationError != null
-}
-
 class GroupLifecycleSessionException(message: String) : IllegalStateException(message)
 
 /**
