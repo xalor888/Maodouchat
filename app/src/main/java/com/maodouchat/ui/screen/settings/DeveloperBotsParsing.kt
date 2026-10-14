@@ -8,17 +8,6 @@ import org.json.JSONObject
  * 从 DeveloperBotsScreen.kt 按簇搬出。
  */
 
-internal data class BotUi(
-    val id: String,
-    val name: String,
-    val username: String,
-    val tokenPrefix: String,
-    val webhookUrl: String,
-    val enabled: Boolean,
-    val tokenOnce: String = ""
-)
-
-
 internal fun extractTokenOnce(raw: String?): String? {
     val text = raw.orEmpty().trim()
     if (text.isEmpty()) return null
@@ -67,4 +56,3 @@ internal fun parseBots(raw: String): List<BotUi> {
         }
     }
 }
-
