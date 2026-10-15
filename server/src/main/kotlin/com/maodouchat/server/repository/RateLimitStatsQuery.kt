@@ -12,15 +12,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
 /** 限流仪表盘读路径：区间聚合与快照新鲜度。 */
 
 /** 聚合 [fromMs, toMs) 范围内的分钟桶为仪表盘序列。 */
-fun RateLimitStatsRepository.summarize(fromMs: Long, toMs: Long): RateLimitStatsRepository.DashboardSummary = transaction {
+fun RateLimitStatsRepository.summarize(fromMs: Long, toMs: Long): DashboardSummary = transaction {
     val buckets = RateLimitStatsSnapshots.selectAll().where {
         (RateLimitStatsSnapshots.bucketStartMs greaterEq fromMs) and
             (RateLimitStatsSnapshots.bucketStartMs less toMs)
     }.orderBy(RateLimitStatsSnapshots.bucketStartMs)
         .map { it.toMinuteBucket() }
 
-    val points = mutableListOf<RateLimitStatsRepository.SummaryPoint>()
-    var prev: RateLimitStatsRepository.MinuteBucket? = null
+    val points = mutableListOf<SummaryPoint>()
+    var prev: MinuteBucket? = null
     var totalAllowed = 0L
     var totalRejected = 0L
     var peakRejectedPerMinute = 0L
@@ -31,7 +31,7 @@ fun RateLimitStatsRepository.summarize(fromMs: Long, toMs: Long): RateLimitStats
         totalAllowed += allowedDelta
         totalRejected += rejectedDelta
         if (rejectedDelta > peakRejectedPerMinute) peakRejectedPerMinute = rejectedDelta
-        points += RateLimitStatsRepository.SummaryPoint(
+        points += SummaryPoint(
             bucketStartMs = b.bucketStartMs,
             allowedDelta = allowedDelta,
             rejectedDelta = rejectedDelta,
@@ -41,7 +41,7 @@ fun RateLimitStatsRepository.summarize(fromMs: Long, toMs: Long): RateLimitStats
         )
         prev = b
     }
-    RateLimitStatsRepository.DashboardSummary(
+    DashboardSummary(
         points = points,
         totalAllowed = totalAllowed,
         totalRejected = totalRejected,
@@ -58,7 +58,7 @@ fun RateLimitStatsRepository.lastSnapshotAt(): Long? = transaction {
         .firstOrNull()?.let { it[RateLimitStatsSnapshots.sampledAt] }
 }
 
-internal fun ResultRow.toMinuteBucket(): RateLimitStatsRepository.MinuteBucket = RateLimitStatsRepository.MinuteBucket(
+internal fun ResultRow.toMinuteBucket(): MinuteBucket = MinuteBucket(
     bucketStartMs = this[RateLimitStatsSnapshots.bucketStartMs],
     allowed = this[RateLimitStatsSnapshots.allowed],
     rejected = this[RateLimitStatsSnapshots.rejected],

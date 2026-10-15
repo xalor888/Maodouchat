@@ -4,6 +4,7 @@ import com.maodouchat.server.model.CreateUserTagRequest
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.UpdateUserTagRequest
 import com.maodouchat.server.model.UserTagDto
+import com.maodouchat.server.repository.TagRow
 import com.maodouchat.server.repository.UserTagRepository
 import com.maodouchat.server.repository.createTag
 import com.maodouchat.server.repository.deleteTag
@@ -97,7 +98,7 @@ fun Application.configureUserTagCrudRoutes(userTagRepo: UserTagRepository) {
     }
 }
 
-private fun UserTagRepository.TagRow.toDto(): UserTagDto = UserTagDto(
+private fun TagRow.toDto(): UserTagDto = UserTagDto(
     id = id, name = name, color = color, description = description,
     isSystem = isSystem, riskLevel = riskLevel, createdAt = createdAt,
     updatedAt = updatedAt, userCount = userCount

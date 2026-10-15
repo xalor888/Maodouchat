@@ -23,7 +23,7 @@ fun UserTagRepository.createTag(
     riskLevel: String,
     isSystem: Boolean,
     createdBy: String?
-): UserTagRepository.TagRow = transaction {
+): TagRow = transaction {
     val now = System.currentTimeMillis()
     val id = UUID.randomUUID().toString()
     UserTags.insert {
@@ -40,11 +40,11 @@ fun UserTagRepository.createTag(
     getTag(id) ?: error("user tag insert failed")
 }
 
-fun UserTagRepository.getTag(id: String): UserTagRepository.TagRow? = transaction {
+fun UserTagRepository.getTag(id: String): TagRow? = transaction {
     UserTags.selectAll().where { UserTags.id eq id }.firstOrNull()?.let { it.toTagRow(0) }
 }
 
-fun UserTagRepository.listTags(query: String? = null): List<UserTagRepository.TagRow> = transaction {
+fun UserTagRepository.listTags(query: String? = null): List<TagRow> = transaction {
     val base = if (query?.isNotBlank() == true) {
         val escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         UserTags.selectAll().where {
@@ -69,7 +69,7 @@ fun UserTagRepository.updateTag(
     color: String?,
     description: String?,
     riskLevel: String?
-): UserTagRepository.TagRow? = transaction {
+): TagRow? = transaction {
     val row = UserTags.selectAll().where { UserTags.id eq id }.firstOrNull() ?: return@transaction null
     val now = System.currentTimeMillis()
     UserTags.update({ UserTags.id eq id }) {

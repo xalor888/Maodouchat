@@ -5,6 +5,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.RiskTagSummary
 import com.maodouchat.server.model.RiskTagSummaryResponse
 import com.maodouchat.server.model.UserTagAssignmentDto
+import com.maodouchat.server.repository.AssignmentRow
 import com.maodouchat.server.repository.UserTagRepository
 import com.maodouchat.server.repository.assignTags
 import com.maodouchat.server.repository.detachTag
@@ -83,7 +84,7 @@ fun Application.configureUserTagAssignmentRoutes(userTagRepo: UserTagRepository)
     }
 }
 
-internal fun UserTagRepository.AssignmentRow.toDto(): UserTagAssignmentDto = UserTagAssignmentDto(
+internal fun AssignmentRow.toDto(): UserTagAssignmentDto = UserTagAssignmentDto(
     userId = userId, tagId = tagId, source = source, assignedBy = assignedBy, createdAt = createdAt
 )
 private const val MAX_TAGS_PER_ASSIGNMENT = 20

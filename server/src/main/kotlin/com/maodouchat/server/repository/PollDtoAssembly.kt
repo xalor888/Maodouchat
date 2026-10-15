@@ -16,7 +16,7 @@ internal fun PollRepository.toPollDto(
     forceClosed: Boolean = false,
     preloadedVotes: List<ResultRow> = emptyList(),
     blocked: Set<String>? = null
-): PollRepository.PollDto {
+): PollDto {
     val pollId = row[GroupPolls.id]
     val options = decodeOptions(row)
     val blocked = blocked ?: ConversationVisibility.blockedUserIdsInTx(viewerId)
@@ -34,7 +34,7 @@ internal fun PollRepository.toPollDto(
         voters += uid
         if (uid == viewerId) my += idx
     }
-    return PollRepository.PollDto(
+    return PollDto(
         id = pollId,
         chatId = row[GroupPolls.chatId],
         creatorId = row[GroupPolls.creatorId],

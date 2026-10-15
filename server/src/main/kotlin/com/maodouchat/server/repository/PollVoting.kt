@@ -18,7 +18,7 @@ fun PollRepository.vote(
     userId: String,
     optionIndexes: List<Int>,
     requireBotDeliverable: Boolean = false
-): PollRepository.PollDto? {
+): PollDto? {
     if (!isValidId(pollId) || !isValidId(userId) || optionIndexes.isEmpty() || optionIndexes.size > MAX_OPTIONS) return null
     return transaction {
         val now = System.currentTimeMillis()
@@ -59,7 +59,7 @@ fun PollRepository.closePoll(
     pollId: String,
     userId: String,
     requireBotDeliverable: Boolean = false
-): PollRepository.PollDto? {
+): PollDto? {
     if (!isValidId(pollId) || !isValidId(userId)) return null
     return transaction {
         val now = System.currentTimeMillis()

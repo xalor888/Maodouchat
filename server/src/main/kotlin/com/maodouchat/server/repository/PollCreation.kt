@@ -20,7 +20,7 @@ fun PollRepository.createPoll(
     anonymous: Boolean,
     closesAt: Long?,
     requireBotDeliverable: Boolean = false
-): PollRepository.PollDto? {
+): PollDto? {
     val q = question.trim()
     val opts = options.map(String::trim)
     val now = System.currentTimeMillis()
