@@ -17,16 +17,6 @@ object AiContentModerationPolicy {
     const val MAX_INPUT_CHARS = 4_000
     const val MAX_REASON_CHARS = 180
 
-    enum class Verdict { ALLOW, REVIEW, BLOCK }
-
-    data class Decision(
-        val verdict: Verdict,
-        val action: String,
-        val category: String,
-        val reason: String,
-        val needsReview: Boolean
-    )
-
     fun parse(raw: String): Decision {
         val obj = extractJsonObject(raw) ?: return allow("unparsed")
         val verdict = when (obj.string("verdict")?.uppercase()) {

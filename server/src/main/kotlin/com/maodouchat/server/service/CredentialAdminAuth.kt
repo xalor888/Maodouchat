@@ -23,19 +23,19 @@ fun CredentialService.verifyAdminCredentials(
     userId: String,
     password: String,
     totpCode: String?,
-): CredentialService.AdminCredentialCheck {
+): AdminCredentialCheck {
     return transaction {
         val row = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
-            ?: return@transaction CredentialService.AdminCredentialCheck(passwordOk = false, secondFactorOk = false, totpEnabled = false)
+            ?: return@transaction AdminCredentialCheck(passwordOk = false, secondFactorOk = false, totpEnabled = false)
         if (row[Users.deletedAt] != null) {
-            return@transaction CredentialService.AdminCredentialCheck(passwordOk = false, secondFactorOk = false, totpEnabled = false)
+            return@transaction AdminCredentialCheck(passwordOk = false, secondFactorOk = false, totpEnabled = false)
         }
         if (!BCrypt.verifyer().verify(password.toCharArray(), row[Users.passwordHash]).verified) {
-            return@transaction CredentialService.AdminCredentialCheck(passwordOk = false, secondFactorOk = false, totpEnabled = false)
+            return@transaction AdminCredentialCheck(passwordOk = false, secondFactorOk = false, totpEnabled = false)
         }
         val enabled = row[Users.totpEnabled] && !row[Users.totpSecret].isNullOrBlank()
         if (!enabled) {
-            return@transaction CredentialService.AdminCredentialCheck(passwordOk = true, secondFactorOk = true, totpEnabled = false)
+            return@transaction AdminCredentialCheck(passwordOk = true, secondFactorOk = true, totpEnabled = false)
         }
         val secret = row[Users.totpSecret].orEmpty()
         val totpAccepted = com.maodouchat.server.service.TotpService.verify(
@@ -45,6 +45,6 @@ fun CredentialService.verifyAdminCredentials(
         ) { true }
         // 丢失验证器时的恢复码：单次消费，与 TOTP 在同一行锁内判定。
         val secondFactorOk = totpAccepted || mfaService.consumeBackupCode(row, totpCode.orEmpty())
-        CredentialService.AdminCredentialCheck(passwordOk = true, secondFactorOk = secondFactorOk, totpEnabled = true)
+        AdminCredentialCheck(passwordOk = true, secondFactorOk = secondFactorOk, totpEnabled = true)
     }
 }

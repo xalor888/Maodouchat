@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
+import com.maodouchat.server.service.AppendResult
 import com.maodouchat.server.service.BlobStore
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -79,13 +80,13 @@ internal fun Route.configureAttachmentUploadSessionChunkRoutes(
             when (val appended = withContext(Dispatchers.IO) {
                 BlobStore.appendChunk(attachmentId, offset, chunk, record.cipherSize)
             }) {
-                is BlobStore.AppendResult.OffsetMismatch -> {
+                is AppendResult.OffsetMismatch -> {
                     call.respond(HttpStatusCode.Conflict, record.toUploadStatus(appended.uploadedBytes))
                 }
-                BlobStore.AppendResult.ContentMismatch -> {
+                AppendResult.ContentMismatch -> {
                     call.respond(HttpStatusCode.Conflict, ErrorResponse("附件分块与已上传内容冲突"))
                 }
-                is BlobStore.AppendResult.Accepted -> {
+                is AppendResult.Accepted -> {
                     if (!encryptedAttachmentRepo.updateUploadProgress(attachmentId, userId, appended.uploadedBytes)) {
                         encryptedAttachmentRepo.removeUncommitted(attachmentId, userId)
                         BlobStore.delete(attachmentId)

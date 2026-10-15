@@ -50,24 +50,24 @@ class BlobStoreTest {
         val second = "chunk-two".toByteArray()
         val accepted = BlobStore.appendChunk(id, 0, first, maxSize = 1024)
         assertEquals(
-            BlobStore.AppendResult.Accepted(first.size.toLong(), replayed = false),
+            AppendResult.Accepted(first.size.toLong(), replayed = false),
             accepted
         )
         val replay = BlobStore.appendChunk(id, 0, first, maxSize = 1024)
         assertEquals(
-            BlobStore.AppendResult.Accepted(first.size.toLong(), replayed = true),
+            AppendResult.Accepted(first.size.toLong(), replayed = true),
             replay
         )
         val mismatch = BlobStore.appendChunk(id, 0, "different-bytes!!!!".toByteArray(), maxSize = 1024)
-        assertEquals(BlobStore.AppendResult.ContentMismatch, mismatch)
+        assertEquals(AppendResult.ContentMismatch, mismatch)
 
         val next = BlobStore.appendChunk(id, first.size.toLong(), second, maxSize = 1024)
         assertEquals(
-            BlobStore.AppendResult.Accepted((first.size + second.size).toLong(), replayed = false),
+            AppendResult.Accepted((first.size + second.size).toLong(), replayed = false),
             next
         )
         val gap = BlobStore.appendChunk(id, 999L, second, maxSize = 1024)
-        assertTrue(gap is BlobStore.AppendResult.OffsetMismatch)
+        assertTrue(gap is AppendResult.OffsetMismatch)
         assertEquals((first.size + second.size).toLong(), BlobStore.uploadedBytes(id))
     }
 
