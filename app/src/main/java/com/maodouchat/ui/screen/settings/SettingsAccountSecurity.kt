@@ -45,7 +45,7 @@ import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.Level
-import com.maodouchat.util.Result
+import com.maodouchat.util.PasswordStrengthResult
 import com.maodouchat.util.Suggestion
 
 @Composable
@@ -120,7 +120,7 @@ internal fun ChangePasswordDialog(
 }
 
 @Composable
-internal fun PasswordStrengthIndicator(strength: Result) {
+internal fun PasswordStrengthIndicator(strength: PasswordStrengthResult) {
     val suggestionEnter = stringResource(R.string.password_suggestion_enter)
     val suggestionLength = stringResource(R.string.password_suggestion_length)
     val suggestionDigit = stringResource(R.string.password_suggestion_digit)

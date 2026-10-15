@@ -14,9 +14,9 @@ package com.maodouchat.util
 object PasswordStrength {
 
 
-    fun evaluate(password: String): Result {
+    fun evaluate(password: String): PasswordStrengthResult {
         if (password.isBlank()) {
-            return Result(0, Level.WEAK, listOf(Suggestion.ENTER_PASSWORD))
+            return PasswordStrengthResult(0, Level.WEAK, listOf(Suggestion.ENTER_PASSWORD))
         }
         var score = 0
         val suggestions = mutableListOf<Suggestion>()
@@ -31,6 +31,6 @@ object PasswordStrength {
             score == 3 -> Level.STRONG
             else -> Level.VERY_STRONG
         }
-        return Result(score, level, suggestions)
+        return PasswordStrengthResult(score, level, suggestions)
     }
 }
