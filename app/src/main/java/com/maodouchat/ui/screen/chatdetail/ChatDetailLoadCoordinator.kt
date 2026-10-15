@@ -1,6 +1,5 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
@@ -22,33 +21,6 @@ import com.maodouchat.data.model.User
  * 这样「决策」可测，「执行」仍留在编排层，边界清晰。
  */
 internal object ChatDetailLoadCoordinator {
-
-    data class ChatLoadInput(
-        val chat: Chat,
-        /** 进入前的成员 revision；null 表示首次进入（无基线，不算「成员变更」）。 */
-        val previousRevision: Long?,
-        val currentUserId: String,
-        /** true 表示这是 API 失败后的本地缓存回退。 */
-        val fromCache: Boolean = false,
-    )
-
-    data class ChatLoadPlan(
-        val nextState: ChatDetailUiState,
-        val effects: List<ChatLoadEffect>,
-        val shouldInvalidateSenderKey: Boolean,
-        val revisionWarning: String?,
-        val fromCache: Boolean,
-    )
-
-    /** 加载完成后要执行的副作用。用 sealed 让调用方的 `when` 必须穷尽。 */
-    sealed interface ChatLoadEffect {
-        data class OccupySessionCipher(val chatId: String, val peerUserId: String?) : ChatLoadEffect
-        data object LoadGroupCandidates : ChatLoadEffect
-        data class RefreshBotCommands(val chatId: String) : ChatLoadEffect
-        data class RefreshBlockState(val peerUserId: String) : ChatLoadEffect
-        data object RefreshScheduledMessages : ChatLoadEffect
-        data class RefreshIdentitySafety(val peerUserId: String) : ChatLoadEffect
-    }
 
     /**
      * 决定一次会话加载要写什么状态、触发哪些副作用。
@@ -92,9 +64,9 @@ internal object ChatDetailLoadCoordinator {
             ChatLoadPlan(
                 nextState = nextState,
                 effects = listOf(
-                    ChatLoadEffect.OccupySessionCipher(chat.id, peerUserId = null),
-                    ChatLoadEffect.LoadGroupCandidates,
-                    ChatLoadEffect.RefreshBotCommands(chat.id),
+                    OccupySessionCipher(chat.id, peerUserId = null),
+                    LoadGroupCandidates,
+                    RefreshBotCommands(chat.id),
                 ),
                 shouldInvalidateSenderKey = shouldInvalidateSenderKey,
                 revisionWarning = revisionWarning,
@@ -120,13 +92,13 @@ internal object ChatDetailLoadCoordinator {
                     disappearingMessageSeconds = chat.disappearingMessageSeconds,
                 )
                 val effects = buildList {
-                    add(ChatLoadEffect.OccupySessionCipher(chat.id, peer.id))
-                    add(ChatLoadEffect.RefreshBlockState(peer.id))
-                    add(ChatLoadEffect.RefreshScheduledMessages)
+                    add(OccupySessionCipher(chat.id, peer.id))
+                    add(RefreshBlockState(peer.id))
+                    add(RefreshScheduledMessages)
                     if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(peer.id)) {
-                        add(ChatLoadEffect.RefreshBotCommands(chat.id))
+                        add(RefreshBotCommands(chat.id))
                     } else {
-                        add(ChatLoadEffect.RefreshIdentitySafety(peer.id))
+                        add(RefreshIdentitySafety(peer.id))
                     }
                 }
                 ChatLoadPlan(

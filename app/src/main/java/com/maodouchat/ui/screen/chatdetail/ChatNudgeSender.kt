@@ -34,14 +34,14 @@ internal class ChatNudgeSender(
             token = token(),
             nudgeEnabled = nudgeEnabled(),
         )
-        if (decision is ChatSendIntentFactory.NudgeDecision.Reject) {
+        if (decision is Reject) {
             // 资源字符串只出现在编排层：DISABLED 走 errorMessage，其余走 groupEncryptionWarning
-            val disabled = decision.reason == ChatSendIntentFactory.NudgeRejectReason.DISABLED
+            val disabled = decision.reason == NudgeRejectReason.DISABLED
             val message = when (decision.reason) {
-                ChatSendIntentFactory.NudgeRejectReason.SECRET_CHAT -> string(R.string.secret_chat_forward_blocked)
-                ChatSendIntentFactory.NudgeRejectReason.DISABLED -> string(R.string.nudge_disabled)
-                ChatSendIntentFactory.NudgeRejectReason.NO_CHAT -> string(R.string.chat_ws_send_failed)
-                ChatSendIntentFactory.NudgeRejectReason.NO_SESSION -> string(R.string.error_session_expired)
+                NudgeRejectReason.SECRET_CHAT -> string(R.string.secret_chat_forward_blocked)
+                NudgeRejectReason.DISABLED -> string(R.string.nudge_disabled)
+                NudgeRejectReason.NO_CHAT -> string(R.string.chat_ws_send_failed)
+                NudgeRejectReason.NO_SESSION -> string(R.string.error_session_expired)
             }
             updateState {
                 it.copy(
