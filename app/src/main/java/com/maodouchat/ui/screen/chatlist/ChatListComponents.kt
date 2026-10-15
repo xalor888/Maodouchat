@@ -1,6 +1,5 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.ai.Suggestion
 import com.maodouchat.util.RuntimeFlags
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -397,7 +396,7 @@ internal fun daysBetween(earlier: Calendar, later: Calendar): Int {
  */
 @Composable
 internal fun ArchiveSuggestionsCard(
-    suggestions: List<Suggestion>,
+    suggestions: List<com.maodouchat.ai.Suggestion>,
     chatsById: Map<String, Chat>,
     onArchive: (String) -> Unit,
     onDismissOne: (String) -> Unit,
