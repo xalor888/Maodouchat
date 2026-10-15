@@ -1,10 +1,10 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.security.SafetyScanStatus
-import com.maodouchat.util.QrCodeGenerator
+import com.maodouchat.util.QrTarget
 
 internal data class SafetyScanResult(
-    val target: QrCodeGenerator.QrTarget.Safety,
+    val target: QrTarget.Safety,
     val status: SafetyScanStatus
 ) {
     val matched: Boolean

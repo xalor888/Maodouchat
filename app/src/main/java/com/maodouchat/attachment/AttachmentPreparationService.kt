@@ -10,6 +10,7 @@ import com.maodouchat.domain.messaging.AttachmentPreparationService
 import com.maodouchat.domain.messaging.PreparedAttachmentResult
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.ImagePicker
+import com.maodouchat.util.LocalFileMetadata
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,7 +38,7 @@ class DefaultAttachmentPreparationService(
         val described = withContext(Dispatchers.IO) {
             MediaCache.describeFile(appContext, sourceUri)
         }
-        val rawMetadata = MediaCache.LocalFileMetadata(
+        val rawMetadata = LocalFileMetadata(
             fileName = intent.fileName ?: described.fileName,
             mimeType = intent.mimeType ?: described.mimeType,
             sizeBytes = described.sizeBytes.takeIf { it > 0L } ?: 0L
@@ -55,7 +56,7 @@ class DefaultAttachmentPreparationService(
             val compressed = ImagePicker.compressToFile(appContext, sourceUri, target)
                 ?: throw IllegalStateException("attachment_image_prepare_failed")
             val compressedUri = Uri.fromFile(compressed)
-            compressedUri to MediaCache.LocalFileMetadata(
+            compressedUri to LocalFileMetadata(
                 fileName = metadata.fileName.substringBeforeLast('.', metadata.fileName).ifBlank { "image" } + ".jpg",
                 mimeType = "image/jpeg",
                 sizeBytes = compressed.length()

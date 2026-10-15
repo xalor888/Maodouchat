@@ -68,7 +68,7 @@ class EncryptedAttachmentCryptoTest {
         }
     }
 
-    private fun EncryptedAttachmentCrypto.EncryptedFile.reference() = MediaCache.EncryptedAttachmentReference(
+    private fun EncryptedAttachmentCrypto.EncryptedFile.reference() = EncryptedAttachmentReference(
         attachmentId = "att_12345678901234567890",
         keyBase64 = keyBase64,
         ivBase64 = ivBase64,

@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.crypto.SignalKeyExchange
+import com.maodouchat.util.EncryptedAttachmentReference
 import org.signal.libsignal.protocol.ecc.Curve
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.AppDatabase
@@ -1875,7 +1876,7 @@ class TwoAccountHttpRoundTripTest {
         assertEquals("服务端记录的密文 sha 必须与本地一致", encrypted.cipherSha256, upload.cipherSha256)
         assertEquals("服务端记录的密文长度必须与本地一致", encrypted.cipherSize, upload.cipherSize)
 
-        val reference = MediaCache.EncryptedAttachmentReference(
+        val reference = EncryptedAttachmentReference(
             attachmentId = upload.id,
             keyBase64 = encrypted.keyBase64,
             ivBase64 = encrypted.ivBase64,
@@ -2071,7 +2072,7 @@ class TwoAccountHttpRoundTripTest {
             intermediate.isNotEmpty(),
         )
 
-        val reference = MediaCache.EncryptedAttachmentReference(
+        val reference = EncryptedAttachmentReference(
             attachmentId = upload.id,
             keyBase64 = encrypted.keyBase64,
             ivBase64 = encrypted.ivBase64,

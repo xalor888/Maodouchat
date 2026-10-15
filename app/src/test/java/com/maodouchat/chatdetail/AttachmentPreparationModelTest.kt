@@ -2,7 +2,7 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.attachment.normalizeAttachmentMetadata
-import com.maodouchat.util.MediaCache
+import com.maodouchat.util.LocalFileMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -26,7 +26,7 @@ class AttachmentPreparationModelTest {
     fun `file metadata is sanitized and malformed mime fails closed`() {
         val normalized = normalizeAttachmentMetadata(
             MessageType.FILE,
-            MediaCache.LocalFileMetadata("../bad\u0000:name?.pdf", "Text/Plain\r\nX-Evil: yes", -8L)
+            LocalFileMetadata("../bad\u0000:name?.pdf", "Text/Plain\r\nX-Evil: yes", -8L)
         )
 
         assertFalse(normalized.fileName.any { it.isISOControl() || it in "\\/:*?\"<>|" })
@@ -41,7 +41,7 @@ class AttachmentPreparationModelTest {
         expectedName: String,
         expectedMime: String
     ) {
-        val normalized = normalizeAttachmentMetadata(type, MediaCache.LocalFileMetadata(name, mime, 12L))
+        val normalized = normalizeAttachmentMetadata(type, LocalFileMetadata(name, mime, 12L))
         assertEquals(expectedName, normalized.fileName)
         assertEquals(expectedMime, normalized.mimeType)
         assertEquals(12L, normalized.sizeBytes)

@@ -1,20 +1,5 @@
 package com.maodouchat.ui.screen.settings
 
-
-/**
- * 账号安全一页（G98 从 `SettingsSubScreens.kt` 拆出，原 1428 行）。
- *
- * 安全中心：设备列表、E2EE 状态、应用锁、账号操作一页聚合。
- * 展示行组件簇（设备行、安全状态卡、分区标签、信息行、操作行）已于 2026-10-08
- * 按簇拆至同包 `AccountSecurityDisplayRows.kt`；TOTP 设置对话框已拆至同包 `SettingsTotpDialog.kt`，其余对话框留守本文件。
- *
- * **拆解约束**：不直接抓应用级数据库单例（`ui/` 红线，读库只能经 ViewModel/repository）；
- * E2EE 状态经 `MaodouchatApp.instance.signalProtocol` 只读查询，不落库。
- * 纯搬移，不改判断。
- */
-
-
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,6 +29,9 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.util.Level
+import com.maodouchat.util.PasswordStrengthResult
+import com.maodouchat.util.Suggestion
 
 @Composable
 internal fun DeleteAccountDialog(
@@ -107,7 +95,7 @@ internal fun ChangePasswordDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onSubmit, enabled = !isSaving && strength.level != com.maodouchat.util.PasswordStrength.Level.WEAK) {
+            TextButton(onClick = onSubmit, enabled = !isSaving && strength.level != Level.WEAK) {
                 if (isSaving) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 else Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary)
             }
@@ -117,7 +105,7 @@ internal fun ChangePasswordDialog(
 }
 
 @Composable
-internal fun PasswordStrengthIndicator(strength: com.maodouchat.util.PasswordStrength.Result) {
+internal fun PasswordStrengthIndicator(strength: PasswordStrengthResult) {
     val suggestionEnter = stringResource(R.string.password_suggestion_enter)
     val suggestionLength = stringResource(R.string.password_suggestion_length)
     val suggestionDigit = stringResource(R.string.password_suggestion_digit)
@@ -131,18 +119,18 @@ internal fun PasswordStrengthIndicator(strength: com.maodouchat.util.PasswordStr
         suggestionUppercase,
     ) {
         mapOf(
-            com.maodouchat.util.PasswordStrength.Suggestion.ENTER_PASSWORD to suggestionEnter,
-            com.maodouchat.util.PasswordStrength.Suggestion.USE_MINIMUM_LENGTH to suggestionLength,
-            com.maodouchat.util.PasswordStrength.Suggestion.ADD_DIGIT to suggestionDigit,
-            com.maodouchat.util.PasswordStrength.Suggestion.ADD_LOWERCASE to suggestionLowercase,
-            com.maodouchat.util.PasswordStrength.Suggestion.ADD_UPPERCASE to suggestionUppercase,
+            Suggestion.ENTER_PASSWORD to suggestionEnter,
+            Suggestion.USE_MINIMUM_LENGTH to suggestionLength,
+            Suggestion.ADD_DIGIT to suggestionDigit,
+            Suggestion.ADD_LOWERCASE to suggestionLowercase,
+            Suggestion.ADD_UPPERCASE to suggestionUppercase,
         )
     }
     val (color, label) = when (strength.level) {
-        com.maodouchat.util.PasswordStrength.Level.WEAK -> Error to stringResource(R.string.password_strength_weak)
-        com.maodouchat.util.PasswordStrength.Level.FAIR -> com.maodouchat.ui.theme.UnreadRed to stringResource(R.string.password_strength_fair)
-        com.maodouchat.util.PasswordStrength.Level.STRONG -> MaterialTheme.colorScheme.primary to stringResource(R.string.password_strength_strong)
-        com.maodouchat.util.PasswordStrength.Level.VERY_STRONG -> MaterialTheme.colorScheme.primary to stringResource(R.string.password_strength_very_strong)
+        Level.WEAK -> Error to stringResource(R.string.password_strength_weak)
+        Level.FAIR -> com.maodouchat.ui.theme.UnreadRed to stringResource(R.string.password_strength_fair)
+        Level.STRONG -> MaterialTheme.colorScheme.primary to stringResource(R.string.password_strength_strong)
+        Level.VERY_STRONG -> MaterialTheme.colorScheme.primary to stringResource(R.string.password_strength_very_strong)
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -161,7 +149,7 @@ internal fun PasswordStrengthIndicator(strength: com.maodouchat.util.PasswordStr
                 )
             }
         }
-        if (strength.suggestions.isNotEmpty() && strength.level != com.maodouchat.util.PasswordStrength.Level.VERY_STRONG) {
+        if (strength.suggestions.isNotEmpty() && strength.level != Level.VERY_STRONG) {
             Text(
                 stringResource(
                     R.string.password_suggestions,
@@ -176,12 +164,12 @@ internal fun PasswordStrengthIndicator(strength: com.maodouchat.util.PasswordStr
     }
 }
 
-internal fun com.maodouchat.util.PasswordStrength.Suggestion.labelRes(): Int = when (this) {
-    com.maodouchat.util.PasswordStrength.Suggestion.ENTER_PASSWORD -> R.string.password_suggestion_enter
-    com.maodouchat.util.PasswordStrength.Suggestion.USE_MINIMUM_LENGTH -> R.string.password_suggestion_length
-    com.maodouchat.util.PasswordStrength.Suggestion.ADD_DIGIT -> R.string.password_suggestion_digit
-    com.maodouchat.util.PasswordStrength.Suggestion.ADD_LOWERCASE -> R.string.password_suggestion_lowercase
-    com.maodouchat.util.PasswordStrength.Suggestion.ADD_UPPERCASE -> R.string.password_suggestion_uppercase
+internal fun Suggestion.labelRes(): Int = when (this) {
+    Suggestion.ENTER_PASSWORD -> R.string.password_suggestion_enter
+    Suggestion.USE_MINIMUM_LENGTH -> R.string.password_suggestion_length
+    Suggestion.ADD_DIGIT -> R.string.password_suggestion_digit
+    Suggestion.ADD_LOWERCASE -> R.string.password_suggestion_lowercase
+    Suggestion.ADD_UPPERCASE -> R.string.password_suggestion_uppercase
 }
 
 @Composable

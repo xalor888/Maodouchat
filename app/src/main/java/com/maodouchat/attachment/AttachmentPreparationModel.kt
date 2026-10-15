@@ -1,29 +1,29 @@
 package com.maodouchat.attachment
 
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.util.MediaCache
+import com.maodouchat.util.LocalFileMetadata
 
 internal fun normalizeAttachmentMetadata(
     type: MessageType,
-    metadata: MediaCache.LocalFileMetadata
-): MediaCache.LocalFileMetadata {
+    metadata: LocalFileMetadata
+): LocalFileMetadata {
     val safeName = sanitizeAttachmentFileName(metadata.fileName)
     val safeSize = metadata.sizeBytes.coerceAtLeast(0L)
     return when (type) {
         MessageType.IMAGE -> typedMetadata(safeName, "jpg", "image/jpeg", safeSize, "image")
         MessageType.GIF -> typedMetadata(safeName, "gif", "image/gif", safeSize, "animation")
-        MessageType.VOICE -> MediaCache.LocalFileMetadata("voice.m4a", "audio/mp4", safeSize)
+        MessageType.VOICE -> LocalFileMetadata("voice.m4a", "audio/mp4", safeSize)
         MessageType.VIDEO -> normalizeVideoMetadata(safeName, metadata.mimeType, safeSize)
-        MessageType.FILE -> MediaCache.LocalFileMetadata(
+        MessageType.FILE -> LocalFileMetadata(
             fileName = safeName,
             mimeType = normalizeMimeType(metadata.mimeType),
             sizeBytes = safeSize
         )
-        else -> MediaCache.LocalFileMetadata(safeName, normalizeMimeType(metadata.mimeType), safeSize)
+        else -> LocalFileMetadata(safeName, normalizeMimeType(metadata.mimeType), safeSize)
     }
 }
 
-internal fun normalizeVideoMetadata(fileName: String, declaredMimeType: String, sizeBytes: Long): MediaCache.LocalFileMetadata {
+internal fun normalizeVideoMetadata(fileName: String, declaredMimeType: String, sizeBytes: Long): LocalFileMetadata {
     val declaredMime = normalizeMimeType(declaredMimeType)
     val declaredExtension = VIDEO_MIME_TO_EXTENSION[declaredMime]
     val existingExtension = fileName.substringAfterLast('.', "").lowercase()
@@ -39,11 +39,11 @@ private fun typedMetadata(
     mimeType: String,
     sizeBytes: Long,
     fallbackBaseName: String
-): MediaCache.LocalFileMetadata {
+): LocalFileMetadata {
     val baseName = fileName.substringBeforeLast('.', fileName).trim().trim('.')
         .ifBlank { fallbackBaseName }
         .take(119 - extension.length)
-    return MediaCache.LocalFileMetadata("$baseName.$extension".take(120), mimeType, sizeBytes)
+    return LocalFileMetadata("$baseName.$extension".take(120), mimeType, sizeBytes)
 }
 
 private fun sanitizeAttachmentFileName(value: String): String = value

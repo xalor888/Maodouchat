@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.MaodouDimens
+import com.maodouchat.util.Level
 import com.maodouchat.util.PasswordStrength
 
 // 登录表单字段区：按 tab 切换用户名 / 邮箱 / TOTP / 验证码 / 密码（含强度条）与错误提示
@@ -197,15 +198,15 @@ internal fun LoginFormFields(
             PasswordStrength.evaluate(state.password)
         }
         val strengthColor = when (strength.level) {
-            PasswordStrength.Level.WEAK -> MaterialTheme.colorScheme.error
-            PasswordStrength.Level.FAIR -> MaterialTheme.colorScheme.tertiary
+            Level.WEAK -> MaterialTheme.colorScheme.error
+            Level.FAIR -> MaterialTheme.colorScheme.tertiary
             else -> MaterialTheme.colorScheme.primary
         }
         val strengthLabel = when (strength.level) {
-            PasswordStrength.Level.WEAK -> stringResource(R.string.password_strength_weak)
-            PasswordStrength.Level.FAIR -> stringResource(R.string.password_strength_fair)
-            PasswordStrength.Level.STRONG -> stringResource(R.string.password_strength_strong)
-            PasswordStrength.Level.VERY_STRONG -> stringResource(R.string.password_strength_very_strong)
+            Level.WEAK -> stringResource(R.string.password_strength_weak)
+            Level.FAIR -> stringResource(R.string.password_strength_fair)
+            Level.STRONG -> stringResource(R.string.password_strength_strong)
+            Level.VERY_STRONG -> stringResource(R.string.password_strength_very_strong)
         }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

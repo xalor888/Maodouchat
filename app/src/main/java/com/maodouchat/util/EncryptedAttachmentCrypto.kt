@@ -136,7 +136,7 @@ object EncryptedAttachmentCrypto {
     fun decrypt(
         encryptedFile: File,
         targetFile: File,
-        reference: MediaCache.EncryptedAttachmentReference,
+        reference: EncryptedAttachmentReference,
         onProgress: (Long, Long) -> Unit = { _, _ -> }
     ) {
         if (encryptedFile.length() != reference.cipherSize) {
@@ -202,7 +202,7 @@ object EncryptedAttachmentCrypto {
         }
     }
 
-    fun isValidCachedPlaintext(file: File, reference: MediaCache.EncryptedAttachmentReference): Boolean {
+    fun isValidCachedPlaintext(file: File, reference: EncryptedAttachmentReference): Boolean {
         if (!file.isFile || file.length() != reference.plainSize) return false
         return runCatching {
             val digest = plainSha256Digest.get()

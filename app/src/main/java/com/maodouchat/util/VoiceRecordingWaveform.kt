@@ -47,10 +47,6 @@ object VoiceCapturePolicy {
     /** 最短可发送时长（与 ViewModel 校验一致）。 */
     const val MIN_SEND_MS: Long = 500L
 
-    data class PreviewSnapshot(
-        val filePath: String,
-        val durationMs: Long,
-    )
 
     /**
      * 松手结束录制后：是否进入试听，还是直接丢弃/发送由 UI 决定。
@@ -60,13 +56,6 @@ object VoiceCapturePolicy {
 
     fun canSendPreview(durationMs: Long): Boolean = durationMs >= MIN_SEND_MS
 
-    /**
-     * 上滑取消已由手势处理；此处描述录制 UI 提示文案 key 语义。
-     */
-    enum class HoldHint {
-        RELEASE_TO_PREVIEW,
-        SLIDE_UP_CANCEL,
-    }
 
     fun holdHint(cancelArmed: Boolean): HoldHint =
         if (cancelArmed) HoldHint.SLIDE_UP_CANCEL else HoldHint.RELEASE_TO_PREVIEW

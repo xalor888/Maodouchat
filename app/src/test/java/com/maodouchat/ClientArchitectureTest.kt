@@ -429,7 +429,9 @@ class ClientArchitectureTest {
         // 新文件 258 行未进前 20，不纳管），两处同步收紧。
         // 2026-10-08：TotpSetupDialog 搬出同包 SettingsTotpDialog.kt（402 → 206，纯搬移；
         // 新文件 218 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 206,
+        // 2026-10-15：util 模型拆出后 dequalify（+3 import）；修 CI 时删文件头
+        // 历史注释 KDoc（209 → 194），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 194,
         // G358：SettingsViewModel 拆分后窗口前移——SettingsGeneral 进入前 20，按实测值纳管。
         // 2026-10-08：行组件簇搬出同包 GeneralSettingsRows.kt（873 → 342 纯搬移；
         // 修 CI 时补 setValue import 并清掉 18 个闲置 import → 324；
@@ -628,7 +630,7 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 333,
-                "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 206,
+                "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 194,
             "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
             "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 671,
             // 通话 VM 瘦身第二批：出站信令发送簇纯搬移到同包 CallSignalingSender（1500 → 1449）。
