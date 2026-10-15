@@ -14,7 +14,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import okio.BufferedSink
 import java.io.File
 import java.io.FileOutputStream
@@ -24,16 +23,9 @@ import java.security.MessageDigest
 internal object CallSignalingApiClient : CallSignalingApi {
 private val json get() = ApiService.json
 private val JSON_MEDIA get() = ApiService.JSON_MEDIA
-private val ATTACHMENT_CHUNK_BYTES get() = ApiService.ATTACHMENT_CHUNK_BYTES
-private val ATTACHMENT_CHUNK_MAX_ATTEMPTS get() = ApiService.ATTACHMENT_CHUNK_MAX_ATTEMPTS
-private val ATTACHMENT_ID_REGEX get() = ApiService.ATTACHMENT_ID_REGEX
-private val POST_IMAGE_FILENAME_REGEX get() = ApiService.POST_IMAGE_FILENAME_REGEX
 private fun jsonBody(value: String) = value.toRequestBody(ApiService.JSON_MEDIA)
 private suspend fun <T> send(request: Request, serializer: kotlinx.serialization.KSerializer<T>): Result<T> = ApiService.send(request, serializer)
 private suspend fun sendUnit(request: Request): Result<Unit> = ApiService.sendUnit(request)
-private suspend fun executeForText(request: Request, errorPrefix: String): Result<String> = ApiService.executeForText(request, errorPrefix)
-private suspend fun executeStreamingWithRefresh(request: Request): Response = ApiService.executeStreamingWithRefresh(request)
-private fun parseError(body: String): String? = ApiService.parseError(body)
 
 
 override suspend fun sendSignaling(
