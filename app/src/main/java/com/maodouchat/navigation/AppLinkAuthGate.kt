@@ -7,18 +7,10 @@ package com.maodouchat.navigation
  */
 object AppLinkAuthGate {
 
-    sealed interface Decision {
-        /** 已登录（或不要求登录），可导航到目标路由。 */
-        data class Proceed(val destination: AppLinkDestination) : Decision
-
-        /** 需要登录；保留目标供登录成功后回放。 */
-        data class RequireLogin(val pending: AppLinkDestination) : Decision
-    }
-
-    fun evaluate(destination: AppLinkDestination, isLoggedIn: Boolean): Decision {
+    fun evaluate(destination: AppLinkDestination, isLoggedIn: Boolean): AppLinkAuthDecision {
         if (!destination.requiresAuth || isLoggedIn) {
-            return Decision.Proceed(destination)
+            return AppLinkAuthDecision.Proceed(destination)
         }
-        return Decision.RequireLogin(destination)
+        return AppLinkAuthDecision.RequireLogin(destination)
     }
 }

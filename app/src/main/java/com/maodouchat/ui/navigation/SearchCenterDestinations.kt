@@ -8,6 +8,7 @@ import com.maodouchat.ui.screen.chatlist.GlobalSearchScreen
 import com.maodouchat.ui.screen.chatlist.NotificationCenterScreen
 import com.maodouchat.navigation.NotificationCenterEffects
 import com.maodouchat.navigation.NotificationCenterOpenController
+import com.maodouchat.navigation.NotificationCenterOpenOutcome
 import com.maodouchat.navigation.Routes
 
 /**
@@ -38,20 +39,20 @@ fun NavGraphBuilder.searchCenterDestinations(navController: NavHostController) {
             onBack = { navController.popBackStack() },
             onOpenItem = onOpenItem@ { item ->
                 when (val outcome = openController.onOpenItem(item)) {
-                    is NotificationCenterOpenController.Outcome.Navigate ->
+                    is NotificationCenterOpenOutcome.Navigate ->
                         navController.navigate(outcome.route) { launchSingleTop = true }
 
-                    NotificationCenterOpenController.Outcome.PopBackStack ->
+                    NotificationCenterOpenOutcome.PopBackStack ->
                         navController.popBackStack()
 
                     // 8.49：与 401 路径对齐清栈——否则 LOGIN 压在通知中心之上，
                     // 返回键回到死会话页面，重复点击堆叠多个 LOGIN entry
-                    NotificationCenterOpenController.Outcome.GoLogin ->
+                    NotificationCenterOpenOutcome.GoLogin ->
                         navController.navigate(Routes.LOGIN) {
                             popUpTo(0) { inclusive = true }
                         }
 
-                    NotificationCenterOpenController.Outcome.None -> Unit
+                    NotificationCenterOpenOutcome.None -> Unit
                 }
             }
         )
