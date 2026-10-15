@@ -45,7 +45,7 @@ data class ChatListUiState(
     /** 1.368：多选模式下已勾选的会话 id */
     val selectedChatIds: Set<String> = emptySet(),
     /** 本机最近一条可见消息的回执（chatId → 自己发出时才有）。不进 Room schema。 */
-    val receiptsByChat: Map<String, ChatListReceiptPolicy.Receipt> = emptyMap(),
+    val receiptsByChat: Map<String, Receipt> = emptyMap(),
 ) {
     val filteredChats: List<Chat>
         get() {

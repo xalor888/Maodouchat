@@ -94,7 +94,7 @@ internal fun ChatListItem(
     // 1.368：多选模式勾选态（勾选时显示选中复选框 + 高亮背景）
     isSelecting: Boolean = false,
     isSelected: Boolean = false,
-    receipt: ChatListReceiptPolicy.Receipt? = null,
+    receipt: Receipt? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     onBadgeClick: (() -> Unit)? = null

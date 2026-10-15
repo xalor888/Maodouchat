@@ -6,14 +6,6 @@ package com.maodouchat.ui.screen.chatlist
  */
 object ChatListSettingsMergePolicy {
 
-    data class SettingsSnapshot(
-        val pinnedAt: Long,
-        val notificationsMuted: Boolean,
-        val archived: Boolean,
-        val markedUnread: Boolean,
-        val settingsUpdatedAt: Long
-    )
-
     /**
      * @return server snapshot when local is null/stale; local when local.updatedAt is strictly newer.
      * Equal timestamps prefer server (authoritative after confirmed REST).

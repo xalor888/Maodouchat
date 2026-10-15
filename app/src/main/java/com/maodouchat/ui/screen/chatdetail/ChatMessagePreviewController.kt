@@ -31,7 +31,7 @@ internal class ChatMessagePreviewController(
             storedContent = message.content,
             senderDisplayName = senderName,
             isDirectChat = chat?.isGroup != true,
-            templates = NudgeDisplayPolicy.Templates(
+            templates = Templates(
                 youNudged = { target -> text(R.string.chat_nudge_you_nudged, target) },
                 theyNudgedYou = { sender -> text(R.string.chat_nudge_they_nudged_you, sender) },
                 theyNudgedTarget = { sender, target ->

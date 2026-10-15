@@ -1,12 +1,13 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy
+import com.maodouchat.ui.screen.chatdetail.Templates
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class NudgeDisplayPolicyTest {
 
-    private val templates = NudgeDisplayPolicy.Templates(
+    private val templates = Templates(
         youNudged = { t -> "你拍了拍$t" },
         theyNudgedYou = { s -> "$s 拍了拍你" },
         theyNudgedTarget = { s, t -> "$s 拍了拍$t" }

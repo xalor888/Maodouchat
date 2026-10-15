@@ -9,11 +9,6 @@ import com.maodouchat.data.model.MessageStatus
  */
 object ChatListReceiptPolicy {
 
-    data class Receipt(
-        val fromMe: Boolean,
-        val status: MessageStatus,
-    )
-
     fun fromLatest(latest: Message?, currentUserId: String, isGroup: Boolean = false): Receipt? {
         if (latest == null || currentUserId.isBlank()) return null
         if (latest.senderId != currentUserId) return null
