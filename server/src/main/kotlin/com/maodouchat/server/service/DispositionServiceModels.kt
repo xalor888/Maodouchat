@@ -35,3 +35,8 @@ data class MessageRestrictTemplate(
     val defaultDays: Int,
     val requiresCustomNote: Boolean = false
 )
+
+sealed class DispositionValidation {
+    data class Ok(val reasonCode: String, val note: String?, val banDays: Int) : DispositionValidation()
+    data class Invalid(val message: String) : DispositionValidation()
+}

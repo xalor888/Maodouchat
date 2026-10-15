@@ -31,28 +31,28 @@ internal fun DispositionService.validateMessageRestrict(
     durationDays: Int,
     reasonCode: String?,
     note: String?
-): DispositionService.DispositionValidation {
+): DispositionValidation {
     if (durationDays < 0 || durationDays > MAX_MESSAGE_RESTRICT_DAYS) {
-        return DispositionService.DispositionValidation.Invalid("invalid message restrict duration")
+        return DispositionValidation.Invalid("invalid message restrict duration")
     }
     val noteNorm = normalizeNote(note)
     if (durationDays == 0) {
         val code = normalizeReasonCode(reasonCode) ?: unrestrictMessagesReasonCode
         if (code != unrestrictMessagesReasonCode && findMessageRestrictTemplate(code) == null) {
-            return DispositionService.DispositionValidation.Invalid("unknown unrestrict messages reason")
+            return DispositionValidation.Invalid("unknown unrestrict messages reason")
         }
-        return DispositionService.DispositionValidation.Ok(
+        return DispositionValidation.Ok(
             reasonCode = if (code == unrestrictMessagesReasonCode) unrestrictMessagesReasonCode else code,
             note = noteNorm,
             banDays = 0
         )
     }
     val template = findMessageRestrictTemplate(reasonCode)
-        ?: return DispositionService.DispositionValidation.Invalid("unknown message restrict reason")
+        ?: return DispositionValidation.Invalid("unknown message restrict reason")
     if (template.requiresCustomNote && noteNorm == null) {
-        return DispositionService.DispositionValidation.Invalid("note required for this reason")
+        return DispositionValidation.Invalid("note required for this reason")
     }
-    return DispositionService.DispositionValidation.Ok(
+    return DispositionValidation.Ok(
         reasonCode = template.code,
         note = noteNorm,
         banDays = 0

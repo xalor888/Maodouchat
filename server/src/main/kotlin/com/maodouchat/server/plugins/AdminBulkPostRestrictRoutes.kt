@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.UserDispositionField
 import com.maodouchat.server.service.DispositionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -23,7 +24,7 @@ internal fun Route.configureAdminBulkPostRestrictRoutes(
         val days = parseAdminBulkDays(obj, 0, DispositionService.MAX_POST_RESTRICT_DAYS)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = if (days <= 0) 0L else System.currentTimeMillis() + days * 86_400_000L
-        val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.POST, until, "ADMIN_BULK_POST_RESTRICT", { e -> "days=$days;until=$e" })
+        val result = userDispositionService.bulkExtend(actorId, ids, UserDispositionField.POST, until, "ADMIN_BULK_POST_RESTRICT", { e -> "days=$days;until=$e" })
         val updated = result.updated
         val skipped = result.skipped
         call.respond(
@@ -45,7 +46,7 @@ put("count", updated.size)
         val obj = call.requireJsonObjectOr400(body) ?: return@post
         val ids = parseAdminIds(obj)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.POST, "ADMIN_BULK_POST_UNRESTRICT", "cleared")
+        val result = userDispositionService.bulkClear(actorId, ids, UserDispositionField.POST, "ADMIN_BULK_POST_UNRESTRICT", "cleared")
         val updated = result.updated
         val skipped = result.skipped
         call.respond(
@@ -65,7 +66,7 @@ put("count", updated.size)
             val obj = call.requireJsonObjectOr400(body) ?: return@post
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.POST, "ADMIN_BULK_CLEAR_POST_RESTRICT", "cleared")
+            val result = userDispositionService.bulkClear(actorId, ids, UserDispositionField.POST, "ADMIN_BULK_CLEAR_POST_RESTRICT", "cleared")
             val updated = result.updated
             val skipped = result.skipped
             call.respond(

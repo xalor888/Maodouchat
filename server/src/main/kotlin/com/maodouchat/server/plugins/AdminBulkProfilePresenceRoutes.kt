@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.UserSettingsField
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -23,7 +24,7 @@ internal fun Route.configureAdminBulkProfilePresenceRoutes(
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showStatus must be a boolean"))
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SHOW_STATUS, showStatus)
+            val result = userDispositionService.bulkSetUserSettings(actorId, ids, UserSettingsField.SHOW_STATUS, showStatus)
             val updated = result.updated
             val skipped = result.skipped
             recordAdminAudit(actorId = actorId, action = "bulk_set_show_status", detail = "count=${updated.size};showStatus=$showStatus")
@@ -47,7 +48,7 @@ internal fun Route.configureAdminBulkProfilePresenceRoutes(
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("showOnline must be a boolean"))
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SHOW_ONLINE, showOnline)
+            val result = userDispositionService.bulkSetUserSettings(actorId, ids, UserSettingsField.SHOW_ONLINE, showOnline)
             val updated = result.updated
             val skipped = result.skipped
             recordAdminAudit(actorId = actorId, action = "bulk_set_show_online", detail = "count=${updated.size};showOnline=$showOnline")

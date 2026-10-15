@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.UserSettingsField
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -21,7 +22,7 @@ internal fun Route.configureAdminBulkProfileSearchableRoutes(
             val obj = call.requireJsonObjectOr400(body) ?: return@post
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SEARCHABLE, false)
+            val result = userDispositionService.bulkSetUserSettings(actorId, ids, UserSettingsField.SEARCHABLE, false)
             val updated = result.updated
             val skipped = result.skipped
             recordAdminAudit(actorId = actorId, action = "bulk_set_searchable_false", detail = "count=${updated.size}")
@@ -42,7 +43,7 @@ internal fun Route.configureAdminBulkProfileSearchableRoutes(
             val obj = call.requireJsonObjectOr400(body) ?: return@post
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SEARCHABLE, true)
+            val result = userDispositionService.bulkSetUserSettings(actorId, ids, UserSettingsField.SEARCHABLE, true)
             val updated = result.updated
             val skipped = result.skipped
             recordAdminAudit(actorId = actorId, action = "bulk_set_searchable_true", detail = "count=${updated.size}")
@@ -65,7 +66,7 @@ internal fun Route.configureAdminBulkProfileSearchableRoutes(
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("searchable must be a boolean"))
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkSetUserSettings(actorId, ids, com.maodouchat.server.repository.UserRepository.UserSettingsField.SEARCHABLE, searchable)
+            val result = userDispositionService.bulkSetUserSettings(actorId, ids, UserSettingsField.SEARCHABLE, searchable)
             val updated = result.updated
             val skipped = result.skipped
             recordAdminAudit(actorId = actorId, action = "bulk_set_searchable", detail = "count=${updated.size};searchable=$searchable")

@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.UserDispositionField
 import com.maodouchat.server.service.DispositionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -26,7 +27,7 @@ internal fun Route.configureAdminBulkMessageRestrictTimedRoutes(
                 val ids = parseAdminIds(obj)
                 if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
                 val until = System.currentTimeMillis() + days * 24L * 60L * 60L * 1000L
-                val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE, until, "ADMIN_BULK_MSG_RESTRICT_DAYS", { e -> "days=$days until=$e" })
+                val result = userDispositionService.bulkExtend(actorId, ids, UserDispositionField.MESSAGE, until, "ADMIN_BULK_MSG_RESTRICT_DAYS", { e -> "days=$days until=$e" })
                 val updated = result.updated
                 val skipped = result.skipped
                 call.respond(
@@ -57,7 +58,7 @@ internal fun Route.configureAdminBulkMessageRestrictTimedRoutes(
                     return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("禁发消息截止时间无效"))
                 }
                 if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-                val result = userDispositionService.bulkSet(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE, until, "ADMIN_BULK_SET_MSG_RESTRICT_UNTIL", { _ -> "until=$until" })
+                val result = userDispositionService.bulkSet(actorId, ids, UserDispositionField.MESSAGE, until, "ADMIN_BULK_SET_MSG_RESTRICT_UNTIL", { _ -> "until=$until" })
                 val updated = result.updated
                 val skipped = result.skipped
                 call.respond(

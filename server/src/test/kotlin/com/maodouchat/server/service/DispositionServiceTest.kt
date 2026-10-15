@@ -18,10 +18,10 @@ class DispositionServiceTest {
     @Test
     fun `ban requires known reason`() {
         val missing = DispositionService.validateDisposition(7, null, null)
-        assertIs<DispositionService.DispositionValidation.Invalid>(missing)
+        assertIs<DispositionValidation.Invalid>(missing)
 
         val ok = DispositionService.validateDisposition(7, "spam", null)
-        assertIs<DispositionService.DispositionValidation.Ok>(ok)
+        assertIs<DispositionValidation.Ok>(ok)
         assertEquals("spam", ok.reasonCode)
         assertEquals(7, ok.banDays)
     }
@@ -29,27 +29,27 @@ class DispositionServiceTest {
     @Test
     fun `other requires custom note`() {
         val noNote = DispositionService.validateDisposition(1, "other", "  ")
-        assertIs<DispositionService.DispositionValidation.Invalid>(noNote)
+        assertIs<DispositionValidation.Invalid>(noNote)
 
         val withNote = DispositionService.validateDisposition(1, "other", "  运营复核  ")
-        assertIs<DispositionService.DispositionValidation.Ok>(withNote)
+        assertIs<DispositionValidation.Ok>(withNote)
         assertEquals("运营复核", withNote.note)
     }
 
     @Test
     fun `unban accepts empty reason`() {
         val ok = DispositionService.validateDisposition(0, null, "误封")
-        assertIs<DispositionService.DispositionValidation.Ok>(ok)
+        assertIs<DispositionValidation.Ok>(ok)
         assertEquals(DispositionService.unbanReasonCode, ok.reasonCode)
         assertEquals("误封", ok.note)
     }
 
     @Test
     fun `days bounds`() {
-        assertIs<DispositionService.DispositionValidation.Invalid>(
+        assertIs<DispositionValidation.Invalid>(
             DispositionService.validateDisposition(-1, "spam", null)
         )
-        assertIs<DispositionService.DispositionValidation.Invalid>(
+        assertIs<DispositionValidation.Invalid>(
             DispositionService.validateDisposition(DispositionService.MAX_BAN_DAYS + 1, "spam", null)
         )
     }
@@ -77,14 +77,14 @@ class DispositionServiceTest {
     fun `mute templates validate hours and notes`() {
         assertTrue(DispositionService.muteReasonTemplates.isNotEmpty())
         val ok = DispositionService.validateMute(1, "flood", null)
-        assertIs<DispositionService.DispositionValidation.Ok>(ok)
+        assertIs<DispositionValidation.Ok>(ok)
         assertEquals("flood", ok.reasonCode)
 
         val needNote = DispositionService.validateMute(1, "other", null)
-        assertIs<DispositionService.DispositionValidation.Invalid>(needNote)
+        assertIs<DispositionValidation.Invalid>(needNote)
 
         val unmute = DispositionService.validateMute(0, null, null)
-        assertIs<DispositionService.DispositionValidation.Ok>(unmute)
+        assertIs<DispositionValidation.Ok>(unmute)
         assertEquals(DispositionService.unmuteReasonCode, unmute.reasonCode)
 
         val now = 2_000_000L
@@ -96,25 +96,25 @@ class DispositionServiceTest {
     fun `post restrict templates validate days and notes`() {
         assertTrue(DispositionService.postRestrictReasonTemplates.isNotEmpty())
         val ok = DispositionService.validatePostRestrict(3, "spam_feed", null)
-        assertIs<DispositionService.DispositionValidation.Ok>(ok)
+        assertIs<DispositionValidation.Ok>(ok)
         assertEquals("spam_feed", ok.reasonCode)
         assertEquals(3, ok.banDays)
 
         val needNote = DispositionService.validatePostRestrict(1, "other", null)
-        assertIs<DispositionService.DispositionValidation.Invalid>(needNote)
+        assertIs<DispositionValidation.Invalid>(needNote)
 
         val withNote = DispositionService.validatePostRestrict(1, "other", "  复核  ")
-        assertIs<DispositionService.DispositionValidation.Ok>(withNote)
+        assertIs<DispositionValidation.Ok>(withNote)
         assertEquals("复核", withNote.note)
 
         val clear = DispositionService.validatePostRestrict(0, null, null)
-        assertIs<DispositionService.DispositionValidation.Ok>(clear)
+        assertIs<DispositionValidation.Ok>(clear)
         assertEquals(DispositionService.unrestrictPostsReasonCode, clear.reasonCode)
 
-        assertIs<DispositionService.DispositionValidation.Invalid>(
+        assertIs<DispositionValidation.Invalid>(
             DispositionService.validatePostRestrict(-1, "spam_feed", null)
         )
-        assertIs<DispositionService.DispositionValidation.Invalid>(
+        assertIs<DispositionValidation.Invalid>(
             DispositionService.validatePostRestrict(
                 DispositionService.MAX_POST_RESTRICT_DAYS + 1,
                 "spam_feed",

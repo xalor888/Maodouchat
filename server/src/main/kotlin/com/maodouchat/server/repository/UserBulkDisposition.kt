@@ -19,12 +19,12 @@ import org.jetbrains.exposed.sql.update
 fun UserRepository.applyBulkDisposition(
     actorId: String,
     ids: List<String>,
-    field: UserRepository.UserDispositionField,
-    mode: UserRepository.UserDispositionMode,
+    field: UserDispositionField,
+    mode: UserDispositionMode,
     until: Long,
     action: String,
     detailFor: (effective: Long) -> String,
-): UserRepository.BulkDispositionResult {
+): BulkDispositionResult {
     val existing = transaction {
         Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
     }
@@ -42,20 +42,20 @@ fun UserRepository.applyBulkDisposition(
                 return@forEach
             }
             val effective = when (mode) {
-                UserRepository.UserDispositionMode.CLEAR -> 0L
-                UserRepository.UserDispositionMode.SET -> until
-                UserRepository.UserDispositionMode.EXTEND -> if (until <= 0L) 0L else maxOf(currentDisposition(row, field), until)
+                UserDispositionMode.CLEAR -> 0L
+                UserDispositionMode.SET -> until
+                UserDispositionMode.EXTEND -> if (until <= 0L) 0L else maxOf(currentDisposition(row, field), until)
             }
             Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                 when (field) {
-                    UserRepository.UserDispositionField.SUSPEND -> it[Users.suspendedUntil] = effective
-                    UserRepository.UserDispositionField.POST -> it[Users.postRestrictedUntil] = effective
-                    UserRepository.UserDispositionField.MESSAGE -> it[Users.messageRestrictedUntil] = effective
-                    UserRepository.UserDispositionField.MESSAGE_AND_POST -> {
+                    UserDispositionField.SUSPEND -> it[Users.suspendedUntil] = effective
+                    UserDispositionField.POST -> it[Users.postRestrictedUntil] = effective
+                    UserDispositionField.MESSAGE -> it[Users.messageRestrictedUntil] = effective
+                    UserDispositionField.MESSAGE_AND_POST -> {
                         it[Users.messageRestrictedUntil] = effective
                         it[Users.postRestrictedUntil] = effective
                     }
-                    UserRepository.UserDispositionField.ALL -> {
+                    UserDispositionField.ALL -> {
                         it[Users.messageRestrictedUntil] = effective
                         it[Users.postRestrictedUntil] = effective
                         it[Users.suspendedUntil] = effective
@@ -72,13 +72,13 @@ fun UserRepository.applyBulkDisposition(
             updated += id
         }
     }
-    return UserRepository.BulkDispositionResult(updated, skipped)
+    return BulkDispositionResult(updated, skipped)
 }
 
-internal fun UserRepository.currentDisposition(row: ResultRow, field: UserRepository.UserDispositionField): Long = when (field) {
-    UserRepository.UserDispositionField.SUSPEND -> row[Users.suspendedUntil]
-    UserRepository.UserDispositionField.POST -> row[Users.postRestrictedUntil]
-    UserRepository.UserDispositionField.MESSAGE -> row[Users.messageRestrictedUntil]
-    UserRepository.UserDispositionField.MESSAGE_AND_POST -> maxOf(row[Users.messageRestrictedUntil], row[Users.postRestrictedUntil])
-    UserRepository.UserDispositionField.ALL -> maxOf(row[Users.suspendedUntil], row[Users.postRestrictedUntil], row[Users.messageRestrictedUntil])
+internal fun UserRepository.currentDisposition(row: ResultRow, field: UserDispositionField): Long = when (field) {
+    UserDispositionField.SUSPEND -> row[Users.suspendedUntil]
+    UserDispositionField.POST -> row[Users.postRestrictedUntil]
+    UserDispositionField.MESSAGE -> row[Users.messageRestrictedUntil]
+    UserDispositionField.MESSAGE_AND_POST -> maxOf(row[Users.messageRestrictedUntil], row[Users.postRestrictedUntil])
+    UserDispositionField.ALL -> maxOf(row[Users.suspendedUntil], row[Users.postRestrictedUntil], row[Users.messageRestrictedUntil])
 }

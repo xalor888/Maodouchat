@@ -13,7 +13,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
 /** B13：批量关闭 TOTP——允许对自身（含主管理员自己）操作，仅跳过其他主管理员。 */
-fun UserRepository.applyBulkDisableTotp(actorId: String, ids: List<String>): UserRepository.BulkDispositionResult {
+fun UserRepository.applyBulkDisableTotp(actorId: String, ids: List<String>): BulkDispositionResult {
     val existing = transaction {
         Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
     }
@@ -32,7 +32,7 @@ fun UserRepository.applyBulkDisableTotp(actorId: String, ids: List<String>): Use
             updated += id
         }
     }
-    return UserRepository.BulkDispositionResult(updated, skipped)
+    return BulkDispositionResult(updated, skipped)
 }
 
 internal fun UserRepository.shouldSkipBulk(actorId: String, id: String, existing: Set<String>, skipSelf: Boolean): Boolean {
