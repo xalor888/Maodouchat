@@ -69,7 +69,6 @@ val MaodouLightScheme = lightColorScheme(
     inversePrimary = Color(0xFFC5CCD4),
 )
 
-private val LightColorScheme = MaodouLightScheme
 
 // 9.3xx：补全深色 token（此前缺 secondaryContainer/tertiary/errorContainer/inverse* 等，
 // 依赖 darkColorScheme 兜底导致弹窗/卡片/进度条等组件深色下配色错乱）。
@@ -106,7 +105,6 @@ val MaodouDarkScheme = darkColorScheme(
     scrim = Color(0xFF000000),
 )
 
-private val DarkColorScheme = MaodouDarkScheme
 
 val MaodouchatTypography = Typography(
     headlineLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 32.sp, letterSpacing = (-0.02).sp),

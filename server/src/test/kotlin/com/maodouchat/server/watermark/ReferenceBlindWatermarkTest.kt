@@ -36,15 +36,6 @@ class ReferenceBlindWatermarkTest {
                 ((x * 7 + y * 11) and 0xFF)
         }
 
-    private fun extractArgb(pixels: IntArray, width: Int, height: Int): IntArray {
-        val out = IntArray(pixels.size)
-        for (i in pixels.indices) {
-            val p = pixels[i]
-            out[i] = (0xFF shl 24) or (p and 0x00FFFFFF)
-        }
-        return out
-    }
-
     // ---- 往返一致性（核心硬证据）----
 
     @Test
