@@ -47,12 +47,12 @@ internal fun CallSignalingService.rejectIfStale(
     val last = signalingRepository.latestCursor(request.callId, fromUserId)
     return when (
         CallSignalingOrderPolicy.admit(
-            CallSignalingOrderPolicy.Cursor(request.epoch, request.sequence),
+            Cursor(request.epoch, request.sequence),
             last,
         )
     ) {
-        CallSignalingOrderPolicy.Admit.Accept -> null
-        CallSignalingOrderPolicy.Admit.RejectStale -> CallSignalingService.SendOutcome.Rejected(
+        Admit.Accept -> null
+        Admit.RejectStale -> CallSignalingService.SendOutcome.Rejected(
             HttpStatusCode.Conflict,
             "信令顺序已过期",
             "CALL_SIGNAL_STALE",

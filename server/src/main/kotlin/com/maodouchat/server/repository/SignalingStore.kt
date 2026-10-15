@@ -1,7 +1,7 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.SignalingMessages
-import com.maodouchat.server.service.CallSignalingOrderPolicy
+import com.maodouchat.server.service.Cursor
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
@@ -29,7 +29,7 @@ fun SignalingRepository.store(
 
 // 同 callId + 发送方已接受的最大 (epoch, sequence) 游标；无记录时 null。
 // 遗留 0/0 行不参与游标，避免挡住已编号客户端。
-fun SignalingRepository.latestCursor(callId: String, fromUserId: String): CallSignalingOrderPolicy.Cursor? {
+fun SignalingRepository.latestCursor(callId: String, fromUserId: String): Cursor? {
     if (callId.isBlank() || fromUserId.isBlank()) return null
     return transaction {
         SignalingMessages.selectAll().where {
@@ -45,7 +45,7 @@ fun SignalingRepository.latestCursor(callId: String, fromUserId: String): CallSi
         ).limit(1)
             .firstOrNull()
             ?.let {
-                CallSignalingOrderPolicy.Cursor(
+                Cursor(
                     epoch = it[SignalingMessages.epoch],
                     sequence = it[SignalingMessages.sequence],
                 )
