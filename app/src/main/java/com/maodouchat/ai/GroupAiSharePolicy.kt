@@ -10,25 +10,6 @@ object GroupAiSharePolicy {
     const val MAX_TASKS_PER_SAVE = GroupAiTaskDrafts.MAX_TASKS_PER_SAVE
     const val MAX_TASK_TITLE_CHARS = GroupAiTaskDrafts.MAX_TASK_TITLE_CHARS
 
-    data class ShareDecision(
-        val allowed: Boolean,
-        val body: String = "",
-        val reason: BlockReason? = null
-    )
-
-    enum class BlockReason {
-        NOT_GROUP,
-        EMPTY_ANSWER,
-        ALREADY_SHARED
-    }
-
-    data class TaskDraft(
-        val title: String,
-        val owner: String? = null,
-        val dueText: String? = null,
-        val dueAt: Long? = null
-    )
-
     fun decideShare(
         isGroup: Boolean,
         answer: String?,

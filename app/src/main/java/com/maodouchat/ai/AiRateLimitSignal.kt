@@ -12,7 +12,7 @@ internal object AiRateLimitSignal {
         serverCode: String?,
         serverMessage: String?,
         serverRetryAfterSeconds: Long? = null
-    ): AiCostVisibilityPolicy.RateLimitSignal {
+    ): RateLimitSignal {
         val code = serverCode?.trim().orEmpty()
         val message = serverMessage?.trim().orEmpty()
         val blob = "$code $message".uppercase()
@@ -33,13 +33,13 @@ internal object AiRateLimitSignal {
             ?.takeIf { it > 0L }
             ?.coerceAtMost(86_400L)
         return when {
-            isQuota -> AiCostVisibilityPolicy.RateLimitSignal(isRateLimited = true, isQuota = true, retryAfterSeconds = retry)
-            isRate -> AiCostVisibilityPolicy.RateLimitSignal(isRateLimited = true, isQuota = false, retryAfterSeconds = retry)
-            else -> AiCostVisibilityPolicy.RateLimitSignal(isRateLimited = false, isQuota = false, retryAfterSeconds = null)
+            isQuota -> RateLimitSignal(isRateLimited = true, isQuota = true, retryAfterSeconds = retry)
+            isRate -> RateLimitSignal(isRateLimited = true, isQuota = false, retryAfterSeconds = retry)
+            else -> RateLimitSignal(isRateLimited = false, isQuota = false, retryAfterSeconds = null)
         }
     }
 
-    fun mapToErrorCode(signal: AiCostVisibilityPolicy.RateLimitSignal): String? = when {
+    fun mapToErrorCode(signal: RateLimitSignal): String? = when {
         signal.isQuota -> AiCostVisibilityPolicy.ERROR_QUOTA
         signal.isRateLimited -> AiCostVisibilityPolicy.ERROR_RATE_LIMIT
         else -> null

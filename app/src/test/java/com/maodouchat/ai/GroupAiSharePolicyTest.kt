@@ -10,15 +10,15 @@ class GroupAiSharePolicyTest {
     @Test
     fun `share requires group and non-blank answer`() {
         assertEquals(
-            GroupAiSharePolicy.BlockReason.NOT_GROUP,
+            BlockReason.NOT_GROUP,
             GroupAiSharePolicy.decideShare(false, "hello").reason
         )
         assertEquals(
-            GroupAiSharePolicy.BlockReason.EMPTY_ANSWER,
+            BlockReason.EMPTY_ANSWER,
             GroupAiSharePolicy.decideShare(true, "  ").reason
         )
         assertEquals(
-            GroupAiSharePolicy.BlockReason.ALREADY_SHARED,
+            BlockReason.ALREADY_SHARED,
             GroupAiSharePolicy.decideShare(true, "hello", alreadyShared = true).reason
         )
         val ok = GroupAiSharePolicy.decideShare(true, "  answer  ")
@@ -37,7 +37,7 @@ class GroupAiSharePolicyTest {
     @Test
     fun `sanitize tasks drops blanks and caps size`() {
         val drafts = List(25) { i ->
-            GroupAiSharePolicy.TaskDraft(
+            TaskDraft(
                 title = if (i == 0) "  " else " task $i ",
                 owner = "  alice  ",
                 dueAt = if (i == 2) 0L else 100L + i
@@ -57,7 +57,7 @@ class GroupAiSharePolicyTest {
             GroupAiSharePolicy.isClosedLoopReady(
                 isGroup = true,
                 answer = "summary for the group",
-                tasks = listOf(GroupAiSharePolicy.TaskDraft(title = "follow up"))
+                tasks = listOf(TaskDraft(title = "follow up"))
             )
         )
         assertFalse(
@@ -68,7 +68,7 @@ class GroupAiSharePolicyTest {
             )
         )
         assertFalse(GroupAiSharePolicy.isClosedLoopReady(isGroup = false, answer = "x"))
-        assertTrue(GroupAiSharePolicy.canPersistTasks(listOf(GroupAiSharePolicy.TaskDraft("a"))))
-        assertFalse(GroupAiSharePolicy.canPersistTasks(listOf(GroupAiSharePolicy.TaskDraft("  "))))
+        assertTrue(GroupAiSharePolicy.canPersistTasks(listOf(TaskDraft("a"))))
+        assertFalse(GroupAiSharePolicy.canPersistTasks(listOf(TaskDraft("  "))))
     }
 }

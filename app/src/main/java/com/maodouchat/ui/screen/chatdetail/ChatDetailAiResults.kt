@@ -5,6 +5,7 @@ import com.maodouchat.util.RuntimeFlags
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
+import com.maodouchat.ai.TaskDraft
 import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.data.model.MessageMeta
@@ -175,7 +176,7 @@ fun ChatDetailViewModel.saveGroupAiTasks() {
         if (state.isSavingGroupAiTasks || state.groupAiTasksSaved) return
         val drafts = com.maodouchat.ai.GroupAiSharePolicy.sanitizeTasks(
             state.groupAiTasks.map {
-                com.maodouchat.ai.GroupAiSharePolicy.TaskDraft(
+                TaskDraft(
                     title = it.title,
                     owner = it.owner,
                     dueText = it.dueText,

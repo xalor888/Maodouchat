@@ -76,23 +76,23 @@ class AiCostVisibilityPolicyTest {
     @Test
     fun `billing hints cover stream cancel and unknown outcome`() {
         assertEquals(
-            AiCostVisibilityPolicy.BillingHint.IN_FLIGHT_MAY_BILL,
+            BillingHint.IN_FLIGHT_MAY_BILL,
             AiCostVisibilityPolicy.billingHintFor(null, isStreaming = true)
         )
         assertEquals(
-            AiCostVisibilityPolicy.BillingHint.CANCELLED_PARTIAL_MAY_BILL,
+            BillingHint.CANCELLED_PARTIAL_MAY_BILL,
             AiCostVisibilityPolicy.billingHintFor(AiCostVisibilityPolicy.ERROR_CANCELLED)
         )
         assertEquals(
-            AiCostVisibilityPolicy.BillingHint.OUTCOME_UNKNOWN_MAY_BILL,
+            BillingHint.OUTCOME_UNKNOWN_MAY_BILL,
             AiCostVisibilityPolicy.billingHintFor("OUTCOME_UNKNOWN")
         )
         assertEquals(
-            AiCostVisibilityPolicy.BillingHint.RATE_LIMITED_WAIT,
+            BillingHint.RATE_LIMITED_WAIT,
             AiCostVisibilityPolicy.billingHintFor(AiCostVisibilityPolicy.ERROR_RATE_LIMIT)
         )
         assertEquals(
-            AiCostVisibilityPolicy.BillingHint.SAFE_AUTO_RETRY,
+            BillingHint.SAFE_AUTO_RETRY,
             AiCostVisibilityPolicy.billingHintFor(
                 "CONNECTION_NOT_ESTABLISHED",
                 hasScheduledAutoRetry = true
@@ -136,14 +136,14 @@ class AiCostVisibilityPolicyTest {
         assertTrue(payment.isQuota)
         assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(payment))
         assertEquals(
-            AiCostVisibilityPolicy.BillingHint.QUOTA_EXCEEDED,
+            BillingHint.QUOTA_EXCEEDED,
             AiCostVisibilityPolicy.billingHintFor("PAYMENT_REQUIRED")
         )
         assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("PAYMENT_REQUIRED"))
         val display = AiCostVisibilityPolicy.displaySignalFor("QUOTA_EXCEEDED", isFailed = true)
         assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, display.errorCode)
         assertEquals(AiCostVisibilityPolicy.DEFAULT_QUOTA_WAIT_SECONDS, display.waitSeconds)
-        assertEquals(AiCostVisibilityPolicy.BillingHint.QUOTA_EXCEEDED, display.hint)
+        assertEquals(BillingHint.QUOTA_EXCEEDED, display.hint)
         assertTrue(display.warnRetryBills)
     }
 }

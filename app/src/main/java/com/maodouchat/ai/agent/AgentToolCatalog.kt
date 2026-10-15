@@ -1,6 +1,6 @@
 package com.maodouchat.ai.agent
 
-internal val agentToolCatalog: List<AgentToolPolicy.ToolSpec> = listOf(
+internal val agentToolCatalog: List<ToolSpec> = listOf(
     listChatsToolSpec,
     getChatHistoryToolSpec,
     searchMessagesToolSpec,

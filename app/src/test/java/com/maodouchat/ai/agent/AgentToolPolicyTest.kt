@@ -10,11 +10,11 @@ class AgentToolPolicyTest {
     @Test
     fun `send and write tools need user approval`() {
         AgentToolPolicy.tools
-            .filter { it.risk == AgentToolPolicy.Risk.WRITE || it.risk == AgentToolPolicy.Risk.SEND }
+            .filter { it.risk == Risk.WRITE || it.risk == Risk.SEND }
             .forEach { spec ->
                 assertEquals(
                     spec.name,
-                    AgentToolPolicy.Approval.NEED_USER,
+                    Approval.NEED_USER,
                     AgentToolPolicy.approvalFor(spec.name, emptyMap())
                 )
             }
@@ -22,19 +22,19 @@ class AgentToolPolicyTest {
 
     @Test
     fun `read tools are allowed without approval`() {
-        assertEquals(AgentToolPolicy.Approval.ALLOW, AgentToolPolicy.approvalFor("list_chats", emptyMap()))
-        assertEquals(AgentToolPolicy.Approval.ALLOW, AgentToolPolicy.approvalFor("get_chat_history", mapOf("chatId" to "c1")))
-        assertEquals(AgentToolPolicy.Approval.ALLOW, AgentToolPolicy.approvalFor("search_messages", mapOf("query" to "hi")))
-        assertEquals(AgentToolPolicy.Approval.ALLOW, AgentToolPolicy.approvalFor("get_contacts", emptyMap()))
-        assertEquals(AgentToolPolicy.Approval.ALLOW, AgentToolPolicy.approvalFor("rewrite_text", mapOf("text" to "x")))
-        assertEquals(AgentToolPolicy.Approval.ALLOW, AgentToolPolicy.approvalFor("get_me", emptyMap()))
-        assertEquals(AgentToolPolicy.Approval.ALLOW, AgentToolPolicy.approvalFor("list_drafts", emptyMap()))
-        assertEquals(AgentToolPolicy.Approval.ALLOW, AgentToolPolicy.approvalFor("list_notifications", emptyMap()))
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("list_chats", emptyMap()))
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("get_chat_history", mapOf("chatId" to "c1")))
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("search_messages", mapOf("query" to "hi")))
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("get_contacts", emptyMap()))
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("rewrite_text", mapOf("text" to "x")))
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("get_me", emptyMap()))
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("list_drafts", emptyMap()))
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("list_notifications", emptyMap()))
     }
 
     @Test
     fun `unknown tool is denied`() {
-        assertEquals(AgentToolPolicy.Approval.DENY, AgentToolPolicy.approvalFor("dump_host_sql", emptyMap()))
+        assertEquals(Approval.DENY, AgentToolPolicy.approvalFor("dump_host_sql", emptyMap()))
     }
 
     @Test
