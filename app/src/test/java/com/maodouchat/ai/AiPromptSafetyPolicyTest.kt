@@ -33,11 +33,11 @@ class AiPromptSafetyPolicyTest {
     fun `privilege scan catches transfer and account claims`() {
         val transfer = AiPromptSafetyPolicy.scanPrivilegeClaims("我已经帮你完成转账 100 元")
         assertTrue(transfer.hasClaim)
-        assertTrue(transfer.kinds.contains(AiPromptSafetyPolicy.PrivilegeClaimKind.TRANSFER_OR_PAYMENT))
+        assertTrue(transfer.kinds.contains(PrivilegeClaimKind.TRANSFER_OR_PAYMENT))
 
         val account = AiPromptSafetyPolicy.scanPrivilegeClaims("Your account has been deleted successfully.")
         assertTrue(account.hasClaim)
-        assertTrue(account.kinds.contains(AiPromptSafetyPolicy.PrivilegeClaimKind.ACCOUNT_DESTRUCTIVE))
+        assertTrue(account.kinds.contains(PrivilegeClaimKind.ACCOUNT_DESTRUCTIVE))
 
         val safe = AiPromptSafetyPolicy.scanPrivilegeClaims("建议你在设置里自行确认转账记录")
         assertFalse(safe.hasClaim)
