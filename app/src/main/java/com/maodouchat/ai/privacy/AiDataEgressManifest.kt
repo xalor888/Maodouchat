@@ -21,14 +21,6 @@ package com.maodouchat.ai.privacy
  */
 object AiDataEgressManifest {
 
-    enum class EgressDecision {
-        ALLOWED,
-        DENIED_SECRET_CHAT,
-        DENIED_LOCKED_CHAT,
-        DENIED_CREDENTIAL_LEAK,
-        DENIED_EMPTY_OR_CORRUPT
-    }
-
     private val SENSITIVE_PATTERN = Regex(
         "(?i)(password|passwd|bearer\\s+[a-z0-9_\\-\\.~]{20,}|private_key|begin[ a-z0-9_-]*private key)"
     )

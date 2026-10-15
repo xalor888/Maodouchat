@@ -54,9 +54,9 @@ internal object LocalAiFileTasks {
         } ?: return Result.failure(IllegalStateException("不支持该文件类型"))
         val instruction = fileInstruction(prepared.fileName, prepared.mimeType, mode, question)
         return when (prepared.kind) {
-            LocalAiFileAnalyzer.Kind.TEXT ->
+            Kind.TEXT ->
                 AgentTextCompletion.completeText(provider, instruction, prepared.text)
-            LocalAiFileAnalyzer.Kind.PDF_PAGES -> {
+            Kind.PDF_PAGES -> {
                 if (!provider.hasVisionCapability()) {
                     return Result.failure(
                         IllegalStateException("当前模型 (${provider.model}) 不支持视觉多模态输入，请在「AI 与隐私」设置中开启多模态支持或配置视觉模型（如 GPT-4o / Claude-3 / Qwen-VL 等）")

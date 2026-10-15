@@ -17,16 +17,6 @@ object LocalAiFileAnalyzer {
     const val MAX_PDF_PAGES = 4
     const val MAX_PAGE_WIDTH = 1024
 
-    data class PreparedDocument(
-        val kind: Kind,
-        val fileName: String,
-        val mimeType: String,
-        val text: String = "",
-        val pageJpegsBase64: List<String> = emptyList()
-    )
-
-    enum class Kind { TEXT, PDF_PAGES }
-
     fun prepare(fileName: String, mimeType: String, fileBase64: String): PreparedDocument? {
         val bytes = runCatching {
             Base64.getDecoder().decode(fileBase64.replace('-', '+').replace('_', '/'))

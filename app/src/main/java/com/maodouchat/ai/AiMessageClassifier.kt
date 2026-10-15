@@ -2,7 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.data.local.AppDatabase
-import com.maodouchat.data.repository.AiProfileRepository
+import com.maodouchat.data.repository.CategoryCount
 
 /**
  * B4 · 消息分类（纯本地 SQLCipher 规则分类，无服务端调用）。
@@ -23,10 +23,10 @@ object AiMessageClassifier {
         AiClassifyLexicon.classifyText(text)
 
     /** 重算某会话分类统计并落库；返回类别统计（按计数降序）。 */
-    suspend fun classifyChat(context: Context, database: AppDatabase, chatId: String): List<AiProfileRepository.CategoryCount> =
+    suspend fun classifyChat(context: Context, database: AppDatabase, chatId: String): List<CategoryCount> =
         AiChatClassificationStats.classifyChat(context, database, chatId)
 
     /** 读取上次分类统计（仅本地）。 */
-    suspend fun cached(context: Context, chatId: String): List<AiProfileRepository.CategoryCount> =
+    suspend fun cached(context: Context, chatId: String): List<CategoryCount> =
         AiChatClassificationStats.cached(context, chatId)
 }
