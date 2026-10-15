@@ -32,7 +32,7 @@ class PushWakePayloadPolicyTest {
                 "preview" to "secret hello",
             )
         )
-        assertIs<PushWakePayloadPolicy.Decision.Reject>(decision)
+        assertIs<Decision.Reject>(decision)
         assertTrue(decision.reason.contains("preview"))
     }
 
@@ -55,13 +55,13 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "GROUP_INVITE", "extraLeak" to "x")
         )
-        assertIs<PushWakePayloadPolicy.Decision.Reject>(decision)
+        assertIs<Decision.Reject>(decision)
         assertEquals("unknown_keys=extraleak", decision.reason)
     }
 
     @Test
     fun rejectsEmptyPayload() {
-        assertIs<PushWakePayloadPolicy.Decision.Reject>(
+        assertIs<Decision.Reject>(
             PushWakePayloadPolicy.evaluate(emptyMap())
         )
     }
