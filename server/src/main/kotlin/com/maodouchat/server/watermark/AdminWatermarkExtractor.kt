@@ -17,14 +17,6 @@ object AdminWatermarkExtractor {
     const val MAX_DIMENSION = 8192
     const val MAX_PIXELS = 16_000_000
 
-    data class ExtractResult(
-        val found: Boolean,
-        val payloadHex: String? = null,
-        val width: Int = 0,
-        val height: Int = 0,
-        val message: String = ""
-    )
-
     fun extractFromBase64(dataUrlOrBase64: String): ExtractResult {
         val raw = dataUrlOrBase64.trim()
         if (raw.isBlank()) return ExtractResult(false, message = "empty_payload")
