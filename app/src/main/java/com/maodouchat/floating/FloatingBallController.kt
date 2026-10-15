@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.graphics.Rect
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.provider.Settings
 import android.util.TypedValue
@@ -148,13 +147,6 @@ object FloatingBallController {
             ((params.y + params.height / 2f) / h).coerceIn(0f, 1f),
         )
     }
-
-    private fun circleBackground(): GradientDrawable =
-        GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(0xFF007AFF.toInt())
-            setStroke(2, 0xFFFFFFFF.toInt())
-        }
 
     internal fun boundsOf(wm: WindowManager): Rect {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
