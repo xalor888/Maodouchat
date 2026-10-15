@@ -45,7 +45,7 @@ class ChatSendIntentFactoryTest {
             token = "tok",
             nudgeEnabled = true,
         )
-        assertIs<Reject>(result)
+        assertIs<NudgeDecision.Reject>(result)
         assertEquals(NudgeRejectReason.SECRET_CHAT, result.reason)
     }
 
@@ -58,7 +58,7 @@ class ChatSendIntentFactoryTest {
             token = "tok",
             nudgeEnabled = false,
         )
-        assertIs<Reject>(result)
+        assertIs<NudgeDecision.Reject>(result)
         assertEquals(NudgeRejectReason.DISABLED, result.reason)
     }
 
@@ -71,7 +71,7 @@ class ChatSendIntentFactoryTest {
             token = "tok",
             nudgeEnabled = true,
         )
-        assertIs<Reject>(result)
+        assertIs<NudgeDecision.Reject>(result)
         assertEquals(NudgeRejectReason.NO_CHAT, result.reason)
     }
 
@@ -89,7 +89,7 @@ class ChatSendIntentFactoryTest {
                 token = token,
                 nudgeEnabled = true,
             )
-            assertIs<Reject>(result, "$label 必须被拒")
+            assertIs<NudgeDecision.Reject>(result, "$label 必须被拒")
             assertEquals(NudgeRejectReason.NO_SESSION, result.reason, label)
         }
     }
@@ -103,7 +103,7 @@ class ChatSendIntentFactoryTest {
             token = "tok",
             nudgeEnabled = true,
         )
-        assertIs<Allow>(result)
+        assertIs<NudgeDecision.Allow>(result)
         assertEquals("u1", result.ownerUserId)
         assertEquals("c1", result.chatId)
     }

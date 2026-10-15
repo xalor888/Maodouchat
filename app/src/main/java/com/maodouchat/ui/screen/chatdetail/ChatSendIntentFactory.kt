@@ -33,14 +33,14 @@ internal object ChatSendIntentFactory {
         token: String,
         nudgeEnabled: Boolean,
     ): NudgeDecision {
-        if (state.isSecretChat == true) return Reject(NudgeRejectReason.SECRET_CHAT)
-        if (!nudgeEnabled) return Reject(NudgeRejectReason.DISABLED)
+        if (state.isSecretChat == true) return NudgeDecision.Reject(NudgeRejectReason.SECRET_CHAT)
+        if (!nudgeEnabled) return NudgeDecision.Reject(NudgeRejectReason.DISABLED)
         val chatId = effectiveChatId(activeChatId = activeChatId, fallbackChatId = "")
-        if (chatId.isBlank()) return Reject(NudgeRejectReason.NO_CHAT)
+        if (chatId.isBlank()) return NudgeDecision.Reject(NudgeRejectReason.NO_CHAT)
         if (token.isBlank() || ownerUserId.isBlank() || ownerUserId == PLACEHOLDER_OWNER) {
-            return Reject(NudgeRejectReason.NO_SESSION)
+            return NudgeDecision.Reject(NudgeRejectReason.NO_SESSION)
         }
-        return Allow(ownerUserId = ownerUserId, chatId = chatId)
+        return NudgeDecision.Allow(ownerUserId = ownerUserId, chatId = chatId)
     }
 
     /**

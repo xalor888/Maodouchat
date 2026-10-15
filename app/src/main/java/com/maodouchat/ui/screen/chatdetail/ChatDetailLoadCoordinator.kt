@@ -64,9 +64,9 @@ internal object ChatDetailLoadCoordinator {
             ChatLoadPlan(
                 nextState = nextState,
                 effects = listOf(
-                    OccupySessionCipher(chat.id, peerUserId = null),
-                    LoadGroupCandidates,
-                    RefreshBotCommands(chat.id),
+                    ChatLoadEffect.OccupySessionCipher(chat.id, peerUserId = null),
+                    ChatLoadEffect.LoadGroupCandidates,
+                    ChatLoadEffect.RefreshBotCommands(chat.id),
                 ),
                 shouldInvalidateSenderKey = shouldInvalidateSenderKey,
                 revisionWarning = revisionWarning,
@@ -92,13 +92,13 @@ internal object ChatDetailLoadCoordinator {
                     disappearingMessageSeconds = chat.disappearingMessageSeconds,
                 )
                 val effects = buildList {
-                    add(OccupySessionCipher(chat.id, peer.id))
-                    add(RefreshBlockState(peer.id))
-                    add(RefreshScheduledMessages)
+                    add(ChatLoadEffect.OccupySessionCipher(chat.id, peer.id))
+                    add(ChatLoadEffect.RefreshBlockState(peer.id))
+                    add(ChatLoadEffect.RefreshScheduledMessages)
                     if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(peer.id)) {
-                        add(RefreshBotCommands(chat.id))
+                        add(ChatLoadEffect.RefreshBotCommands(chat.id))
                     } else {
-                        add(RefreshIdentitySafety(peer.id))
+                        add(ChatLoadEffect.RefreshIdentitySafety(peer.id))
                     }
                 }
                 ChatLoadPlan(

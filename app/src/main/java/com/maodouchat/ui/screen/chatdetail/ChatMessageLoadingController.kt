@@ -61,13 +61,13 @@ internal class ChatMessageLoadingController(
     ) {
         plan.effects.forEach { effect ->
             when (effect) {
-                is OccupySessionCipher ->
+                is ChatLoadEffect.OccupySessionCipher ->
                     cipherController.occupySessionCipher(effect.chatId, peerUserId = effect.peerUserId, updatePeer = true)
-                LoadGroupCandidates -> botGroupActionController.loadGroupCandidates()
-                is RefreshBotCommands -> botGroupActionController.refreshBotCommands(effect.chatId)
-                is RefreshBlockState -> moderationController.refreshBlockState(effect.peerUserId)
-                RefreshScheduledMessages -> scheduledMessageController.refreshScheduledMessages()
-                is RefreshIdentitySafety ->
+                ChatLoadEffect.LoadGroupCandidates -> botGroupActionController.loadGroupCandidates()
+                is ChatLoadEffect.RefreshBotCommands -> botGroupActionController.refreshBotCommands(effect.chatId)
+                is ChatLoadEffect.RefreshBlockState -> moderationController.refreshBlockState(effect.peerUserId)
+                ChatLoadEffect.RefreshScheduledMessages -> scheduledMessageController.refreshScheduledMessages()
+                is ChatLoadEffect.RefreshIdentitySafety ->
                     identityVerificationController.refreshIdentitySafetyState(effect.peerUserId)
             }
         }

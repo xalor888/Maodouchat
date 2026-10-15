@@ -113,14 +113,14 @@ class ChatDetailLoadCoordinatorTest {
         assertFalse(result.nextState.isSecretChat ?: false, "普通群不是密聊")
 
         val effects = result.effects
-        assertTrue(effects.any { it is LoadGroupCandidates }, "群必须拉候选人")
-        assertTrue(effects.any { it is RefreshBotCommands }, "群必须刷新 bot 命令")
+        assertTrue(effects.any { it is ChatLoadEffect.LoadGroupCandidates }, "群必须拉候选人")
+        assertTrue(effects.any { it is ChatLoadEffect.RefreshBotCommands }, "群必须刷新 bot 命令")
         assertTrue(
-            effects.any { it is OccupySessionCipher && it.peerUserId == null },
+            effects.any { it is ChatLoadEffect.OccupySessionCipher && it.peerUserId == null },
             "群会话占session cipher 时 peerUserId 必须为 null",
         )
         assertFalse(
-            effects.any { it is RefreshBlockState },
+            effects.any { it is ChatLoadEffect.RefreshBlockState },
             "群分支不该刷屏蔽状态（那是直聊的事）",
         )
     }
@@ -145,15 +145,15 @@ class ChatDetailLoadCoordinatorTest {
 
         val effects = result.effects
         assertTrue(
-            effects.any { it is OccupySessionCipher && it.peerUserId == "u2" },
+            effects.any { it is ChatLoadEffect.OccupySessionCipher && it.peerUserId == "u2" },
             "直聊必须带对端 userId 占 session cipher",
         )
         assertTrue(
-            effects.any { it is RefreshBlockState && it.peerUserId == "u2" },
+            effects.any { it is ChatLoadEffect.RefreshBlockState && it.peerUserId == "u2" },
             "直聊必须刷屏蔽状态",
         )
-        assertTrue(effects.any { it is RefreshScheduledMessages }, "直聊必须刷新定时消息")
-        assertFalse(effects.any { it is LoadGroupCandidates }, "直聊不该拉群候选人")
+        assertTrue(effects.any { it is ChatLoadEffect.RefreshScheduledMessages }, "直聊必须刷新定时消息")
+        assertFalse(effects.any { it is ChatLoadEffect.LoadGroupCandidates }, "直聊不该拉群候选人")
     }
 
     @Test
@@ -163,12 +163,12 @@ class ChatDetailLoadCoordinatorTest {
         val result = plan(direct, previousRevision = null)
 
         assertTrue(
-            result.effects.any { it is RefreshBotCommands },
+            result.effects.any { it is ChatLoadEffect.RefreshBotCommands },
             "对端是 bot 时必须刷新 bot 命令",
         )
         assertFalse(
             result.effects.any {
-                it is RefreshIdentitySafety
+                it is ChatLoadEffect.RefreshIdentitySafety
             },
             "对端是 bot 时不该走身份验证刷新",
         )
@@ -180,13 +180,13 @@ class ChatDetailLoadCoordinatorTest {
 
         assertTrue(
             result.effects.any {
-                it is RefreshIdentitySafety &&
+                it is ChatLoadEffect.RefreshIdentitySafety &&
                     it.peerUserId == "u2"
             },
             "对端是人时必须刷新身份验证状态",
         )
         assertFalse(
-            result.effects.any { it is RefreshBotCommands },
+            result.effects.any { it is ChatLoadEffect.RefreshBotCommands },
             "对端是人时不该刷 bot 命令",
         )
     }

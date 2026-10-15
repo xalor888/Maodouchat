@@ -34,7 +34,7 @@ internal class ChatNudgeSender(
             token = token(),
             nudgeEnabled = nudgeEnabled(),
         )
-        if (decision is Reject) {
+        if (decision is NudgeDecision.Reject) {
             // 资源字符串只出现在编排层：DISABLED 走 errorMessage，其余走 groupEncryptionWarning
             val disabled = decision.reason == NudgeRejectReason.DISABLED
             val message = when (decision.reason) {
