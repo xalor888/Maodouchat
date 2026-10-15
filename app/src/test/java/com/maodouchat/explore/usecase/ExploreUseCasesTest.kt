@@ -5,6 +5,7 @@ import com.maodouchat.explore.policy.PostVisibility
 import com.maodouchat.explore.repository.DraftRepository
 import com.maodouchat.explore.repository.ExploreDraft
 import com.maodouchat.explore.repository.MediaUploadQueue
+import com.maodouchat.explore.repository.PostMutationJournal
 import com.maodouchat.explore.repository.PostMutationRepository
 import com.maodouchat.explore.repository.UploadItem
 import com.maodouchat.network.CommentLikeResponse
