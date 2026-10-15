@@ -81,21 +81,6 @@ class ConversationCreationService(
     fun getOrCreateDirect(userId1: String, userId2: String): CreatedConversation =
         creationRepository.getOrCreateDirect(userId1, userId2)
 
-    internal sealed interface NormalizedCommand {
-        data class Valid(
-            val chatType: String,
-            val groupName: String?,
-            val allParticipantIds: List<String>,
-            val inviteeIds: List<String>,
-        ) : NormalizedCommand
-
-        data class Rejected(val outcome: CreateConversationOutcome) : NormalizedCommand {
-            constructor(result: CreateConversationResult) : this(CreateConversationOutcome(result))
-        }
-    }
-
-    internal class CreationAbort(val outcome: CreateConversationOutcome) : RuntimeException()
-
     internal companion object {
         const val MAX_USER_ID_LENGTH = 50
         const val MAX_GROUP_NAME_LENGTH = 50

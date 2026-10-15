@@ -8,7 +8,7 @@ import com.maodouchat.server.repository.getOrCreateSecret
 
 /** 按会话类型的实际落库：1:1（普通/密聊）幂等建、频道建、群建 + 初始邀请。 */
 internal fun ConversationCreationService.createPaired(
-    command: ConversationCreationService.NormalizedCommand.Valid,
+    command: NormalizedCommand.Valid,
 ): CreateConversationOutcome {
     val created = if (command.chatType == ChatType.SECRET) {
         creationRepository.getOrCreateSecret(command.allParticipantIds[0], command.allParticipantIds[1])
@@ -24,7 +24,7 @@ internal fun ConversationCreationService.createPaired(
 
 internal fun ConversationCreationService.createChannel(
     actorId: String,
-    command: ConversationCreationService.NormalizedCommand.Valid,
+    command: NormalizedCommand.Valid,
 ): CreateConversationOutcome {
     val created = creationRepository.create(
         participantIds = command.allParticipantIds,
@@ -42,7 +42,7 @@ internal fun ConversationCreationService.createChannel(
 
 internal fun ConversationCreationService.createGroup(
     actorId: String,
-    command: ConversationCreationService.NormalizedCommand.Valid,
+    command: NormalizedCommand.Valid,
     maxGroupMembers: Int,
 ): CreateConversationOutcome {
     val created = creationRepository.create(
@@ -60,7 +60,7 @@ internal fun ConversationCreationService.createGroup(
             maxGroupMembers,
         )
         if (invitations.result != GroupMemberMutationResult.UPDATED) {
-            throw ConversationCreationService.CreationAbort(invitations.toCreationOutcome(ChatType.GROUP))
+            throw CreationAbort(invitations.toCreationOutcome(ChatType.GROUP))
         }
         return CreateConversationOutcome(
             CreateConversationResult.CREATED,

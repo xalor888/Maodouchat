@@ -8,42 +8,42 @@ internal fun ConversationCreationService.normalize(
     command: CreateConversationCommand,
     maxGroupMembers: Int,
     maxChannelMembers: Int,
-): ConversationCreationService.NormalizedCommand {
+): NormalizedCommand {
     val chatType = command.chatType?.trim()?.takeIf(String::isNotEmpty)
         ?: if (command.isGroup) ChatType.GROUP else ChatType.DIRECT
     if (chatType !in ConversationCreationService.CHAT_TYPES) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.INVALID_TYPE)
+        return NormalizedCommand.Rejected(CreateConversationResult.INVALID_TYPE)
     }
     if (command.isGroup && chatType in ConversationCreationService.DIRECT_TYPES) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.INVALID_TYPE_SHAPE)
+        return NormalizedCommand.Rejected(CreateConversationResult.INVALID_TYPE_SHAPE)
     }
     val participantIds = command.participantIds.map(String::trim)
     if (participantIds.any { it.isEmpty() || it.length > ConversationCreationService.MAX_USER_ID_LENGTH }) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.INVALID_PARTICIPANT)
+        return NormalizedCommand.Rejected(CreateConversationResult.INVALID_PARTICIPANT)
     }
     if (participantIds.distinct().size != participantIds.size) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.DUPLICATE_PARTICIPANT)
+        return NormalizedCommand.Rejected(CreateConversationResult.DUPLICATE_PARTICIPANT)
     }
     val isGroupConversation = chatType in ConversationCreationService.GROUP_TYPES
     if (!isGroupConversation && participantIds.isEmpty()) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.EMPTY_PARTICIPANTS)
+        return NormalizedCommand.Rejected(CreateConversationResult.EMPTY_PARTICIPANTS)
     }
     if (!isGroupConversation && actorId in participantIds) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.SELF_DIRECT)
+        return NormalizedCommand.Rejected(CreateConversationResult.SELF_DIRECT)
     }
     val allParticipants = (participantIds + actorId).distinct()
     if (!isGroupConversation && allParticipants.size != 2) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.DIRECT_MEMBER_COUNT)
+        return NormalizedCommand.Rejected(CreateConversationResult.DIRECT_MEMBER_COUNT)
     }
     val groupName = command.groupName?.trim()?.takeIf(String::isNotEmpty)
     if (isGroupConversation && groupName != null && groupName.length > ConversationCreationService.MAX_GROUP_NAME_LENGTH) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.GROUP_NAME_TOO_LONG)
+        return NormalizedCommand.Rejected(CreateConversationResult.GROUP_NAME_TOO_LONG)
     }
     val memberLimit = if (chatType == ChatType.CHANNEL) maxChannelMembers else maxGroupMembers
     if (isGroupConversation && allParticipants.size > memberLimit.coerceAtLeast(0)) {
-        return ConversationCreationService.NormalizedCommand.Rejected(CreateConversationResult.MEMBER_LIMIT_EXCEEDED)
+        return NormalizedCommand.Rejected(CreateConversationResult.MEMBER_LIMIT_EXCEEDED)
     }
-    return ConversationCreationService.NormalizedCommand.Valid(
+    return NormalizedCommand.Valid(
         chatType = chatType,
         groupName = groupName,
         allParticipantIds = allParticipants,

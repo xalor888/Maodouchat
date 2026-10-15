@@ -9,17 +9,6 @@ object BotCommandPolicy {
     private val SLASH = Regex("^/([a-z][a-z0-9_]{0,31})(?:@([a-z][a-z0-9_]{2,31}))?(?:\\s+([\\s\\S]*))?$")
     private val AT_BOT = Regex("^@([a-z][a-z0-9_]{2,31})(?:\\s+([\\s\\S]*))?$")
 
-    data class SlashCommand(
-        val command: String,
-        val targetUsername: String?,
-        val arguments: String,
-    )
-
-    data class MentionCommand(
-        val username: String,
-        val text: String,
-    )
-
     fun isBotUserId(userId: String): Boolean = userId.startsWith("bot_")
 
     fun looksLikeCiphertext(content: String): Boolean {

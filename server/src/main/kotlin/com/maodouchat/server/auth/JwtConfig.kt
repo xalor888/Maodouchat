@@ -27,9 +27,6 @@ object JwtConfig {
     fun generateToken(userId: String, tokenVersion: Long = 0): String =
         generateAccessToken(userId, tokenVersion).token
 
-    /** Same clock for JWT exp claim and AuthResponse.expiresAt (avoid dual-now skew). */
-    data class AccessToken(val token: String, val expiresAtMs: Long)
-
     fun generateAccessToken(
         userId: String,
         tokenVersion: Long = 0,
