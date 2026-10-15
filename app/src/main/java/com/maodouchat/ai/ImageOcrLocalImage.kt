@@ -4,6 +4,7 @@ import android.content.Context
 import com.maodouchat.data.model.Message
 import com.maodouchat.network.ApiService
 import com.maodouchat.util.EncryptedAttachmentCrypto
+import com.maodouchat.util.EncryptedAttachmentReference
 import com.maodouchat.util.MediaCache
 
 // 本地图片获取：缓存命中直接返回，否则按密文附件引用下载+解密到缓存。
@@ -41,9 +42,9 @@ object ImageOcrLocalImage {
     }
 
     /** 与 ChatDetailViewModel 的私有实现等价：由 meta 字段构造解密附件引用。 */
-    private fun toEncryptedAttachmentReference(message: Message): MediaCache.EncryptedAttachmentReference? {
+    private fun toEncryptedAttachmentReference(message: Message): EncryptedAttachmentReference? {
         val meta = message.parsedMeta()
-        val reference = MediaCache.EncryptedAttachmentReference(
+        val reference = EncryptedAttachmentReference(
             attachmentId = meta.attachmentId ?: return null,
             keyBase64 = meta.attachmentKeyBase64 ?: return null,
             ivBase64 = meta.attachmentIvBase64 ?: return null,

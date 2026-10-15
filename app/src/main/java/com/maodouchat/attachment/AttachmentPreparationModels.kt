@@ -2,13 +2,13 @@ package com.maodouchat.attachment
 
 import android.net.Uri
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.util.MediaCache
+import com.maodouchat.util.LocalFileMetadata
 
 internal data class AttachmentPreparationRequest(
     val messageId: String,
     val sourceUri: Uri,
     val type: MessageType,
-    val initialMetadata: MediaCache.LocalFileMetadata,
+    val initialMetadata: LocalFileMetadata,
     val voiceDurationMs: Long?
 )
 

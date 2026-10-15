@@ -64,7 +64,7 @@ class QrCodeGeneratorPayloadTest {
             safetyCode = "123456",
         )
         val target = QrCodeGenerator.parsePayload(payload)
-        assertIs<QrCodeGenerator.QrTarget.Safety>(target)
+        assertIs<QrTarget.Safety>(target)
         assertEquals("u1", target.ownerUserId)
         assertEquals(1, target.ownerDeviceId)
         assertEquals("u2", target.peerUserId)
@@ -82,7 +82,7 @@ class QrCodeGeneratorPayloadTest {
             safetyCode = "11:22:33",
         )
         val target = QrCodeGenerator.parsePayload(payload)
-        assertIs<QrCodeGenerator.QrTarget.Safety>(target)
+        assertIs<QrTarget.Safety>(target)
         assertEquals("u1", target.ownerUserId)
         assertEquals(7, target.ownerDeviceId, "deviceId 不得被 safetyCode 里的冒号挤位")
         assertEquals("u2", target.peerUserId, "peerUserId 不得被挤位")
@@ -126,7 +126,7 @@ class QrCodeGeneratorPayloadTest {
             ownerIdentityFingerprint = "fp1", peerIdentityFingerprint = "fp2",
         )
         val target = QrCodeGenerator.parsePayload(payload)
-        assertIs<QrCodeGenerator.QrTarget.Safety>(target)
+        assertIs<QrTarget.Safety>(target)
         assertEquals("fp1", target.ownerIdentityFingerprint)
         assertEquals("fp2", target.peerIdentityFingerprint)
         // v2 不带 safetyCode
@@ -136,11 +136,11 @@ class QrCodeGeneratorPayloadTest {
     @Test
     fun parsePayloadRecognisesEveryKind() {
         val user = assertNotNull(QrCodeGenerator.parsePayload(QrCodeGenerator.encodeUserQrPayload("u9")))
-        assertIs<QrCodeGenerator.QrTarget.User>(user)
+        assertIs<QrTarget.User>(user)
         assertEquals("u9", user.userId)
 
         val chat = assertNotNull(QrCodeGenerator.parsePayload(QrCodeGenerator.encodeChatQrPayload("c9")))
-        assertIs<QrCodeGenerator.QrTarget.Chat>(chat)
+        assertIs<QrTarget.Chat>(chat)
         assertEquals("c9", chat.chatId)
 
         val invite = assertNotNull(
@@ -149,7 +149,7 @@ class QrCodeGeneratorPayloadTest {
             ),
             "40 字符 token 应能往返（解析侧要求 ≥32）",
         )
-        assertIs<QrCodeGenerator.QrTarget.ChatInvite>(invite)
+        assertIs<QrTarget.ChatInvite>(invite)
         assertEquals("t".repeat(40), invite.token)
     }
 
@@ -161,7 +161,7 @@ class QrCodeGeneratorPayloadTest {
                     throw AssertionError("parsePayload('$bad') 抛异常了：${it.message}", it)
                 }
                 // 允许 null（Invalid）或某种宽松解析，但绝不允许崩
-                assertTrue(target == null || target is QrCodeGenerator.QrTarget,
+                assertTrue(target == null || target is QrTarget,
                     "'$bad' 解析结果异常：$target")
             }
     }

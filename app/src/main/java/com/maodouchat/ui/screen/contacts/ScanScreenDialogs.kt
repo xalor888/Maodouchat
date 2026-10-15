@@ -26,7 +26,7 @@ import com.maodouchat.contacts.QrScanFeedbackPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.util.QrCodeGenerator
+import com.maodouchat.util.QrTarget
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -51,7 +51,7 @@ internal fun ScanResultDialogs(state: ScanScreenUiState) {
 
     // 扫描结果弹窗：用户资料 / 加载中 / 查不到用户
     val user = state.scannedUser
-    if (state.scannedTarget is QrCodeGenerator.QrTarget.User && user != null) {
+    if (state.scannedTarget is QrTarget.User && user != null) {
         val context = state.context
         val alreadyFriend = remember(user.id) {
             com.maodouchat.data.repository.FriendCacheStore.getFriendIds(context).contains(user.id)
@@ -140,14 +140,14 @@ internal fun ScanResultDialogs(state: ScanScreenUiState) {
                 }
             }
         )
-    } else if (state.scannedTarget is QrCodeGenerator.QrTarget.User && state.loading) {
+    } else if (state.scannedTarget is QrTarget.User && state.loading) {
         AlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(R.string.contacts_parsing)) },
             text = { Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } },
             confirmButton = {}
         )
-    } else if (state.scannedTarget is QrCodeGenerator.QrTarget.User) {
+    } else if (state.scannedTarget is QrTarget.User) {
         // 查不到用户（或网络失败且无本地缓存）
         AlertDialog(
             onDismissRequest = { state.scannedTarget = null },
@@ -208,7 +208,7 @@ internal fun ScanResultDialogs(state: ScanScreenUiState) {
                 }
             }
         )
-    } else if (state.scannedTarget is QrCodeGenerator.QrTarget.Safety && state.loading) {
+    } else if (state.scannedTarget is QrTarget.Safety && state.loading) {
         AlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(R.string.contacts_safety_verifying)) },

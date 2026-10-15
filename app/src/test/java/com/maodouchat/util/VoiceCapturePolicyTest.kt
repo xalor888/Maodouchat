@@ -53,11 +53,11 @@ class VoiceCapturePolicyTest {
     @Test
     fun holdHint_mapsCancelArmed() {
         assertEquals(
-            VoiceCapturePolicy.HoldHint.RELEASE_TO_PREVIEW,
+            HoldHint.RELEASE_TO_PREVIEW,
             VoiceCapturePolicy.holdHint(cancelArmed = false),
         )
         assertEquals(
-            VoiceCapturePolicy.HoldHint.SLIDE_UP_CANCEL,
+            HoldHint.SLIDE_UP_CANCEL,
             VoiceCapturePolicy.holdHint(cancelArmed = true),
         )
     }

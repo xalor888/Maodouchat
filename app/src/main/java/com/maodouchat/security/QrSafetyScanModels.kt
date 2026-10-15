@@ -13,7 +13,7 @@ enum class SafetyScanStatus {
     CODE_MISMATCH,
 }
 
-/** QR 载荷里参与核验的字段（由 ui 侧从 `QrCodeGenerator.QrTarget.Safety` 逐字映射）。 */
+/** QR 载荷里参与核验的字段（由 ui 侧从 `QrTarget.Safety` 逐字映射）。 */
 data class SafetyScanRequest(
     val ownerUserId: String,
     val ownerDeviceId: Int,

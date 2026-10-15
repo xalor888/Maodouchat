@@ -1,6 +1,7 @@
 package com.maodouchat.contacts
 
 import com.maodouchat.util.QrCodeGenerator
+import com.maodouchat.util.QrTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -17,8 +18,8 @@ class QrPayloadParserTest {
 
         // 验证 QrCodeGenerator.parsePayload 向后兼容性
         val target = QrCodeGenerator.parsePayload(payload)
-        assertTrue(target is QrCodeGenerator.QrTarget.User)
-        assertEquals("user_12345-abc", (target as QrCodeGenerator.QrTarget.User).userId)
+        assertTrue(target is QrTarget.User)
+        assertEquals("user_12345-abc", (target as QrTarget.User).userId)
     }
 
     @Test

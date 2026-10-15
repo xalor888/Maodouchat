@@ -77,7 +77,7 @@ class MediaCacheAttachmentSizeLimitTest {
             context = context,
             source = android.net.Uri.fromFile(src),
             messageId = "m-over",
-            metadata = MediaCache.LocalFileMetadata(
+            metadata = LocalFileMetadata(
                 fileName = "src.bin",
                 mimeType = "application/octet-stream",
                 sizeBytes = max + 1,
@@ -99,7 +99,7 @@ class MediaCacheAttachmentSizeLimitTest {
             context = context,
             source = android.net.Uri.fromFile(src),
             messageId = "m-exact2",
-            metadata = MediaCache.LocalFileMetadata(
+            metadata = LocalFileMetadata(
                 fileName = "src.bin",
                 mimeType = "application/octet-stream",
                 sizeBytes = 8L,
@@ -117,7 +117,7 @@ class MediaCacheAttachmentSizeLimitTest {
             context = context,
             source = android.net.Uri.fromFile(src),
             messageId = "m-exact",
-            metadata = MediaCache.LocalFileMetadata(
+            metadata = LocalFileMetadata(
                 fileName = "src2.bin",
                 mimeType = "application/octet-stream",
                 sizeBytes = max,
@@ -146,7 +146,7 @@ class MediaCacheAttachmentSizeLimitTest {
             context = context,
             source = android.net.Uri.fromFile(big),
             messageId = "m-backstop",
-            metadata = MediaCache.LocalFileMetadata(
+            metadata = LocalFileMetadata(
                 fileName = "big.bin",
                 mimeType = "application/octet-stream",
                 sizeBytes = 8L,   // 撒谎：声明 8 字节
@@ -161,7 +161,7 @@ class MediaCacheAttachmentSizeLimitTest {
             context = context,
             source = android.net.Uri.fromFile(small),
             messageId = "m-backstop-ok",
-            metadata = MediaCache.LocalFileMetadata(
+            metadata = LocalFileMetadata(
                 fileName = "small.bin",
                 mimeType = "application/octet-stream",
                 sizeBytes = 8L,
@@ -231,7 +231,7 @@ class MediaCacheAttachmentSizeLimitTest {
         assertNull(
             MediaCache.copyFileToCache(
                 context, android.net.Uri.fromFile(src), "m-over2",
-                MediaCache.LocalFileMetadata("over.bin", "application/octet-stream", over),
+                LocalFileMetadata("over.bin", "application/octet-stream", over),
             ),
         )
         // 加密侧：声明超界

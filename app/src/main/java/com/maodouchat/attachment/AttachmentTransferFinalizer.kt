@@ -14,6 +14,7 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.TokenManager
+import com.maodouchat.util.EncryptedAttachmentReference
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
@@ -99,7 +100,7 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
             ensureSessionActive(tokenManager, expectedOwnerUserId)
             attachmentReadyVerified = true
 
-            val reference = MediaCache.EncryptedAttachmentReference(
+            val reference = EncryptedAttachmentReference(
                 attachmentId = attachmentId,
                 keyBase64 = transfer.keyBase64,
                 ivBase64 = transfer.ivBase64,

@@ -37,7 +37,7 @@ class MediaCacheAttachmentReferenceTest {
         cipherSha256: String = "c".repeat(64),
         plainSha256: String = "e".repeat(64),
         kind: String = "maodouchat-attachment-v1",
-    ) = MediaCache.EncryptedAttachmentReference(
+    ) = EncryptedAttachmentReference(
         kind = kind,
         attachmentId = attachmentId,
         keyBase64 = keyBase64,

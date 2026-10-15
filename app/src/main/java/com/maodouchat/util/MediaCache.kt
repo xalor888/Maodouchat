@@ -8,7 +8,6 @@ import android.util.Log
 import com.maodouchat.data.model.MessageType
 import androidx.core.net.toUri
 import java.io.File
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
@@ -31,26 +30,6 @@ object MediaCache {
     private val filenameUnsafeCharsRegex = Regex("[\\\\/:*?\"<>|\\p{Cntrl}]")
     private val extensionNameRegex = Regex("[a-z0-9]{1,10}")
 
-    data class LocalFileMetadata(
-        val fileName: String,
-        val mimeType: String,
-        val sizeBytes: Long
-    )
-
-    @Serializable
-    data class EncryptedAttachmentReference(
-        val kind: String = ATTACHMENT_PAYLOAD_KIND,
-        val attachmentId: String,
-        val keyBase64: String,
-        val ivBase64: String,
-        val cipherSha256: String,
-        val plainSha256: String,
-        val cipherSize: Long,
-        val fileName: String,
-        val mimeType: String,
-        val plainSize: Long,
-        val durationMs: Long? = null
-    )
 
     fun uriToRawBase64(context: Context, uri: Uri, maxBytes: Long = MAX_INLINE_MEDIA_BYTES): String? {
         return runCatching {

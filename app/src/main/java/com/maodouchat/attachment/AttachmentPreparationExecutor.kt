@@ -7,6 +7,7 @@ import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.ImagePicker
+import com.maodouchat.util.LocalFileMetadata
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -88,7 +89,7 @@ internal class AttachmentPreparationExecutor(
     private fun prepareSource(
         request: AttachmentPreparationRequest,
         lease: AttachmentPreparationLease
-    ): Pair<Uri, MediaCache.LocalFileMetadata> {
+    ): Pair<Uri, LocalFileMetadata> {
         if (request.type != MessageType.IMAGE) {
             if (request.type == MessageType.VOICE) lease.recordPreparedSource(request.sourceUri.toString())
             return request.sourceUri to request.initialMetadata
@@ -98,7 +99,7 @@ internal class AttachmentPreparationExecutor(
             ?: throw IllegalStateException("attachment_image_prepare_failed")
         val preparedUri = Uri.fromFile(file)
         lease.recordPreparedSource(preparedUri.toString())
-        return preparedUri to MediaCache.LocalFileMetadata(
+        return preparedUri to LocalFileMetadata(
             fileName = request.initialMetadata.fileName.substringBeforeLast('.', request.initialMetadata.fileName)
                 .ifBlank { "image" }.take(116) + ".jpg",
             mimeType = "image/jpeg",

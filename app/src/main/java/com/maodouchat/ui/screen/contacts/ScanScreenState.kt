@@ -18,6 +18,7 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.security.SafetyScanStatus
 import com.maodouchat.util.QrCodeGenerator
+import com.maodouchat.util.QrTarget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,7 +38,7 @@ internal class ScanScreenUiState(
     val safetyTrustedMsg: String,
     val safetyTrustFailedMsg: String,
 ) {
-    var scannedTarget by mutableStateOf<QrCodeGenerator.QrTarget?>(null)
+    var scannedTarget by mutableStateOf<QrTarget?>(null)
     var scannedUser by mutableStateOf<User?>(null)
     var scannedUserError by mutableStateOf<String?>(null)
     var scannedUserFriendBusy by mutableStateOf(false)
@@ -62,12 +63,12 @@ internal class ScanScreenUiState(
             return
         }
         when (target) {
-            is QrCodeGenerator.QrTarget.Chat -> onOpenChat(target.chatId)
-            is QrCodeGenerator.QrTarget.ChatInvite -> {
+            is QrTarget.Chat -> onOpenChat(target.chatId)
+            is QrTarget.ChatInvite -> {
                 // QR 邀请与深链统一经 JoinGroupInvite 路由，不再页内直调 join API。
                 onJoinGroupInvite(target.token)
             }
-            is QrCodeGenerator.QrTarget.Safety -> {
+            is QrTarget.Safety -> {
                 scannedTarget = target
                 loading = true
                 scope.launch {
@@ -100,7 +101,7 @@ internal class ScanScreenUiState(
                     }
                 }
             }
-            is QrCodeGenerator.QrTarget.User -> {
+            is QrTarget.User -> {
                 scannedTarget = target
                 scannedUserError = null
                 scannedUserFriendBusy = false

@@ -8,6 +8,7 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.EncryptedAttachmentCrypto
+import com.maodouchat.util.EncryptedAttachmentReference
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import java.util.concurrent.ConcurrentHashMap
@@ -116,9 +117,9 @@ internal class AttachmentDownloadCoordinator(
 
 internal class AttachmentReferenceInvalidException : IllegalStateException("attachment_reference_invalid")
 
-private fun Message.toEncryptedAttachmentReference(): MediaCache.EncryptedAttachmentReference? {
+private fun Message.toEncryptedAttachmentReference(): EncryptedAttachmentReference? {
     val metadata = parsedMeta()
-    val reference = MediaCache.EncryptedAttachmentReference(
+    val reference = EncryptedAttachmentReference(
         attachmentId = metadata.attachmentId ?: return null,
         keyBase64 = metadata.attachmentKeyBase64 ?: return null,
         ivBase64 = metadata.attachmentIvBase64 ?: return null,

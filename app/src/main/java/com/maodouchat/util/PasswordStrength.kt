@@ -13,10 +13,6 @@ package com.maodouchat.util
  */
 object PasswordStrength {
 
-    enum class Level { WEAK, FAIR, STRONG, VERY_STRONG }
-    enum class Suggestion { ENTER_PASSWORD, USE_MINIMUM_LENGTH, ADD_DIGIT, ADD_LOWERCASE, ADD_UPPERCASE }
-
-    data class Result(val score: Int, val level: Level, val suggestions: List<Suggestion>)
 
     fun evaluate(password: String): Result {
         if (password.isBlank()) {
