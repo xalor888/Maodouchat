@@ -1,6 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
+import com.maodouchat.network.TokenExpiredEvent
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
@@ -18,7 +19,7 @@ import kotlinx.coroutines.flow.SharedFlow
 internal class SessionNetworkRepository(
     private val refreshApi: suspend () -> String? = { ApiService.refreshAccessTokenForCurrentSession() },
     /** 令牌失效广播：网络层在任何请求拿到「会话作废」时发出，UI 据此回登录页。 */
-    val tokenExpiredEvents: SharedFlow<ApiService.TokenExpiredEvent> = ApiService.tokenExpired,
+    val tokenExpiredEvents: SharedFlow<TokenExpiredEvent> = ApiService.tokenExpired,
 ) {
     suspend fun refreshAccessToken(): String? = refreshApi()
 }

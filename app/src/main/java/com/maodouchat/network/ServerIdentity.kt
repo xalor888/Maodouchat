@@ -21,15 +21,6 @@ import java.net.URL
  * 避免把 A 服务器的名称展示在 B 服务器的会话上。
  */
 object ServerIdentity {
-    data class Info(
-        val name: String,
-        val description: String,
-        val announcement: String,
-        val contactUrl: String,
-        val version: String,
-        val registrationOpen: Boolean,
-        val baseUrl: String
-    )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _current = MutableStateFlow<Info?>(null)

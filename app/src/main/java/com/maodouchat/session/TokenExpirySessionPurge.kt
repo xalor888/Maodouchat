@@ -1,14 +1,14 @@
 package com.maodouchat.session
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.network.ApiService
+import com.maodouchat.network.TokenExpiredEvent
 import com.maodouchat.network.TokenExpiredEventPolicy
 import com.maodouchat.security.LogoutStorePolicy
 import com.maodouchat.security.Reason
 
 object TokenExpirySessionPurge {
 
-    fun shouldHandle(event: ApiService.TokenExpiredEvent): Boolean =
+    fun shouldHandle(event: TokenExpiredEvent): Boolean =
         TokenExpiredEventPolicy.shouldHandle(
             eventOwnerUserId = event.ownerUserId,
             eventSessionGeneration = event.sessionGeneration,
@@ -17,7 +17,7 @@ object TokenExpirySessionPurge {
         )
 
     /** @return 本地会话是否确实被清掉（true = 调用方跳登录页）。 */
-    suspend fun purge(event: ApiService.TokenExpiredEvent): Boolean {
+    suspend fun purge(event: TokenExpiredEvent): Boolean {
         return try {
             MaodouchatApp.instance.secureSessionManager.purgeLocalSession(
                 destroyEncryptedDatabase = LogoutStorePolicy.destroyEncryptedDatabase(
