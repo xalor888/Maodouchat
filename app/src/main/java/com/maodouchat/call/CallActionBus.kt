@@ -7,12 +7,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 /** Process-local bridge from the immutable foreground-service PendingIntent to the active call VM. */
 object CallActionBus {
-    data class HangUpRequest(
-        val callId: String,
-        val notifyPeer: Boolean = true,
-        val sessionGeneration: Long = MaodouchatApp.currentSessionGeneration(),
-    )
-
     private val _hangUpRequests = MutableSharedFlow<HangUpRequest>(extraBufferCapacity = 16)
     val hangUpRequests: SharedFlow<HangUpRequest> = _hangUpRequests.asSharedFlow()
 

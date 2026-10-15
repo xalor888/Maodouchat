@@ -32,8 +32,8 @@ object MissedCallTimeoutPolicy {
      * captured when the offer was accepted into the coordinator.
      */
     fun shouldRecordMissed(
-        observedPending: IncomingCallCoordinator.PendingIncomingCall?,
-        stillPending: IncomingCallCoordinator.PendingIncomingCall?,
+        observedPending: PendingIncomingCall?,
+        stillPending: PendingIncomingCall?,
     ): Boolean {
         if (observedPending == null || stillPending == null) return false
         return stillPending == observedPending ||

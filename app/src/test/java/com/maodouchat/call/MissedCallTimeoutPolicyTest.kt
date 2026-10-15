@@ -11,7 +11,7 @@ class MissedCallTimeoutPolicyTest {
     private fun pending(
         callId: String = "call-1",
         contactId: String = "user-a",
-    ) = IncomingCallCoordinator.PendingIncomingCall(
+    ) = PendingIncomingCall(
         contactId = contactId,
         contactName = "Alice",
         callType = CallType.AUDIO,

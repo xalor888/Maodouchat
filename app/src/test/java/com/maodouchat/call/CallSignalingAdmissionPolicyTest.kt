@@ -10,7 +10,7 @@ class CallSignalingAdmissionPolicyTest {
     @Test
     fun `direct call drops foreign sender`() {
         assertEquals(
-            CallSignalingAdmissionPolicy.Decision.DROP,
+            Decision.DROP,
             CallSignalingAdmissionPolicy.admit(
                 isGroupCall = false,
                 expectedContactId = "a",
@@ -29,7 +29,7 @@ class CallSignalingAdmissionPolicyTest {
     @Test
     fun `mismatched call id busy-rejects offer and drops ice`() {
         assertEquals(
-            CallSignalingAdmissionPolicy.Decision.BUSY_REJECT,
+            Decision.BUSY_REJECT,
             CallSignalingAdmissionPolicy.admit(
                 isGroupCall = false,
                 expectedContactId = "a",
@@ -44,7 +44,7 @@ class CallSignalingAdmissionPolicyTest {
             ),
         )
         assertEquals(
-            CallSignalingAdmissionPolicy.Decision.DROP,
+            Decision.DROP,
             CallSignalingAdmissionPolicy.admit(
                 isGroupCall = false,
                 expectedContactId = "a",
@@ -63,7 +63,7 @@ class CallSignalingAdmissionPolicyTest {
     @Test
     fun `stale epoch sequence is dropped`() {
         assertEquals(
-            CallSignalingAdmissionPolicy.Decision.DROP,
+            Decision.DROP,
             CallSignalingAdmissionPolicy.admit(
                 isGroupCall = false,
                 expectedContactId = "a",
@@ -85,7 +85,7 @@ class CallSignalingAdmissionPolicyTest {
     @Test
     fun `matching call accepts and unbound receiver accepts initial offer`() {
         assertEquals(
-            CallSignalingAdmissionPolicy.Decision.ACCEPT,
+            Decision.ACCEPT,
             CallSignalingAdmissionPolicy.admit(
                 isGroupCall = false,
                 expectedContactId = "a",
@@ -103,7 +103,7 @@ class CallSignalingAdmissionPolicyTest {
             ),
         )
         assertEquals(
-            CallSignalingAdmissionPolicy.Decision.ACCEPT,
+            Decision.ACCEPT,
             CallSignalingAdmissionPolicy.admit(
                 isGroupCall = false,
                 expectedContactId = "",
@@ -167,9 +167,9 @@ class GroupCallCapabilitiesTest {
         assertTrue(GroupCallCapabilities.canStartMesh(GroupCallCapabilities.MAX_MESH_MEMBERS))
         assertFalse(GroupCallCapabilities.canStartMesh(1))
         assertFalse(GroupCallCapabilities.canStartMesh(GroupCallCapabilities.MAX_MESH_MEMBERS + 1))
-        assertTrue(GroupCallCapabilities.isUnimplemented(GroupCallCapabilities.Feature.SFU))
-        assertTrue(GroupCallCapabilities.isUnimplemented(GroupCallCapabilities.Feature.SCREEN_SHARE))
-        assertTrue(GroupCallCapabilities.isUnimplemented(GroupCallCapabilities.Feature.CALL_RECORDING))
+        assertTrue(GroupCallCapabilities.isUnimplemented(Feature.SFU))
+        assertTrue(GroupCallCapabilities.isUnimplemented(Feature.SCREEN_SHARE))
+        assertTrue(GroupCallCapabilities.isUnimplemented(Feature.CALL_RECORDING))
         assertFalse(GroupCallCapabilities.SFU_SUPPORTED)
         assertFalse(GroupCallCapabilities.SCREEN_SHARE_SUPPORTED)
         assertFalse(GroupCallCapabilities.CALL_RECORDING_SUPPORTED)
