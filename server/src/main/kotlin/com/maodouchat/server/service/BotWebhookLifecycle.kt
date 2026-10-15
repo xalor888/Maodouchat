@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 internal fun BotWebhookService.start(): Long = synchronized(this) {
     val lifecycleId = nextLifecycleId()
     activeLifecycleIds += lifecycleId
-    lifecycleState = BotWebhookService.LifecycleState.RUNNING
+    lifecycleState = LifecycleState.RUNNING
     if (runtime?.scope?.coroutineContext?.get(Job)?.isActive != true) {
         runtime?.close()
         runtime = newRuntime()
@@ -32,7 +32,7 @@ internal fun BotWebhookService.shutdown(lifecycleId: Long) {
         if (!activeLifecycleIds.remove(lifecycleId) || activeLifecycleIds.isNotEmpty()) {
             return@synchronized null
         }
-        lifecycleState = BotWebhookService.LifecycleState.STOPPED
+        lifecycleState = LifecycleState.STOPPED
         runtime.also { runtime = null }
     }
     runtimeToClose?.close()
@@ -45,7 +45,7 @@ internal fun BotWebhookService.nextLifecycleId(): Long {
     return lastLifecycleId
 }
 
-internal fun BotWebhookService.newRuntime(): BotWebhookService.Runtime {
+internal fun BotWebhookService.newRuntime(): Runtime {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val queue = Channel<suspend () -> Unit>(capacity = DELIVERY_QUEUE_CAPACITY)
     repeat(DELIVERY_WORKERS) {
@@ -74,20 +74,20 @@ internal fun BotWebhookService.newRuntime(): BotWebhookService.Runtime {
             }
         }
     }
-    return BotWebhookService.Runtime(scope, queue)
+    return Runtime(scope, queue)
 }
 
-internal fun BotWebhookService.Runtime.close() {
+internal fun Runtime.close() {
     queue.close()
     scope.cancel()
 }
 
 internal fun BotWebhookService.activeQueue(): Channel<suspend () -> Unit>? {
-    if (lifecycleState != BotWebhookService.LifecycleState.RUNNING) return null
+    if (lifecycleState != LifecycleState.RUNNING) return null
     val current = runtime
     if (current?.scope?.coroutineContext?.get(Job)?.isActive == true) return current.queue
     return synchronized(this) {
-        if (lifecycleState != BotWebhookService.LifecycleState.RUNNING) return@synchronized null
+        if (lifecycleState != LifecycleState.RUNNING) return@synchronized null
         runtime?.takeIf { it.scope.coroutineContext[Job]?.isActive == true }
             ?.queue
             ?: newRuntime().also { runtime = it }.queue

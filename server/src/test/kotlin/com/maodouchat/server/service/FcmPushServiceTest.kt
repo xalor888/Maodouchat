@@ -208,7 +208,7 @@ class FcmPushServiceTest {
 
     @Test
     fun `FCM transport is disabled and isConfigured is always false`() {
-        val queued = mutableListOf<FcmPushService.Delivery>()
+        val queued = mutableListOf<Delivery>()
         val service = FcmPushService(
             pushTokenRepository = PushTokenRepository(),
             preferenceRepository = NotificationPreferenceRepository(),
@@ -233,8 +233,8 @@ class FcmPushServiceTest {
         return mac.doFinal(payload.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     }
 
-    private fun withConfiguredService(block: (FcmPushService, MutableList<FcmPushService.Delivery>) -> Unit) {
-        val queued = mutableListOf<FcmPushService.Delivery>()
+    private fun withConfiguredService(block: (FcmPushService, MutableList<Delivery>) -> Unit) {
+        val queued = mutableListOf<Delivery>()
         val service = FcmPushService(
             pushTokenRepository = PushTokenRepository(),
             preferenceRepository = NotificationPreferenceRepository(),

@@ -78,7 +78,7 @@ fun BotWebhookService.notifyChatEvent(
         put("ts", ts)
     }.toString()
     // 同步路由：无 webhook 的 bot 直接入长轮询收件箱；有 webhook 的先落 outbox，再异步投递。
-    val pending = ArrayList<BotWebhookService.OutboxEntry>()
+    val pending = ArrayList<OutboxEntry>()
     targets.forEach { t ->
         if (t.url.isNullOrBlank()) {
             try {
@@ -89,7 +89,7 @@ fun BotWebhookService.notifyChatEvent(
         } else {
             val id = "wh_${UUID.randomUUID()}"
             insertOutbox(id, t.botId, t.url, t.tokenHash, body, ts)
-            pending += BotWebhookService.OutboxEntry(id, t.botId, t.url, t.tokenHash, body, ts)
+            pending += OutboxEntry(id, t.botId, t.url, t.tokenHash, body, ts)
         }
         // Audit slash commands for developer console.
         val cmdName = runCatching {
@@ -111,7 +111,7 @@ fun BotWebhookService.notifyChatEvent(
     pending.forEach { entry ->
         enqueue {
             val outcome = deliverWebhook(entry.id, entry.url, entry.body, entry.ts, entry.tokenHash, entry.botId)
-            if (outcome == BotWebhookService.DeliveryOutcome.DEAD) {
+            if (outcome == DeliveryOutcome.DEAD) {
                 try {
                     com.maodouchat.server.repository.BotRepository.enqueueUpdate(entry.botId, entry.body)
                 } catch (cancel: CancellationException) {
@@ -145,7 +145,7 @@ fun BotWebhookService.notifyBotDirect(botId: String, bodyJson: String) {
     insertOutbox(id, target.first, url, target.third, bodyJson, ts)
     enqueue {
         val outcome = deliverWebhook(id, url, bodyJson, ts, target.third, target.first)
-        if (outcome == BotWebhookService.DeliveryOutcome.DEAD) {
+        if (outcome == DeliveryOutcome.DEAD) {
             // 8.39：不再补写收件箱——调用方（enqueueCallbackIfAuthorized）已入队，
             // 此处补投会造成同一条事件重复入 inbox（bot 用 getUpdates 拉取收到两次）。
             logger.warn(
