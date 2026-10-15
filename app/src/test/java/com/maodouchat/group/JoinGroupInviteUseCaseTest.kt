@@ -1,6 +1,5 @@
 package com.maodouchat.group
 
-import com.maodouchat.contacts.QrScanFeedbackPolicy
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ChatDto
@@ -9,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import com.maodouchat.contacts.Kind
 
 class JoinGroupInviteUseCaseTest {
 
@@ -37,7 +37,7 @@ class JoinGroupInviteUseCaseTest {
             )
             val result = useCase.join("A".repeat(40))
             assertIs<JoinGroupInviteResult.Failed>(result)
-            assertEquals(QrScanFeedbackPolicy.Kind.SESSION_EXPIRED, result.feedback.kind)
+            assertEquals(Kind.SESSION_EXPIRED, result.feedback.kind)
         }
     }
 
@@ -81,10 +81,10 @@ class JoinGroupInviteUseCaseTest {
             )
             val result = useCase.join("A".repeat(40))
             assertIs<JoinGroupInviteResult.Failed>(result)
-            assertEquals(QrScanFeedbackPolicy.Kind.INVITE_INVALID_OR_EXPIRED, result.feedback.kind)
+            assertEquals(Kind.INVITE_INVALID_OR_EXPIRED, result.feedback.kind)
             assertTrue(
                 result.feedback.serverCode == "GROUP_INVITE_EXPIRED" ||
-                    result.feedback.kind == QrScanFeedbackPolicy.Kind.INVITE_INVALID_OR_EXPIRED,
+                    result.feedback.kind == Kind.INVITE_INVALID_OR_EXPIRED,
             )
         }
     }

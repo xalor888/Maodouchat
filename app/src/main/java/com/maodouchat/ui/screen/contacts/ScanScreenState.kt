@@ -23,6 +23,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.contacts.Feedback
+import com.maodouchat.contacts.Kind
 
 /**
  * 扫一扫页的可变状态与结果处理：从 ScanScreen 拆出的非 UI 簇。
@@ -184,16 +186,16 @@ internal class ScanScreenUiState(
     }
 
     /** 扫码反馈策略 → 用户可读文案。 */
-    fun qrScanMessage(context: Context, feedback: QrScanFeedbackPolicy.Feedback): String =
+    fun qrScanMessage(context: Context, feedback: Feedback): String =
         when (feedback.kind) {
-            QrScanFeedbackPolicy.Kind.INVALID_PAYLOAD -> context.getString(R.string.contacts_invalid_qr_message)
-            QrScanFeedbackPolicy.Kind.SESSION_EXPIRED -> context.getString(R.string.error_session_expired)
-            QrScanFeedbackPolicy.Kind.USER_NOT_FOUND -> context.getString(R.string.contacts_user_not_found_hint)
-            QrScanFeedbackPolicy.Kind.INVITE_INVALID_OR_EXPIRED -> context.getString(R.string.contacts_invite_invalid_or_expired)
-            QrScanFeedbackPolicy.Kind.INVITE_BLOCKED -> context.getString(R.string.contacts_invite_blocked)
-            QrScanFeedbackPolicy.Kind.GROUP_FULL -> context.getString(R.string.contacts_invite_group_full)
-            QrScanFeedbackPolicy.Kind.NETWORK -> context.getString(R.string.contacts_invite_network)
-            QrScanFeedbackPolicy.Kind.UNKNOWN -> context.getString(R.string.contacts_join_group_failed)
+            Kind.INVALID_PAYLOAD -> context.getString(R.string.contacts_invalid_qr_message)
+            Kind.SESSION_EXPIRED -> context.getString(R.string.error_session_expired)
+            Kind.USER_NOT_FOUND -> context.getString(R.string.contacts_user_not_found_hint)
+            Kind.INVITE_INVALID_OR_EXPIRED -> context.getString(R.string.contacts_invite_invalid_or_expired)
+            Kind.INVITE_BLOCKED -> context.getString(R.string.contacts_invite_blocked)
+            Kind.GROUP_FULL -> context.getString(R.string.contacts_invite_group_full)
+            Kind.NETWORK -> context.getString(R.string.contacts_invite_network)
+            Kind.UNKNOWN -> context.getString(R.string.contacts_join_group_failed)
         }
 
     /**

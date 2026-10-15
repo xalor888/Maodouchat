@@ -45,14 +45,14 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
                     local = null,
                     remote = null,
                 )
-                if (precheck is MyQrCodeLoadPolicy.Decision.Reject) {
+                if (precheck is Decision.Reject) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             errorMessage = when (precheck.reason) {
-                                MyQrCodeLoadPolicy.RejectReason.DISABLED ->
+                                RejectReason.DISABLED ->
                                     getApplication<Application>().getString(R.string.qr_code_disabled)
-                                MyQrCodeLoadPolicy.RejectReason.NO_SESSION ->
+                                RejectReason.NO_SESSION ->
                                     getApplication<Application>().getString(R.string.error_session_expired)
                             },
                         )

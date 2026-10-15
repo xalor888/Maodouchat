@@ -13,27 +13,6 @@ import com.maodouchat.data.model.User
  */
 internal object MyQrCodeLoadPolicy {
 
-    enum class RejectReason {
-        DISABLED,
-        NO_SESSION,
-    }
-
-    sealed interface Decision {
-        data class Reject(val reason: RejectReason) : Decision
-        data class Allow(
-            /** 二维码编码的目标 userId（不是昵称）。 */
-            val targetUserId: String,
-            val displayName: String,
-            val avatar: String?,
-        ) : Decision
-    }
-
-    data class FinalizeResult(
-        val success: Boolean,
-        val bitmap: android.graphics.Bitmap?,
-        val message: String?,
-    )
-
     /**
      * @param qrEnabled 功能开关（`RuntimeFlags.QR_CODE`）
      * @param token / userId 当前会话
