@@ -12,11 +12,11 @@ internal object AiRetryThrottle {
 
     /** 是否可以立即调用 — 返回 true 表示可以执行；false 表示必须等 [delayMs] 毫秒。 */
     @Synchronized
-    fun canCallNow(chatId: String, category: AiRetryPolicy.Category): Boolean {
+    fun canCallNow(chatId: String, category: AiRetryPolicyCategory): Boolean {
         val now = nowMs()
         val minInterval = when (category) {
-            AiRetryPolicy.Category.LIGHT -> LIGHT_MIN_INTERVAL_MS
-            AiRetryPolicy.Category.HEAVY -> HEAVY_MIN_INTERVAL_MS
+            AiRetryPolicyCategory.LIGHT -> LIGHT_MIN_INTERVAL_MS
+            AiRetryPolicyCategory.HEAVY -> HEAVY_MIN_INTERVAL_MS
         }
         val key = "$category:$chatId"
         perChatLastCall[key]?.let { last ->
@@ -31,7 +31,7 @@ internal object AiRetryThrottle {
     }
 
     @Synchronized
-    fun recordCall(chatId: String, category: AiRetryPolicy.Category) {
+    fun recordCall(chatId: String, category: AiRetryPolicyCategory) {
         val now = nowMs()
         if (perChatLastCall.size > MAX_TRACKED_CHAT_KEYS) {
             val cutoff = now - GLOBAL_WINDOW_MS
@@ -43,11 +43,11 @@ internal object AiRetryThrottle {
     }
 
     @Synchronized
-    fun remainingDelayMs(chatId: String, category: AiRetryPolicy.Category): Long {
+    fun remainingDelayMs(chatId: String, category: AiRetryPolicyCategory): Long {
         val now = nowMs()
         val minInterval = when (category) {
-            AiRetryPolicy.Category.LIGHT -> LIGHT_MIN_INTERVAL_MS
-            AiRetryPolicy.Category.HEAVY -> HEAVY_MIN_INTERVAL_MS
+            AiRetryPolicyCategory.LIGHT -> LIGHT_MIN_INTERVAL_MS
+            AiRetryPolicyCategory.HEAVY -> HEAVY_MIN_INTERVAL_MS
         }
         val key = "$category:$chatId"
         val perChat = perChatLastCall[key]?.let { last ->
@@ -65,7 +65,7 @@ internal object AiRetryThrottle {
         return maxOf(perChat, global)
     }
 
-    suspend fun awaitBackoff(chatId: String, category: AiRetryPolicy.Category) {
+    suspend fun awaitBackoff(chatId: String, category: AiRetryPolicyCategory) {
         val remaining = remainingDelayMs(chatId, category)
         if (remaining > 0) delay(remaining)
     }

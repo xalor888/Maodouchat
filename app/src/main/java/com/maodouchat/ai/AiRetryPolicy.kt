@@ -12,38 +12,23 @@ package com.maodouchat.ai
  *
  * 该对象没有副作用：调用方只需按结果决定是否 mark failed / 提示重试。
  *
- * 实现已按簇拆到 AiRetryThrottle / AiRetryDecision，这里只保留嵌套类型与统一入口。
+ * 实现已按簇拆到 AiRetryThrottle / AiRetryDecision，这里只保留统一入口。
  */
 object AiRetryPolicy {
 
-    enum class Category {
-        /** 用户高频操作：改写 / 智能回复 / 翻译 / 转写 / 总结 / 语义搜索 */
-        LIGHT,
-        /** 重型操作：图片理解 / 文件问答 / 群助手总结 */
-        HEAVY
-    }
-
-    data class RetryDecision(
-        val shouldRetry: Boolean,
-        val delayMs: Long,
-        val explanation: String,
-        /** 给 UI 的错误码；限流/配额时为 RATE_LIMITED / QUOTA_EXCEEDED，避免静默失败。 */
-        val visibleErrorCode: String? = null
-    )
-
-    fun canCallNow(chatId: String, category: Category): Boolean =
+    fun canCallNow(chatId: String, category: AiRetryPolicyCategory): Boolean =
         AiRetryThrottle.canCallNow(chatId, category)
 
-    fun recordCall(chatId: String, category: Category) =
+    fun recordCall(chatId: String, category: AiRetryPolicyCategory) =
         AiRetryThrottle.recordCall(chatId, category)
 
-    fun remainingDelayMs(chatId: String, category: Category): Long =
+    fun remainingDelayMs(chatId: String, category: AiRetryPolicyCategory): Long =
         AiRetryThrottle.remainingDelayMs(chatId, category)
 
     fun decide(errorCode: String?, attempts: Int): RetryDecision =
         AiRetryDecision.decide(errorCode, attempts)
 
-    suspend fun awaitBackoff(chatId: String, category: Category) =
+    suspend fun awaitBackoff(chatId: String, category: AiRetryPolicyCategory) =
         AiRetryThrottle.awaitBackoff(chatId, category)
 
     fun clearSession() = AiRetryThrottle.clearSession()

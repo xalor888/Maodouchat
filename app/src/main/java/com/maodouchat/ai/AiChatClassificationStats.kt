@@ -19,10 +19,10 @@ object AiChatClassificationStats {
                 .getSearchableMessagesForChat(chatId, limit = CLASSIFY_SCAN_MESSAGES)
                 .map { it.toDomain() }
                 .takeLast(CLASSIFY_SAMPLE_LIMIT)
-            val counts = HashMap<AiMessageClassifier.Category, Int>()
+            val counts = HashMap<AiMessageClassifierCategory, Int>()
             // 9.231：置信度按类别均值——此前把全会话平均置信度复制给每个类别，
             // 低命中类别也显示高置信度，UI 排序/展示失真
-            val confSums = HashMap<AiMessageClassifier.Category, Double>()
+            val confSums = HashMap<AiMessageClassifierCategory, Double>()
             for (message in messages) {
                 val result = AiClassifyLexicon.classifyText(message.parsedContent())
                 counts[result.category] = (counts[result.category] ?: 0) + 1

@@ -12,23 +12,11 @@ import com.maodouchat.data.repository.AiProfileRepository
  * 「分类统计」或按类别筛选本地消息。
  *
  * 实现已按簇拆到 AiClassifyLexicon（词典/单条分类）与 AiChatClassificationStats
- * （会话统计/落库），这里只保留门禁、公开类型与统一入口。
+ * （会话统计/落库），这里只保留门禁与统一入口。
  */
 object AiMessageClassifier {
 
     fun isAllowed(context: Context): Boolean = true
-
-    enum class Category(val wire: String, val labelKey: String) {
-        NOTICE("notice", "ai_enhance_classify_notice"),
-        TODO("todo", "ai_enhance_classify_todo"),
-        FINANCE("finance", "ai_enhance_classify_finance"),
-        STUDY("study", "ai_enhance_classify_study"),
-        TECH("tech", "ai_enhance_classify_tech"),
-        SOCIAL("social", "ai_enhance_classify_social"),
-        OTHER("other", "ai_enhance_classify_other")
-    }
-
-    data class Classification(val category: Category, val confidence: Double)
 
     /** 单条消息分类（纯函数）。 */
     fun classifyText(text: String): Classification =

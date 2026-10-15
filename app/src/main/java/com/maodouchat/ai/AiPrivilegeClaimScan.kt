@@ -5,19 +5,6 @@ object AiPrivilegeClaimScan {
 
     const val MAX_OUTPUT_SCAN_CHARS = AiPrivilegeClaimPatterns.MAX_OUTPUT_SCAN_CHARS
 
-    enum class PrivilegeClaimKind {
-        TRANSFER_OR_PAYMENT,
-        ACCOUNT_DESTRUCTIVE,
-        AUTH_OR_KEY,
-        ADMIN_OR_MODERATION,
-        OTHER_PRIVILEGED
-    }
-
-    data class PrivilegeScan(
-        val hasClaim: Boolean,
-        val kinds: Set<PrivilegeClaimKind> = emptySet()
-    )
-
     fun scanPrivilegeClaims(output: String?): PrivilegeScan =
         AiPrivilegeClaimScanner.scanPrivilegeClaims(output)
 
