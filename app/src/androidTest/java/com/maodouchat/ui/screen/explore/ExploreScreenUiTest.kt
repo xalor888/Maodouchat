@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.UserDto
 import kotlinx.coroutines.CoroutineScope
@@ -16,7 +17,6 @@ import kotlinx.coroutines.Dispatchers
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.explore.repository.FeedSession
@@ -76,7 +76,7 @@ class ExploreScreenUiTest {
         override fun isCurrent(session: FeedSession): Boolean = true
         override suspend fun load(
             session: FeedSession,
-            cursor: ExploreFeedPolicy.Cursor?,
+            cursor: Cursor?,
         ): Result<List<PostDto>> = Result.success(posts ?: emptyList())
         override suspend fun publish(
             session: FeedSession,

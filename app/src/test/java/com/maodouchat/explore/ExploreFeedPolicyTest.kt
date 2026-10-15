@@ -1,5 +1,6 @@
 package com.maodouchat.explore
 
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.UserDto
 import com.maodouchat.explore.policy.ExploreFeedPolicy
@@ -129,7 +130,7 @@ class ExploreFeedPolicyTest {
             post("same-a").copy(createdAt = 10L)
         )
         assertEquals(
-            ExploreFeedPolicy.Cursor(createdAt = 10L, postId = "same-a"),
+            Cursor(createdAt = 10L, postId = "same-a"),
             ExploreFeedPolicy.oldestCursor(posts)
         )
     }

@@ -1,5 +1,6 @@
 package com.maodouchat.explore.usecase
 
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.explore.policy.PostVisibility
 import com.maodouchat.explore.repository.DraftRepository
 import com.maodouchat.explore.repository.ExploreDraft
@@ -19,7 +20,6 @@ import com.maodouchat.network.ReportResponse
 import com.maodouchat.network.SetUsernameResponse
 import com.maodouchat.network.UserDto
 import com.maodouchat.network.api.SocialApi
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.explore.repository.FeedSession
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -137,7 +137,7 @@ class ExploreUseCasesTest {
         val calls = mutableListOf<String>()
         override fun currentSession(): FeedSession? = FeedSession("user-1")
         override fun isCurrent(session: FeedSession): Boolean = true
-        override suspend fun load(session: FeedSession, cursor: ExploreFeedPolicy.Cursor?): Result<List<PostDto>> {
+        override suspend fun load(session: FeedSession, cursor: Cursor?): Result<List<PostDto>> {
             calls.add("load:${session.ownerUserId}")
             return Result.success(emptyList())
         }

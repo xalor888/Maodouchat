@@ -1,16 +1,16 @@
 package com.maodouchat.explore.repository
 
 import android.app.Application
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.TokenManager
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.data.repository.PostNetworkRepository
 
 interface FeedRepository {
     fun currentSession(): FeedSession?
     fun isCurrent(session: FeedSession): Boolean
-    suspend fun load(session: FeedSession, cursor: ExploreFeedPolicy.Cursor? = null): Result<List<PostDto>>
+    suspend fun load(session: FeedSession, cursor: Cursor? = null): Result<List<PostDto>>
     suspend fun publish(
         session: FeedSession,
         content: String,
@@ -23,7 +23,7 @@ class FeedController(private val repository: FeedRepository) {
     fun currentSession(): FeedSession? = repository.currentSession()
     fun isCurrent(session: FeedSession): Boolean = repository.isCurrent(session)
 
-    suspend fun load(session: FeedSession, cursor: ExploreFeedPolicy.Cursor? = null): Result<List<PostDto>> {
+    suspend fun load(session: FeedSession, cursor: Cursor? = null): Result<List<PostDto>> {
         val result = repository.load(session, cursor)
         return if (repository.isCurrent(session)) result else Result.failure(FeedSessionChangedException())
     }
@@ -53,7 +53,7 @@ internal class AndroidFeedRepository(application: Application) : FeedRepository 
 
     override suspend fun load(
         session: FeedSession,
-        cursor: ExploreFeedPolicy.Cursor?,
+        cursor: Cursor?,
     ): Result<List<PostDto>> = withToken(session) { token ->
         PostNetworkRepository().posts(token, before = cursor?.createdAt, beforeId = cursor?.postId)
     }

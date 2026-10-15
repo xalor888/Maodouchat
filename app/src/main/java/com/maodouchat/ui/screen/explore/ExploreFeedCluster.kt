@@ -2,13 +2,13 @@ package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.R
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import com.maodouchat.explore.policy.ExploreDraftPolicy
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.explore.policy.ExplorePaging
 
 // 信息流加载一族：刷新/加载更多/隐私默认可见性。纯搬移，调用点与协程语义不变。
@@ -113,7 +113,7 @@ import com.maodouchat.explore.policy.ExplorePaging
         val lastPost = snapshot.posts.lastOrNull() ?: return
         val session = feedController.currentSession() ?: return
         val generation = feedGeneration
-        val cursor = ExploreFeedPolicy.Cursor(createdAt = lastPost.createdAt, postId = lastPost.id)
+        val cursor = Cursor(createdAt = lastPost.createdAt, postId = lastPost.id)
         scope.launch {
             loadMoreMutex.withLock {
                 if (feedGeneration != generation || !feedController.isCurrent(session)) return@withLock

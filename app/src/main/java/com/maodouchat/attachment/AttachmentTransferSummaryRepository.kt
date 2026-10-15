@@ -20,18 +20,6 @@ import kotlinx.coroutines.flow.map
  */
 object AttachmentTransferSummaryRepository {
 
-    data class Summary(
-        val active: Int = 0,
-        val queued: Int = 0,
-        val failed: Int = 0,
-        val completed: Int = 0,
-        val totalBytes: Long = 0L,
-        val uploadedBytes: Long = 0L
-    ) {
-        val hasFailures: Boolean get() = failed > 0
-        val hasActivity: Boolean get() = active > 0 || queued > 0
-    }
-
     /**
      * 观察当前账号下所有 attachment 传输的最新统计。
      * 当 [chatIdFilter] 不为空时只统计该聊天，便于聊天页内嵌浮窗使用。

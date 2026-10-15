@@ -12,19 +12,19 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun classifiesCryptoFailures() {
         assertEquals(
-            AttachmentErrorUiPolicy.Kind.TOO_LARGE,
+            Kind.TOO_LARGE,
             AttachmentErrorUiPolicy.classify(AttachmentCryptoException(AttachmentCryptoFailure.TOO_LARGE))
         )
         assertEquals(
-            AttachmentErrorUiPolicy.Kind.INVALID_REFERENCE,
+            Kind.INVALID_REFERENCE,
             AttachmentErrorUiPolicy.classify(AttachmentCryptoException(AttachmentCryptoFailure.INVALID_REFERENCE))
         )
         assertEquals(
-            AttachmentErrorUiPolicy.Kind.INTEGRITY_FAILED,
+            Kind.INTEGRITY_FAILED,
             AttachmentErrorUiPolicy.classify(AttachmentCryptoException(AttachmentCryptoFailure.INTEGRITY_FAILED))
         )
         assertEquals(
-            AttachmentErrorUiPolicy.Kind.CONTENT_MISMATCH,
+            Kind.CONTENT_MISMATCH,
             AttachmentErrorUiPolicy.classify(
                 AttachmentCryptoException(AttachmentCryptoFailure.UNSUPPORTED_MEDIA_CONTENT)
             )
@@ -34,7 +34,7 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun invalidApiResponseMapsToIntegrity() {
         assertEquals(
-            AttachmentErrorUiPolicy.Kind.INTEGRITY_FAILED,
+            Kind.INTEGRITY_FAILED,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.INVALID_RESPONSE, serverMessage = "bad")
             )
@@ -44,11 +44,11 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun classifiesWorkflowBoundaryFailures() {
         assertEquals(
-            AttachmentErrorUiPolicy.Kind.TOO_LARGE,
+            Kind.TOO_LARGE,
             AttachmentErrorUiPolicy.classify(AttachmentTooLargeException())
         )
         assertEquals(
-            AttachmentErrorUiPolicy.Kind.INVALID_REFERENCE,
+            Kind.INVALID_REFERENCE,
             AttachmentErrorUiPolicy.classify(AttachmentReferenceInvalidException())
         )
     }
@@ -56,7 +56,7 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun unknownFallsBack() {
         assertEquals(
-            AttachmentErrorUiPolicy.Kind.FALLBACK,
+            Kind.FALLBACK,
             AttachmentErrorUiPolicy.classify(IllegalStateException("x"))
         )
     }

@@ -7,20 +7,6 @@ package com.maodouchat.bot
 object BotCommandPolicy {
     const val MAX_TEXT_CHARS = 4_000
 
-    data class SlashCommand(
-        val command: String,
-        val targetUsername: String?,
-        val arguments: String,
-    )
-
-    data class BotCommandItem(
-        val botId: String,
-        val username: String,
-        val name: String,
-        val command: String,
-        val description: String,
-    )
-
     private val SLASH = Regex("^/([a-z][a-z0-9_]{0,31})(?:@([a-z][a-z0-9_]{2,31}))?(?:\\s+[\\s\\S]*)?$")
     private val AT_BOT = Regex("^@([a-z][a-z0-9_]{2,31})(?:\\s+[\\s\\S]*)?$")
 

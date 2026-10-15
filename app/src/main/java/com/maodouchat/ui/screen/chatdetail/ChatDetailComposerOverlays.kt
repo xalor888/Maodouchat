@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.maodouchat.bot.BotCommandItem
 import com.maodouchat.bot.BotCommandPolicy
 import com.maodouchat.data.model.Chat
 
@@ -51,7 +52,7 @@ internal fun ChatDetailComposerOverlays(
     isUpdatingAiSetting: Boolean,
     silentSend: Boolean,
     currentUserId: String,
-    botCommands: List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem>,
+    botCommands: List<BotCommandItem>,
     contactCardTargets: List<Chat>,
     // 面板开关
     showExpressionPanel: Boolean,

@@ -10,14 +10,6 @@ import com.maodouchat.util.AttachmentCryptoFailure
  */
 object AttachmentErrorUiPolicy {
 
-    enum class Kind {
-        TOO_LARGE,
-        INVALID_REFERENCE,
-        INTEGRITY_FAILED,
-        CONTENT_MISMATCH,
-        FALLBACK
-    }
-
     fun classify(error: Throwable): Kind = when {
         error is AttachmentTooLargeException -> Kind.TOO_LARGE
         error is AttachmentCryptoException && error.failure == AttachmentCryptoFailure.TOO_LARGE ->

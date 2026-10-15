@@ -1,12 +1,12 @@
 package com.maodouchat.ui.screen.explore
 
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.UserDto
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.explore.repository.FeedSession
@@ -27,7 +27,7 @@ class FeedControllerTest {
         val repository = object : FeedRepository {
             override fun currentSession() = session
             override fun isCurrent(session: FeedSession) = true
-            override suspend fun load(session: FeedSession, cursor: ExploreFeedPolicy.Cursor?) = Result.success(emptyList<PostDto>())
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(emptyList<PostDto>())
             override suspend fun publish(
                 session: FeedSession,
                 contentValue: String,
@@ -51,7 +51,7 @@ class FeedControllerTest {
         val repository = object : FeedRepository {
             override fun currentSession() = session
             override fun isCurrent(session: FeedSession) = current
-            override suspend fun load(session: FeedSession, cursor: ExploreFeedPolicy.Cursor?): Result<List<PostDto>> {
+            override suspend fun load(session: FeedSession, cursor: Cursor?): Result<List<PostDto>> {
                 current = false
                 return Result.success(listOf(post))
             }

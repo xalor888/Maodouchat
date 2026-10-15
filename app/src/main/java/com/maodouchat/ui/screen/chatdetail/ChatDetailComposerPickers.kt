@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.bot.BotCommandItem
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
@@ -58,9 +59,9 @@ import com.maodouchat.ui.theme.LocalChatPalette
  */
 @Composable
 internal fun SlashCommandPicker(
-    candidates: List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem>,
+    candidates: List<BotCommandItem>,
     modifier: Modifier = Modifier,
-    onInsertCommand: (com.maodouchat.bot.BotCommandPolicy.BotCommandItem) -> Unit,
+    onInsertCommand: (BotCommandItem) -> Unit,
 ) {
 AnimatedVisibility(
     visible = candidates.isNotEmpty(),
