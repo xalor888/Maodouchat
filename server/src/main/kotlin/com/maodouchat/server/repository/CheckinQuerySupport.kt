@@ -18,7 +18,7 @@ internal fun GroupCheckinRepository.toCheckinDto(
     row: ResultRow,
     now: Long,
     viewerId: String = userId
-): GroupCheckinRepository.CheckinDto {
+): CheckinDto {
     val date = row[GroupCheckins.checkinDate]
     val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
     // 8.48 修复 M14：rank/count 用 COUNT 聚合——此前全量载入当日签到行（活跃大群上万行）
@@ -35,7 +35,7 @@ internal fun GroupCheckinRepository.toCheckinDto(
                     ((GroupCheckins.checkedAt eq myCheckedAt) and (GroupCheckins.userId less userId)))
         }
         .count().toInt()
-    return GroupCheckinRepository.CheckinDto(
+    return CheckinDto(
         chatId = chatId,
         userId = userId,
         date = date,

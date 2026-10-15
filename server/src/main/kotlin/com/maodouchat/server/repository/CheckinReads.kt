@@ -11,7 +11,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDate
 
-fun GroupCheckinRepository.myCheckin(chatId: String, userId: String): GroupCheckinRepository.CheckinDto? {
+fun GroupCheckinRepository.myCheckin(chatId: String, userId: String): CheckinDto? {
     if (!isValidId(chatId) || !isValidId(userId)) return null
     val today = LocalDate.now().toString()
     return transaction {
@@ -40,7 +40,7 @@ fun GroupCheckinRepository.myCheckin(chatId: String, userId: String): GroupCheck
             // 未签到时 todayRank 仍为 0，但 todayCount 必须是当日可见签到人数——
             // 客户端 refresh 用 /checkins/me 的 todayCount 渲染「今日 N 人」，
             // 此前恒 0 会把已有签到的群显示成空壳。
-            return@transaction GroupCheckinRepository.CheckinDto(
+            return@transaction CheckinDto(
                 chatId = chatId,
                 userId = userId,
                 date = today,
@@ -58,7 +58,7 @@ fun GroupCheckinRepository.myCheckin(chatId: String, userId: String): GroupCheck
 
 
 /** Actor's check-in DTO as seen by [viewerId]; null when the viewer is blocked from the actor. */
-fun GroupCheckinRepository.checkinForViewer(chatId: String, userId: String, viewerId: String): GroupCheckinRepository.CheckinDto? {
+fun GroupCheckinRepository.checkinForViewer(chatId: String, userId: String, viewerId: String): CheckinDto? {
     if (!isValidId(chatId) || !isValidId(userId) || !isValidId(viewerId)) return null
     val today = LocalDate.now().toString()
     return transaction {
@@ -80,7 +80,7 @@ fun GroupCheckinRepository.checkinForViewer(chatId: String, userId: String, view
 }
 
 
-fun GroupCheckinRepository.checkinRanking(chatId: String, limit: Int = 20, viewerId: String? = null): List<GroupCheckinRepository.CheckinRankEntry> {
+fun GroupCheckinRepository.checkinRanking(chatId: String, limit: Int = 20, viewerId: String? = null): List<CheckinRankEntry> {
     if (chatId.isBlank()) return emptyList()
     return transaction {
         val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
@@ -115,7 +115,7 @@ fun GroupCheckinRepository.checkinRanking(chatId: String, limit: Int = 20, viewe
             buildList {
                 while (rs.next()) {
                     add(
-                        GroupCheckinRepository.CheckinRankEntry(
+                        CheckinRankEntry(
                             userId = rs.getString("user_id"),
                             streak = rs.getInt("streak"),
                             totalCount = rs.getInt("total_count"),

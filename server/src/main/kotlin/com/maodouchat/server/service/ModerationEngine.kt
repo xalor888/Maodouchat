@@ -1,6 +1,8 @@
 package com.maodouchat.server.service
 
+import com.maodouchat.server.repository.Evaluation
 import com.maodouchat.server.repository.ModerationRuleRepository
+import com.maodouchat.server.repository.RuleMatch
 import com.maodouchat.server.repository.recordAiDecision
 import org.slf4j.LoggerFactory
 
@@ -15,13 +17,13 @@ object ModerationEngine {
         userId: String,
         source: String,
         content: String,
-        keyword: ModerationRuleRepository.Evaluation,
+        keyword: Evaluation,
         gateway: AiGateway,
         rules: ModerationRuleRepository
-    ): ModerationRuleRepository.Evaluation {
+    ): Evaluation {
         if (keyword.blocked) return keyword
         val ai = classify(userId, source, content, gateway, rules) ?: return keyword
-        return ModerationRuleRepository.Evaluation(
+        return Evaluation(
             blocked = ai.blocked,
             action = ai.action ?: keyword.action,
             message = ai.message ?: keyword.message,
@@ -35,7 +37,7 @@ object ModerationEngine {
         content: String,
         gateway: AiGateway,
         rules: ModerationRuleRepository
-    ): ModerationRuleRepository.Evaluation? {
+    ): Evaluation? {
         if (!RuntimeConfigService.isAiContentModerationEnabled()) return null
         val bounded = content.trim().take(AiContentModerationPolicy.MAX_INPUT_CHARS)
         if (bounded.isEmpty()) return null
@@ -69,7 +71,7 @@ object ModerationEngine {
             matched = AiContentModerationPolicy.matchedPreview(decision),
             needsReview = decision.needsReview
         )
-        return ModerationRuleRepository.Evaluation(
+        return Evaluation(
             blocked = decision.verdict == Verdict.BLOCK,
             action = decision.action,
             message = if (decision.verdict == Verdict.BLOCK) {
@@ -78,7 +80,7 @@ object ModerationEngine {
                 null
             },
             matches = listOf(
-                ModerationRuleRepository.RuleMatch(
+                RuleMatch(
                     ruleId = AiContentModerationPolicy.RULE_ID,
                     action = decision.action,
                     matched = AiContentModerationPolicy.matchedPreview(decision),

@@ -15,7 +15,7 @@ import java.time.LocalDate
 
 // ── 群签到 ──────────────────────────────────────────
 
-fun GroupCheckinRepository.checkIn(chatId: String, userId: String): GroupCheckinRepository.CheckinDto? {
+fun GroupCheckinRepository.checkIn(chatId: String, userId: String): CheckinDto? {
     if (!isValidId(chatId) || !isValidId(userId)) return null
     val today = LocalDate.now().toString()
     return try {
@@ -40,7 +40,7 @@ fun GroupCheckinRepository.checkIn(chatId: String, userId: String): GroupCheckin
 }
 
 
-private fun GroupCheckinRepository.checkInInTransaction(chatId: String, userId: String, today: String): GroupCheckinRepository.CheckinDto? = transaction {
+private fun GroupCheckinRepository.checkInInTransaction(chatId: String, userId: String, today: String): CheckinDto? = transaction {
     val chat = Chats.selectAll().where { Chats.id eq chatId }.forUpdate().firstOrNull()
         ?: return@transaction null
     if (!chat[Chats.isGroup] || !isMemberInTransaction(chatId, userId)) return@transaction null

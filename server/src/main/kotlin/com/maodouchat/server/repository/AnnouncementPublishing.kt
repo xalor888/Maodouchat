@@ -11,7 +11,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
 /** 手动发布：DRAFT/SCHEDULED → ACTIVE，立即生效。 */
-fun AnnouncementRepository.publish(id: String, operatorId: String): AnnouncementRepository.AnnouncementRow? = transaction {
+fun AnnouncementRepository.publish(id: String, operatorId: String): AnnouncementRow? = transaction {
     val row = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
         .firstOrNull() ?: return@transaction null
     val now = System.currentTimeMillis()
@@ -31,7 +31,7 @@ fun AnnouncementRepository.publish(id: String, operatorId: String): Announcement
 }
 
 /** 取消公告：ACTIVE/SCHEDULED → CANCELLED（保留记录，用户端不再可见）。 */
-fun AnnouncementRepository.cancel(id: String, operatorId: String): AnnouncementRepository.AnnouncementRow? = transaction {
+fun AnnouncementRepository.cancel(id: String, operatorId: String): AnnouncementRow? = transaction {
     val row = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
         .firstOrNull() ?: return@transaction null
     val now = System.currentTimeMillis()
