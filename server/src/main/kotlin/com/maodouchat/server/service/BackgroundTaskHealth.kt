@@ -17,17 +17,6 @@ import java.util.concurrent.ConcurrentHashMap
 class BackgroundTaskHealth(
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    data class TaskStatus(
-        val name: String,
-        val lastSuccessAt: Long? = null,
-        val lastErrorAt: Long? = null,
-        val lastError: String? = null,
-        val consecutiveFailures: Int = 0,
-    ) {
-        fun healthy(): Boolean = consecutiveFailures < MAX_CONSECUTIVE_FAILURES
-        fun known(): Boolean = lastSuccessAt != null || lastErrorAt != null
-    }
-
     private val tasks = ConcurrentHashMap<String, TaskStatus>()
 
     fun heartbeat(name: String, now: Long = clock()) {

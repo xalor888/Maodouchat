@@ -16,10 +16,10 @@ import com.maodouchat.server.repository.polls
  * `map { listOf(csvCell(t), csvCell(c)).joinToString(",") }.sorted()`，
  * 排的是编码后的整行字符串，不是原始 kind。为保持逐字一致，这里照搬。
  */
-fun AdminExportService.messageStatsCsv(): AdminExportService.CsvExport {
+fun AdminExportService.messageStatsCsv(): CsvExport {
     val stats = repository.messageStats()
     val encoded = stats.byKind.map { encodeRow(it) }.sorted()
-    return AdminExportService.CsvExport(
+    return CsvExport(
         body = buildString {
             appendLine("type,count")
             encoded.forEach { appendLine(it) }
