@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiWritingStylePolicy
 import com.maodouchat.ai.AiWritingStylePreferences
+import com.maodouchat.ai.Preset
+import com.maodouchat.ai.Snapshot
 import com.maodouchat.network.ClientPrefsUpdateRequest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -20,12 +22,12 @@ internal fun AiPrivacySettingsViewModel.setWritingStyleEnabled(enabled: Boolean)
         _uiState.update {
             it.copy(
                 writingStyleEnabled = false,
-                writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
+                writingStylePresetId = Preset.NONE.id,
                 writingStyleCustomNote = "",
                 infoMessage = text(R.string.ai_privacy_writing_style_disabled)
             )
         }
-        pushWritingStylePrefs(false, AiWritingStylePolicy.Preset.NONE.id, "")
+        pushWritingStylePrefs(false, Preset.NONE.id, "")
         return
     }
     val current = _uiState.value
@@ -46,7 +48,7 @@ internal fun AiPrivacySettingsViewModel.setWritingStyleEnabled(enabled: Boolean)
 
 internal fun AiPrivacySettingsViewModel.setWritingStylePreset(presetId: String) {
     val app = getApplication<Application>()
-    val preset = AiWritingStylePolicy.Preset.fromId(presetId)
+    val preset = Preset.fromId(presetId)
     if (_uiState.value.writingStylePresetId == preset.id) return
     writingStyleRevision++
     val enabled = _uiState.value.writingStyleEnabled
@@ -98,7 +100,7 @@ internal fun AiPrivacySettingsViewModel.setWritingStyleCustomNote(note: String) 
 internal fun AiPrivacySettingsViewModel.clearWritingStyle() {
     val current = _uiState.value
     if (!current.writingStyleEnabled &&
-        current.writingStylePresetId == AiWritingStylePolicy.Preset.NONE.id &&
+        current.writingStylePresetId == Preset.NONE.id &&
         current.writingStyleCustomNote.isEmpty()
     ) return
     writingStyleRevision++
@@ -106,12 +108,12 @@ internal fun AiPrivacySettingsViewModel.clearWritingStyle() {
     _uiState.update {
         it.copy(
             writingStyleEnabled = false,
-            writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
+            writingStylePresetId = Preset.NONE.id,
             writingStyleCustomNote = "",
             infoMessage = text(R.string.ai_privacy_writing_style_cleared)
         )
     }
-    pushWritingStylePrefs(false, AiWritingStylePolicy.Preset.NONE.id, "")
+    pushWritingStylePrefs(false, Preset.NONE.id, "")
 }
 
 internal fun AiPrivacySettingsViewModel.pushWritingStylePrefs(
@@ -156,5 +158,5 @@ internal fun AiPrivacySettingsViewModel.pushWritingStylePrefs(
     }
 }
 
-internal fun AiPrivacySettingsViewModel.loadWritingStyleSnapshot(): AiWritingStylePolicy.Snapshot =
+internal fun AiPrivacySettingsViewModel.loadWritingStyleSnapshot(): Snapshot =
     AiWritingStylePreferences.snapshot(getApplication())

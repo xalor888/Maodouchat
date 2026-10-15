@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.ai.AiPrivacyPreferences
-import com.maodouchat.ai.AiWritingStylePolicy
+import com.maodouchat.ai.Preset
 import com.maodouchat.ai.AiWritingStylePreferences
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -117,7 +117,7 @@ internal fun AiPrivacySettingsViewModel.revokeLocalConsent() {
     writingStyleRevision++
     AiPrivacyPreferences.revoke(getApplication())
     AiWritingStylePreferences.clear(getApplication())
-    pushWritingStylePrefs(false, AiWritingStylePolicy.Preset.NONE.id, "")
+    pushWritingStylePrefs(false, Preset.NONE.id, "")
     // 立即停掉本地 AI 任务调度，避免撤销之后还能触发新提醒
     runCatching { AiTaskReminderScheduler.cancelAll(getApplication()) }
     if (com.maodouchat.session.CurrentSession.hasSession() && revokeOwnerUserId.isNotBlank()) {
@@ -137,7 +137,7 @@ internal fun AiPrivacySettingsViewModel.revokeLocalConsent() {
                             aiConsentAccepted = false,
                             localSafetyEnabled = false,
                             writingStyleEnabled = false,
-                            writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
+                            writingStylePresetId = Preset.NONE.id,
                             writingStyleCustomNote = "",
                             userEnabled = false,
                             infoMessage = text(R.string.ai_privacy_reset_done)
@@ -153,7 +153,7 @@ internal fun AiPrivacySettingsViewModel.revokeLocalConsent() {
                             aiConsentAccepted = false,
                             localSafetyEnabled = false,
                             writingStyleEnabled = false,
-                            writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
+                            writingStylePresetId = Preset.NONE.id,
                             writingStyleCustomNote = ""
                         )
                     }
@@ -168,7 +168,7 @@ internal fun AiPrivacySettingsViewModel.revokeLocalConsent() {
                             aiConsentAccepted = false,
                             localSafetyEnabled = false,
                             writingStyleEnabled = false,
-                            writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
+                            writingStylePresetId = Preset.NONE.id,
                             writingStyleCustomNote = "",
                             userEnabled = false,
                             errorMessage = error.message ?: text(R.string.ai_privacy_save_failed),
@@ -189,7 +189,7 @@ internal fun AiPrivacySettingsViewModel.revokeLocalConsent() {
                 aiConsentAccepted = false,
                 localSafetyEnabled = false,
                 writingStyleEnabled = false,
-                writingStylePresetId = AiWritingStylePolicy.Preset.NONE.id,
+                writingStylePresetId = Preset.NONE.id,
                 writingStyleCustomNote = "",
                 infoMessage = text(R.string.ai_privacy_reset_done)
             )

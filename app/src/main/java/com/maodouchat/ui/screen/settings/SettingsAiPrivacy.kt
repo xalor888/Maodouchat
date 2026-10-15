@@ -474,17 +474,17 @@ fun AiPrivacySettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             listOf(
-                                AiWritingStylePolicy.Preset.NONE to R.string.ai_privacy_writing_style_preset_none,
-                                AiWritingStylePolicy.Preset.CONCISE to R.string.ai_privacy_writing_style_preset_concise,
-                                AiWritingStylePolicy.Preset.FORMAL to R.string.ai_privacy_writing_style_preset_formal,
-                                AiWritingStylePolicy.Preset.WARM to R.string.ai_privacy_writing_style_preset_warm,
-                                AiWritingStylePolicy.Preset.PROFESSIONAL to R.string.ai_privacy_writing_style_preset_professional,
-                                AiWritingStylePolicy.Preset.CASUAL to R.string.ai_privacy_writing_style_preset_casual,
-                                AiWritingStylePolicy.Preset.WITTY to R.string.ai_privacy_writing_style_preset_witty,
-                                AiWritingStylePolicy.Preset.EMPATHETIC to R.string.ai_privacy_writing_style_preset_empathetic,
-                                AiWritingStylePolicy.Preset.DIRECT to R.string.ai_privacy_writing_style_preset_direct,
-                                AiWritingStylePolicy.Preset.ENTHUSIASTIC to R.string.ai_privacy_writing_style_preset_enthusiastic,
-                                AiWritingStylePolicy.Preset.DIPLOMATIC to R.string.ai_privacy_writing_style_preset_diplomatic
+                                com.maodouchat.ai.Preset.NONE to R.string.ai_privacy_writing_style_preset_none,
+                                com.maodouchat.ai.Preset.CONCISE to R.string.ai_privacy_writing_style_preset_concise,
+                                com.maodouchat.ai.Preset.FORMAL to R.string.ai_privacy_writing_style_preset_formal,
+                                com.maodouchat.ai.Preset.WARM to R.string.ai_privacy_writing_style_preset_warm,
+                                com.maodouchat.ai.Preset.PROFESSIONAL to R.string.ai_privacy_writing_style_preset_professional,
+                                com.maodouchat.ai.Preset.CASUAL to R.string.ai_privacy_writing_style_preset_casual,
+                                com.maodouchat.ai.Preset.WITTY to R.string.ai_privacy_writing_style_preset_witty,
+                                com.maodouchat.ai.Preset.EMPATHETIC to R.string.ai_privacy_writing_style_preset_empathetic,
+                                com.maodouchat.ai.Preset.DIRECT to R.string.ai_privacy_writing_style_preset_direct,
+                                com.maodouchat.ai.Preset.ENTHUSIASTIC to R.string.ai_privacy_writing_style_preset_enthusiastic,
+                                com.maodouchat.ai.Preset.DIPLOMATIC to R.string.ai_privacy_writing_style_preset_diplomatic
                             ).forEach { (preset, labelRes) ->
                                 FilterChip(
                                     selected = state.writingStylePresetId == preset.id,

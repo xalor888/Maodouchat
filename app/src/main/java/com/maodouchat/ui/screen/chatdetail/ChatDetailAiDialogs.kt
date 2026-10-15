@@ -12,7 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
-import com.maodouchat.ai.AiWeeklyReport
+import com.maodouchat.ai.WeeklyReport
 import com.maodouchat.data.model.Message
 
 /**
@@ -46,7 +46,7 @@ internal fun ChatDetailAiDialogs(
     conversationProfileFailed: Boolean,
     showWeeklyReport: Boolean,
     onDismissWeeklyReport: () -> Unit,
-    weeklyReport: AiWeeklyReport.WeeklyReport?,
+    weeklyReport: WeeklyReport?,
     weeklyReportLoading: Boolean,
     weeklyReportFailed: Boolean,
     showMessageClassify: Boolean,

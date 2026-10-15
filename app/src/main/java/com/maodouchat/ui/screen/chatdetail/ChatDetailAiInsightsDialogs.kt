@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.ai.WeeklyReport
 
 /** AI 画像与洞察对话框：会话画像、周报、消息分类。所需输入全经参数传入。 */
 // B4：会话画像对话框（本地统计 + 可选叙事摘要）
@@ -146,7 +147,7 @@ internal fun profileText(context: android.content.Context, profile: com.maodouch
 @Composable
 internal fun WeeklyReportDialog(
     loading: Boolean,
-    report: com.maodouchat.ai.AiWeeklyReport.WeeklyReport?,
+    report: WeeklyReport?,
     failed: Boolean,
     onDismiss: () -> Unit,
     // 1.310：复制周报全文

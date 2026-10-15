@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.maodouchat.ai.AiConversationProfile
-import com.maodouchat.ai.AiWeeklyReport
+import com.maodouchat.ai.WeeklyReport
 import com.maodouchat.data.repository.AiProfileRepository
 
 /**
@@ -28,7 +28,7 @@ internal class ChatDetailAiResultState {
     var conversationProfileFailed by mutableStateOf(false)
 
     /** 本周周报。 */
-    var weeklyReport by mutableStateOf<AiWeeklyReport.WeeklyReport?>(null)
+    var weeklyReport by mutableStateOf<WeeklyReport?>(null)
 
     var weeklyReportLoading by mutableStateOf(false)
 

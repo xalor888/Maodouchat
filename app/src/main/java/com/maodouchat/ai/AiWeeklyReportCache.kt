@@ -12,10 +12,10 @@ internal object AiWeeklyReportCache {
         chatId: String,
         weekStart: Long,
         weekEnd: Long
-    ): AiWeeklyReport.WeeklyReport? =
+    ): WeeklyReport? =
         withContext(Dispatchers.IO) {
             repository.getWeeklyReport(chatId, weekStart)?.let { row ->
-                AiWeeklyReport.WeeklyReport(chatId, weekStart, weekEnd, row.report, row.model, row.createdAt)
+                WeeklyReport(chatId, weekStart, weekEnd, row.report, row.model, row.createdAt)
             }
         }
 
@@ -37,10 +37,10 @@ internal object AiWeeklyReportCache {
         context: Context,
         chatId: String,
         limit: Int = 12
-    ): List<AiWeeklyReport.WeeklyReport> =
+    ): List<WeeklyReport> =
         withContext(Dispatchers.IO) {
             AiProfileRepository.getInstance(context).listWeeklyReports(chatId, limit).map { row ->
-                AiWeeklyReport.WeeklyReport(row.chatId, row.weekStart, row.weekEnd, row.report, row.model, row.createdAt)
+                WeeklyReport(row.chatId, row.weekStart, row.weekEnd, row.report, row.model, row.createdAt)
             }
         }
 }

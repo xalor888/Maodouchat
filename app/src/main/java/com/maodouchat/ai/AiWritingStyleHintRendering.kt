@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
-import com.maodouchat.ai.AiWritingStylePolicy.Preset
-import com.maodouchat.ai.AiWritingStylePolicy.Snapshot
+import com.maodouchat.ai.Preset
+import com.maodouchat.ai.Snapshot
 
 // 改写提示簇：把 Snapshot 翻译成追加给改写任务的风格说明；
 // 未启用或无内容时返回 null（调用方不加段）。原 AiWritingStylePolicy 逻辑逐字搬入。

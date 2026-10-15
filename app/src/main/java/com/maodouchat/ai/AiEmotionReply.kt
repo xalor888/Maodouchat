@@ -14,23 +14,13 @@ import kotlinx.coroutines.withContext
  * 模型：用户自配的本机 OpenAI 兼容接口按情绪映射语气生成一条自然回复。
  *
  * 实现已按簇拆到 AiEmotionLexicon（本地检测）与 AiEmotionFallback（本地回退模板），
- * 这里只保留门禁、公开类型与回复装配流程。
+ * 类型提为同包顶层（AiEmotionReplyModels），这里只保留门禁与回复装配流程。
  */
 object AiEmotionReply {
 
     fun isAllowed(context: Context): Boolean =
         AiPrivacyPreferences.mayUploadCloudContext(context) &&
             RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER)
-
-    enum class Emotion(val wire: String) {
-        HAPPY("happy"),
-        SAD("sad"),
-        ANGRY("angry"),
-        ANXIOUS("anxious"),
-        NEUTRAL("neutral")
-    }
-
-    data class EmotionResult(val emotion: Emotion, val confidence: Double)
 
     /** 本地情绪检测（纯词典规则）。 */
     fun detectEmotion(texts: List<String>): EmotionResult =

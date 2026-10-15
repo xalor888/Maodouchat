@@ -4,7 +4,7 @@ package com.maodouchat.ai
 object AiEmotionLexicon {
 
     /** 本地情绪检测（纯词典规则）。 */
-    fun detectEmotion(texts: List<String>): AiEmotionReply.EmotionResult {
+    fun detectEmotion(texts: List<String>): EmotionResult {
         var happy = 0; var sad = 0; var angry = 0; var anxious = 0
         var totalHits = 0
         for (text in texts) {
@@ -17,15 +17,15 @@ object AiEmotionLexicon {
             totalHits += hits + sHits + aHits + nHits
         }
         val best = listOf(
-            happy to AiEmotionReply.Emotion.HAPPY,
-            sad to AiEmotionReply.Emotion.SAD,
-            angry to AiEmotionReply.Emotion.ANGRY,
-            anxious to AiEmotionReply.Emotion.ANXIOUS
+            happy to Emotion.HAPPY,
+            sad to Emotion.SAD,
+            angry to Emotion.ANGRY,
+            anxious to Emotion.ANXIOUS
         ).maxByOrNull { it.first }
         if (best == null || best.first == 0 || totalHits == 0) {
-            return AiEmotionReply.EmotionResult(AiEmotionReply.Emotion.NEUTRAL, 0.0)
+            return EmotionResult(Emotion.NEUTRAL, 0.0)
         }
-        return AiEmotionReply.EmotionResult(best.second, best.first.toDouble() / totalHits)
+        return EmotionResult(best.second, best.first.toDouble() / totalHits)
     }
 
     private val HAPPY_HITS = listOf("哈哈", "哈哈哈", "开心", "太好了", "棒", "喜欢", "耶", "嘻嘻", "lol", "haha", "great", "happy", "love")

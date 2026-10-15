@@ -7,11 +7,11 @@ import com.maodouchat.R
 internal object AiEmotionFallback {
 
     // 8.48：本地回退模板国际化（此前硬编码中文，英文用户看到中文回复）。不声称执行任何动作，仅表达理解。
-    fun localFallback(context: Context, emotion: AiEmotionReply.Emotion): String = when (emotion) {
-        AiEmotionReply.Emotion.HAPPY -> context.getString(R.string.ai_emotion_fallback_happy)
-        AiEmotionReply.Emotion.SAD -> context.getString(R.string.ai_emotion_fallback_sad)
-        AiEmotionReply.Emotion.ANGRY -> context.getString(R.string.ai_emotion_fallback_angry)
-        AiEmotionReply.Emotion.ANXIOUS -> context.getString(R.string.ai_emotion_fallback_anxious)
-        AiEmotionReply.Emotion.NEUTRAL -> context.getString(R.string.ai_emotion_fallback_neutral)
+    fun localFallback(context: Context, emotion: Emotion): String = when (emotion) {
+        Emotion.HAPPY -> context.getString(R.string.ai_emotion_fallback_happy)
+        Emotion.SAD -> context.getString(R.string.ai_emotion_fallback_sad)
+        Emotion.ANGRY -> context.getString(R.string.ai_emotion_fallback_angry)
+        Emotion.ANXIOUS -> context.getString(R.string.ai_emotion_fallback_anxious)
+        Emotion.NEUTRAL -> context.getString(R.string.ai_emotion_fallback_neutral)
     }
 }
