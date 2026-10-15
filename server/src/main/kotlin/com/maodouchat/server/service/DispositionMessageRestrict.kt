@@ -2,22 +2,22 @@ package com.maodouchat.server.service
 
 // 禁言（私聊/群聊发言）处置：原因模板目录 + 校验/审计。
 
-private val messageRestrictReasonTemplatesData: List<DispositionService.MessageRestrictTemplate> = listOf(
-    DispositionService.MessageRestrictTemplate("spam_chat", "spam / flood messages", defaultDays = 1),
-    DispositionService.MessageRestrictTemplate("harassment_chat", "harassment in chat", defaultDays = 3),
-    DispositionService.MessageRestrictTemplate("scam_chat", "scam / fraud chat", defaultDays = 7),
-    DispositionService.MessageRestrictTemplate("illegal_chat", "illegal content chat", defaultDays = 14),
-    DispositionService.MessageRestrictTemplate("abuse_api", "api / bot abuse", defaultDays = 3),
-    DispositionService.MessageRestrictTemplate("other", "other (note required)", defaultDays = 1, requiresCustomNote = true)
+private val messageRestrictReasonTemplatesData: List<MessageRestrictTemplate> = listOf(
+    MessageRestrictTemplate("spam_chat", "spam / flood messages", defaultDays = 1),
+    MessageRestrictTemplate("harassment_chat", "harassment in chat", defaultDays = 3),
+    MessageRestrictTemplate("scam_chat", "scam / fraud chat", defaultDays = 7),
+    MessageRestrictTemplate("illegal_chat", "illegal content chat", defaultDays = 14),
+    MessageRestrictTemplate("abuse_api", "api / bot abuse", defaultDays = 3),
+    MessageRestrictTemplate("other", "other (note required)", defaultDays = 1, requiresCustomNote = true)
 )
 
-internal val DispositionService.messageRestrictReasonTemplates: List<DispositionService.MessageRestrictTemplate>
+internal val DispositionService.messageRestrictReasonTemplates: List<MessageRestrictTemplate>
     get() = messageRestrictReasonTemplatesData
 
 internal val DispositionService.unrestrictMessagesReasonCode: String
     get() = "unrestrict_messages"
 
-internal fun DispositionService.findMessageRestrictTemplate(code: String?): DispositionService.MessageRestrictTemplate? {
+internal fun DispositionService.findMessageRestrictTemplate(code: String?): MessageRestrictTemplate? {
     val normalized = normalizeReasonCode(code) ?: return null
     return messageRestrictReasonTemplates.firstOrNull { it.code == normalized }
 }

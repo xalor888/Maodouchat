@@ -14,42 +14,6 @@ object DispositionService {
     const val MAX_POST_RESTRICT_DAYS = 90
     const val MAX_MESSAGE_RESTRICT_DAYS = 90
 
-    data class ReasonTemplate(
-        val code: String,
-        val labelZh: String,
-        val defaultDays: Int,
-        val requiresCustomNote: Boolean = false
-    )
-
-    /**
-     * Group mute templates (hours). Used by admin catalog + future group-admin UX;
-     * site-wide ban still uses [banReasonTemplates].
-     */
-    data class MuteTemplate(
-        val code: String,
-        val labelZh: String,
-        val durationHours: Int,
-        val requiresCustomNote: Boolean = false
-    )
-
-    /**
-     * Site-wide post (moments) restriction templates (days).
-     * Enforced by rejectIfPostRestricted on create/upload paths.
-     */
-    data class PostRestrictTemplate(
-        val code: String,
-        val labelZh: String,
-        val defaultDays: Int,
-        val requiresCustomNote: Boolean = false
-    )
-
-    data class MessageRestrictTemplate(
-        val code: String,
-        val labelZh: String,
-        val defaultDays: Int,
-        val requiresCustomNote: Boolean = false
-    )
-
     /** Shown to operators; not a legal channel commitment. */
     const val APPEAL_NOTICE_ZH: String =
         "申诉说明（只读）：用户可通过应用内「帮助与反馈」提交申诉；运营在审计日志中检索 reasonCode / note 后复核。当前版本不提供自动解封工单。"

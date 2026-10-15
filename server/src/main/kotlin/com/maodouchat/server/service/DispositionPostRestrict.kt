@@ -2,22 +2,22 @@ package com.maodouchat.server.service
 
 // 禁动态处置：原因模板目录 + 校验/审计。
 
-private val postRestrictReasonTemplatesData: List<DispositionService.PostRestrictTemplate> = listOf(
-    DispositionService.PostRestrictTemplate("spam_feed", "垃圾动态 / 刷屏发帖", defaultDays = 1),
-    DispositionService.PostRestrictTemplate("harassment_feed", "骚扰 / 不当内容", defaultDays = 3),
-    DispositionService.PostRestrictTemplate("scam_feed", "引流 / 诈骗宣传", defaultDays = 7),
-    DispositionService.PostRestrictTemplate("illegal_feed", "违法违规动态", defaultDays = 14),
-    DispositionService.PostRestrictTemplate("impersonation_feed", "冒充 / 仿冒形象", defaultDays = 7),
-    DispositionService.PostRestrictTemplate("other", "其他（须填写备注）", defaultDays = 1, requiresCustomNote = true)
+private val postRestrictReasonTemplatesData: List<PostRestrictTemplate> = listOf(
+    PostRestrictTemplate("spam_feed", "垃圾动态 / 刷屏发帖", defaultDays = 1),
+    PostRestrictTemplate("harassment_feed", "骚扰 / 不当内容", defaultDays = 3),
+    PostRestrictTemplate("scam_feed", "引流 / 诈骗宣传", defaultDays = 7),
+    PostRestrictTemplate("illegal_feed", "违法违规动态", defaultDays = 14),
+    PostRestrictTemplate("impersonation_feed", "冒充 / 仿冒形象", defaultDays = 7),
+    PostRestrictTemplate("other", "其他（须填写备注）", defaultDays = 1, requiresCustomNote = true)
 )
 
-internal val DispositionService.postRestrictReasonTemplates: List<DispositionService.PostRestrictTemplate>
+internal val DispositionService.postRestrictReasonTemplates: List<PostRestrictTemplate>
     get() = postRestrictReasonTemplatesData
 
 internal val DispositionService.unrestrictPostsReasonCode: String
     get() = "unrestrict_posts"
 
-internal fun DispositionService.findPostRestrictTemplate(code: String?): DispositionService.PostRestrictTemplate? {
+internal fun DispositionService.findPostRestrictTemplate(code: String?): PostRestrictTemplate? {
     val normalized = normalizeReasonCode(code) ?: return null
     return postRestrictReasonTemplates.firstOrNull { it.code == normalized }
 }
