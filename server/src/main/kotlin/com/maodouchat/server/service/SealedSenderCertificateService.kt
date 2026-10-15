@@ -25,19 +25,6 @@ object SealedSenderCertificateService {
     private const val DEFAULT_TTL_MS = 24L * 60L * 60L * 1000L
     private const val MAX_TTL_MS = 7L * 24L * 60L * 60L * 1000L
 
-    data class IssuedCertificate(
-        val certificate: String,
-        val userId: String,
-        val deviceId: Int,
-        val expiresAt: Long
-    )
-
-    data class VerifiedCertificate(
-        val userId: String,
-        val deviceId: Int,
-        val expiresAt: Long
-    )
-
     fun issue(userId: String, deviceId: Int, ttlMs: Long = DEFAULT_TTL_MS): IssuedCertificate? {
         if (userId.isBlank()) return null
         if (!RuntimeConfigService.isSealedSenderEnabled()) return null

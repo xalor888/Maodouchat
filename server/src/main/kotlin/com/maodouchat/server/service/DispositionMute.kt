@@ -2,21 +2,21 @@ package com.maodouchat.server.service
 
 // 群禁言处置：原因模板目录 + 校验。
 
-private val muteReasonTemplatesData: List<DispositionService.MuteTemplate> = listOf(
-    DispositionService.MuteTemplate("flood", "刷屏 / 刷屏式发言", durationHours = 1),
-    DispositionService.MuteTemplate("off_topic", "严重跑题 / 扰乱秩序", durationHours = 6),
-    DispositionService.MuteTemplate("harassment", "言语攻击 / 骚扰", durationHours = 24),
-    DispositionService.MuteTemplate("spam_link", "垃圾链接 / 引流", durationHours = 12),
-    DispositionService.MuteTemplate("other", "其他（须填写备注）", durationHours = 1, requiresCustomNote = true)
+private val muteReasonTemplatesData: List<MuteTemplate> = listOf(
+    MuteTemplate("flood", "刷屏 / 刷屏式发言", durationHours = 1),
+    MuteTemplate("off_topic", "严重跑题 / 扰乱秩序", durationHours = 6),
+    MuteTemplate("harassment", "言语攻击 / 骚扰", durationHours = 24),
+    MuteTemplate("spam_link", "垃圾链接 / 引流", durationHours = 12),
+    MuteTemplate("other", "其他（须填写备注）", durationHours = 1, requiresCustomNote = true)
 )
 
-internal val DispositionService.muteReasonTemplates: List<DispositionService.MuteTemplate>
+internal val DispositionService.muteReasonTemplates: List<MuteTemplate>
     get() = muteReasonTemplatesData
 
 internal val DispositionService.unmuteReasonCode: String
     get() = "unmute"
 
-internal fun DispositionService.findMuteTemplate(code: String?): DispositionService.MuteTemplate? {
+internal fun DispositionService.findMuteTemplate(code: String?): MuteTemplate? {
     val normalized = normalizeReasonCode(code) ?: return null
     return muteReasonTemplates.firstOrNull { it.code == normalized }
 }
