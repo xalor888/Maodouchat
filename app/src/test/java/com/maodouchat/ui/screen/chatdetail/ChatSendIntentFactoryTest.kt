@@ -45,8 +45,8 @@ class ChatSendIntentFactoryTest {
             token = "tok",
             nudgeEnabled = true,
         )
-        assertIs<ChatSendIntentFactory.NudgeDecision.Reject>(result)
-        assertEquals(ChatSendIntentFactory.NudgeRejectReason.SECRET_CHAT, result.reason)
+        assertIs<NudgeDecision.Reject>(result)
+        assertEquals(NudgeRejectReason.SECRET_CHAT, result.reason)
     }
 
     @Test
@@ -58,8 +58,8 @@ class ChatSendIntentFactoryTest {
             token = "tok",
             nudgeEnabled = false,
         )
-        assertIs<ChatSendIntentFactory.NudgeDecision.Reject>(result)
-        assertEquals(ChatSendIntentFactory.NudgeRejectReason.DISABLED, result.reason)
+        assertIs<NudgeDecision.Reject>(result)
+        assertEquals(NudgeRejectReason.DISABLED, result.reason)
     }
 
     @Test
@@ -71,8 +71,8 @@ class ChatSendIntentFactoryTest {
             token = "tok",
             nudgeEnabled = true,
         )
-        assertIs<ChatSendIntentFactory.NudgeDecision.Reject>(result)
-        assertEquals(ChatSendIntentFactory.NudgeRejectReason.NO_CHAT, result.reason)
+        assertIs<NudgeDecision.Reject>(result)
+        assertEquals(NudgeRejectReason.NO_CHAT, result.reason)
     }
 
     @Test
@@ -89,8 +89,8 @@ class ChatSendIntentFactoryTest {
                 token = token,
                 nudgeEnabled = true,
             )
-            assertIs<ChatSendIntentFactory.NudgeDecision.Reject>(result, "$label 必须被拒")
-            assertEquals(ChatSendIntentFactory.NudgeRejectReason.NO_SESSION, result.reason, label)
+            assertIs<NudgeDecision.Reject>(result, "$label 必须被拒")
+            assertEquals(NudgeRejectReason.NO_SESSION, result.reason, label)
         }
     }
 
@@ -103,7 +103,7 @@ class ChatSendIntentFactoryTest {
             token = "tok",
             nudgeEnabled = true,
         )
-        assertIs<ChatSendIntentFactory.NudgeDecision.Allow>(result)
+        assertIs<NudgeDecision.Allow>(result)
         assertEquals("u1", result.ownerUserId)
         assertEquals("c1", result.chatId)
     }

@@ -56,18 +56,18 @@ internal class ChatMessageLoadingController(
 
     /** G65：纯决策产出的副作用清单真正执行掉（判定在 coordinator）。 */
     private suspend fun applyLoadEffects(
-        plan: ChatDetailLoadCoordinator.ChatLoadPlan,
+        plan: ChatLoadPlan,
         chat: Chat,
     ) {
         plan.effects.forEach { effect ->
             when (effect) {
-                is ChatDetailLoadCoordinator.ChatLoadEffect.OccupySessionCipher ->
+                is ChatLoadEffect.OccupySessionCipher ->
                     cipherController.occupySessionCipher(effect.chatId, peerUserId = effect.peerUserId, updatePeer = true)
-                ChatDetailLoadCoordinator.ChatLoadEffect.LoadGroupCandidates -> botGroupActionController.loadGroupCandidates()
-                is ChatDetailLoadCoordinator.ChatLoadEffect.RefreshBotCommands -> botGroupActionController.refreshBotCommands(effect.chatId)
-                is ChatDetailLoadCoordinator.ChatLoadEffect.RefreshBlockState -> moderationController.refreshBlockState(effect.peerUserId)
-                ChatDetailLoadCoordinator.ChatLoadEffect.RefreshScheduledMessages -> scheduledMessageController.refreshScheduledMessages()
-                is ChatDetailLoadCoordinator.ChatLoadEffect.RefreshIdentitySafety ->
+                ChatLoadEffect.LoadGroupCandidates -> botGroupActionController.loadGroupCandidates()
+                is ChatLoadEffect.RefreshBotCommands -> botGroupActionController.refreshBotCommands(effect.chatId)
+                is ChatLoadEffect.RefreshBlockState -> moderationController.refreshBlockState(effect.peerUserId)
+                ChatLoadEffect.RefreshScheduledMessages -> scheduledMessageController.refreshScheduledMessages()
+                is ChatLoadEffect.RefreshIdentitySafety ->
                     identityVerificationController.refreshIdentitySafetyState(effect.peerUserId)
             }
         }
@@ -119,7 +119,7 @@ internal class ChatMessageLoadingController(
                     uiState.update { it.copy(isLoading = false, initialLoadError = null) }
                     // G65：纯决策交给 ChatDetailLoadCoordinator（可单测），这里只编排副作用。
                     val plan = ChatDetailLoadCoordinator.planChatLoad(
-                        input = ChatDetailLoadCoordinator.ChatLoadInput(
+                        input = ChatLoadInput(
                             chat = chat,
                             previousRevision = previousRevision,
                             currentUserId = getCurrentUserId(),
@@ -141,7 +141,7 @@ internal class ChatMessageLoadingController(
                             participants = cachedChat.participants.map { p -> withLocalNickname(p) }
                         )
                         val cachedPlan = ChatDetailLoadCoordinator.planChatLoad(
-                            input = ChatDetailLoadCoordinator.ChatLoadInput(
+                            input = ChatLoadInput(
                                 chat = cached,
                                 // 缓存回退路径没有 API 侧基线，用当前 UI 上的 revision
                                 previousRevision = uiState.value.chat?.memberRevision,

@@ -25,18 +25,6 @@ internal object ChatSendIntentFactory {
     /** 占位 owner：未登录或测试态下 `currentUserId` 会是它，此时绝不能发送。 */
     const val PLACEHOLDER_OWNER: String = "me"
 
-    enum class NudgeRejectReason {
-        SECRET_CHAT,
-        DISABLED,
-        NO_CHAT,
-        NO_SESSION,
-    }
-
-    sealed interface NudgeDecision {
-        data class Allow(val ownerUserId: String, val chatId: String) : NudgeDecision
-        data class Reject(val reason: NudgeRejectReason) : NudgeDecision
-    }
-
     /** nudge 的四条准入：密聊禁用、功能开关、有 chatId、是真会话。 */
     fun checkNudge(
         state: ChatDetailUiState,
