@@ -18,7 +18,6 @@ class LoginAttemptGate(
     private val lockMs: Long = LOCK_MS,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    data class Lockout(var fails: Int, var lockUntil: Long, var lastFailureAt: Long = 0L)
 
     private val lockouts = ConcurrentHashMap<String, Lockout>()
     private val lastSweepAt = AtomicLong(0L)

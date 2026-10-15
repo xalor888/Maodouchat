@@ -22,10 +22,6 @@ import org.jetbrains.exposed.sql.update
 object DeviceEventConsistencyGuard {
     private val stripes = Array(256) { Any() }
 
-    enum class Status { APPLIED, STALE, DUPLICATE, OUT_OF_ORDER }
-
-    data class ApplyOutcome(val status: Status, val lastAppliedSeq: Long)
-
     private fun stripe(userId: String, deviceId: Int, eventType: String): Any {
         val hash = (userId.hashCode() * 31 + deviceId) * 31 + eventType.hashCode()
         return stripes[Math.floorMod(hash, stripes.size)]
