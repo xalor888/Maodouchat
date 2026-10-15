@@ -24,7 +24,7 @@ fun UserTagRepository.listUsersByTag(
     query: String?,
     limit: Int,
     offset: Long
-): List<UserTagRepository.AssignmentRow> = transaction {
+): List<AssignmentRow> = transaction {
     val matchingUserIds = if (query?.isNotBlank() == true) {
         val escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         Users.selectAll().where {
@@ -52,7 +52,7 @@ fun UserTagRepository.assignTags(
     tagIds: List<String>,
     source: String,
     assignedBy: String?
-): List<UserTagRepository.AssignmentRow>? = transaction {
+): List<AssignmentRow>? = transaction {
     val now = System.currentTimeMillis()
     val distinctTagIds = tagIds.distinct()
     val existingTagIds = UserTags.selectAll()
@@ -109,7 +109,7 @@ fun UserTagRepository.detachTag(userId: String, tagId: String): Boolean = transa
     } > 0
 }
 
-fun UserTagRepository.userAssignments(userId: String): List<UserTagRepository.AssignmentRow> = transaction {
+fun UserTagRepository.userAssignments(userId: String): List<AssignmentRow> = transaction {
     UserTagAssignments.selectAll().where { UserTagAssignments.userId eq userId }
         .orderBy(
             UserTagAssignments.createdAt to SortOrder.DESC,
@@ -125,7 +125,7 @@ fun UserTagRepository.userTagIds(userId: String): List<String> = transaction {
 }
 
 /** 带风险级别标签的赋值：用于风控联动（风险打标自动处置）。 */
-fun UserTagRepository.riskAssignments(userId: String): List<UserTagRepository.AssignmentRow> = transaction {
+fun UserTagRepository.riskAssignments(userId: String): List<AssignmentRow> = transaction {
     val rows = UserTagAssignments.selectAll().where { UserTagAssignments.userId eq userId }.toList()
     // 批量回查标签，避免 filter 内逐条查的 N+1
     val tagIds = rows.map { it[UserTagAssignments.tagId] }.distinct()

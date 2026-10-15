@@ -13,7 +13,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 /** 群投票查询簇：列表 / 快照 / 单条。 */
 
-fun PollRepository.listChatPollSnapshots(chatId: String, limit: Int = 30, viewerId: String? = null): List<PollRepository.PollSnapshot> {
+fun PollRepository.listChatPollSnapshots(chatId: String, limit: Int = 30, viewerId: String? = null): List<PollSnapshot> {
     if (chatId.isBlank()) return emptyList()
     return transaction {
         val blocked = ConversationVisibility.blockedUserIdsInTx(viewerId)
@@ -44,7 +44,7 @@ fun PollRepository.listChatPollSnapshots(chatId: String, limit: Int = 30, viewer
                     voters += uid
                     if (viewerId != null && uid == viewerId) my += idx
                 }
-                PollRepository.PollSnapshot(
+                PollSnapshot(
                     id = pollId,
                     chatId = row[GroupPolls.chatId],
                     question = row[GroupPolls.question],
@@ -63,7 +63,7 @@ fun PollRepository.listChatPollSnapshots(chatId: String, limit: Int = 30, viewer
     }
 }
 
-fun PollRepository.listChatPolls(chatId: String, userId: String, limit: Int = 30): List<PollRepository.PollDto> {
+fun PollRepository.listChatPolls(chatId: String, userId: String, limit: Int = 30): List<PollDto> {
     if (!isValidId(chatId) || !isValidId(userId)) return emptyList()
     return transaction {
         // 8.39：只读路径不加 FOR UPDATE（此前拿写锁，同一群投票列表/详情读取互相串行，
@@ -92,7 +92,7 @@ fun PollRepository.listChatPolls(chatId: String, userId: String, limit: Int = 30
     }
 }
 
-fun PollRepository.getPoll(pollId: String, viewerId: String): PollRepository.PollDto? = transaction {
+fun PollRepository.getPoll(pollId: String, viewerId: String): PollDto? = transaction {
     if (!isValidId(pollId) || !isValidId(viewerId)) return@transaction null
     val row = GroupPolls.selectAll().where { GroupPolls.id eq pollId }.firstOrNull() ?: return@transaction null
     val chatId = row[GroupPolls.chatId]
