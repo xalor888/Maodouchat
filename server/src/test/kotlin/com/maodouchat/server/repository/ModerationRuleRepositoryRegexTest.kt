@@ -95,7 +95,7 @@ class ModerationRuleRepositoryRegexTest {
 
         try {
             val futures = List(requestCount) {
-                executor.submit<ModerationRuleRepository.Evaluation> {
+                executor.submit<Evaluation> {
                     start.await()
                     repository.evaluate(
                         TEST_USER_ID,

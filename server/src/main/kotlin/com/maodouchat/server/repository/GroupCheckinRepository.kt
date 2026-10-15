@@ -5,54 +5,16 @@ import com.maodouchat.server.db.GroupChains
 import com.maodouchat.server.db.GroupCheckins
 import com.maodouchat.server.db.GroupPkRounds
 import com.maodouchat.server.db.GroupPkVotes
-import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 
-/**
- * 群签到 / 群接龙 / 群 PK 仓库（B3）。
- *
- * 全部为群内公开元数据，明文存储。所有写操作都校验「群聊 + 成员」身份，
- * 与 PollRepository 的校验口径保持一致。
- */
+// 群签到 / 群接龙 / 群 PK：群内公开元数据，明文存储；写操作校验群聊 + 成员身份。
 object GroupCheckinRepository {
-    // ── DTO ──────────────────────────────────────────────
 
-    @Serializable
-    data class CheckinDto(
-        val chatId: String,
-        val userId: String,
-        val date: String,
-        val streak: Int,
-        val totalCount: Int,
-        val todayRank: Int,
-        val todayCount: Int,
-        val alreadyCheckedIn: Boolean,
-        val checkedAt: Long
-    )
-
-    @Serializable
-    data class CheckinRankEntry(
-        val userId: String,
-        val streak: Int,
-        val totalCount: Int,
-        val lastCheckedAt: Long
-    )
-
-    // ── 群接龙 ──────────────────────────────────────────
-
-    // ── 通用 ──────────────────────────────────────────
-
-    /**
-     * 清理超过保留期的群玩法数据（默认 365 天），防止 B3 五张表无限增长：
-     * - GroupCheckins 签到：按 checkedAt
-     * - GroupChains 接龙 + GroupChainEntries 明细：按 createdAt
-     * - GroupPkRounds PK + GroupPkVotes 投票：按 createdAt / votedAt
-     * 由 Routing.kt 的周期清理循环调用；返回 (表名 -> 删除行数)。
-     */
+    // 清理超过保留期的群玩法数据（默认 365 天），返回表名 -> 删除行数。
     fun purgeOldData(retentionDays: Int = 365): Map<String, Int> {
         val cutoff = System.currentTimeMillis() - retentionDays * 86_400_000L
         return transaction {

@@ -22,7 +22,7 @@ fun AnnouncementRepository.create(
     expiresAt: Long,
     createdBy: String?,
     asDraft: Boolean = false
-): AnnouncementRepository.AnnouncementRow = transaction {
+): AnnouncementRow = transaction {
     val now = System.currentTimeMillis()
     val id = UUID.randomUUID().toString()
     // 草稿必须显式 asDraft：此前 create 只写 ACTIVE/SCHEDULED，管理端删除仅允许 DRAFT，
@@ -60,7 +60,7 @@ fun AnnouncementRepository.update(
     targetTagId: String?,
     startsAt: Long?,
     expiresAt: Long?
-): AnnouncementRepository.AnnouncementRow? = transaction {
+): AnnouncementRow? = transaction {
     val existing = SystemAnnouncements.selectAll().where { SystemAnnouncements.id eq id }
         .firstOrNull() ?: return@transaction null
     val now = System.currentTimeMillis()
