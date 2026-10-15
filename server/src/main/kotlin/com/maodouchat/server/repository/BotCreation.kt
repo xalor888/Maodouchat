@@ -12,10 +12,10 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
 
-fun BotRepository.create(ownerUserId: String, name: String, username: String, description: String?): BotRepository.BotCreateResult {
+fun BotRepository.create(ownerUserId: String, name: String, username: String, description: String?): BotCreateResult {
     val n = name.trim().take(120)
-    val u = normalizeUsername(username) ?: return BotRepository.BotCreateResult.InvalidInput
-    if (n.isBlank()) return BotRepository.BotCreateResult.InvalidInput
+    val u = normalizeUsername(username) ?: return BotCreateResult.InvalidInput
+    if (n.isBlank()) return BotCreateResult.InvalidInput
     val maxBots = try {
         com.maodouchat.server.service.RuntimeConfigService.maxBotsPerUser()
     } catch (_: Exception) { 20 }
@@ -25,13 +25,13 @@ fun BotRepository.create(ownerUserId: String, name: String, username: String, de
     return try {
         transaction {
             val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                ?: return@transaction BotRepository.BotCreateResult.OwnerInvalid
-            if (owner[Users.deletedAt] != null) return@transaction BotRepository.BotCreateResult.OwnerInvalid
-            if (owner[Users.suspendedUntil] > now) return@transaction BotRepository.BotCreateResult.OwnerInvalid
+                ?: return@transaction BotCreateResult.OwnerInvalid
+            if (owner[Users.deletedAt] != null) return@transaction BotCreateResult.OwnerInvalid
+            if (owner[Users.suspendedUntil] > now) return@transaction BotCreateResult.OwnerInvalid
             val owned = BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }.count()
-            if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction BotRepository.BotCreateResult.MaxBotsReached
+            if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction BotCreateResult.MaxBotsReached
             if (BotApps.selectAll().where { BotApps.username eq u }.firstOrNull() != null) {
-                return@transaction BotRepository.BotCreateResult.UsernameTaken
+                return@transaction BotCreateResult.UsernameTaken
             }
             // Bot identity is also a Users row so message.senderId FK remains valid.
             Users.insert {
@@ -56,11 +56,11 @@ fun BotRepository.create(ownerUserId: String, name: String, username: String, de
                 it[BotApps.createdAt] = now
                 it[BotApps.updatedAt] = now
             }
-            BotRepository.BotCreateResult.Success(
+            BotCreateResult.Success(
                 BotApps.selectAll().where { BotApps.id eq id }.first().toDto().copy(tokenOnce = token)
             )
         }
     } catch (error: Exception) {
-        if (isUniqueViolation(error)) BotRepository.BotCreateResult.UsernameTaken else throw error
+        if (isUniqueViolation(error)) BotCreateResult.UsernameTaken else throw error
     }
 }

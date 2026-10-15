@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.SendFriendRequestBody
 import com.maodouchat.server.repository.FriendRepository
+import com.maodouchat.server.repository.FriendRequestResult
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.sendRequest
 import com.maodouchat.server.service.FcmPushService
@@ -43,11 +44,11 @@ internal fun Route.configureFriendRequestSendRoutes(
                 return@post
             }
             when (val result = friendRepository.sendRequest(userId, recipientUserId, request.message)) {
-                is FriendRepository.Result.Success -> {
+                is FriendRequestResult.Success -> {
                     notifyFriendRequest(userRepository, pushService, json, result.request, "CREATED")
                     call.respond(HttpStatusCode.Created, result.request)
                 }
-                is FriendRepository.Result.Failure -> {
+                is FriendRequestResult.Failure -> {
                     val status = when (result.code) {
                         "USER_NOT_FOUND" -> HttpStatusCode.NotFound
                         "BLOCKED", "SELF" -> HttpStatusCode.Forbidden

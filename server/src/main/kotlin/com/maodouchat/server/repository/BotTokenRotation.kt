@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
-fun BotRepository.regenerateToken(botId: String, ownerUserId: String): BotRepository.BotDto? {
+fun BotRepository.regenerateToken(botId: String, ownerUserId: String): BotDto? {
     val token = generateToken()
     val now = System.currentTimeMillis()
     return transaction {

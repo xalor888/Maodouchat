@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
-fun BotRepository.listEnabledBotsInChat(chatId: String): List<BotRepository.ChatBotSummary> = transaction {
+fun BotRepository.listEnabledBotsInChat(chatId: String): List<ChatBotSummary> = transaction {
     val now = System.currentTimeMillis()
     val botIds = ChatParticipants.selectAll()
         .where { ChatParticipants.chatId eq chatId }
@@ -21,7 +21,7 @@ fun BotRepository.listEnabledBotsInChat(chatId: String): List<BotRepository.Chat
         .where { (BotApps.id inList botIds) and (BotApps.enabled eq true) }
         .mapNotNull { row ->
             if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) return@mapNotNull null
-            BotRepository.ChatBotSummary(
+            ChatBotSummary(
                 id = row[BotApps.id],
                 username = row[BotApps.username],
                 name = row[BotApps.name],
@@ -32,7 +32,7 @@ fun BotRepository.listEnabledBotsInChat(chatId: String): List<BotRepository.Chat
 }
 
 
-fun BotRepository.listCommandsForChat(chatId: String): List<BotRepository.ChatBotCommandItem> = transaction {
+fun BotRepository.listCommandsForChat(chatId: String): List<ChatBotCommandItem> = transaction {
     val now = System.currentTimeMillis()
     val botIds = ChatParticipants.selectAll()
         .where { ChatParticipants.chatId eq chatId }
@@ -44,7 +44,7 @@ fun BotRepository.listCommandsForChat(chatId: String): List<BotRepository.ChatBo
         .flatMap { row ->
             if (!isOwnerDeliverable(row[BotApps.ownerUserId], now)) return@flatMap emptyList()
             parseCommands(row[BotApps.commandsJson]).map { cmd ->
-                BotRepository.ChatBotCommandItem(
+                ChatBotCommandItem(
                     botId = row[BotApps.id],
                     username = row[BotApps.username],
                     name = row[BotApps.name],
@@ -57,7 +57,7 @@ fun BotRepository.listCommandsForChat(chatId: String): List<BotRepository.ChatBo
 }
 
 
-fun BotRepository.findEnabledBotByUsername(username: String): BotRepository.BotDto? {
+fun BotRepository.findEnabledBotByUsername(username: String): BotDto? {
     val u = normalizeUsername(username) ?: return null
     return transaction {
         val now = System.currentTimeMillis()

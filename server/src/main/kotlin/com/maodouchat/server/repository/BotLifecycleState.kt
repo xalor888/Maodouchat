@@ -27,7 +27,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
 
-fun BotRepository.setEnabled(botId: String, ownerUserId: String, enabled: Boolean): BotRepository.BotDto? {
+fun BotRepository.setEnabled(botId: String, ownerUserId: String, enabled: Boolean): BotDto? {
     val now = System.currentTimeMillis()
     return transaction {
         val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()

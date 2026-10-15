@@ -23,7 +23,7 @@ fun BotRepository.groupChatIdsFor(botId: String): List<String> = transaction {
  * 管理后台专用启停：不校验 owner（管理员跨 owner 操作），只按 botId 更新并回读。
  * 返回 null 表示 bot 不存在。此前这段写在 `plugins/AdminDiagnosticsRouting.kt` 的裸事务里。
  */
-fun BotRepository.setAdminEnabled(botId: String, enabled: Boolean): BotRepository.BotDto? = transaction {
+fun BotRepository.setAdminEnabled(botId: String, enabled: Boolean): BotDto? = transaction {
     val updated = BotApps.update({ BotApps.id eq botId }) {
         it[BotApps.enabled] = enabled
         it[updatedAt] = System.currentTimeMillis()
@@ -33,7 +33,7 @@ fun BotRepository.setAdminEnabled(botId: String, enabled: Boolean): BotRepositor
 }
 
 
-fun BotRepository.adminList(limit: Int = 50, offset: Int = 0): List<BotRepository.BotDto> = transaction {
+fun BotRepository.adminList(limit: Int = 50, offset: Int = 0): List<BotDto> = transaction {
     BotApps.selectAll()
         .orderBy(
             BotApps.createdAt to org.jetbrains.exposed.sql.SortOrder.DESC,

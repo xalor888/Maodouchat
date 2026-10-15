@@ -18,7 +18,7 @@ import org.jetbrains.exposed.sql.update
  * 单事务原子轮换：行锁 → 校验用户/封禁 → 通过后才 revoke。
  * 封禁/账号缺失时不吊销 refresh，避免 peek→consume 竞态把有效 token 烧掉。
  */
-fun AuthTokenRepository.rotateIfEligible(refreshToken: String): AuthTokenRepository.RotateRefreshResult {
+fun AuthTokenRepository.rotateIfEligible(refreshToken: String): RotateRefreshResult {
     val hash = hashToken(refreshToken)
     val now = System.currentTimeMillis()
     val replacementToken = generateRefreshToken()
@@ -28,12 +28,12 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): AuthTokenReposit
         val initialRow = RefreshTokens.selectAll()
             .where { RefreshTokens.tokenHash eq hash }
             .firstOrNull()
-            ?: return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
+            ?: return@transaction RotateRefreshResult.InvalidToken
         val userId = initialRow[RefreshTokens.userId]
         val sessionId = initialRow[RefreshTokens.sessionId]
         val user = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
         if (user == null || user[Users.deletedAt] != null) {
-            return@transaction AuthTokenRepository.RotateRefreshResult.UserMissing
+            return@transaction RotateRefreshResult.UserMissing
         }
         val session = sessionId.takeIf { it.isNotBlank() }?.let { id ->
             AuthSessions.selectAll()
@@ -46,13 +46,13 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): AuthTokenReposit
             .where { RefreshTokens.tokenHash eq hash }
             .forUpdate()
             .firstOrNull()
-            ?: return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
+            ?: return@transaction RotateRefreshResult.InvalidToken
         if (row[RefreshTokens.revokedAt] != null) {
             if (session != null && session[AuthSessions.revokedAt] == null) {
                 revokeSessionInCurrentTransaction(userId, sessionId, now)
-                return@transaction AuthTokenRepository.RotateRefreshResult.SessionCompromised(userId, sessionId)
+                return@transaction RotateRefreshResult.SessionCompromised(userId, sessionId)
             }
-            return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
+            return@transaction RotateRefreshResult.InvalidToken
         }
         if (row[RefreshTokens.expiresAt] <= now) {
             val hasActiveReplacement = sessionId.isNotBlank() && RefreshTokens.selectAll().where {
@@ -65,16 +65,16 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): AuthTokenReposit
             if (!hasActiveReplacement && session != null && session[AuthSessions.revokedAt] == null) {
                 revokeSessionInCurrentTransaction(userId, sessionId, now)
             }
-            return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
+            return@transaction RotateRefreshResult.InvalidToken
         }
         if (user[Users.suspendedUntil] > now) {
-            return@transaction AuthTokenRepository.RotateRefreshResult.UserSuspended
+            return@transaction RotateRefreshResult.UserSuspended
         }
         if (session == null || session[AuthSessions.revokedAt] != null) {
             RefreshTokens.update({ RefreshTokens.tokenHash eq hash }) {
                 it[revokedAt] = now
             }
-            return@transaction AuthTokenRepository.RotateRefreshResult.InvalidToken
+            return@transaction RotateRefreshResult.InvalidToken
         }
         RefreshTokens.update({ RefreshTokens.tokenHash eq hash }) {
             it[revokedAt] = now
@@ -90,6 +90,6 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): AuthTokenReposit
             it[expiresAt] = replacementExpiresAt
             it[revokedAt] = null
         }
-        AuthTokenRepository.RotateRefreshResult.Success(userId, sessionId, replacementToken, replacementExpiresAt)
+        RotateRefreshResult.Success(userId, sessionId, replacementToken, replacementExpiresAt)
     }
 }

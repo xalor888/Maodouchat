@@ -16,7 +16,7 @@ private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInsta
 // SecureRandom 线程安全：每次生成 token 都 new 会反复播种，包级复用。
 private val secureRandom = SecureRandom()
 
-fun BotRepository.listByOwner(ownerUserId: String): List<BotRepository.BotDto> = transaction {
+fun BotRepository.listByOwner(ownerUserId: String): List<BotDto> = transaction {
     BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }
         .orderBy(
             BotApps.createdAt to SortOrder.DESC,
@@ -25,7 +25,7 @@ fun BotRepository.listByOwner(ownerUserId: String): List<BotRepository.BotDto> =
         .map { it.toDto() }
 }
 
-fun BotRepository.authenticate(token: String): BotRepository.BotDto? {
+fun BotRepository.authenticate(token: String): BotDto? {
     val hash = hashToken(token.trim())
     return transaction {
         val row = BotApps.selectAll().where { (BotApps.tokenHash eq hash) and (BotApps.enabled eq true) }
@@ -44,7 +44,7 @@ fun BotRepository.authenticate(token: String): BotRepository.BotDto? {
     }
 }
 
-fun BotRepository.get(botId: String): BotRepository.BotDto? = transaction {
+fun BotRepository.get(botId: String): BotDto? = transaction {
     BotApps.selectAll().where { BotApps.id eq botId }.firstOrNull()?.toDto()
 }
 

@@ -1,6 +1,6 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.repository.BotRepository
+import com.maodouchat.server.repository.BotCommandDef
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -23,7 +23,7 @@ class BotSetMyCommandsParseFuzzTest {
     private fun parseOf(obj: JsonObject): BotSetMyCommandsFieldsResult =
         parseBotSetMyCommandsFields(obj)
 
-    private fun okOf(obj: JsonObject): List<BotRepository.BotCommandDef> =
+    private fun okOf(obj: JsonObject): List<BotCommandDef> =
         (parseOf(obj) as BotSetMyCommandsFieldsResult.Ok).fields.commands
 
     private fun itemOf(command: String, description: String): JsonObject =
@@ -144,7 +144,7 @@ class BotSetMyCommandsParseFuzzTest {
                 )
             )
         )
-        assertEquals(listOf(BotRepository.BotCommandDef("ok", "好")), defs2)
+        assertEquals(listOf(BotCommandDef("ok", "好")), defs2)
         // 全丢弃 → Ok(emptyList())，不是 Invalid。
         assertEquals(
             emptyList(),
@@ -177,7 +177,7 @@ class BotSetMyCommandsParseFuzzTest {
                 )
             )
         )
-        assertEquals(listOf(BotRepository.BotCommandDef("null", "d")), defs)
+        assertEquals(listOf(BotCommandDef("null", "d")), defs)
     }
 
     @Test

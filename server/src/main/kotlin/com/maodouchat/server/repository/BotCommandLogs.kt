@@ -32,7 +32,7 @@ fun BotRepository.logCommand(botId: String, chatId: String?, userId: String?, co
     }
 }
 
-fun BotRepository.listCommandLogs(botId: String, limit: Int = 50, offset: Int = 0): List<BotRepository.CommandLogDto> = transaction {
+fun BotRepository.listCommandLogs(botId: String, limit: Int = 50, offset: Int = 0): List<CommandLogDto> = transaction {
     BotCommandLogs.selectAll()
         .where { BotCommandLogs.botId eq botId }
         .orderBy(
@@ -41,7 +41,7 @@ fun BotRepository.listCommandLogs(botId: String, limit: Int = 50, offset: Int = 
         )
         .limit(limit.coerceIn(1, 200), offset.toLong().coerceAtLeast(0))
         .map {
-            BotRepository.CommandLogDto(
+            CommandLogDto(
                 id = it[BotCommandLogs.id],
                 botId = it[BotCommandLogs.botId],
                 chatId = it[BotCommandLogs.chatId],

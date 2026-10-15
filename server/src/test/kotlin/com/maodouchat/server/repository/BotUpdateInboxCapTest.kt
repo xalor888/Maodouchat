@@ -49,7 +49,7 @@ class BotUpdateInboxCapTest {
     fun `inbox caps at limit and evicts oldest first`() {
         setupDb()
         val created = BotRepository.create("u1", "Cap Bot", "bot_cap", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val total = 505
         repeat(total) { i ->

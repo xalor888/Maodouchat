@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.FriendRequestResponse
 import com.maodouchat.server.repository.FriendRepository
+import com.maodouchat.server.repository.FriendRequestResult
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.acceptRequest
 import com.maodouchat.server.repository.cancelRequest
@@ -51,15 +52,15 @@ internal fun Route.configureFriendRequestDecisionRoutes(
 }
 
 private suspend fun io.ktor.server.application.ApplicationCall.respondToMutation(
-    result: FriendRepository.Result,
+    result: FriendRequestResult,
     onSuccess: suspend (FriendRequestResponse) -> Unit,
 ) {
     when (result) {
-        is FriendRepository.Result.Success -> {
+        is FriendRequestResult.Success -> {
             onSuccess(result.request)
             respond(result.request)
         }
-        is FriendRepository.Result.Failure -> {
+        is FriendRequestResult.Failure -> {
             val status = when (result.code) {
                 "NOT_FOUND" -> HttpStatusCode.NotFound
                 "FORBIDDEN" -> HttpStatusCode.Forbidden

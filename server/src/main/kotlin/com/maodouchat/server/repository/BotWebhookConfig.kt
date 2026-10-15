@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
-fun BotRepository.setWebhook(botId: String, ownerUserId: String, url: String?): BotRepository.BotDto? {
+fun BotRepository.setWebhook(botId: String, ownerUserId: String, url: String?): BotDto? {
     val clean = url?.trim()?.take(500)
     if (!clean.isNullOrBlank() && !isAllowedWebhookUrl(clean)) {
         return null
@@ -32,7 +32,7 @@ fun BotRepository.setWebhook(botId: String, ownerUserId: String, url: String?): 
 }
 
 
-fun BotRepository.setWebhookByToken(botId: String, url: String?): BotRepository.BotDto? {
+fun BotRepository.setWebhookByToken(botId: String, url: String?): BotDto? {
     val clean = url?.trim()?.take(500)
     if (!clean.isNullOrBlank() && !isAllowedWebhookUrl(clean)) {
         return null

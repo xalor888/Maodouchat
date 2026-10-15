@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.BotDto
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.authenticate
 import io.ktor.http.HttpHeaders
@@ -10,7 +11,7 @@ import io.ktor.server.request.header
 import io.ktor.server.response.respond
 
 /** Resolves the single supported bot credential flow for every bot endpoint. */
-internal suspend fun ApplicationCall.requireBot(): BotRepository.BotDto? {
+internal suspend fun ApplicationCall.requireBot(): BotDto? {
     val token = request.headers["X-Bot-Token"].orEmpty()
         .ifBlank { request.header(HttpHeaders.Authorization).bearerTokenOrNull().orEmpty() }
     val bot = BotRepository.authenticate(token)
@@ -31,7 +32,7 @@ internal suspend fun ApplicationCall.acquireBotRequestPermit(
 
 internal suspend fun ApplicationCall.requireRateLimitedBot(
     rateLimiter: BoundedRateLimiter,
-): BotRepository.BotDto? {
+): BotDto? {
     val bot = requireBot() ?: return null
     return if (acquireBotRequestPermit(rateLimiter, bot.id)) bot else null
 }

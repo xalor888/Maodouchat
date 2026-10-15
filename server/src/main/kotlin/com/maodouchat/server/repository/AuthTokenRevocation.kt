@@ -19,7 +19,7 @@ fun AuthTokenRepository.revoke(refreshToken: String): Boolean {
  * 吊销 refresh 所属的整个登录会话，并返回其身份供 WebSocket / 推送清理。
  * 旧版 refresh 没有 sessionId 时只吊销该 token，且不能再用于轮换。
  */
-fun AuthTokenRepository.revokeAndGetSession(refreshToken: String): AuthTokenRepository.RevokedSession? {
+fun AuthTokenRepository.revokeAndGetSession(refreshToken: String): RevokedSession? {
     val hash = hashToken(refreshToken)
     val now = System.currentTimeMillis()
     return transaction {
@@ -65,6 +65,6 @@ fun AuthTokenRepository.revokeAndGetSession(refreshToken: String): AuthTokenRepo
                 it[revokedAt] = now
             }
         }
-        AuthTokenRepository.RevokedSession(userId, sessionId)
+        RevokedSession(userId, sessionId)
     }
 }

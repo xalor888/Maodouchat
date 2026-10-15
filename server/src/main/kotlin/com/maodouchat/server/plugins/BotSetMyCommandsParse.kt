@@ -1,12 +1,13 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.repository.BotCommandDef
 import com.maodouchat.server.repository.BotRepository
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 internal data class BotSetMyCommandsFields(
-    val commands: List<BotRepository.BotCommandDef>,
+    val commands: List<BotCommandDef>,
 )
 
 internal sealed interface BotSetMyCommandsFieldsResult {
@@ -29,7 +30,7 @@ internal fun parseBotSetMyCommandsFields(obj: JsonObject): BotSetMyCommandsField
         val command = o["command"]?.jsonPrimitive?.content.orEmpty()
         val description = o["description"]?.jsonPrimitive?.content.orEmpty()
         if (command.isBlank() || description.isBlank()) null
-        else BotRepository.BotCommandDef(command = command, description = description)
+        else BotCommandDef(command = command, description = description)
     }
     return BotSetMyCommandsFieldsResult.Ok(BotSetMyCommandsFields(defs))
 }

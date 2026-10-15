@@ -7,6 +7,7 @@ import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.BotDto
 import com.maodouchat.server.repository.isAccessTokenAllowed
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.ConversationParticipantRepository
@@ -103,7 +104,7 @@ internal fun devSessionUserId(call: ApplicationCall): String? {
 
 /** Return the bot only if it exists and is owned by [userId]; else null. */
 
-internal fun devSessionOwnedBot(botId: String, userId: String): BotRepository.BotDto? {
+internal fun devSessionOwnedBot(botId: String, userId: String): BotDto? {
     val bot = BotRepository.get(botId) ?: return null
     return if (bot.ownerUserId == userId) bot else null
 }
@@ -126,7 +127,7 @@ internal suspend fun ApplicationCall.respondDeveloperBotUnavailable() {
 
 // ─── Bot token authentication helper ───────────────
 
-private suspend fun authenticateBotToken(call: ApplicationCall): BotRepository.BotDto? {
+private suspend fun authenticateBotToken(call: ApplicationCall): BotDto? {
     val headerToken = call.request.headers["X-Bot-Token"].orEmpty()
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
     val token = headerToken.ifBlank { bearer }
@@ -151,7 +152,7 @@ private suspend fun authenticateBotToken(call: ApplicationCall): BotRepository.B
  * Returns the bot the request is scoped to, or null (after responding 401/403).
  */
 
-internal suspend fun authenticateDeveloperBot(call: ApplicationCall): BotRepository.BotDto? {
+internal suspend fun authenticateDeveloperBot(call: ApplicationCall): BotDto? {
     val bearer = call.request.headers["Authorization"].bearerTokenOrNull().orEmpty()
     if (bearer.isNotBlank()) {
         val decoded = runCatching { devSessionVerifier().verify(bearer) }.getOrNull()
