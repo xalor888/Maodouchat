@@ -15,7 +15,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "你已被限制发布动态，解除时间 2026-08-01"
         )
-        assertEquals(ExplorePublishErrorPolicy.Kind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(Kind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
         val shown = ExplorePublishErrorPolicy.displayMessage(err, "发布失败")
         assertTrue(shown.contains("限制发布动态"))
     }
@@ -27,7 +27,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "你已被限制发消息"
         )
-        assertEquals(ExplorePublishErrorPolicy.Kind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(Kind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -37,7 +37,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "账号已被临时封禁"
         )
-        assertEquals(ExplorePublishErrorPolicy.Kind.SUSPENDED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(Kind.SUSPENDED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -47,7 +47,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 401,
             serverMessage = "Unauthorized"
         )
-        assertEquals(ExplorePublishErrorPolicy.Kind.AUTH, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(Kind.AUTH, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -57,7 +57,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 500,
             serverMessage = null
         )
-        assertEquals(ExplorePublishErrorPolicy.Kind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(Kind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
         assertEquals("发布失败", ExplorePublishErrorPolicy.displayMessage(err, "发布失败"))
     }
 }

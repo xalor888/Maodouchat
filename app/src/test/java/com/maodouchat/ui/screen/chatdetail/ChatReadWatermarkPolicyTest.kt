@@ -37,7 +37,7 @@ class ChatReadWatermarkPolicyTest {
         isActiveChat: Boolean = true,
         ownerUserId: String = me,
         sessionMayContinue: Boolean = true,
-    ) = ChatReadWatermarkPolicy.Input(
+    ) = Input(
         messages = messages,
         hasChat = hasChat,
         isActiveChat = isActiveChat,

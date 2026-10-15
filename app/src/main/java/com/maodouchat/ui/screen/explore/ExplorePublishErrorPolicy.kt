@@ -1,21 +1,12 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
 
 /**
  * Map explore publish/upload failures to UI kinds (no Android resources here).
  * Aligns with server rejectIfPostRestricted / rejectIfMessageRestricted copy.
  */
 object ExplorePublishErrorPolicy {
-
-    enum class Kind {
-        POST_RESTRICTED,
-        MESSAGE_RESTRICTED,
-        SUSPENDED,
-        AUTH,
-        FALLBACK
-    }
 
     fun classify(error: Throwable): Kind {
         val api = error as? ApiException

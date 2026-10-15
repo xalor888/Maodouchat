@@ -45,7 +45,7 @@ internal class ChatMessageStatusObservationController(
                 // G67：「算哪些新未读、水印选哪条」下沉到纯策略（可单测），这里只编排副作用。
                 val liveOwnerUserId = ownerUserId()
                 val plan = ChatReadWatermarkPolicy.plan(
-                    input = ChatReadWatermarkPolicy.Input(
+                    input = Input(
                         messages = state.messages,
                         hasChat = true,
                         isActiveChat = true,

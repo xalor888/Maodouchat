@@ -8,7 +8,6 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ChatDto
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,7 +56,7 @@ internal class ChatListLoadCoordinator(
         observeMissedCallsInternal()
     }
 
-    fun requestLoadChats(trigger: ChatListReloadPolicy.Trigger) {
+    fun requestLoadChats(trigger: Trigger) {
         val mode = ChatListReloadPolicy.modeFor(trigger)
         val wait = ChatListReloadPolicy.debounceMs(mode, trigger)
         if (wait > 0L) {

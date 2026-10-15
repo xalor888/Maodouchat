@@ -48,7 +48,7 @@ internal class ChatListRealtimeCoordinator(
         updatedAt: Long,
     ) -> Unit,
     private val text: (Int) -> String,
-    private val onRequestLoadChats: (ChatListReloadPolicy.Trigger) -> Unit,
+    private val onRequestLoadChats: (Trigger) -> Unit,
     private val onApplyChatListPreview: (
         chatId: String,
         previewText: String,
@@ -187,7 +187,7 @@ internal class ChatListRealtimeCoordinator(
                     }
                     is RealtimeDomainEvent.GroupRevision -> {
                         // Membership bursts (join/leave/kick) often arrive in clusters.
-                        onRequestLoadChats(ChatListReloadPolicy.Trigger.GROUP_REVISION)
+                        onRequestLoadChats(Trigger.GROUP_REVISION)
                     }
                     is RealtimeDomainEvent.ConnectionStateChanged -> {
                         when (event.state) {
@@ -196,7 +196,7 @@ internal class ChatListRealtimeCoordinator(
                                 disconnectBannerJob = null
                                 uiState.update { it.copy(realtimeBanner = null) }
                                 // Immediate silent: keep previous rows, don't flash isLoading.
-                                onRequestLoadChats(ChatListReloadPolicy.Trigger.RECONNECT)
+                                onRequestLoadChats(Trigger.RECONNECT)
                                 // 9.3xx：断线窗口补拉（Ideaura 式）——重连后立即同步各会话增量，
                                 // 否则断线期间的消息要等 15 分钟周期任务或手动打开聊天才出现。
                                 onRequestBacklogSync()

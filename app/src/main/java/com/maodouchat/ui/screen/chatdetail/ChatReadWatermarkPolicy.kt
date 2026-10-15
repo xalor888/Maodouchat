@@ -4,38 +4,11 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 
-/**
- * 「哪些消息算新未读、水印选哪条」的纯判定（G67，从 `ChatDetailViewModel.observeMessageStatus()` 83 行抽出）。
- *
- * **为什么抽它**：这些判定直接决定已读回执的正确性，而判错的后果都不是崩溃，是**静默的数据不一致**：
- * - 把自己的消息也算进未读 → 给自己发回执，服务端记一条无意义的已读；
- * - `SK_DIST` 计入未读 → 密钥分发被误标已读，后续群消息解不开；
- * - seen-set 不幂等 → 同一条消息每次状态变化都重发回执（刷屏 + 服务端压力）；
- * - 水印选错 → 「已读到哪」比实际少，对方永远显示未读。
- *
- * 它此前**一个用例都没有**。本对象是纯函数：无 Coroutine / Room / ApiService / Android 资源。
- */
+/** 已读回执判定：哪些消息算新未读、水印选哪条。纯函数，无协程/Room/网络。 */
 internal object ChatReadWatermarkPolicy {
 
     /** 占位 owner：未登录或测试态下 `currentUserId` 会是它，此时绝不能标已读。 */
     const val PLACEHOLDER_OWNER: String = "me"
-
-    data class Input(
-        val messages: List<Message>,
-        val hasChat: Boolean,
-        val isActiveChat: Boolean,
-        val ownerUserId: String,
-        val sessionMayContinue: Boolean,
-    )
-
-    data class Plan(
-        /** 本轮要标已读的消息 id（保序）。 */
-        val unreadIds: Set<String>,
-        /** 水印消息 id —— 「已读到这条为止」。 */
-        val watermarkMessageId: String,
-        /** 水印消息时间戳 —— 供 `markIncomingReadThrough` 用。 */
-        val watermarkTimestamp: Long,
-    )
 
     /**
      * 决定本轮要不要标已读、标哪些、水印是哪条。
@@ -86,12 +59,7 @@ internal object ChatReadWatermarkPolicy {
         seen.removeAll(plan.unreadIds)
     }
 
-    /**
-     * 已处理过的消息 id 集合。
-     *
-     * 用 `LinkedHashSet` 保序，便于测试与日志里稳定断言；容量上界由
-     * [PRUNE_THRESHOLD] 控制——长会话里它只增不减会缓慢泄漏。
-     */
+    /** 已处理过的消息 id 集合（保序，上界 PRUNE_THRESHOLD，防长会话缓慢增长）。 */
     class SeenSet {
         private val ids = LinkedHashSet<String>()
 
@@ -120,11 +88,7 @@ internal object ChatReadWatermarkPolicy {
 
         fun snapshot(): Set<String> = ids.toSet()
 
-        /**
-         * 只保留最近一半。已读标记是幂等的，丢掉旧 id 的最坏结果是
-         * 「某条极老消息被重复报一次回执」——服务端按幂等键去重，无实质影响；
-         * 而不加上界则是确定性内存增长。
-         */
+        /** 只保留最近一半：已读幂等，丢旧 id 最坏只是多报一次（服务端去重）。 */
         private fun prune() {
             val keep = ids.toList().takeLast(PRUNE_KEEP)
             ids.clear()
