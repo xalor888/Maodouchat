@@ -20,15 +20,15 @@ class ServerUrlPolicyTest {
 
     @Test
     fun invalidServerUrls_areMappedToExpectedProblems() {
-        assertEquals(ServerUrlPolicy.Problem.EMPTY, ServerUrlPolicy.validate(""))
-        assertEquals(ServerUrlPolicy.Problem.SCHEME, ServerUrlPolicy.validate("ftp://chat.example.com"))
-        assertEquals(ServerUrlPolicy.Problem.HOST, ServerUrlPolicy.validate("https://"))
-        assertEquals(ServerUrlPolicy.Problem.EXTRA, ServerUrlPolicy.validate("https://user:pass@chat.example.com"))
-        assertEquals(ServerUrlPolicy.Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com?x=1"))
-        assertEquals(ServerUrlPolicy.Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com#frag"))
-        assertEquals(ServerUrlPolicy.Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com/api"))
-        assertEquals(ServerUrlPolicy.Problem.PORT, ServerUrlPolicy.validate("https://chat.example.com:99999"))
-        assertEquals(ServerUrlPolicy.Problem.INVALID, ServerUrlPolicy.validate("https://chat.example.com:not-a-port"))
+        assertEquals(Problem.EMPTY, ServerUrlPolicy.validate(""))
+        assertEquals(Problem.SCHEME, ServerUrlPolicy.validate("ftp://chat.example.com"))
+        assertEquals(Problem.HOST, ServerUrlPolicy.validate("https://"))
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://user:pass@chat.example.com"))
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com?x=1"))
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com#frag"))
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com/api"))
+        assertEquals(Problem.PORT, ServerUrlPolicy.validate("https://chat.example.com:99999"))
+        assertEquals(Problem.INVALID, ServerUrlPolicy.validate("https://chat.example.com:not-a-port"))
     }
 
     @Test

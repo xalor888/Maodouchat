@@ -3,8 +3,6 @@ package com.maodouchat.network
 /** HTTP 错误语义：错误体解析、异常构造、会话变更哨兵（自 ApiService 抽出，零行为改动）。 */
 internal object ApiHttpErrors {
 
-    data class HttpResult(val code: Int, val isSuccessful: Boolean, val body: String)
-
     fun parseErrorResponse(body: String): ErrorResponse? = try {
         ApiService.json.decodeFromString(ErrorResponse.serializer(), body)
     } catch (e: Exception) {
