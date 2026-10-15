@@ -9,7 +9,7 @@ import android.content.Context
 // AiWritingStylePrefsReads（读取）、AiWritingStylePrefsWrites（写入），
 // 这里只保留统一入口，全部透传，行为不变。
 object AiWritingStylePreferences {
-    fun snapshot(context: Context): AiWritingStylePolicy.Snapshot =
+    fun snapshot(context: Context): Snapshot =
         AiWritingStylePrefsReads.snapshot(context)
 
     fun setEnabled(context: Context, enabled: Boolean) =

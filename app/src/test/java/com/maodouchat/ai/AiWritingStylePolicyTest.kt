@@ -24,7 +24,7 @@ class AiWritingStylePolicyTest {
             customNote = "  keep short  "
         )
         assertFalse(snap.enabled)
-        assertEquals(AiWritingStylePolicy.Preset.NONE, snap.preset)
+        assertEquals(Preset.NONE, snap.preset)
         assertEquals("", snap.customNote)
         assertNull(AiWritingStylePolicy.rewriteStyleHint(snap))
     }
@@ -34,7 +34,7 @@ class AiWritingStylePolicyTest {
         val longNote = "x".repeat(500)
         val snap = AiWritingStylePolicy.normalize(true, "warm", longNote)
         assertTrue(snap.enabled)
-        assertEquals(AiWritingStylePolicy.Preset.WARM, snap.preset)
+        assertEquals(Preset.WARM, snap.preset)
         assertEquals(AiWritingStylePolicy.MAX_CUSTOM_CHARS, snap.customNote.length)
         val hint = AiWritingStylePolicy.rewriteStyleHint(snap)
         assertTrue(hint!!.contains("warm", ignoreCase = true) || hint.contains("friendly"))
@@ -45,7 +45,7 @@ class AiWritingStylePolicyTest {
     @Test
     fun `unknown preset falls back to none`() {
         val snap = AiWritingStylePolicy.normalize(true, "nope", "  ")
-        assertEquals(AiWritingStylePolicy.Preset.NONE, snap.preset)
+        assertEquals(Preset.NONE, snap.preset)
         assertNull(AiWritingStylePolicy.rewriteStyleHint(snap))
         assertFalse(snap.hasMemorableContent)
     }

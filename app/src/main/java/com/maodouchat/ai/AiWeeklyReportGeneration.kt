@@ -13,7 +13,7 @@ internal object AiWeeklyReportGeneration {
     private const val MAX_REPORT_MESSAGES = 40
     private const val MAX_REPORT_CHARS = 20_000
 
-    suspend fun generate(context: Context, database: AppDatabase, chatId: String): AiWeeklyReport.WeeklyReport? {
+    suspend fun generate(context: Context, database: AppDatabase, chatId: String): WeeklyReport? {
         val (weekStart, weekEnd) = AiWeeklyReportWeekRange.currentWeekRange()
         val repository = AiProfileRepository.getInstance(context)
         AiWeeklyReportCache.readCached(repository, chatId, weekStart, weekEnd)?.let { return it }
@@ -46,6 +46,6 @@ internal object AiWeeklyReportGeneration {
         if (report.isBlank()) return null
         val model = com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context)?.model
         AiWeeklyReportCache.save(repository, chatId, weekStart, weekEnd, report, model)
-        return AiWeeklyReport.WeeklyReport(chatId, weekStart, weekEnd, report, model)
+        return WeeklyReport(chatId, weekStart, weekEnd, report, model)
     }
 }

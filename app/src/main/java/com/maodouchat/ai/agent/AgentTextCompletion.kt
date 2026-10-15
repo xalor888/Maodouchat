@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.ai.AiWritingStylePolicy
+import com.maodouchat.ai.Snapshot
 
 // 单轮文本直连调用：改写/翻译/摘要等走这里，不经过工具轮次。
 object AgentTextCompletion {
@@ -61,6 +62,6 @@ object AgentTextCompletion {
         ).getOrElse { it.message ?: "rewrite failed" }
     }
 
-    fun styleHintFrom(snapshot: AiWritingStylePolicy.Snapshot): String? =
+    fun styleHintFrom(snapshot: Snapshot): String? =
         AiWritingStylePolicy.rewriteStyleHint(snapshot)
 }

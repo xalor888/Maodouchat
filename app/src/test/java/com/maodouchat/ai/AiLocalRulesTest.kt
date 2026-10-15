@@ -47,25 +47,25 @@ class AiLocalRulesTest {
     @Test
     fun `detect emotion picks strongest signal`() {
         val result = AiEmotionReply.detectEmotion(listOf("今天好开心哈哈", "太棒了"))
-        assertEquals(AiEmotionReply.Emotion.HAPPY, result.emotion)
+        assertEquals(Emotion.HAPPY, result.emotion)
         assertTrue(result.confidence > 0.5)
     }
 
     @Test
     fun `detect emotion neutral when no hits`() {
         val result = AiEmotionReply.detectEmotion(listOf("会议改到三点"))
-        assertEquals(AiEmotionReply.Emotion.NEUTRAL, result.emotion)
+        assertEquals(Emotion.NEUTRAL, result.emotion)
         assertEquals(0.0, result.confidence, 0.0001)
     }
 
     @Test
     fun `detect emotion empty input is neutral`() {
-        assertEquals(AiEmotionReply.Emotion.NEUTRAL, AiEmotionReply.detectEmotion(emptyList()).emotion)
+        assertEquals(Emotion.NEUTRAL, AiEmotionReply.detectEmotion(emptyList()).emotion)
     }
 
     @Test
     fun `detect emotion mixed signals take majority`() {
         val result = AiEmotionReply.detectEmotion(listOf("难过 伤心", "难过"))
-        assertEquals(AiEmotionReply.Emotion.SAD, result.emotion)
+        assertEquals(Emotion.SAD, result.emotion)
     }
 }

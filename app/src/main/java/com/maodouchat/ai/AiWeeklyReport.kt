@@ -25,15 +25,6 @@ object AiWeeklyReport {
         AiPrivacyPreferences.mayUploadCloudContext(context) &&
             RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER)
 
-    data class WeeklyReport(
-        val chatId: String,
-        val weekStart: Long,
-        val weekEnd: Long,
-        val report: String,
-        val model: String? = null,
-        val createdAt: Long = System.currentTimeMillis()
-    )
-
     fun currentWeekRange(now: Long = System.currentTimeMillis()): Pair<Long, Long> =
         AiWeeklyReportWeekRange.currentWeekRange(now)
 

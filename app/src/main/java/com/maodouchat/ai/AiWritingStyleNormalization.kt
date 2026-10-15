@@ -1,8 +1,8 @@
 package com.maodouchat.ai
 
 import com.maodouchat.ai.AiWritingStylePolicy.MAX_CUSTOM_CHARS
-import com.maodouchat.ai.AiWritingStylePolicy.Preset
-import com.maodouchat.ai.AiWritingStylePolicy.Snapshot
+import com.maodouchat.ai.Preset
+import com.maodouchat.ai.Snapshot
 
 // 归一化簇：预设 id 解析、自定义文本清洗、Snapshot 装配。原 AiWritingStylePolicy 逻辑逐字搬入。
 internal object AiWritingStyleNormalization {

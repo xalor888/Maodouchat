@@ -23,7 +23,7 @@ internal object AiWritingStylePrefsWrites {
 
     fun setPreset(context: Context, presetId: String) {
         val account = account(context) ?: return
-        val preset = AiWritingStylePolicy.Preset.fromId(presetId)
+        val preset = Preset.fromId(presetId)
         prefs(context).edit {
             putString(key(KEY_PRESET, account), preset.id)
         }
