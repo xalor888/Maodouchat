@@ -10,9 +10,9 @@ class AiEntryPolicyTest {
     fun `composer section order is draft chat settings`() {
         assertEquals(
             listOf(
-                AiEntryPolicy.ComposerSection.DRAFT,
-                AiEntryPolicy.ComposerSection.CHAT,
-                AiEntryPolicy.ComposerSection.SETTINGS
+                ComposerSection.DRAFT,
+                ComposerSection.CHAT,
+                ComposerSection.SETTINGS
             ),
             AiEntryPolicy.COMPOSER_SECTION_ORDER
         )
@@ -24,29 +24,29 @@ class AiEntryPolicyTest {
     @Test
     fun `context actions by type`() {
         assertEquals(
-            listOf(AiEntryPolicy.MessageAiAction.TRANSLATE),
+            listOf(MessageAiAction.TRANSLATE),
             AiEntryPolicy.contextActionsFor("TEXT")
         )
         assertEquals(
-            listOf(AiEntryPolicy.MessageAiAction.TRANSCRIBE),
+            listOf(MessageAiAction.TRANSCRIBE),
             AiEntryPolicy.contextActionsFor("VOICE", hasTranscript = false)
         )
         assertTrue(AiEntryPolicy.contextActionsFor("VOICE", hasTranscript = true).isEmpty())
         assertEquals(
-            listOf(AiEntryPolicy.MessageAiAction.ANALYZE_IMAGE),
+            listOf(MessageAiAction.ANALYZE_IMAGE),
             AiEntryPolicy.contextActionsFor("IMAGE")
         )
         assertEquals(
-            listOf(AiEntryPolicy.MessageAiAction.ANALYZE_FILE),
+            listOf(MessageAiAction.ANALYZE_FILE),
             AiEntryPolicy.contextActionsFor("FILE")
         )
         assertTrue(AiEntryPolicy.contextActionsFor("STICKER").isEmpty())
         assertEquals(
-            listOf(AiEntryPolicy.MessageAiAction.TRANSLATE),
+            listOf(MessageAiAction.TRANSLATE),
             AiEntryPolicy.contextActionsFor(" system ")
         )
         assertEquals(
-            listOf(AiEntryPolicy.MessageAiAction.TRANSLATE),
+            listOf(MessageAiAction.TRANSLATE),
             AiEntryPolicy.contextActionsFor("text")
         )
     }

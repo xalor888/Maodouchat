@@ -11,8 +11,6 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.AppLockManager
@@ -33,29 +31,6 @@ import kotlinx.coroutines.withContext
  *   requestPushUpdate（去抖后 startService）驱动。
  */
 object ConversationWidgetData {
-
-    // ---- 模型 ----
-    data class WidgetConfig(
-        val chatIds: List<String> = emptyList(),
-        val showUnreadBadge: Boolean = true,
-        val compact: Boolean = false,
-    )
-
-    data class WidgetRow(
-        val chatId: String,
-        val title: String,
-        val subtitle: String,
-        val timeLabel: String,
-        val unread: Int,
-    )
-
-    data class WidgetSnapshot(
-        val rows: List<WidgetRow>,
-        val totalUnread: Int,
-        val ownerUserId: String,
-        val signedOut: Boolean,
-        val updatedAt: Long,
-    )
 
     // ---- 配置读写 ----
     fun widgetConfig(context: Context, widgetId: Int): WidgetConfig {

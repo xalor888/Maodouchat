@@ -8,12 +8,12 @@ import kotlinx.coroutines.flow.firstOrNull
 /** 归档建议打分簇：按静置时长/消息密度/收尾信号给会话打分（纯本地 SQLCipher）。 */
 internal object AiArchiveScoring {
 
-    suspend fun compute(context: Context, database: AppDatabase): List<AiArchiveSuggestion.Suggestion> {
+    suspend fun compute(context: Context, database: AppDatabase): List<Suggestion> {
         val now = System.currentTimeMillis()
         val chats = database.chatDao().getAllChats().firstOrNull().orEmpty()
         val chatById = chats.associateBy { it.id }
 
-        val results = mutableListOf<AiArchiveSuggestion.Suggestion>()
+        val results = mutableListOf<Suggestion>()
         // 8.48 修复：逐会话查询（按 chatId 索引）——此前「全库最新 4000 条后按 chatId 过滤」
         // 在活跃大库下，静置旧会话的历史消息被新会话挤掉窗口，归档建议漏判/失真
         for ((chatId, chat) in chatById) {
@@ -46,7 +46,7 @@ internal object AiArchiveScoring {
             if (score <= MIN_ARCHIVE_SCORE) continue
 
             val reason = AiArchiveReason.buildReason(context, idleDays, recent30)
-            results += AiArchiveSuggestion.Suggestion(chatId = chatId, score = score, reason = reason)
+            results += Suggestion(chatId = chatId, score = score, reason = reason)
         }
         return results.sortedByDescending { it.score }.take(MAX_SUGGESTIONS)
     }

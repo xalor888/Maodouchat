@@ -16,6 +16,6 @@ data class WidgetChatInput(
 )
 
 data class WidgetRowsResult(
-    val rows: List<ConversationWidgetData.WidgetRow>,
+    val rows: List<WidgetRow>,
     val totalUnread: Int,
 )

@@ -8,8 +8,6 @@ object AiPromptSafetyPolicy {
     const val MAX_QUERY_CHARS = AiPromptSanitization.MAX_QUERY_CHARS
     const val MAX_OUTPUT_SCAN_CHARS = AiPrivilegeClaimScan.MAX_OUTPUT_SCAN_CHARS
 
-    typealias SanitizedContextLine = AiPromptSanitization.SanitizedContextLine
-
     fun sanitizeSender(raw: String?): String =
         AiPromptSanitization.sanitizeSender(raw)
 

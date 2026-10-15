@@ -6,13 +6,6 @@ import com.maodouchat.util.RuntimeFlags
 /** 上下文动作簇：长按消息可用的 AI 动作与执行门闩。 */
 object AiContextActionPolicy {
 
-    enum class MessageAiAction {
-        TRANSLATE,
-        TRANSCRIBE,
-        ANALYZE_IMAGE,
-        ANALYZE_FILE
-    }
-
     /**
      * 长按消息可用的 AI 动作（不含复制结果等非 AI 项）。
      * 调用方在入口不可见时不要渲染这一段。

@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.ai.Suggestion
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 
@@ -34,7 +35,7 @@ data class ChatListUiState(
     /** 服务端活跃公告（未读 + 生效窗口内，已按优先级排序） */
     val activeAnnouncements: List<com.maodouchat.notification.AnnouncementData> = emptyList(),
     /** 8.47：智能归档建议（纯本地启发式；采纳走现有归档流程） */
-    val archiveSuggestions: List<com.maodouchat.ai.AiArchiveSuggestion.Suggestion> = emptyList(),
+    val archiveSuggestions: List<Suggestion> = emptyList(),
     /** 1.103：对端正在输入（chatId -> userId，3s 过期） */
     val typingByChat: Map<String, String> = emptyMap(),
     /** 1.165：身份密钥已变更（CHANGED）的对端 userId（本地 identity_trust 聚合，会话列表警告）。 */
