@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.notification.QuietWindow
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
@@ -38,8 +39,8 @@ import com.maodouchat.util.DisappearingMessagePolicy
 
 @Composable
 internal fun ChatQuietHoursDialog(
-    current: com.maodouchat.notification.ChatQuietHoursStore.QuietWindow,
-    onPick: (com.maodouchat.notification.ChatQuietHoursStore.QuietWindow) -> Unit,
+    current: QuietWindow,
+    onPick: (QuietWindow) -> Unit,
     onDismiss: () -> Unit
 ) {
     // 快捷时段：预置的常用静音窗口（start, end, labelRes）
@@ -68,7 +69,7 @@ internal fun ChatQuietHoursDialog(
                     TextButton(
                         onClick = {
                             onPick(
-                                com.maodouchat.notification.ChatQuietHoursStore.QuietWindow(
+                                QuietWindow(
                                     enabled = true,
                                     startMinute = start,
                                     endMinute = end
@@ -88,7 +89,7 @@ internal fun ChatQuietHoursDialog(
                 if (enabled) {
                     TextButton(
                         onClick = {
-                            onPick(com.maodouchat.notification.ChatQuietHoursStore.QuietWindow.OFF)
+                            onPick(QuietWindow.OFF)
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {

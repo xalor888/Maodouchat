@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.maodouchat.util.MessageReminderStore.MessageReminder
+import com.maodouchat.util.MessageReminder
 
 /**
  * G335：**会话级设置与提醒/定时这一组弹窗的开合与对话框内数据**。

@@ -14,16 +14,6 @@ import com.maodouchat.data.local.entity.toModel
  */
 object MessageReminderStore {
 
-    data class MessageReminder(
-        val id: String,
-        val chatId: String,
-        val messageId: String,
-        val messagePreview: String,
-        val remindAtMillis: Long,
-        val createdAtMillis: Long,
-        val ownerUserId: String
-    )
-
     @Synchronized
     fun list(context: Context, ownerUserId: String): List<MessageReminder> {
         if (ownerUserId.isBlank()) return emptyList()

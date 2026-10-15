@@ -1,7 +1,7 @@
 package com.maodouchat.scheduling
 
 import com.maodouchat.util.MessageReminderPolicy
-import com.maodouchat.util.MessageReminderStore
+import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
 import com.maodouchat.util.ScheduledMessagePolicy
 import java.util.UUID
@@ -153,14 +153,14 @@ class ConversationScheduleCoordinator(
 
     fun scheduleReminder(
         request: MessageReminderRequest,
-    ): ConversationScheduleResult<MessageReminderStore.MessageReminder> {
+    ): ConversationScheduleResult<MessageReminder> {
         val owner = ownerUserId().trim()
         if (owner.isBlank()) return failure(ConversationScheduleFailure.SESSION_MISSING)
         if (request.chatId.isBlank() || request.messageId.isBlank()) {
             return failure(ConversationScheduleFailure.INVALID_REQUEST)
         }
         val currentTime = now()
-        val reminder = MessageReminderStore.MessageReminder(
+        val reminder = MessageReminder(
             id = reminderId(),
             chatId = request.chatId,
             messageId = request.messageId,
@@ -182,7 +182,7 @@ class ConversationScheduleCoordinator(
         }
     }
 
-    fun listReminders(chatId: String): List<MessageReminderStore.MessageReminder> {
+    fun listReminders(chatId: String): List<MessageReminder> {
         val owner = ownerUserId().trim()
         if (owner.isBlank() || chatId.isBlank()) return emptyList()
         val currentTime = now()

@@ -5,6 +5,7 @@ import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.util.Flag
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -296,7 +297,7 @@ internal class ChatPinStarController(
         }
     }
 
-    private fun enabled(flag: RuntimeFlags.Flag): Boolean = RuntimeFlags.isEnabled(application, flag)
+    private fun enabled(flag: Flag): Boolean = RuntimeFlags.isEnabled(application, flag)
 
     private fun warn(resourceId: Int, vararg args: Any) {
         updateState { it.copy(groupEncryptionWarning = string(resourceId, *args)) }

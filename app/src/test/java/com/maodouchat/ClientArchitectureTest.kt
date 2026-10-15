@@ -399,7 +399,9 @@ class ClientArchitectureTest {
         // 薄委托收尾：mergeMessages 转发删除（7 处调用点直调顶层 mergeMessageVersions，
         // 接线改 ::mergeMessageVersions）+ cleanupAttachmentForMessage 搬入
         // ChatDetailFileTransferController（VM 留一行委托），677 → 656。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 655,
+        // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
+        // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 656,
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
         // 按实测值纳入监管（两份 map 一起加）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
@@ -610,7 +612,9 @@ class ClientArchitectureTest {
             // ChatSessionTeardownController（873 → 677），上限同步收紧（两份 map 一起改）。
             // 薄委托收尾：mergeMessages 转发删除 + cleanupAttachmentForMessage 搬入
             // ChatDetailFileTransferController（677 → 656）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 655,
+            // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
+            // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 656,
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
             // 按实测值纳入监管（两份 map 一起加）。
             "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,

@@ -6,7 +6,7 @@ import com.maodouchat.scheduling.ChatReminderOutcome
 import com.maodouchat.scheduling.ChatScheduleController
 import com.maodouchat.scheduling.ChatScheduleRejection
 import com.maodouchat.scheduling.MessageReminderRequest
-import com.maodouchat.util.MessageReminderStore
+import com.maodouchat.util.MessageReminder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -58,7 +58,7 @@ class ChatReminderController(
         }
     }
 
-    fun listRemindersForChat(chatId: String): List<MessageReminderStore.MessageReminder> =
+    fun listRemindersForChat(chatId: String): List<MessageReminder> =
         chatScheduleController.listReminders(chatId)
 
     fun cancelReminder(reminderId: String) {

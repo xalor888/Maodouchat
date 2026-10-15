@@ -19,16 +19,6 @@ object ChatQuietHoursStore {
     // 后写者整串覆盖会让先写者的修改静默丢失（竞态）。
     private val lock = Any()
 
-    data class QuietWindow(
-        val enabled: Boolean,
-        val startMinute: Int,
-        val endMinute: Int
-    ) {
-        companion object {
-            val OFF = QuietWindow(false, 0, 0)
-        }
-    }
-
     fun get(context: Context, chatId: String): QuietWindow {
         val userId = currentUserId(context) ?: return QuietWindow.OFF
         if (chatId.isBlank()) return QuietWindow.OFF

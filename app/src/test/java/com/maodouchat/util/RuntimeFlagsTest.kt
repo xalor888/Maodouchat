@@ -90,8 +90,8 @@ class RuntimeFlagsTest {
     fun everyFlagKeyIsUnique() {
         // 键重复会让两个开关互相顶掉——合并自 98 个 *Prefs 文件最容易出这种错。
         val keys = RuntimeFlags::class.java.declaredFields
-            .filter { it.type == RuntimeFlags.Flag::class.java }
-            .map { it.isAccessible = true; it.get(null) as RuntimeFlags.Flag }
+            .filter { it.type == Flag::class.java }
+            .map { it.isAccessible = true; it.get(null) as Flag }
             .map { it.key }
         check(keys.isNotEmpty()) { "没枚举到任何 Flag" }
         val dup = keys.groupBy { it }.filter { it.value.size > 1 }.keys

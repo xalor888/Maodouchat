@@ -23,6 +23,7 @@ import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.util.Flag
 import com.maodouchat.util.StickerPreferences
 import com.maodouchat.util.ViewOncePolicy
 import kotlinx.coroutines.CancellationException
@@ -309,7 +310,7 @@ class DefaultAttachmentIntentController(
         if (spoilerMedia) requireFlag(RuntimeFlags.SPOILER_MEDIA, "spoiler_media_disabled")
     }
 
-    private fun requireFlag(flag: RuntimeFlags.Flag, message: String) {
+    private fun requireFlag(flag: Flag, message: String) {
         if (!RuntimeFlags.isEnabled(appContext, flag)) {
             throw IllegalStateException(message)
         }

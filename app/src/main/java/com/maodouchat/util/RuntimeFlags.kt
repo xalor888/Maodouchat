@@ -12,9 +12,6 @@ import androidx.core.content.edit
 object RuntimeFlags {
     private const val PREFS = "maodou_runtime_flags"
 
-    /** 单个开关的键与默认值。 */
-    data class Flag(val key: String, val default: Boolean)
-
     /** 服务端入口闸（/api/public/status 的 aiEnabled）——false 时折叠全部客户端 AI 入口。 */
     val AI_MASTER: Flag = Flag("ai_master_enabled", true)
     val AI_IMAGE_OCR: Flag = Flag("ai_image_ocr_enabled", true)

@@ -1,6 +1,7 @@
 package com.maodouchat.watermark
 
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.util.Flag
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -58,7 +59,7 @@ class SecretPageWatermarkTest {
         val keys = RuntimeFlags::class.java.declaredFields
             .mapNotNull { field ->
                 field.isAccessible = true
-                (field.get(RuntimeFlags) as? RuntimeFlags.Flag)?.key
+                (field.get(RuntimeFlags) as? Flag)?.key
             }
         assertTrue(keys.none { it.startsWith("visible_") && it.contains("watermark") })
         assertTrue(RuntimeFlags.BLIND_WATERMARK.default)

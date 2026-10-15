@@ -1,6 +1,6 @@
 package com.maodouchat.scheduling
 
-import com.maodouchat.util.MessageReminderStore
+import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
 import com.maodouchat.util.ScheduledMessagePolicy
 
@@ -108,7 +108,7 @@ class ChatScheduleController(
         is ConversationScheduleResult.Failure -> ChatReminderOutcome.Rejected(result.reason.toRejection())
     }
 
-    fun listReminders(chatId: String): List<MessageReminderStore.MessageReminder> =
+    fun listReminders(chatId: String): List<MessageReminder> =
         coordinator.listReminders(chatId)
 
     fun cancelReminder(id: String) = coordinator.cancelReminder(id)

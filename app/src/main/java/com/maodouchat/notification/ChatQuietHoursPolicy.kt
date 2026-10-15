@@ -11,7 +11,7 @@ object ChatQuietHoursPolicy {
      * @param currentMinute 当前分钟精度（0-1439，日历 MINUTE_OF_DAY）
      */
     fun shouldSuppress(
-        window: ChatQuietHoursStore.QuietWindow,
+        window: QuietWindow,
         currentMinute: Int
     ): Boolean {
         if (!window.enabled) return false

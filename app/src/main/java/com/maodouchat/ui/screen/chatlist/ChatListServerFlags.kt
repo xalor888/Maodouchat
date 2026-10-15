@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.util.Flag
 import com.maodouchat.network.ApiService
 import org.json.JSONObject
 import kotlinx.coroutines.withContext
@@ -123,7 +124,7 @@ internal fun parseServerFeatureFlags(o: JSONObject): Map<String, Boolean> = mapO
  * 常量 86 个、key 86 个、pair 86 个，全部唯一（生成时逐条校验过）。
  * 两边不同步会在运行时 `!!` 抛空指针，所以 key 缺失时直接跳过而不是崩。
  */
-internal val FLAG_BINDINGS: List<Pair<com.maodouchat.util.RuntimeFlags.Flag, String>> = listOf(
+internal val FLAG_BINDINGS: List<Pair<Flag, String>> = listOf(
         RuntimeFlags.APP_LOCK to "appLockEnabled",
         RuntimeFlags.AUTO_DOWNLOAD to "autoDownloadEnabled",
         RuntimeFlags.BLIND_WATERMARK to "blindWatermarkEnabled",

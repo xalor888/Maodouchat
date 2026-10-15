@@ -18,7 +18,7 @@ object MessageReminderScheduler {
 
     private fun workName(id: String): String = "$WORK_PREFIX$id"
 
-    fun schedule(context: Context, reminder: MessageReminderStore.MessageReminder) {
+    fun schedule(context: Context, reminder: MessageReminder) {
         if (reminder.id.isBlank()) return
         val delayMs = (reminder.remindAtMillis - System.currentTimeMillis())
             // 8.53：时钟反复回拨（每次几 ms~几 s）会让 Worker 醒来即重排 delay≈0，
@@ -39,7 +39,7 @@ object MessageReminderScheduler {
             .enqueueUniqueWork(workName(reminder.id), ExistingWorkPolicy.REPLACE, request)
     }
 
-    fun reschedule(context: Context, reminder: MessageReminderStore.MessageReminder) =
+    fun reschedule(context: Context, reminder: MessageReminder) =
         schedule(context, reminder)
 
     fun cancel(context: Context, id: String) {
