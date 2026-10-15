@@ -112,17 +112,6 @@ private fun resolvePublicBaseUrl(baseUrl: String?): String {
     }.ifBlank { "/" }.let { if (it == "/") "/" else it }
 }
 
-/**
- * 8.52 修复 AI-1：多模态 AI 输入 token 保守估算（防绕过日预算）。
- * 视觉/音频/文件按解码字节 256:1 折算（偏保守，接近真实成本量级），
- * 附加文本按 4 字符/token。此前 transcribe/analyze-image/analyze-file 用
- * estimateTokens("")≈1 token 预留预算，形同虚设。
- */
-private fun estimateMultimodalTokens(byteCount: Long, extraText: String? = null): Long {
-    val base = if (byteCount > 0) maxOf(1L, byteCount / 256) else 0L
-    val textTokens = (extraText?.length ?: 0) / 4L
-    return maxOf(1L, base + textTokens)
-}
 internal fun buildProfilePage(user: UserResponse?, baseUrl: String?, error: String?): String {
     // 8.51 修复 H1：公开主页存储型 XSS——所有用户字段完整 HTML 转义（含 " '）后再填模板
     val rawBase = resolvePublicBaseUrl(baseUrl)

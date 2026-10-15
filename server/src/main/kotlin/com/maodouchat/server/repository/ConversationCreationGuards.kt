@@ -45,13 +45,6 @@ private fun ConversationCreationRepository.hasBlockedPairInTx(userIds: List<Stri
     }.any()
 }
 
-private fun ConversationCreationRepository.isBlockedEitherWayInTx(userId1: String, userId2: String): Boolean {
-    return BlockedUsers.selectAll().where {
-        ((BlockedUsers.blockerId eq userId1) and (BlockedUsers.blockedId eq userId2)) or
-            ((BlockedUsers.blockerId eq userId2) and (BlockedUsers.blockedId eq userId1))
-    }.any()
-}
-
 internal fun ConversationCreationRepository.reject(failure: ConversationCreationFailure, userId: String? = null): Nothing {
     throw ConversationCreationRejected(failure, userId)
 }

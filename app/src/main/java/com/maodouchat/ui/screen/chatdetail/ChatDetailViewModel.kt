@@ -463,8 +463,6 @@ class ChatDetailViewModel(
         peerId: String,
     ) = botGroupActionController.maybeForwardBotInbox(liveToken, chatId, plaintext, isGroup, peerId)
 
-    private fun refreshBotCommands(chatId: String) = botGroupActionController.refreshBotCommands(chatId)
-
     fun inviteFirstOwnedBot() = botGroupActionController.inviteFirstOwnedBot()
 
     fun inviteBot(botId: String) = botGroupActionController.inviteBot(botId)

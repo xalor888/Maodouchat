@@ -401,7 +401,7 @@ class ClientArchitectureTest {
         // ChatDetailFileTransferController（VM 留一行委托），677 → 656。
         // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
         // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 656,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 654,
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
         // 按实测值纳入监管（两份 map 一起加）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
@@ -614,7 +614,7 @@ class ClientArchitectureTest {
             // ChatDetailFileTransferController（677 → 656）。
             // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
             // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 656,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 654,
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
             // 按实测值纳入监管（两份 map 一起加）。
             "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
