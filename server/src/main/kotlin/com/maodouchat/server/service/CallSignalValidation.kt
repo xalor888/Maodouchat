@@ -14,28 +14,28 @@ import io.ktor.http.HttpStatusCode
 internal fun CallSignalingService.validate(
     request: SendSignalRequest,
     fromUserId: String,
-): CallSignalingService.SendOutcome.Rejected? {
+): SendOutcome.Rejected? {
     if (!isValidSignalPayload(request.type, request.payload) || !isValidCallId(request.callId)) {
-        return CallSignalingService.SendOutcome.Rejected(HttpStatusCode.BadRequest, "信令内容无效")
+        return SendOutcome.Rejected(HttpStatusCode.BadRequest, "信令内容无效")
     }
     if (request.toUserId == fromUserId) {
-        return CallSignalingService.SendOutcome.Rejected(HttpStatusCode.BadRequest, "不能向自己发送信令")
+        return SendOutcome.Rejected(HttpStatusCode.BadRequest, "不能向自己发送信令")
     }
     if (userRepository.getById(request.toUserId) == null) {
-        return CallSignalingService.SendOutcome.Rejected(HttpStatusCode.NotFound, "信令目标用户不存在")
+        return SendOutcome.Rejected(HttpStatusCode.NotFound, "信令目标用户不存在")
     }
     if (!isValidGroupSignalMetadata(
             request.groupId, request.groupMemberIds, request.groupInvite, request.callId,
             fromUserId, request.toUserId, conversationQueryRepository,
         )
     ) {
-        return CallSignalingService.SendOutcome.Rejected(HttpStatusCode.BadRequest, "群通话元数据无效")
+        return SendOutcome.Rejected(HttpStatusCode.BadRequest, "群通话元数据无效")
     }
     if (userRepository.isBlockedEitherWay(fromUserId, request.toUserId)) {
-        return CallSignalingService.SendOutcome.Rejected(HttpStatusCode.Forbidden, "无法与已屏蔽的用户发送通话信令")
+        return SendOutcome.Rejected(HttpStatusCode.Forbidden, "无法与已屏蔽的用户发送通话信令")
     }
     if (request.groupId.isBlank() && !conversationQueryRepository.shareConversation(fromUserId, request.toUserId)) {
-        return CallSignalingService.SendOutcome.Rejected(HttpStatusCode.Forbidden, "双方无共同会话，无法发送通话信令")
+        return SendOutcome.Rejected(HttpStatusCode.Forbidden, "双方无共同会话，无法发送通话信令")
     }
     return null
 }
@@ -43,7 +43,7 @@ internal fun CallSignalingService.validate(
 internal fun CallSignalingService.rejectIfStale(
     request: SendSignalRequest,
     fromUserId: String,
-): CallSignalingService.SendOutcome.Rejected? {
+): SendOutcome.Rejected? {
     val last = signalingRepository.latestCursor(request.callId, fromUserId)
     return when (
         CallSignalingOrderPolicy.admit(
@@ -52,7 +52,7 @@ internal fun CallSignalingService.rejectIfStale(
         )
     ) {
         Admit.Accept -> null
-        Admit.RejectStale -> CallSignalingService.SendOutcome.Rejected(
+        Admit.RejectStale -> SendOutcome.Rejected(
             HttpStatusCode.Conflict,
             "信令顺序已过期",
             "CALL_SIGNAL_STALE",

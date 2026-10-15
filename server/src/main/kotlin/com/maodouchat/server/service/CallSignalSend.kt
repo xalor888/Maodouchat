@@ -9,7 +9,7 @@ import com.maodouchat.server.repository.storeTerminalAndClearOthers
 import io.ktor.http.HttpStatusCode
 
 // 通话信令发送/挂断：校验 → 顺序准入 → 邀请限流 → 落库；终端信令同事务清旧信令并撤销会话级 TURN。
-fun CallSignalingService.send(request: SendSignalRequest, fromUserId: String): CallSignalingService.SendOutcome {
+fun CallSignalingService.send(request: SendSignalRequest, fromUserId: String): SendOutcome {
     val rejected = validate(request, fromUserId)
     if (rejected != null) return rejected
     val stale = rejectIfStale(request, fromUserId)
@@ -19,7 +19,7 @@ fun CallSignalingService.send(request: SendSignalRequest, fromUserId: String): C
         val key = CallInviteRateLimiter.sessionKey(request.callId, request.groupId, request.toUserId)
         val decision = callInviteRateLimiter.tryAcquire(fromUserId, key)
         if (!decision.allowed) {
-            return CallSignalingService.SendOutcome.Rejected(
+            return SendOutcome.Rejected(
                 HttpStatusCode.TooManyRequests,
                 "发起通话过于频繁，请稍后再试",
                 "CALL_INVITE_RATE_LIMITED",
@@ -42,10 +42,10 @@ fun CallSignalingService.send(request: SendSignalRequest, fromUserId: String): C
             request.epoch, request.sequence, request.idempotencyKey,
         )
     }
-    return CallSignalingService.SendOutcome.Stored(request)
+    return SendOutcome.Stored(request)
 }
 
-fun CallSignalingService.hangUp(request: SendSignalRequest, userId: String): CallSignalingService.SendOutcome {
+fun CallSignalingService.hangUp(request: SendSignalRequest, userId: String): SendOutcome {
     val rejected = validate(request, userId)
     if (rejected != null) return rejected
     val stale = rejectIfStale(request, userId)
@@ -56,7 +56,7 @@ fun CallSignalingService.hangUp(request: SendSignalRequest, userId: String): Cal
         request.epoch, request.sequence, request.idempotencyKey,
     )
     revokeTurnForCall(request.callId, userId, request.toUserId)
-    return CallSignalingService.SendOutcome.Stored(request.copy(type = "hang-up"))
+    return SendOutcome.Stored(request.copy(type = "hang-up"))
 }
 
 fun CallSignalingService.pending(userId: String, offersOnly: Boolean): List<SignalingMessage> =
