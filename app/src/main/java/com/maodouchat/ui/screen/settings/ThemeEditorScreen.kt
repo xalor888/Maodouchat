@@ -268,3 +268,43 @@ private fun defaultSlotColor(slot: String, variant: String): Color {
     return slotDefaultColor(paint, slot)
 }
 
+@Composable
+private fun ThemeColorRow(
+    name: String,
+    slotKey: String,
+    current: Color?,
+    previewDefault: Color,
+    onClick: () -> Unit,
+    onReset: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(current ?: previewDefault)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(name, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                if (current != null) CustomThemeStore.formatArgb(current) else stringResource(R.string.theme_slot_default),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (current != null) {
+            IconButton(onClick = onReset, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.theme_slot_reset), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
