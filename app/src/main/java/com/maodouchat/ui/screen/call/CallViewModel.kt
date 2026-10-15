@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import com.maodouchat.call.State
 
 class CallViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -75,7 +74,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             activeCallSession = { activeCallSession },
             callSessionGate = callSessionGate,
             token = { token },
-            onLogAnswered = { writeCallLog(State.ANSWERED) },
+            onLogAnswered = { writeCallLog(com.maodouchat.call.State.ANSWERED) },
         )
     }
 
@@ -421,7 +420,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private fun writeCallLog(state: State) =
+    private fun writeCallLog(state: com.maodouchat.call.State) =
         callLogWriter.writeCallLog(state)
 
 
