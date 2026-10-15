@@ -4,10 +4,10 @@ package com.maodouchat.ai
 // 数据库状态由调用方在 markFailed 时落地。
 internal object AiRetryDecision {
 
-    fun decide(errorCode: String?, attempts: Int): AiRetryPolicy.RetryDecision {
+    fun decide(errorCode: String?, attempts: Int): RetryDecision {
         val normalized = AiCostVisibilityPolicy.baseErrorCode(errorCode).ifBlank { "UNKNOWN" }
         if (attempts >= MAX_TOTAL_ATTEMPTS) {
-            return AiRetryPolicy.RetryDecision(
+            return RetryDecision(
                 shouldRetry = false,
                 delayMs = 0L,
                 explanation = "reached max auto retries; user must retry",
@@ -18,7 +18,7 @@ internal object AiRetryDecision {
             normalized.startsWith("RATE_LIMITED") ||
                 normalized.contains("TOO_MANY") -> {
                 val waitMs = AiCostVisibilityPolicy.waitSecondsFor(errorCode) * 1_000L
-                AiRetryPolicy.RetryDecision(
+                RetryDecision(
                     shouldRetry = false,
                     delayMs = waitMs,
                     explanation = "rate-limited; ask user to wait",
@@ -26,7 +26,7 @@ internal object AiRetryDecision {
                 )
             }
             normalized.contains("UNAUTHORIZED") || normalized.contains("AUTH") -> {
-                AiRetryPolicy.RetryDecision(false, 0L, "auth required; do not auto-retry", normalized)
+                RetryDecision(false, 0L, "auth required; do not auto-retry", normalized)
             }
             normalized.contains("QUOTA") ||
                 normalized.contains("BUDGET") ||
@@ -34,7 +34,7 @@ internal object AiRetryDecision {
                 normalized.contains("PAYMENT") ||
                 normalized.contains("BILLING") -> {
                 val waitMs = AiCostVisibilityPolicy.waitSecondsFor(errorCode) * 1_000L
-                AiRetryPolicy.RetryDecision(
+                RetryDecision(
                     shouldRetry = false,
                     delayMs = waitMs,
                     explanation = "quota exceeded; do not auto-retry",
@@ -44,14 +44,14 @@ internal object AiRetryDecision {
             normalized == SAFE_CONNECTION_FAILURE -> {
                 val completedRetries = (attempts - 1).coerceAtLeast(0)
                 val delay = AUTO_RETRY_BASE_MS * (1L shl completedRetries.coerceAtMost(5))
-                AiRetryPolicy.RetryDecision(
+                RetryDecision(
                     shouldRetry = true,
                     delayMs = delay,
                     explanation = "connection was not established; safe to retry",
                     visibleErrorCode = SAFE_CONNECTION_FAILURE
                 )
             }
-            else -> AiRetryPolicy.RetryDecision(
+            else -> RetryDecision(
                 shouldRetry = false,
                 delayMs = 0L,
                 explanation = "non-transient error",

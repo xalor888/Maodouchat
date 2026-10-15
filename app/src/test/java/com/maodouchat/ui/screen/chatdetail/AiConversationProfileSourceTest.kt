@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.ai.AiConversationProfile
+import com.maodouchat.ai.ConversationProfile
+import com.maodouchat.ai.LocalStats
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -21,21 +22,21 @@ import com.maodouchat.ai.AiConversationProfileSource
  */
 class AiConversationProfileSourceTest {
 
-    private fun profile(chatId: String, count: Int) = AiConversationProfile.ConversationProfile(
+    private fun profile(chatId: String, count: Int) = ConversationProfile(
         chatId = chatId,
-        local = AiConversationProfile.LocalStats(messageCount = count),
+        local = LocalStats(messageCount = count),
         narrative = if (count > 0) "摘要" else null,
     )
 
     /** 记录调用参数、可编排返回或抛异常的假实现。 */
     private class FakeSource(
-        var result: AiConversationProfile.ConversationProfile? = null,
+        var result: ConversationProfile? = null,
         var error: Throwable? = null,
     ) : AiConversationProfileSource {
         val seenChatIds = mutableListOf<String>()
         var cancelled = false
 
-        override suspend fun build(chatId: String): AiConversationProfile.ConversationProfile {
+        override suspend fun build(chatId: String): ConversationProfile {
             seenChatIds += chatId
             error?.let { throw it }
             cancelled = false
@@ -82,7 +83,7 @@ class AiConversationProfileSourceTest {
     @Test
     fun `cancellation stays cancellation`() = runTest {
         val source = object : AiConversationProfileSource {
-            override suspend fun build(chatId: String): AiConversationProfile.ConversationProfile {
+            override suspend fun build(chatId: String): ConversationProfile {
                 throw CancellationException("user left")
             }
         }

@@ -14,7 +14,7 @@ internal object AiProfileNarrative {
         context: Context,
         database: AppDatabase,
         chatId: String,
-        stats: AiConversationProfile.LocalStats
+        stats: LocalStats
     ): String {
         val messages = withContext(Dispatchers.IO) {
             // 9.231：同上按会话查询，仅保留对方消息供叙事摘要

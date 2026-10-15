@@ -15,13 +15,13 @@ internal object AiProfileCached {
         context: Context,
         database: AppDatabase,
         chatId: String
-    ): AiConversationProfile.ConversationProfile? {
+    ): ConversationProfile? {
         val repository = AiProfileRepository.getInstance(context)
         val row = withContext(Dispatchers.IO) { repository.getProfile(chatId) } ?: return null
         val stats = runCatching {
-            json.decodeFromString(AiConversationProfile.LocalStats.serializer(), row.statsJson)
-        }.getOrElse { AiConversationProfile.LocalStats() }
-        return AiConversationProfile.ConversationProfile(chatId, stats, row.narrative, row.updatedAt)
+            json.decodeFromString(LocalStats.serializer(), row.statsJson)
+        }.getOrElse { LocalStats() }
+        return ConversationProfile(chatId, stats, row.narrative, row.updatedAt)
     }
 
     private val json = Json { ignoreUnknownKeys = true }

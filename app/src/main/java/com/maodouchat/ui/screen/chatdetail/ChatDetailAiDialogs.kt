@@ -41,7 +41,7 @@ internal fun ChatDetailAiDialogs(
     onDismissAiSummaryScope: () -> Unit,
     showConversationProfile: Boolean,
     onDismissConversationProfile: () -> Unit,
-    conversationProfile: com.maodouchat.ai.AiConversationProfile.ConversationProfile?,
+    conversationProfile: com.maodouchat.ai.ConversationProfile?,
     conversationProfileLoading: Boolean,
     conversationProfileFailed: Boolean,
     showWeeklyReport: Boolean,

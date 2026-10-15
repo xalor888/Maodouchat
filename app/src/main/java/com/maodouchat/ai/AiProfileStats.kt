@@ -5,8 +5,8 @@ import com.maodouchat.data.model.Message
 // 会话画像本地统计：消息量/活跃天数/时段分布/表情/高频主题词（CJK 二元组 + 拉丁词，
 // 本地轻量统计，不引入 embedding）。
 internal object AiProfileStats {
-    internal fun computeStats(messages: List<Message>): AiConversationProfile.LocalStats {
-        if (messages.isEmpty()) return AiConversationProfile.LocalStats()
+    internal fun computeStats(messages: List<Message>): LocalStats {
+        if (messages.isEmpty()) return LocalStats()
         val days = messages.map { java.util.Calendar.getInstance().apply { timeInMillis = it.timestamp }.get(java.util.Calendar.DAY_OF_YEAR) }.toSet()
         var morning = 0; var afternoon = 0; var evening = 0; var night = 0; var emoji = 0
         val termCounts = HashMap<String, Int>()
@@ -26,7 +26,7 @@ internal object AiProfileStats {
             .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
             .map { it.key }
             .take(MAX_TERMS)
-        return AiConversationProfile.LocalStats(
+        return LocalStats(
             messageCount = messages.size,
             activeDays = days.size,
             morning = morning,

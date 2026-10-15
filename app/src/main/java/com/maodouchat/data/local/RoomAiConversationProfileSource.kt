@@ -2,6 +2,7 @@ package com.maodouchat.data.local
 
 import com.maodouchat.ai.AiConversationProfile
 import com.maodouchat.ai.AiConversationProfileSource
+import com.maodouchat.ai.ConversationProfile
 
 /**
  * `AiConversationProfileSource` 的装配实现（G73）。
@@ -16,6 +17,6 @@ internal class RoomAiConversationProfileSource(
     private val context: android.content.Context,
     private val database: AppDatabase,
 ) : AiConversationProfileSource {
-    override suspend fun build(chatId: String): AiConversationProfile.ConversationProfile =
+    override suspend fun build(chatId: String): ConversationProfile =
         AiConversationProfile.build(context, database, chatId)
 }

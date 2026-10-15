@@ -35,7 +35,7 @@ import com.maodouchat.ai.WeeklyReport
 @Composable
 internal fun ConversationProfileDialog(
     loading: Boolean,
-    profile: com.maodouchat.ai.AiConversationProfile.ConversationProfile?,
+    profile: com.maodouchat.ai.ConversationProfile?,
     failed: Boolean,
     onDismiss: () -> Unit,
     // 1.317：复制会话画像
@@ -112,7 +112,7 @@ internal fun ConversationProfileDialog(
 }
 
 /** 1.317：将会话画像序列化为纯文本（复制用）。 */
-internal fun profileText(context: android.content.Context, profile: com.maodouchat.ai.AiConversationProfile.ConversationProfile): String = buildString {
+internal fun profileText(context: android.content.Context, profile: com.maodouchat.ai.ConversationProfile): String = buildString {
     val ctx = context
     append(
         ctx.getString(

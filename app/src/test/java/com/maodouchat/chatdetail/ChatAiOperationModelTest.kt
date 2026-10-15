@@ -12,7 +12,7 @@ import com.maodouchat.ui.screen.chatdetail.PendingAiAction
 import com.maodouchat.ui.screen.chatdetail.classifyAiOperationError
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.ai.AiRetryPolicy
+import com.maodouchat.ai.AiRetryPolicyCategory
 import com.maodouchat.ui.screen.chatdetail.AiImageAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.invocationCategory
 import kotlinx.serialization.json.Json
@@ -33,22 +33,22 @@ class ChatAiOperationModelTest {
 
     @Test
     fun `all ai actions have a shared light or heavy invocation category`() {
-        assertEquals(AiRetryPolicy.Category.LIGHT, PendingAiAction.Rewrite("formal").invocationCategory())
-        assertEquals(AiRetryPolicy.Category.LIGHT, PendingAiAction.SuggestReplies().invocationCategory())
+        assertEquals(AiRetryPolicyCategory.LIGHT, PendingAiAction.Rewrite("formal").invocationCategory())
+        assertEquals(AiRetryPolicyCategory.LIGHT, PendingAiAction.SuggestReplies().invocationCategory())
         assertEquals(
-            AiRetryPolicy.Category.LIGHT,
+            AiRetryPolicyCategory.LIGHT,
             PendingAiAction.SemanticSearch("query", listOf("m1")).invocationCategory()
         )
         assertEquals(
-            AiRetryPolicy.Category.HEAVY,
+            AiRetryPolicyCategory.HEAVY,
             PendingAiAction.AnalyzeImage("m1", AiImageAnalysisMode.OCR).invocationCategory()
         )
         assertEquals(
-            AiRetryPolicy.Category.HEAVY,
+            AiRetryPolicyCategory.HEAVY,
             PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.SUMMARIZE, null).invocationCategory()
         )
         assertEquals(
-            AiRetryPolicy.Category.HEAVY,
+            AiRetryPolicyCategory.HEAVY,
             PendingAiAction.GroupAssistant("query", "answer").invocationCategory()
         )
     }

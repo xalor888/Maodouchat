@@ -12,11 +12,11 @@ class AiLocalRulesTest {
     @Test
     fun `classify text picks dominant lexicon`() {
         assertEquals(
-            AiMessageClassifier.Category.FINANCE,
+            AiMessageClassifierCategory.FINANCE,
             AiMessageClassifier.classifyText("记得转账，账单发我，付款截图也发一下").category
         )
         assertEquals(
-            AiMessageClassifier.Category.TECH,
+            AiMessageClassifierCategory.TECH,
             AiMessageClassifier.classifyText("服务器部署完了，接口 bug 修复后发版本").category
         )
     }
@@ -24,7 +24,7 @@ class AiLocalRulesTest {
     @Test
     fun `classify text without hits falls back to other`() {
         val result = AiMessageClassifier.classifyText("随便聊聊天气")
-        assertEquals(AiMessageClassifier.Category.OTHER, result.category)
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
         assertTrue(result.confidence < 0.5)
     }
 
@@ -32,7 +32,7 @@ class AiLocalRulesTest {
     fun `classify confidence is share of hits`() {
         // 单词典全命中时置信度为 1.0
         val result = AiMessageClassifier.classifyText("deadline 截止 提交 待办")
-        assertEquals(AiMessageClassifier.Category.TODO, result.category)
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
         assertTrue(result.confidence > 0.6)
     }
 
@@ -41,7 +41,7 @@ class AiLocalRulesTest {
         // 关键词在 300 字符窗口外不应命中
         val text = "垫".repeat(400) + "转账 账单"
         val result = AiMessageClassifier.classifyText(text)
-        assertEquals(AiMessageClassifier.Category.OTHER, result.category)
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
     }
 
     @Test

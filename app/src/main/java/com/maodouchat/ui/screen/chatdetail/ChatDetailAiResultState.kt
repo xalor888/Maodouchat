@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.maodouchat.ai.AiConversationProfile
+import com.maodouchat.ai.ConversationProfile
 import com.maodouchat.ai.WeeklyReport
 import com.maodouchat.data.repository.AiProfileRepository
 
@@ -21,7 +21,7 @@ import com.maodouchat.data.repository.AiProfileRepository
  */
 internal class ChatDetailAiResultState {
     /** 会话画像（B4 本地聚合）。 */
-    var conversationProfile by mutableStateOf<AiConversationProfile.ConversationProfile?>(null)
+    var conversationProfile by mutableStateOf<ConversationProfile?>(null)
 
     var conversationProfileLoading by mutableStateOf(false)
 

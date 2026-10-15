@@ -9,8 +9,6 @@ object AiPromptSafetyPolicy {
     const val MAX_OUTPUT_SCAN_CHARS = AiPrivilegeClaimScan.MAX_OUTPUT_SCAN_CHARS
 
     typealias SanitizedContextLine = AiPromptSanitization.SanitizedContextLine
-    typealias PrivilegeClaimKind = AiPrivilegeClaimScan.PrivilegeClaimKind
-    typealias PrivilegeScan = AiPrivilegeClaimScan.PrivilegeScan
 
     fun sanitizeSender(raw: String?): String =
         AiPromptSanitization.sanitizeSender(raw)

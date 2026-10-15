@@ -19,7 +19,7 @@ internal object AiProfileBuild {
         context: Context,
         database: AppDatabase,
         chatId: String
-    ): AiConversationProfile.ConversationProfile {
+    ): ConversationProfile {
         val stats = withContext(Dispatchers.IO) {
             // 9.231：按会话查询——此前「全库最新 800 条后 filter chatId」在活跃大库下
             // 目标会话不在最新窗口时统计失真（同 8.48 分类器修复）
@@ -38,11 +38,11 @@ internal object AiProfileBuild {
         } else {
             null
         }
-        val profile = AiConversationProfile.ConversationProfile(chatId = chatId, local = stats, narrative = narrative)
+        val profile = ConversationProfile(chatId = chatId, local = stats, narrative = narrative)
         withContext(Dispatchers.IO) {
             AiProfileRepository.getInstance(context).saveProfile(
                 chatId = chatId,
-                statsJson = json.encodeToString(AiConversationProfile.LocalStats.serializer(), stats),
+                statsJson = json.encodeToString(LocalStats.serializer(), stats),
                 narrative = narrative
             )
         }

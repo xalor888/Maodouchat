@@ -8,16 +8,16 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.ai.AiCostVisibilityPolicy
-import com.maodouchat.ai.AiRetryPolicy
+import com.maodouchat.ai.AiRetryPolicyCategory
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
 
-internal fun PendingAiAction.invocationCategory(): AiRetryPolicy.Category = when (this) {
+internal fun PendingAiAction.invocationCategory(): AiRetryPolicyCategory = when (this) {
     is PendingAiAction.AnalyzeImage,
     is PendingAiAction.AnalyzeFile,
-    is PendingAiAction.GroupAssistant -> AiRetryPolicy.Category.HEAVY
-    else -> AiRetryPolicy.Category.LIGHT
+    is PendingAiAction.GroupAssistant -> AiRetryPolicyCategory.HEAVY
+    else -> AiRetryPolicyCategory.LIGHT
 }
 
 internal object ChatAiOperationFactory {

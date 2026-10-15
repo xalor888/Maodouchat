@@ -11,7 +11,7 @@ internal object AiProfileAssembly {
         context: Context,
         database: AppDatabase,
         chatId: String
-    ): AiConversationProfile.ConversationProfile =
+    ): ConversationProfile =
         AiProfileBuild.build(context, database, chatId)
 
     /** 读取上次画像缓存（仅本地，不发请求）。 */
@@ -19,6 +19,6 @@ internal object AiProfileAssembly {
         context: Context,
         database: AppDatabase,
         chatId: String
-    ): AiConversationProfile.ConversationProfile? =
+    ): ConversationProfile? =
         AiProfileCached.cached(context, database, chatId)
 }

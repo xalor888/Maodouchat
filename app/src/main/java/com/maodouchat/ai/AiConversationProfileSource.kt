@@ -14,5 +14,5 @@ import com.maodouchat.ai.AiConversationProfile
  * （data 层的实现类）持有，Route 从此只看见 `chatId` 与结果。
  */
 interface AiConversationProfileSource {
-    suspend fun build(chatId: String): AiConversationProfile.ConversationProfile
+    suspend fun build(chatId: String): ConversationProfile
 }

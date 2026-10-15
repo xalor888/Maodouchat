@@ -36,22 +36,22 @@ class AiRetryPolicyTest {
 
     @Test
     fun clearSessionDropsPerChatAndGlobalWindows() {
-        AiRetryPolicy.recordCall("chat-a", AiRetryPolicy.Category.LIGHT)
-        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicy.Category.LIGHT))
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
         AiRetryPolicy.clearSession()
-        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicy.Category.LIGHT))
-        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicy.Category.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
     }
 
     @Test
     fun remainingDelayIncludesGlobalWindowWhenFull() {
         AiRetryPolicy.clearSession()
         repeat(240) { index ->
-            AiRetryPolicy.recordCall("chat-$index", AiRetryPolicy.Category.LIGHT)
+            AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT)
         }
-        val wait = AiRetryPolicy.remainingDelayMs("fresh-chat", AiRetryPolicy.Category.LIGHT)
+        val wait = AiRetryPolicy.remainingDelayMs("fresh-chat", AiRetryPolicyCategory.LIGHT)
         assertTrue("global window should surface a wait, was $wait", wait > 0L)
-        assertFalse(AiRetryPolicy.canCallNow("fresh-chat", AiRetryPolicy.Category.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("fresh-chat", AiRetryPolicyCategory.LIGHT))
         AiRetryPolicy.clearSession()
     }
 
