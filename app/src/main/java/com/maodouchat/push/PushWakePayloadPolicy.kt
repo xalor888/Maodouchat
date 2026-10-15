@@ -45,11 +45,6 @@ object PushWakePayloadPolicy {
         "lastmessage",
     )
 
-    sealed interface Decision {
-        data object Accept : Decision
-        data class Reject(val reason: String) : Decision
-    }
-
     fun evaluate(data: Map<String, String>): Decision {
         if (data.isEmpty()) return Decision.Reject("empty")
         val keys = data.keys.map { it.trim().lowercase() }.filter { it.isNotEmpty() }

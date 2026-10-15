@@ -20,10 +20,6 @@ object PushRegistrationManager {
     private const val KEY_LAST_REGISTERED_AT = "last_registered_at"
     private const val KEY_REGISTRATION_STATE = "registration_state"
 
-    enum class RegistrationState {
-        UNKNOWN, INITIALIZING, REGISTERED, FAILED
-    }
-
     @Volatile
     private var registrationState: RegistrationState = RegistrationState.UNKNOWN
     @Volatile
