@@ -3,6 +3,7 @@ package com.maodouchat.ui.navigation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import com.maodouchat.navigation.AppLinkAuthDecision
 import com.maodouchat.navigation.AppLinkAuthGate
 import com.maodouchat.navigation.AppLinkDestination
 
@@ -12,7 +13,7 @@ class AppLinkAuthGateTest {
     fun proceedsWhenLoggedIn() {
         val dest = AppLinkDestination.ChatDetail("c1")
         val decision = AppLinkAuthGate.evaluate(dest, isLoggedIn = true)
-        assertIs<AppLinkAuthGate.Decision.Proceed>(decision)
+        assertIs<AppLinkAuthDecision.Proceed>(decision)
         assertEquals(dest, decision.destination)
     }
 
@@ -20,7 +21,7 @@ class AppLinkAuthGateTest {
     fun requiresLoginWhenLoggedOutAndAuthRequired() {
         val dest = AppLinkDestination.GroupInvite("A".repeat(40))
         val decision = AppLinkAuthGate.evaluate(dest, isLoggedIn = false)
-        assertIs<AppLinkAuthGate.Decision.RequireLogin>(decision)
+        assertIs<AppLinkAuthDecision.RequireLogin>(decision)
         assertEquals(dest, decision.pending)
     }
 
@@ -40,7 +41,7 @@ class AppLinkAuthGateTest {
         )
         samples.forEach { dest ->
             assertEquals(true, dest.requiresAuth)
-            assertIs<AppLinkAuthGate.Decision.RequireLogin>(
+            assertIs<AppLinkAuthDecision.RequireLogin>(
                 AppLinkAuthGate.evaluate(dest, isLoggedIn = false)
             )
         }
@@ -51,7 +52,7 @@ class AppLinkAuthGateTest {
         val dest = AppLinkDestination.ExternalUrl("https://example.com/path")
         assertEquals(false, dest.requiresAuth)
         val decision = AppLinkAuthGate.evaluate(dest, isLoggedIn = false)
-        assertIs<AppLinkAuthGate.Decision.Proceed>(decision)
+        assertIs<AppLinkAuthDecision.Proceed>(decision)
         assertEquals(dest, decision.destination)
     }
 }

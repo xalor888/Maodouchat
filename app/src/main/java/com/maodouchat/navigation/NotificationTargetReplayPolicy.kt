@@ -7,17 +7,6 @@ package com.maodouchat.navigation
  */
 object NotificationTargetReplayPolicy {
 
-    sealed interface Decision {
-        /** 尚未登录或 Nav 未就绪：继续等待（调用方 delay）。 */
-        data object ContinueWaiting : Decision
-
-        /** 会话代际或账号归属不匹配：丢弃待办。 */
-        data object Drop : Decision
-
-        /** 可导航到目标路由。 */
-        data object Navigate : Decision
-    }
-
     /**
      * PublicProfile / GroupInvite 在登录前到达时 owner 可能为空，
      * 登录后不得因 owner 校验丢弃（与 MainActivity 历史语义一致）。
@@ -33,9 +22,9 @@ object NotificationTargetReplayPolicy {
         loginRoute: String,
         liveSessionGeneration: Long,
         liveUserId: String?,
-    ): Decision {
+    ): NotificationTargetReplayDecision {
         if (target.sessionGeneration != liveSessionGeneration) {
-            return Decision.Drop
+            return NotificationTargetReplayDecision.Drop
         }
 
         val navReady = isLoggedIn &&
@@ -46,15 +35,15 @@ object NotificationTargetReplayPolicy {
             if (!bypassesOwnerCheck(target)) {
                 val uid = liveUserId?.takeIf(String::isNotBlank)
                 if (uid != null && target.ownerUserId != uid) {
-                    return Decision.Drop
+                    return NotificationTargetReplayDecision.Drop
                 }
             }
-            return Decision.ContinueWaiting
+            return NotificationTargetReplayDecision.ContinueWaiting
         }
 
         if (!bypassesOwnerCheck(target) && target.ownerUserId != liveUserId) {
-            return Decision.Drop
+            return NotificationTargetReplayDecision.Drop
         }
-        return Decision.Navigate
+        return NotificationTargetReplayDecision.Navigate
     }
 }

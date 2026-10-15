@@ -32,6 +32,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
+import com.maodouchat.navigation.NotificationTargetReplayDecision
 import com.maodouchat.navigation.NotificationTargetReplayPolicy
 import com.maodouchat.navigation.Routes
 import com.maodouchat.navigation.toDestination
@@ -325,12 +326,12 @@ class MainActivity : FragmentActivity() {
                             liveUserId = tokenManager.getUserId(),
                         )
                     ) {
-                        NotificationTargetReplayPolicy.Decision.ContinueWaiting -> delay(250)
-                        NotificationTargetReplayPolicy.Decision.Drop -> {
+                        NotificationTargetReplayDecision.ContinueWaiting -> delay(250)
+                        NotificationTargetReplayDecision.Drop -> {
                             notificationTarget.value = null
                             return@collect
                         }
-                        NotificationTargetReplayPolicy.Decision.Navigate -> break
+                        NotificationTargetReplayDecision.Navigate -> break
                     }
                 }
                 // P08：目标→路由字符串经 AppLinkDestination 统一映射（与 Routes builder 同构，见单测）。

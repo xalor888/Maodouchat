@@ -67,7 +67,7 @@ class NotificationCenterOpenControllerTest {
     fun loggedOutSendsUserToLoginWithoutSideEffects() {
         val rec = Recorder()
         val outcome = rec.controller(hasSessionToken = false).onOpenItem(item("MESSAGE"))
-        assertEquals(NotificationCenterOpenController.Outcome.GoLogin, outcome)
+        assertEquals(NotificationCenterOpenOutcome.GoLogin, outcome)
         rec.assertNoSideEffects()
     }
 
@@ -75,7 +75,7 @@ class NotificationCenterOpenControllerTest {
     fun messageRowOpensChatAndClearsItsTray() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("MESSAGE", extra = mapOf("chatId" to "c-1")))
-        assertEquals(Routes.chatDetail("c-1"), (outcome as NotificationCenterOpenController.Outcome.Navigate).route)
+        assertEquals(Routes.chatDetail("c-1"), (outcome as NotificationCenterOpenOutcome.Navigate).route)
         assertEquals(listOf("c-1"), rec.clearedMessages)
     }
 
@@ -83,7 +83,7 @@ class NotificationCenterOpenControllerTest {
     fun messageRowWithoutChatIdDoesNothing() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("MESSAGE"))
-        assertEquals(NotificationCenterOpenController.Outcome.None, outcome)
+        assertEquals(NotificationCenterOpenOutcome.None, outcome)
         rec.assertNoSideEffects()
     }
 
@@ -91,7 +91,7 @@ class NotificationCenterOpenControllerTest {
     fun missedCallRowClearsTrayByCallIdAndOpensInbox() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("MISSED_CALL", extra = mapOf("callId" to "call-1")))
-        assertEquals(NotificationCenterOpenController.Outcome.PopBackStack, outcome)
+        assertEquals(NotificationCenterOpenOutcome.PopBackStack, outcome)
         assertEquals(listOf("call-1"), rec.clearedMissedCalls)
         assertEquals(1, rec.missedCallsEmits)
     }
@@ -100,7 +100,7 @@ class NotificationCenterOpenControllerTest {
     fun missedCallRowWithoutCallIdStillOpensInbox() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("MISSED_CALL"))
-        assertEquals(NotificationCenterOpenController.Outcome.PopBackStack, outcome)
+        assertEquals(NotificationCenterOpenOutcome.PopBackStack, outcome)
         assertTrue(rec.clearedMissedCalls.isEmpty())
         assertEquals(1, rec.missedCallsEmits)
     }
@@ -109,7 +109,7 @@ class NotificationCenterOpenControllerTest {
     fun friendRequestRowOpensContacts() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("FRIEND_REQUEST"))
-        assertEquals(NotificationCenterOpenController.Outcome.PopBackStack, outcome)
+        assertEquals(NotificationCenterOpenOutcome.PopBackStack, outcome)
         assertEquals(1, rec.contactsEmits)
         rec.assertNoTraySideEffects()
     }
@@ -118,7 +118,7 @@ class NotificationCenterOpenControllerTest {
     fun chatDeeplinkOpensChatAndClearsItsTray() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("MESSAGE", deeplink = "maodouchat:chat:c-9"))
-        assertEquals(Routes.chatDetail("c-9"), (outcome as NotificationCenterOpenController.Outcome.Navigate).route)
+        assertEquals(Routes.chatDetail("c-9"), (outcome as NotificationCenterOpenOutcome.Navigate).route)
         assertEquals(listOf("c-9"), rec.clearedMessages)
     }
 
@@ -126,7 +126,7 @@ class NotificationCenterOpenControllerTest {
     fun aiTasksDeeplinkClearsRemindersAndOpensTasks() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("AI_TASK", deeplink = "maodouchat:ai_tasks:c-7"))
-        assertEquals(Routes.aiTasks("c-7"), (outcome as NotificationCenterOpenController.Outcome.Navigate).route)
+        assertEquals(Routes.aiTasks("c-7"), (outcome as NotificationCenterOpenOutcome.Navigate).route)
         assertEquals(listOf("c-7"), rec.clearedAiReminders)
     }
 
@@ -134,7 +134,7 @@ class NotificationCenterOpenControllerTest {
     fun postDeeplinkClearsTrayAndMarksInteractionsRead() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("POST_INTERACTION", deeplink = "maodouchat:post:p-3"))
-        assertEquals(Routes.postDetail("p-3"), (outcome as NotificationCenterOpenController.Outcome.Navigate).route)
+        assertEquals(Routes.postDetail("p-3"), (outcome as NotificationCenterOpenOutcome.Navigate).route)
         assertEquals(listOf("p-3"), rec.clearedPostInteractions)
         assertEquals(listOf("p-3"), rec.markedPostsRead)
     }
@@ -145,7 +145,7 @@ class NotificationCenterOpenControllerTest {
         val outcome = rec.controller().onOpenItem(
             item("MISSED_CALL", deeplink = "maodouchat:missed_calls", extra = mapOf("callId" to "call-2")),
         )
-        assertEquals(NotificationCenterOpenController.Outcome.PopBackStack, outcome)
+        assertEquals(NotificationCenterOpenOutcome.PopBackStack, outcome)
         assertEquals(listOf("call-2"), rec.clearedMissedCalls)
         assertEquals(1, rec.missedCallsEmits)
     }
@@ -154,7 +154,7 @@ class NotificationCenterOpenControllerTest {
     fun contactsTabDeeplinkOpensContacts() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("FRIEND_REQUEST", deeplink = "maodouchat:contacts"))
-        assertEquals(NotificationCenterOpenController.Outcome.PopBackStack, outcome)
+        assertEquals(NotificationCenterOpenOutcome.PopBackStack, outcome)
         assertEquals(1, rec.contactsEmits)
     }
 
@@ -162,7 +162,7 @@ class NotificationCenterOpenControllerTest {
     fun unparsableDeeplinkDoesNothing() {
         val rec = Recorder()
         val outcome = rec.controller().onOpenItem(item("MESSAGE", deeplink = "https://example.com/x"))
-        assertEquals(NotificationCenterOpenController.Outcome.None, outcome)
+        assertEquals(NotificationCenterOpenOutcome.None, outcome)
         rec.assertNoSideEffects()
     }
 }

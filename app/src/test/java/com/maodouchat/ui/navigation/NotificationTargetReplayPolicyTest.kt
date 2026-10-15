@@ -6,6 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import com.maodouchat.navigation.NotificationTarget
+import com.maodouchat.navigation.NotificationTargetReplayDecision
 import com.maodouchat.navigation.NotificationTargetReplayPolicy
 
 class NotificationTargetReplayPolicyTest {
@@ -42,7 +43,7 @@ class NotificationTargetReplayPolicyTest {
             liveSessionGeneration = 2L,
             liveUserId = null,
         )
-        assertIs<NotificationTargetReplayPolicy.Decision.Drop>(decision)
+        assertIs<NotificationTargetReplayDecision.Drop>(decision)
     }
 
     @Test
@@ -55,7 +56,7 @@ class NotificationTargetReplayPolicyTest {
             liveSessionGeneration = 1L,
             liveUserId = null,
         )
-        assertIs<NotificationTargetReplayPolicy.Decision.ContinueWaiting>(decision)
+        assertIs<NotificationTargetReplayDecision.ContinueWaiting>(decision)
     }
 
     @Test
@@ -68,7 +69,7 @@ class NotificationTargetReplayPolicyTest {
             liveSessionGeneration = 1L,
             liveUserId = "u1",
         )
-        assertIs<NotificationTargetReplayPolicy.Decision.ContinueWaiting>(decision)
+        assertIs<NotificationTargetReplayDecision.ContinueWaiting>(decision)
     }
 
     @Test
@@ -81,7 +82,7 @@ class NotificationTargetReplayPolicyTest {
             liveSessionGeneration = 1L,
             liveUserId = "u2",
         )
-        assertIs<NotificationTargetReplayPolicy.Decision.Drop>(decision)
+        assertIs<NotificationTargetReplayDecision.Drop>(decision)
     }
 
     @Test
@@ -94,7 +95,7 @@ class NotificationTargetReplayPolicyTest {
             liveSessionGeneration = 1L,
             liveUserId = null,
         )
-        assertIs<NotificationTargetReplayPolicy.Decision.ContinueWaiting>(decision)
+        assertIs<NotificationTargetReplayDecision.ContinueWaiting>(decision)
     }
 
     @Test
@@ -107,7 +108,7 @@ class NotificationTargetReplayPolicyTest {
             liveSessionGeneration = 1L,
             liveUserId = "u2",
         )
-        assertIs<NotificationTargetReplayPolicy.Decision.ContinueWaiting>(decision)
+        assertIs<NotificationTargetReplayDecision.ContinueWaiting>(decision)
     }
 
     @Test
@@ -120,7 +121,7 @@ class NotificationTargetReplayPolicyTest {
             liveSessionGeneration = 1L,
             liveUserId = "u1",
         )
-        assertIs<NotificationTargetReplayPolicy.Decision.Navigate>(decision)
+        assertIs<NotificationTargetReplayDecision.Navigate>(decision)
     }
 
     @Test
@@ -133,7 +134,7 @@ class NotificationTargetReplayPolicyTest {
             liveSessionGeneration = 1L,
             liveUserId = "u2",
         )
-        assertIs<NotificationTargetReplayPolicy.Decision.Drop>(decision)
+        assertIs<NotificationTargetReplayDecision.Drop>(decision)
     }
 
     @Test
@@ -147,7 +148,7 @@ class NotificationTargetReplayPolicyTest {
             liveUserId = "u9",
         )
         assertEquals(
-            NotificationTargetReplayPolicy.Decision.Navigate,
+            NotificationTargetReplayDecision.Navigate,
             decision,
         )
     }
