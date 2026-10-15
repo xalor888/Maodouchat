@@ -96,7 +96,7 @@ class SignalDirectCipher internal constructor(
 
     fun decryptParsedMultiDeviceEnvelope(
         senderId: String,
-        envelope: MultiDeviceEnvelopePolicy.ParsedEnvelope
+        envelope: ParsedEnvelope
     ): DecryptResult = decryptor.decryptParsedMultiDeviceEnvelope(senderId, envelope)
 
     fun decryptMessage(

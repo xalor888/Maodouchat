@@ -95,7 +95,7 @@ internal class SignalContentEnvelopeDecryptor(
 
     fun decryptParsedMultiDeviceEnvelope(
         senderId: String,
-        envelope: MultiDeviceEnvelopePolicy.ParsedEnvelope
+        envelope: ParsedEnvelope
     ): DecryptResult {
         val entry = MultiDeviceEnvelopePolicy.selectEntry(envelope, context.currentUserId, context.localDeviceId)
             ?: return DecryptResult.NotForThisDevice

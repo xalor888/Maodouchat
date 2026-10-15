@@ -17,7 +17,7 @@ class MultiRecipientCoveragePolicyTest {
 
     @Test
     fun directPeerCannotBeHiddenByOwnDeviceTarget() {
-        val selfOnly = listOf(MultiRecipientCoveragePolicy.Target("self", 2))
+        val selfOnly = listOf(Target("self", 2))
         assertFalse(
             MultiRecipientCoveragePolicy.requiredRecipientsCovered(
                 requiredRecipientIds = setOf("peer"),
@@ -32,8 +32,8 @@ class MultiRecipientCoveragePolicyTest {
             MultiRecipientCoveragePolicy.requiredRecipientsCovered(
                 requiredRecipientIds = setOf("peer"),
                 targets = listOf(
-                    MultiRecipientCoveragePolicy.Target("self", 2),
-                    MultiRecipientCoveragePolicy.Target("peer", 7),
+                    Target("self", 2),
+                    Target("peer", 7),
                 ),
             )
         )
@@ -42,34 +42,34 @@ class MultiRecipientCoveragePolicyTest {
     @Test
     fun oneOfTwoPeerDevicesDoesNotSatisfyConcreteCoverage() {
         val required = listOf(
-            MultiRecipientCoveragePolicy.Target("peer", 7),
-            MultiRecipientCoveragePolicy.Target("peer", 8),
+            Target("peer", 7),
+            Target("peer", 8),
         )
         assertFalse(
             MultiRecipientCoveragePolicy.requiredTargetsCovered(
                 requiredTargets = required,
-                targets = listOf(MultiRecipientCoveragePolicy.Target("peer", 7)),
+                targets = listOf(Target("peer", 7)),
             )
         )
         assertEquals(
-            setOf(MultiRecipientCoveragePolicy.Target("peer", 8)),
+            setOf(Target("peer", 8)),
             MultiRecipientCoveragePolicy.missingRequiredTargets(
                 requiredTargets = required,
-                targets = listOf(MultiRecipientCoveragePolicy.Target("peer", 7)),
+                targets = listOf(Target("peer", 7)),
             )
         )
     }
 
     @Test
     fun transientFailureForOneMissingDeviceIsPreserved() {
-        val missing = MultiRecipientCoveragePolicy.Target("peer", 8)
+        val missing = Target("peer", 8)
         val transient = SignalExchangeException(SignalExchangeFailure.TIMEOUT)
         val wrapped = MultiRecipientCoveragePolicy.transientFailureForMissingTargets(
             requiredTargets = listOf(
-                MultiRecipientCoveragePolicy.Target("peer", 7),
+                Target("peer", 7),
                 missing,
             ),
-            targets = listOf(MultiRecipientCoveragePolicy.Target("peer", 7)),
+            targets = listOf(Target("peer", 7)),
             failuresByTarget = mapOf(missing to transient),
         )
         assertTrue(wrapped is TransientCoverageException)
@@ -118,7 +118,7 @@ class MultiRecipientCoveragePolicyTest {
     @Test
     fun uncoveredRequiredPeerPreservesItsTransientFailure() {
         val transient = SignalExchangeException(SignalExchangeFailure.NETWORK)
-        val selfOnly = listOf(MultiRecipientCoveragePolicy.Target("self", 2))
+        val selfOnly = listOf(Target("self", 2))
 
         val wrapped = MultiRecipientCoveragePolicy.transientFailureForMissingRecipients(
             requiredRecipientIds = setOf("peer"),
@@ -154,7 +154,7 @@ class MultiRecipientCoveragePolicyTest {
         assertNull(
             MultiRecipientCoveragePolicy.transientFailureForMissingRecipients(
                 requiredRecipientIds = setOf("peer"),
-                targets = listOf(MultiRecipientCoveragePolicy.Target("peer", 7)),
+                targets = listOf(Target("peer", 7)),
                 failuresByRecipient = mapOf(
                     "peer" to SignalExchangeException(SignalExchangeFailure.TIMEOUT)
                 ),

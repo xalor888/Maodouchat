@@ -56,13 +56,6 @@ object SealedSenderSupport {
     private val cachedCertificates = mutableMapOf<CacheKey, Certificate>()
     private var cacheGeneration: Long = 0L
 
-    data class Certificate(
-        val certificate: String,
-        val expiresAt: Long,
-        val deviceId: Int,
-        val userId: String
-    )
-
     fun clearCache() = synchronized(cacheLock) {
         cacheGeneration += 1L
         cachedCertificates.clear()

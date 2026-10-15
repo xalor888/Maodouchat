@@ -5,7 +5,6 @@ import com.maodouchat.network.ApiFailureKind
 
 /** Pure coverage checks shared by direct multi-device envelopes and their tests. */
 internal object MultiRecipientCoveragePolicy {
-    data class Target(val userId: String, val deviceId: Int)
 
     fun normalizeRequiredRecipientId(recipientId: String): String? =
         recipientId.trim().takeIf(String::isNotBlank)

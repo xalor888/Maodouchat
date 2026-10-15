@@ -110,12 +110,12 @@ internal class SignalContentEnvelopeEncryptor(
         return try {
             val targets = mutableListOf<MultiRecipientDeviceTarget>()
             val sessionFailures = mutableMapOf<String, Throwable>()
-            val failuresByTarget = mutableMapOf<MultiRecipientCoveragePolicy.Target, Throwable>()
+            val failuresByTarget = mutableMapOf<Target, Throwable>()
             val requiredRecipientSet = requiredRecipientIds
                 .map(String::trim)
                 .filter(String::isNotBlank)
                 .toSet()
-            val requiredTargets = mutableSetOf<MultiRecipientCoveragePolicy.Target>()
+            val requiredTargets = mutableSetOf<Target>()
             val entries = recipientIds
                 .filter {
                     it.isNotBlank() &&
@@ -134,17 +134,17 @@ internal class SignalContentEnvelopeEncryptor(
                     val establishedDeviceIds = coverage.establishedDeviceIds
                     if (recipientId in requiredRecipientSet) {
                         requiredTargets += candidateDeviceIds.map {
-                            MultiRecipientCoveragePolicy.Target(recipientId, it)
+                            Target(recipientId, it)
                         }
                     }
                     coverage.failuresByDevice.forEach { (deviceId, error) ->
-                        val target = MultiRecipientCoveragePolicy.Target(recipientId, deviceId)
+                        val target = Target(recipientId, deviceId)
                         failuresByTarget[target] = error
                         sessionFailures.putIfAbsent(recipientId, error)
                     }
                     establishedDeviceIds
                         .mapNotNull { deviceId ->
-                            val target = MultiRecipientCoveragePolicy.Target(recipientId, deviceId)
+                            val target = Target(recipientId, deviceId)
                             try {
                                 val cipherResult = encryptMessage(recipientId, plaintext, deviceId)
                                 targets += MultiRecipientDeviceTarget(recipientId, deviceId)
@@ -163,7 +163,7 @@ internal class SignalContentEnvelopeEncryptor(
                             }
                         }
                 }
-            val coveredTargets = targets.map { MultiRecipientCoveragePolicy.Target(it.userId, it.deviceId) }
+            val coveredTargets = targets.map { Target(it.userId, it.deviceId) }
             if (!MultiRecipientCoveragePolicy.requiredTargetsCovered(requiredTargets, coveredTargets) ||
                 !MultiRecipientCoveragePolicy.requiredRecipientsCovered(requiredRecipientIds, coveredTargets)
             ) {

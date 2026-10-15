@@ -59,7 +59,7 @@ class PolledIncomingBatchPolicyTest {
         val terminal = decision.terminals.single()
         assertEquals("c1", terminal.callId)
         assertEquals(
-            PolledIncomingBatchPolicy.MissedRecordParams(
+            MissedRecordParams(
                 signalingCallId = "c1",
                 fromUserId = "u2",
                 callerName = "Alice",

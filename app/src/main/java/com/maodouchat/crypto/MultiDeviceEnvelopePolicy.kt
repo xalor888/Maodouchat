@@ -23,22 +23,6 @@ object MultiDeviceEnvelopePolicy {
     const val ALGORITHM_SIGNAL_MULTI_DEVICE = "signal-multi-device-v1"
     const val DEFAULT_DEVICE_ID = 1
 
-    data class ParsedEnvelope(
-        val version: Int,
-        val algorithm: String,
-        val senderDeviceId: Int,
-        val payloadType: String?,
-        val entries: List<ParsedEntry>
-    )
-
-    data class ParsedEntry(
-        val recipientUserId: String?,
-        val recipientDeviceId: Int,
-        val recipientDeviceIdOmitted: Boolean,
-        val ciphertextType: String?,
-        val ciphertext: String
-    )
-
     private val json = Json { ignoreUnknownKeys = true }
 
     fun isRecognizedAlgorithm(algorithm: String): Boolean =
