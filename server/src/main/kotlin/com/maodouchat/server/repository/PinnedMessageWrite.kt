@@ -24,31 +24,31 @@ fun PinnedMessageRepository.toggle(
     actorId: String,
     actorIsManager: Boolean,
     requireBotDeliverable: Boolean = false
-): PinnedMessageRepository.ToggleOutcome {
+): ToggleOutcome {
     // PG：唯一冲突后当前事务 abort，同事务任何后续查询都抛 25P02（500）；
     // 且嵌套 transaction{} 复用外层连接救不回来——必须 catch 在事务外、回滚后开新事务回读。
     return try {
         transaction {
             if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
-                return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.FORBIDDEN)
+                return@transaction ToggleOutcome(PinResult.FORBIDDEN)
             }
             val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
-                ?: return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.NOT_FOUND)
+                ?: return@transaction ToggleOutcome(PinResult.NOT_FOUND)
             val isGroup = chat[Chats.isGroup]
             if (isGroup && !actorIsManager) {
-                return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.FORBIDDEN)
+                return@transaction ToggleOutcome(PinResult.FORBIDDEN)
             }
             val isMember = ChatParticipants.selectAll()
                 .where { (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq actorId) }
                 .firstOrNull() != null
-            if (!isMember) return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.FORBIDDEN)
+            if (!isMember) return@transaction ToggleOutcome(PinResult.FORBIDDEN)
 
             val msg = MessagingV2Messages.selectAll()
                 .where { MessagingV2Messages.id eq messageId }
                 .firstOrNull()
-                ?: return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.NOT_FOUND)
+                ?: return@transaction ToggleOutcome(PinResult.NOT_FOUND)
             if (msg[MessagingV2Messages.conversationId] != chatId) {
-                return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.NOT_FOUND)
+                return@transaction ToggleOutcome(PinResult.NOT_FOUND)
             }
             if (msg[MessagingV2Messages.recordClass] != MessagingV2RecordClass.MESSAGE) {
                 // 允许取消历史脏数据
@@ -59,9 +59,9 @@ fun PinnedMessageRepository.toggle(
                     PinnedMessages.deleteWhere {
                         (PinnedMessages.chatId eq chatId) and (PinnedMessages.messageId eq messageId)
                     }
-                    return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.UNPINNED, listInTx(chatId))
+                    return@transaction ToggleOutcome(PinResult.UNPINNED, listInTx(chatId))
                 }
-                return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.NOT_PINNABLE)
+                return@transaction ToggleOutcome(PinResult.NOT_PINNABLE)
             }
 
             val existing = PinnedMessages.selectAll()
@@ -72,7 +72,7 @@ fun PinnedMessageRepository.toggle(
                 PinnedMessages.deleteWhere {
                     (PinnedMessages.chatId eq chatId) and (PinnedMessages.messageId eq messageId)
                 }
-                return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.UNPINNED, listInTx(chatId))
+                return@transaction ToggleOutcome(PinResult.UNPINNED, listInTx(chatId))
             }
 
             val count = PinnedMessages.selectAll()
@@ -81,7 +81,7 @@ fun PinnedMessageRepository.toggle(
                 .toList()
                 .size
             if (count >= PinnedMessageRepository.MAX_PINS_PER_CHAT) {
-                return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.LIMIT, listInTx(chatId))
+                return@transaction ToggleOutcome(PinResult.LIMIT, listInTx(chatId))
             }
 
             // 并发 toggle 竞态：两条 unpinned→pin 同时进入，forUpdate 对不存在的行无效，
@@ -92,12 +92,12 @@ fun PinnedMessageRepository.toggle(
                 it[PinnedMessages.pinnedBy] = actorId
                 it[PinnedMessages.pinnedAt] = System.currentTimeMillis()
             }
-            PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.PINNED, listInTx(chatId))
+            ToggleOutcome(PinResult.PINNED, listInTx(chatId))
         }
     } catch (e: Exception) {
         if (isUniqueViolation(e)) {
             // 本事务已由 Exposed 回滚并归还连接；新事务读取胜者已提交的置顶列表
-            transaction { PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.PINNED, listInTx(chatId)) }
+            transaction { ToggleOutcome(PinResult.PINNED, listInTx(chatId)) }
         } else throw e
     }
 }
@@ -111,22 +111,22 @@ fun PinnedMessageRepository.clearAll(
     actorId: String,
     actorIsManager: Boolean,
     requireBotDeliverable: Boolean = false
-): PinnedMessageRepository.ToggleOutcome {
+): ToggleOutcome {
     return transaction {
         if (requireBotDeliverable && !BotRepository.isBotDeliverableInTx(actorId, System.currentTimeMillis())) {
-            return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.FORBIDDEN)
+            return@transaction ToggleOutcome(PinResult.FORBIDDEN)
         }
         val chat = Chats.selectAll().where { Chats.id eq chatId }.firstOrNull()
-            ?: return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.NOT_FOUND)
+            ?: return@transaction ToggleOutcome(PinResult.NOT_FOUND)
         val isGroup = chat[Chats.isGroup]
         if (isGroup && !actorIsManager) {
-            return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.FORBIDDEN)
+            return@transaction ToggleOutcome(PinResult.FORBIDDEN)
         }
         val isMember = ChatParticipants.selectAll()
             .where { (ChatParticipants.chatId eq chatId) and (ChatParticipants.userId eq actorId) }
             .firstOrNull() != null
-        if (!isMember) return@transaction PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.FORBIDDEN)
+        if (!isMember) return@transaction ToggleOutcome(PinResult.FORBIDDEN)
         PinnedMessages.deleteWhere { PinnedMessages.chatId eq chatId }
-        PinnedMessageRepository.ToggleOutcome(PinnedMessageRepository.PinResult.UNPINNED, emptyList())
+        ToggleOutcome(PinResult.UNPINNED, emptyList())
     }
 }

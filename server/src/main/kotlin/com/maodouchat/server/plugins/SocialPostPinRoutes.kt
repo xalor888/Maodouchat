@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
+import com.maodouchat.server.repository.PinResult
 import com.maodouchat.server.repository.PinnedMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.getById
@@ -70,28 +71,28 @@ internal fun Route.configureSocialPostPinRoutes(
                     actorIsManager = actorIsManager
                 )
                 when (outcome.result) {
-                    PinnedMessageRepository.PinResult.NOT_FOUND -> {
+                    PinResult.NOT_FOUND -> {
                         call.respond(HttpStatusCode.NotFound, ErrorResponse("消息不存在"))
                         return@post
                     }
-                    PinnedMessageRepository.PinResult.FORBIDDEN -> {
+                    PinResult.FORBIDDEN -> {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("仅群主或管理员可置顶"))
                         return@post
                     }
-                    PinnedMessageRepository.PinResult.LIMIT -> {
+                    PinResult.LIMIT -> {
                         call.respond(
                             HttpStatusCode.BadRequest,
                             ErrorResponse("最多置顶 ${PinnedMessageRepository.MAX_PINS_PER_CHAT} 条消息")
                         )
                         return@post
                     }
-                    PinnedMessageRepository.PinResult.NOT_PINNABLE -> {
+                    PinResult.NOT_PINNABLE -> {
                         call.respond(HttpStatusCode.BadRequest, ErrorResponse("该消息不能置顶"))
                         return@post
                     }
-                    PinnedMessageRepository.PinResult.PINNED,
-                    PinnedMessageRepository.PinResult.UNPINNED -> {
-                        val pinned = outcome.result == PinnedMessageRepository.PinResult.PINNED
+                    PinResult.PINNED,
+                    PinResult.UNPINNED -> {
+                        val pinned = outcome.result == PinResult.PINNED
                         val payload = PinnedMessagesUpdatedPayload(chatId, uid, outcome.pins)
                         val pinJson = json.encodeToString(
                             WsMessage.serializer(),

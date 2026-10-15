@@ -430,7 +430,7 @@ class BotCreateOutcomeTest {
 
         val repo = PinnedMessageRepository()
         assertEquals(
-            PinnedMessageRepository.PinResult.PINNED,
+            PinResult.PINNED,
             repo.toggle("g1", "m1", botId, actorIsManager = true, requireBotDeliverable = true).result
         )
 
@@ -442,11 +442,11 @@ class BotCreateOutcomeTest {
         }
 
         assertEquals(
-            PinnedMessageRepository.PinResult.FORBIDDEN,
+            PinResult.FORBIDDEN,
             repo.toggle("g1", "m2", botId, actorIsManager = true, requireBotDeliverable = true).result
         )
         assertEquals(
-            PinnedMessageRepository.PinResult.FORBIDDEN,
+            PinResult.FORBIDDEN,
             repo.clearAll("g1", botId, actorIsManager = true, requireBotDeliverable = true).result
         )
     }

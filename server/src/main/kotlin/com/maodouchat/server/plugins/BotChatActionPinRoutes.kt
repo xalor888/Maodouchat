@@ -4,6 +4,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
+import com.maodouchat.server.repository.PinResult
 import com.maodouchat.server.repository.PinnedMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.blockedEitherWayIdsInTx
@@ -71,9 +72,9 @@ post("/api/bot/pinChatMessage") {
     )
     com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "pinChatMessage")
     when (outcome.result) {
-        com.maodouchat.server.repository.PinnedMessageRepository.PinResult.PINNED,
-        com.maodouchat.server.repository.PinnedMessageRepository.PinResult.UNPINNED -> {
-            val pinned = outcome.result == com.maodouchat.server.repository.PinnedMessageRepository.PinResult.PINNED
+        PinResult.PINNED,
+        PinResult.UNPINNED -> {
+            val pinned = outcome.result == PinResult.PINNED
             val payload = PinnedMessagesUpdatedPayload(chatId, bot.id, outcome.pins)
             val pinJson = json.encodeToString(
                 WsMessage.serializer(),
@@ -97,13 +98,13 @@ put("count", outcome.pins.size)
     }
 )
         }
-        com.maodouchat.server.repository.PinnedMessageRepository.PinResult.NOT_FOUND ->
+        PinResult.NOT_FOUND ->
             call.respond(HttpStatusCode.NotFound, ErrorResponse("message not found"))
-        com.maodouchat.server.repository.PinnedMessageRepository.PinResult.FORBIDDEN ->
+        PinResult.FORBIDDEN ->
             call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
-        com.maodouchat.server.repository.PinnedMessageRepository.PinResult.LIMIT ->
+        PinResult.LIMIT ->
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("pin limit reached"))
-        com.maodouchat.server.repository.PinnedMessageRepository.PinResult.NOT_PINNABLE ->
+        PinResult.NOT_PINNABLE ->
             call.respond(HttpStatusCode.BadRequest, ErrorResponse("message not pinnable"))
     }
 }

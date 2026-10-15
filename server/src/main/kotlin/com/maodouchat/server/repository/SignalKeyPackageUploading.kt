@@ -4,7 +4,6 @@ package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.SignalKeys
-import com.maodouchat.server.repository.SignalKeyRepository.UploadKeyPackageResult
 import com.maodouchat.server.service.IdentitySecurityEventPolicy
 import com.maodouchat.server.service.IdentitySecurityEventRecorder
 import java.util.UUID

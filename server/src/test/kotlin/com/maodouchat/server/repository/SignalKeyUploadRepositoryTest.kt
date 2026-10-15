@@ -41,12 +41,12 @@ class SignalKeyUploadRepositoryTest {
         val repository = SignalKeyRepository()
         val publishedIdentity = newIdentity()
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "occupying-session", 7, publishedIdentity),
         )
         insertSession(id = "contending-session", deviceId = null)
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH,
+            UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH,
             upload(repository, "contending-session", 7, newIdentity()),
         )
         transaction {
@@ -73,12 +73,12 @@ class SignalKeyUploadRepositoryTest {
         val publishedIdentity = newIdentity()
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "occupying-session", 7, publishedIdentity),
         )
         insertSession(id = "contending-session", deviceId = null)
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH,
+            UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH,
             upload(repository, "contending-session", 7, newIdentity()),
         )
     }
@@ -90,13 +90,13 @@ class SignalKeyUploadRepositoryTest {
         val repository = SignalKeyRepository()
         val publishedIdentity = newIdentity()
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "occupying-session", 7, publishedIdentity),
         )
         insertSession(id = "contending-session", deviceId = null)
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.DEVICE_ID_CONFLICT,
+            UploadKeyPackageResult.DEVICE_ID_CONFLICT,
             upload(repository, "contending-session", 7, publishedIdentity),
         )
     }
@@ -107,12 +107,12 @@ class SignalKeyUploadRepositoryTest {
         insertSession(id = "bound-session", deviceId = null)
         val repository = SignalKeyRepository()
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "bound-session", 7, newIdentity()),
         )
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.SESSION_CONFLICT,
+            UploadKeyPackageResult.SESSION_CONFLICT,
             upload(repository, "bound-session", 7, newIdentity()),
         )
     }
@@ -123,13 +123,13 @@ class SignalKeyUploadRepositoryTest {
         val repository = SignalKeyRepository()
         insertSession(id = "first-session", deviceId = null)
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "first-session", 1, newIdentity()),
         )
 
         insertSession(id = "new-session", deviceId = null)
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "new-session", 7, newIdentity()),
         )
 
@@ -154,11 +154,11 @@ class SignalKeyUploadRepositoryTest {
         val replacement = Curve.generateKeyPair()
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "prekey-session", 7, identity, listOf(preKey(42, first))),
         )
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "prekey-session", 7, identity, listOf(preKey(42, replacement))),
         )
 
@@ -176,7 +176,7 @@ class SignalKeyUploadRepositoryTest {
 
         // Retrying the exact same key package must not create another row or rotate the data.
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "prekey-session", 7, identity, listOf(preKey(42, replacement))),
         )
         transaction {
@@ -201,14 +201,14 @@ class SignalKeyUploadRepositoryTest {
         val regenerated = Curve.generateKeyPair()
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "consumed-session", 7, identity, listOf(preKey(43, original))),
         )
         val bundle = repository.getBundle(USER_ID, 7, consumeOneTimePreKey = true)
         assertEquals(43, bundle?.preKeyId)
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "consumed-session", 7, identity, listOf(preKey(43, regenerated))),
         )
 
@@ -232,7 +232,7 @@ class SignalKeyUploadRepositoryTest {
         val identity = newIdentity()
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             upload(repository, "retention-session", 7, identity, listOf(preKey(46, Curve.generateKeyPair()))),
         )
         // Simulate a key uploaded before the retention period, then consume it now.
@@ -271,7 +271,7 @@ class SignalKeyUploadRepositoryTest {
         val identity = newIdentity()
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.INVALID_PRE_KEY,
+            UploadKeyPackageResult.INVALID_PRE_KEY,
             upload(
                 repository,
                 "invalid-prekey-session",
@@ -295,7 +295,7 @@ class SignalKeyUploadRepositoryTest {
         val identity = newIdentity()
 
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.INVALID_PRE_KEY,
+            UploadKeyPackageResult.INVALID_PRE_KEY,
             upload(
                 repository,
                 "duplicate-prekey-session",
@@ -346,7 +346,7 @@ class SignalKeyUploadRepositoryTest {
         deviceId: Int,
         identity: IdentityMaterial,
         preKeys: List<PreKeyUpload> = emptyList(),
-    ): SignalKeyRepository.UploadKeyPackageResult {
+    ): UploadKeyPackageResult {
         val signedPreKeyPair = Curve.generateKeyPair()
         val signature = Curve.calculateSignature(
             identity.privateKey,

@@ -4,6 +4,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
+import com.maodouchat.server.repository.PinResult
 import com.maodouchat.server.repository.PinnedMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.blockedEitherWayIdsInTx
@@ -55,10 +56,10 @@ internal fun Route.configureBotChatPinRoutes(
             requireBotDeliverable = true
         )
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "unpinAllChatMessages")
-        if (outcome.result == com.maodouchat.server.repository.PinnedMessageRepository.PinResult.FORBIDDEN) {
+        if (outcome.result == PinResult.FORBIDDEN) {
             return@post call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
         }
-        if (outcome.result == com.maodouchat.server.repository.PinnedMessageRepository.PinResult.NOT_FOUND) {
+        if (outcome.result == PinResult.NOT_FOUND) {
             return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("chat not found"))
         }
         val payload = PinnedMessagesUpdatedPayload(chatId, bot.id, outcome.pins)
