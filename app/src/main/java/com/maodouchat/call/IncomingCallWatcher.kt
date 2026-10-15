@@ -361,7 +361,7 @@ class IncomingCallWatcher(
 
         val callType = CallType.detectFromSdp(offerSdp)
         IncomingCallCoordinator.setPending(
-            IncomingCallCoordinator.PendingIncomingCall(
+            PendingIncomingCall(
                 contactId = fromUserId,
                 contactName = displayName,
                 callType = callType,

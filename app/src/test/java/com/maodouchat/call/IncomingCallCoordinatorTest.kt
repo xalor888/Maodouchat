@@ -21,7 +21,7 @@ class IncomingCallCoordinatorTest {
         callId: String = "call-1",
         autoAnswer: Boolean = false,
         receivedAtMillis: Long = System.currentTimeMillis(),
-    ) = IncomingCallCoordinator.PendingIncomingCall(
+    ) = PendingIncomingCall(
         contactId = "user-a",
         contactName = "Alice",
         callType = CallType.AUDIO,

@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.call.IncomingCallCoordinator
+import com.maodouchat.call.PendingIncomingCall
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.navigation.NotificationTarget
 import com.maodouchat.network.ApiService
@@ -227,7 +228,7 @@ class NotificationIntentConsumerInstrumentedTest {
         // 播种 in-process pending call：这是 Telecom 传输可信的唯一来源
         // （TelecomHelper.isTrustedTransport 只认 peekPending()/前台服务 callId）。
         IncomingCallCoordinator.setPending(
-            IncomingCallCoordinator.PendingIncomingCall(
+            PendingIncomingCall(
                 contactId = "u-peer",
                 contactName = "Peer",
                 callType = CallType.VIDEO,
@@ -254,7 +255,7 @@ class NotificationIntentConsumerInstrumentedTest {
     @Test
     fun trustedTelecomIncomingCallTransportWakesWithoutAutoAnswer() {
         IncomingCallCoordinator.setPending(
-            IncomingCallCoordinator.PendingIncomingCall(
+            PendingIncomingCall(
                 contactId = "u-peer",
                 contactName = "Peer",
                 callType = CallType.AUDIO,
@@ -277,7 +278,7 @@ class NotificationIntentConsumerInstrumentedTest {
     @Test
     fun telecomAnswerWithMismatchedPendingCallIdIsStillRejected() {
         IncomingCallCoordinator.setPending(
-            IncomingCallCoordinator.PendingIncomingCall(
+            PendingIncomingCall(
                 contactId = "u-peer",
                 contactName = "Peer",
                 callType = CallType.AUDIO,

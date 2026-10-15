@@ -36,7 +36,7 @@ object PolledIncomingBatchPolicy {
     fun decide(
         messages: List<SignalMessage>,
         preferCallId: String,
-        existingPending: IncomingCallCoordinator.PendingIncomingCall?,
+        existingPending: PendingIncomingCall?,
         nowMs: Long,
     ): Decision {
         val terminals = messages.filter { CallOfferSelector.isTerminalType(it.type) }

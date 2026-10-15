@@ -5,6 +5,7 @@ import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.call.CallSignalingAdmissionPolicy
 import com.maodouchat.call.Cursor
+import com.maodouchat.call.Decision
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.call.MissedCallTimeoutPolicy
@@ -226,8 +227,8 @@ internal class CallSignalingIngressController(
                 lastAcceptedCursor = lastAcceptedCursor(cursorKey),
             )
         ) {
-            CallSignalingAdmissionPolicy.Decision.DROP -> return
-            CallSignalingAdmissionPolicy.Decision.BUSY_REJECT -> {
+            Decision.DROP -> return
+            Decision.BUSY_REJECT -> {
                 if (fromUserId.isNotBlank()) {
                     signalingSender.sendSignalWithFallback(
                         fromUserId,
@@ -241,7 +242,7 @@ internal class CallSignalingIngressController(
                 }
                 return
             }
-            CallSignalingAdmissionPolicy.Decision.ACCEPT -> Unit
+            Decision.ACCEPT -> Unit
         }
 
         if (!rememberSignaling(

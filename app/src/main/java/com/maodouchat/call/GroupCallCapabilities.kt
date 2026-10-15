@@ -22,10 +22,4 @@ object GroupCallCapabilities {
         Feature.SCREEN_SHARE -> !SCREEN_SHARE_SUPPORTED
         Feature.CALL_RECORDING -> !CALL_RECORDING_SUPPORTED
     }
-
-    enum class Feature {
-        SFU,
-        SCREEN_SHARE,
-        CALL_RECORDING,
-    }
 }
