@@ -31,8 +31,8 @@ class SafetyCodePolicyTest {
 
     @Test
     fun `changed trust is sticky`() {
-        assertTrue(SafetyCodePolicy.isStickyIdentityWarning(SignalProtocol.IdentityTrustState.CHANGED))
-        assertFalse(SafetyCodePolicy.isStickyIdentityWarning(SignalProtocol.IdentityTrustState.TRUSTED))
-        assertFalse(SafetyCodePolicy.isStickyIdentityWarning(SignalProtocol.IdentityTrustState.VERIFIED))
+        assertTrue(SafetyCodePolicy.isStickyIdentityWarning(IdentityTrustState.CHANGED))
+        assertFalse(SafetyCodePolicy.isStickyIdentityWarning(IdentityTrustState.TRUSTED))
+        assertFalse(SafetyCodePolicy.isStickyIdentityWarning(IdentityTrustState.VERIFIED))
     }
 }

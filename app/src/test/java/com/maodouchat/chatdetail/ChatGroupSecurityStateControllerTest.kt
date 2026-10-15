@@ -1,6 +1,6 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.crypto.SignalProtocol
+import com.maodouchat.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import com.maodouchat.network.GroupMemberDto
@@ -64,6 +64,6 @@ class ChatGroupSecurityStateControllerTest {
         assertEquals(null, state.safetyCode)
         assertFalse(state.canVerifyIdentity)
         assertFalse(state.isLoadingDeviceSafety)
-        assertEquals(SignalProtocol.IdentityTrustState.TRUSTED, state.trustState)
+        assertEquals(IdentityTrustState.TRUSTED, state.trustState)
     }
 }

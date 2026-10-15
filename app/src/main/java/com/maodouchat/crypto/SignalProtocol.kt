@@ -417,30 +417,4 @@ class SignalProtocol(
         currentEpoch: Long? = null
     ): DecryptResult =
         groupCipher.decryptGroupContentEnvelope(senderId, content, expectedGroupId, currentEpoch)
-
-    // ==========================================
-    // Nested Data Types and Backward Compatibility
-    // ==========================================
-
-    enum class IdentityTrustState {
-        UNKNOWN,
-        TRUSTED,
-        VERIFIED,
-        CHANGED
-    }
-
-    data class DeviceSafetyState(
-        val deviceId: Int,
-        val identityKey: String,
-        val identityFingerprint: String,
-        val trustState: IdentityTrustState,
-        val safetyCode: String?,
-        val isCurrent: Boolean = false
-    )
-
-    data class SenderKeyDistributionPayload(
-        val distributionId: String,
-        val message: SenderKeyDistributionMessage,
-        val epoch: Long
-    )
 }

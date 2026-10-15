@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.crypto.SignalProtocol
+import com.maodouchat.crypto.DeviceSafetyState
+import com.maodouchat.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
@@ -120,10 +121,10 @@ data class ChatDetailUiState(
     val identityWarning: String? = null,
     val safetyCode: String? = null,
     val contactIdentityFingerprint: String? = null,
-    val trustState: SignalProtocol.IdentityTrustState = SignalProtocol.IdentityTrustState.UNKNOWN,
+    val trustState: IdentityTrustState = IdentityTrustState.UNKNOWN,
     val showSafetyCodeDialog: Boolean = false,
     val canVerifyIdentity: Boolean = false,
-    val deviceSafetyStates: List<SignalProtocol.DeviceSafetyState> = emptyList(),
+    val deviceSafetyStates: List<DeviceSafetyState> = emptyList(),
     val isLoadingDeviceSafety: Boolean = false,
     val deviceSafetyWarning: String? = null,
     val groupEncryptionWarning: String? = null,

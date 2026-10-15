@@ -11,42 +11,42 @@ object IdentitySafetyPolicy {
      * Empty list is UNKNOWN (no session yet).
      */
     fun aggregateTrust(
-        states: List<SignalProtocol.DeviceSafetyState>
-    ): SignalProtocol.IdentityTrustState {
-        if (states.isEmpty()) return SignalProtocol.IdentityTrustState.UNKNOWN
-        if (states.any { it.trustState == SignalProtocol.IdentityTrustState.CHANGED }) {
-            return SignalProtocol.IdentityTrustState.CHANGED
+        states: List<DeviceSafetyState>
+    ): IdentityTrustState {
+        if (states.isEmpty()) return IdentityTrustState.UNKNOWN
+        if (states.any { it.trustState == IdentityTrustState.CHANGED }) {
+            return IdentityTrustState.CHANGED
         }
-        if (states.any { it.trustState == SignalProtocol.IdentityTrustState.UNKNOWN }) {
-            return SignalProtocol.IdentityTrustState.UNKNOWN
+        if (states.any { it.trustState == IdentityTrustState.UNKNOWN }) {
+            return IdentityTrustState.UNKNOWN
         }
-        if (states.all { it.trustState == SignalProtocol.IdentityTrustState.VERIFIED }) {
-            return SignalProtocol.IdentityTrustState.VERIFIED
+        if (states.all { it.trustState == IdentityTrustState.VERIFIED }) {
+            return IdentityTrustState.VERIFIED
         }
-        return SignalProtocol.IdentityTrustState.TRUSTED
+        return IdentityTrustState.TRUSTED
     }
 
     /** Prefer device #1 when present; otherwise first listed device. */
     fun primaryDevice(
-        states: List<SignalProtocol.DeviceSafetyState>
-    ): SignalProtocol.DeviceSafetyState? =
+        states: List<DeviceSafetyState>
+    ): DeviceSafetyState? =
         states.firstOrNull { it.deviceId == 1 } ?: states.firstOrNull()
 
-    fun canVerifyAny(states: List<SignalProtocol.DeviceSafetyState>): Boolean =
+    fun canVerifyAny(states: List<DeviceSafetyState>): Boolean =
         states.any { state ->
             !state.safetyCode.isNullOrBlank() &&
-                state.trustState != SignalProtocol.IdentityTrustState.VERIFIED
+                state.trustState != IdentityTrustState.VERIFIED
         }
 
     /** Banner / dialog should stay prominent until user re-verifies. */
-    fun isStickyWarning(trust: SignalProtocol.IdentityTrustState): Boolean =
+    fun isStickyWarning(trust: IdentityTrustState): Boolean =
         SafetyCodePolicy.isStickyIdentityWarning(trust)
 
-    fun warningKind(trust: SignalProtocol.IdentityTrustState): WarningKind = when (trust) {
-        SignalProtocol.IdentityTrustState.CHANGED -> WarningKind.CHANGED
-        SignalProtocol.IdentityTrustState.UNKNOWN -> WarningKind.UNKNOWN
-        SignalProtocol.IdentityTrustState.TRUSTED -> WarningKind.TRUSTED
-        SignalProtocol.IdentityTrustState.VERIFIED -> WarningKind.NONE
+    fun warningKind(trust: IdentityTrustState): WarningKind = when (trust) {
+        IdentityTrustState.CHANGED -> WarningKind.CHANGED
+        IdentityTrustState.UNKNOWN -> WarningKind.UNKNOWN
+        IdentityTrustState.TRUSTED -> WarningKind.TRUSTED
+        IdentityTrustState.VERIFIED -> WarningKind.NONE
     }
 
 }

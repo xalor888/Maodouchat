@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.crypto.SignalProtocol
+import com.maodouchat.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import com.maodouchat.network.GroupMemberDto
@@ -40,7 +40,7 @@ internal class ChatGroupSecurityStateController {
     fun resetDirectIdentityForGroup(state: ChatDetailUiState): ChatDetailUiState = state.copy(
         identityWarning = null,
         safetyCode = null,
-        trustState = SignalProtocol.IdentityTrustState.TRUSTED,
+        trustState = IdentityTrustState.TRUSTED,
         deviceSafetyStates = emptyList(),
         isLoadingDeviceSafety = false,
         deviceSafetyWarning = null,

@@ -10,10 +10,10 @@ class IdentitySafetyPolicyTest {
 
     private fun device(
         id: Int,
-        trust: SignalProtocol.IdentityTrustState,
+        trust: IdentityTrustState,
         code: String? = "01234 05678 90123",
         current: Boolean = false
-    ) = SignalProtocol.DeviceSafetyState(
+    ) = DeviceSafetyState(
         deviceId = id,
         identityKey = "key-$id",
         identityFingerprint = "fp-$id",
@@ -25,7 +25,7 @@ class IdentitySafetyPolicyTest {
     @Test
     fun `empty is unknown`() {
         assertEquals(
-            SignalProtocol.IdentityTrustState.UNKNOWN,
+            IdentityTrustState.UNKNOWN,
             IdentitySafetyPolicy.aggregateTrust(emptyList())
         )
         assertNull(IdentitySafetyPolicy.primaryDevice(emptyList()))
@@ -35,39 +35,39 @@ class IdentitySafetyPolicyTest {
     @Test
     fun `changed wins over verified`() {
         val states = listOf(
-            device(1, SignalProtocol.IdentityTrustState.VERIFIED),
-            device(2, SignalProtocol.IdentityTrustState.CHANGED)
+            device(1, IdentityTrustState.VERIFIED),
+            device(2, IdentityTrustState.CHANGED)
         )
         assertEquals(
-            SignalProtocol.IdentityTrustState.CHANGED,
+            IdentityTrustState.CHANGED,
             IdentitySafetyPolicy.aggregateTrust(states)
         )
         assertTrue(IdentitySafetyPolicy.isStickyWarning(IdentitySafetyPolicy.aggregateTrust(states)))
-        assertEquals(WarningKind.CHANGED, IdentitySafetyPolicy.warningKind(SignalProtocol.IdentityTrustState.CHANGED))
+        assertEquals(WarningKind.CHANGED, IdentitySafetyPolicy.warningKind(IdentityTrustState.CHANGED))
     }
 
     @Test
     fun `all verified aggregates verified`() {
         val states = listOf(
-            device(1, SignalProtocol.IdentityTrustState.VERIFIED),
-            device(2, SignalProtocol.IdentityTrustState.VERIFIED)
+            device(1, IdentityTrustState.VERIFIED),
+            device(2, IdentityTrustState.VERIFIED)
         )
         assertEquals(
-            SignalProtocol.IdentityTrustState.VERIFIED,
+            IdentityTrustState.VERIFIED,
             IdentitySafetyPolicy.aggregateTrust(states)
         )
         assertFalse(IdentitySafetyPolicy.canVerifyAny(states))
-        assertEquals(WarningKind.NONE, IdentitySafetyPolicy.warningKind(SignalProtocol.IdentityTrustState.VERIFIED))
+        assertEquals(WarningKind.NONE, IdentitySafetyPolicy.warningKind(IdentityTrustState.VERIFIED))
     }
 
     @Test
     fun `mixed trusted and verified is trusted`() {
         val states = listOf(
-            device(1, SignalProtocol.IdentityTrustState.VERIFIED),
-            device(2, SignalProtocol.IdentityTrustState.TRUSTED)
+            device(1, IdentityTrustState.VERIFIED),
+            device(2, IdentityTrustState.TRUSTED)
         )
         assertEquals(
-            SignalProtocol.IdentityTrustState.TRUSTED,
+            IdentityTrustState.TRUSTED,
             IdentitySafetyPolicy.aggregateTrust(states)
         )
         assertTrue(IdentitySafetyPolicy.canVerifyAny(states))
@@ -76,15 +76,15 @@ class IdentitySafetyPolicyTest {
     @Test
     fun `primary prefers device one`() {
         val states = listOf(
-            device(3, SignalProtocol.IdentityTrustState.TRUSTED),
-            device(1, SignalProtocol.IdentityTrustState.VERIFIED, current = true)
+            device(3, IdentityTrustState.TRUSTED),
+            device(1, IdentityTrustState.VERIFIED, current = true)
         )
         assertEquals(1, IdentitySafetyPolicy.primaryDevice(states)?.deviceId)
     }
 
     @Test
     fun `missing safety code cannot verify`() {
-        val states = listOf(device(1, SignalProtocol.IdentityTrustState.TRUSTED, code = null))
+        val states = listOf(device(1, IdentityTrustState.TRUSTED, code = null))
         assertFalse(IdentitySafetyPolicy.canVerifyAny(states))
     }
 }

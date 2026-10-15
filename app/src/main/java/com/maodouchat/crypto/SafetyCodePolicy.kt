@@ -31,6 +31,6 @@ object SafetyCodePolicy {
      * CHANGED identity warnings must not be dismissed without verification.
      * UNKNOWN/TRUSTED may show a softer banner that still routes into the dialog.
      */
-    fun isStickyIdentityWarning(trustState: SignalProtocol.IdentityTrustState): Boolean =
-        trustState == SignalProtocol.IdentityTrustState.CHANGED
+    fun isStickyIdentityWarning(trustState: IdentityTrustState): Boolean =
+        trustState == IdentityTrustState.CHANGED
 }
