@@ -60,8 +60,4 @@ object MessagePinPolicy {
         if (plain.isBlank()) return ""
         return if (plain.length <= maxLen) plain else plain.take(maxLen - 1) + "…"
     }
-
-    enum class PreviewKind {
-        TEXT, IMAGE, VOICE, VIDEO, FILE, LOCATION, STICKER, GENERIC
-    }
 }

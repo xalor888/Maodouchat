@@ -1,5 +1,6 @@
 package com.maodouchat.chatdetail
 
+import com.maodouchat.ui.screen.chatdetail.PrefetchMessage
 import com.maodouchat.ui.screen.chatdetail.ReadCountUi
 import com.maodouchat.ui.screen.chatdetail.ReadReceiptPolicy
 import kotlin.test.Test
@@ -104,11 +105,11 @@ class ReadReceiptPolicyTest {
         val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
             viewerId = "me",
             messagesNewestLast = listOf(
-                ReadReceiptPolicy.PrefetchMessage("old", "me", true),
-                ReadReceiptPolicy.PrefetchMessage("peer", "a", true),
-                ReadReceiptPolicy.PrefetchMessage("sk", "me", false),
-                ReadReceiptPolicy.PrefetchMessage("mid", "me", true),
-                ReadReceiptPolicy.PrefetchMessage("new", "me", true),
+                PrefetchMessage("old", "me", true),
+                PrefetchMessage("peer", "a", true),
+                PrefetchMessage("sk", "me", false),
+                PrefetchMessage("mid", "me", true),
+                PrefetchMessage("new", "me", true),
             ),
             max = 2,
         )
@@ -118,10 +119,10 @@ class ReadReceiptPolicyTest {
     @Test
     fun incompleteGroupReadIdsSkipFullButKeepUncached() {
         val messages = listOf(
-            ReadReceiptPolicy.PrefetchMessage("old", "me", true),
-            ReadReceiptPolicy.PrefetchMessage("peer", "a", true),
-            ReadReceiptPolicy.PrefetchMessage("mid", "me", true),
-            ReadReceiptPolicy.PrefetchMessage("new", "me", true),
+            PrefetchMessage("old", "me", true),
+            PrefetchMessage("peer", "a", true),
+            PrefetchMessage("mid", "me", true),
+            PrefetchMessage("new", "me", true),
         )
         val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
             viewerId = "me",
