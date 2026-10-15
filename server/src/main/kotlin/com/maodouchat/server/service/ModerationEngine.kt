@@ -61,7 +61,7 @@ object ModerationEngine {
             }
         }
         val decision = AiContentModerationPolicy.parse(text)
-        if (decision.verdict == AiContentModerationPolicy.Verdict.ALLOW) return null
+        if (decision.verdict == Verdict.ALLOW) return null
         val eventId = rules.recordAiDecision(
             userId = userId,
             source = source,
@@ -70,9 +70,9 @@ object ModerationEngine {
             needsReview = decision.needsReview
         )
         return ModerationRuleRepository.Evaluation(
-            blocked = decision.verdict == AiContentModerationPolicy.Verdict.BLOCK,
+            blocked = decision.verdict == Verdict.BLOCK,
             action = decision.action,
-            message = if (decision.verdict == AiContentModerationPolicy.Verdict.BLOCK) {
+            message = if (decision.verdict == Verdict.BLOCK) {
                 "内容已进入安全审核，请稍后再试"
             } else {
                 null

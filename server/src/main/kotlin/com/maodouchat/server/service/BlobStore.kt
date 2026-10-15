@@ -12,11 +12,6 @@ import java.nio.file.Files
 object BlobStore {
     // MessageDigest 非线程安全：ThreadLocal 每线程复用一个，取用前 reset 防脏状态。
     private val sha256ThreadLocal = ThreadLocal.withInitial { java.security.MessageDigest.getInstance("SHA-256") }
-    sealed interface AppendResult {
-        data class Accepted(val uploadedBytes: Long, val replayed: Boolean) : AppendResult
-        data class OffsetMismatch(val uploadedBytes: Long) : AppendResult
-        data object ContentMismatch : AppendResult
-    }
 
     private val storageRoot = BlobRoot.storageRoot
     private val root = File(storageRoot, "encrypted-attachments").apply {
