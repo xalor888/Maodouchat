@@ -57,7 +57,7 @@ internal class ChatListLoadCoordinator(
         observeMissedCallsInternal()
     }
 
-    fun requestLoadChats(trigger: ChatListReloadPolicy.Trigger) {
+    fun requestLoadChats(trigger: Trigger) {
         val mode = ChatListReloadPolicy.modeFor(trigger)
         val wait = ChatListReloadPolicy.debounceMs(mode, trigger)
         if (wait > 0L) {

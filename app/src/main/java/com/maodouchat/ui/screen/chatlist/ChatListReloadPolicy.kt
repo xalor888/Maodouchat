@@ -1,34 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
-/**
- * Decide how lifecycle and group-membership triggers refresh the chat list via getChats.
- * Group-revision bursts are coalesced. Reconnect and foreground stay silent
- * (no isLoading shimmer); reconnect additionally waits [RECONNECT_DEBOUNCE_MS].
- * Pull-to-refresh stays visible.
- */
+/** 聊天列表刷新策略：各触发源如何经 getChats 刷新（重连静默、群修订合并）。 */
 object ChatListReloadPolicy {
-
-    enum class Trigger {
-        /** User pull-to-refresh or explicit refresh(). */
-        USER_REFRESH,
-        /** Cold start / first load. */
-        INITIAL,
-        /** WebSocket Connected after reconnect. */
-        RECONNECT,
-        /** Activity ON_RESUME while already logged in. */
-        FOREGROUND,
-        /** Group membership revision burst. */
-        GROUP_REVISION,
-    }
-
-    enum class Mode {
-        /** Fire getChats now; may show list loading indicator. */
-        IMMEDIATE_VISIBLE,
-        /** Fire getChats now without flipping isLoading (background). */
-        IMMEDIATE_SILENT,
-        /** Coalesce with a short delay; silent getChats. */
-        DEBOUNCED_SILENT
-    }
 
     /** Default coalesce window for bursty WS mutations. */
     const val DEFAULT_DEBOUNCE_MS: Long = 400L

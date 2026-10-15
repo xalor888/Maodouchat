@@ -1,8 +1,8 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.ui.screen.chatlist.ChatListReloadPolicy
-import com.maodouchat.ui.screen.chatlist.ChatListReloadPolicy.Mode
-import com.maodouchat.ui.screen.chatlist.ChatListReloadPolicy.Trigger
+import com.maodouchat.ui.screen.chatlist.Mode
+import com.maodouchat.ui.screen.chatlist.Trigger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

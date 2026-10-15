@@ -266,7 +266,7 @@ class ChatListViewModel private constructor(
         folderController.loadUnreadPriority()
         localProjectionCoordinator.refreshLockedChats()
         localProjectionCoordinator.refreshSecretChats()
-        loadCoordinator.requestLoadChats(ChatListReloadPolicy.Trigger.INITIAL)
+        loadCoordinator.requestLoadChats(Trigger.INITIAL)
         localProjectionCoordinator.start()
         realtimeCoordinator.start()
         loadCoordinator.startMissedCallObservation()
@@ -359,9 +359,9 @@ class ChatListViewModel private constructor(
 
     fun onTabSelected(tab: Int) = localProjectionCoordinator.onTabSelected(tab)
     fun setShowArchived(show: Boolean) = localProjectionCoordinator.setShowArchived(show)
-    fun refresh() = loadCoordinator.requestLoadChats(ChatListReloadPolicy.Trigger.USER_REFRESH)
+    fun refresh() = loadCoordinator.requestLoadChats(Trigger.USER_REFRESH)
 
-    fun refreshOnForeground() = loadCoordinator.requestLoadChats(ChatListReloadPolicy.Trigger.FOREGROUND)
+    fun refreshOnForeground() = loadCoordinator.requestLoadChats(Trigger.FOREGROUND)
 
     fun clearError() = localProjectionCoordinator.clearError()
     fun clearRealtimeBanner() = realtimeCoordinator.clearRealtimeBanner()

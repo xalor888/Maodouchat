@@ -11,9 +11,8 @@ import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListRealtimeCoordinator
-import com.maodouchat.ui.screen.chatlist.ChatListReloadPolicy
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
-import io.mockk.every
+import com.maodouchat.ui.screen.chatlist.Trigger
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -133,7 +132,7 @@ class ChatListRealtimeCoordinatorTest {
     fun groupRevisionRequestsDebouncedReload() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
         val realtime = DefaultRealtimeEventDispatcher()
-        val loads = mutableListOf<ChatListReloadPolicy.Trigger>()
+        val loads = mutableListOf<Trigger>()
         val coordinator = buildCoordinator(
             scope = backgroundScope,
             uiState = uiState,
@@ -150,14 +149,14 @@ class ChatListRealtimeCoordinatorTest {
             )
         )
 
-        assertEquals(listOf(ChatListReloadPolicy.Trigger.GROUP_REVISION), loads)
+        assertEquals(listOf(Trigger.GROUP_REVISION), loads)
     }
 
     @Test
     fun reconnectClearsBannerRequestsLoadAndBacklogSync() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState(realtimeBanner = "down"))
         val realtime = DefaultRealtimeEventDispatcher()
-        val loads = mutableListOf<ChatListReloadPolicy.Trigger>()
+        val loads = mutableListOf<Trigger>()
         var backlog = 0
         val coordinator = buildCoordinator(
             scope = backgroundScope,
@@ -173,7 +172,7 @@ class ChatListRealtimeCoordinatorTest {
         )
 
         assertNull(uiState.value.realtimeBanner)
-        assertEquals(listOf(ChatListReloadPolicy.Trigger.RECONNECT), loads)
+        assertEquals(listOf(Trigger.RECONNECT), loads)
         assertEquals(1, backlog)
     }
 
@@ -219,7 +218,7 @@ class ChatListRealtimeCoordinatorTest {
         sessionGeneration: Long = 1L,
         tokenUserId: String = "u1",
         tokenValue: String = "tok",
-        onRequestLoadChats: (ChatListReloadPolicy.Trigger) -> Unit = {},
+        onRequestLoadChats: (Trigger) -> Unit = {},
         onApplyChatListPreview: (
             String,
             String,
