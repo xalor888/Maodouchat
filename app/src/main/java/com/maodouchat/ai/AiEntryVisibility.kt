@@ -15,12 +15,6 @@ object AiEntryVisibility {
     /** 设置总开关所在 */
     const val SETTINGS_SURFACE = "ai_privacy"
 
-    enum class ComposerSection {
-        DRAFT,
-        CHAT,
-        SETTINGS
-    }
-
     /** 主菜单分区顺序（视觉统一） */
     val COMPOSER_SECTION_ORDER = listOf(
         ComposerSection.DRAFT,

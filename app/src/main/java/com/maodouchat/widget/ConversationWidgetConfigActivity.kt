@@ -53,7 +53,7 @@ class ConversationWidgetConfigActivity : ComponentActivity() {
         ConversationWidgetData.saveConfig(
             this,
             widgetId,
-            ConversationWidgetData.WidgetConfig(
+            WidgetConfig(
                 chatIds = chatIds.take(ConversationWidgetContract.MAX_CONFIG_CHATS),
                 showUnreadBadge = badge,
                 compact = compact,

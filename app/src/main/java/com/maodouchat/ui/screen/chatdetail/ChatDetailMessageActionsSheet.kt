@@ -318,7 +318,7 @@ internal fun ChatDetailMessageActionsSheet(
                         )
                         contextAiActions.forEach { action ->
                             when (action) {
-                                com.maodouchat.ai.AiEntryPolicy.MessageAiAction.TRANSLATE -> {
+                                com.maodouchat.ai.MessageAiAction.TRANSLATE -> {
                                     val busy = message.id in state.translatingMessageIds
                                     TextButton(
                                         enabled = com.maodouchat.ai.AiEntryPolicy.canRunContextAction(context, state.aiEnabled, busy),
@@ -339,7 +339,7 @@ internal fun ChatDetailMessageActionsSheet(
                                         )
                                     }
                                 }
-                                com.maodouchat.ai.AiEntryPolicy.MessageAiAction.TRANSCRIBE -> {
+                                com.maodouchat.ai.MessageAiAction.TRANSCRIBE -> {
                                     val busy = message.id in state.transcribingVoiceMessageIds
                                     TextButton(
                                         enabled = com.maodouchat.ai.AiEntryPolicy.canRunContextAction(context, state.aiEnabled, busy),
@@ -360,7 +360,7 @@ internal fun ChatDetailMessageActionsSheet(
                                         )
                                     }
                                 }
-                                com.maodouchat.ai.AiEntryPolicy.MessageAiAction.ANALYZE_IMAGE -> {
+                                com.maodouchat.ai.MessageAiAction.ANALYZE_IMAGE -> {
                                     val busy = message.id in state.analyzingImageMessageIds
                                     TextButton(
                                         enabled = com.maodouchat.ai.AiEntryPolicy.canRunContextAction(context, state.aiEnabled, busy),
@@ -381,7 +381,7 @@ internal fun ChatDetailMessageActionsSheet(
                                         )
                                     }
                                 }
-                                com.maodouchat.ai.AiEntryPolicy.MessageAiAction.ANALYZE_FILE -> {
+                                com.maodouchat.ai.MessageAiAction.ANALYZE_FILE -> {
                                     val busy = message.id in state.analyzingFileMessageIds
                                     TextButton(
                                         enabled = com.maodouchat.ai.AiEntryPolicy.canRunContextAction(context, state.aiEnabled, busy),

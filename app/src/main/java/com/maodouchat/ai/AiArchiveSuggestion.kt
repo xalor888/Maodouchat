@@ -19,12 +19,6 @@ object AiArchiveSuggestion {
 
     fun isAllowed(context: Context): Boolean = true
 
-    data class Suggestion(
-        val chatId: String,
-        val score: Int,
-        val reason: String
-    )
-
     /** 重新计算全部建议并覆盖落库；返回按分数降序的建议列表。 */
     suspend fun refresh(context: Context, database: AppDatabase): List<Suggestion> {
         val suggestions = withContext(Dispatchers.IO) {

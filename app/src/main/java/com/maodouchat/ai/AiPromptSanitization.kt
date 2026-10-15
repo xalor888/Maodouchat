@@ -7,8 +7,6 @@ object AiPromptSanitization {
     const val MAX_SENDER_CHARS = AiPromptSanitizeText.MAX_SENDER_CHARS
     const val MAX_QUERY_CHARS = AiPromptSanitizeText.MAX_QUERY_CHARS
 
-    typealias SanitizedContextLine = AiPromptSanitizeText.SanitizedContextLine
-
     fun sanitizeSender(raw: String?): String =
         AiPromptSanitizeText.sanitizeSender(raw)
 

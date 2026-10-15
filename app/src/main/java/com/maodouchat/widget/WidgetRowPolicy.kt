@@ -42,7 +42,7 @@ fun buildWidgetRows(
     maxRows: Int,
     timeLabel: (Long) -> String,
 ): WidgetRowsResult {
-    val rows = ArrayList<ConversationWidgetData.WidgetRow>(maxRows.coerceAtLeast(0))
+    val rows = ArrayList<WidgetRow>(maxRows.coerceAtLeast(0))
     var totalUnread = 0
     for (input in inputs) {
         if (rows.size >= maxRows) break
@@ -65,7 +65,7 @@ fun buildWidgetRows(
         }
         val unread = if (appLockOn || !showUnreadBadge) 0 else chat.unreadCount
         totalUnread += unread
-        rows += ConversationWidgetData.WidgetRow(
+        rows += WidgetRow(
             chatId = chat.id,
             title = title,
             subtitle = subtitle,

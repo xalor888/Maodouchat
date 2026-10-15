@@ -7,11 +7,6 @@ object AiPromptSanitizeText {
     const val MAX_SENDER_CHARS = 120
     const val MAX_QUERY_CHARS = 700
 
-    data class SanitizedContextLine(
-        val sender: String,
-        val text: String
-    )
-
     private val CONTROL_CHARS = Regex("[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]")
     private val ROLE_PLAY_MARKERS = Regex(
         """(?im)^\s*(system|assistant|developer|instruction)\s*[:：]"""

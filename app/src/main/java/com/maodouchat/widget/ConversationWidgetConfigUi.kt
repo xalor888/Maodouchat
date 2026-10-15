@@ -45,7 +45,7 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 internal fun ConversationWidgetConfigContent(
-    initial: ConversationWidgetData.WidgetConfig,
+    initial: WidgetConfig,
     onSave: (List<String>, Boolean, Boolean) -> Unit,
 ) {
     val context = LocalContext.current

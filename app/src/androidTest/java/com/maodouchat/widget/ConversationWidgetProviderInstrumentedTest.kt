@@ -121,7 +121,7 @@ class ConversationWidgetProviderInstrumentedTest {
             ConversationWidgetData.saveConfig(
                 context,
                 widgetId,
-                ConversationWidgetData.WidgetConfig(
+                WidgetConfig(
                     chatIds = listOf("c1", "c2"),
                     showUnreadBadge = false,
                     compact = true,

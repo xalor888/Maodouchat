@@ -10,9 +10,6 @@ object AiEntryPolicy {
     const val SETTINGS_SURFACE = AiEntryVisibility.SETTINGS_SURFACE
     val COMPOSER_SECTION_ORDER: List<ComposerSection> = AiEntryVisibility.COMPOSER_SECTION_ORDER
 
-    typealias ComposerSection = AiEntryVisibility.ComposerSection
-    typealias MessageAiAction = AiContextActionPolicy.MessageAiAction
-
     fun shouldShowAiSurfaces(
         chatAiEnabled: Boolean,
         consentAccepted: Boolean,

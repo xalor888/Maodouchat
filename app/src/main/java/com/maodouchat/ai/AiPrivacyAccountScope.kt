@@ -18,8 +18,6 @@ internal object AiPrivacyAccountScope {
         return AccountPreferences(prefs, userId)
     }
 
-    internal data class AccountPreferences(val prefs: SharedPreferences, val userId: String)
-
     /** 升级后首次登录的账号继承原来的设备级同意状态。 */
     private fun migrateLegacy(prefs: SharedPreferences, userId: String) {
         val marker = AiPrivacyKeys.scopedKey(AiPrivacyKeys.MIGRATED, userId)

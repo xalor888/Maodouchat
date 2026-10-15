@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import android.util.Log
-import com.maodouchat.ai.AiArchiveSuggestion
+import com.maodouchat.ai.Suggestion
 import com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.session.CurrentSession
@@ -29,7 +29,7 @@ internal class ChatListArchiveSuggestionCoordinator(
     private val isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean,
     private val loadDismissedIds: suspend (ownerUserId: String) -> List<String>,
     private val addDismissal: suspend (ownerUserId: String, chatId: String, atMillis: Long) -> Unit,
-    private val refreshSuggestions: suspend () -> List<AiArchiveSuggestion.Suggestion>,
+    private val refreshSuggestions: suspend () -> List<Suggestion>,
     private val onArchiveChat: (Chat) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
