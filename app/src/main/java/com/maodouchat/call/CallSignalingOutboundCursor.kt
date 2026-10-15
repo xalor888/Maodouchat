@@ -12,12 +12,6 @@ class CallSignalingOutboundCursor {
     private var epoch: Long = 0L
     private val sequence = AtomicLong(0L)
 
-    data class Ticket(
-        val epoch: Long,
-        val sequence: Long,
-        val idempotencyKey: String,
-    )
-
     fun begin(epochSeed: Long = System.currentTimeMillis()) {
         epoch = epochSeed.coerceAtLeast(1L)
         sequence.set(0L)
