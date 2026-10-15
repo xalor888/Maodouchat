@@ -30,8 +30,8 @@ internal class SignalIdentityTrustService(
     override fun stateFor(peerAccountId: String, deviceId: Int): CoreIdentityTrustState {
         val legacy = getIdentityTrustState(peerAccountId, deviceId)
         return when (legacy) {
-            SignalProtocol.IdentityTrustState.VERIFIED -> CoreIdentityTrustState.VERIFIED
-            SignalProtocol.IdentityTrustState.CHANGED -> CoreIdentityTrustState.CHANGED
+            IdentityTrustState.VERIFIED -> CoreIdentityTrustState.VERIFIED
+            IdentityTrustState.CHANGED -> CoreIdentityTrustState.CHANGED
             else -> CoreIdentityTrustState.UNKNOWN
         }
     }
@@ -64,13 +64,13 @@ internal class SignalIdentityTrustService(
         return IdentityTrustStateMachine.onReset()
     }
 
-    fun getIdentityTrustState(remoteUserId: String, deviceId: Int = SignalProtocolConstants.DEFAULT_DEVICE_ID): SignalProtocol.IdentityTrustState {
+    fun getIdentityTrustState(remoteUserId: String, deviceId: Int = SignalProtocolConstants.DEFAULT_DEVICE_ID): IdentityTrustState {
         val trust = (context.protocolStore as? PersistentSignalProtocolStore)?.getIdentityTrust(remoteUserId, deviceId)
-            ?: return SignalProtocol.IdentityTrustState.UNKNOWN
+            ?: return IdentityTrustState.UNKNOWN
         return when (trust.trustState) {
-            SignalProtocolConstants.TRUST_VERIFIED -> SignalProtocol.IdentityTrustState.VERIFIED
-            SignalProtocolConstants.TRUST_CHANGED -> SignalProtocol.IdentityTrustState.CHANGED
-            else -> SignalProtocol.IdentityTrustState.TRUSTED
+            SignalProtocolConstants.TRUST_VERIFIED -> IdentityTrustState.VERIFIED
+            SignalProtocolConstants.TRUST_CHANGED -> IdentityTrustState.CHANGED
+            else -> IdentityTrustState.TRUSTED
         }
     }
 
@@ -107,12 +107,12 @@ internal class SignalIdentityTrustService(
         return runCatching { identityFingerprint(Base64.decode(identityKeyBase64, Base64.NO_WRAP)) }.getOrNull()
     }
 
-    suspend fun getRemoteDeviceSafetyStates(token: String, remoteUserId: String): Result<List<SignalProtocol.DeviceSafetyState>> {
+    suspend fun getRemoteDeviceSafetyStates(token: String, remoteUserId: String): Result<List<DeviceSafetyState>> {
         return try {
             val devices = SignalKeyExchange.fetchDevices(token, remoteUserId).getOrElse { return Result.failure(it) }
             Result.success(
                 devices.map { device ->
-                    SignalProtocol.DeviceSafetyState(
+                    DeviceSafetyState(
                         deviceId = device.deviceId,
                         identityKey = device.identityKey,
                         identityFingerprint = getRemoteIdentityFingerprint(remoteUserId, device.deviceId)

@@ -6,7 +6,6 @@ import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.PreKeyDataDto
 import com.maodouchat.network.UploadKeysRequest
-import kotlinx.serialization.Serializable
 import org.signal.libsignal.protocol.IdentityKey
 import org.signal.libsignal.protocol.ecc.Curve
 import org.signal.libsignal.protocol.state.PreKeyBundle
@@ -22,43 +21,6 @@ import org.signal.libsignal.protocol.state.SignedPreKeyRecord
  */
 object SignalKeyExchange {
 
-    @Serializable
-    data class PreKeyBundleResponse(
-        val registrationId: Int,
-        val deviceId: Int,
-        val identityKey: String,
-        val signedPreKeyId: Int,
-        val signedPreKey: String,
-        val signedPreKeySignature: String,
-        val preKeyId: Int? = null,
-        val preKey: String? = null
-    )
-
-    @Serializable
-    data class DeviceInfoResponse(
-        val userId: String,
-        val deviceId: Int,
-        val deviceName: String = "",
-        val identityKey: String,
-        val lastSeenAt: Long? = null,
-        val isCurrent: Boolean = false,
-        val status: String = "CONFIRMED",
-        val confirmedAt: Long? = null,
-        val confirmedByDeviceId: Int? = null
-    )
-
-    @Serializable
-    data class DevicePreKeyBundleResponse(
-        val userId: String,
-        val deviceId: Int,
-        val registrationId: Int,
-        val identityKey: String,
-        val signedPreKeyId: Int,
-        val signedPreKey: String,
-        val signedPreKeySignature: String,
-        val preKeyId: Int? = null,
-        val preKey: String? = null
-    )
 
     fun PreKeyBundleResponse.toSignalPreKeyBundle(): PreKeyBundle {
         val preKeyIdValue = preKeyId?.takeIf { it > 0 && !preKey.isNullOrBlank() }

@@ -39,7 +39,7 @@ class SignalGroupSenderKeyManager internal constructor(
         }
     }
 
-    fun createGroupSenderKeyDistribution(groupId: String, epoch: Long = 0): SignalProtocol.SenderKeyDistributionPayload {
+    fun createGroupSenderKeyDistribution(groupId: String, epoch: Long = 0): SenderKeyDistributionPayload {
         val owner = context.currentUserId
         check(!owner.isNullOrBlank() && context.isLocalCryptoReadyFor(owner)) { "signal_not_initialized" }
         return context.cryptoLock.withLock {
@@ -50,7 +50,7 @@ class SignalGroupSenderKeyManager internal constructor(
             )
             val message = GroupSessionBuilder(context.protocolStore).create(senderAddress, UUID.fromString(distributionId))
             context.throwIfSignalStorePersistenceFailed()
-            SignalProtocol.SenderKeyDistributionPayload(distributionId, message, epoch)
+            SenderKeyDistributionPayload(distributionId, message, epoch)
         }
     }
 

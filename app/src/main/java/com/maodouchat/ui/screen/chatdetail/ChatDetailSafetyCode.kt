@@ -44,7 +44,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.crypto.SignalProtocol
+import com.maodouchat.crypto.DeviceSafetyState
+import com.maodouchat.crypto.IdentityTrustState
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
@@ -69,7 +70,7 @@ import com.maodouchat.util.QrCodeGenerator
 internal fun SafetyCodeDialog(
     contactName: String,
     contactId: String,
-    trustState: SignalProtocol.IdentityTrustState,
+    trustState: IdentityTrustState,
     isGroup: Boolean,
     safetyCode: String?,
     warning: String?,
@@ -79,7 +80,7 @@ internal fun SafetyCodeDialog(
     contactIdentityFingerprint: String?,
     deviceSafetyWarning: String?,
     isLoadingDeviceSafety: Boolean,
-    deviceSafetyStates: List<SignalProtocol.DeviceSafetyState>,
+    deviceSafetyStates: List<DeviceSafetyState>,
     onDismiss: () -> Unit,
     onVerifyDevice: (Int) -> Unit
 ) {
@@ -230,7 +231,7 @@ internal fun SafetyCodeDialog(
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 internal fun DeviceSafetyRow(
-    device: SignalProtocol.DeviceSafetyState,
+    device: DeviceSafetyState,
     ownerUserId: String,
     ownerDeviceId: Int,
     ownerIdentityFingerprint: String,
@@ -253,7 +254,7 @@ internal fun DeviceSafetyRow(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
-            Text(device.trustState.toLabel(), style = MaterialTheme.typography.labelMedium, color = if (device.trustState == SignalProtocol.IdentityTrustState.CHANGED) UnreadRed else Primary)
+            Text(device.trustState.toLabel(), style = MaterialTheme.typography.labelMedium, color = if (device.trustState == IdentityTrustState.CHANGED) UnreadRed else Primary)
         }
         Text(
             displayCode ?: stringResource(R.string.chat_device_session_missing),
@@ -284,8 +285,8 @@ internal fun DeviceSafetyRow(
                 peerIdentityFingerprint = device.identityFingerprint
             )
         }
-        Button(onClick = onVerify, enabled = displayCode != null && device.trustState != SignalProtocol.IdentityTrustState.VERIFIED) {
-            Text(stringResource(if (device.trustState == SignalProtocol.IdentityTrustState.VERIFIED) R.string.chat_verified else R.string.chat_mark_verified))
+        Button(onClick = onVerify, enabled = displayCode != null && device.trustState != IdentityTrustState.VERIFIED) {
+            Text(stringResource(if (device.trustState == IdentityTrustState.VERIFIED) R.string.chat_verified else R.string.chat_mark_verified))
         }
     }
 }
@@ -328,9 +329,9 @@ internal fun SafetyQrCard(
 }
 
 @Composable
-internal fun SignalProtocol.IdentityTrustState.toLabel(): String = stringResource(when (this) {
-    SignalProtocol.IdentityTrustState.UNKNOWN -> R.string.chat_trust_unknown
-    SignalProtocol.IdentityTrustState.TRUSTED -> R.string.chat_trust_first
-    SignalProtocol.IdentityTrustState.VERIFIED -> R.string.chat_verified
-    SignalProtocol.IdentityTrustState.CHANGED -> R.string.chat_trust_changed
+internal fun IdentityTrustState.toLabel(): String = stringResource(when (this) {
+    IdentityTrustState.UNKNOWN -> R.string.chat_trust_unknown
+    IdentityTrustState.TRUSTED -> R.string.chat_trust_first
+    IdentityTrustState.VERIFIED -> R.string.chat_verified
+    IdentityTrustState.CHANGED -> R.string.chat_trust_changed
 })

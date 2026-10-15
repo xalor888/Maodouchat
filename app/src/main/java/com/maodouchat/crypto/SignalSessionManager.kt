@@ -302,8 +302,8 @@ internal class SignalSessionManager(
 
     private fun sessionSetupKey(recipientId: String, deviceId: Int): String = "$recipientId|$deviceId"
 
-    private fun SignalKeyExchange.PreKeyBundleResponse.toDeviceBundle(userId: String): SignalKeyExchange.DevicePreKeyBundleResponse {
-        return SignalKeyExchange.DevicePreKeyBundleResponse(
+    private fun PreKeyBundleResponse.toDeviceBundle(userId: String): DevicePreKeyBundleResponse {
+        return DevicePreKeyBundleResponse(
             userId = userId,
             deviceId = deviceId,
             registrationId = registrationId,
