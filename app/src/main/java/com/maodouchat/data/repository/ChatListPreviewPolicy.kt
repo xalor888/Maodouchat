@@ -11,12 +11,6 @@ import com.maodouchat.util.MediaCache
  */
 object ChatListPreviewPolicy {
 
-    data class Preview(
-        val text: String,
-        val type: MessageType,
-        val timestamp: Long
-    )
-
     /**
      * Build list preview from the newest conversation-visible local row.
      * [candidatesNewestFirst] should be newest-first (e.g. getRecentMessages).

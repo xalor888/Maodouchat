@@ -37,6 +37,7 @@ import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.util.LinkPreviewPolicy
 import com.maodouchat.util.LinkPreviewPreferences
 import com.maodouchat.util.LinkPreviewRepository
+import com.maodouchat.util.Preview
 import com.maodouchat.util.RuntimeFlags
 
 // ─── LinkPreviewSlot ───
@@ -91,7 +92,7 @@ internal fun LinkPreviewSlot(
 // ─── LinkPreviewCard ───
 @Composable
 internal fun LinkPreviewCard(
-    preview: LinkPreviewPolicy.Preview,
+    preview: Preview,
     isOwnMessage: Boolean,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier

@@ -32,7 +32,7 @@ object LinkPreviewRepository {
 
     private val client: OkHttpClient get() = clientOverride ?: defaultClient
 
-    private val cache = ConcurrentHashMap<String, LinkPreviewPolicy.Preview>()
+    private val cache = ConcurrentHashMap<String, Preview>()
     private val negativeCache = ConcurrentHashMap.newKeySet<String>()
     private class InFlightLock(val mutex: Mutex = Mutex(), var users: Int = 0)
     private val inFlight = ConcurrentHashMap<String, InFlightLock>()
@@ -41,7 +41,7 @@ object LinkPreviewRepository {
     // 此前两个并发 fetch 同时算 remaining 并批量删除，会超额清空缓存
     private val trimMonitor = Any()
 
-    fun cached(url: String): LinkPreviewPolicy.Preview? = cache[url]
+    fun cached(url: String): Preview? = cache[url]
 
     fun clear() {
         generation.incrementAndGet()
@@ -53,7 +53,7 @@ object LinkPreviewRepository {
     /**
      * @return 有用预览或 null（失败/无 meta 均 null，调用方不提示）
      */
-    suspend fun fetch(url: String): LinkPreviewPolicy.Preview? {
+    suspend fun fetch(url: String): Preview? {
         // 0.80：链接预览运行时开关——服务端可整体关闭（此前 flag 写入但从未生效）
         if (!RuntimeFlags.isEnabled(com.maodouchat.MaodouchatApp.instance, RuntimeFlags.LINK_PREVIEW)) return null
         val fetchGeneration = generation.get()
@@ -106,7 +106,7 @@ object LinkPreviewRepository {
      * 3. 严禁 HTTPS 向 HTTP 协议降级重定向；
      * 4. 严格限制最大重定向次数防止死循环。
      */
-    internal fun downloadAndParse(initialUrl: String): LinkPreviewPolicy.Preview? {
+    internal fun downloadAndParse(initialUrl: String): Preview? {
         var currentUrl = initialUrl
         var redirects = 0
 

@@ -132,14 +132,14 @@ class CallReliabilityPolicyTest {
 
     @Test
     fun `network quality buckets from rtt and loss`() {
-        assertEquals(CallNetworkQualityPolicy.Level.UNKNOWN, CallNetworkQualityPolicy.fromStats(null, 0.0))
-        assertEquals(CallNetworkQualityPolicy.Level.GOOD, CallNetworkQualityPolicy.fromStats(120, 0.5))
-        assertEquals(CallNetworkQualityPolicy.Level.FAIR, CallNetworkQualityPolicy.fromStats(350, 2.0))
-        assertEquals(CallNetworkQualityPolicy.Level.POOR, CallNetworkQualityPolicy.fromStats(800, 1.0))
-        assertEquals(CallNetworkQualityPolicy.Level.POOR, CallNetworkQualityPolicy.fromStats(100, 8.0))
-        assertEquals(CallNetworkQualityPolicy.Level.GOOD, CallNetworkQualityPolicy.fromStats(180, null))
-        assertEquals(CallNetworkQualityPolicy.Level.FAIR, CallNetworkQualityPolicy.fromStats(400, null))
-        assertEquals(CallNetworkQualityPolicy.Level.POOR, CallNetworkQualityPolicy.fromStats(900, null))
+        assertEquals(Level.UNKNOWN, CallNetworkQualityPolicy.fromStats(null, 0.0))
+        assertEquals(Level.GOOD, CallNetworkQualityPolicy.fromStats(120, 0.5))
+        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(350, 2.0))
+        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(800, 1.0))
+        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(100, 8.0))
+        assertEquals(Level.GOOD, CallNetworkQualityPolicy.fromStats(180, null))
+        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(400, null))
+        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(900, null))
     }
 
     @Test

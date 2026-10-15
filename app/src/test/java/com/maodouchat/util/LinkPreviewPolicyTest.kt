@@ -127,7 +127,7 @@ class LinkPreviewPolicyTest {
         assertTrue(LinkPreviewPolicy.isUseful(p))
         assertFalse(
             LinkPreviewPolicy.isUseful(
-                LinkPreviewPolicy.Preview("https://x.com", null, null, null, null)
+                Preview("https://x.com", null, null, null, null)
             )
         )
     }
