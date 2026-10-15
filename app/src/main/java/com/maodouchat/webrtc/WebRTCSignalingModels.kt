@@ -13,7 +13,7 @@ class SignalingException(
     Exception("WebRTC signaling ${operation.name.lowercase()} failed")
 
 @Serializable
-private data class SendSignalRequest(
+internal data class SendSignalRequest(
     val toUserId: String,
     val type: String,
     val payload: String,
