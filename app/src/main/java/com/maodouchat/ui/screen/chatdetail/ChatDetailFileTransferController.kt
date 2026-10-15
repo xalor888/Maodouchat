@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import android.content.Context
 import android.util.Log
 import com.maodouchat.R
+import com.maodouchat.attachment.Kind
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.data.model.Message
@@ -213,15 +214,15 @@ internal class ChatDetailFileTransferController(
     }
     internal fun attachmentErrorText(error: Throwable, fallbackStringRes: Int): String =
         when (com.maodouchat.attachment.AttachmentErrorUiPolicy.classify(error)) {
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.TOO_LARGE ->
+            Kind.TOO_LARGE ->
                 text(R.string.chat_attachment_file_too_large)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.INVALID_REFERENCE ->
+            Kind.INVALID_REFERENCE ->
                 text(R.string.chat_attachment_reference_invalid)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.INTEGRITY_FAILED ->
+            Kind.INTEGRITY_FAILED ->
                 text(R.string.chat_attachment_integrity_failed)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.CONTENT_MISMATCH ->
+            Kind.CONTENT_MISMATCH ->
                 text(R.string.chat_attachment_content_mismatch)
-            com.maodouchat.attachment.AttachmentErrorUiPolicy.Kind.FALLBACK -> {
+            Kind.FALLBACK -> {
                 // 9.283：透传服务端具体错误（配额不足/总哈希校验失败/参数无效等），
                 // 避免笼统的「附件发送失败」掩盖真实原因，便于用户自查与我方定位
                 (error as? com.maodouchat.network.ApiException)?.serverMessage?.takeIf { it.isNotBlank() }

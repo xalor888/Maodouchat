@@ -12,9 +12,9 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
-import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.settings.repository.SecurityPreferences
 import com.maodouchat.settings.repository.SecurityPreferencesPatch
 import com.maodouchat.settings.repository.SettingsPrivacy
@@ -25,7 +25,6 @@ import com.maodouchat.settings.repository.SettingsSession
 import com.maodouchat.ui.screen.settings.SecurityCoordinator
 import com.maodouchat.ui.screen.settings.SettingsScreen
 import com.maodouchat.ui.screen.settings.SettingsViewModel
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.explore.repository.FeedSession
@@ -271,7 +270,7 @@ class SemanticsAuditTest {
         override fun isCurrent(session: FeedSession): Boolean = true
         override suspend fun load(
             session: FeedSession,
-            cursor: ExploreFeedPolicy.Cursor?,
+            cursor: Cursor?,
         ): Result<List<PostDto>> = Result.success(emptyList())
         override suspend fun publish(
             session: FeedSession,

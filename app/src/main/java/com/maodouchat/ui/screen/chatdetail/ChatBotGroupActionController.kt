@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
+import com.maodouchat.bot.BotCommandItem
 import com.maodouchat.bot.BotCommandPolicy
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
@@ -227,7 +228,7 @@ internal class ChatBotGroupActionController(
         }
     }
 
-    private fun parseBotCommands(raw: String): List<BotCommandPolicy.BotCommandItem> {
+    private fun parseBotCommands(raw: String): List<BotCommandItem> {
         val array = runCatching { JSONObject(raw) }.getOrNull()?.optJSONArray("commands") ?: return emptyList()
         return buildList {
             for (index in 0 until array.length()) {
@@ -237,7 +238,7 @@ internal class ChatBotGroupActionController(
                 val botId = item.optString("botId").trim()
                 if (command.isBlank() || username.isBlank() || botId.isBlank()) continue
                 add(
-                    BotCommandPolicy.BotCommandItem(
+                    BotCommandItem(
                         botId = botId,
                         username = username,
                         name = item.optString("name").ifBlank { username },

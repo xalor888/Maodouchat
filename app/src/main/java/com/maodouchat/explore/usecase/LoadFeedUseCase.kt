@@ -1,10 +1,9 @@
 package com.maodouchat.explore.usecase
 
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.UserDto
-import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.explore.repository.FeedSession
 
@@ -19,7 +18,7 @@ class LoadFeedUseCase(
 
     suspend fun loadMore(
         ownerUserId: String,
-        cursor: ExploreFeedPolicy.Cursor?
+        cursor: Cursor?
     ): Result<List<PostDto>> {
         val session = FeedSession(ownerUserId)
         return feedRepository.load(session, cursor = cursor)

@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.bot.BotCommandItem
 import com.maodouchat.crypto.DeviceSafetyState
 import com.maodouchat.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat
@@ -233,7 +234,7 @@ data class ChatDetailUiState(
     val sealedSenderReady: Boolean = false,
     val sealedSenderExpiresInSec: Long = 0L,
     /** 本会话已入群/私聊的 bot 斜杠命令（明文 inbox，不碰成员密文）。 */
-    val botCommands: List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem> = emptyList()
+    val botCommands: List<BotCommandItem> = emptyList()
 )
 
 // ── DTO 映射 ──────────────────────────

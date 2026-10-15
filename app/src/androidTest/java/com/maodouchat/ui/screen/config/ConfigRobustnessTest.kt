@@ -10,6 +10,7 @@ import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
+import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.ui.screen.chatlist.ChatListScreen
 import com.maodouchat.ui.screen.chatlist.ChatListViewModel
 import com.maodouchat.ui.screen.settings.SecurityCoordinator
@@ -27,7 +28,6 @@ import com.maodouchat.ui.screen.explore.ExploreScreen
 import com.maodouchat.ui.screen.explore.ExploreViewModel
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
-import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.ui.screen.explore.ExploreOrchestrator
 import com.maodouchat.explore.repository.FeedSession
 import com.maodouchat.network.PostDto
@@ -335,7 +335,7 @@ class ConfigRobustnessTest {
         override fun isCurrent(session: FeedSession): Boolean = true
         override suspend fun load(
             session: FeedSession,
-            cursor: ExploreFeedPolicy.Cursor?,
+            cursor: Cursor?,
         ): Result<List<PostDto>> = Result.success(emptyList())
         override suspend fun publish(
             session: FeedSession,

@@ -27,12 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.maodouchat.R
-import com.maodouchat.bot.BotCommandPolicy
+import com.maodouchat.bot.BotCommandItem
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -128,7 +127,7 @@ internal fun ComposerPane(
     contactCardTargets: List<com.maodouchat.data.model.Chat> = emptyList(),
     onLoadForwardTargets: () -> Unit = {},
     onSendContactCard: (userId: String, displayName: String) -> Unit = { _, _ -> },
-    botCommands: List<com.maodouchat.bot.BotCommandPolicy.BotCommandItem> = emptyList(),
+    botCommands: List<BotCommandItem> = emptyList(),
     composerState: ComposerState = rememberComposerState(),
 ) {
     var showAttachMenu by composerState.attachMenu
