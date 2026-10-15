@@ -4,6 +4,7 @@ import android.content.Context
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.repository.AiProfileRepository
+import com.maodouchat.data.repository.CategoryCount
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -11,7 +12,7 @@ import kotlinx.coroutines.withContext
 object AiChatClassificationStats {
 
     /** 重算某会话分类统计并落库；返回类别统计（按计数降序）。 */
-    suspend fun classifyChat(context: Context, database: AppDatabase, chatId: String): List<AiProfileRepository.CategoryCount> {
+    suspend fun classifyChat(context: Context, database: AppDatabase, chatId: String): List<CategoryCount> {
         val tallies = withContext(Dispatchers.IO) {
             // 8.48 修复：按会话查询——此前「全库最新 2000 条后 filter chatId」在活跃大库下
             // 目标会话不在最新窗口时统计为空/失真
@@ -29,7 +30,7 @@ object AiChatClassificationStats {
                 confSums[result.category] = (confSums[result.category] ?: 0.0) + result.confidence
             }
             counts.map { (category, count) ->
-                AiProfileRepository.CategoryCount(
+                CategoryCount(
                     category = category.wire,
                     count = count,
                     confidence = (confSums[category] ?: 0.0) / count
@@ -43,7 +44,7 @@ object AiChatClassificationStats {
     }
 
     /** 读取上次分类统计（仅本地）。 */
-    suspend fun cached(context: Context, chatId: String): List<AiProfileRepository.CategoryCount> =
+    suspend fun cached(context: Context, chatId: String): List<CategoryCount> =
         withContext(Dispatchers.IO) {
             AiProfileRepository.getInstance(context).getChatClasses(chatId)
         }

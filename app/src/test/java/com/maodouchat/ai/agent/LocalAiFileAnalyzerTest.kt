@@ -15,7 +15,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("meeting.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(LocalAiFileAnalyzer.Kind.TEXT, prepared!!.kind)
+        assertEquals(Kind.TEXT, prepared!!.kind)
         assertTrue(prepared.text.contains("周六发布"))
     }
 

@@ -1,6 +1,6 @@
 package com.maodouchat.ai
 
-import com.maodouchat.data.repository.AiProfileRepository
+import com.maodouchat.data.repository.CategoryCount
 
 /**
  * 「会话分类」AI 能力的读取端口（G73）。
@@ -10,5 +10,5 @@ import com.maodouchat.data.repository.AiProfileRepository
  * 剩下的 app 数据库直连，靠的就是把这些能力逐个端口化。
  */
 interface AiChatClassificationSource {
-    suspend fun classify(chatId: String): List<AiProfileRepository.CategoryCount>
+    suspend fun classify(chatId: String): List<CategoryCount>
 }

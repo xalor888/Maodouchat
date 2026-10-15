@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.data.repository.CategoryCount
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ai.WeeklyReport
 
@@ -198,7 +199,7 @@ internal fun WeeklyReportDialog(
 @Composable
 internal fun MessageClassifyDialog(
     loading: Boolean,
-    categories: List<com.maodouchat.data.repository.AiProfileRepository.CategoryCount>,
+    categories: List<CategoryCount>,
     failed: Boolean,
     onDismiss: () -> Unit,
     // 1.349：复制分类结果
@@ -281,7 +282,7 @@ internal fun MessageClassifyDialog(
 
 /** 1.349：将消息分类结果序列化为纯文本（复制用）。 */
 @Composable
-internal fun classifyText(context: android.content.Context, categories: List<com.maodouchat.data.repository.AiProfileRepository.CategoryCount>): String = buildString {
+internal fun classifyText(context: android.content.Context, categories: List<CategoryCount>): String = buildString {
     val ctx = context
     categories.forEach { row ->
         val label = when (row.category) {

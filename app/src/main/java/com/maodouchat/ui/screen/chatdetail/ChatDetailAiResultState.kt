@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.maodouchat.ai.ConversationProfile
 import com.maodouchat.ai.WeeklyReport
-import com.maodouchat.data.repository.AiProfileRepository
+import com.maodouchat.data.repository.CategoryCount
 
 /**
  * G335：**本地 AI 聚合结果的「值 / 加载中 / 失败」三态**——会话画像、本周周报、消息分类。
@@ -38,7 +38,7 @@ internal class ChatDetailAiResultState {
     var emotionReplyRequested by mutableStateOf(false)
 
     /** 消息分类统计（纯本地词典）。 */
-    var chatClassifications by mutableStateOf<List<AiProfileRepository.CategoryCount>>(emptyList())
+    var chatClassifications by mutableStateOf<List<CategoryCount>>(emptyList())
 
     var classifyLoading by mutableStateOf(false)
 
