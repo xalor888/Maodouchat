@@ -1,20 +1,5 @@
 package com.maodouchat.ui.screen.settings
 
-
-/**
- * 账号安全一页（G98 从 `SettingsSubScreens.kt` 拆出，原 1428 行）。
- *
- * 安全中心：设备列表、E2EE 状态、应用锁、账号操作一页聚合。
- * 展示行组件簇（设备行、安全状态卡、分区标签、信息行、操作行）已于 2026-10-08
- * 按簇拆至同包 `AccountSecurityDisplayRows.kt`；TOTP 设置对话框已拆至同包 `SettingsTotpDialog.kt`，其余对话框留守本文件。
- *
- * **拆解约束**：不直接抓应用级数据库单例（`ui/` 红线，读库只能经 ViewModel/repository）；
- * E2EE 状态经 `MaodouchatApp.instance.signalProtocol` 只读查询，不落库。
- * 纯搬移，不改判断。
- */
-
-
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
