@@ -1,7 +1,7 @@
 package com.maodouchat.session
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.network.ApiService
+import com.maodouchat.network.TokenExpiredEvent
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -24,7 +24,7 @@ class TokenExpirySessionPurgeTest {
     }
 
     private fun event(owner: String, generation: Long) =
-        ApiService.TokenExpiredEvent(ownerUserId = owner, sessionGeneration = generation)
+        TokenExpiredEvent(ownerUserId = owner, sessionGeneration = generation)
 
     @Test
     fun matchingOwnerAndGenerationIsHandled() {

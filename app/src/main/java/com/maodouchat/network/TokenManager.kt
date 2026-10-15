@@ -25,12 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class TokenManager private constructor(private val context: Context) {
 
-    enum class ConditionalSessionSaveResult {
-        SAVED,
-        SESSION_CHANGED,
-        WRITE_FAILED
-    }
-
     private val sessionLock = Any()
     private val sessionState by lazy {
         MutableSessionContextProvider(getUserId()?.takeIf(String::isNotBlank))

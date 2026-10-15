@@ -75,14 +75,6 @@ object ApiService :
     internal val ATTACHMENT_ID_REGEX = Regex("^att_[A-Za-z0-9_-]{20,100}$")
     internal val POST_IMAGE_FILENAME_REGEX = Regex("^[A-Za-z0-9_.-]+$")
 
-    /**
-     * Token 过期事件 — 当 API 返回 401 时发射，UI 层监听后清除 Token 并跳转登录页
-     */
-    data class TokenExpiredEvent(
-        val ownerUserId: String,
-        val sessionGeneration: Long,
-    )
-
     // 8.49：replay=1——NavGraph 收集器随 Activity 重建（旋转/深色切换）时无收集器窗口内
     // tryEmit 的 401 事件会被直接丢弃，用户停留在已失效会话直到下一次 401
     private val _tokenExpired = MutableSharedFlow<TokenExpiredEvent>(replay = 1, extraBufferCapacity = 1)
@@ -305,11 +297,11 @@ object ApiService :
             accessTokenExpiresAt = auth.expiresAt,
             refreshTokenExpiresAt = auth.refreshExpiresAt
         )
-        if (saveResult == TokenManager.ConditionalSessionSaveResult.SESSION_CHANGED) {
+        if (saveResult == ConditionalSessionSaveResult.SESSION_CHANGED) {
             return@withLock RefreshOutcome.SessionChanged
         }
         // 服务端已轮换 refresh：本地落盘失败时仍返回内存 token，避免误发 tokenExpired 清库
-        if (saveResult == TokenManager.ConditionalSessionSaveResult.WRITE_FAILED) {
+        if (saveResult == ConditionalSessionSaveResult.WRITE_FAILED) {
             android.util.Log.w("ApiService", "refreshAccessToken: saveAuthSession failed; using in-memory token")
         }
         if (manager.getUserId() != expectedUserId) return@withLock RefreshOutcome.SessionChanged
