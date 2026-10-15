@@ -152,7 +152,7 @@ object ApiService :
         return AuthenticatedRequestSession(manager, expectedUserId, accessToken)
     }
 
-    private suspend fun executeRequest(request: Request): ApiHttpErrors.HttpResult =
+    private suspend fun executeRequest(request: Request): HttpResult =
         // Blocking OkHttp execute stays on IO. Never call this from Main.
         withContext(Dispatchers.IO) {
             suspendCancellableCoroutine { continuation ->
@@ -160,7 +160,7 @@ object ApiService :
                 continuation.invokeOnCancellation { call.cancel() }
                 try {
                     val response = call.execute()
-                    val result = ApiHttpErrors.HttpResult(response.code, response.isSuccessful, response.readBodyAndClose())
+                    val result = HttpResult(response.code, response.isSuccessful, response.readBodyAndClose())
                     if (continuation.isActive) continuation.resumeWith(Result.success(result))
                 } catch (error: CancellationException) {
                     // Parent cancel must not resume failure as network error.
@@ -177,7 +177,7 @@ object ApiService :
             }
         }
 
-    private suspend fun executeWithRefresh(request: Request): ApiHttpErrors.HttpResult {
+    private suspend fun executeWithRefresh(request: Request): HttpResult {
         val authorization = request.header("Authorization")
         if (authorization.isNullOrBlank()) return executeRequest(request)
         val session = authenticatedRequestSession(request) ?: return ApiHttpErrors.sessionChangedResult()

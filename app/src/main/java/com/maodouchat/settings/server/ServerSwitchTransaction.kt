@@ -2,6 +2,7 @@ package com.maodouchat.settings.server
 
 import android.content.Context
 import com.maodouchat.network.ApiConfig
+import com.maodouchat.network.ServerChangeResult
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -43,13 +44,13 @@ class ServerSwitchTransaction(
             // 2. Switch runtime endpoint via ApiConfig
             val changeResult = ApiConfig.switchServer(normalized, context)
             when (changeResult) {
-                is ApiConfig.ServerChangeResult.Changed -> {
+                is ServerChangeResult.Changed -> {
                     ServerSwitchResult.Success(oldUrl = currentBaseUrl, newUrl = normalized)
                 }
-                is ApiConfig.ServerChangeResult.Unchanged -> {
+                is ServerChangeResult.Unchanged -> {
                     ServerSwitchResult.Unchanged
                 }
-                is ApiConfig.ServerChangeResult.Failed -> {
+                is ServerChangeResult.Failed -> {
                     // Rollback token if server switch failed
                     if (previousToken != null) {
                         tokenManager.saveToken(previousToken)

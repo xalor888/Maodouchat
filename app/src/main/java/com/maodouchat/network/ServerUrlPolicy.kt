@@ -12,15 +12,6 @@ import java.net.URISyntaxException
  */
 internal object ServerUrlPolicy {
 
-    enum class Problem {
-        EMPTY,
-        INVALID,
-        SCHEME,
-        HOST,
-        EXTRA,
-        PORT,
-    }
-
     fun validate(value: String): Problem? {
         val raw = value.trim()
         if (raw.isBlank()) return Problem.EMPTY

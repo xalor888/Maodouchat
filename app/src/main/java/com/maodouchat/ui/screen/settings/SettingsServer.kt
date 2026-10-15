@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.maodouchat.R
+import com.maodouchat.network.ServerChangeResult
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
@@ -170,13 +171,13 @@ fun ServerSettingsScreen(
                                 isWorking = false
                             } else {
                                 when (val change = com.maodouchat.network.ApiConfig.switchServer(input, context)) {
-                                    is com.maodouchat.network.ApiConfig.ServerChangeResult.Failed -> {
+                                    is ServerChangeResult.Failed -> {
                                         result = change.message
                                     }
-                                    com.maodouchat.network.ApiConfig.ServerChangeResult.Unchanged -> {
+                                    ServerChangeResult.Unchanged -> {
                                         result = serverTestSuccessText
                                     }
-                                    com.maodouchat.network.ApiConfig.ServerChangeResult.Changed -> {
+                                    ServerChangeResult.Changed -> {
                                         result = serverSavedText
                                         // U02 延伸：换服后的进程内重建收进非 ui 的 ServerSwitchEffects。
                                         com.maodouchat.network.ServerSwitchEffects.applyAfterServerChanged()
@@ -231,14 +232,14 @@ fun ServerSettingsScreen(
                     isWorking = true
                     scope.launch {
                         when (val change = com.maodouchat.network.ApiConfig.resetToDefault(context)) {
-                            is com.maodouchat.network.ApiConfig.ServerChangeResult.Failed -> {
+                            is ServerChangeResult.Failed -> {
                                 result = change.message
                             }
-                            com.maodouchat.network.ApiConfig.ServerChangeResult.Unchanged -> {
+                            ServerChangeResult.Unchanged -> {
                                 input = com.maodouchat.network.ApiConfig.BASE_URL
                                 result = serverResetDoneText
                             }
-                            com.maodouchat.network.ApiConfig.ServerChangeResult.Changed -> {
+                            ServerChangeResult.Changed -> {
                                 input = com.maodouchat.network.ApiConfig.BASE_URL
                                 result = serverResetDoneText
                                 // U02 延伸：换服后的进程内重建收进非 ui 的 ServerSwitchEffects。
@@ -262,4 +263,3 @@ fun ServerSettingsScreen(
         )
     }
 }
-

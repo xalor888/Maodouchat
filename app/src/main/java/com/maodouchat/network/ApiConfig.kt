@@ -34,12 +34,6 @@ object ApiConfig {
     /** 当前是否使用运行时配置的服务器（区别于编译期默认）。 */
     val isUsingRuntimeServer: Boolean get() = runtimeBaseUrl != null
 
-    sealed interface ServerChangeResult {
-        data object Changed : ServerChangeResult
-        data object Unchanged : ServerChangeResult
-        data class Failed(val message: String) : ServerChangeResult
-    }
-
     /** 启动时加载运行时服务器配置（在一切网络调用前调用）。 */
     fun init(context: Context) {
         val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -170,12 +164,12 @@ object ApiConfig {
     private fun validateBaseUrl(value: String, context: Context): String? {
         val problem = ServerUrlPolicy.validate(value) ?: return null
         return when (problem) {
-            ServerUrlPolicy.Problem.EMPTY -> context.getString(com.maodouchat.R.string.server_url_empty)
-            ServerUrlPolicy.Problem.INVALID -> context.getString(com.maodouchat.R.string.server_url_invalid)
-            ServerUrlPolicy.Problem.SCHEME -> context.getString(com.maodouchat.R.string.server_url_scheme)
-            ServerUrlPolicy.Problem.HOST -> context.getString(com.maodouchat.R.string.server_url_no_host)
-            ServerUrlPolicy.Problem.EXTRA -> context.getString(com.maodouchat.R.string.server_url_extra)
-            ServerUrlPolicy.Problem.PORT -> context.getString(com.maodouchat.R.string.server_url_port)
+            Problem.EMPTY -> context.getString(com.maodouchat.R.string.server_url_empty)
+            Problem.INVALID -> context.getString(com.maodouchat.R.string.server_url_invalid)
+            Problem.SCHEME -> context.getString(com.maodouchat.R.string.server_url_scheme)
+            Problem.HOST -> context.getString(com.maodouchat.R.string.server_url_no_host)
+            Problem.EXTRA -> context.getString(com.maodouchat.R.string.server_url_extra)
+            Problem.PORT -> context.getString(com.maodouchat.R.string.server_url_port)
         }
     }
 
