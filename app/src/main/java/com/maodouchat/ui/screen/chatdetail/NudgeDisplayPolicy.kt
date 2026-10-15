@@ -9,12 +9,6 @@ object NudgeDisplayPolicy {
     private val youNudgedPrefixZh = "你拍了拍"
     private val youNudgedPrefixEn = "You nudged "
 
-    data class Templates(
-        val youNudged: (targetName: String) -> String,
-        val theyNudgedYou: (senderName: String) -> String,
-        val theyNudgedTarget: (senderName: String, targetName: String) -> String
-    )
-
     /**
      * @param isOwnMessage true when local user is the nudge sender
      * @param storedContent decrypted body (usually "你拍了拍X")

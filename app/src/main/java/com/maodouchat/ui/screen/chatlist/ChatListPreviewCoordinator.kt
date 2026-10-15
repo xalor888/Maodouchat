@@ -8,6 +8,7 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.ChatListPreviewPolicy
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy
+import com.maodouchat.ui.screen.chatdetail.Templates
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -120,7 +121,7 @@ internal class ChatListPreviewCoordinator(
             storedContent = storedContent,
             senderDisplayName = senderName,
             isDirectChat = chat?.isGroup != true,
-            templates = NudgeDisplayPolicy.Templates(
+            templates = Templates(
                 youNudged = nudgeYouNudged,
                 theyNudgedYou = nudgeTheyNudgedYou,
                 theyNudgedTarget = nudgeTheyNudgedTarget,

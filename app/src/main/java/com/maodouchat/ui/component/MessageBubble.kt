@@ -10,6 +10,7 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy
+import com.maodouchat.ui.screen.chatdetail.Templates
 import com.maodouchat.ui.screen.chatlist.ChatListReceiptPolicy
 
 /**
@@ -88,7 +89,7 @@ fun MessageBubble(
             val youNudgedFmt = stringResource(R.string.chat_nudge_you_nudged)
             val theyNudgedYouFmt = stringResource(R.string.chat_nudge_they_nudged_you)
             val theyNudgedTargetFmt = stringResource(R.string.chat_nudge_they_nudged_target)
-            val templates = NudgeDisplayPolicy.Templates(
+            val templates = Templates(
                 youNudged = { target -> youNudgedFmt.format(target) },
                 theyNudgedYou = { sender -> theyNudgedYouFmt.format(sender) },
                 theyNudgedTarget = { sender, target -> theyNudgedTargetFmt.format(sender, target) }

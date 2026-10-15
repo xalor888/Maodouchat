@@ -28,7 +28,7 @@ object ChatListRemoteMergePolicy {
             serverLastMessageTime = dto.lastMessageTime,
             localLastMessageTime = local?.lastMessageTime ?: 0L,
         )
-        val serverSettings = ChatListSettingsMergePolicy.SettingsSnapshot(
+        val serverSettings = SettingsSnapshot(
             pinnedAt = dto.pinnedAt,
             notificationsMuted = dto.notificationsMuted,
             archived = dto.archived,
@@ -36,7 +36,7 @@ object ChatListRemoteMergePolicy {
             settingsUpdatedAt = dto.settingsUpdatedAt,
         )
         val localSettings = local?.let {
-            ChatListSettingsMergePolicy.SettingsSnapshot(
+            SettingsSnapshot(
                 pinnedAt = it.pinnedAt,
                 notificationsMuted = it.notificationsMuted,
                 archived = it.archived,
