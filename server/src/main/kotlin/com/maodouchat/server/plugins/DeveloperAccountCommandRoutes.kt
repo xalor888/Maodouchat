@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.BotCommandDef
 import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.getMyCommands
 import com.maodouchat.server.repository.normalizeCommands
@@ -36,7 +37,7 @@ internal fun Route.configureDeveloperAccountCommandRoutes(
             // 仅显式传空数组 = 合法清空。抽取逻辑见 parseDeveloperBotCommands。
             val defs = when (val parsed = parseDeveloperBotCommands(obj)) {
                 is DeveloperBotCommandsParseResult.Ok -> parsed.defs.map { (command, description) ->
-                    BotRepository.BotCommandDef(command = command, description = description)
+                    BotCommandDef(command = command, description = description)
                 }
                 is DeveloperBotCommandsParseResult.Invalid -> return@put call.respond(
                     HttpStatusCode.BadRequest,

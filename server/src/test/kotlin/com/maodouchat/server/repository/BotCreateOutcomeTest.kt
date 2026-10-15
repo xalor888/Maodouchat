@@ -68,22 +68,22 @@ class BotCreateOutcomeTest {
     fun `duplicate username is reported distinctly from invalid input`() {
         setupDb()
         val first = BotRepository.create("u1", "Test Bot", "test_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(first)
+        assertIs<BotCreateResult.Success>(first)
         val seeded = BotRepository.getMyCommands(first.bot.id).map { it.command }.toSet()
         assertEquals(setOf("start", "help"), seeded)
 
         val duplicate = BotRepository.create("u1", "Test Bot", "TEST_BOT", "description")
-        assertEquals(BotRepository.BotCreateResult.UsernameTaken, duplicate)
+        assertEquals(BotCreateResult.UsernameTaken, duplicate)
 
         val invalid = BotRepository.create("u1", "Test Bot", "1bad", "description")
-        assertEquals(BotRepository.BotCreateResult.InvalidInput, invalid)
+        assertEquals(BotCreateResult.InvalidInput, invalid)
     }
 
     @Test
     fun `deleting bot clears its personal metadata`() {
         setupDb()
         val created = BotRepository.create("u1", "Cleanup Bot", "bot_cleanup", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val now = System.currentTimeMillis()
         transaction {
@@ -138,7 +138,7 @@ class BotCreateOutcomeTest {
     fun `enqueueUpdate refuses disabled or suspended-owner bots`() {
         setupDb()
         val created = BotRepository.create("u1", "Inbox Bot", "inbox_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
 
         BotRepository.enqueueUpdate(botId, """{"event":"chat"}""")
@@ -186,7 +186,7 @@ class BotCreateOutcomeTest {
     fun `token-auth mutations revalidate owner and enabled state`() {
         setupDb()
         val created = BotRepository.create("u1", "Mutation Bot", "mutation_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val suspendedUntil = System.currentTimeMillis() + 60_000
         transaction {
@@ -201,7 +201,7 @@ class BotCreateOutcomeTest {
         assertTrue(
             BotRepository.setMyCommands(
                 botId,
-                listOf(BotRepository.BotCommandDef(command = "help", description = "help"))
+                listOf(BotCommandDef(command = "help", description = "help"))
             ) == null
         )
         assertTrue(!BotRepository.clearMyCommands(botId))
@@ -223,9 +223,9 @@ class BotCreateOutcomeTest {
     fun `getMyCommands hides command menu after owner or bot becomes unavailable`() {
         setupDb()
         val created = BotRepository.create("u1", "Command Bot", "command_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
-        val commands = listOf(BotRepository.BotCommandDef(command = "help", description = "show help"))
+        val commands = listOf(BotCommandDef(command = "help", description = "show help"))
 
         assertTrue(BotRepository.setMyCommands(botId, commands) != null)
         assertTrue(BotRepository.getMyCommands(botId).isNotEmpty())
@@ -253,7 +253,7 @@ class BotCreateOutcomeTest {
     fun `service message insert revalidates owner state inside transaction`() {
         setupDb()
         val created = BotRepository.create("u1", "Message Bot", "message_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val now = System.currentTimeMillis()
         transaction {
@@ -283,7 +283,7 @@ class BotCreateOutcomeTest {
     fun `inbox polling and deletion revalidate owner and enabled state`() {
         setupDb()
         val created = BotRepository.create("u1", "Poll Bot", "poll_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
 
         BotRepository.enqueueUpdate(botId, """{"event":"poll"}""")
@@ -319,7 +319,7 @@ class BotCreateOutcomeTest {
     fun `group poll writes revalidate bot owner state inside transactions`() {
         setupDb()
         val created = BotRepository.create("u1", "Poll Write Bot", "poll_write_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val now = System.currentTimeMillis()
         transaction {
@@ -402,7 +402,7 @@ class BotCreateOutcomeTest {
     fun `pin writes revalidate bot owner state inside transactions`() {
         setupDb()
         val created = BotRepository.create("u1", "Pin Write Bot", "pin_write_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val now = System.currentTimeMillis()
         transaction {
@@ -455,7 +455,7 @@ class BotCreateOutcomeTest {
     fun `group management writes revalidate bot owner state inside transactions`() {
         setupDb()
         val created = BotRepository.create("u1", "Group Write Bot", "group_write_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val now = System.currentTimeMillis()
         transaction {
@@ -565,7 +565,7 @@ class BotCreateOutcomeTest {
     fun `message mutations revalidate bot owner state inside transactions`() {
         setupDb()
         val created = BotRepository.create("u1", "Message Mutation Bot", "message_mutation_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val now = System.currentTimeMillis()
         transaction {
@@ -610,7 +610,7 @@ class BotCreateOutcomeTest {
     fun `command logging revalidates bot owner and enabled state`() {
         setupDb()
         val created = BotRepository.create("u1", "Command Log Bot", "command_log_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
 
         BotRepository.logCommand(botId, null, null, "test")
@@ -647,7 +647,7 @@ class BotCreateOutcomeTest {
     fun `user command inbox rejects ciphertext and accepts slash`() {
         setupDb()
         val created = BotRepository.create("u1", "Inbox Bot", "inbox_bot", "description")
-        assertIs<BotRepository.BotCreateResult.Success>(created)
+        assertIs<BotCreateResult.Success>(created)
         val botId = created.bot.id
         val now = System.currentTimeMillis()
         transaction {

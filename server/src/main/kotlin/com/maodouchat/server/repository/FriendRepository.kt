@@ -19,11 +19,6 @@ import org.jetbrains.exposed.sql.selectAll
 
 class FriendRepository {
 
-    sealed class Result {
-        data class Success(val request: FriendRequestResponse) : Result()
-        data class Failure(val message: String, val code: String = "FRIEND_ERROR") : Result()
-    }
-
     internal fun blockedPeerIds(userId: String): Set<String> =
         BlockedUsers.selectAll()
             .where { (BlockedUsers.blockerId eq userId) or (BlockedUsers.blockedId eq userId) }

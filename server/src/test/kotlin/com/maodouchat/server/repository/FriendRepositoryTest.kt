@@ -20,11 +20,11 @@ class FriendRepositoryTest {
         val repo = FriendRepository()
 
         val sent = repo.sendRequest("u1", "u2", "hi")
-        val created = assertIs<FriendRepository.Result.Success>(sent).request
+        val created = assertIs<FriendRequestResult.Success>(sent).request
         assertEquals("PENDING", created.status)
 
         val accepted = repo.acceptRequest("u2", created.id)
-        assertIs<FriendRepository.Result.Success>(accepted)
+        assertIs<FriendRequestResult.Success>(accepted)
         assertEquals(listOf("u2"), repo.listFriends("u1").map { it.id })
         assertEquals(listOf("u1"), repo.listFriends("u2").map { it.id })
     }
@@ -33,7 +33,7 @@ class FriendRepositoryTest {
     fun `reject after sender is deleted does not throw`() {
         setupDb("friend-reject-deleted")
         val repo = FriendRepository()
-        val created = assertIs<FriendRepository.Result.Success>(
+        val created = assertIs<FriendRequestResult.Success>(
             repo.sendRequest("u1", "u2", "hi")
         ).request
 
@@ -44,7 +44,7 @@ class FriendRepositoryTest {
         }
 
         val rejected = repo.rejectRequest("u2", created.id)
-        val dto = assertIs<FriendRepository.Result.Success>(rejected).request
+        val dto = assertIs<FriendRequestResult.Success>(rejected).request
         assertEquals("REJECTED", dto.status)
         assertEquals("u1", dto.fromUser.id)
     }
@@ -53,7 +53,7 @@ class FriendRepositoryTest {
     fun `cancel after recipient is deleted does not throw`() {
         setupDb("friend-cancel-deleted")
         val repo = FriendRepository()
-        val created = assertIs<FriendRepository.Result.Success>(
+        val created = assertIs<FriendRequestResult.Success>(
             repo.sendRequest("u1", "u2", "hi")
         ).request
 
@@ -64,7 +64,7 @@ class FriendRepositoryTest {
         }
 
         val cancelled = repo.cancelRequest("u1", created.id)
-        val dto = assertIs<FriendRepository.Result.Success>(cancelled).request
+        val dto = assertIs<FriendRequestResult.Success>(cancelled).request
         assertEquals("CANCELLED", dto.status)
         assertEquals("u2", dto.toUser.id)
     }
@@ -73,7 +73,7 @@ class FriendRepositoryTest {
     fun `accept deleted sender returns not found instead of crashing`() {
         setupDb("friend-accept-deleted")
         val repo = FriendRepository()
-        val created = assertIs<FriendRepository.Result.Success>(
+        val created = assertIs<FriendRequestResult.Success>(
             repo.sendRequest("u1", "u2", "hi")
         ).request
 
@@ -84,7 +84,7 @@ class FriendRepositoryTest {
         }
 
         val result = repo.acceptRequest("u2", created.id)
-        val failure = assertIs<FriendRepository.Result.Failure>(result)
+        val failure = assertIs<FriendRequestResult.Failure>(result)
         assertEquals("USER_NOT_FOUND", failure.code)
     }
 
@@ -92,10 +92,10 @@ class FriendRepositoryTest {
     fun `duplicate pending request is rejected without 500`() {
         setupDb("friend-dup")
         val repo = FriendRepository()
-        assertIs<FriendRepository.Result.Success>(repo.sendRequest("u1", "u2"))
-        val again = assertIs<FriendRepository.Result.Failure>(repo.sendRequest("u1", "u2"))
+        assertIs<FriendRequestResult.Success>(repo.sendRequest("u1", "u2"))
+        val again = assertIs<FriendRequestResult.Failure>(repo.sendRequest("u1", "u2"))
         assertEquals("ALREADY_PENDING", again.code)
-        val reverse = assertIs<FriendRepository.Result.Failure>(repo.sendRequest("u2", "u1"))
+        val reverse = assertIs<FriendRequestResult.Failure>(repo.sendRequest("u2", "u1"))
         assertEquals("INCOMING_PENDING", reverse.code)
     }
 
@@ -103,7 +103,7 @@ class FriendRepositoryTest {
     fun `incoming list hides requests from deleted users`() {
         setupDb("friend-list-deleted")
         val repo = FriendRepository()
-        assertIs<FriendRepository.Result.Success>(repo.sendRequest("u1", "u2"))
+        assertIs<FriendRequestResult.Success>(repo.sendRequest("u1", "u2"))
         transaction {
             Users.update({ Users.id eq "u1" }) {
                 it[Users.deletedAt] = System.currentTimeMillis()

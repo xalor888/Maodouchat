@@ -1,5 +1,6 @@
 package com.maodouchat.server.plugins
 
+import com.maodouchat.server.repository.BotDto
 import com.maodouchat.server.repository.BotRepository
 import kotlinx.serialization.Serializable
 
@@ -68,7 +69,7 @@ data class DevLoginResponse(
     val userId: String,
     val email: String,
     val name: String = "",
-    val bots: List<BotRepository.BotDto>
+    val bots: List<BotDto>
 )
 
 @Serializable
@@ -76,5 +77,5 @@ data class DevMeResponse(
     val userId: String,
     val email: String,
     val name: String,
-    val bots: List<BotRepository.BotDto>
+    val bots: List<BotDto>
 )

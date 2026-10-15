@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
-fun BotRepository.getMyCommands(botId: String): List<BotRepository.BotCommandDef> {
+fun BotRepository.getMyCommands(botId: String): List<BotCommandDef> {
     return transaction {
         val now = System.currentTimeMillis()
         val bot = BotApps.selectAll()
@@ -22,7 +22,7 @@ fun BotRepository.getMyCommands(botId: String): List<BotRepository.BotCommandDef
 }
 
 
-fun BotRepository.setMyCommands(botId: String, commands: List<BotRepository.BotCommandDef>): List<BotRepository.BotCommandDef>? {
+fun BotRepository.setMyCommands(botId: String, commands: List<BotCommandDef>): List<BotCommandDef>? {
     val normalized = normalizeCommands(commands) ?: return null
     val json = encodeCommands(normalized)
     val now = System.currentTimeMillis()
@@ -41,7 +41,7 @@ fun BotRepository.setMyCommands(botId: String, commands: List<BotRepository.BotC
 }
 
 
-fun BotRepository.setMyDescription(botId: String, description: String?): BotRepository.BotDto? {
+fun BotRepository.setMyDescription(botId: String, description: String?): BotDto? {
     val clean = description?.trim()?.take(500)
     val now = System.currentTimeMillis()
     return transaction {
@@ -60,7 +60,7 @@ fun BotRepository.setMyDescription(botId: String, description: String?): BotRepo
 }
 
 
-fun BotRepository.setMyName(botId: String, name: String): BotRepository.BotDto? {
+fun BotRepository.setMyName(botId: String, name: String): BotDto? {
     val clean = name.trim().take(120)
     if (clean.isBlank()) return null
     val now = System.currentTimeMillis()
@@ -99,9 +99,9 @@ fun BotRepository.clearMyCommands(botId: String): Boolean {
 }
 
 
-internal fun BotRepository.normalizeCommands(commands: List<BotRepository.BotCommandDef>): List<BotRepository.BotCommandDef>? {
+internal fun BotRepository.normalizeCommands(commands: List<BotCommandDef>): List<BotCommandDef>? {
     if (commands.size > 100) return null
-    val out = ArrayList<BotRepository.BotCommandDef>(commands.size)
+    val out = ArrayList<BotCommandDef>(commands.size)
     val seen = HashSet<String>()
     for (c in commands) {
         val command = c.command.trim().lowercase().removePrefix("/")
@@ -109,7 +109,7 @@ internal fun BotRepository.normalizeCommands(commands: List<BotRepository.BotCom
         if (!botCommandPattern.matches(command)) return null
         if (description.isBlank()) return null
         if (!seen.add(command)) return null
-        out.add(BotRepository.BotCommandDef(command = command, description = description))
+        out.add(BotCommandDef(command = command, description = description))
     }
     return out
 }

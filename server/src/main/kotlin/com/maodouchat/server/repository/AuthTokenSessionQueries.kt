@@ -12,7 +12,7 @@ import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
-fun AuthTokenRepository.listActiveRefreshSessions(userId: String, includeRevoked: Boolean = false): List<AuthTokenRepository.RefreshSessionRow> = transaction {
+fun AuthTokenRepository.listActiveRefreshSessions(userId: String, includeRevoked: Boolean = false): List<RefreshSessionRow> = transaction {
     val now = System.currentTimeMillis()
     val activeSessionIds = if (includeRevoked) emptySet() else {
         AuthSessions.select(AuthSessions.id).where {
@@ -33,7 +33,7 @@ fun AuthTokenRepository.listActiveRefreshSessions(userId: String, includeRevoked
                         row[RefreshTokens.sessionId] !in activeSessionIds
                     )
             ) return@mapNotNull null
-            AuthTokenRepository.RefreshSessionRow(
+            RefreshSessionRow(
                 tokenHashPrefix = row[RefreshTokens.tokenHash].take(12),
                 createdAt = row[RefreshTokens.createdAt],
                 expiresAt = row[RefreshTokens.expiresAt],

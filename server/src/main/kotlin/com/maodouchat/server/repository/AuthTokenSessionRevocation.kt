@@ -25,14 +25,14 @@ fun AuthTokenRepository.revokeSession(userId: String, sessionId: String): Boolea
     }
 }
 
-fun AuthTokenRepository.revokeByHashPrefixWithSessions(userId: String, prefix: String): AuthTokenRepository.RevokeByPrefixResult {
+fun AuthTokenRepository.revokeByHashPrefixWithSessions(userId: String, prefix: String): RevokeByPrefixResult {
     val p = prefix.trim().lowercase()
     // 8.34 修复：8 字符（32bit）SHA-256 前缀可碰撞误吊销无关会话 → 下限提高到 12 字符
-    if (p.length < 12) return AuthTokenRepository.RevokeByPrefixResult(0, emptySet())
+    if (p.length < 12) return RevokeByPrefixResult(0, emptySet())
     val now = System.currentTimeMillis()
     return transaction {
         Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
-            ?: return@transaction AuthTokenRepository.RevokeByPrefixResult(0, emptySet())
+            ?: return@transaction RevokeByPrefixResult(0, emptySet())
         val candidates = RefreshTokens.selectAll()
             .where {
                 (RefreshTokens.userId eq userId) and
@@ -72,7 +72,7 @@ fun AuthTokenRepository.revokeByHashPrefixWithSessions(userId: String, prefix: S
         legacyHashes.forEach { tokenHash ->
             RefreshTokens.update({ RefreshTokens.tokenHash eq tokenHash }) { it[revokedAt] = now }
         }
-        AuthTokenRepository.RevokeByPrefixResult(
+        RevokeByPrefixResult(
             // 准确统计：被撤销的 refresh token 总数 = 各会话撤销的 token 数 + 遗留哈希数，
             // 而非会话数（一个会话可能含多条 refresh token，旧算法会低估）。
             count = revokedTokenCount + legacyHashes.size,
