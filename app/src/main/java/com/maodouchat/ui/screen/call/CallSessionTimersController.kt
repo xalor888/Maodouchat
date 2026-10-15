@@ -5,6 +5,7 @@ import com.maodouchat.webrtc.CallIceServer
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallNetworkQualityPolicy
 import com.maodouchat.webrtc.CallSessionGate
+import com.maodouchat.webrtc.Level
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.CoroutineScope
@@ -48,10 +49,10 @@ internal class CallSessionTimersController(
                         packetLossPercent = stats?.packetLossPercent
                     )
                 ) {
-                    CallNetworkQualityPolicy.Level.GOOD -> NetworkQuality.GOOD
-                    CallNetworkQualityPolicy.Level.FAIR -> NetworkQuality.FAIR
-                    CallNetworkQualityPolicy.Level.POOR -> NetworkQuality.POOR
-                    CallNetworkQualityPolicy.Level.UNKNOWN -> NetworkQuality.UNKNOWN
+                    Level.GOOD -> NetworkQuality.GOOD
+                    Level.FAIR -> NetworkQuality.FAIR
+                    Level.POOR -> NetworkQuality.POOR
+                    Level.UNKNOWN -> NetworkQuality.UNKNOWN
                 }
                 if (currentState().networkStats != mapped) {
                     updateState { it.copy(networkStats = mapped) }

@@ -56,8 +56,6 @@ object CallReliabilityPolicy {
  * Null RTT or missing sample → UNKNOWN (still measuring).
  */
 object CallNetworkQualityPolicy {
-    enum class Level { GOOD, FAIR, POOR, UNKNOWN }
-
     fun fromStats(rttMs: Long?, packetLossPercent: Double?): Level {
         if (rttMs == null) return Level.UNKNOWN
         val loss = packetLossPercent

@@ -11,14 +11,6 @@ import java.util.regex.Pattern
  * 严格防御客户端 SSRF，阻断内网地址、私有网段、各种 IP 编码变体及危险协议。
  */
 object LinkPreviewPolicy {
-    data class Preview(
-        val url: String,
-        val title: String?,
-        val description: String?,
-        val imageUrl: String?,
-        val siteName: String?,
-    )
-
     private val URL_PATTERN: Pattern = Pattern.compile(
         "(?i)\\b((?:https?://|www\\.)[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+)"
     )
