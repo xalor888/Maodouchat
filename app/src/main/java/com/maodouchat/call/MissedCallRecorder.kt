@@ -71,13 +71,13 @@ object MissedCallRecorder {
         // 传呼入时快照的 userId 作守卫，防 repo.insert 挂起点后换号写错账号
         CallLogStore.upsert(
             appCtx,
-            CallLogStore.CallLogEntry(
+            CallLogEntry(
                 id = missedId,
                 peerId = fromUserId,
                 peerName = callerName.ifBlank { fromUserId },
                 isVideo = isVideo,
-                direction = CallLogStore.Direction.INCOMING,
-                state = CallLogStore.State.MISSED,
+                direction = Direction.INCOMING,
+                state = State.MISSED,
                 startedAt = nowMs,
                 isGroup = isGroup
             ),

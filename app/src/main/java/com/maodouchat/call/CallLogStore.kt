@@ -18,22 +18,6 @@ object CallLogStore {
     private const val KEY_LOG = "call_log"
     private const val MAX_ENTRIES = 200
 
-    enum class Direction { OUTGOING, INCOMING }
-
-    enum class State { MISSED, ANSWERED }
-
-    data class CallLogEntry(
-        val id: String,
-        val peerId: String,
-        val peerName: String,
-        val isVideo: Boolean,
-        val direction: Direction,
-        val state: State,
-        val startedAt: Long,
-        val durationMs: Long = 0L,
-        val isGroup: Boolean = false
-    )
-
     fun list(context: Context, peerId: String? = null): List<CallLogEntry> {
         val userId = currentUserId(context) ?: return emptyList()
         return runCatching {

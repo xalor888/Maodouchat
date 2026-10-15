@@ -64,6 +64,8 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.call.Direction
+import com.maodouchat.call.State
 
 /** 1.29：通话记录页——展示本地 CallLogStore 全量历史，点击回拨，可清空。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,7 +90,7 @@ fun CallHistoryScreen(
     // 1.333：只看未接
     var onlyMissed by rememberSaveable { mutableStateOf(false) }
     val filteredLogs = remember(logs, searchQuery, onlyMissed) {
-        var base = if (onlyMissed) logs.filter { it.state == CallLogStore.State.MISSED } else logs
+        var base = if (onlyMissed) logs.filter { it.state == State.MISSED } else logs
         val q = searchQuery.trim()
         if (q.isBlank()) base
         else base.filter { it.peerName.contains(q, ignoreCase = true) || it.peerId.contains(q, ignoreCase = true) }
@@ -134,7 +136,7 @@ fun CallHistoryScreen(
         }
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // 1.333：只看未接（有未接记录时显示）
-            if (logs.any { it.state == CallLogStore.State.MISSED }) {
+            if (logs.any { it.state == State.MISSED }) {
                 Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                     FilterChip(
                         selected = onlyMissed,
@@ -179,8 +181,8 @@ fun CallHistoryScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)
         ) {
             items(filteredLogs, key = { it.id }) { entry ->
-                val isMissed = entry.state == CallLogStore.State.MISSED
-                val isIncoming = entry.direction == CallLogStore.Direction.INCOMING
+                val isMissed = entry.state == State.MISSED
+                val isIncoming = entry.direction == Direction.INCOMING
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -241,7 +243,7 @@ fun CallHistoryScreen(
                                     )
                                     append(" · ")
                                     append(callHistoryRelativeTime(context, entry.startedAt))
-                                    if (entry.state == CallLogStore.State.ANSWERED && entry.durationMs > 0L) {
+                                    if (entry.state == State.ANSWERED && entry.durationMs > 0L) {
                                         append(" · ")
                                         append(formatCallHistoryDuration(entry.durationMs))
                                     }
@@ -271,7 +273,7 @@ fun CallHistoryScreen(
             TextButton(
                 onClick = {
                     val removed = CallLogStore.remove(context, entryId)
-                    if (removed && target?.state == CallLogStore.State.MISSED) {
+                    if (removed && target?.state == State.MISSED) {
                         // 未接来电同 id 记录同步删除，保持会话列表角标/卡片一致（与清空一致走 Room）
                         // U02 延伸：Room 侧收进非 ui 的 MissedCallRoomActions。
                         scope.launch { com.maodouchat.call.MissedCallRoomActions.delete(entryId) }

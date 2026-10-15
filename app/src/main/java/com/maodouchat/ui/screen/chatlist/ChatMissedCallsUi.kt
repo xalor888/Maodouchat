@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.maodouchat.call.State
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -105,7 +106,7 @@ internal fun MissedCallsSheet(
                             // CallMade/CallReceived 不在 material-icons-core；用 Call + tint 区分状态
                             imageVector = Icons.Filled.Call,
                             contentDescription = null,
-                            tint = if (call.state == com.maodouchat.call.CallLogStore.State.MISSED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            tint = if (call.state == State.MISSED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                         )
                         Spacer(Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -114,8 +115,8 @@ internal fun MissedCallsSheet(
                                 (if (call.video) stringResource(R.string.call_video) else stringResource(R.string.call_audio)) +
                                     " · " + relativeTime(call.at) +
                                     when (call.state) {
-                                        com.maodouchat.call.CallLogStore.State.MISSED -> " · " + stringResource(R.string.missed_calls_badge)
-                                        com.maodouchat.call.CallLogStore.State.ANSWERED -> {
+                                        State.MISSED -> " · " + stringResource(R.string.missed_calls_badge)
+                                        State.ANSWERED -> {
                                             val d = formatCallDuration(call.durationMs)
                                             if (d.isNotEmpty()) " · " + d else ""
                                         }

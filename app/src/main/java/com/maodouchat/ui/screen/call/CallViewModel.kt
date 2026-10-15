@@ -74,7 +74,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             activeCallSession = { activeCallSession },
             callSessionGate = callSessionGate,
             token = { token },
-            onLogAnswered = { writeCallLog(com.maodouchat.call.CallLogStore.State.ANSWERED) },
+            onLogAnswered = { writeCallLog(com.maodouchat.call.State.ANSWERED) },
         )
     }
 
@@ -420,7 +420,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private fun writeCallLog(state: com.maodouchat.call.CallLogStore.State) =
+    private fun writeCallLog(state: com.maodouchat.call.State) =
         callLogWriter.writeCallLog(state)
 
 
