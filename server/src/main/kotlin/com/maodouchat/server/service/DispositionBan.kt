@@ -30,9 +30,9 @@ internal fun DispositionService.validateDisposition(
     banDays: Int,
     reasonCode: String?,
     note: String?
-): DispositionService.DispositionValidation {
+): DispositionValidation {
     if (banDays < 0 || banDays > MAX_BAN_DAYS) {
-        return DispositionService.DispositionValidation.Invalid("封禁天数无效")
+        return DispositionValidation.Invalid("封禁天数无效")
     }
     val code = normalizeReasonCode(reasonCode)
     val noteNorm = normalizeNote(note)
@@ -40,23 +40,23 @@ internal fun DispositionService.validateDisposition(
         // Unban: optional note; reason defaults to unban
         val effective = code ?: unbanReasonCode
         if (effective != unbanReasonCode && !isKnownReasonCode(effective)) {
-            return DispositionService.DispositionValidation.Invalid("未知解封原因码")
+            return DispositionValidation.Invalid("未知解封原因码")
         }
-        return DispositionService.DispositionValidation.Ok(
+        return DispositionValidation.Ok(
             reasonCode = if (effective == unbanReasonCode) unbanReasonCode else effective,
             note = noteNorm,
             banDays = 0
         )
     }
     if (code == null || !isKnownReasonCode(code) || code == unbanReasonCode) {
-        return DispositionService.DispositionValidation.Invalid("请选择封禁原因模板")
+        return DispositionValidation.Invalid("请选择封禁原因模板")
     }
     val template = findTemplate(code)
-        ?: return DispositionService.DispositionValidation.Invalid("请选择封禁原因模板")
+        ?: return DispositionValidation.Invalid("请选择封禁原因模板")
     if (template.requiresCustomNote && noteNorm == null) {
-        return DispositionService.DispositionValidation.Invalid("该原因须填写备注")
+        return DispositionValidation.Invalid("该原因须填写备注")
     }
-    return DispositionService.DispositionValidation.Ok(
+    return DispositionValidation.Ok(
         reasonCode = code,
         note = noteNorm,
         banDays = banDays

@@ -34,28 +34,28 @@ internal fun DispositionService.validatePostRestrict(
     durationDays: Int,
     reasonCode: String?,
     note: String?
-): DispositionService.DispositionValidation {
+): DispositionValidation {
     if (durationDays < 0 || durationDays > MAX_POST_RESTRICT_DAYS) {
-        return DispositionService.DispositionValidation.Invalid("禁动态天数无效")
+        return DispositionValidation.Invalid("禁动态天数无效")
     }
     val noteNorm = normalizeNote(note)
     if (durationDays == 0) {
         val code = normalizeReasonCode(reasonCode) ?: unrestrictPostsReasonCode
         if (code != unrestrictPostsReasonCode && findPostRestrictTemplate(code) == null) {
-            return DispositionService.DispositionValidation.Invalid("未知解除禁动态原因码")
+            return DispositionValidation.Invalid("未知解除禁动态原因码")
         }
-        return DispositionService.DispositionValidation.Ok(
+        return DispositionValidation.Ok(
             reasonCode = if (code == unrestrictPostsReasonCode) unrestrictPostsReasonCode else code,
             note = noteNorm,
             banDays = 0
         )
     }
     val template = findPostRestrictTemplate(reasonCode)
-        ?: return DispositionService.DispositionValidation.Invalid("请选择禁动态原因模板")
+        ?: return DispositionValidation.Invalid("请选择禁动态原因模板")
     if (template.requiresCustomNote && noteNorm == null) {
-        return DispositionService.DispositionValidation.Invalid("该原因须填写备注")
+        return DispositionValidation.Invalid("该原因须填写备注")
     }
-    return DispositionService.DispositionValidation.Ok(
+    return DispositionValidation.Ok(
         reasonCode = template.code,
         note = noteNorm,
         banDays = durationDays

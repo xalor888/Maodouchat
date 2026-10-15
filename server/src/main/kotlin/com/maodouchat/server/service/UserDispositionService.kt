@@ -1,6 +1,10 @@
 package com.maodouchat.server.service
 
+import com.maodouchat.server.repository.BulkDispositionResult
+import com.maodouchat.server.repository.UserDispositionField
+import com.maodouchat.server.repository.UserDispositionMode
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.UserSettingsField
 import com.maodouchat.server.repository.applyBulkDisableTotp
 import com.maodouchat.server.repository.applyBulkDisposition
 import com.maodouchat.server.repository.applyBulkUserSettings
@@ -15,63 +19,57 @@ import com.maodouchat.server.repository.applyUserSuspension
  */
 class UserDispositionService(private val users: UserRepository) {
 
-    sealed interface Result {
-        data class Applied(val reasonCode: String, val until: Long) : Result
-        data class Invalid(val message: String) : Result
-        object NotFound : Result
-    }
-
-    fun suspend(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): Result {
+    fun suspend(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): UserDispositionResult {
         val now = System.currentTimeMillis()
         if (until < 0 || until > now + DispositionService.MAX_SUSPEND_MS || (until in 1..now)) {
-            return Result.Invalid("封禁截止时间无效")
+            return UserDispositionResult.Invalid("封禁截止时间无效")
         }
         val banDays = if (until <= 0L) 0 else
             (((until - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, DispositionService.MAX_BAN_DAYS)
         val ok = when (val d = DispositionService.validateDisposition(banDays, reasonCode, note)) {
-            is DispositionService.DispositionValidation.Invalid -> return Result.Invalid(d.message)
-            is DispositionService.DispositionValidation.Ok -> d
+            is DispositionValidation.Invalid -> return UserDispositionResult.Invalid(d.message)
+            is DispositionValidation.Ok -> d
         }
         val detail = DispositionService.auditDetail(until, ok.reasonCode, ok.note)
         return if (users.applyUserSuspension(actorId, userId, until, detail)) {
-            Result.Applied(ok.reasonCode, until)
-        } else Result.NotFound
+            UserDispositionResult.Applied(ok.reasonCode, until)
+        } else UserDispositionResult.NotFound
     }
 
-    fun restrictPosts(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): Result {
+    fun restrictPosts(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): UserDispositionResult {
         val now = System.currentTimeMillis()
         val maxMs = DispositionService.MAX_POST_RESTRICT_DAYS * 86_400_000L
         if (until < 0 || until > now + maxMs || (until in 1..now)) {
-            return Result.Invalid("禁动态截止时间无效")
+            return UserDispositionResult.Invalid("禁动态截止时间无效")
         }
         val days = if (until <= 0L) 0 else
             (((until - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, DispositionService.MAX_POST_RESTRICT_DAYS)
         val ok = when (val d = DispositionService.validatePostRestrict(days, reasonCode, note)) {
-            is DispositionService.DispositionValidation.Invalid -> return Result.Invalid(d.message)
-            is DispositionService.DispositionValidation.Ok -> d
+            is DispositionValidation.Invalid -> return UserDispositionResult.Invalid(d.message)
+            is DispositionValidation.Ok -> d
         }
         val detail = DispositionService.auditPostRestrictDetail(until, ok.reasonCode, ok.note)
         return if (users.applyUserPostRestriction(actorId, userId, until, detail)) {
-            Result.Applied(ok.reasonCode, until)
-        } else Result.NotFound
+            UserDispositionResult.Applied(ok.reasonCode, until)
+        } else UserDispositionResult.NotFound
     }
 
-    fun restrictMessages(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): Result {
+    fun restrictMessages(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): UserDispositionResult {
         val now = System.currentTimeMillis()
         val maxMs = DispositionService.MAX_MESSAGE_RESTRICT_DAYS * 86_400_000L
         if (until < 0 || until > now + maxMs || (until in 1..now)) {
-            return Result.Invalid("禁消息截止时间无效")
+            return UserDispositionResult.Invalid("禁消息截止时间无效")
         }
         val days = if (until <= 0L) 0 else
             (((until - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
         val ok = when (val d = DispositionService.validateMessageRestrict(days, reasonCode, note)) {
-            is DispositionService.DispositionValidation.Invalid -> return Result.Invalid(d.message)
-            is DispositionService.DispositionValidation.Ok -> d
+            is DispositionValidation.Invalid -> return UserDispositionResult.Invalid(d.message)
+            is DispositionValidation.Ok -> d
         }
         val detail = DispositionService.auditMessageRestrictDetail(until, ok.reasonCode, ok.note)
         return if (users.applyUserMessageRestriction(actorId, userId, until, detail)) {
-            Result.Applied(ok.reasonCode, until)
-        } else Result.NotFound
+            UserDispositionResult.Applied(ok.reasonCode, until)
+        } else UserDispositionResult.NotFound
     }
 
     // ─── B13：批量处置（收敛 AdminBulkRouting 的重复「skip+update+audit」）───
@@ -79,40 +77,40 @@ class UserDispositionService(private val users: UserRepository) {
     fun bulkExtend(
         actorId: String,
         ids: List<String>,
-        field: UserRepository.UserDispositionField,
+        field: UserDispositionField,
         until: Long,
         action: String,
         detailFor: (Long) -> String,
-    ): UserRepository.BulkDispositionResult =
-        users.applyBulkDisposition(actorId, ids, field, UserRepository.UserDispositionMode.EXTEND, until, action, detailFor)
+    ): BulkDispositionResult =
+        users.applyBulkDisposition(actorId, ids, field, UserDispositionMode.EXTEND, until, action, detailFor)
 
     fun bulkSet(
         actorId: String,
         ids: List<String>,
-        field: UserRepository.UserDispositionField,
+        field: UserDispositionField,
         until: Long,
         action: String,
         detailFor: (Long) -> String,
-    ): UserRepository.BulkDispositionResult =
-        users.applyBulkDisposition(actorId, ids, field, UserRepository.UserDispositionMode.SET, until, action, detailFor)
+    ): BulkDispositionResult =
+        users.applyBulkDisposition(actorId, ids, field, UserDispositionMode.SET, until, action, detailFor)
 
     fun bulkClear(
         actorId: String,
         ids: List<String>,
-        field: UserRepository.UserDispositionField,
+        field: UserDispositionField,
         action: String,
         detail: String,
-    ): UserRepository.BulkDispositionResult =
-        users.applyBulkDisposition(actorId, ids, field, UserRepository.UserDispositionMode.CLEAR, 0L, action, { detail })
+    ): BulkDispositionResult =
+        users.applyBulkDisposition(actorId, ids, field, UserDispositionMode.CLEAR, 0L, action, { detail })
 
     fun bulkSetUserSettings(
         actorId: String,
         ids: List<String>,
-        field: UserRepository.UserSettingsField,
+        field: UserSettingsField,
         value: Boolean,
-    ): UserRepository.BulkDispositionResult =
+    ): BulkDispositionResult =
         users.applyBulkUserSettings(actorId, ids, field, value)
 
-    fun bulkDisableTotp(actorId: String, ids: List<String>): UserRepository.BulkDispositionResult =
+    fun bulkDisableTotp(actorId: String, ids: List<String>): BulkDispositionResult =
         users.applyBulkDisableTotp(actorId, ids)
 }

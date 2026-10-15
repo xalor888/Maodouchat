@@ -3,6 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.config.AdminAccess
 import com.maodouchat.server.model.*
 import com.maodouchat.server.service.DispositionService
+import com.maodouchat.server.service.UserDispositionResult
 import com.maodouchat.server.service.UserDispositionService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -27,11 +28,11 @@ internal fun Route.configureAdminUserRestrictionRoutes(
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
         val bannedUntil = req.bannedUntil ?: 0L
         when (val result = userDispositionService.suspend(actorId, id, bannedUntil, req.reasonCode, req.note)) {
-            is UserDispositionService.Result.Invalid ->
+            is UserDispositionResult.Invalid ->
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            UserDispositionService.Result.NotFound ->
+            UserDispositionResult.NotFound ->
                 return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
-            is UserDispositionService.Result.Applied -> {
+            is UserDispositionResult.Applied -> {
                 // 生效中的封禁需立刻废掉已签发会话，避免仅靠写路径的 suspended 检查被绕过
                 if (bannedUntil > System.currentTimeMillis()) {
                     sessionService.revokeAllUserSessions(id)
@@ -59,11 +60,11 @@ internal fun Route.configureAdminUserRestrictionRoutes(
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
         val postRestrictedUntil = req.postRestrictedUntil ?: 0L
         when (val result = userDispositionService.restrictPosts(actorId, id, postRestrictedUntil, req.reasonCode, req.note)) {
-            is UserDispositionService.Result.Invalid ->
+            is UserDispositionResult.Invalid ->
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            UserDispositionService.Result.NotFound ->
+            UserDispositionResult.NotFound ->
                 return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
-            is UserDispositionService.Result.Applied -> call.respond(
+            is UserDispositionResult.Applied -> call.respond(
                 buildJsonObject {
                     put("status", "ok")
                     put("postRestrictedUntil", postRestrictedUntil)
@@ -84,11 +85,11 @@ internal fun Route.configureAdminUserRestrictionRoutes(
             ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("请求无效"))
         val messageRestrictedUntil = req.messageRestrictedUntil ?: 0L
         when (val result = userDispositionService.restrictMessages(actorId, id, messageRestrictedUntil, req.reasonCode, req.note)) {
-            is UserDispositionService.Result.Invalid ->
+            is UserDispositionResult.Invalid ->
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse(result.message))
-            UserDispositionService.Result.NotFound ->
+            UserDispositionResult.NotFound ->
                 return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("用户不存在"))
-            is UserDispositionService.Result.Applied -> call.respond(
+            is UserDispositionResult.Applied -> call.respond(
                 buildJsonObject {
                     put("status", "ok")
                     put("reasonCode", result.reasonCode)

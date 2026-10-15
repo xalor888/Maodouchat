@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.UserDispositionField
 import com.maodouchat.server.repository.rotateAccessTokenVersion
 import com.maodouchat.server.service.DispositionService
 import io.ktor.http.HttpStatusCode
@@ -29,7 +30,7 @@ internal fun Route.configureAdminBulkBanRoutes(
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
         val until = System.currentTimeMillis() + days * 86_400_000L
-        val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, until, "ADMIN_BULK_BAN", { _ -> "days=$days;reason=$reasonCode" })
+        val result = userDispositionService.bulkExtend(actorId, ids, UserDispositionField.SUSPEND, until, "ADMIN_BULK_BAN", { _ -> "days=$days;reason=$reasonCode" })
         val banned = result.updated
         val skipped = result.skipped
         banned.forEach { id ->
@@ -56,7 +57,7 @@ put("count", banned.size)
         if (ids.isEmpty()) {
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         }
-        val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, "ADMIN_BULK_UNBAN", "cleared suspension")
+        val result = userDispositionService.bulkClear(actorId, ids, UserDispositionField.SUSPEND, "ADMIN_BULK_UNBAN", "cleared suspension")
         val updated = result.updated
         val skipped = result.skipped
         call.respond(

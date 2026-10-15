@@ -1,6 +1,7 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
+import com.maodouchat.server.repository.UserDispositionField
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
@@ -20,7 +21,7 @@ internal fun Route.configureAdminBulkClearRestrictionsRoutes(
             val obj = call.requireJsonObjectOr400(body) ?: return@post
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.ALL, "ADMIN_BULK_CLEAR_ALL_RESTRICTIONS", "cleared msg+post+suspend")
+            val result = userDispositionService.bulkClear(actorId, ids, UserDispositionField.ALL, "ADMIN_BULK_CLEAR_ALL_RESTRICTIONS", "cleared msg+post+suspend")
             val updated = result.updated
             val skipped = result.skipped
             call.respond(
@@ -40,7 +41,7 @@ internal fun Route.configureAdminBulkClearRestrictionsRoutes(
             val obj = call.requireJsonObjectOr400(body) ?: return@post
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.MESSAGE_AND_POST, "ADMIN_BULK_CLEAR_MSG_AND_POST_RESTRICT", "cleared")
+            val result = userDispositionService.bulkClear(actorId, ids, UserDispositionField.MESSAGE_AND_POST, "ADMIN_BULK_CLEAR_MSG_AND_POST_RESTRICT", "cleared")
             val updated = result.updated
             val skipped = result.skipped
             call.respond(

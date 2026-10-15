@@ -15,9 +15,9 @@ import org.jetbrains.exposed.sql.update
 fun UserRepository.applyBulkUserSettings(
     actorId: String,
     ids: List<String>,
-    field: UserRepository.UserSettingsField,
+    field: UserSettingsField,
     value: Boolean,
-): UserRepository.BulkDispositionResult {
+): BulkDispositionResult {
     val existing = transaction {
         Users.select(Users.id).where { (Users.id inList ids) and Users.deletedAt.isNull() }.map { it[Users.id] }.toSet()
     }
@@ -31,13 +31,13 @@ fun UserRepository.applyBulkUserSettings(
             }
             Users.update({ (Users.id eq id) and Users.deletedAt.isNull() }) {
                 when (field) {
-                    UserRepository.UserSettingsField.SEARCHABLE -> it[Users.searchable] = value
-                    UserRepository.UserSettingsField.SHOW_STATUS -> it[Users.showStatus] = value
-                    UserRepository.UserSettingsField.SHOW_ONLINE -> it[Users.showOnline] = value
+                    UserSettingsField.SEARCHABLE -> it[Users.searchable] = value
+                    UserSettingsField.SHOW_STATUS -> it[Users.showStatus] = value
+                    UserSettingsField.SHOW_ONLINE -> it[Users.showOnline] = value
                 }
             }
             updated += id
         }
     }
-    return UserRepository.BulkDispositionResult(updated, skipped)
+    return BulkDispositionResult(updated, skipped)
 }

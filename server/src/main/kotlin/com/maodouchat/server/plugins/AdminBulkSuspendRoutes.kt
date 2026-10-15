@@ -2,6 +2,7 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.UserDispositionField
 import com.maodouchat.server.repository.rotateAccessTokenVersion
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -25,7 +26,7 @@ internal fun Route.configureAdminBulkSuspendRoutes(
         val days = parseAdminBulkDays(obj, 1, 365)
         if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
         val until = System.currentTimeMillis() + days * 86_400_000L
-        val result = userDispositionService.bulkExtend(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, until, "ADMIN_BULK_SUSPEND_DAYS", { e -> "days=$days;until=$e" })
+        val result = userDispositionService.bulkExtend(actorId, ids, UserDispositionField.SUSPEND, until, "ADMIN_BULK_SUSPEND_DAYS", { e -> "days=$days;until=$e" })
         val updated = result.updated
         val skipped = result.skipped
         updated.forEach { id ->
@@ -56,7 +57,7 @@ put("count", updated.size)
             }
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkSet(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, until, "ADMIN_BULK_SET_SUSPEND_UNTIL", { _ -> "until=$until" })
+            val result = userDispositionService.bulkSet(actorId, ids, UserDispositionField.SUSPEND, until, "ADMIN_BULK_SET_SUSPEND_UNTIL", { _ -> "until=$until" })
             val updated = result.updated
             val skipped = result.skipped
             if (until > now) {
@@ -83,7 +84,7 @@ put("count", updated.size)
             val obj = call.requireJsonObjectOr400(body) ?: return@post
             val ids = parseAdminIds(obj)
             if (ids.isEmpty()) return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("userIds required"))
-            val result = userDispositionService.bulkClear(actorId, ids, com.maodouchat.server.repository.UserRepository.UserDispositionField.SUSPEND, "ADMIN_BULK_CLEAR_SUSPEND", "cleared")
+            val result = userDispositionService.bulkClear(actorId, ids, UserDispositionField.SUSPEND, "ADMIN_BULK_CLEAR_SUSPEND", "cleared")
             val updated = result.updated
             val skipped = result.skipped
             call.respond(

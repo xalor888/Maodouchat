@@ -30,24 +30,24 @@ internal fun DispositionService.validateMute(
     durationHours: Int,
     reasonCode: String?,
     note: String?
-): DispositionService.DispositionValidation {
+): DispositionValidation {
     if (durationHours < 0 || durationHours > 24 * 30) {
-        return DispositionService.DispositionValidation.Invalid("禁言时长无效")
+        return DispositionValidation.Invalid("禁言时长无效")
     }
     val noteNorm = normalizeNote(note)
     if (durationHours == 0) {
-        return DispositionService.DispositionValidation.Ok(
+        return DispositionValidation.Ok(
             reasonCode = unmuteReasonCode,
             note = noteNorm,
             banDays = 0
         )
     }
     val template = findMuteTemplate(reasonCode)
-        ?: return DispositionService.DispositionValidation.Invalid("请选择禁言原因模板")
+        ?: return DispositionValidation.Invalid("请选择禁言原因模板")
     if (template.requiresCustomNote && noteNorm == null) {
-        return DispositionService.DispositionValidation.Invalid("该原因须填写备注")
+        return DispositionValidation.Invalid("该原因须填写备注")
     }
-    return DispositionService.DispositionValidation.Ok(
+    return DispositionValidation.Ok(
         reasonCode = template.code,
         note = noteNorm,
         banDays = 0

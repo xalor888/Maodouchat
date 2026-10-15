@@ -4,7 +4,9 @@ import com.maodouchat.server.config.AdminAccess
 import com.maodouchat.server.db.ModerationAuditLog
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.initDatabase
+import com.maodouchat.server.repository.UserDispositionField
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.UserSettingsField
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
@@ -52,7 +54,7 @@ class UserDispositionServiceTest {
         setupDb()
         val until = System.currentTimeMillis() + 7L * 86_400_000L
         val result = UserDispositionService(UserRepository()).suspend("admin", "u1", until, "spam", null)
-        val applied = assertIs<UserDispositionService.Result.Applied>(result)
+        val applied = assertIs<UserDispositionResult.Applied>(result)
         assertEquals("spam", applied.reasonCode)
 
         transaction {
@@ -71,7 +73,7 @@ class UserDispositionServiceTest {
         setupDb()
         val past = System.currentTimeMillis() - 1_000L
         val result = UserDispositionService(UserRepository()).suspend("admin", "u1", past, "spam", null)
-        assertIs<UserDispositionService.Result.Invalid>(result)
+        assertIs<UserDispositionResult.Invalid>(result)
     }
 
     @Test
@@ -79,7 +81,7 @@ class UserDispositionServiceTest {
         setupDb()
         val until = System.currentTimeMillis() + 86_400_000L
         val result = UserDispositionService(UserRepository()).suspend("admin", "missing", until, "spam", null)
-        assertEquals(UserDispositionService.Result.NotFound, result)
+        assertEquals(UserDispositionResult.NotFound, result)
     }
 
     @Test
@@ -87,7 +89,7 @@ class UserDispositionServiceTest {
         setupDb()
         val until = System.currentTimeMillis() + 3L * 86_400_000L
         val result = UserDispositionService(UserRepository()).restrictMessages("admin", "u1", until, "spam_chat", null)
-        assertIs<UserDispositionService.Result.Applied>(result)
+        assertIs<UserDispositionResult.Applied>(result)
         transaction {
             val row = Users.selectAll().where { Users.id eq "u1" }.single()
             assertEquals(until, row[Users.messageRestrictedUntil])
@@ -114,7 +116,7 @@ class UserDispositionServiceTest {
             val result = UserDispositionService(UserRepository()).bulkExtend(
                 actorId = "actor",
                 ids = listOf("u1", "u2", "admin1", "missing"),
-                field = UserRepository.UserDispositionField.SUSPEND,
+                field = UserDispositionField.SUSPEND,
                 until = until,
                 action = "ADMIN_BULK_BAN",
                 detailFor = { _ -> "d" },
@@ -140,7 +142,7 @@ class UserDispositionServiceTest {
         val result = UserDispositionService(UserRepository()).bulkClear(
             actorId = "actor",
             ids = listOf("u1"),
-            field = UserRepository.UserDispositionField.SUSPEND,
+            field = UserDispositionField.SUSPEND,
             action = "ADMIN_BULK_UNBAN",
             detail = "cleared",
         )
@@ -159,7 +161,7 @@ class UserDispositionServiceTest {
             val result = UserDispositionService(UserRepository()).bulkSetUserSettings(
                 actorId = "actor",
                 ids = listOf("u1", "actor", "admin1", "missing"),
-                field = UserRepository.UserSettingsField.SEARCHABLE,
+                field = UserSettingsField.SEARCHABLE,
                 value = false,
             )
             assertEquals(listOf("u1"), result.updated)
