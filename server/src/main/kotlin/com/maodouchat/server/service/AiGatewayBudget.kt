@@ -5,16 +5,16 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-internal fun AiGatewayService.budgetMonitorFor(userId: String): AiGatewayService.BudgetMonitor {
+internal fun AiGatewayService.budgetMonitorFor(userId: String): BudgetMonitor {
     maybeSweepBudgetMonitors()
     return budgetMonitors.compute(userId) { _, existing ->
-        val monitor = existing ?: AiGatewayService.BudgetMonitor()
+        val monitor = existing ?: BudgetMonitor()
         monitor.users++
         monitor
     }!!
 }
 
-internal fun AiGatewayService.releaseBudgetMonitor(userId: String, monitor: AiGatewayService.BudgetMonitor) {
+internal fun AiGatewayService.releaseBudgetMonitor(userId: String, monitor: BudgetMonitor) {
     budgetMonitors.computeIfPresent(userId) { _, current ->
         if (current === monitor) {
             if (current.users > 1) {

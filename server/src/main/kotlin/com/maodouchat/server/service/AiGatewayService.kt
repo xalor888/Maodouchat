@@ -106,11 +106,9 @@ class AiGatewayService(
 
     internal val llmSemaphore = java.util.concurrent.Semaphore(LLM_MAX_CONCURRENCY)
 
-    internal data class Reservation(val amount: Long, val expiresAt: Long)
     internal val AI_BUDGET_RESERVATION_LEASE_MS = 120_000L
     internal val BUDGET_OUTPUT_ESTIMATE_TOKENS = 1_024L
     internal val budgetReservations = ConcurrentHashMap<String, MutableList<Reservation>>()
-    internal class BudgetMonitor(val lock: Any = Any(), var users: Int = 0)
     internal val budgetMonitors = ConcurrentHashMap<String, BudgetMonitor>()
     internal val budgetMonitorSweepAt = java.util.concurrent.atomic.AtomicLong(0L)
     internal val MAX_BUDGET_MONITORS = 100_000
