@@ -21,33 +21,33 @@ class DirectChatRequestHandlerTest {
         CurrentSession.override = null
     }
 
-    private val request = CallOrchestrator.DirectChatRequest(userId = "u-peer", userName = "Peer")
+    private val request = DirectChatRequest(userId = "u-peer", userName = "Peer")
 
     @Test
     fun noSessionShortCircuitsToSessionExpired() {
         CurrentSession.override = { CurrentSession.Snapshot(null, null) }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
-        assertEquals(DirectChatRequestHandler.Outcome.SessionExpired, outcome)
+        assertEquals(Outcome.SessionExpired, outcome)
     }
 
     @Test
     fun tokenWithoutOwnerShortCircuitsToSessionExpired() {
         CurrentSession.override = { CurrentSession.Snapshot("tok", null) }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
-        assertEquals(DirectChatRequestHandler.Outcome.SessionExpired, outcome)
+        assertEquals(Outcome.SessionExpired, outcome)
     }
 
     @Test
     fun outcomeTypesAreExhaustiveByConstruction() {
         // 编译期穷尽性之外，钉一眼四类结果的身份（防止有人把 Dropped 合并回 SessionExpired——
         // 那会改变「在途失效静默丢弃」的语义）。
-        val outcomes: List<DirectChatRequestHandler.Outcome> = listOf(
-            DirectChatRequestHandler.Outcome.SessionExpired,
-            DirectChatRequestHandler.Outcome.Dropped,
-            DirectChatRequestHandler.Outcome.OpenChat("c-1"),
-            DirectChatRequestHandler.Outcome.Failed(null),
+        val outcomes: List<Outcome> = listOf(
+            Outcome.SessionExpired,
+            Outcome.Dropped,
+            Outcome.OpenChat("c-1"),
+            Outcome.Failed(null),
         )
-        assertTrue(outcomes[2] is DirectChatRequestHandler.Outcome.OpenChat)
-        assertTrue(outcomes[3] is DirectChatRequestHandler.Outcome.Failed)
+        assertTrue(outcomes[2] is Outcome.OpenChat)
+        assertTrue(outcomes[3] is Outcome.Failed)
     }
 }

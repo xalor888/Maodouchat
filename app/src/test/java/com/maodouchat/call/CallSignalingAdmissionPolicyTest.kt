@@ -77,7 +77,7 @@ class CallSignalingAdmissionPolicyTest {
                 signalType = "answer",
                 incomingEpoch = 1,
                 incomingSequence = 1,
-                lastAcceptedCursor = CallSignalingOrderPolicy.Cursor(1, 2),
+                lastAcceptedCursor = Cursor(1, 2),
             ),
         )
     }
@@ -99,7 +99,7 @@ class CallSignalingAdmissionPolicyTest {
                 signalType = "answer",
                 incomingEpoch = 1,
                 incomingSequence = 3,
-                lastAcceptedCursor = CallSignalingOrderPolicy.Cursor(1, 2),
+                lastAcceptedCursor = Cursor(1, 2),
             ),
         )
         assertEquals(

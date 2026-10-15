@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.CallSignalingIdempotencyStore
-import com.maodouchat.call.CallSignalingOrderPolicy
+import com.maodouchat.call.Cursor
 import com.maodouchat.call.CallSignalingOutboundCursor
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.webrtc.CallType
@@ -56,7 +56,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val outboundSignalingCursor = CallSignalingOutboundCursor()
     private val hangUpSender = CallHangUpSender(outboundSignalingCursor)
     /** Per sender last accepted (epoch, sequence) for the active call. */
-    private val inboundSignalingCursors = mutableMapOf<String, CallSignalingOrderPolicy.Cursor>()
+    private val inboundSignalingCursors = mutableMapOf<String, Cursor>()
     // 8.55：通话开始时的账号快照——writeCallLog 用其作 expectedUserId 守卫，
     // 通话中异地登出换号后旧通话不写进新账号 key
     private var callLogOwnerUserId: String = ""
