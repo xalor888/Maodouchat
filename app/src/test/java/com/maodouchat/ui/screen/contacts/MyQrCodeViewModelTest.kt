@@ -70,8 +70,8 @@ class MyQrCodeViewModelTest {
     fun `a disabled qr flag short circuits before anything else`() {
         val result = plan(qrEnabled = false, token = "tok", userId = "u1", local = null)
 
-        assertIs<MyQrCodeLoadPolicy.Decision.Reject>(result)
-        assertEquals(MyQrCodeLoadPolicy.RejectReason.DISABLED, result.reason)
+        assertIs<Decision.Reject>(result)
+        assertEquals(RejectReason.DISABLED, result.reason)
     }
 
     @Test
@@ -79,11 +79,11 @@ class MyQrCodeViewModelTest {
         // 实测契约：只有「token 与 userId 双双为空」才报会话过期。
         // 仅有 token 空（有 userId）时仍然能生成二维码——那正是本地缓存的用途。
         val bothBlank = plan(qrEnabled = true, token = "", userId = "", local = null)
-        assertIs<MyQrCodeLoadPolicy.Decision.Reject>(bothBlank)
-        assertEquals(MyQrCodeLoadPolicy.RejectReason.NO_SESSION, bothBlank.reason)
+        assertIs<Decision.Reject>(bothBlank)
+        assertEquals(RejectReason.NO_SESSION, bothBlank.reason)
 
         val tokenBlankOnly = plan(qrEnabled = true, token = "", userId = "u1", local = null)
-        assertIs<MyQrCodeLoadPolicy.Decision.Allow>(tokenBlankOnly, "只有 token 空时仍应放行（有 userId 就能编码）")
+        assertIs<Decision.Allow>(tokenBlankOnly, "只有 token 空时仍应放行（有 userId 就能编码）")
     }
 
     @Test
@@ -91,7 +91,7 @@ class MyQrCodeViewModelTest {
         val local = User(id = "u1", name = "本地名", avatar = "av.png")
         val result = plan(qrEnabled = true, token = "", userId = "u1", local = local)
 
-        assertIs<MyQrCodeLoadPolicy.Decision.Allow>(result)
+        assertIs<Decision.Allow>(result)
         assertEquals("本地名", result.displayName)
         assertEquals("av.png", result.avatar)
         assertEquals("u1", result.targetUserId, "二维码必须编码 userId，不是昵称")
@@ -110,7 +110,7 @@ class MyQrCodeViewModelTest {
             sessionMayContinue = true,
         )
 
-        assertIs<MyQrCodeLoadPolicy.Decision.Allow>(result)
+        assertIs<Decision.Allow>(result)
         assertEquals("新名", result.displayName, "在线资料必须覆盖本地缓存")
         assertEquals("new.png", result.avatar)
     }
@@ -128,7 +128,7 @@ class MyQrCodeViewModelTest {
             sessionMayContinue = false,
         )
 
-        assertIs<MyQrCodeLoadPolicy.Decision.Allow>(result)
+        assertIs<Decision.Allow>(result)
         assertEquals("本地名", result.displayName, "门禁不通过（已登出/切号）不得采用远端资料")
     }
 
@@ -144,7 +144,7 @@ class MyQrCodeViewModelTest {
             sessionMayContinue = true,
         )
 
-        assertIs<MyQrCodeLoadPolicy.Decision.Allow>(result)
+        assertIs<Decision.Allow>(result)
         assertEquals("本地名", result.displayName)
         assertNull(result.avatar)
     }
@@ -154,7 +154,7 @@ class MyQrCodeViewModelTest {
         // 有 token 有 userId 但本地查不到、远端也没返回 —— targetUserId 仍应是 userId 本身
         val result = plan(qrEnabled = true, token = "tok", userId = "u9", local = null, remote = null)
 
-        assertIs<MyQrCodeLoadPolicy.Decision.Allow>(result)
+        assertIs<Decision.Allow>(result)
         assertEquals("u9", result.targetUserId)
         assertEquals("", result.displayName, "没有名字时不应编造")
     }
