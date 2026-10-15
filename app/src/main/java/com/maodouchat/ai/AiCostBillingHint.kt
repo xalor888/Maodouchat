@@ -8,31 +8,31 @@ internal object AiCostBillingHint {
         isStreaming: Boolean = false,
         isFailed: Boolean = false,
         hasScheduledAutoRetry: Boolean = false
-    ): AiCostVisibilityPolicy.BillingHint {
+    ): BillingHint {
         val code = AiCostErrorCodeCodec.baseErrorCode(errorCode)
         return when {
-            isStreaming -> AiCostVisibilityPolicy.BillingHint.IN_FLIGHT_MAY_BILL
-            code == AiCostVisibilityPolicy.ERROR_CANCELLED -> AiCostVisibilityPolicy.BillingHint.CANCELLED_PARTIAL_MAY_BILL
+            isStreaming -> BillingHint.IN_FLIGHT_MAY_BILL
+            code == AiCostVisibilityPolicy.ERROR_CANCELLED -> BillingHint.CANCELLED_PARTIAL_MAY_BILL
             code == AiCostVisibilityPolicy.ERROR_RATE_LIMIT ||
                 code.startsWith("RATE_LIMIT") ||
                 code.contains("TOO_MANY") ->
-                AiCostVisibilityPolicy.BillingHint.RATE_LIMITED_WAIT
+                BillingHint.RATE_LIMITED_WAIT
             code == AiCostVisibilityPolicy.ERROR_QUOTA ||
                 code.contains("QUOTA") ||
                 code.contains("BUDGET") ||
                 code.contains("PAYMENT") ||
                 code.contains("BILLING") ||
                 code.contains("INSUFFICIENT") ->
-                AiCostVisibilityPolicy.BillingHint.QUOTA_EXCEEDED
+                BillingHint.QUOTA_EXCEEDED
             code in setOf(
                 "OUTCOME_UNKNOWN",
                 "TIMEOUT",
                 "UNKNOWN",
                 "INTERRUPTED"
-            ) -> AiCostVisibilityPolicy.BillingHint.OUTCOME_UNKNOWN_MAY_BILL
-            hasScheduledAutoRetry -> AiCostVisibilityPolicy.BillingHint.SAFE_AUTO_RETRY
-            isFailed && code.isNotBlank() -> AiCostVisibilityPolicy.BillingHint.RETRY_MAY_BILL_AGAIN
-            else -> AiCostVisibilityPolicy.BillingHint.NONE
+            ) -> BillingHint.OUTCOME_UNKNOWN_MAY_BILL
+            hasScheduledAutoRetry -> BillingHint.SAFE_AUTO_RETRY
+            isFailed && code.isNotBlank() -> BillingHint.RETRY_MAY_BILL_AGAIN
+            else -> BillingHint.NONE
         }
     }
 

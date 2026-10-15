@@ -18,32 +18,6 @@ object AgentToolPolicy {
     const val MAX_DRAFT_CHARS = 4_000
     const val MAX_NICKNAME_CHARS = 40
 
-    enum class Risk {
-        READ,
-        WRITE,
-        SEND
-    }
-
-    enum class Approval {
-        ALLOW,
-        NEED_USER,
-        DENY
-    }
-
-    data class ToolSpec(
-        val name: String,
-        val description: String,
-        val parameters: Map<String, Parameter>,
-        val required: List<String>,
-        val risk: Risk
-    ) {
-        data class Parameter(
-            val type: String,
-            val description: String,
-            val enumValues: List<String>? = null
-        )
-    }
-
     val tools: List<ToolSpec> = agentToolCatalog
 
     fun toolByName(name: String): ToolSpec? = tools.firstOrNull { it.name == name }
@@ -76,5 +50,4 @@ object AgentToolPolicy {
             )
         )
     }
-
 }

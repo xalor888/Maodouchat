@@ -10,11 +10,11 @@ internal object AiCostDisplaySignal {
         hasScheduledAutoRetry: Boolean = false,
         serverRetryAfterSeconds: Long? = null,
         localRemainingMs: Long? = null
-    ): AiCostVisibilityPolicy.DisplaySignal {
+    ): DisplaySignal {
         val code = AiCostErrorCodeCodec.baseErrorCode(errorCode).ifBlank { "" }
         val wait = AiCostWaitPolicy.waitSecondsFor(errorCode, serverRetryAfterSeconds, localRemainingMs)
         val hint = AiCostBillingHint.billingHintFor(errorCode, isStreaming, isFailed, hasScheduledAutoRetry)
-        return AiCostVisibilityPolicy.DisplaySignal(
+        return DisplaySignal(
             errorCode = code,
             waitSeconds = wait,
             hint = hint,

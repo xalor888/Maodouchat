@@ -71,7 +71,7 @@ class AgentSessionEngine(
                         }
                         val args = AgentToolHost.parseArgs(call.argumentsJson)
                         when (AgentToolPolicy.approvalFor(call.name, args)) {
-                            AgentToolPolicy.Approval.DENY -> {
+                            Approval.DENY -> {
                                 working += AgentChatMessage(
                                     role = "tool",
                                     content = "Error: tool denied",
@@ -79,7 +79,7 @@ class AgentSessionEngine(
                                     toolName = call.name
                                 )
                             }
-                            AgentToolPolicy.Approval.NEED_USER -> {
+                            Approval.NEED_USER -> {
                                 emit(
                                     AgentTurnEvent.NeedsApproval(
                                         PendingAgentApproval(call, AgentToolHost.preview(call.name, call.argumentsJson))
@@ -87,7 +87,7 @@ class AgentSessionEngine(
                                 )
                                 return@flow
                             }
-                            AgentToolPolicy.Approval.ALLOW -> {
+                            Approval.ALLOW -> {
                                 if (call.name == "rewrite_text") {
                                     val rewritten = AgentTextCompletion.rewriteViaModel(provider, args, complete)
                                     working += AgentChatMessage(
