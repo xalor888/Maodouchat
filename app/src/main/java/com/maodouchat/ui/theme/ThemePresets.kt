@@ -73,40 +73,6 @@ private val TgDarkPalette = ChatPalette(
     chatElevatedSurfaceHigh = Color(0xFF1F2C3A)
 )
 
-// ─── Telegram Daybreak（朝霞 · 暖色浅色） ──────────────────────
-private val TgDaybreakScheme = lightColorScheme(
-    primary = Color(0xFFE8703A), onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFFFDBC9), onPrimaryContainer = Color(0xFF4A1D05),
-    secondary = Color(0xFFB0705A), onSecondary = Color(0xFFFFFFFF),
-    background = Color(0xFFFFF7F1), onBackground = Color(0xFF2B1D14),
-    surface = Color(0xFFFFFDFB), onSurface = Color(0xFF2B1D14),
-    surfaceVariant = Color(0xFFF7EAE0), onSurfaceVariant = Color(0xFF7A645A),
-    error = Color(0xFFDF3828), onError = Color(0xFFFFFFFF),
-    outline = Color(0xFF8A7468), outlineVariant = Color(0xFFEEDFD4)
-)
-
-private val TgDaybreakPalette = ChatPalette(
-    chatBackground = Color(0xFFFBE9DC),
-    chatBubbleReceived = Color(0xFFFFFFFF),
-    chatBubbleReceivedBorder = Color(0xFFEFDCCC),
-    chatInputBackground = Color(0xFFFAF0E7),
-    chatInputBorder = Color(0xFFE8D5C4),
-    chatInputPlaceholder = Color(0xFF75635A),
-    systemMessageBackground = Color(0x26FFFFFF),
-    systemMessageText = Color(0xFF8A7468),
-    // 9.263：Daybreak 对比度校准——#AD9684 仅 2.38:1，同色相加深到 #75635A
-    //（暖背景 4.8:1 / 白气泡 5.7:1）
-    textHint = Color(0xFF75635A),
-    textPrimary = Color(0xFF2B1D14),
-    // #8A7468→#6E5C50（3.72→5.38）
-    textSecondary = Color(0xFF6E5C50),
-    divider = Color(0xFFF0E2D5),
-    unreadRed = Color(0xFFE85D4A),
-    onlineGreen = Color(0xFF34C759),
-    chatElevatedSurface = Color(0xFFFBF1E8),
-    chatElevatedSurfaceHigh = Color(0xFFF6E8DA)
-)
-
 // ─── Telegram Midnight（午夜 · 深蓝） ──────────────────────────
 private val TgMidnightScheme = darkColorScheme(
     primary = Color(0xFF5288C1), onPrimary = Color(0xFFFFFFFF),
@@ -136,40 +102,6 @@ private val TgMidnightPalette = ChatPalette(
     onlineGreen = Color(0xFF4DCD5E),
     chatElevatedSurface = Color(0xFF232E3C),
     chatElevatedSurfaceHigh = Color(0xFF2A3848)
-)
-
-// ─── Telegram Ice（冰蓝 · 冷色浅色） ───────────────────────────
-private val TgIceScheme = lightColorScheme(
-    primary = Color(0xFF4A9DE0), onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFD9ECFC), onPrimaryContainer = Color(0xFF0A3251),
-    secondary = Color(0xFF5E87AC), onSecondary = Color(0xFFFFFFFF),
-    background = Color(0xFFF9FBFD), onBackground = Color(0xFF14202B),
-    surface = Color(0xFFFFFFFF), onSurface = Color(0xFF14202B),
-    surfaceVariant = Color(0xFFEDF2F7), onSurfaceVariant = Color(0xFF6F7C8A),
-    error = Color(0xFFDF3828), onError = Color(0xFFFFFFFF),
-    outline = Color(0xFF7A8794), outlineVariant = Color(0xFFE3E9EF)
-)
-
-private val TgIcePalette = ChatPalette(
-    chatBackground = Color(0xFFE9F0F6),
-    chatBubbleReceived = Color(0xFFFFFFFF),
-    chatBubbleReceivedBorder = Color(0xFFDDE6EE),
-    chatInputBackground = Color(0xFFEFF4F9),
-    chatInputBorder = Color(0xFFD8E2EB),
-    chatInputPlaceholder = Color(0xFF62707D),
-    systemMessageBackground = Color(0x26FFFFFF),
-    systemMessageText = Color(0xFF6F7C8A),
-    // 9.263：Ice 对比度校准——#98A6B4 仅 2.16:1，同色相加深到 #62707D
-    //（冷背景 4.4:1 / 白气泡 5.1:1）
-    textHint = Color(0xFF62707D),
-    textPrimary = Color(0xFF14202B),
-    // #6F7C8A→#576470（3.71→5.27）
-    textSecondary = Color(0xFF576470),
-    divider = Color(0xFFE3E9EF),
-    unreadRed = Color(0xFFDF3828),
-    onlineGreen = Color(0xFF34C759),
-    chatElevatedSurface = Color(0xFFF2F6FA),
-    chatElevatedSurfaceHigh = Color(0xFFEAF0F6)
 )
 
 // ─── Telegram Graphite（石墨 · 灰黑深色） ──────────────────────
