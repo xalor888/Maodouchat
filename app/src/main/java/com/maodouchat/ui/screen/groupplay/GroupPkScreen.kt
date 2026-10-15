@@ -56,19 +56,8 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
 
     val chatId: String = savedStateHandle["chatId"] ?: ""
 
-    data class UiState(
-        val loading: Boolean = true,
-        val error: String? = null,
-        val notice: String? = null,
-        val pks: List<PkListItem> = emptyList(),
-        val leftTitle: String = "",
-        val rightTitle: String = "",
-        val creating: Boolean = false,
-        val votingPkId: String? = null
-    )
-
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(GroupPkUiState())
+    val uiState: StateFlow<GroupPkUiState> = _uiState.asStateFlow()
     // 1.314：i18n —— 用资源字符串替代硬编码中文错误文案
 
     init {

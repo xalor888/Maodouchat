@@ -63,22 +63,8 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
 
     val chatId: String = savedStateHandle["chatId"] ?: ""
 
-    data class UiState(
-        val loading: Boolean = true,
-        val error: String? = null,
-        val notice: String? = null,
-        val polls: List<PollListItem> = emptyList(),
-        val question: String = "",
-        val options: MutableList<String> = mutableListOf("", ""),
-        val multi: Boolean = false,
-        val anonymous: Boolean = false,
-        val creating: Boolean = false,
-        val createdShare: String? = null,
-        val votingPollId: String? = null
-    )
-
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(GroupPollUiState())
+    val uiState: StateFlow<GroupPollUiState> = _uiState.asStateFlow()
     // 1.314：i18n —— 用资源字符串替代硬编码中文错误文案
 
     init {

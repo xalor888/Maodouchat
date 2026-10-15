@@ -28,10 +28,10 @@ fun ChatDetailViewModel.requestSemanticSearch(query: String, candidateMessageIds
                 noContextError = text(R.string.chat_semantic_search_no_context),
             )
         ) {
-            is ChatSearchSelectionStateController.SemanticSearchAdmission.Accepted -> {
+            is SemanticSearchAdmission.Accepted -> {
                 runAiWithConsent(PendingAiAction.SemanticSearch(admission.query, admission.candidateIds))
             }
-            is ChatSearchSelectionStateController.SemanticSearchAdmission.Rejected -> {
+            is SemanticSearchAdmission.Rejected -> {
                 _uiState.update { admission.state }
             }
         }

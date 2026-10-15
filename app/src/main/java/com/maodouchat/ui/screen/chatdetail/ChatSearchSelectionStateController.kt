@@ -2,10 +2,6 @@ package com.maodouchat.ui.screen.chatdetail
 
 /** UI-only search admission, navigation, and semantic-search reset behavior. */
 internal class ChatSearchSelectionStateController {
-    sealed interface SemanticSearchAdmission {
-        data class Accepted(val query: String, val candidateIds: List<String>) : SemanticSearchAdmission
-        data class Rejected(val state: ChatDetailUiState) : SemanticSearchAdmission
-    }
 
     fun admitSemanticSearch(
         state: ChatDetailUiState,

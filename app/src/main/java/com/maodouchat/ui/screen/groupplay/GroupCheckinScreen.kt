@@ -55,20 +55,8 @@ class GroupCheckinViewModel(application: Application, savedStateHandle: SavedSta
 
     val chatId: String = savedStateHandle["chatId"] ?: ""
 
-    data class UiState(
-        val loading: Boolean = true,
-        val error: String? = null,
-        val checkedIn: Boolean = false,
-        val streak: Int = 0,
-        val totalCount: Int = 0,
-        val todayRank: Int = 0,
-        val todayCount: Int = 0,
-        val ranking: List<CheckinRankItem> = emptyList(),
-        val checking: Boolean = false
-    )
-
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(GroupCheckinUiState())
+    val uiState: StateFlow<GroupCheckinUiState> = _uiState.asStateFlow()
     // 1.314：i18n —— 用资源字符串替代硬编码中文错误文案
 
     init {
