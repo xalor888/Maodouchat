@@ -4,6 +4,7 @@ import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository
+import com.maodouchat.server.repository.PinResult
 import com.maodouchat.server.repository.PinnedMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.blockedEitherWayIdsInTx
@@ -72,8 +73,8 @@ put("alreadyUnpinned", true)
         )
         com.maodouchat.server.repository.BotRepository.logCommand(bot.id, chatId, null, "unpinChatMessage")
         when (outcome.result) {
-            com.maodouchat.server.repository.PinnedMessageRepository.PinResult.UNPINNED,
-            com.maodouchat.server.repository.PinnedMessageRepository.PinResult.PINNED -> {
+            PinResult.UNPINNED,
+            PinResult.PINNED -> {
                 val payload = PinnedMessagesUpdatedPayload(chatId, bot.id, outcome.pins)
                 val pinJson = json.encodeToString(
                     WsMessage.serializer(),
@@ -97,9 +98,9 @@ put("count", outcome.pins.size)
         }
     )
             }
-            com.maodouchat.server.repository.PinnedMessageRepository.PinResult.NOT_FOUND ->
+            PinResult.NOT_FOUND ->
                 call.respond(HttpStatusCode.NotFound, ErrorResponse("message not found"))
-            com.maodouchat.server.repository.PinnedMessageRepository.PinResult.FORBIDDEN ->
+            PinResult.FORBIDDEN ->
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("forbidden"))
             else -> call.respond(HttpStatusCode.BadRequest, ErrorResponse("unpin failed: ${outcome.result}"))
         }

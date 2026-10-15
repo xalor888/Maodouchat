@@ -10,6 +10,7 @@ import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.DeleteDeviceResult
 import com.maodouchat.server.repository.PreKeyUpload
 import com.maodouchat.server.repository.SignalKeyRepository
+import com.maodouchat.server.repository.UploadKeyPackageResult
 import com.maodouchat.server.repository.uploadKeyPackage
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -53,24 +54,24 @@ internal fun Route.configureSignalKeyUploadRoutes(
                 deviceName = request.deviceName,
             )
         ) {
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED -> call.respondOk()
-            SignalKeyRepository.UploadKeyPackageResult.DEVICE_ID_CONFLICT -> call.respond(
+            UploadKeyPackageResult.UPLOADED -> call.respondOk()
+            UploadKeyPackageResult.DEVICE_ID_CONFLICT -> call.respond(
                 HttpStatusCode.Conflict,
                 ErrorResponse("设备编号冲突，请重新分配设备编号", code = "DEVICE_ID_CONFLICT"),
             )
-            SignalKeyRepository.UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH -> call.respond(
+            UploadKeyPackageResult.DEVICE_IDENTITY_MISMATCH -> call.respond(
                 HttpStatusCode.Conflict,
                 ErrorResponse("设备身份密钥与服务器记录不一致，请重新登录", code = "DEVICE_IDENTITY_MISMATCH"),
             )
-            SignalKeyRepository.UploadKeyPackageResult.SESSION_CONFLICT -> call.respond(
+            UploadKeyPackageResult.SESSION_CONFLICT -> call.respond(
                 HttpStatusCode.Conflict,
                 ErrorResponse("设备会话冲突，请重新登录", code = "DEVICE_SESSION_CONFLICT"),
             )
-            SignalKeyRepository.UploadKeyPackageResult.INVALID_SIGNATURE -> call.respond(
+            UploadKeyPackageResult.INVALID_SIGNATURE -> call.respond(
                 HttpStatusCode.BadRequest,
                 ErrorResponse("密钥包签名校验失败，请更新客户端重新生成密钥", code = "INVALID_KEY_SIGNATURE"),
             )
-            SignalKeyRepository.UploadKeyPackageResult.INVALID_PRE_KEY -> call.respond(
+            UploadKeyPackageResult.INVALID_PRE_KEY -> call.respond(
                 HttpStatusCode.BadRequest,
                 ErrorResponse("一次性预密钥无效", code = "INVALID_PRE_KEY"),
             )

@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 // 取走并删除发给指定用户的信令（先取 ID 再删，避免并发重复消费）。
 // offersOnly（冷启动/IncomingCallWake）：除 offer 外必须同批返回终端信令和 ice，
 // 否则只拉到 offer 会弹幽灵来电、只拉到 offer 没拉到 ice 会黑屏/连不上。
-fun SignalingRepository.consumeForUser(userId: String, offersOnly: Boolean = false): List<SignalingRepository.SignalingMessage> {
+fun SignalingRepository.consumeForUser(userId: String, offersOnly: Boolean = false): List<SignalingMessage> {
     return transaction {
         purgeStaleInTx()
         // FOR UPDATE 行锁让并发轮询串行化：先锁定的事务删行后提交，后到的 SELECT 不再看到已删行。
@@ -51,7 +51,7 @@ fun SignalingRepository.consumeForUser(userId: String, offersOnly: Boolean = fal
     }
 }
 
-internal fun ResultRow.toSignalingMessage() = SignalingRepository.SignalingMessage(
+internal fun ResultRow.toSignalingMessage() = SignalingMessage(
     id = this[SignalingMessages.id],
     fromUserId = this[SignalingMessages.fromUserId],
     toUserId = this[SignalingMessages.toUserId],

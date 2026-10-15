@@ -1,6 +1,7 @@
 package com.maodouchat.server.service
 
 import com.maodouchat.server.model.SendSignalRequest
+import com.maodouchat.server.repository.SignalingMessage
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.consumeForUser
 import com.maodouchat.server.repository.store
@@ -58,7 +59,7 @@ fun CallSignalingService.hangUp(request: SendSignalRequest, userId: String): Cal
     return CallSignalingService.SendOutcome.Stored(request.copy(type = "hang-up"))
 }
 
-fun CallSignalingService.pending(userId: String, offersOnly: Boolean): List<SignalingRepository.SignalingMessage> =
+fun CallSignalingService.pending(userId: String, offersOnly: Boolean): List<SignalingMessage> =
     signalingRepository.consumeForUser(userId, offersOnly)
 
 internal fun CallSignalingService.revokeTurnForCall(callId: String, vararg userIds: String) {

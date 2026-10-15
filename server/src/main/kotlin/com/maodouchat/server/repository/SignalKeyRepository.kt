@@ -12,17 +12,4 @@ class SignalKeyRepository(
     val signedPreKeyStore: SignedPreKeyStore = SignedPreKeyStore(),
     val preKeyStore: PreKeyStore = PreKeyStore()
 ) : EncryptableDeviceDirectory by deviceRegistry {
-
-    /**
-     * Full key package in one transaction so SPK + signature never diverge mid-upload.
-     * @return the upload result, including session, device-ID, and identity conflicts.
-     */
-    enum class UploadKeyPackageResult {
-        UPLOADED,
-        SESSION_CONFLICT,
-        DEVICE_ID_CONFLICT,
-        DEVICE_IDENTITY_MISMATCH,
-        INVALID_SIGNATURE,
-        INVALID_PRE_KEY,
-    }
 }

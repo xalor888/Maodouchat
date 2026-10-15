@@ -1684,7 +1684,7 @@ class SenderKeyDistributionRouteTest {
                     signedPreKeySignature = Base64.getEncoder().encodeToString(spkSignature),
                     preKeys = emptyList()
                 )
-                check(uploadResult == SignalKeyRepository.UploadKeyPackageResult.UPLOADED) { "uploadKeyPackage failed: $uploadResult" }
+                check(uploadResult == UploadKeyPackageResult.UPLOADED) { "uploadKeyPackage failed: $uploadResult" }
             }
             val approverKeyPair = Curve.generateKeyPair()
             val approverIdentity = Base64.getEncoder().encodeToString(approverKeyPair.publicKey.serialize())
@@ -1794,7 +1794,7 @@ class SenderKeyDistributionRouteTest {
                     signedPreKeySignature = Base64.getEncoder().encodeToString(spkSignature),
                     preKeys = emptyList()
                 )
-                check(uploadResult == SignalKeyRepository.UploadKeyPackageResult.UPLOADED) { "uploadKeyPackage failed: $uploadResult" }
+                check(uploadResult == UploadKeyPackageResult.UPLOADED) { "uploadKeyPackage failed: $uploadResult" }
             }
             val firstKeyPair = Curve.generateKeyPair()
             val firstIdentity = Base64.getEncoder().encodeToString(firstKeyPair.publicKey.serialize())
@@ -2582,7 +2582,7 @@ class PreKeyBundleStabilityRouteTest {
         val spkPair = Curve.generateKeyPair()
         val spkSignature = Curve.calculateSignature(identityPair.privateKey, spkPair.publicKey.serialize())
         assertEquals(
-            SignalKeyRepository.UploadKeyPackageResult.UPLOADED,
+            UploadKeyPackageResult.UPLOADED,
             SignalKeyRepository().uploadKeyPackage(
                 userId = "u1",
                 authSessionId = sessionId,
