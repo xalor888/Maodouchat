@@ -17,6 +17,7 @@ import com.maodouchat.session.RealtimeConnectionManager
 import com.maodouchat.session.SessionContextProvider
 import com.maodouchat.util.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.util.Flag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -281,5 +282,5 @@ internal class ChatRealtimeController(
 
     private fun currentOwner() = sessionContextProvider.current()
 
-    private fun enabled(flag: RuntimeFlags.Flag): Boolean = RuntimeFlags.isEnabled(application, flag)
+    private fun enabled(flag: Flag): Boolean = RuntimeFlags.isEnabled(application, flag)
 }

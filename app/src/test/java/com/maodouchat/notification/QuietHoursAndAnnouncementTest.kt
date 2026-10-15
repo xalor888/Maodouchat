@@ -11,7 +11,7 @@ import org.junit.Test
 class QuietHoursAndAnnouncementTest {
 
     private fun window(enabled: Boolean = true, start: Int = 0, end: Int = 0) =
-        ChatQuietHoursStore.QuietWindow(enabled = enabled, startMinute = start, endMinute = end)
+        QuietWindow(enabled = enabled, startMinute = start, endMinute = end)
 
     @Test
     fun `quiet hours suppress inside same day window`() {

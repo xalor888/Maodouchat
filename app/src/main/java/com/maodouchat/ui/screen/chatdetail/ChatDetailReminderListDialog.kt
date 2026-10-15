@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.util.MessageReminder
 
 /**
  * 稍后提醒列表对话框（G82 从 `ChatDetailRoute.kt` 拆出，原 65 行）。
@@ -41,12 +42,12 @@ import com.maodouchat.ui.theme.LocalChatPalette
  */
 @Composable
 internal fun ChatDetailReminderListDialog(
-    reminders: List<com.maodouchat.util.MessageReminderStore.MessageReminder>,
+    reminders: List<MessageReminder>,
     chatId: String,
     onDismiss: () -> Unit,
     onCancelReminder: (String) -> Unit,
     onClearAll: (String) -> Unit,
-    onRemindersChange: (List<com.maodouchat.util.MessageReminderStore.MessageReminder>) -> Unit,
+    onRemindersChange: (List<MessageReminder>) -> Unit,
 ) {
     // 9.219：调用方传入的 chatId 已是构造时捕获的局部值（防会话删除竞态）
     val reminderChatId = chatId

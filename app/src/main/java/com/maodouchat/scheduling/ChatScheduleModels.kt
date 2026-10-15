@@ -1,6 +1,6 @@
 package com.maodouchat.scheduling
 
-import com.maodouchat.util.MessageReminderStore
+import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
 
 data class ChatScheduleCommand(
@@ -41,6 +41,6 @@ sealed interface ChatScheduleImmediateOutcome {
 }
 
 sealed interface ChatReminderOutcome {
-    data class Scheduled(val reminder: MessageReminderStore.MessageReminder) : ChatReminderOutcome
+    data class Scheduled(val reminder: MessageReminder) : ChatReminderOutcome
     data class Rejected(val reason: ChatScheduleRejection) : ChatReminderOutcome
 }

@@ -2,7 +2,7 @@ package com.maodouchat.scheduling
 
 import android.content.Context
 import com.maodouchat.util.MessageReminderScheduler
-import com.maodouchat.util.MessageReminderStore
+import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
 import com.maodouchat.util.ScheduledMessagePolicy
 import com.maodouchat.util.ScheduledMessageScheduler
@@ -122,10 +122,10 @@ class AndroidConversationScheduleBackend(
     override fun rescheduleJob(item: ScheduledMessage) =
         ScheduledMessageScheduler.reschedule(appContext, item)
 
-    override fun listReminders(ownerUserId: String): List<MessageReminderStore.MessageReminder> =
+    override fun listReminders(ownerUserId: String): List<MessageReminder> =
         onDb { messageReminderDao.listForUserBlocking(ownerUserId.trim()).map { it.toModel() } }
 
-    override fun upsertReminder(reminder: MessageReminderStore.MessageReminder) {
+    override fun upsertReminder(reminder: MessageReminder) {
         val owner = reminder.ownerUserId.trim()
         if (owner.isBlank() || reminder.id.isBlank()) return
         onDb { messageReminderDao.upsertBlocking(reminder.copy(ownerUserId = owner).toEntity()) }
@@ -141,7 +141,7 @@ class AndroidConversationScheduleBackend(
         onDb { messageReminderDao.deleteForChatBlocking(ownerUserId.trim(), chatId.trim()) }
     }
 
-    override fun scheduleReminderJob(reminder: MessageReminderStore.MessageReminder) =
+    override fun scheduleReminderJob(reminder: MessageReminder) =
         MessageReminderScheduler.schedule(appContext, reminder)
 
     override fun cancelReminderJob(id: String) = MessageReminderScheduler.cancel(appContext, id)

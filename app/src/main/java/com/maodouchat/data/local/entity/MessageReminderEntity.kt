@@ -3,6 +3,7 @@ package com.maodouchat.data.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.maodouchat.util.MessageReminder
 
 @Entity(
     tableName = "message_reminders",
@@ -24,7 +25,7 @@ data class MessageReminderEntity(
     val createdAtMillis: Long,
 )
 
-fun MessageReminderEntity.toModel(): com.maodouchat.util.MessageReminderStore.MessageReminder = com.maodouchat.util.MessageReminderStore.MessageReminder(
+fun MessageReminderEntity.toModel(): MessageReminder = MessageReminder(
     id = id,
     chatId = chatId,
     messageId = messageId,
@@ -34,7 +35,7 @@ fun MessageReminderEntity.toModel(): com.maodouchat.util.MessageReminderStore.Me
     ownerUserId = ownerUserId,
 )
 
-fun com.maodouchat.util.MessageReminderStore.MessageReminder.toEntity(): MessageReminderEntity = MessageReminderEntity(
+fun MessageReminder.toEntity(): MessageReminderEntity = MessageReminderEntity(
     id = id,
     ownerUserId = ownerUserId,
     chatId = chatId,

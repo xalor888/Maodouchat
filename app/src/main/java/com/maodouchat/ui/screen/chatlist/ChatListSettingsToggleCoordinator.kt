@@ -4,13 +4,14 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.util.Flag
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
 /** 置顶/静音/归档/标未读编排（ChatList 瘦身：自 ChatListViewModel 抽出）。 */
 internal class ChatListSettingsToggleCoordinator(
     private val uiState: MutableStateFlow<ChatListUiState>,
-    private val isFlagEnabled: (RuntimeFlags.Flag) -> Boolean,
+    private val isFlagEnabled: (Flag) -> Boolean,
     private val text: (Int) -> String,
     private val updateChatSettings: (chat: Chat, optimistic: Chat, request: UpdateChatSettingsRequest) -> Unit,
 ) {
@@ -28,7 +29,7 @@ internal class ChatListSettingsToggleCoordinator(
     fun toggleMarkedUnread(chatId: String) =
         toggleSetting(chatId, RuntimeFlags.MARKED_UNREAD, ChatSettingsToggle.MARKED_UNREAD)
 
-    private fun toggleSetting(chatId: String, flagKey: RuntimeFlags.Flag, toggle: ChatSettingsToggle) {
+    private fun toggleSetting(chatId: String, flagKey: Flag, toggle: ChatSettingsToggle) {
         if (!isFlagEnabled(flagKey)) {
             uiState.update { it.copy(errorMessage = text(R.string.feature_disabled_by_admin)) }
             return

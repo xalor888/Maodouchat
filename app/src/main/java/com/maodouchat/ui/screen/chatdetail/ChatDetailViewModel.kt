@@ -15,6 +15,7 @@ import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.util.MessageReminder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -445,7 +446,7 @@ class ChatDetailViewModel(
     private val chatReminderController get() = deps.chatReminderController
 
     fun scheduleMessageReminder(message: Message, remindAtMillis: Long) = chatReminderController.scheduleMessageReminder(message, remindAtMillis)
-    fun listRemindersForChat(chatId: String): List<com.maodouchat.util.MessageReminderStore.MessageReminder> = chatReminderController.listRemindersForChat(chatId)
+    fun listRemindersForChat(chatId: String): List<MessageReminder> = chatReminderController.listRemindersForChat(chatId)
     fun cancelReminder(reminderId: String) = chatReminderController.cancelReminder(reminderId)
     fun clearRemindersForChat(chatId: String) = chatReminderController.clearRemindersForChat(chatId)
 

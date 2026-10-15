@@ -34,6 +34,7 @@ import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.sync.BacklogSyncWorker
 import com.maodouchat.util.PushVerifyPrefs
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.util.Flag
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -100,7 +101,7 @@ internal class ChatListPorts(
     val searchChatIdsByMessageContent: suspend (escaped: String) -> List<String>,
     val listSecretChatIds: suspend () -> Set<String>,
     val trustChangedRemoteIds: suspend (owner: String, remoteIds: Collection<String>) -> Set<String>,
-    val isFlagEnabled: (RuntimeFlags.Flag) -> Boolean,
+    val isFlagEnabled: (Flag) -> Boolean,
 )
 
 /** 生产装配：唯一允许触碰 MaodouchatApp / ApiService / DAO 的 ChatList 入口。 */

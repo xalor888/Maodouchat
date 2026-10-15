@@ -1,6 +1,6 @@
 package com.maodouchat.scheduling
 
-import com.maodouchat.util.MessageReminderStore
+import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
 
 data class ScheduledMessageRequest(
@@ -54,10 +54,10 @@ interface ConversationScheduleBackend {
     fun cancelJob(id: String)
     fun rescheduleJob(item: ScheduledMessage)
 
-    fun listReminders(ownerUserId: String): List<MessageReminderStore.MessageReminder>
-    fun upsertReminder(reminder: MessageReminderStore.MessageReminder)
+    fun listReminders(ownerUserId: String): List<MessageReminder>
+    fun upsertReminder(reminder: MessageReminder)
     fun removeReminder(ownerUserId: String, id: String)
     fun clearReminders(ownerUserId: String, chatId: String)
-    fun scheduleReminderJob(reminder: MessageReminderStore.MessageReminder)
+    fun scheduleReminderJob(reminder: MessageReminder)
     fun cancelReminderJob(id: String)
 }

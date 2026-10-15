@@ -1,6 +1,6 @@
 package com.maodouchat.scheduling
 
-import com.maodouchat.util.MessageReminderStore
+import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -13,7 +13,7 @@ class ConversationScheduleCoordinatorTest {
     private class FakeBackend : ConversationScheduleBackend {
         val scheduled = mutableMapOf<String, ScheduledMessage>()
         val scheduledJobs = mutableSetOf<String>()
-        val reminders = mutableMapOf<String, MessageReminderStore.MessageReminder>()
+        val reminders = mutableMapOf<String, MessageReminder>()
         val reminderJobs = mutableSetOf<String>()
 
         override fun listAllScheduled(ownerUserId: String): List<ScheduledMessage> =
@@ -85,10 +85,10 @@ class ConversationScheduleCoordinatorTest {
             scheduledJobs.add(item.id)
         }
 
-        override fun listReminders(ownerUserId: String): List<MessageReminderStore.MessageReminder> =
+        override fun listReminders(ownerUserId: String): List<MessageReminder> =
             reminders.values.filter { it.ownerUserId == ownerUserId }
 
-        override fun upsertReminder(reminder: MessageReminderStore.MessageReminder) {
+        override fun upsertReminder(reminder: MessageReminder) {
             reminders[reminder.id] = reminder
         }
 
@@ -101,7 +101,7 @@ class ConversationScheduleCoordinatorTest {
             toRemove.forEach { reminders.remove(it) }
         }
 
-        override fun scheduleReminderJob(reminder: MessageReminderStore.MessageReminder) {
+        override fun scheduleReminderJob(reminder: MessageReminder) {
             reminderJobs.add(reminder.id)
         }
 
