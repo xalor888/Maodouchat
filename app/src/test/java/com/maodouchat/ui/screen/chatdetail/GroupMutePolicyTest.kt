@@ -19,7 +19,7 @@ class GroupMutePolicyTest {
     @Test
     fun mutedUntilAddsDuration() {
         val now = 1_000_000L
-        val until = GroupMutePolicy.mutedUntil(now, GroupMutePolicy.Preset.HOUR_1)
+        val until = GroupMutePolicy.mutedUntil(now, Preset.HOUR_1)
         assertEquals(now + 3_600_000L, until)
     }
 

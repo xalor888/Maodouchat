@@ -32,17 +32,17 @@ import com.maodouchat.ui.theme.PrimaryFixed
 internal fun pinnedPreviewText(message: Message?): String {
     if (message == null) return stringResource(R.string.chat_pinned_preview_generic)
     return when (MessagePinPolicy.previewKind(message.type)) {
-        MessagePinPolicy.PreviewKind.TEXT -> {
+        PreviewKind.TEXT -> {
             val text = MessagePinPolicy.textPreview(message.content)
             if (text.isBlank()) stringResource(R.string.chat_pinned_preview_generic) else text
         }
-        MessagePinPolicy.PreviewKind.IMAGE -> stringResource(R.string.chat_pinned_preview_image)
-        MessagePinPolicy.PreviewKind.VOICE -> stringResource(R.string.chat_pinned_preview_voice)
-        MessagePinPolicy.PreviewKind.VIDEO -> stringResource(R.string.chat_pinned_preview_video)
-        MessagePinPolicy.PreviewKind.FILE -> stringResource(R.string.chat_pinned_preview_file)
-        MessagePinPolicy.PreviewKind.LOCATION -> stringResource(R.string.chat_pinned_preview_location)
-        MessagePinPolicy.PreviewKind.STICKER -> stringResource(R.string.chat_pinned_preview_sticker)
-        MessagePinPolicy.PreviewKind.GENERIC -> stringResource(R.string.chat_pinned_preview_generic)
+        PreviewKind.IMAGE -> stringResource(R.string.chat_pinned_preview_image)
+        PreviewKind.VOICE -> stringResource(R.string.chat_pinned_preview_voice)
+        PreviewKind.VIDEO -> stringResource(R.string.chat_pinned_preview_video)
+        PreviewKind.FILE -> stringResource(R.string.chat_pinned_preview_file)
+        PreviewKind.LOCATION -> stringResource(R.string.chat_pinned_preview_location)
+        PreviewKind.STICKER -> stringResource(R.string.chat_pinned_preview_sticker)
+        PreviewKind.GENERIC -> stringResource(R.string.chat_pinned_preview_generic)
     }
 }
 

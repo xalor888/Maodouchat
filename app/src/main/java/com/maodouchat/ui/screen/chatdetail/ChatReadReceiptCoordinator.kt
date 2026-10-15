@@ -108,7 +108,7 @@ internal class ChatReadReceiptCoordinator(
         ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
             viewerId = ownerUserId,
             messagesNewestLast = state.messages.map { message ->
-                ReadReceiptPolicy.PrefetchMessage(
+                PrefetchMessage(
                     id = message.id,
                     senderId = message.senderId,
                     eligibleForGroupReadCount = message.type != MessageType.SK_DIST &&

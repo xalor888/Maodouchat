@@ -84,10 +84,4 @@ object ReadReceiptPolicy {
                 count == null || (count.total > 0 && count.read < count.total)
             }
     }
-
-    data class PrefetchMessage(
-        val id: String,
-        val senderId: String,
-        val eligibleForGroupReadCount: Boolean,
-    )
 }
