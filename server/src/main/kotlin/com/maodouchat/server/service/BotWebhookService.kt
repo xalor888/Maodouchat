@@ -10,7 +10,6 @@ import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.Channel
 import org.slf4j.LoggerFactory
 
 /**
@@ -26,22 +25,6 @@ private val sha256ThreadLocal = ThreadLocal.withInitial { MessageDigest.getInsta
 private val hmacSha256ThreadLocal = ThreadLocal.withInitial { Mac.getInstance("HmacSHA256") }
 
 object BotWebhookService {
-    internal enum class LifecycleState { RUNNING, STOPPED }
-
-    internal data class Runtime(
-        val scope: CoroutineScope,
-        val queue: Channel<suspend () -> Unit>
-    )
-
-    internal data class OutboxEntry(
-        val id: String,
-        val botId: String,
-        val url: String,
-        val tokenHash: String,
-        val body: String,
-        val ts: Long,
-    )
-
     internal val logger = LoggerFactory.getLogger(BotWebhookService::class.java)
 
     @Volatile
@@ -56,8 +39,6 @@ object BotWebhookService {
     internal val droppedNotRunning = AtomicLong(0)
     /** 本进程 worker 标识：outbox 租约归属，避免多实例互相覆盖。 */
     internal val workerId = UUID.randomUUID().toString()
-
-    internal enum class DeliveryOutcome { DELIVERED, DEAD, SKIPPED }
 
     // 8.48 修复 L5/M4：兜底执行器——服务未运行或队列满时不再静默丢弃事件，
     // 改用独立 fallback scope 即时执行一次（投递失败仍走既有的「指数退避 + 回退收件箱」）。
@@ -74,11 +55,6 @@ object BotWebhookService {
         // Byte 是有符号的：`"%02x".format(it)` 会对 0x80..0xFF 符号扩展成 "ffffff80"。
         return raw.joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
-
-    internal class WebhookHttpException(
-        val statusCode: Int,
-        botId: String
-    ) : Exception("webhook HTTP $statusCode for bot $botId")
 
     /** Helper for docs / self-test: hash of raw bot token (same as BotRepository). */
     fun hashTokenLike(token: String): String {

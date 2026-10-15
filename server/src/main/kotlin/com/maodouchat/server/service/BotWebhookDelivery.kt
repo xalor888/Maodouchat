@@ -56,16 +56,16 @@ internal suspend fun BotWebhookService.deliverWebhook(
     ts: Long,
     tokenHash: String,
     botId: String
-): BotWebhookService.DeliveryOutcome {
+): DeliveryOutcome {
     // 抢占租约：PENDING 且（无租约 或 租约已过期）才可认领，原子更新防多实例重投。
-    if (!claimLease(outboxId)) return BotWebhookService.DeliveryOutcome.SKIPPED
+    if (!claimLease(outboxId)) return DeliveryOutcome.SKIPPED
     var attempts = 0
     for (attempt in 1..WEBHOOK_MAX_ATTEMPTS) {
         attempts = attempt
         try {
             postJson(url, body, ts, tokenHash, botId)
             finalizeOutbox(outboxId, "DELIVERED", attempts)
-            return BotWebhookService.DeliveryOutcome.DELIVERED
+            return DeliveryOutcome.DELIVERED
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (e: Exception) {
@@ -87,12 +87,12 @@ internal suspend fun BotWebhookService.deliverWebhook(
                     e
                 )
                 finalizeOutbox(outboxId, "DEAD", attempts)
-                return BotWebhookService.DeliveryOutcome.DEAD
+                return DeliveryOutcome.DEAD
             }
         }
     }
     finalizeOutbox(outboxId, "DEAD", attempts)
-    return BotWebhookService.DeliveryOutcome.DEAD
+    return DeliveryOutcome.DEAD
 }
 
 internal fun BotWebhookService.postJson(url: String, body: String, ts: Long, tokenHash: String, botId: String) {
@@ -111,13 +111,13 @@ internal fun BotWebhookService.postJson(url: String, body: String, ts: Long, tok
         readTimeoutMs = 3_000
     )
     if (response.statusCode !in 200..299) {
-        throw BotWebhookService.WebhookHttpException(response.statusCode, botId)
+        throw WebhookHttpException(response.statusCode, botId)
     }
 }
 
 internal fun BotWebhookService.isRetryableWebhookFailure(error: Exception): Boolean {
     if (error is SecurityException || error is IllegalArgumentException) return false
-    if (error is BotWebhookService.WebhookHttpException) {
+    if (error is WebhookHttpException) {
         val code = error.statusCode
         return code == 408 || code == 429 || code in 500..599
     }

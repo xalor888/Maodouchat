@@ -13,7 +13,7 @@ fun FcmPushService.shutdown() {
 fun FcmPushService.enqueueIncomingCall(recipientId: String, senderId: String, isVideo: Boolean, callId: String = "") {
     if (closed.get() || recipientId.isBlank() || recipientId == senderId) return
     record(
-        FcmPushService.Delivery(
+        Delivery(
             recipientId = recipientId,
             isCall = true,
             data = buildMap {
@@ -47,7 +47,7 @@ fun FcmPushService.enqueuePostInteraction(
     )
     // P07：唤醒载荷不得夹带正文/预览；客户端只凭 id 拉投影。
     commentId?.takeIf(String::isNotBlank)?.let { data["commentId"] = it }
-    record(FcmPushService.Delivery(recipientId = recipientId, isCall = false, data = data))
+    record(Delivery(recipientId = recipientId, isCall = false, data = data))
 }
 
 fun FcmPushService.enqueueGroupInvite(
@@ -61,7 +61,7 @@ fun FcmPushService.enqueueGroupInvite(
     if (action != "CREATED") return
     if (inviteId.isBlank() || chatId.isBlank()) return
     record(
-        FcmPushService.Delivery(
+        Delivery(
             recipientId = recipientId,
             isCall = false,
             data = mapOf(
@@ -80,7 +80,7 @@ fun FcmPushService.enqueueFriendRequest(recipientId: String, fromUserId: String,
     if (closed.get() || recipientId.isBlank() || recipientId == fromUserId) return
     if (action !in setOf("CREATED", "ACCEPTED") || requestId.isBlank()) return
     record(
-        FcmPushService.Delivery(
+        Delivery(
             recipientId = recipientId,
             isCall = false,
             data = mapOf(
@@ -97,7 +97,7 @@ fun FcmPushService.enqueueFriendRequest(recipientId: String, fromUserId: String,
 fun FcmPushService.enqueueAnnouncement(recipientId: String, announcementId: String, title: String, level: String) {
     if (closed.get() || recipientId.isBlank() || announcementId.isBlank()) return
     record(
-        FcmPushService.Delivery(
+        Delivery(
             recipientId = recipientId,
             isCall = false,
             breakthroughDnd = level == "EMERGENCY",
@@ -112,7 +112,7 @@ fun FcmPushService.enqueueAnnouncement(recipientId: String, announcementId: Stri
     )
 }
 
-private fun FcmPushService.record(delivery: FcmPushService.Delivery) {
+private fun FcmPushService.record(delivery: Delivery) {
     if (closed.get()) return
     onQueued?.invoke(delivery)
 }

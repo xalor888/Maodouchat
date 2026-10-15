@@ -79,7 +79,7 @@ internal fun BotWebhookService.replayStalePending() {
                     ((BotWebhookOutbox.leaseUntil lessEq now) or BotWebhookOutbox.leaseOwner.isNull())
             }
             .map { row ->
-                BotWebhookService.OutboxEntry(
+                OutboxEntry(
                     id = row[BotWebhookOutbox.id],
                     botId = row[BotWebhookOutbox.botId],
                     url = row[BotWebhookOutbox.url],
