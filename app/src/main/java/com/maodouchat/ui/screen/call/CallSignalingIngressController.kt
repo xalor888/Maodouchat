@@ -4,7 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.call.CallSignalingAdmissionPolicy
-import com.maodouchat.call.CallSignalingOrderPolicy
+import com.maodouchat.call.Cursor
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.call.MissedCallTimeoutPolicy
@@ -36,8 +36,8 @@ internal class CallSignalingIngressController(
     private val updateState: ((CallUiState) -> CallUiState) -> Unit,
     private val token: () -> String,
     private val isCurrentCallSession: (Long, WebRTCManager?) -> Boolean,
-    private val lastAcceptedCursor: (String) -> CallSignalingOrderPolicy.Cursor?,
-    private val recordAcceptedCursor: (String, CallSignalingOrderPolicy.Cursor) -> Unit,
+    private val lastAcceptedCursor: (String) -> Cursor?,
+    private val recordAcceptedCursor: (String, Cursor) -> Unit,
     private val rememberSignaling: (String, String, String, String, String) -> Boolean,
     private val activeCallId: () -> String,
     private val activeGroupId: () -> String,
@@ -255,7 +255,7 @@ internal class CallSignalingIngressController(
             return
         }
         if (epoch != 0L || sequence != 0L) {
-            recordAcceptedCursor(cursorKey, CallSignalingOrderPolicy.Cursor(epoch, sequence))
+            recordAcceptedCursor(cursorKey, Cursor(epoch, sequence))
         }
 
         try {

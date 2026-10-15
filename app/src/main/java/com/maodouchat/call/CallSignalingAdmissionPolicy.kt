@@ -31,7 +31,7 @@ object CallSignalingAdmissionPolicy {
         signalType: String,
         incomingEpoch: Long = 0L,
         incomingSequence: Long = 0L,
-        lastAcceptedCursor: CallSignalingOrderPolicy.Cursor? = null,
+        lastAcceptedCursor: Cursor? = null,
     ): Decision {
         if (!CallReliabilityPolicy.shouldAcceptSignal(isGroupCall, expectedContactId, fromUserId)) {
             return Decision.DROP
@@ -51,12 +51,12 @@ object CallSignalingAdmissionPolicy {
         }
         return when (
             CallSignalingOrderPolicy.admit(
-                CallSignalingOrderPolicy.Cursor(incomingEpoch, incomingSequence),
+                Cursor(incomingEpoch, incomingSequence),
                 lastAcceptedCursor,
             )
         ) {
-            CallSignalingOrderPolicy.Admit.Accept -> Decision.ACCEPT
-            CallSignalingOrderPolicy.Admit.RejectStale -> Decision.DROP
+            Admit.Accept -> Decision.ACCEPT
+            Admit.RejectStale -> Decision.DROP
         }
     }
 }

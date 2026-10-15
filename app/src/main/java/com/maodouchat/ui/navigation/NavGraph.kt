@@ -78,6 +78,7 @@ import com.maodouchat.navigation.Routes
 import com.maodouchat.realtime.AdminNoticeFeed
 import com.maodouchat.session.TokenExpirySessionPurge
 import com.maodouchat.call.DirectChatRequestHandler
+import com.maodouchat.call.Outcome
 import com.maodouchat.navigation.callDestinations
 import com.maodouchat.navigation.exploreDestinations
 import com.maodouchat.navigation.groupPlayDestinations
@@ -241,15 +242,15 @@ fun MaodouchatNavGraph(
                 return@collect
             }
             when (val outcome = DirectChatRequestHandler.handle(req)) {
-                DirectChatRequestHandler.Outcome.SessionExpired ->
+                Outcome.SessionExpired ->
                     Toast.makeText(context, sessionExpiredMsg, Toast.LENGTH_SHORT).show()
 
-                DirectChatRequestHandler.Outcome.Dropped -> Unit
+                Outcome.Dropped -> Unit
 
-                is DirectChatRequestHandler.Outcome.OpenChat ->
+                is Outcome.OpenChat ->
                     navController.navigate(Routes.chatDetail(outcome.chatId)) { launchSingleTop = true }
 
-                is DirectChatRequestHandler.Outcome.Failed ->
+                is Outcome.Failed ->
                     Toast.makeText(
                         context,
                         outcome.message?.takeIf { it.isNotBlank() } ?: createChatFailedMsg,

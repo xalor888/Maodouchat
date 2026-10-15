@@ -8,13 +8,6 @@ package com.maodouchat.call
  */
 object CallSignalingOrderPolicy {
 
-    data class Cursor(val epoch: Long, val sequence: Long)
-
-    sealed interface Admit {
-        data object Accept : Admit
-        data object RejectStale : Admit
-    }
-
     fun admit(incoming: Cursor, lastAccepted: Cursor?): Admit {
         if (incoming.epoch == 0L && incoming.sequence == 0L) return Admit.Accept
         if (lastAccepted == null) return Admit.Accept

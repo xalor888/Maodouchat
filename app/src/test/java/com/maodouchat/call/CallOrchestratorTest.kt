@@ -26,7 +26,7 @@ class CallOrchestratorTest {
         val gen = CallOrchestrator.currentSessionGeneration()
         // Construction via public request path is covered by generation monotonicity;
         // data class default also uses currentSessionGeneration().
-        val req = CallOrchestrator.DirectChatRequest("user-x", "Name")
+        val req = DirectChatRequest("user-x", "Name")
         assertEquals(gen, req.sessionGeneration)
     }
 }

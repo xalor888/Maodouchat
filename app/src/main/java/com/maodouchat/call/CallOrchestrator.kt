@@ -37,16 +37,4 @@ object CallOrchestrator {
     fun requestDirectChat(userId: String, userName: String) {
         _directChatRequests.tryEmit(DirectChatRequest(userId, userName, sessionGeneration))
     }
-
-    data class GroupCallRequest(
-        val chatId: String,
-        val memberIds: List<String>,
-        val callType: CallType,
-        val sessionGeneration: Long = currentSessionGeneration(),
-    )
-    data class DirectChatRequest(
-        val userId: String,
-        val userName: String,
-        val sessionGeneration: Long = currentSessionGeneration(),
-    )
 }
