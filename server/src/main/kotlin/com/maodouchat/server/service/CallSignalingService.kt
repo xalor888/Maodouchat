@@ -1,10 +1,8 @@
 package com.maodouchat.server.service
 
-import com.maodouchat.server.model.SendSignalRequest
 import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
-import io.ktor.http.HttpStatusCode
 
 /**
  * B09：通话信令领域门面。REST durable fallback 与 WS 共享同一校验、邀请限流与仓储，
@@ -20,16 +18,6 @@ class CallSignalingService(
     internal val callInviteRateLimiter: CallInviteRateLimiter,
     internal val turnCredentialService: TurnCredentialService? = null,
 ) {
-    sealed interface SendOutcome {
-        data class Stored(val request: SendSignalRequest) : SendOutcome
-        data class Rejected(
-            val status: HttpStatusCode,
-            val message: String,
-            val code: String? = null,
-            val retryAfterSeconds: Long? = null,
-        ) : SendOutcome
-    }
-
     companion object {
         val TERMINAL_SIGNAL_TYPES = setOf("hang-up", "busy", "reject")
     }

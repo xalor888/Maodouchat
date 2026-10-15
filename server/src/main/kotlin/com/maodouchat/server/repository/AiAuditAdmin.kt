@@ -55,12 +55,12 @@ fun AiRepository.listAuditLogsForAdmin(
  * Table 单例，直接读列即可，那条 `SELECT id, input_tokens, output_tokens ...` 整体消失。
  * 只返回元数据，绝不包含 prompt / 正文。
  */
-fun AiRepository.auditExportRows(limit: Int): List<AiRepository.AiAuditExportRow> = transaction {
+fun AiRepository.auditExportRows(limit: Int): List<AiAuditExportRow> = transaction {
     AiAuditLogs.selectAll()
         .orderBy(AiAuditLogs.createdAt to SortOrder.DESC, AiAuditLogs.id to SortOrder.DESC)
         .limit(limit)
         .map {
-            AiRepository.AiAuditExportRow(
+            AiAuditExportRow(
                 id = it[AiAuditLogs.id],
                 userId = it[AiAuditLogs.userId],
                 feature = it[AiAuditLogs.feature],

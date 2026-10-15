@@ -6,6 +6,7 @@ import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.CallSignalingService
 import com.maodouchat.server.service.FcmPushService
+import com.maodouchat.server.service.SendOutcome
 import com.maodouchat.server.service.enqueueIncomingCall
 import com.maodouchat.server.service.hangUp
 import com.maodouchat.server.service.send
@@ -34,11 +35,11 @@ internal fun Route.configureCallSignalingMessageRoutes(
             if (call.rejectIfMessageRestricted(userRepository, fromUserId)) return@post
             val request = call.receiveJsonOr400<SendSignalRequest>() ?: return@post
             when (val outcome = callSignalingService.send(request, fromUserId)) {
-                is CallSignalingService.SendOutcome.Rejected -> {
+                is SendOutcome.Rejected -> {
                     outcome.retryAfterSeconds?.let { call.response.headers.append(HttpHeaders.RetryAfter, it.toString()) }
                     call.respond(outcome.status, ErrorResponse(outcome.message, outcome.code, outcome.retryAfterSeconds))
                 }
-                is CallSignalingService.SendOutcome.Stored -> {
+                is SendOutcome.Stored -> {
                     val stored = outcome.request
                     sendSignalWakeup(json, fromUserId, stored)
                     if (stored.type.equals("offer", ignoreCase = true) &&
@@ -60,9 +61,9 @@ internal fun Route.configureCallSignalingMessageRoutes(
             val userId = call.requireUserId()
             val request = call.receiveJsonOr400<SendSignalRequest>() ?: return@post
             when (val outcome = callSignalingService.hangUp(request, userId)) {
-                is CallSignalingService.SendOutcome.Rejected ->
+                is SendOutcome.Rejected ->
                     call.respond(outcome.status, ErrorResponse(outcome.message, outcome.code, outcome.retryAfterSeconds))
-                is CallSignalingService.SendOutcome.Stored -> {
+                is SendOutcome.Stored -> {
                     sendSignalWakeup(json, userId, outcome.request)
                     call.respond(buildJsonObject { put("status", "ok") })
                 }

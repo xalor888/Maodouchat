@@ -17,14 +17,7 @@ class OrphanGcJob(
     private val postRepository: PostRepository,
     private val mediaReferenceService: MediaReferenceService,
 ) {
-    data class Result(
-        val deletedAttachments: Int,
-        val staleAttachmentFiles: Int,
-        val stalePostImages: Int,
-        val staleGroupAvatars: Int,
-    )
-
-    fun run(now: Long = System.currentTimeMillis()): Result {
+    fun run(now: Long = System.currentTimeMillis()): OrphanGcResult {
         val deletedAttachments = attachmentRepository.deleteExpired(now)
         deletedAttachments.forEach(BlobStore::delete)
         val staleAttachmentFiles = BlobStore.deleteStaleFiles(
@@ -37,6 +30,6 @@ class OrphanGcJob(
             validFilenames = mediaReferenceService.allReferencedGroupAvatarFilenames(),
             olderThan = olderThan,
         )
-        return Result(deletedAttachments.size, staleAttachmentFiles, stalePostImages, staleGroupAvatars)
+        return OrphanGcResult(deletedAttachments.size, staleAttachmentFiles, stalePostImages, staleGroupAvatars)
     }
 }
