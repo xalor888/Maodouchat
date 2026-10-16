@@ -1,6 +1,5 @@
 package com.maodouchat.server
 
-import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.BotApps
 import com.maodouchat.server.db.ChatParticipants
@@ -29,7 +28,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.jdbc.JdbcConnectionImpl
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction

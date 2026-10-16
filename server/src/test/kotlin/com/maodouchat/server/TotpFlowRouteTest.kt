@@ -13,7 +13,6 @@ import com.maodouchat.server.plugins.configureAdminEnhanceRouting
 import com.maodouchat.server.plugins.configureSecretSurfaceRouting
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
-import com.maodouchat.server.service.AiGatewayResult
 import com.maodouchat.server.service.CallInviteRateLimiter
 import com.maodouchat.server.service.TotpService
 import io.ktor.client.request.*

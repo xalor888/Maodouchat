@@ -18,7 +18,6 @@ import com.maodouchat.server.common.postPinnedWebhookJson
 import com.maodouchat.server.common.readPinnedWebhookResponse
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
-import com.maodouchat.server.service.AiGatewayResult
 import com.maodouchat.server.service.CallInviteRateLimiter
 import com.maodouchat.server.service.deleteGroupAvatarUrl
 import io.ktor.client.request.*
@@ -33,7 +32,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive

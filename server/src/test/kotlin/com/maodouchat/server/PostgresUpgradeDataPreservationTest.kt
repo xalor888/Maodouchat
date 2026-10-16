@@ -17,7 +17,6 @@ import com.maodouchat.server.db.migration.expectedMigrationVersion
 import com.maodouchat.server.db.migration.runDatabaseMigrations
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.jupiter.api.Tag

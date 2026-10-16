@@ -13,7 +13,6 @@ import com.maodouchat.server.plugins.configureAdminEnhanceRouting
 import com.maodouchat.server.plugins.configureSecretSurfaceRouting
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.AiGateway
-import com.maodouchat.server.service.AiGatewayResult
 import com.maodouchat.server.service.CallInviteRateLimiter
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -22,7 +21,6 @@ import io.ktor.server.application.*
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.sql.Database
 import java.util.concurrent.atomic.AtomicInteger

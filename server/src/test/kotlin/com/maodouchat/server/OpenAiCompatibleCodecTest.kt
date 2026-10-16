@@ -3,7 +3,6 @@ package com.maodouchat.server
 import com.maodouchat.server.service.OpenAiCompatibleCodec
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
