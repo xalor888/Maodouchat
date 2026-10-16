@@ -8,7 +8,6 @@ import com.maodouchat.server.db.PinnedMessages
 import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.ChatType
 import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInSubQuery
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.count

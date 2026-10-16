@@ -1,7 +1,6 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.db.PostComments
-import com.maodouchat.server.db.Posts
 import com.maodouchat.server.model.PostCommentResponse
 import com.maodouchat.server.model.PostResponse
 import com.maodouchat.server.model.UserResponse
