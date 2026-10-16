@@ -18,10 +18,4 @@ data class ToolSpec(
     val parameters: Map<String, Parameter>,
     val required: List<String>,
     val risk: Risk
-) {
-    data class Parameter(
-        val type: String,
-        val description: String,
-        val enumValues: List<String>? = null
-    )
-}
+)

@@ -5,7 +5,7 @@ internal val listChatsToolSpec = ToolSpec(
     name = "list_chats",
     description = "List local conversations (id, title, last preview). Secret chats are omitted. PIN-locked chats that are not unlocked in this process are omitted.",
     parameters = mapOf(
-        "query" to ToolSpec.Parameter("string", "Optional title/preview substring filter")
+        "query" to Parameter("string", "Optional title/preview substring filter")
     ),
     required = emptyList(),
     risk = Risk.READ
@@ -15,8 +15,8 @@ internal val getChatHistoryToolSpec = ToolSpec(
     name = "get_chat_history",
     description = "Read already-decrypted local messages for one chat, newest first. Secret chats are never readable. PIN-locked chats must be unlocked.",
     parameters = mapOf(
-        "chatId" to ToolSpec.Parameter("string", "Local chat id"),
-        "limit" to ToolSpec.Parameter("integer", "How many messages, default 20, max 40")
+        "chatId" to Parameter("string", "Local chat id"),
+        "limit" to Parameter("integer", "How many messages, default 20, max 40")
     ),
     required = listOf("chatId"),
     risk = Risk.READ
@@ -26,8 +26,8 @@ internal val searchMessagesToolSpec = ToolSpec(
     name = "search_messages",
     description = "Keyword search over the on-device message index. Secret chats are excluded. PIN-locked chats are excluded unless already unlocked.",
     parameters = mapOf(
-        "query" to ToolSpec.Parameter("string", "Search query"),
-        "limit" to ToolSpec.Parameter("integer", "Max hits, default 12, max 20")
+        "query" to Parameter("string", "Search query"),
+        "limit" to Parameter("integer", "Max hits, default 12, max 20")
     ),
     required = listOf("query"),
     risk = Risk.READ
@@ -36,7 +36,7 @@ internal val searchMessagesToolSpec = ToolSpec(
 internal val getChatToolSpec = ToolSpec(
     name = "get_chat",
     description = "Read one local conversation: title, mute/pin/archive/unread, last preview. PIN-locked chats must be unlocked.",
-    parameters = mapOf("chatId" to ToolSpec.Parameter("string", "Local chat id")),
+    parameters = mapOf("chatId" to Parameter("string", "Local chat id")),
     required = listOf("chatId"),
     risk = Risk.READ
 )
@@ -44,7 +44,7 @@ internal val getChatToolSpec = ToolSpec(
 internal val listStarredMessagesToolSpec = ToolSpec(
     name = "list_starred_messages",
     description = "List locally starred messages. Secret chats are excluded.",
-    parameters = mapOf("limit" to ToolSpec.Parameter("integer", "Max rows, default 20, max 40")),
+    parameters = mapOf("limit" to Parameter("integer", "Max rows, default 20, max 40")),
     required = emptyList(),
     risk = Risk.READ
 )
@@ -52,7 +52,7 @@ internal val listStarredMessagesToolSpec = ToolSpec(
 internal val listPinnedMessagesToolSpec = ToolSpec(
     name = "list_pinned_messages",
     description = "List pinned messages in a chat via the existing pin API.",
-    parameters = mapOf("chatId" to ToolSpec.Parameter("string", "Chat id")),
+    parameters = mapOf("chatId" to Parameter("string", "Chat id")),
     required = listOf("chatId"),
     risk = Risk.READ
 )
@@ -61,8 +61,8 @@ internal val rewriteTextToolSpec = ToolSpec(
     name = "rewrite_text",
     description = "Rewrite the given draft locally using the configured model. Does not send a message.",
     parameters = mapOf(
-        "text" to ToolSpec.Parameter("string", "Draft to rewrite"),
-        "mode" to ToolSpec.Parameter(
+        "text" to Parameter("string", "Draft to rewrite"),
+        "mode" to Parameter(
             "string",
             "polish | shorten | formal | gentle | casual | professional | expand | bullet | clarify | translate",
             enumValues = listOf(
@@ -70,7 +70,7 @@ internal val rewriteTextToolSpec = ToolSpec(
                 "professional", "expand", "bullet", "clarify", "translate"
             )
         ),
-        "targetLanguage" to ToolSpec.Parameter("string", "Target language when mode=translate")
+        "targetLanguage" to Parameter("string", "Target language when mode=translate")
     ),
     required = listOf("text"),
     risk = Risk.READ
