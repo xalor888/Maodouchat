@@ -17,7 +17,6 @@ import com.maodouchat.settings.repository.SettingsPrivacyPatch
 import com.maodouchat.settings.repository.SettingsProfile
 import com.maodouchat.settings.repository.SettingsRepository
 import com.maodouchat.settings.repository.SettingsSession
-import com.maodouchat.explore.repository.FeedRepository
 
 /**
  * G315c：`SettingsScreen` 本体的 **UI 层**覆盖（Q03 第 1 项的第七个入口）。

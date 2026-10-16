@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test
 import com.tngtech.archunit.junit.ArchTest
 import com.tngtech.archunit.lang.ArchRule
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**

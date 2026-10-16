@@ -52,14 +52,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.launch
 import com.maodouchat.R
 import android.widget.Toast
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.draw.clip
 
 /**
  * 「AI 与隐私」页（G99 从 `SettingsSubScreens.kt` 拆出，原 633 行）。

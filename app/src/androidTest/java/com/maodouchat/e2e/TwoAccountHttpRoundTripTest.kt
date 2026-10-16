@@ -7,7 +7,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.crypto.SignalKeyExchange
 import com.maodouchat.util.EncryptedAttachmentReference
 import org.signal.libsignal.protocol.ecc.Curve
@@ -65,7 +64,6 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
