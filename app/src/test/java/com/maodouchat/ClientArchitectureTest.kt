@@ -561,11 +561,12 @@ class ClientArchitectureTest {
         // 留守主屏 + SettingsGroup/SettingsItem（936 → 393，纯搬移；新文件未进前 20 不纳管），
         // 上限同步收紧（两份 map 一起改）。
         // 行组件按簇拆出（SwitchRow/SettingsGroup/SettingsItem → 同包两个新文件，398 → 344，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 344,
+        // 2026-10-16：settings UI 簇闲置 import 清理（零行为改动；SettingsScreen 344 → 335、SettingsAccountSecurityScreen 883 → 868），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 335,
         // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 868,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
@@ -736,11 +737,11 @@ class ClientArchitectureTest {
         // 安全，750 → 42，纯搬移；新文件均 <652 未进前 20，top-20 构成不变，不纳管），
         // 上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/theme/MotionTransitions.kt" to 42,
-        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 344,
+        "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 335,
         // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 883,
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 868,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 473,
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
