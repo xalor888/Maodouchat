@@ -404,7 +404,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 654,
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
         // 按实测值纳入监管（两份 map 一起加）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
+        // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 844,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
@@ -424,7 +425,8 @@ class ClientArchitectureTest {
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 333,
+        // 2026-10-16：删 18 个闲置 import（333 → 315 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 315,
         // 死 import 删除：文件 671 → 670 行，上限同步收紧（两份 map 一起改）。
         // 2026-10-08：展示行组件簇搬出同包 AccountSecurityDisplayRows.kt
         // （670 → 455 纯搬移；修 CI 时补 import 并清掉 53 个闲置 import → 402；
@@ -620,7 +622,8 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 654,
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
             // 按实测值纳入监管（两份 map 一起加）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 894,
+            // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 844,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
@@ -636,7 +639,8 @@ class ClientArchitectureTest {
         // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
         "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
         "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 333,
+            // 2026-10-16：删 18 个闲置 import（333 → 315 纯删行），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 315,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 194,
             "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
             "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 671,

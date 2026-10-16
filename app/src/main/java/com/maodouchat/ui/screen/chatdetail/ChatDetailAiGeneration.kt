@@ -1,30 +1,12 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.R
-import com.maodouchat.ai.AiCostVisibilityPolicy
-import com.maodouchat.ai.AiPromptSafetyPolicy
-import com.maodouchat.ai.AiRetryPolicy
-import com.maodouchat.ai.AiWritingStylePreferences
-import com.maodouchat.data.local.entity.AiOperationState
-import com.maodouchat.data.local.entity.AiOperationError
-import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
-import com.maodouchat.network.ApiService
-import com.maodouchat.network.AiContextMessage
-import com.maodouchat.network.AiSemanticSearchCandidate
-import com.maodouchat.data.model.semanticSearchText
-import com.maodouchat.util.MediaCache
-import com.maodouchat.util.ImagePicker
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import com.maodouchat.R
+import com.maodouchat.data.local.entity.AiOperationError
+import com.maodouchat.data.model.MessageType
+import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.Calendar
-import android.net.Uri
 
 /**
  * 从 ChatDetailViewModel.kt 拆分的 AI 生成函数。
