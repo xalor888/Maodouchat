@@ -11,7 +11,7 @@ class AppSurfaceGateControllerTest {
     fun initialStateReadsFakeAndLockGates() {
         val controller = buildController(showFake = true, shouldLock = true)
         assertEquals(
-            AppSurfaceGateController.State(showFakeChat = true, showAppLock = true),
+            AppSurfaceGateState(showFakeChat = true, showAppLock = true),
             controller.initialState(),
         )
     }
@@ -43,7 +43,7 @@ class AppSurfaceGateControllerTest {
         )
 
         val next = controller.onHostResumed(
-            AppSurfaceGateController.State(showFakeChat = false, showAppLock = false)
+            AppSurfaceGateState(showFakeChat = false, showAppLock = false)
         )
 
         assertTrue(next.showFakeChat)
@@ -75,7 +75,7 @@ class AppSurfaceGateControllerTest {
         val controller = buildController(markAppUnlocked = { appUnlocked += 1 })
 
         val next = controller.onAppLockUnlocked(
-            AppSurfaceGateController.State(showFakeChat = true, showAppLock = true)
+            AppSurfaceGateState(showFakeChat = true, showAppLock = true)
         )
 
         assertEquals(1, appUnlocked)

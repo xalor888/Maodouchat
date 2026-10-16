@@ -19,12 +19,8 @@ class AppSurfaceGateController(
     private val onSecretChatSurface: () -> Boolean,
     private val hasActiveSecretSurface: () -> Boolean,
 ) {
-    data class State(
-        val showFakeChat: Boolean = false,
-        val showAppLock: Boolean = false,
-    )
 
-    fun initialState(): State = State(
+    fun initialState(): AppSurfaceGateState = AppSurfaceGateState(
         showFakeChat = shouldShowFake(),
         showAppLock = shouldLock(),
     )
@@ -44,7 +40,7 @@ class AppSurfaceGateController(
             hasActiveSecretSurface()
     }
 
-    fun onHostResumed(current: State): State {
+    fun onHostResumed(current: AppSurfaceGateState): AppSurfaceGateState {
         var showFakeChat = current.showFakeChat
         var showAppLock = current.showAppLock
         if (!showFakeChat && shouldShowFake()) {
@@ -57,21 +53,21 @@ class AppSurfaceGateController(
                 markAppUnlocked()
             }
         }
-        return State(showFakeChat = showFakeChat, showAppLock = showAppLock)
+        return AppSurfaceGateState(showFakeChat = showFakeChat, showAppLock = showAppLock)
     }
 
     /** 假聊天解锁后：先关闭假界面，再按需进入 App 锁。 */
-    fun onFakeChatUnlocked(): State {
+    fun onFakeChatUnlocked(): AppSurfaceGateState {
         markFakeUnlocked()
         return if (shouldLock()) {
-            State(showFakeChat = false, showAppLock = true)
+            AppSurfaceGateState(showFakeChat = false, showAppLock = true)
         } else {
             markAppUnlocked()
-            State(showFakeChat = false, showAppLock = false)
+            AppSurfaceGateState(showFakeChat = false, showAppLock = false)
         }
     }
 
-    fun onAppLockUnlocked(current: State): State {
+    fun onAppLockUnlocked(current: AppSurfaceGateState): AppSurfaceGateState {
         markAppUnlocked()
         return current.copy(showAppLock = false)
     }

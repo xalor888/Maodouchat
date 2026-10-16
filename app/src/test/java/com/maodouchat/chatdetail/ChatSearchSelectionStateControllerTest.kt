@@ -2,6 +2,7 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.ChatSearchSelectionStateController
+import com.maodouchat.ui.screen.chatdetail.SemanticSearchAdmission
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,8 +23,8 @@ class ChatSearchSelectionStateControllerTest {
             noContextError = "empty",
         )
 
-        assertTrue(result is ChatSearchSelectionStateController.SemanticSearchAdmission.Accepted)
-        result as ChatSearchSelectionStateController.SemanticSearchAdmission.Accepted
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        result as SemanticSearchAdmission.Accepted
         assertEquals("nearest cafe", result.query)
         assertEquals(listOf("a", "b"), result.candidateIds)
     }
@@ -40,8 +41,8 @@ class ChatSearchSelectionStateControllerTest {
             state, "query", listOf("message"), "secret", "disabled", "blank", "empty",
         )
 
-        assertTrue(result is ChatSearchSelectionStateController.SemanticSearchAdmission.Rejected)
-        result as ChatSearchSelectionStateController.SemanticSearchAdmission.Rejected
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        result as SemanticSearchAdmission.Rejected
         assertEquals("secret", result.state.semanticSearchError)
         assertEquals(listOf("old"), result.state.semanticSearchResultIds)
     }

@@ -54,31 +54,8 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
 
     val chatId: String = savedStateHandle["chatId"] ?: ""
 
-    data class UiState(
-        val loading: Boolean = true,
-        val error: String? = null,
-        val chains: List<ChainListItem> = emptyList(),
-        val title: String = "",
-        val topic: String = "",
-        val creating: Boolean = false,
-        val detail: ChainDetailState? = null,
-        val entryInput: String = ""
-    )
-
-    data class ChainDetailState(
-        val chainId: String,
-        val title: String,
-        val topic: String,
-        val active: Boolean,
-        val entryCount: Int,
-        val maxEntries: Int,
-        val myJoined: Boolean,
-        val entries: List<ChainEntryItem>,
-        val submitting: Boolean = false
-    )
-
-    private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(GroupChainUiState())
+    val uiState: StateFlow<GroupChainUiState> = _uiState.asStateFlow()
     // 1.314：i18n —— 用资源字符串替代硬编码中文错误文案
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
@@ -168,7 +145,7 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
                 return@launch
             }
             _uiState.value = _uiState.value.copy(
-                detail = ChainDetailState(
+                detail = GroupChainDetailState(
                     chainId = o.optString("id"),
                     title = o.optString("title"),
                     topic = o.optString("topic"),

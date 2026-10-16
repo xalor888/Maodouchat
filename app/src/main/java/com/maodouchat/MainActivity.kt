@@ -48,6 +48,7 @@ import com.maodouchat.security.ScreenSecureManager
 import com.maodouchat.security.ScreenSecurePolicy
 import com.maodouchat.security.SecretChatSession
 import com.maodouchat.ui.AppSurfaceGateController
+import com.maodouchat.ui.AppSurfaceGateState
 import com.maodouchat.ui.CallLockScreenFlagController
 import com.maodouchat.ui.StartupPermissionPolicy
 import com.maodouchat.ui.screen.lock.FakeChatScreen
@@ -143,7 +144,7 @@ class MainActivity : FragmentActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ -> /* 权限结果回调 */ }
 
-    private fun applySurfaceGate(state: AppSurfaceGateController.State) {
+    private fun applySurfaceGate(state: AppSurfaceGateState) {
         showFakeChat = state.showFakeChat
         showAppLock = state.showAppLock
     }
@@ -188,7 +189,7 @@ class MainActivity : FragmentActivity() {
             override fun onResume(owner: LifecycleOwner) {
                 applySurfaceGate(
                     surfaceGateController.onHostResumed(
-                        AppSurfaceGateController.State(
+                        AppSurfaceGateState(
                             showFakeChat = showFakeChat,
                             showAppLock = showAppLock,
                         )
@@ -217,7 +218,7 @@ class MainActivity : FragmentActivity() {
                                 onUnlocked = {
                                     applySurfaceGate(
                                         surfaceGateController.onAppLockUnlocked(
-                                            AppSurfaceGateController.State(
+                                            AppSurfaceGateState(
                                                 showFakeChat = showFakeChat,
                                                 showAppLock = showAppLock,
                                             )
