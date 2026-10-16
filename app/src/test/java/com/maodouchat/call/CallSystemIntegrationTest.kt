@@ -1,6 +1,5 @@
 package com.maodouchat.call
 
-import android.content.Context
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals

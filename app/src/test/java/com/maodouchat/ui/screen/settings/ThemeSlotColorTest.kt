@@ -6,7 +6,6 @@ import com.maodouchat.theme.ChatPalette
 import com.maodouchat.theme.SentBubbleSpec
 import com.maodouchat.theme.ThemePaint
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 

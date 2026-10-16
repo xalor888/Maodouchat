@@ -5,7 +5,6 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /**
  * LoginViewModel 的纯 JVM 状态机单测（AndroidViewModel 依赖在 JVM 上跑不了，

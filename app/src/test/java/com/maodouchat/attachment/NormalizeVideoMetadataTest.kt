@@ -1,8 +1,6 @@
 package com.maodouchat.attachment
 
-import com.maodouchat.util.MediaCache
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
