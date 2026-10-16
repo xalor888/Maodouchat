@@ -1,7 +1,6 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.repository.BotDto
-import com.maodouchat.server.repository.BotRepository
 import kotlinx.serialization.Serializable
 
 // Developer API 响应模型（纯搬移，零行为改动）。

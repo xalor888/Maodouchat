@@ -1,5 +1,4 @@
 package com.maodouchat.server.plugins
-import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.ConversationParticipantRepository
 import com.maodouchat.server.repository.ConversationQueryRepository

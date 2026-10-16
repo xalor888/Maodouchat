@@ -1,7 +1,6 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.repository.BotCommandDef
-import com.maodouchat.server.repository.BotRepository
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
