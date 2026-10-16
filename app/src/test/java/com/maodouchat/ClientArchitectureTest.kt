@@ -558,7 +558,7 @@ class ClientArchitectureTest {
         // 本轮：93 个 MotionSettings 过渡扩展按主题拆出同包 6 个簇文件（列表/聊天/弹窗/AI/设置/
         // 安全，750 → 42，纯搬移；新文件均 <652 未进前 20，top-20 构成不变，不纳管），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/theme/MotionTransitions.kt" to 42,
+        "com/maodouchat/ui/theme/MotionTransitions.kt" to 34,
         // 2026-10-08：资料簇（ProfileCard/StatusEditorDialog/UsernameEditorDialog）→ SettingsProfileCluster.kt、
         // 隐私簇（PrivacyDialog/PrivacySwitchRow/privacyVisibilityLabel/BlockedUsersDialog）→ SettingsPrivacyCluster.kt，
         // 留守主屏 + SettingsGroup/SettingsItem（936 → 393，纯搬移；新文件未进前 20 不纳管），
@@ -742,7 +742,7 @@ class ClientArchitectureTest {
         // 本轮：93 个 MotionSettings 过渡扩展按主题拆出同包 6 个簇文件（列表/聊天/弹窗/AI/设置/
         // 安全，750 → 42，纯搬移；新文件均 <652 未进前 20，top-20 构成不变，不纳管），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/theme/MotionTransitions.kt" to 42,
+        "com/maodouchat/ui/theme/MotionTransitions.kt" to 34,
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 335,
         // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
