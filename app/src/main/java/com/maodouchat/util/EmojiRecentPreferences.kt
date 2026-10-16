@@ -2,7 +2,6 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.network.TokenManager
 
 /**
  * 表情「最近使用」：按账号隔离的本地记录（与贴纸 recent 同模式）。
