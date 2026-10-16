@@ -1,10 +1,5 @@
 package com.maodouchat.ui.screen.contacts
 
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.runtime.remember
-import com.maodouchat.ui.screen.chatlist.GlobalSearchTextHighlight
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -32,13 +27,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import com.maodouchat.ui.component.SearchHighlightSurface
-import com.maodouchat.ui.component.SearchHighlightAccent
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.model.User
@@ -47,10 +41,9 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
+import com.maodouchat.ui.component.SearchHighlightAccent
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
 /**
  * 通讯录的「搜索与好友请求」一族（G133 从 `ContactsScreen.kt` 拆出，原 211 行）。

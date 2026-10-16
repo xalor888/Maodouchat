@@ -468,7 +468,7 @@ class ClientArchitectureTest {
         // → errorMessages 方法引用，删 VM 私有转手）+ foregroundService 懒加载
         //（437 → 435，VM 只剩接线与公开 intent 委托），两处同步收紧。
         "com/maodouchat/ui/screen/call/CallViewModel.kt" to 435,
-        "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
+        "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 590,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
         // 1100+ 行源文件全部在监。
@@ -479,7 +479,8 @@ class ClientArchitectureTest {
         // 2026-10-16：chatlist 闲置 import 清理（122 删 + import 块 ASCII 重排，零行为改动；432 → 310），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 293,
-        "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
+        // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
+        "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 645,
         // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）；2026-10-16：删 8 个闲置 import（152 → 144），两处上限同步收紧。
         "com/maodouchat/ui/component/MarkdownMessage.kt" to 144,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -661,7 +662,7 @@ class ClientArchitectureTest {
             // 通话 VM 瘦身第十四批（收官）：文案委托直连 + foregroundService 懒加载
             //（437 → 435，VM 只剩接线与公开 intent 委托）。
             "com/maodouchat/ui/screen/call/CallViewModel.kt" to 435,
-            "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 638,
+            "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 590,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
             // 1100+ 行源文件全部在监。
@@ -671,7 +672,8 @@ class ClientArchitectureTest {
             // 本轮：模型簇（CallState/CallType/GroupPeerConnectionState/CallIceServer）抽出 WebRTCModels.kt（1309 → 1249，纯搬移），上限同步收紧（两份 map 一起改）。
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
             "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 293,
-                "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
+                // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
+                "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 645,
             // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）；2026-10-16：删 8 个闲置 import（152 → 144），两处上限同步收紧。
                 "com/maodouchat/ui/component/MarkdownMessage.kt" to 144,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
