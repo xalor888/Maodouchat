@@ -9,7 +9,6 @@ import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.ui.screen.chatlist.ChatListMutationCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll

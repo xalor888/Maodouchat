@@ -9,12 +9,8 @@ import com.maodouchat.network.TokenManager
 import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.ChatExportController
 import com.maodouchat.util.ChatExport
-import com.maodouchat.util.JsonFormat
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -26,7 +22,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatExportControllerTest {

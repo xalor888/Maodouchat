@@ -5,14 +5,11 @@ import android.content.SharedPreferences
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.repository.UserRepository
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
