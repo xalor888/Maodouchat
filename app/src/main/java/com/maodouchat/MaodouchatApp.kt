@@ -604,10 +604,6 @@ class MaodouchatApp : Application() {
             )
         }
 
-        data class AttachmentFinalizedEvent(
-            val message: com.maodouchat.data.model.Message,
-            val sessionGeneration: Long = currentSessionGeneration(),
-        )
         private val _attachmentFinalizedEvents =
             kotlinx.coroutines.flow.MutableSharedFlow<AttachmentFinalizedEvent>(extraBufferCapacity = 16)
         val attachmentFinalizedEvents = _attachmentFinalizedEvents.asSharedFlow()
@@ -673,15 +669,6 @@ class MaodouchatApp : Application() {
             _incomingCallWakeEvents.compareAndSet(wake, null)
         }
 
-        /**
-         * Tap on a missed-call system notification → main chats tab + inbox so the
-         * missed-call card is visible (EXTRA_OPEN_MISSED_CALL was previously unused).
-         */
-        data class OpenMissedCallsRequest(
-            val atMillis: Long,
-            override val sessionGeneration: Long,
-            val requestId: Long,
-        ) : SessionScopedEvent
         private val _openMissedCallsEvents =
             kotlinx.coroutines.flow.MutableStateFlow<OpenMissedCallsRequest?>(null)
         val openMissedCallsEvents = _openMissedCallsEvents.filterNotNull()
@@ -696,15 +683,6 @@ class MaodouchatApp : Application() {
             _openMissedCallsEvents.compareAndSet(request, null)
         }
 
-        /**
-         * Notification-center / tray deep-link → main contacts tab
-         * (friend requests, contact-related center rows).
-         */
-        data class OpenContactsRequest(
-            val atMillis: Long,
-            override val sessionGeneration: Long,
-            val requestId: Long,
-        ) : SessionScopedEvent
         private val _openContactsEvents =
             kotlinx.coroutines.flow.MutableStateFlow<OpenContactsRequest?>(null)
         val openContactsEvents = _openContactsEvents.filterNotNull()

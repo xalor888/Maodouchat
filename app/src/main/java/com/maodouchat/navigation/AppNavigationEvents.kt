@@ -7,8 +7,8 @@ import com.maodouchat.util.ClientPrefsSync
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-typealias OpenMissedCallsRequest = MaodouchatApp.Companion.OpenMissedCallsRequest
-typealias OpenContactsRequest = MaodouchatApp.Companion.OpenContactsRequest
+typealias OpenMissedCallsRequest = com.maodouchat.OpenMissedCallsRequest
+typealias OpenContactsRequest = com.maodouchat.OpenContactsRequest
 
 object AppNavigationEvents {
 
