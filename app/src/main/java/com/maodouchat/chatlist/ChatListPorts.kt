@@ -11,7 +11,6 @@ import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinato
 import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.data.local.entity.ChatDraftEntity
-import com.maodouchat.data.model.Chat
 import com.maodouchat.data.repository.AnnouncementNetworkRepository
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.session.CurrentSession
@@ -22,7 +21,6 @@ import com.maodouchat.data.repository.PushNetworkRepository
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.data.repository.SecretChatRepository
 import com.maodouchat.messaging.v2.MessagingV2Outbox
-import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.network.UpdateChatSettingsRequest
