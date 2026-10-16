@@ -1,7 +1,5 @@
 package com.maodouchat.crypto
 
-import android.util.Base64
-import android.util.Log
 import com.maodouchat.core.crypto.CryptoAccountBootstrapper
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.DeviceIdMigrationCoordinator
@@ -18,19 +16,12 @@ import com.maodouchat.core.crypto.PreKeyPublisher
 import com.maodouchat.core.model.ConversationId
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
-import com.maodouchat.data.local.entity.SignalKeyEntity
 import com.maodouchat.messaging.DecryptEnvelopeGate
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.IdentityKey
-import org.signal.libsignal.protocol.NoSessionException
-import org.signal.libsignal.protocol.SignalProtocolAddress
 import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage
 import org.signal.libsignal.protocol.state.PreKeyBundle
 import org.signal.libsignal.protocol.state.PreKeyRecord
 import org.signal.libsignal.protocol.state.SignedPreKeyRecord
-import java.util.UUID
-import kotlin.concurrent.withLock
 
 /**
  * Signal 端到端加密协议封装（外观模式 Facade）。

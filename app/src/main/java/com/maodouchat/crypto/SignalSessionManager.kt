@@ -3,7 +3,6 @@ package com.maodouchat.crypto
 import android.util.Log
 import com.maodouchat.core.crypto.DirectSessionManager
 import kotlinx.coroutines.sync.withLock
-import org.signal.libsignal.protocol.NoSessionException
 import org.signal.libsignal.protocol.SignalProtocolAddress
 import org.signal.libsignal.protocol.SessionBuilder
 import org.signal.libsignal.protocol.state.PreKeyBundle
