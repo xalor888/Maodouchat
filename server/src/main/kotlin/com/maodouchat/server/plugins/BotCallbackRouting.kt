@@ -2,8 +2,6 @@ package com.maodouchat.server.plugins
 
 import com.maodouchat.server.model.*
 import io.ktor.http.*
-import io.ktor.server.application.call
-import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.*
 
