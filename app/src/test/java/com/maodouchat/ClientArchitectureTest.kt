@@ -541,7 +541,7 @@ class ClientArchitectureTest {
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
-        "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 835,
+        "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 834,
         // 输入栏杂项瘦身第二批：AI 条（AiOperationStatusBar/AiDraftStreamBar）→
         // ChatDetailAiComposerBars（录音/语音留守 ComposerExtras，425 → 195），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 195,
@@ -725,7 +725,7 @@ class ClientArchitectureTest {
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
-        "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 835,
+        "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 834,
         // 输入栏杂项瘦身第二批：AI 条（AiOperationStatusBar/AiDraftStreamBar）→
         // ChatDetailAiComposerBars（录音/语音留守 ComposerExtras，425 → 195），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 195,

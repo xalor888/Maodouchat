@@ -1,7 +1,6 @@
 package com.maodouchat.ui.component
 
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -30,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.Primary
-import com.maodouchat.ui.theme.SurfaceVariant
 
 /**
  * Animated three-dot typing indicator (Telegram / iMessage style).

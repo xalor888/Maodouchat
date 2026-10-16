@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +34,6 @@ import coil.request.ImageRequest
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.theme.AvatarGradients
 import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.ui.theme.SurfaceVariant
 
 @Composable
 fun GroupAvatar(

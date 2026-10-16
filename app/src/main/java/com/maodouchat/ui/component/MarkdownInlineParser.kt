@@ -1,7 +1,6 @@
 package com.maodouchat.ui.component
 
 
-import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
