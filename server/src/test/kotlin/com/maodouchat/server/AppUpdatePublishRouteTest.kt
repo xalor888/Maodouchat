@@ -11,7 +11,6 @@ import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.service.AiGateway
-import com.maodouchat.server.service.AiGatewayResult
 import com.maodouchat.server.service.CallInviteRateLimiter
 import io.ktor.client.request.get
 import io.ktor.client.request.header

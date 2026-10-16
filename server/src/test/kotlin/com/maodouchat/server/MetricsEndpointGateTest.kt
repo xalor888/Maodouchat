@@ -1,6 +1,5 @@
 package com.maodouchat.server
 
-import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.plugins.configureAuthentication
 import com.maodouchat.server.plugins.configureRouting

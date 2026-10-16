@@ -1,10 +1,8 @@
 package com.maodouchat.server
 
 import com.maodouchat.server.config.ServerConfig
-import com.maodouchat.server.db.ChatParticipants
 import com.maodouchat.server.db.ChatUserSettings
 import com.maodouchat.server.db.initDatabase
-import com.maodouchat.server.model.StarredMessageReference
 import com.maodouchat.server.plugins.configureAdminEnhanceRouting
 import com.maodouchat.server.plugins.configureAuthentication
 import com.maodouchat.server.plugins.configureDeveloperRouting

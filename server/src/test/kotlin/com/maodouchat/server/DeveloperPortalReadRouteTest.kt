@@ -6,7 +6,6 @@ import com.maodouchat.server.plugins.configureRouting
 import com.maodouchat.server.plugins.configureSerialization
 import com.maodouchat.server.plugins.configureSockets
 import com.maodouchat.server.plugins.configureStatusPages
-import com.maodouchat.server.repository.BotRepository
 import com.maodouchat.server.repository.PostRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.createDefaultUsers
