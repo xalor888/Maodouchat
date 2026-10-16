@@ -25,10 +25,6 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.ai.agent.BallState
 import com.maodouchat.ai.agent.MaodouAgentService
 
-/**
- * Nekogram / Telegram 风格的 AI 智能助手全功能界面。
- * 包含端侧大模型对话、流式回复、工具调用确认、引导页快捷推荐卡片以及高响应度微动效。
- */
 @Composable
 fun MaodouAgentScreen(onBack: () -> Unit) {
     val context = LocalContext.current

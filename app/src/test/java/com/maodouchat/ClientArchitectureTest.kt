@@ -580,7 +580,8 @@ class ClientArchitectureTest {
         // MaodouAgentScreen（618）挤进前 20 纳管；本轮按主题拆出 5 个簇文件
         // （TopBar/引导页/消息气泡簇/审批卡/输入条，618 → 124 纯搬移；新文件均未进前 20，
         // 滑入前 20 的 GroupPlayClassicDelegates（605）早已纳管），上限同步收紧。
-        "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 124,
+        // 2026-10-16：BallState 提顶层加 1 行 import、删模板 KDoc 4 行（124 → 121），上限同步收紧（两处）。
+        "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 121,
     )
 
     @Test
@@ -754,7 +755,8 @@ class ClientArchitectureTest {
         // MaodouAgentScreen（618）挤进前 20 纳管；本轮按主题拆出 5 个簇文件
         // （TopBar/引导页/消息气泡簇/审批卡/输入条，618 → 124 纯搬移；新文件均未进前 20，
         // 滑入前 20 的 GroupPlayClassicDelegates（605）早已纳管），上限同步收紧。
-        "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 124,
+        // 2026-10-16：BallState 提顶层加 1 行 import、删模板 KDoc 4 行（124 → 121），上限同步收紧（两处）。
+        "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 121,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
