@@ -1,6 +1,5 @@
 package com.maodouchat.server.db
 
-import com.maodouchat.server.config.ServerConfig
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 
 

@@ -1,6 +1,5 @@
 package com.maodouchat.server.db
 
-import org.jetbrains.exposed.sql.Index
 import org.jetbrains.exposed.sql.Table
 
 /**
