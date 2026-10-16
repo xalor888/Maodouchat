@@ -7,10 +7,6 @@ import java.util.regex.Pattern
  * 纯端侧消息安全检查：不上传内容，默认由调用方在用户开启后执行。
  */
 object MessageSafetyScanner {
-    data class Finding(
-        val code: String,
-        val matched: String? = null
-    )
 
     fun scan(rawText: String, maxFindings: Int = 7): List<Finding> {
         val text = rawText.trim()
