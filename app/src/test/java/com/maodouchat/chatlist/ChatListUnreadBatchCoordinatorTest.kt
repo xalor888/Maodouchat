@@ -5,8 +5,6 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import com.maodouchat.ui.screen.chatlist.ChatListUnreadBatchCoordinator
-import io.mockk.every
-import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

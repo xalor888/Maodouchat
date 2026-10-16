@@ -1,6 +1,5 @@
 package com.maodouchat.util
 
-import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
 

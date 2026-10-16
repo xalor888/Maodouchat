@@ -415,7 +415,8 @@ class ClientArchitectureTest {
         // GroupPlayModeDelegates（206），父对象只留骰子/投票/签到/抽奖实现 +
         // 同名一行委托（858 → 601；GroupPlayModeDelegates（206）未进前 20 不纳管；
         // GroupPlayClassicDelegates（605）当时未进窗口，见下条补纳管）。
-        "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
+        // 2026-10-17：删 org.json.JSONArray 闲置 import（601 → 600），两处上限同步收紧。
+        "com/maodouchat/util/GroupPlayPolicy.kt" to 600,
         // 2026-10-10：ApiEndpointClients（692 → 139）拆出后 GroupPlayClassicDelegates（605）
         // 滑进前 20——按判据纳入监管（两份 map 一起加）。
         "com/maodouchat/util/GroupPlayClassicDelegates.kt" to 605,
@@ -634,7 +635,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 265,
             // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
             // GroupPlayModeDelegates（206），父对象只留同名一行委托（858 → 601）。
-            "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
+            "com/maodouchat/util/GroupPlayPolicy.kt" to 600,
             // 2026-10-10：ApiEndpointClients（692 → 139）拆出后 GroupPlayClassicDelegates（605）
             // 滑进前 20——按判据纳入监管（两份 map 一起加）。
             "com/maodouchat/util/GroupPlayClassicDelegates.kt" to 605,

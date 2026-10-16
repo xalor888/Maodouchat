@@ -1,13 +1,9 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.R
-import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.Message
 import com.maodouchat.ui.screen.chatlist.ChatListLocalProjectionCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import kotlin.test.AfterTest

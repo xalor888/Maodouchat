@@ -2,14 +2,12 @@ package com.maodouchat.chatlist
 
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.ChatSettingsResponse
-import com.maodouchat.network.TokenManager
 import com.maodouchat.chatlist.ChatListPorts
 import com.maodouchat.util.RuntimeFlags
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
