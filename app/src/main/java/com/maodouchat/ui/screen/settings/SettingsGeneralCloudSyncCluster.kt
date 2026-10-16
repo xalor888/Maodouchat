@@ -6,7 +6,6 @@ import com.maodouchat.R
 import com.maodouchat.data.repository.ClientPrefsNetworkRepository
 import com.maodouchat.network.ClientPrefsUpdateRequest
 import com.maodouchat.util.AppLocaleManager
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock

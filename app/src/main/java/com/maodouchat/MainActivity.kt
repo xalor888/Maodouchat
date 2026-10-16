@@ -1,14 +1,7 @@
 package com.maodouchat
 
-import com.maodouchat.notification.SocialNotificationService
-import com.maodouchat.notification.ReminderNotificationService
-import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.notification.NotificationIntentConsumer
-import com.maodouchat.notification.MessageNotificationService
-import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.navigation.NotificationTarget
-import com.maodouchat.util.RuntimeFlags
-import android.Manifest
 import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
@@ -36,7 +29,6 @@ import com.maodouchat.navigation.NotificationTargetReplayDecision
 import com.maodouchat.navigation.NotificationTargetReplayPolicy
 import com.maodouchat.navigation.Routes
 import com.maodouchat.navigation.toDestination
-import com.maodouchat.ui.theme.Background
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.network.TokenManager
@@ -60,7 +52,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.navigation.AppLinkDestination
 import com.maodouchat.ui.navigation.MaodouchatNavGraph
 
 class MainActivity : FragmentActivity() {

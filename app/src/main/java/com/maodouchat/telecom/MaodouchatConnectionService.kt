@@ -1,7 +1,6 @@
 package com.maodouchat.telecom
 
 import androidx.core.net.toUri
-import com.maodouchat.notification.CallNotificationService
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build

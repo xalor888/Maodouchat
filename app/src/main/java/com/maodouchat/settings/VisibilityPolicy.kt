@@ -1,6 +1,5 @@
 package com.maodouchat.settings
 
-import com.maodouchat.explore.policy.ExploreDraftPolicy
 
 /**
  * 帖子可见性的归一化（G179 从两处同构实现收敛而来）。

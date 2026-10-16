@@ -1,17 +1,12 @@
 package com.maodouchat.floating
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.Build
 import android.provider.Settings
-import android.util.TypedValue
-import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.core.net.toUri
 import com.maodouchat.MainActivity
