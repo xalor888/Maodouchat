@@ -1,8 +1,5 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.auth.JwtConfig
-import com.maodouchat.server.messaging.v2.AcknowledgeEnvelopesV2Request
-import com.maodouchat.server.messaging.v2.AcknowledgeEnvelopesV2Response
 import com.maodouchat.server.messaging.v2.DeviceTarget
 import com.maodouchat.server.messaging.v2.MessagingV2ConversationNotFoundException
 import com.maodouchat.server.messaging.v2.MessagingV2CoverageException
@@ -28,13 +25,9 @@ import com.maodouchat.server.service.isMaintenanceMode
 import com.maodouchat.server.service.maxMessagePerMinute
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
-import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 /** V2 消息发送簇：POST /messages（含请求体校验）。 */
 internal fun Route.configureMessagingV2SendRoutes(
