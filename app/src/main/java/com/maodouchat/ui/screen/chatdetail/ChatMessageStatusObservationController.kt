@@ -27,7 +27,7 @@ internal class ChatMessageStatusObservationController(
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
     private val getLastMessagesSeen: () -> List<Pair<String, MessageStatus>>?,
     private val setLastMessagesSeen: (List<Pair<String, MessageStatus>>?) -> Unit,
-    private val readSeenMessages: ChatReadWatermarkPolicy.SeenSet,
+    private val readSeenMessages: SeenSet,
     private val setPendingReadWatermarkMessageId: (String?) -> Unit,
     private val getMarkReadJob: () -> Job?,
     private val setMarkReadJob: (Job?) -> Unit,

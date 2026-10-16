@@ -49,7 +49,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `no chat means nothing to mark`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(input(messages = listOf(msg("m1")), hasChat = false), seen)
 
         assertNull(result, "没有会话时必须整体跳过")
@@ -58,7 +58,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `a backgrounded chat is not marked read`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(input(messages = listOf(msg("m1")), isActiveChat = false), seen)
 
         assertNull(result, "当前不在这个会话里绝不能标已读（否则切走就全变已读）")
@@ -67,7 +67,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `a placeholder owner is rejected`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val blank = ChatReadWatermarkPolicy.plan(input(messages = listOf(msg("m1")), ownerUserId = ""), seen)
         assertNull(blank, "owner 为空必须跳过")
 
@@ -81,7 +81,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `a stale session gate blocks marking`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(
             input(messages = listOf(msg("m1")), sessionMayContinue = false),
             seen,
@@ -94,7 +94,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `my own messages are never unread`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(
             input(messages = listOf(msg("m1", senderId = me), msg("m2", senderId = me))),
             seen,
@@ -105,7 +105,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `sender key distributions are never unread`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(
             input(messages = listOf(msg("sk1", type = MessageType.SK_DIST))),
             seen,
@@ -116,7 +116,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `already read messages are not re-reported`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(
             input(messages = listOf(msg("m1", status = MessageStatus.READ))),
             seen,
@@ -127,7 +127,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `each message is reported exactly once across state changes`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val messages = listOf(msg("m1", timestamp = 10L))
 
         val first = ChatReadWatermarkPolicy.plan(input(messages), seen)
@@ -146,7 +146,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `a mixed batch reports only the qualifying messages`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val messages = listOf(
             msg("keep1", timestamp = 10L),
             msg("mine", senderId = me, timestamp = 11L),
@@ -167,7 +167,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `the watermark is the newest by timestamp`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(
             input(
                 listOf(
@@ -184,7 +184,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `ties on timestamp are broken by id so the watermark is stable`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(
             input(listOf(msg("b", timestamp = 100L), msg("a", timestamp = 100L), msg("c", timestamp = 100L))),
             seen,
@@ -195,7 +195,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `the watermark is the message to mark read through`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val result = ChatReadWatermarkPolicy.plan(input(listOf(msg("m1", timestamp = 5L))), seen)
 
         assertEquals("m1", result!!.watermarkMessageId, "水印消息 id 必须可用于 throughMessageId")
@@ -206,7 +206,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `a failed receipt enqueue rolls back so the next pass retries`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         val plan = ChatReadWatermarkPolicy.plan(input(listOf(msg("m1", timestamp = 1L))), seen)!!
         assertEquals(setOf("m1"), seen.snapshot())
 
@@ -218,7 +218,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `rollback only removes what this plan claimed`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         // 先有一批已成功上报的
         ChatReadWatermarkPolicy.plan(input(listOf(msg("done", timestamp = 1L))), seen)
         // 再来一批，这批失败
@@ -232,7 +232,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `seen set add is idempotent and reports membership`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         assertFalse(seen.contains("m1"))
 
         seen.add("m1")
@@ -244,7 +244,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `seen set removeAll drops exactly the given ids`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         seen.addAll(listOf("a", "b", "c"))
 
         seen.removeAll(listOf("a", "c"))
@@ -254,7 +254,7 @@ class ChatReadWatermarkPolicyTest {
 
     @Test
     fun `an empty unread batch yields no plan`() {
-        val seen = ChatReadWatermarkPolicy.SeenSet()
+        val seen = SeenSet()
         // 全部是自己的消息 → 没有合格未读 → 没有计划
         val result = ChatReadWatermarkPolicy.plan(
             input(listOf(msg("m1", senderId = me), msg("m2", senderId = me))),

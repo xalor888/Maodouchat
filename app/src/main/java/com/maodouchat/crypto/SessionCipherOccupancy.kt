@@ -10,8 +10,6 @@ import com.maodouchat.MaodouchatApp
  */
 object SessionCipherOccupancy {
 
-    class Lease internal constructor(internal val generation: Long)
-
     private var generation: Long = 0L
 
     @Volatile

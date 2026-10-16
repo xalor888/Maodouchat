@@ -319,7 +319,7 @@ internal class ChatDetailDeps(
     }
     /** Senders that already got one ensureSessions this chat open (history must not storm). */
     internal val aiMessageResultStore = AiMessageResultStore(com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
-    internal val readSeenMessages = ChatReadWatermarkPolicy.SeenSet()
+    internal val readSeenMessages = SeenSet()
     internal var pendingReadWatermarkMessageId: String? = null
     internal var lastMessagesSeen: List<Pair<String, MessageStatus>>? = null
     internal var markReadJob: kotlinx.coroutines.Job? = null
