@@ -1,9 +1,6 @@
 package com.maodouchat.server.plugins
-import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.GroupMembershipService
-import com.maodouchat.server.service.GroupInvitationService
 import io.ktor.http.*
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
