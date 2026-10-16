@@ -409,7 +409,7 @@ class ClientArchitectureTest {
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
         // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 293,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 265,
         // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
         // GroupPlayModeDelegates（206），父对象只留骰子/投票/签到/抽奖实现 +
         // 同名一行委托（858 → 601；GroupPlayModeDelegates（206）未进前 20 不纳管；
@@ -493,12 +493,12 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 749,
         // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 368,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 304,
         // 2026-10-08：文件/语音/位置/链接列表簇（+ 搜索高亮/字节/日期/打开链接助手）搬出同包
         // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
         // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
         // 513 → 345，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 345,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 321,
         // 2026-10-10：AppLinkRouter 按域拆簇，parseLegacyCenterDeeplink 搬到簇文件后
         // 该文件新增一行 import（479 → 480，纯接线；不是堆逻辑），上限按实测同步上调
         // （两份 map 一起改）。
@@ -623,7 +623,7 @@ class ClientArchitectureTest {
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
         // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 293,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 265,
             // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
             // GroupPlayModeDelegates（206），父对象只留同名一行委托（858 → 601）。
             "com/maodouchat/util/GroupPlayPolicy.kt" to 601,
@@ -680,12 +680,12 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/TextMessageBubble.kt" to 749,
         // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 368,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 304,
         // 2026-10-08：文件/语音/位置/链接列表簇（+ 搜索高亮/字节/日期/打开链接助手）搬出同包
         // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
         // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
         // 513 → 345，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 345,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 321,
         // 2026-10-10：AppLinkRouter 按域拆簇，parseLegacyCenterDeeplink 搬到簇文件后
         // 该文件新增一行 import（479 → 480，纯接线；不是堆逻辑），上限按实测同步上调
         // （两份 map 一起改）。
