@@ -2,7 +2,6 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.network.TokenManager
 
 /**
  * 本机 GIF 最近发送记录（按账号隔离）。

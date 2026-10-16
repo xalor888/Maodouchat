@@ -2,7 +2,6 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.network.TokenManager
 import org.json.JSONArray
 import org.json.JSONObject
 

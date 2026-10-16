@@ -2,7 +2,6 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.network.TokenManager
 
 /**
  * 贴纸最近使用 / 启用包：按账号隔离。
