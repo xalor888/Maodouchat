@@ -1,7 +1,6 @@
 package com.maodouchat.navigation
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.MaodouchatApp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking

@@ -5,8 +5,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import com.maodouchat.ai.AiConversationProfileSource
-import com.maodouchat.conversation.ReadReceiptSource
 
 /**
  * G63：轨道 C（客户端热点）的**前置边界门禁**。
@@ -369,7 +367,8 @@ class ClientArchitectureTest {
 
         // G343/G344/G346/G350/G351/G352：顶栏+横幅栈+搜索/多选+时间线区+上下半区弹窗簇抽出（2525 → 2277 → 2185 → 2114 → 1987 → 1691 → 1386，纯搬移），上限同步收紧（两份 map 一起改）。
         // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1017,
+        // 2026-10-17：删闲置 import（1017 → 1014 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1014,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -401,7 +400,8 @@ class ClientArchitectureTest {
         // ChatDetailFileTransferController（VM 留一行委托），677 → 656。
         // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
         // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 654,
+        // 2026-10-17：删闲置 import（654 → 649 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 649,
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
         // 按实测值纳入监管（两份 map 一起加）。
         // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
@@ -410,7 +410,8 @@ class ClientArchitectureTest {
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
         // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 265,
+        // 2026-10-17：删闲置 import（265 → 264 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 264,
         // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
         // GroupPlayModeDelegates（206），父对象只留骰子/投票/签到/抽奖实现 +
         // 同名一行委托（858 → 601；GroupPlayModeDelegates（206）未进前 20 不纳管；
@@ -441,7 +442,8 @@ class ClientArchitectureTest {
         // 2026-10-08：行组件簇搬出同包 GeneralSettingsRows.kt（873 → 342 纯搬移；
         // 修 CI 时补 setValue import 并清掉 18 个闲置 import → 324；
         // 新文件 583 行未进前 20，不纳管），两处同步收紧。
-        "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
+        // 2026-10-17：删闲置 import（324 → 323 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 323,
         // 2026-10-08：SettingsGeneral 拆小（873→342）后挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 671,
@@ -583,7 +585,8 @@ class ClientArchitectureTest {
         "com/maodouchat/data/local/DatabaseMigrations.kt" to 80,
         // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
-        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
+        // 2026-10-17：删闲置 import（665 → 663 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 663,
         // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
         // MaodouAgentScreen（618）挤进前 20 纳管；本轮按主题拆出 5 个簇文件
         // （TopBar/引导页/消息气泡簇/审批卡/输入条，618 → 124 纯搬移；新文件均未进前 20，
@@ -613,7 +616,8 @@ class ClientArchitectureTest {
         // 「两份相等」这条弱断言（见下方 G165 的说明——真正的外部基线是与 git HEAD 比）。
         // 改上限时要**两处一起改**，否则这条会红而 G165 那条不红，容易误判。
         val currentCaps = mapOf(
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1017,
+            // 2026-10-17：删闲置 import（1017 → 1014 纯删行），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 1014,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。
@@ -623,7 +627,8 @@ class ClientArchitectureTest {
             // ChatDetailFileTransferController（677 → 656）。
             // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
             // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 654,
+            // 2026-10-17：删闲置 import（654 → 649 纯删行），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 649,
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
             // 按实测值纳入监管（两份 map 一起加）。
             // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
@@ -632,7 +637,8 @@ class ClientArchitectureTest {
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
         // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 265,
+        // 2026-10-17：删闲置 import（265 → 264 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 264,
             // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
             // GroupPlayModeDelegates（206），父对象只留同名一行委托（858 → 601）。
             "com/maodouchat/util/GroupPlayPolicy.kt" to 600,
@@ -646,7 +652,8 @@ class ClientArchitectureTest {
             // 2026-10-16：删 18 个闲置 import（333 → 315 纯删行），上限同步收紧（两份 map 一起改）。
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 315,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 194,
-            "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 324,
+            // 2026-10-17：删闲置 import（324 → 323 纯删行），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 323,
             "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 671,
             // 通话 VM 瘦身第二批：出站信令发送簇纯搬移到同包 CallSignalingSender（1500 → 1449）。
             // 通话 VM 瘦身第三批：群组通话网格状态簇（成员连接状态/超时重连/确定性 mesh 建边）纯搬移到
@@ -763,7 +770,8 @@ class ClientArchitectureTest {
         "com/maodouchat/data/local/DatabaseMigrations.kt" to 80,
         // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
-        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 665,
+        // 2026-10-17：删闲置 import（665 → 663 纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 663,
         // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
         // MaodouAgentScreen（618）挤进前 20 纳管；本轮按主题拆出 5 个簇文件
         // （TopBar/引导页/消息气泡簇/审批卡/输入条，618 → 124 纯搬移；新文件均未进前 20，
