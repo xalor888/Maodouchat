@@ -34,16 +34,6 @@ object EncryptedAttachmentCrypto {
     private val gcmCipher: ThreadLocal<Cipher> =
         ThreadLocal.withInitial { Cipher.getInstance("AES/GCM/NoPadding") }
 
-    data class EncryptedFile(
-        val file: File,
-        val keyBase64: String,
-        val ivBase64: String,
-        val cipherSha256: String,
-        val plainSha256: String,
-        val cipherSize: Long,
-        val plainSize: Long
-    )
-
     fun encrypt(
         context: Context,
         uri: Uri,

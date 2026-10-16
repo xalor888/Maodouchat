@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.maodouchat.ai.agent.BallState
 import com.maodouchat.ai.agent.MaodouAgentService
 
 /**
@@ -36,7 +37,7 @@ fun MaodouAgentScreen(onBack: () -> Unit) {
     val messages = MaodouAgentService.messages
     val pending = MaodouAgentService.pendingApproval.value
     val error = MaodouAgentService.errorMessage.value
-    val running = MaodouAgentService.ballState.value == MaodouAgentService.BallState.RUNNING
+    val running = MaodouAgentService.ballState.value == BallState.RUNNING
     val streamingText = MaodouAgentService.streamingText.value
     val listState = rememberLazyListState()
 

@@ -15,7 +15,6 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 object MaodouAgentService {
-    enum class BallState { IDLE, RUNNING, PENDING_APPROVAL }
 
     val sessions: SnapshotStateList<AgentSession> = mutableStateListOf()
     val messages: SnapshotStateList<AgentChatMessage> = mutableStateListOf()
