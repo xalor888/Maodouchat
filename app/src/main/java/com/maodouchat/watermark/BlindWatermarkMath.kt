@@ -10,13 +10,6 @@ internal object BlindWatermarkMath {
 
     private const val SQRT2 = 1.4142135623730951
 
-    internal class Quad(
-        val ca: Array<FloatArray>,
-        val ch: Array<FloatArray>,
-        val cv: Array<FloatArray>,
-        val cd: Array<FloatArray>
-    )
-
     /** 2D Haar DWT（1/√2 归一化；输入尺寸必须为偶数）。 */
     internal fun dwt2(src: Array<FloatArray>): Quad {
         val h = src.size

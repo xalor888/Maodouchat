@@ -23,8 +23,6 @@ interface SecretChatDao {
     @Query("SELECT chatId, lastActivityAt FROM secret_chats")
     suspend fun listActivity(): List<SecretChatActivity>
 
-    data class SecretChatActivity(val chatId: String, val lastActivityAt: Long)
-
     @Query("DELETE FROM secret_chats WHERE chatId = :chatId")
     suspend fun remove(chatId: String)
 
