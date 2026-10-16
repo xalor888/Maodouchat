@@ -3,7 +3,6 @@ package com.maodouchat.data.local
 import android.content.Context
 import android.util.Log
 import androidx.room.Room
-import com.maodouchat.BuildConfig
 import net.sqlcipher.database.SupportFactory
 
 /**
