@@ -1,10 +1,7 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.service.GroupMembershipService
-import com.maodouchat.server.service.RuntimeConfigService
-import com.maodouchat.server.service.SealedSenderCertificateService
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
 import com.maodouchat.server.service.ConversationCommandService
@@ -13,12 +10,9 @@ import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.AiGatewayService
 import com.maodouchat.server.service.MediaReferenceService
-import com.maodouchat.server.service.ModerationEngine
 import com.maodouchat.server.service.FcmPushService
-import com.maodouchat.server.service.BlobStore
 import com.maodouchat.server.service.TurnCredentialService
 import com.maodouchat.server.service.CallInviteRateLimiter
-import com.maodouchat.server.service.WebRtcBinaryService
 import com.maodouchat.server.service.BotWebhookService
 import com.maodouchat.server.service.shutdown
 import com.maodouchat.server.service.start
@@ -31,37 +25,12 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.AttributeKey
-import java.util.Base64
-import java.nio.ByteBuffer
-import java.nio.charset.CodingErrorAction
-import java.nio.file.Files
-import java.nio.file.Paths
-import java.security.MessageDigest
-import java.util.UUID
-import javax.imageio.ImageIO
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.longOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
 
 // attachmentChunkPathRegex 现居 RateLimitConfig.kt（internal，同包共享）。
 private val RoutingInstalledKey = AttributeKey<Unit>("MaodouchatRoutingInstalled")
