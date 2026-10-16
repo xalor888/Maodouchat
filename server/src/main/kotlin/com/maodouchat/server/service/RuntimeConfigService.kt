@@ -1,7 +1,6 @@
 package com.maodouchat.server.service
 
 import com.maodouchat.server.config.AdminAccess
-import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.SystemSettings
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
