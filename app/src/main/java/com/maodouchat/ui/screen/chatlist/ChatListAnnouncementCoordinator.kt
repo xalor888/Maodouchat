@@ -2,8 +2,6 @@ package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.notification.AnnouncementPolicy
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.chatlist.PushVerifyKeyAction
-import com.maodouchat.chatlist.parsePushVerifyKeyPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update

@@ -2,7 +2,6 @@ package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.Flag
-import com.maodouchat.network.ApiService
 import org.json.JSONObject
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
