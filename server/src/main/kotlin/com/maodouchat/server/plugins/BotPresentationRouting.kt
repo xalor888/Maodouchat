@@ -77,7 +77,6 @@ import io.ktor.server.application.call
 import io.ktor.server.request.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
 /** Bot 能力清单唯一事实源（B12：此前内联在路由里，手写易漂移，见 9.133 注释）。 */

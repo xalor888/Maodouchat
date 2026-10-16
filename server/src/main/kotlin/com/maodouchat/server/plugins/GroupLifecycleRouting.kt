@@ -6,8 +6,6 @@ import com.maodouchat.server.service.GroupMembershipService
 import com.maodouchat.server.repository.UserRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
