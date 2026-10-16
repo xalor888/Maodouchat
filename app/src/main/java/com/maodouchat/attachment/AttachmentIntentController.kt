@@ -17,7 +17,6 @@ import com.maodouchat.domain.messaging.ContentPayload
 import com.maodouchat.domain.messaging.SendMessageCommand
 import com.maodouchat.domain.messaging.SendMessageResult
 import com.maodouchat.domain.messaging.TransferRepository
-import com.maodouchat.domain.messaging.TransferStatus
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.JsonFormat
