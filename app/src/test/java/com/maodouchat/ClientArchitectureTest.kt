@@ -480,8 +480,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 293,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
-        // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）。
-        "com/maodouchat/ui/component/MarkdownMessage.kt" to 152,
+        // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）；2026-10-16：删 8 个闲置 import（152 → 144），两处上限同步收紧。
+        "com/maodouchat/ui/component/MarkdownMessage.kt" to 144,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
         // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
@@ -672,8 +672,8 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
             "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 293,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
-            // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）。
-                "com/maodouchat/ui/component/MarkdownMessage.kt" to 152,
+            // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）；2026-10-16：删 8 个闲置 import（152 → 144），两处上限同步收紧。
+                "com/maodouchat/ui/component/MarkdownMessage.kt" to 144,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
         // 补上它之后「app 内 1100+ 行源文件全部在监」才真正成立。
         "androidx/compose/material/icons/outlined/ExtendedOutlinedIcons.kt" to 2678,
