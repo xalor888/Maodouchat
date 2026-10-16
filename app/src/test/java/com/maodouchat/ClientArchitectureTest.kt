@@ -478,7 +478,7 @@ class ClientArchitectureTest {
         "com/maodouchat/webrtc/WebRTCManager.kt" to 1247,
         // 2026-10-16：chatlist 闲置 import 清理（122 删 + import 块 ASCII 重排，零行为改动；432 → 310），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
-        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 293,
+        "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 291,
         // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 645,
         // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）；2026-10-16：删 8 个闲置 import（152 → 144），两处上限同步收紧。
@@ -671,7 +671,7 @@ class ClientArchitectureTest {
             // 2026-10-14：WebRTCException 纯搬入 WebRTCModels.kt（1249 → 1247，纯搬移），上限同步收紧（两份 map 一起改）。
             // 本轮：模型簇（CallState/CallType/GroupPeerConnectionState/CallIceServer）抽出 WebRTCModels.kt（1309 → 1249，纯搬移），上限同步收紧（两份 map 一起改）。
             "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
-            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 293,
+            "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 291,
                 // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 645,
             // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）；2026-10-16：删 8 个闲置 import（152 → 144），两处上限同步收紧。

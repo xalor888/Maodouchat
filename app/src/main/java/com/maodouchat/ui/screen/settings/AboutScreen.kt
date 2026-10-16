@@ -49,7 +49,6 @@ import android.os.Build
 import androidx.core.net.toUri
 import androidx.work.WorkInfo
 import com.maodouchat.R
-import com.maodouchat.network.ApiService
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.update.AppUpdateDownloadScheduler
 import com.maodouchat.update.AppUpdatePolicy
