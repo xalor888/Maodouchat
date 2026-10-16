@@ -474,7 +474,8 @@ class ClientArchitectureTest {
         // 本轮：模型簇（CallState/CallType/GroupPeerConnectionState/CallIceServer）抽出 WebRTCModels.kt（1309 → 1249，纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-14：WebRTCException 纯搬入 WebRTCModels.kt（1249 → 1247，纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/webrtc/WebRTCManager.kt" to 1247,
-        "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
+        // 2026-10-16：chatlist 闲置 import 清理（122 删 + import 块 ASCII 重排，零行为改动；432 → 310），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 293,
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
         // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）。
@@ -663,7 +664,7 @@ class ClientArchitectureTest {
             // G390：连接统计采样簇（WebRTCConnectionStatsSnapshot + WebRTCConnectionStatsCollector）抽出（1416 → 1309，纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-14：WebRTCException 纯搬入 WebRTCModels.kt（1249 → 1247，纯搬移），上限同步收紧（两份 map 一起改）。
             // 本轮：模型簇（CallState/CallType/GroupPeerConnectionState/CallIceServer）抽出 WebRTCModels.kt（1309 → 1249，纯搬移），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 432,
+            "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
             "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 293,
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 666,
             // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）。
