@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
-import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.canRetryWithoutUpload
 import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.network.ApiService
