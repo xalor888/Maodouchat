@@ -1,37 +1,9 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.auth.JwtConfig
-import com.maodouchat.server.messaging.v2.AcknowledgeEnvelopesV2Request
-import com.maodouchat.server.messaging.v2.AcknowledgeEnvelopesV2Response
-import com.maodouchat.server.messaging.v2.DeviceTarget
-import com.maodouchat.server.messaging.v2.MessagingV2ConversationNotFoundException
-import com.maodouchat.server.messaging.v2.MessagingV2CoverageException
-import com.maodouchat.server.messaging.v2.MessagingV2AttachmentNotReadyException
-import com.maodouchat.server.messaging.v2.MessagingV2BlockedConversationException
-import com.maodouchat.server.messaging.v2.MessagingV2ChannelReadOnlyException
-import com.maodouchat.server.messaging.v2.MessagingV2DuplicateMessageException
-import com.maodouchat.server.messaging.v2.MessagingV2NotParticipantException
-import com.maodouchat.server.messaging.v2.MessagingV2ProtocolViolationException
-import com.maodouchat.server.messaging.v2.MessagingV2RateLimitedException
 import com.maodouchat.server.messaging.v2.MessagingV2Repository
-import com.maodouchat.server.messaging.v2.MessagingV2RevisionMismatchException
-import com.maodouchat.server.messaging.v2.MessagingV2SenderMutedException
-import com.maodouchat.server.messaging.v2.MessagingV2SenderRestrictedException
-import com.maodouchat.server.messaging.v2.OutboundEnvelope
-import com.maodouchat.server.messaging.v2.SendMessageV2Command
-import com.maodouchat.server.messaging.v2.SendMessageV2Request
-import com.maodouchat.server.messaging.v2.SendMessageV2Response
-import com.maodouchat.server.model.ErrorResponse
-import com.maodouchat.server.model.WsMessage
-import com.maodouchat.server.service.RuntimeConfigService
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.JWTPrincipal
-import io.ktor.server.auth.principal
-import io.ktor.server.response.respond
 import io.ktor.server.routing.*
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
