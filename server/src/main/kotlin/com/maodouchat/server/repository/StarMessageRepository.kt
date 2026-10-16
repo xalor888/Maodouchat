@@ -9,7 +9,6 @@ import com.maodouchat.server.messaging.v2.MessagingV2RecordClass
 import com.maodouchat.server.model.ChatType
 import com.maodouchat.server.model.StarredMessageReference
 import com.maodouchat.server.service.isUniqueViolation
-import java.sql.SQLException
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList

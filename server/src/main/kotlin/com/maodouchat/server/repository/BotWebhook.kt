@@ -2,11 +2,10 @@ package com.maodouchat.server.repository
 
 // bot webhook 安全簇（token 哈希/URL 白名单/SSRF 纵深校验）：原 BotRepository 成员按域拆出的顶层扩展函数（同包调用，零行为改动）。
 import com.maodouchat.server.db.BotApps
+import java.net.InetAddress
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.net.InetAddress
 
 /** Returns the stored token hash for a bot, or null if not found. Used for webhook signing. */
 fun BotRepository.getTokenHash(botId: String): String? = transaction {

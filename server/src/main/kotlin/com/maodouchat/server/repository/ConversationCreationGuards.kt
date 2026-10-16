@@ -3,10 +3,8 @@ package com.maodouchat.server.repository
 import com.maodouchat.server.db.BlockedUsers
 import com.maodouchat.server.db.Users
 import com.maodouchat.server.db.lockUsersInTx
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 
