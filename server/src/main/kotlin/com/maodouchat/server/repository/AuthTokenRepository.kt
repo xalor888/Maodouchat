@@ -1,30 +1,15 @@
 package com.maodouchat.server.repository
 
-import com.maodouchat.server.auth.JwtConfig
 import com.maodouchat.server.db.AuthSessions
 import com.maodouchat.server.db.PushTokens
 import com.maodouchat.server.db.RefreshTokens
-import org.jetbrains.exposed.sql.count
-import com.maodouchat.server.db.RevokedAccessTokens
-import com.maodouchat.server.db.Users
-import com.maodouchat.server.service.isUniqueViolation
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
-import java.util.UUID
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.update
 
 data class IssuedRefreshToken(val token: String, val expiresAt: Long, val sessionId: String)
 
