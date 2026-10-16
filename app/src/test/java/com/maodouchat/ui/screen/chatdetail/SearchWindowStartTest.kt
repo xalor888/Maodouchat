@@ -1,7 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import java.util.Calendar
-import java.util.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

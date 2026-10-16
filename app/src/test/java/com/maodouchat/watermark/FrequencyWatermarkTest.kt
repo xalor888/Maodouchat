@@ -6,9 +6,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.ln
 import kotlin.math.log10
-import kotlin.math.sqrt
 import kotlin.math.roundToInt
 
 class FrequencyWatermarkTest {

@@ -1,7 +1,5 @@
 package com.maodouchat.ui.screen.settings
 
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

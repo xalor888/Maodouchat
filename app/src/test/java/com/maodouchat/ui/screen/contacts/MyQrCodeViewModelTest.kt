@@ -3,9 +3,7 @@ package com.maodouchat.ui.screen.contacts
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.UserRepository
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

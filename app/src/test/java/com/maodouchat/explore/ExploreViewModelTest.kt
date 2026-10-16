@@ -5,7 +5,6 @@ import com.maodouchat.explore.policy.ExploreDraftPolicy
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 /**
  * ExploreViewModel 的纯 JVM 单测：可见范围选项模型 / normalizeVisibility 逻辑。
