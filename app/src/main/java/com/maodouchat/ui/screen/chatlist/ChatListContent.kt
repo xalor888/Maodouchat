@@ -31,7 +31,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,8 +43,6 @@ import com.maodouchat.ui.component.SwipeableChatItem
 import com.maodouchat.navigation.MainTab
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
 /**
  * 会话列表的主体内容（G141 从 `ChatListScreen.kt` 拆出，原 206 行）。
