@@ -5,7 +5,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.selectAll
 
 /** Immutable transport metadata. Plaintext and decrypted group state stay on client devices. */
 object MessagingV2Messages : Table("messaging_v2_messages") {
