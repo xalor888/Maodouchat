@@ -23,7 +23,7 @@ interface AiGateway {
             model
         )
 
-    fun checkBudget(userId: String, estimatedTokens: Long): BudgetResult = BudgetResult.Allowed
+    fun checkBudget(userId: String, estimatedTokens: Long): BudgetResult = Allowed
 }
 
 sealed interface AiGatewayResult<out T> {
@@ -36,12 +36,6 @@ sealed interface AiGatewayResult<out T> {
 }
 
 sealed interface BudgetResult {
-    data object Allowed : BudgetResult
-    data class Exceeded(
-        val usedTokens: Long,
-        val budgetTokens: Long,
-        val retryAfterSeconds: Long
-    ) : BudgetResult
 }
 
 class AiGatewayService(
@@ -76,7 +70,7 @@ class AiGatewayService(
 
     override fun checkBudget(userId: String, estimatedTokens: Long): BudgetResult {
         val budget = RuntimeConfigService.aiDailyTokenBudgetPerUser()
-        if (budget <= 0L) return BudgetResult.Allowed
+        if (budget <= 0L) return Allowed
         val est = estimatedTokens.coerceAtLeast(0L) + BUDGET_OUTPUT_ESTIMATE_TOKENS
         val now = System.currentTimeMillis()
         val monitor = budgetMonitorFor(userId)
@@ -88,9 +82,9 @@ class AiGatewayService(
                     budgetReservations
                         .computeIfAbsent(userId) { mutableListOf() }
                         .add(Reservation(amount = est, expiresAt = now + AI_BUDGET_RESERVATION_LEASE_MS))
-                    return BudgetResult.Allowed
+                    return Allowed
                 }
-                return BudgetResult.Exceeded(usedTokens = used, budgetTokens = budget, retryAfterSeconds = secondsUntilMidnight())
+                return Exceeded(usedTokens = used, budgetTokens = budget, retryAfterSeconds = secondsUntilMidnight())
             }
         } finally {
             releaseBudgetMonitor(userId, monitor)
