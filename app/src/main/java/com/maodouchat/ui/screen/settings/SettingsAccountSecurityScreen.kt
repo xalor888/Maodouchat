@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -24,7 +23,6 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -32,12 +30,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -714,155 +710,28 @@ fun AccountSecurityScreen(
         Spacer(modifier = Modifier.height(32.dp))
     }
 
-    if (showChangeDialog) {
-        ChangePasswordDialog(
-            oldPassword = oldPassword,
-            newPassword = newPassword,
-            confirmPassword = confirmPassword,
-            isSaving = state.isSaving,
-            errorMessage = state.errorMessage,
-            onOldChange = { oldPassword = it },
-            onNewChange = { newPassword = it },
-            onConfirmChange = { confirmPassword = it },
-            onDismiss = {
-                showChangeDialog = false
-                oldPassword = ""; newPassword = ""; confirmPassword = ""
-                viewModel.clearErrorMessage()
-            },
-            onSubmit = {
-                viewModel.changePassword(oldPassword, newPassword, confirmPassword) {
-                    // 成功：清空输入并关闭弹窗
-                    showChangeDialog = false
-                    oldPassword = ""; newPassword = ""; confirmPassword = ""
-                }
-            }
-        )
-    }
-
-    // 8.62：退出所有设备确认
-    if (showLogoutAllConfirm) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!state.isLoggingOutAll) showLogoutAllConfirm = false
-            },
-            title = { Text(stringResource(R.string.account_logout_all)) },
-            text = { Text(stringResource(R.string.account_logout_all_confirm)) },
-            confirmButton = {
-                TextButton(enabled = !state.isLoggingOutAll, onClick = {
-                    showLogoutAllConfirm = false
-                    viewModel.logoutAllDevices()
-                }) {
-                    Text(stringResource(R.string.account_logout_all), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(enabled = !state.isLoggingOutAll, onClick = { showLogoutAllConfirm = false }) {
-                    Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary)
-                }
-            }
-        )
-    }
-
-    if (showDeleteAccountDialog) {
-        val deleteAuthTitle = stringResource(R.string.sensitive_auth_title)
-        val deleteAuthSubtitle = stringResource(R.string.sensitive_auth_delete_account)
-        val deleteAuthFailed = stringResource(R.string.sensitive_auth_failed)
-        DeleteAccountDialog(
-            password = deletePassword,
-            isDeleting = state.isDeletingAccount,
-            errorMessage = state.errorMessage,
-            onPasswordChange = { deletePassword = it },
-            onDismiss = {
-                if (!state.isDeletingAccount) {
-                    showDeleteAccountDialog = false
-                    deletePassword = ""
-                    viewModel.clearErrorMessage()
-                }
-            },
-            onSubmit = {
-                SensitiveActionGate.confirm(
-                    context = context,
-                    action = SensitiveAction.DELETE_ACCOUNT,
-                    title = deleteAuthTitle,
-                    subtitle = deleteAuthSubtitle,
-                    onSuccess = { viewModel.deleteAccount(deletePassword) },
-                    onFailure = { msg ->
-                        Toast.makeText(
-                            context,
-                            msg?.takeIf { it.isNotBlank() } ?: deleteAuthFailed,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-        )
-    }
-
-    // 9.159：目标设备从他端被删除/确认后自动关闭弹窗（与 9.150 会话/成员守卫同口径）
-    LaunchedEffect(state.devices) {
-        val ids = state.devices.mapTo(hashSetOf()) { it.deviceId }
-        if (pendingRemoveDeviceId?.let { it !in ids } == true) pendingRemoveDeviceId = null
-        if (renameDeviceId?.let { it !in ids } == true) renameDeviceId = null
-    }
-
-    val pendingRemoveDevice = pendingRemoveDeviceId?.let { id -> state.devices.firstOrNull { it.deviceId == id } }
-    pendingRemoveDevice?.let { device ->
-        val isPendingDevice = device.status == "PENDING"
-        AlertDialog(
-            onDismissRequest = { pendingRemoveDeviceId = null },
-            title = { Text(if (isPendingDevice) stringResource(R.string.account_reject_device) else stringResource(R.string.account_remove_device)) },
-            text = {
-                Text(
-                    if (isPendingDevice) {
-                        stringResource(R.string.account_reject_device_confirm, device.deviceId)
-                    } else {
-                        stringResource(R.string.account_remove_device_confirm, device.deviceId)
-                    }
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingRemoveDeviceId = null
-                    viewModel.removeMyDevice(device.deviceId)
-                }) {
-                    Text(if (isPendingDevice) stringResource(R.string.account_reject) else stringResource(R.string.chat_remove), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = { pendingRemoveDeviceId = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
-        )
-    }
-
-    val renameDevice = renameDeviceId?.let { id -> state.devices.firstOrNull { it.deviceId == id } }
-    renameDevice?.let { device ->
-        AlertDialog(
-            onDismissRequest = { renameDeviceId = null },
-            title = { Text(stringResource(R.string.account_device_name_title)) },
-            text = {
-                OutlinedTextField(
-                    value = renameDraft,
-                    onValueChange = { if (it.length <= 50) renameDraft = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.account_device_name)) },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        unfocusedContainerColor = LocalChatPalette.current.chatInputBackground,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = LocalChatPalette.current.chatInputBorder,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.renameMyDevice(device.deviceId, renameDraft)
-                    renameDeviceId = null
-                }) {
-                    Text(stringResource(R.string.common_save), color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            dismissButton = { TextButton(onClick = { renameDeviceId = null }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) } }
-        )
-    }
+    AccountSecurityDialogs(
+        state = state,
+        viewModel = viewModel,
+        showChangeDialog = showChangeDialog,
+        onShowChangeDialogChange = { showChangeDialog = it },
+        oldPassword = oldPassword,
+        onOldPasswordChange = { oldPassword = it },
+        newPassword = newPassword,
+        onNewPasswordChange = { newPassword = it },
+        confirmPassword = confirmPassword,
+        onConfirmPasswordChange = { confirmPassword = it },
+        showLogoutAllConfirm = showLogoutAllConfirm,
+        onShowLogoutAllConfirmChange = { showLogoutAllConfirm = it },
+        showDeleteAccountDialog = showDeleteAccountDialog,
+        onShowDeleteAccountDialogChange = { showDeleteAccountDialog = it },
+        deletePassword = deletePassword,
+        onDeletePasswordChange = { deletePassword = it },
+        pendingRemoveDeviceId = pendingRemoveDeviceId,
+        onPendingRemoveDeviceIdChange = { pendingRemoveDeviceId = it },
+        renameDeviceId = renameDeviceId,
+        onRenameDeviceIdChange = { renameDeviceId = it },
+        renameDraft = renameDraft,
+        onRenameDraftChange = { renameDraft = it },
+    )
 }
