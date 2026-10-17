@@ -26,7 +26,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -42,7 +41,6 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
-import com.maodouchat.security.findActivity
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -106,61 +104,13 @@ internal fun ChatDetailRoute(
     // 仍存活的聊天页实例不再持有陈旧背景/字号
     // G335：这三项「必须一起刷新」的不变量收进持有类（见 ChatDetailAppearanceStates.kt）
     val appearance = rememberChatDetailAppearanceState(context)
-    LaunchedEffect(viewModel.activeChatId, state.contact.id, state.chatIsGroup) {
-        val peer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
-        when {
-            state.chatIsGroup -> {
-                viewModel.occupySessionCipher(
-                    viewModel.activeChatId,
-                    peerUserId = null,
-                    updatePeer = true
-                )
-            }
-            peer != null -> {
-                viewModel.occupySessionCipher(
-                    viewModel.activeChatId,
-                    peer,
-                    updatePeer = true
-                )
-            }
-            else -> {
-                // Contact not loaded yet — pin chatId only. Never pass updatePeer=true
-                // with a blank peer: that clears openPeerUserId and lets list/backlog
-                // decrypt the sibling DIRECT/SECRET ratchet.
-                viewModel.occupySessionCipher(viewModel.activeChatId)
-            }
-        }
-    }
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, viewModel.activeChatId, state.contact.id, state.chatIsGroup) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                aiSafety.refreshFrom(context)
-                // 9.150：刷新外观偏好（设置页修改后返回即时生效）
-                appearance.refreshFrom(context)
-                // 8.32 修复 F2：回到前台恢复 activeChatId（MainActivity.onPause 已清空），
-                // 使「打开中的聊天」重新享有消息不弹通知/不计未读的语义。
-                val resumePeer = state.contact.id.takeIf { it.isNotBlank() && it != "me" && !state.chatIsGroup }
-                when {
-                    state.chatIsGroup -> viewModel.occupySessionCipher(
-                        viewModel.activeChatId,
-                        peerUserId = null,
-                        updatePeer = true
-                    )
-                    resumePeer != null -> viewModel.occupySessionCipher(
-                        viewModel.activeChatId,
-                        resumePeer,
-                        updatePeer = true
-                    )
-                    else -> viewModel.occupySessionCipher(viewModel.activeChatId)
-                }
-                // 8.32 修复 F2 的时间戳写入挪到 SessionCipherOccupancy（if-置值语义逐字等价）；Route 不再直连全局单例。
-                com.maodouchat.crypto.SessionCipherOccupancy.refreshActiveChatOpenedAtIfUnset()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
+    ChatDetailSessionCipherEffects(
+        viewModel = viewModel,
+        state = state,
+        aiSafety = aiSafety,
+        appearance = appearance,
+        context = context,
+    )
     // G335：这一族「弹层当前操作哪条消息」的状态收进持有类（见 ChatDetailMessageActionState）。
     val messageActions = remember { ChatDetailMessageActionState() }
     val chatAiSurfacesVisible = com.maodouchat.ai.AiEntryPolicy.shouldShowAiSurfaces(
@@ -172,7 +122,7 @@ internal fun ChatDetailRoute(
             com.maodouchat.util.RuntimeFlags.AI_MASTER
         )
     )
-    androidx.compose.runtime.LaunchedEffect(chatAiSurfacesVisible) {
+    LaunchedEffect(chatAiSurfacesVisible) {
         if (!chatAiSurfacesVisible && search.searchMode == ChatSearchMode.SEMANTIC) {
             search.searchMode = ChatSearchMode.KEYWORD
             viewModel.clearSemanticSearch()
@@ -388,38 +338,9 @@ internal fun ChatDetailRoute(
 
     ChatDetailStatusInfoEffects(state, viewModel, chatSnackbarHostState)
 
-    // Keep FLAG_SECURE in sync when 密聊 toggles without navigation.
-    // LocalContext is usually a ContextWrapper — unwrap, do not cast directly.
-    // isSecretChat == null 是尚未查库：不得当成非密聊去清标记（会在乐观窗口里拆掉 FLAG_SECURE）。
-    DisposableEffect(state.isSecretChat, state.chat?.id) {
-        val chatId = state.chat?.id
-        val secretState = state.isSecretChat
-        val activity = context.findActivity() as? com.maodouchat.MainActivity
-        if (chatId != null && secretState != null) {
-            activity?.notifySecretChatSurfaceChanged(chatId, secretState)
-        }
-        onDispose {
-            if (chatId != null && secretState == true) {
-                activity?.notifySecretChatSurfaceLeft(chatId)
-            }
-        }
-    }
-
     val chatLockPending = state.isChatLocked == null
     val chatLockBlocking = state.isChatLocked == true && !state.isChatUnlocked
-
-    // 会话 PIN 锁（ChatLockGate）显示期间强制 FLAG_SECURE：PIN 属敏感信息，
-    // 即便全局截屏防护关闭、也非密聊，也须阻止截屏/录屏。复用 MainActivity 的中心化机制，
-    // 由 refreshWindowPrivacy 统一 addFlags/clearFlags，避免在解锁密聊会话时误清 FLAG_SECURE。
-    DisposableEffect(chatLockBlocking) {
-        val activity = context.findActivity() as? com.maodouchat.MainActivity
-        activity?.notifyChatLockSurfaceChanged(chatLockBlocking)
-        onDispose {
-            if (chatLockBlocking) {
-                activity?.notifyChatLockSurfaceChanged(false)
-            }
-        }
-    }
+    ChatDetailWindowPrivacyEffects(state = state, chatLockBlocking = chatLockBlocking, context = context)
     val secretPagePayload = rememberSecretPageWatermarkPayload(
         isSecretChat = state.isSecretChat == true,
         userId = com.maodouchat.session.CurrentSession.ownerUserId(),
