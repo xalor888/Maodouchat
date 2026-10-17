@@ -1,7 +1,6 @@
 package com.maodouchat.server.plugins
 
 import io.ktor.websocket.WebSocketSession
-import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -18,12 +17,6 @@ internal object ConnectionRegistry {
 
     /** session -> auth session id。 */
     val sessionAuthSessionIds = ConcurrentHashMap<WebSocketSession, String>()
-
-    /**
-     * 单 session 发送互斥锁。Ktor WebSocketSession.send 不保证并发安全，按 session
-     * 串行化发送避免多路 fanout 帧交错。
-     */
-    class SessionSendLock(val mutex: Mutex = Mutex(), var users: Int = 0)
 
     val sessionSendLocks = ConcurrentHashMap<WebSocketSession, SessionSendLock>()
 

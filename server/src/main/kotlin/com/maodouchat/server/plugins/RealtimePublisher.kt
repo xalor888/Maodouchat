@@ -104,7 +104,7 @@ internal suspend fun runWithWsSendTimeout(
 
 internal suspend fun sendSafe(session: WebSocketSession, text: String) {
     val lock = ConnectionRegistry.sessionSendLocks.compute(session) { _, existing ->
-        val current = existing ?: ConnectionRegistry.SessionSendLock()
+        val current = existing ?: SessionSendLock()
         current.users++
         current
     }!!

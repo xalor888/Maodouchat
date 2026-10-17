@@ -47,8 +47,8 @@ internal fun GroupProfileRepository.updateAdminField(
         return@transaction GroupMemberMutationResult.FORBIDDEN
     }
     val access = GroupMutationTransaction.lockForAdmin(chatId, actorId)
-    if (access is GroupAdminAccess.Denied) return@transaction access.result
-    val chat = (access as GroupAdminAccess.Allowed).chat
+    if (access is Denied) return@transaction access.result
+    val chat = (access as Allowed).chat
     Chats.update({ Chats.id eq chatId }) { statement ->
         mutate(statement)
         statement[Chats.memberRevision] = chat[Chats.memberRevision] + 1

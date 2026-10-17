@@ -19,8 +19,8 @@ fun GroupInvitationRepository.configureToken(
         return@transaction GroupInviteMutationResult(GroupMemberMutationResult.FORBIDDEN)
     }
     val access = GroupMutationTransaction.lockForAdmin(chatId, actorId)
-    if (access is GroupAdminAccess.Denied) return@transaction GroupInviteMutationResult(access.result)
-    val chat = (access as GroupAdminAccess.Allowed).chat
+    if (access is Denied) return@transaction GroupInviteMutationResult(access.result)
+    val chat = (access as Allowed).chat
     val existingToken = chat[Chats.groupInviteToken]
     val mustRotate = rotate || existingToken.isNullOrBlank() ||
         chat[Chats.groupInviteExpiresAt] <= System.currentTimeMillis() ||

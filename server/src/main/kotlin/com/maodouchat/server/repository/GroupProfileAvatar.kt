@@ -43,10 +43,10 @@ internal fun GroupProfileRepository.mutateAvatar(
         return@transaction GroupAvatarMutationResult(GroupMemberMutationResult.FORBIDDEN)
     }
     val access = GroupMutationTransaction.lockForAdmin(chatId, actorId)
-    if (access is GroupAdminAccess.Denied) {
+    if (access is Denied) {
         return@transaction GroupAvatarMutationResult(access.result)
     }
-    val chat = (access as GroupAdminAccess.Allowed).chat
+    val chat = (access as Allowed).chat
     val previous = chat[Chats.groupAvatar]
     Chats.update({ Chats.id eq chatId }) {
         it[Chats.groupAvatar] = avatarUrl
