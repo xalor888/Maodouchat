@@ -6,3 +6,8 @@ data class Certificate(
     val deviceId: Int,
     val userId: String
 )
+
+internal data class CacheKey(
+    val userId: String,
+    val deviceId: Int
+)

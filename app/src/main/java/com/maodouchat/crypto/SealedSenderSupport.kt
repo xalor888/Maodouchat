@@ -3,36 +3,11 @@ package com.maodouchat.crypto
 import com.maodouchat.network.ApiService
 import org.json.JSONObject
 
-/**
- * Client helpers for server-issued sealed-sender certificates.
- *
- * ## 架构说明（保守路径，未实现 libsignal SealedSessionCipher 加解密）
- *
- * 本项目的"密封发送人"采用**服务端 HMAC token** 方案，**不**使用 libsignal 的
- * `org.signal.libsignal.metadata.SealedSessionCipher` 加解密路径：
- *
- * 1. 服务端 [SealedSenderCertificateService]（server 模块）用 HMAC-SHA256 签发 base64url
- *    token：`v1.{userId}.{deviceId}.{expiresAt}.{sigHex}`，**不**生成 libsignal 的
- *    `ServerCertificate` / `SenderCertificate`。
- * 2. 客户端通过 [fetchCertificate] 拉取该 token，缓存后作为
- *    `X-Maodouchat-Sealed-Sender-Cert` HTTP/WS header 注入（见 [ApiService] 与 [WebSocketClient]）。
- * 3. 服务端 [SealedSenderDelivery.authorize] 验证 token 后，**仅在 Push 通知和 Bot Webhook
- *    中 redact senderId** 为 "sealed"；chat WS/REST 历史仍保留真实 senderId，因为
- *    libsignal session addressing 解密时需要真实 peer id。
- *
- * 因此客户端**无需**也**不应**调用 `SealedSessionCipher.encrypt/decrypt`——那需要服务端
- * 用 libsignal trustRoot 私钥签发 `ServerCertificate`，并会破坏现有 `EncryptedMessageEnvelope`
- * 信封格式与所有在途消息的兼容性。本项目的设计选择就是用 HMAC token 实现等价的元数据
- * 隐藏，避免破坏 chat 路径的 senderId。
- *
- * [isImplemented] 显式返回 `false` 标记此保守路径。运行时调用方应优先检查 [isImplemented]
- * 来判断是否启用任何依赖 `SealedSessionCipher` 的代码路径；目前没有任何调用方依赖该路径，
- * 因此不会触发 `ClassNotFoundException`。
- *
- * libsignal-android 0.41.0 AAR 本身只包含 Android logger 类，`org.signal.libsignal.metadata`
- * 包通过传递依赖 `libsignal-client:0.41.0` 提供——若未来切换到完整 SealedSessionCipher
- * 实现，可直接使用，无需改 Gradle。
- */
+/** 密封发送人证书的客户端助手。保守路径：走服务端 HMAC token 方案
+ * （`v1.{userId}.{deviceId}.{expiresAt}.{sigHex}`，见 [fetchCertificate]），不用 libsignal
+ * 的 SealedSessionCipher 加解密——那会破坏现有信封格式与在途消息的兼容性。
+ * 证书以 `X-Maodouchat-Sealed-Sender-Cert` header 注入；[isImplemented] 恒为 false，
+ * 引入任何依赖 SealedSessionCipher 的代码前必须先检查它。 */
 object SealedSenderSupport {
     private const val MAX_CERT_CHARS = 16_000
     private const val MAX_CERT_TTL_MS = 7L * 24L * 60L * 60L * 1000L
@@ -46,11 +21,6 @@ object SealedSenderSupport {
      */
     @JvmStatic
     fun isImplemented(): Boolean = false
-
-    private data class CacheKey(
-        val userId: String,
-        val deviceId: Int
-    )
 
     private val cacheLock = Any()
     private val cachedCertificates = mutableMapOf<CacheKey, Certificate>()
