@@ -28,12 +28,12 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): RotateRefreshRes
         val initialRow = RefreshTokens.selectAll()
             .where { RefreshTokens.tokenHash eq hash }
             .firstOrNull()
-            ?: return@transaction RotateRefreshResult.InvalidToken
+            ?: return@transaction InvalidToken
         val userId = initialRow[RefreshTokens.userId]
         val sessionId = initialRow[RefreshTokens.sessionId]
         val user = Users.selectAll().where { Users.id eq userId }.forUpdate().firstOrNull()
         if (user == null || user[Users.deletedAt] != null) {
-            return@transaction RotateRefreshResult.UserMissing
+            return@transaction UserMissing
         }
         val session = sessionId.takeIf { it.isNotBlank() }?.let { id ->
             AuthSessions.selectAll()
@@ -46,13 +46,13 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): RotateRefreshRes
             .where { RefreshTokens.tokenHash eq hash }
             .forUpdate()
             .firstOrNull()
-            ?: return@transaction RotateRefreshResult.InvalidToken
+            ?: return@transaction InvalidToken
         if (row[RefreshTokens.revokedAt] != null) {
             if (session != null && session[AuthSessions.revokedAt] == null) {
                 revokeSessionInCurrentTransaction(userId, sessionId, now)
-                return@transaction RotateRefreshResult.SessionCompromised(userId, sessionId)
+                return@transaction SessionCompromised(userId, sessionId)
             }
-            return@transaction RotateRefreshResult.InvalidToken
+            return@transaction InvalidToken
         }
         if (row[RefreshTokens.expiresAt] <= now) {
             val hasActiveReplacement = sessionId.isNotBlank() && RefreshTokens.selectAll().where {
@@ -65,16 +65,16 @@ fun AuthTokenRepository.rotateIfEligible(refreshToken: String): RotateRefreshRes
             if (!hasActiveReplacement && session != null && session[AuthSessions.revokedAt] == null) {
                 revokeSessionInCurrentTransaction(userId, sessionId, now)
             }
-            return@transaction RotateRefreshResult.InvalidToken
+            return@transaction InvalidToken
         }
         if (user[Users.suspendedUntil] > now) {
-            return@transaction RotateRefreshResult.UserSuspended
+            return@transaction UserSuspended
         }
         if (session == null || session[AuthSessions.revokedAt] != null) {
             RefreshTokens.update({ RefreshTokens.tokenHash eq hash }) {
                 it[revokedAt] = now
             }
-            return@transaction RotateRefreshResult.InvalidToken
+            return@transaction InvalidToken
         }
         RefreshTokens.update({ RefreshTokens.tokenHash eq hash }) {
             it[revokedAt] = now

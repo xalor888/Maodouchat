@@ -4,7 +4,11 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.model.RefreshTokenRequest
 import com.maodouchat.server.repository.AuthTokenRepository
+import com.maodouchat.server.repository.InvalidToken
 import com.maodouchat.server.repository.RotateRefreshResult
+import com.maodouchat.server.repository.SessionCompromised
+import com.maodouchat.server.repository.UserMissing
+import com.maodouchat.server.repository.UserSuspended
 import com.maodouchat.server.repository.getById
 import com.maodouchat.server.repository.rotateIfEligible
 import com.maodouchat.server.repository.IssuedRefreshToken
@@ -35,7 +39,7 @@ internal fun Route.configureAuthLoginRefreshRoutes(
             val req = call.receiveJsonOr400<RefreshTokenRequest>() ?: return@post
             // 单事务：校验封禁/账号存在后再 revoke，避免 peek→consume 窗口烧 refresh
             when (val rotated = authTokenRepo.rotateIfEligible(req.refreshToken.trim())) {
-                is RotateRefreshResult.InvalidToken -> {
+                is InvalidToken -> {
                     // 2026-09-27：为定位两设备 E2E 的「共享会话 401」抖动加的可观测性——
                     // 该模式怀疑为 refresh 轮换后的旧 token 重放（服务端反重放会撤销整个会话）。
                     // 成功路径不打日志（生产高频）；非成功路径各打一行，便于用服务端日志证伪/证实。
@@ -43,17 +47,17 @@ internal fun Route.configureAuthLoginRefreshRoutes(
                     call.respond(HttpStatusCode.Unauthorized, ErrorResponse("登录已过期，请重新登录"))
                     return@post
                 }
-                is RotateRefreshResult.UserSuspended -> {
+                is UserSuspended -> {
                     // 8.42：与 InvalidToken 统一 401 通用文案——否则持有他人 refresh token 的
                     // 攻击者可探测账号封禁状态（账号状态 oracle）；封禁账号客户端走 401 正常登出
                     call.respond(HttpStatusCode.Unauthorized, ErrorResponse("登录已过期，请重新登录"))
                     return@post
                 }
-                is RotateRefreshResult.UserMissing -> {
+                is UserMissing -> {
                     call.respond(HttpStatusCode.Unauthorized, ErrorResponse("登录已过期，请重新登录"))
                     return@post
                 }
-                is RotateRefreshResult.SessionCompromised -> {
+                is SessionCompromised -> {
                     // 反重放触发 = 有人拿**已轮换**的 refresh token 再刷新：整会话被撤销。
                     // 这是安全设计（不放松），但会导致该会话后续所有请求 401——
                     // 两设备 E2E 的「9 例共享会话 401」若为此因，这行日志就是证据。
