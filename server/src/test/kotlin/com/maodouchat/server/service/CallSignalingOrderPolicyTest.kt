@@ -12,19 +12,19 @@ class CallSignalingOrderPolicyTest {
             Cursor(0, 0),
             lastAccepted = Cursor(5, 9),
         )
-        assertIs<Admit.Accept>(decision)
+        assertIs<Accept>(decision)
     }
 
     @Test
     fun firstSignalAccepted() {
-        assertIs<Admit.Accept>(
+        assertIs<Accept>(
             CallSignalingOrderPolicy.admit(Cursor(1, 1), null)
         )
     }
 
     @Test
     fun higherSequenceAccepted() {
-        assertIs<Admit.Accept>(
+        assertIs<Accept>(
             CallSignalingOrderPolicy.admit(
                 Cursor(1, 3),
                 lastAccepted = Cursor(1, 2),
@@ -34,7 +34,7 @@ class CallSignalingOrderPolicyTest {
 
     @Test
     fun equalCursorAcceptedForIdempotentRetry() {
-        assertIs<Admit.Accept>(
+        assertIs<Accept>(
             CallSignalingOrderPolicy.admit(
                 Cursor(1, 2),
                 lastAccepted = Cursor(1, 2),
@@ -44,7 +44,7 @@ class CallSignalingOrderPolicyTest {
 
     @Test
     fun lowerSequenceRejected() {
-        assertIs<Admit.RejectStale>(
+        assertIs<RejectStale>(
             CallSignalingOrderPolicy.admit(
                 Cursor(1, 1),
                 lastAccepted = Cursor(1, 2),
@@ -54,7 +54,7 @@ class CallSignalingOrderPolicyTest {
 
     @Test
     fun lowerEpochRejectedEvenWithHigherSequence() {
-        assertIs<Admit.RejectStale>(
+        assertIs<RejectStale>(
             CallSignalingOrderPolicy.admit(
                 Cursor(1, 99),
                 lastAccepted = Cursor(2, 0),
@@ -64,7 +64,7 @@ class CallSignalingOrderPolicyTest {
 
     @Test
     fun higherEpochAccepted() {
-        assertIs<Admit.Accept>(
+        assertIs<Accept>(
             CallSignalingOrderPolicy.admit(
                 Cursor(2, 0),
                 lastAccepted = Cursor(1, 50),

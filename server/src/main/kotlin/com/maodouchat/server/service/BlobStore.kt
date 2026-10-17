@@ -39,31 +39,31 @@ object BlobStore {
     fun appendChunk(id: String, offset: Long, bytes: ByteArray, maxSize: Long): AppendResult {
         require(idPattern.matches(id))
         return withIdLock(id) {
-            resolveUnlocked(id)?.let { return@withIdLock AppendResult.OffsetMismatch(it.length()) }
+            resolveUnlocked(id)?.let { return@withIdLock OffsetMismatch(it.length()) }
             val target = checkedFile("$id.part")
             RandomAccessFile(target, "rw").use { file ->
                 file.channel.lock().use {
                     val current = file.length()
                     val chunkSize = bytes.size.toLong()
-                    if (offset < 0L || offset > current) return@withIdLock AppendResult.OffsetMismatch(current)
+                    if (offset < 0L || offset > current) return@withIdLock OffsetMismatch(current)
                     if (offset < current) {
-                        if (chunkSize > current - offset) return@withIdLock AppendResult.OffsetMismatch(current)
+                        if (chunkSize > current - offset) return@withIdLock OffsetMismatch(current)
                         val existing = ByteArray(bytes.size)
                         file.seek(offset)
                         file.readFully(existing)
                         return@withIdLock if (existing.contentEquals(bytes)) {
-                            AppendResult.Accepted(current, replayed = true)
+                            Accepted(current, replayed = true)
                         } else {
-                            AppendResult.ContentMismatch
+                            ContentMismatch
                         }
                     }
                     if (maxSize < current || chunkSize > maxSize - current) {
-                        return@withIdLock AppendResult.OffsetMismatch(current)
+                        return@withIdLock OffsetMismatch(current)
                     }
                     file.seek(current)
                     file.write(bytes)
                     file.fd.sync()
-                    AppendResult.Accepted(file.length(), replayed = false)
+                    Accepted(file.length(), replayed = false)
                 }
             }
         }

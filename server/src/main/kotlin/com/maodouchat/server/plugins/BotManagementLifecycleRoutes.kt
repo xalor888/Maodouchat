@@ -3,7 +3,11 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.BotCreateResult
 import com.maodouchat.server.repository.ConversationParticipantRepository
+import com.maodouchat.server.repository.InvalidInput
+import com.maodouchat.server.repository.MaxBotsReached
+import com.maodouchat.server.repository.OwnerInvalid
 import com.maodouchat.server.repository.UserRepository
+import com.maodouchat.server.repository.UsernameTaken
 import com.maodouchat.server.repository.create
 import com.maodouchat.server.repository.delete as deleteBot
 import com.maodouchat.server.repository.groupChatIdsFor
@@ -49,13 +53,13 @@ get("/api/bots") {
         when (val result = com.maodouchat.server.repository.BotRepository.create(userId, fields.name, fields.username, fields.description)) {
             is BotCreateResult.Success ->
                 call.respond(result.bot)
-            BotCreateResult.UsernameTaken ->
+            UsernameTaken ->
                 call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人用户名已被占用"))
-            BotCreateResult.MaxBotsReached ->
+            MaxBotsReached ->
                 call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人数量已达上限"))
-            BotCreateResult.InvalidInput ->
+            InvalidInput ->
                 call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法）"))
-            BotCreateResult.OwnerInvalid ->
+            OwnerInvalid ->
                 call.respond(HttpStatusCode.Forbidden, ErrorResponse("账号状态不可用"))
         }
     }

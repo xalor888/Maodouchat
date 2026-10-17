@@ -14,8 +14,8 @@ import java.util.UUID
 
 fun BotRepository.create(ownerUserId: String, name: String, username: String, description: String?): BotCreateResult {
     val n = name.trim().take(120)
-    val u = normalizeUsername(username) ?: return BotCreateResult.InvalidInput
-    if (n.isBlank()) return BotCreateResult.InvalidInput
+    val u = normalizeUsername(username) ?: return InvalidInput
+    if (n.isBlank()) return InvalidInput
     val maxBots = try {
         com.maodouchat.server.service.RuntimeConfigService.maxBotsPerUser()
     } catch (_: Exception) { 20 }
@@ -25,13 +25,13 @@ fun BotRepository.create(ownerUserId: String, name: String, username: String, de
     return try {
         transaction {
             val owner = Users.selectAll().where { Users.id eq ownerUserId }.forUpdate().firstOrNull()
-                ?: return@transaction BotCreateResult.OwnerInvalid
-            if (owner[Users.deletedAt] != null) return@transaction BotCreateResult.OwnerInvalid
-            if (owner[Users.suspendedUntil] > now) return@transaction BotCreateResult.OwnerInvalid
+                ?: return@transaction OwnerInvalid
+            if (owner[Users.deletedAt] != null) return@transaction OwnerInvalid
+            if (owner[Users.suspendedUntil] > now) return@transaction OwnerInvalid
             val owned = BotApps.selectAll().where { BotApps.ownerUserId eq ownerUserId }.count()
-            if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction BotCreateResult.MaxBotsReached
+            if (owned >= maxBots.coerceAtLeast(0).toLong()) return@transaction MaxBotsReached
             if (BotApps.selectAll().where { BotApps.username eq u }.firstOrNull() != null) {
-                return@transaction BotCreateResult.UsernameTaken
+                return@transaction UsernameTaken
             }
             // Bot identity is also a Users row so message.senderId FK remains valid.
             Users.insert {
@@ -61,6 +61,6 @@ fun BotRepository.create(ownerUserId: String, name: String, username: String, de
             )
         }
     } catch (error: Exception) {
-        if (isUniqueViolation(error)) BotCreateResult.UsernameTaken else throw error
+        if (isUniqueViolation(error)) UsernameTaken else throw error
     }
 }

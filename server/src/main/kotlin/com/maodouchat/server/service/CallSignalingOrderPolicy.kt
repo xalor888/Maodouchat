@@ -10,9 +10,9 @@ package com.maodouchat.server.service
 object CallSignalingOrderPolicy {
 
     fun admit(incoming: Cursor, lastAccepted: Cursor?): Admit {
-        if (incoming.epoch == 0L && incoming.sequence == 0L) return Admit.Accept
-        if (lastAccepted == null) return Admit.Accept
-        return if (compare(incoming, lastAccepted) < 0) Admit.RejectStale else Admit.Accept
+        if (incoming.epoch == 0L && incoming.sequence == 0L) return Accept
+        if (lastAccepted == null) return Accept
+        return if (compare(incoming, lastAccepted) < 0) RejectStale else Accept
     }
 
     fun compare(a: Cursor, b: Cursor): Int {

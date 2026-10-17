@@ -43,10 +43,6 @@ data class ChatBotSummary(
 
 sealed interface BotCreateResult {
     data class Success(val bot: BotDto) : BotCreateResult
-    data object InvalidInput : BotCreateResult
-    data object UsernameTaken : BotCreateResult
-    data object MaxBotsReached : BotCreateResult
-    data object OwnerInvalid : BotCreateResult
 }
 
 data class CommandLogDto(
