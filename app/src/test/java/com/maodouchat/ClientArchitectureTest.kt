@@ -478,7 +478,8 @@ class ClientArchitectureTest {
         // G390：连接统计采样簇（WebRTCConnectionStatsSnapshot + WebRTCConnectionStatsCollector）抽出（1416 → 1309，纯搬移），上限同步收紧（两份 map 一起改）。
         // 本轮：模型簇（CallState/CallType/GroupPeerConnectionState/CallIceServer）抽出 WebRTCModels.kt（1309 → 1249，纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-14：WebRTCException 纯搬入 WebRTCModels.kt（1249 → 1247，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/webrtc/WebRTCManager.kt" to 1247,
+        // 2026-10-17：渲染器 attach/detach 一族（7 函数）抽出 WebRTCRendererController（1247 → 1192，纯搬移；委托层保持 @Synchronized，与 onTrack 的 synchronized(this@WebRTCManager) 同一把锁），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/webrtc/WebRTCManager.kt" to 1192,
         // 2026-10-16：chatlist 闲置 import 清理（122 删 + import 块 ASCII 重排，零行为改动；432 → 310），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 310,
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 291,
@@ -676,7 +677,8 @@ class ClientArchitectureTest {
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
             // 1100+ 行源文件全部在监。
-            "com/maodouchat/webrtc/WebRTCManager.kt" to 1247,
+            // 2026-10-17：渲染器 attach/detach 一族（7 函数）抽出 WebRTCRendererController（1247 → 1192，纯搬移），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/webrtc/WebRTCManager.kt" to 1192,
             // G390：连接统计采样簇（WebRTCConnectionStatsSnapshot + WebRTCConnectionStatsCollector）抽出（1416 → 1309，纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-14：WebRTCException 纯搬入 WebRTCModels.kt（1249 → 1247，纯搬移），上限同步收紧（两份 map 一起改）。
             // 本轮：模型簇（CallState/CallType/GroupPeerConnectionState/CallIceServer）抽出 WebRTCModels.kt（1309 → 1249，纯搬移），上限同步收紧（两份 map 一起改）。

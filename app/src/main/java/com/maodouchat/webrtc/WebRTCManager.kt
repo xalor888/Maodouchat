@@ -122,6 +122,21 @@ class WebRTCManager(
     // 先缓存 track，等 attachRemoteRenderer 时再补 addSink，解决视频黑屏竞态
     private var remoteVideoTrack: VideoTrack? = null
 
+    // 渲染器 attach/detach 一族的载体：委托层保持 @Synchronized，
+    // 与 onTrack 的 synchronized(this@WebRTCManager) 是同一把锁。
+    private val rendererController = WebRTCRendererController(
+        eglContext = { eglBase?.eglBaseContext },
+        released = { released },
+        getLocalRenderer = { localRenderer },
+        setLocalRenderer = { localRenderer = it },
+        localVideoTrack = { localVideoTrack },
+        getRemoteRenderer = { remoteRenderer },
+        setRemoteRenderer = { remoteRenderer = it },
+        remoteVideoTrack = { remoteVideoTrack },
+        groupRemoteRenderers = groupRemoteRenderers,
+        groupRemoteVideoTracks = groupRemoteVideoTracks,
+    )
+
     // Bug #21: ICE 断连宽限期 — 网络切换(WiFi→4G)时 ICE 会短暂 DISCONNECTED 然后自动恢复
     // 不应立即终止通话，而是等待 grace period 后再通知断连
 
@@ -418,104 +433,34 @@ class WebRTCManager(
         localVideoTrack?.setEnabled(enabled)
     }
 
-    /**
-     * 初始化远端视频渲染器（UI 层创建后传入）
-     * 如果远端视频轨道已到达（onTrack 先于 UI attach），此时补上 addSink
-     */
+    // 渲染器 attach/detach 一族搬入 WebRTCRendererController；委托层保持 @Synchronized，
+    // 与 onTrack 的 synchronized(this@WebRTCManager) 是同一把锁。
     @Synchronized
-    fun attachRemoteRenderer(renderer: SurfaceViewRenderer) {
-        val eglContext = eglBase?.eglBaseContext
-        if (released || eglContext == null) {
-            runCatching { renderer.release() }
-            return
-        }
-        renderer.init(eglContext, null)
-        remoteRenderer?.takeIf { it !== renderer }?.let { old ->
-            remoteVideoTrack?.let { track -> runCatching { track.removeSink(old) } }
-            runCatching { old.release() }
-        }
-        remoteRenderer = renderer
-        // 竞态修复：如果 onTrack 已经收到远端视频但当时 renderer 还没准备好，现在补上 sink
-        remoteVideoTrack?.let { track ->
-            runCatching { track.addSink(renderer) }
-        }
-    }
-
-    /**
-     * 初始化本地视频渲染器（UI 层创建后传入）
-     */
-    @Synchronized
-    fun attachLocalRenderer(renderer: SurfaceViewRenderer) {
-        val eglContext = eglBase?.eglBaseContext
-        if (released || eglContext == null) {
-            runCatching { renderer.release() }
-            return
-        }
-        renderer.init(eglContext, null)
-        localRenderer?.takeIf { it !== renderer }?.let { old ->
-            localVideoTrack?.let { track -> runCatching { track.removeSink(old) } }
-            runCatching { old.release() }
-        }
-        localVideoTrack?.addSink(renderer)
-        localRenderer = renderer
-    }
+    fun attachRemoteRenderer(renderer: SurfaceViewRenderer) =
+        rendererController.attachRemoteRenderer(renderer)
 
     @Synchronized
-    fun detachRemoteRenderer(renderer: SurfaceViewRenderer) {
-        if (remoteRenderer !== renderer) return
-        remoteVideoTrack?.let { track -> runCatching { track.removeSink(renderer) } }
-        remoteRenderer = null
-        runCatching { renderer.release() }
-    }
+    fun attachLocalRenderer(renderer: SurfaceViewRenderer) =
+        rendererController.attachLocalRenderer(renderer)
 
     @Synchronized
-    fun detachLocalRenderer(renderer: SurfaceViewRenderer) {
-        if (localRenderer !== renderer) return
-        localVideoTrack?.let { track -> runCatching { track.removeSink(renderer) } }
-        localRenderer = null
-        runCatching { renderer.release() }
-    }
+    fun detachRemoteRenderer(renderer: SurfaceViewRenderer) =
+        rendererController.detachRemoteRenderer(renderer)
 
     @Synchronized
-    fun attachGroupRemoteRenderer(peerUserId: String, renderer: SurfaceViewRenderer) {
-        val eglContext = eglBase?.eglBaseContext
-        if (released || eglContext == null) {
-            runCatching { renderer.release() }
-            return
-        }
-        renderer.init(eglContext, null)
-        groupRemoteRenderers.put(peerUserId, renderer)?.takeIf { it !== renderer }?.let { old ->
-            groupRemoteVideoTracks[peerUserId]?.let { track -> runCatching { track.removeSink(old) } }
-            runCatching { old.release() }
-        }
-        groupRemoteVideoTracks[peerUserId]?.let { track -> runCatching { track.addSink(renderer) } }
-    }
+    fun detachLocalRenderer(renderer: SurfaceViewRenderer) =
+        rendererController.detachLocalRenderer(renderer)
 
     @Synchronized
-    fun detachGroupRemoteRenderer(peerUserId: String, renderer: SurfaceViewRenderer) {
-        if (groupRemoteRenderers[peerUserId] !== renderer) return
-        groupRemoteVideoTracks[peerUserId]?.let { track -> runCatching { track.removeSink(renderer) } }
-        groupRemoteRenderers.remove(peerUserId)
-        runCatching { renderer.release() }
-    }
+    fun attachGroupRemoteRenderer(peerUserId: String, renderer: SurfaceViewRenderer) =
+        rendererController.attachGroupRemoteRenderer(peerUserId, renderer)
 
-    /**
-     * 释放渲染器资源
-     */
     @Synchronized
-    fun releaseRenderers() {
-        localRenderer?.let { renderer -> localVideoTrack?.let { track -> runCatching { track.removeSink(renderer) } } }
-        remoteRenderer?.let { renderer -> remoteVideoTrack?.let { track -> runCatching { track.removeSink(renderer) } } }
-        runCatching { localRenderer?.release() }
-        runCatching { remoteRenderer?.release() }
-        groupRemoteRenderers.forEach { (peerId, renderer) ->
-            groupRemoteVideoTracks[peerId]?.let { track -> runCatching { track.removeSink(renderer) } }
-            runCatching { renderer.release() }
-        }
-        groupRemoteRenderers.clear()
-        localRenderer = null
-        remoteRenderer = null
-    }
+    fun detachGroupRemoteRenderer(peerUserId: String, renderer: SurfaceViewRenderer) =
+        rendererController.detachGroupRemoteRenderer(peerUserId, renderer)
+
+    @Synchronized
+    fun releaseRenderers() = rendererController.releaseRenderers()
 
     /**
      * 释放所有资源
