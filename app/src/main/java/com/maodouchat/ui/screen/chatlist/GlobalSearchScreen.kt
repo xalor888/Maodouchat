@@ -54,8 +54,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import com.maodouchat.ui.component.SearchHighlightSurface
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -411,12 +409,6 @@ private fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick: 
             )
         }
     }
-}
-
-@Composable
-internal fun highlightedText(text: String, query: String): AnnotatedString {
-    val (c, bg) = SearchHighlightSurface
-    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }
 
 @Composable
