@@ -89,6 +89,5 @@ object ContentPayloadCodec {
         )
     }
 
-    private data class LegacyBody(val body: String, val metadata: MessageMeta)
 }
 

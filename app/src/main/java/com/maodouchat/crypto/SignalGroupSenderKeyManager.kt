@@ -4,7 +4,6 @@ import android.util.Log
 import com.maodouchat.core.crypto.GroupSenderKeyManager
 import com.maodouchat.core.model.ConversationId
 import com.maodouchat.data.local.entity.SignalKeyEntity
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.SignalProtocolAddress
 import org.signal.libsignal.protocol.groups.GroupSessionBuilder
@@ -162,10 +161,4 @@ class SignalGroupSenderKeyManager internal constructor(
         )
     }
 
-    @Serializable
-    private data class GroupDistributionMetadata(
-        val epoch: Long = 0,
-        val createdAt: Long = System.currentTimeMillis(),
-        val messageCount: Int = 0
-    )
 }

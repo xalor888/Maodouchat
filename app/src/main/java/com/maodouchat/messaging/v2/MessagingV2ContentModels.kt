@@ -71,3 +71,5 @@ object MessagingV2EventAction {
     const val READ_RECEIPT = "READ_RECEIPT"
     const val PLAY_RECEIPT = "PLAY_RECEIPT"
 }
+
+internal data class LegacyBody(val body: String, val metadata: MessageMeta)
