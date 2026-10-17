@@ -17,7 +17,7 @@ fun GroupProfileRepository.updateMemberTitle(
     title: String?,
 ): GroupMemberMutationResult = transaction {
     val access = GroupMutationTransaction.lockForAdmin(chatId, actorId)
-    if (access is GroupAdminAccess.Denied) return@transaction access.result
+    if (access is Denied) return@transaction access.result
     val targetExists = ChatParticipants.selectAll()
         .where {
             (ChatParticipants.chatId eq chatId) and
@@ -32,7 +32,7 @@ fun GroupProfileRepository.updateMemberTitle(
         it[ChatParticipants.title] = title
     }
     if (updated != 1) return@transaction GroupMemberMutationResult.TARGET_NOT_PARTICIPANT
-    GroupMutationTransaction.bumpRevision(chatId, (access as GroupAdminAccess.Allowed).chat[Chats.memberRevision])
+    GroupMutationTransaction.bumpRevision(chatId, (access as Allowed).chat[Chats.memberRevision])
     GroupMutationTransaction.insertAudit(chatId, actorId, "TITLE_UPDATED", targetUserId)
     GroupMemberMutationResult.UPDATED
 }

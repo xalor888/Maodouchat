@@ -26,8 +26,8 @@ fun GroupInvitationRepository.inviteMembers(
     val requestedIds = requestedUserIds.distinct()
     val lockedRequestedUsers = lockUsers(requestedIds)
     val access = GroupMutationTransaction.lockForAdmin(chatId, actorId)
-    if (access is GroupAdminAccess.Denied) return@transaction GroupInviteResult(access.result)
-    val chat = (access as GroupAdminAccess.Allowed).chat
+    if (access is Denied) return@transaction GroupInviteResult(access.result)
+    val chat = (access as Allowed).chat
     if (chat[Chats.chatType] == ChatType.CHANNEL) {
         return@transaction GroupInviteResult(GroupMemberMutationResult.NOT_GROUP)
     }
