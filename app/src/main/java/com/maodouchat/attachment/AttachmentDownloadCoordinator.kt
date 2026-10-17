@@ -13,7 +13,6 @@ import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /** Owns cache/download/decrypt convergence for encrypted message attachments. */
@@ -111,8 +110,6 @@ internal class AttachmentDownloadCoordinator(
             throw CancellationException("attachment_download_session_changed")
         }
     }
-
-    private class LockRef(val mutex: Mutex = Mutex(), var users: Int = 0)
 }
 
 internal class AttachmentReferenceInvalidException : IllegalStateException("attachment_reference_invalid")
