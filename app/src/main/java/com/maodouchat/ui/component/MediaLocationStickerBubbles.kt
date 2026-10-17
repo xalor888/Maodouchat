@@ -1,7 +1,5 @@
 package com.maodouchat.ui.component
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,9 +22,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,10 +37,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
+import com.maodouchat.ui.theme.LocalBubbleShapes
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalSentBubbleContent
@@ -52,16 +49,13 @@ import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.rememberMotionPulse
+import com.maodouchat.util.LiveLocationPolicy
 import java.util.Locale
 
 /**
- * 位置与贴纸消息气泡（G129 从 `MediaMessageBubbles.kt` 拆出，原 186 行）。
+ * 位置消息气泡：静态地图占位 + 坐标 + 「导航」按钮（G129 自 `MediaMessageBubbles.kt` 拆出）。
  *
- * `LocationBubble`（静态地图占位 + 坐标 + 「导航」按钮）与
- * `StickerBubble`（贴纸大图 + 发送态）。
- *
- * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`。
- * 纯搬移，不改判断。
+ * 拆解约束：不抓全局单例、不读数据库、不 import `MaodouchatApp`。
  */
 
 // ─── LocationBubble ───
@@ -104,8 +98,8 @@ internal fun LocationBubble(
     }
     val liveActive = payload.live && (payload.liveUntil == null || payload.liveUntil > liveNow)
     val liveRemain = if (liveActive) {
-        com.maodouchat.util.LiveLocationPolicy.formatRemaining(
-            com.maodouchat.util.LiveLocationPolicy.remainingFromUntil(payload.liveUntil, liveNow)
+        LiveLocationPolicy.formatRemaining(
+            LiveLocationPolicy.remainingFromUntil(payload.liveUntil, liveNow)
         )
     } else ""
     val displayLocationLabel = if (liveActive) {
@@ -132,7 +126,7 @@ internal fun LocationBubble(
                 modifier = Modifier
                     .captureBubbleBounds(onBoundsMeasured)
                     .widthIn(max = 260.dp)
-                    .clip(if (isOwnMessage) com.maodouchat.ui.theme.LocalBubbleShapes.current.sent else com.maodouchat.ui.theme.LocalBubbleShapes.current.received)
+                    .clip(if (isOwnMessage) LocalBubbleShapes.current.sent else LocalBubbleShapes.current.received)
                     .background(if (isOwnMessage) LocalChatBubbleColor.current else palette.chatBubbleReceived)
                     .clickable {
                         val label = android.net.Uri.encode(payload.label)
@@ -174,68 +168,6 @@ internal fun LocationBubble(
                 Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 // 1.51：点击已读状态图标打开阅读详情（仅自己消息可看）
-                if (isOwnMessage && showStatusIcon) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    if (onStatusClick != null) {
-                        Box(modifier = Modifier.clickable { onStatusClick(message) }) {
-                            MessageStatusIcon(message.status)
-                        }
-                    } else {
-                        MessageStatusIcon(message.status)
-                    }
-                }
-            }
-            ReactionSummaryRow(message, currentUserId, isOwnMessage, onReactionClick)
-        }
-    }
-}
-
-// ─── StickerBubble ───
-@Composable
-internal fun StickerBubble(
-    message: Message,
-    presentation: MessagePresentation,
-    isOwnMessage: Boolean,
-    modifier: Modifier,
-    showAvatar: Boolean,
-    senderName: String?,
-    onBoundsMeasured: ((IntOffset, IntSize) -> Unit)?,
-    currentUserId: String?,
-    onReactionClick: ((String) -> Unit)? = null,
-    /** 1.70：点击已读状态图标打开阅读详情。 */
-    onStatusClick: ((Message) -> Unit)? = null,
-    showStatusIcon: Boolean = true
-) {
-    var entered by remember(message.id) { mutableStateOf(false) }
-    LaunchedEffect(message.id) { entered = true }
-    val scale by animateFloatAsState(
-        targetValue = if (entered) 1f else 0.55f,
-        animationSpec = spring(dampingRatio = 0.58f, stiffness = 420f),
-        label = "stickerScale"
-    )
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = if (isOwnMessage) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Bottom
-    ) {
-        if (!isOwnMessage) {
-            if (showAvatar) Avatar(name = senderName ?: "?", size = AvatarSize.SM, modifier = Modifier.padding(bottom = 4.dp))
-            else Spacer(modifier = Modifier.width(36.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-        Column(
-            horizontalAlignment = if (isOwnMessage) Alignment.End else Alignment.Start,
-            modifier = Modifier.captureBubbleBounds(onBoundsMeasured)
-        ) {
-            Text(
-                text = presentation.body,
-                fontSize = 72.sp,
-                lineHeight = 78.sp,
-                modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
-            )
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
-                DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 if (isOwnMessage && showStatusIcon) {
                     Spacer(modifier = Modifier.width(4.dp))
                     if (onStatusClick != null) {
