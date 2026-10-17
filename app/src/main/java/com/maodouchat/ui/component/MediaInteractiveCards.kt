@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.R
@@ -185,54 +184,5 @@ internal fun InteractivePollCard(
             if (loading) append(" · ...")
         }
         Text(text = status, style = MaterialTheme.typography.labelSmall, color = subColor)
-    }
-}
-
-// ─── InlineKeyboardGrid ───
-@Composable
-internal fun InlineKeyboardGrid(
-    rows: List<List<InlineKeyboardButtonPresentation>>,
-    isOwnMessage: Boolean,
-    messageId: String,
-    onClick: ((String, String) -> Unit)?
-) {
-    if (rows.isEmpty() || onClick == null) return
-    Column(
-        modifier = Modifier
-            .padding(top = 6.dp)
-            .fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        rows.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                row.forEach { btn ->
-                    val bg = if (isOwnMessage) Color.White.copy(alpha = 0.18f) else Primary.copy(alpha = 0.10f)
-                    val fg = if (isOwnMessage) Color.White else Primary
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(bg)
-                            .clickable {
-                                val data = btn.callbackData.ifBlank { btn.text }
-                                onClick(messageId, data)
-                            }
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = btn.text,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = fg,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
     }
 }
