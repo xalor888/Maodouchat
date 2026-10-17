@@ -48,8 +48,6 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
-import com.maodouchat.security.SensitiveAction
-import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.security.findActivity
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -754,45 +752,13 @@ internal fun ChatDetailRoute(
             .fillMaxSize()
             .secretPageBlindWatermark(secretPagePayload)
     ) {
-    ClearChatHistoryConfirmDialog(
-        visible = dialogs.showClearHistoryConfirm,
-        onDismiss = { dialogs.showClearHistoryConfirm = false },
-        onConfirm = {
-            dialogs.showClearHistoryConfirm = false
-            SensitiveActionGate.confirm(
-                context = context,
-                action = SensitiveAction.CLEAR_CHAT_HISTORY,
-                title = sensitiveAuthTitle,
-                subtitle = sensitiveAuthClearHistory,
-                onSuccess = { viewModel.clearLocalChatHistory() },
-                onFailure = { msg ->
-                    Toast.makeText(
-                        context,
-                        msg?.takeIf { it.isNotBlank() } ?: sensitiveAuthFailed,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            )
-        },
-    )
-    
-    LiveLocationDurationDialog(
-        visible = flows.showLiveLocationDuration,
-        onPick = { ms ->
-            flows.showLiveLocationDuration = false
-            viewModel.sendLiveLocation(ms)
-        },
-        onDismiss = { flows.showLiveLocationDuration = false },
-    )
-
-
-    SecretChatConfirmDialog(
-        visible = flows.showSecretChatConfirm,
-        onConfirm = {
-            flows.showSecretChatConfirm = false
-            viewModel.startSecretChat()
-        },
-        onDismiss = { flows.showSecretChatConfirm = false },
+    ChatDetailRouteEntryDialogs(
+        dialogs = dialogs,
+        flows = flows,
+        viewModel = viewModel,
+        sensitiveAuthTitle = sensitiveAuthTitle,
+        sensitiveAuthClearHistory = sensitiveAuthClearHistory,
+        sensitiveAuthFailed = sensitiveAuthFailed,
     )
     val chatLiquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLiquidGlassBackdrop provides chatLiquidBackdrop) {
