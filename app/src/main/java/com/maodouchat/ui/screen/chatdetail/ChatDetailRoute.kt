@@ -40,7 +40,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.security.findActivity
@@ -99,11 +98,7 @@ internal fun ChatDetailRoute(
     // 滚动到顶部触发加载更早消息）收进持有类（见 ChatDetailScrollState.kt）
     val scroll = rememberChatDetailScrollState(listState)
     val context = LocalContext.current
-    LaunchedEffect(state.openedSecretChatId) {
-        val secretId = state.openedSecretChatId ?: return@LaunchedEffect
-        viewModel.clearOpenedSecretChat()
-        onOpenSecretChat(secretId)
-    }
+    ChatDetailSecretChatEffects(state, viewModel, context, onOpenSecretChat)
 
     // G335（第十二批）：AI 安全提示族收进持有类（见 ChatDetailAiSafetyState.kt）
     val aiSafety = rememberChatDetailAiSafetyState(context)
@@ -239,30 +234,9 @@ internal fun ChatDetailRoute(
         )
     }
     val reversedChatItems = remember(chatItems) { chatItems.asReversed() }
-    // 1.05：语音连续播放——一条语音自然播放结束后自动播下一条同会话语音
-    LaunchedEffect(com.maodouchat.util.VoicePlayer.lastCompletedId) {
-        val completed = com.maodouchat.util.VoicePlayer.lastCompletedId ?: return@LaunchedEffect
-        val voiceMessages = state.messages.filter { it.type == MessageType.VOICE }
-        val completedMsg = voiceMessages.firstOrNull { it.id == completed } ?: return@LaunchedEffect
-        val next = voiceMessages
-            .filter { m -> m.timestamp > completedMsg.timestamp || (m.timestamp == completedMsg.timestamp && m.id > completedMsg.id) }
-            .minByOrNull { it.timestamp }
-        next?.let {
-            com.maodouchat.util.VoicePlayer.ensureContext(context)
-            com.maodouchat.util.VoicePlayer.play(it.id, it.parsedContent(), context)
-        }
-    }
+    ChatDetailMessageArrivalEffects(state, targets, context)
     // G335（第十三批）：滚动到顶部附近触发加载更早消息，派生量收进 scroll 持有类
     val messagesById = remember(state.messages) { state.messages.associateBy(Message::id) }
-    // Bot force-reply: focus composer as reply to latest forced message from peer/bot.
-    LaunchedEffect(state.messages.lastOrNull()?.id, state.currentUserId) {
-        val last = state.messages.lastOrNull() ?: return@LaunchedEffect
-        if (last.senderId == state.currentUserId) return@LaunchedEffect
-        val meta = last.parsedMeta()
-        if (meta.forceReply && targets.replyTarget?.id != last.id) {
-            targets.replyTarget = last
-        }
-    }
     val participantNamesById = remember(state.chat?.participants, state.memberNicknameByUser, state.chatIsGroup) {
         val base = state.chat?.participants.orEmpty().associate { it.id to it.displayName }
         // 0.69 修复：群聊优先使用群内昵称（此前群昵称只作用于群成员列表，消息不生效）
@@ -381,46 +355,13 @@ internal fun ChatDetailRoute(
         )
     }
 
-    // G335（第十三批）：新消息到达时的自动滚动决策收进 scroll 持有类（见 ChatDetailScrollState.onLatestMessage）
-    LaunchedEffect(
-        state.messages.lastOrNull()?.id,
-        state.currentUserId,
-        state.initialTimelineReady,
-        reversedChatItems.size
-    ) {
-        val latestMessage = state.messages.lastOrNull() ?: return@LaunchedEffect
-        scroll.onLatestMessage(
-            latestId = latestMessage.id,
-            latestSenderId = latestMessage.senderId,
-            currentUserId = state.currentUserId,
-            initialTimelineReady = state.initialTimelineReady,
-            navigationTargetMessageId = state.navigationTargetMessageId,
-            navigationHighlightMessageId = targets.navigationHighlightMessageId,
-            scrollToItem = { animated -> chatListScroller.scrollToItem(listState, 0, animated = animated) },
-        )
-    }
-
-    LaunchedEffect(scroll.isNearBottom) {
-        scroll.clearPendingOnNearBottom()
-    }
-
-    LaunchedEffect(scroll.shouldLoadOlderMessages) {
-        if (scroll.shouldLoadOlderMessages) viewModel.loadOlderMessages()
-    }
+    ChatDetailScrollEffects(state, scroll, chatListScroller, listState, targets, viewModel)
 
     ChatDetailInfoEffects(state, viewModel, chatSnackbarHostState, context)
 
     // 密聊 / 阅后即焚：MediaStore 旁路截屏/录屏检测（FLAG_SECURE 之外的补充）
     val disappearingActive = !state.chatIsGroup && state.disappearingMessageSeconds > 0
     val secretActive = state.isSecretChat == true
-
-    // B2 密聊 TTL（ttlz）：会话活跃心跳——进入与驻留期间持续更新 lastActivityAt，避免无活动误销毁。
-    // G9：逻辑已抽到 SecretChatActivityHeartbeat（非 Composable，可单测），这里只负责按会话触发。
-    LaunchedEffect(secretActive, state.chat?.id) {
-        if (!secretActive) return@LaunchedEffect
-        val chatId = state.chat?.id ?: return@LaunchedEffect
-        com.maodouchat.security.SecretChatActivityHeartbeat.start(context, chatId)
-    }
 
     // G335：密聊门禁进度收进持有类（见 ChatDetailSecretGateState.kt）
     val secretGate = remember { ChatDetailSecretGateState() }
@@ -443,13 +384,6 @@ internal fun ChatDetailRoute(
         viewModel = viewModel,
     )
 
-    LaunchedEffect(secretActive, state.chat?.id) {
-        if (!secretActive) return@LaunchedEffect
-        while (true) {
-            viewModel.refreshSealedSenderCertificate()
-            kotlinx.coroutines.delay(10 * 60 * 1000L)
-        }
-    }
     ChatDetailScreenshotGuards(state = state, disappearingActive = disappearingActive, secretActive = secretActive, viewModel = viewModel, context = context)
 
     ChatDetailStatusInfoEffects(state, viewModel, chatSnackbarHostState)
