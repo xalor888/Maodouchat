@@ -4,14 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Archive
@@ -26,12 +23,12 @@ import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,11 +37,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.navigation.MainTab
 import com.maodouchat.util.ChatFolderPolicy
-import androidx.compose.runtime.Composable
 
 /**
  * 会话列表的 Scaffold 外观（G140 从 `ChatListScreen.kt` 拆出，原 193 行）。
@@ -222,72 +217,3 @@ internal fun ChatListTopBar(
         },
         colors = com.maodouchat.ui.theme.liquidGlassTopAppBarColors()
     )}
-
-/** 悬浮新建按钮（原 `Scaffold(floatingActionButton = { ... })` 的内容）。 */
-@Composable
-internal fun ChatListFab(
-    state: ChatListUiState,
-    viewModel: ChatListViewModel,
-    liquidGlass: Boolean,
-    notifUnread: Int,
-    showCreateMenu: Boolean,
-    showBatchDeleteConfirm: Boolean,
-    showThirdPartyServerDialog: Boolean,
-    onShowCreateMenuChange: (Boolean) -> Unit,
-    onShowBatchDeleteConfirmChange: (Boolean) -> Unit,
-    onShowThirdPartyServerDialogChange: (Boolean) -> Unit,
-    onNavigateToTab: (Int) -> Unit,
-    onOpenGlobalSearch: () -> Unit,
-    onOpenNotificationCenter: () -> Unit,
-    onOpenScan: () -> Unit,
-) {
-        if (!liquidGlass && !state.selectionMode) {
-            // 主界面在 MainContainerRoute 里整屏悬浮 BottomNavBar（无 Scaffold bottomBar），
-            // FAB 若不手动让位会被导航栏遮住大半、只剩一个蓝色残边（真机可见）。
-            Box(Modifier.navigationBarsPadding().padding(bottom = com.maodouchat.ui.component.PinnedBottomNavMetrics.BarHeight)) {
-                FloatingActionButton(
-                    onClick = { onShowCreateMenuChange(true)},
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ) {
-                    Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.chat_empty_action_add))
-                }
-                DropdownMenu(
-                    expanded = showCreateMenu,
-                    onDismissRequest = { onShowCreateMenuChange(false)}
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.contacts_add_contact)) },
-                        onClick = {
-                            onShowCreateMenuChange(false)
-                            onNavigateToTab(MainTab.CONTACTS)
-                        },
-                        leadingIcon = { Icon(Icons.Outlined.PersonAdd, contentDescription = null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.contacts_start_group)) },
-                        onClick = {
-                            onShowCreateMenuChange(false)
-                            onNavigateToTab(MainTab.CONTACTS)
-                        },
-                        leadingIcon = { Icon(Icons.Filled.Group, contentDescription = null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_create_channel)) },
-                        onClick = {
-                            onShowCreateMenuChange(false)
-                            onNavigateToTab(MainTab.CONTACTS)
-                        },
-                        leadingIcon = { Icon(Icons.Outlined.Campaign, contentDescription = null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.contacts_scan)) },
-                        onClick = {
-                            onShowCreateMenuChange(false)
-                            onOpenScan()
-                        },
-                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
-                    )
-                }
-            }
-        }}
