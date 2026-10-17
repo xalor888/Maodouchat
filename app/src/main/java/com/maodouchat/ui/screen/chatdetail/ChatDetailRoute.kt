@@ -355,7 +355,7 @@ internal fun ChatDetailRoute(
         )
     }
 
-    ChatDetailScrollEffects(state, scroll, chatListScroller, listState, targets, viewModel)
+    ChatDetailScrollEffects(state, scroll, chatListScroller, listState, targets, viewModel, reversedChatItems)
 
     ChatDetailInfoEffects(state, viewModel, chatSnackbarHostState, context)
 

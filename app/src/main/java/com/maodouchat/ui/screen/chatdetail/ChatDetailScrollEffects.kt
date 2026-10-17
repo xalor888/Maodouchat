@@ -15,6 +15,7 @@ internal fun ChatDetailScrollEffects(
     listState: LazyListState,
     targets: ChatDetailMessageTargetState,
     viewModel: ChatDetailViewModel,
+    reversedChatItems: List<ChatItem>,
 ) {
     // G335（第十三批）：新消息到达时的自动滚动决策收进 scroll 持有类（见 ChatDetailScrollState.onLatestMessage）
     LaunchedEffect(
