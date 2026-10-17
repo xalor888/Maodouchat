@@ -1,6 +1,7 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.data.model.Chat
+import com.maodouchat.session.Snapshot
 import com.maodouchat.ui.screen.chatlist.ChatListLocalProjectionCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import io.mockk.every
@@ -39,7 +40,7 @@ class ChatListLocalProjectionCoordinatorTest {
     @Test
     fun onSearchQueryChangeDebouncesAndFiltersLockedSecret() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListLocalProjectionCoordinator(
             scope = this,
             uiState = uiState,
@@ -68,7 +69,7 @@ class ChatListLocalProjectionCoordinatorTest {
         val uiState = MutableStateFlow(
             ChatListUiState(messageMatchedChatIds = setOf("x"), searchQuery = "ab")
         )
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListLocalProjectionCoordinator(
             scope = this,
             uiState = uiState,
@@ -100,7 +101,7 @@ class ChatListLocalProjectionCoordinatorTest {
                 )
             )
         )
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListLocalProjectionCoordinator(
             scope = this,
             uiState = uiState,
@@ -124,7 +125,7 @@ class ChatListLocalProjectionCoordinatorTest {
     @Test
     fun refreshIdentityWarningsProjectsChangedPeers() = runTest(dispatcher) {
         // 这一例的 owner 是 "owner-1"：门禁要看到同一个账号，否则会被判为「切了号」提前返回。
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "owner-1") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "owner-1") }
         val peer = com.maodouchat.data.model.User(id = "peer", name = "Peer")
         val uiState = MutableStateFlow(
             ChatListUiState(chats = listOf(Chat(id = "c1", isGroup = false, participants = listOf(peer))))

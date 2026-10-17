@@ -14,6 +14,7 @@ import com.maodouchat.domain.messaging.SendMessageResult
 import com.maodouchat.domain.messaging.TransferRepository
 import com.maodouchat.domain.messaging.TransferStatus
 import com.maodouchat.network.TokenManager
+import com.maodouchat.session.Snapshot
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
@@ -45,7 +46,7 @@ class AttachmentIntentControllerTest {
 
         every { mockTokenManager.getUserId() } returns "user-owner"
 
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot(mockTokenManager.getToken(), mockTokenManager.getUserId()) }
+        com.maodouchat.session.CurrentSession.override = { Snapshot(mockTokenManager.getToken(), mockTokenManager.getUserId()) }
         every { mockTokenManager.getToken() } returns "valid-token"
 
         fakeTransferRepo = FakeTransferRepository()

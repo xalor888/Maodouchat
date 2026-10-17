@@ -4,6 +4,7 @@ import com.maodouchat.ai.Suggestion
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MissedCall
 import com.maodouchat.data.model.User
+import com.maodouchat.session.Snapshot
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListArchiveSuggestionCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListMissedCallCoordinator
@@ -46,7 +47,7 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     fun markMissedCallsReadClearsTrayAndCenter() = runTest(dispatcher) {
         val call = MissedCall(id = "m1", callerId = "u1", callerName = "A", callType = "audio", receivedAt = 1L)
         val uiState = MutableStateFlow(ChatListUiState(missedCalls = listOf(call)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         var marked = false
         val cancelled = mutableListOf<String>()
         val removed = mutableListOf<String>()
@@ -73,7 +74,7 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     fun removeMissedCallLocallyDropsUiAndDeletes() = runTest(dispatcher) {
         val call = MissedCall(id = "m1", callerId = "u1", callerName = "A", callType = "audio", receivedAt = 1L)
         val uiState = MutableStateFlow(ChatListUiState(missedCalls = listOf(call)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         var deleted: String? = null
         val cancelled = mutableListOf<String>()
         val coordinator = ChatListMissedCallCoordinator(
@@ -100,7 +101,7 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
         val peer = User(id = "u2", name = "Peer")
         val chat = Chat(id = "c1", isGroup = false, participants = listOf(peer))
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListMissedCallCoordinator(
             scope = mockk(relaxed = true),
             uiState = uiState,
@@ -120,9 +121,9 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     fun dismissArchiveSuggestionPersistsAndFilters() = runTest(dispatcher) {
         val suggestion = Suggestion("c1", 10, "idle")
         val uiState = MutableStateFlow(ChatListUiState(archiveSuggestions = listOf(suggestion)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val persisted = mutableListOf<Triple<String, String, Long>>()
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListArchiveSuggestionCoordinator(
             scope = this,
             uiState = uiState,
@@ -152,9 +153,9 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
         val uiState = MutableStateFlow(
             ChatListUiState(chats = listOf(chat), archiveSuggestions = listOf(suggestion))
         )
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         var archivedCalls = 0
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListArchiveSuggestionCoordinator(
             scope = this,
             uiState = uiState,
@@ -178,7 +179,7 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     @Test
     fun loadArchiveSuggestionsFiltersDismissed() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListArchiveSuggestionCoordinator(
             scope = this,
             uiState = uiState,

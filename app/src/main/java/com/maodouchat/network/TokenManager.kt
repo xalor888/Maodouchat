@@ -73,7 +73,7 @@ class TokenManager private constructor(private val context: Context) {
     private val prefs: SharedPreferences by lazy {
         EncryptedSharedPreferences.create(
             context,
-            ApiConfig.Prefs.PREFS_NAME,
+            Prefs.PREFS_NAME,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
@@ -82,13 +82,13 @@ class TokenManager private constructor(private val context: Context) {
 
     /** @return true if the value was successfully saved */
     fun saveToken(token: String): Boolean {
-        return runCatching { prefs.edit { putString(ApiConfig.Prefs.TOKEN_KEY, token) } }
+        return runCatching { prefs.edit { putString(Prefs.TOKEN_KEY, token) } }
             .onFailure { Log.w(TAG, "saveToken failed", it) }
             .isSuccess
     }
 
     fun getToken(): String? =
-        readPrefsWithRetry(ApiConfig.Prefs.TOKEN_KEY) { it.getString(ApiConfig.Prefs.TOKEN_KEY, null) }
+        readPrefsWithRetry(Prefs.TOKEN_KEY) { it.getString(Prefs.TOKEN_KEY, null) }
 
     /**
      * 9.3xx：EncryptedSharedPreferences 在部分机型冷启动首次读取可能瞬时失败（Keystore 未就绪），
@@ -116,19 +116,19 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     fun saveRefreshToken(refreshToken: String): Boolean {
-        return runCatching { prefs.edit { putString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, refreshToken) } }
+        return runCatching { prefs.edit { putString(Prefs.REFRESH_TOKEN_KEY, refreshToken) } }
             .onFailure { Log.w(TAG, "saveRefreshToken failed", it) }
             .isSuccess
     }
 
     fun getRefreshToken(): String? =
-        readPrefsWithRetry(ApiConfig.Prefs.REFRESH_TOKEN_KEY) { it.getString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, null) }
+        readPrefsWithRetry(Prefs.REFRESH_TOKEN_KEY) { it.getString(Prefs.REFRESH_TOKEN_KEY, null) }
 
     fun saveTokenExpiries(accessTokenExpiresAt: Long, refreshTokenExpiresAt: Long): Boolean {
         return runCatching {
             prefs.edit {
-                putLong(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, accessTokenExpiresAt)
-                putLong(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, refreshTokenExpiresAt)
+                putLong(Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, accessTokenExpiresAt)
+                putLong(Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, refreshTokenExpiresAt)
             }
         }
             .onFailure { Log.w(TAG, "saveTokenExpiries failed", it) }
@@ -136,10 +136,10 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     fun getAccessTokenExpiresAt(): Long =
-        readPrefsWithRetry(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY) { it.getLong(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, 0L) } ?: 0L
+        readPrefsWithRetry(Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY) { it.getLong(Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, 0L) } ?: 0L
 
     fun getRefreshTokenExpiresAt(): Long =
-        readPrefsWithRetry(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY) { it.getLong(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, 0L) } ?: 0L
+        readPrefsWithRetry(Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY) { it.getLong(Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, 0L) } ?: 0L
 
     fun saveAuthSession(
         token: String,
@@ -162,8 +162,8 @@ class TokenManager private constructor(private val context: Context) {
         refreshTokenExpiresAt: Long
     ): ConditionalSessionSaveResult = synchronized(sessionLock) {
         val currentMatches = runCatching {
-            prefs.getString(ApiConfig.Prefs.USER_ID_KEY, null) == expectedUserId &&
-                prefs.getString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, null) == expectedRefreshToken
+            prefs.getString(Prefs.USER_ID_KEY, null) == expectedUserId &&
+                prefs.getString(Prefs.REFRESH_TOKEN_KEY, null) == expectedRefreshToken
         }.getOrDefault(false)
         if (!currentMatches || userId != expectedUserId) {
             return@synchronized ConditionalSessionSaveResult.SESSION_CHANGED
@@ -184,12 +184,12 @@ class TokenManager private constructor(private val context: Context) {
         refreshTokenExpiresAt: Long
     ): Boolean = runCatching {
             prefs.edit()
-                .putString(ApiConfig.Prefs.TOKEN_KEY, token)
-                .putString(ApiConfig.Prefs.REFRESH_TOKEN_KEY, refreshToken)
-                .putString(ApiConfig.Prefs.USER_ID_KEY, userId)
-                .putString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, userId)
-                .putLong(ApiConfig.Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, accessTokenExpiresAt)
-                .putLong(ApiConfig.Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, refreshTokenExpiresAt)
+                .putString(Prefs.TOKEN_KEY, token)
+                .putString(Prefs.REFRESH_TOKEN_KEY, refreshToken)
+                .putString(Prefs.USER_ID_KEY, userId)
+                .putString(Prefs.LAST_OWNER_USER_ID_KEY, userId)
+                .putLong(Prefs.ACCESS_TOKEN_EXPIRES_AT_KEY, accessTokenExpiresAt)
+                .putLong(Prefs.REFRESH_TOKEN_EXPIRES_AT_KEY, refreshTokenExpiresAt)
                 .commit()
         }
             .onFailure { Log.w(TAG, "saveAuthSession failed", it) }
@@ -199,8 +199,8 @@ class TokenManager private constructor(private val context: Context) {
     fun saveUserId(userId: String): Boolean {
         return runCatching {
             prefs.edit {
-                putString(ApiConfig.Prefs.USER_ID_KEY, userId)
-                putString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, userId)
+                putString(Prefs.USER_ID_KEY, userId)
+                putString(Prefs.LAST_OWNER_USER_ID_KEY, userId)
             }
         }
             .onFailure { Log.w(TAG, "saveUserId failed", it) }
@@ -209,7 +209,7 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     fun getUserId(): String? =
-        readPrefsWithRetry(ApiConfig.Prefs.USER_ID_KEY) { it.getString(ApiConfig.Prefs.USER_ID_KEY, null) }
+        readPrefsWithRetry(Prefs.USER_ID_KEY) { it.getString(Prefs.USER_ID_KEY, null) }
 
     /**
      * Last account that owned the local encrypted store. Logout clears [getUserId] but
@@ -217,8 +217,8 @@ class TokenManager private constructor(private val context: Context) {
      * same-account re-login from a real account switch.
      */
     fun getLastOwnerUserId(): String? =
-        readPrefsWithRetry(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY) {
-            it.getString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, null)
+        readPrefsWithRetry(Prefs.LAST_OWNER_USER_ID_KEY) {
+            it.getString(Prefs.LAST_OWNER_USER_ID_KEY, null)
         } ?: getUserId()
 
     fun isLoggedIn(): Boolean = SessionPresencePolicy.isLoggedIn(
@@ -231,13 +231,13 @@ class TokenManager private constructor(private val context: Context) {
 
     /** @deprecated Prefer per-chat cursors via [saveLastSyncAtMs]/chatId] / [getLastSyncAtMs]. */
     fun saveLastSyncAtMs(timestamp: Long): Boolean =
-        runCatching { prefs.edit { putLong(ApiConfig.Prefs.LAST_SYNC_AT_KEY, timestamp) } }
+        runCatching { prefs.edit { putLong(Prefs.LAST_SYNC_AT_KEY, timestamp) } }
             .onFailure { Log.w(TAG, "saveLastSyncAtMs failed", it) }
             .isSuccess
 
     /** @deprecated Prefer per-chat cursors via [getLastSyncAtMs] with chatId. */
     fun getLastSyncAtMs(): Long =
-        runCatching { prefs.getLong(ApiConfig.Prefs.LAST_SYNC_AT_KEY, 0L) }.getOrDefault(0L)
+        runCatching { prefs.getLong(Prefs.LAST_SYNC_AT_KEY, 0L) }.getOrDefault(0L)
 
     /**
      * 仅更新时间戳时不得清空 messageId：
@@ -294,10 +294,10 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     private fun chatSyncKey(chatId: String): String =
-        "${ApiConfig.Prefs.LAST_SYNC_AT_KEY}:$chatId"
+        "${Prefs.LAST_SYNC_AT_KEY}:$chatId"
 
     private fun chatSyncIdKey(chatId: String): String =
-        "${ApiConfig.Prefs.LAST_SYNC_AT_KEY}:id:$chatId"
+        "${Prefs.LAST_SYNC_AT_KEY}:id:$chatId"
 
     /** BacklogSyncWorker 节流时钟：最近一次对该会话执行增量同步的时刻（成功或失败均更新）。 */
     fun getLastBacklogSyncAtMs(chatId: String): Long {
@@ -311,7 +311,7 @@ class TokenManager private constructor(private val context: Context) {
     }
 
     private fun backlogSyncKey(chatId: String): String =
-        "${ApiConfig.Prefs.LAST_SYNC_AT_KEY}:backlog:$chatId"
+        "${Prefs.LAST_SYNC_AT_KEY}:backlog:$chatId"
 
     /**
      * 消息变更（DELETE/REVOKE/EDIT）增量游标，与消息同步游标独立：
@@ -375,11 +375,11 @@ class TokenManager private constructor(private val context: Context) {
         sessionTerminating.set(true)
         sessionState.invalidate(getUserId()?.takeIf(String::isNotBlank))
         runCatching {
-            val lastOwner = prefs.getString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, null)
-                ?: prefs.getString(ApiConfig.Prefs.USER_ID_KEY, null)
+            val lastOwner = prefs.getString(Prefs.LAST_OWNER_USER_ID_KEY, null)
+                ?: prefs.getString(Prefs.USER_ID_KEY, null)
             val editor = prefs.edit().clear()
             if (!lastOwner.isNullOrBlank()) {
-                editor.putString(ApiConfig.Prefs.LAST_OWNER_USER_ID_KEY, lastOwner)
+                editor.putString(Prefs.LAST_OWNER_USER_ID_KEY, lastOwner)
             }
             editor.commit()
         }
