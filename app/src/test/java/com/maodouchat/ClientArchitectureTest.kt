@@ -514,7 +514,9 @@ class ClientArchitectureTest {
         // （两份 map 一起改）。
         // 2026-10-17：resolvedNotificationChatId/iconForType 抽出 NotificationCenterIconUtils.kt
         // （480 → 420，纯搬移；18 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 420,
+        // 2026-10-17：行簇抽出 NotificationCenterRows.kt（420 → 283，纯搬移；
+        // 12 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 283,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
@@ -541,7 +543,9 @@ class ClientArchitectureTest {
         // 纯搬移，上限同步收紧（两份 map 一起改）。
         // 2026-10-17：highlightedText 抽出 GlobalSearchHighlight.kt（483 → 475，纯搬移；
         // 2 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 475,
+        // 2026-10-17：节簇抽出 GlobalSearchSections.kt（475 → 353，纯搬移；
+        // 12 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 353,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
         // 2026-10-10：事件/错误枚举簇 → WebSocketEvents.kt（84）、payload 解析声明族 →
@@ -723,7 +727,9 @@ class ClientArchitectureTest {
         // （两份 map 一起改）。
         // 2026-10-17：resolvedNotificationChatId/iconForType 抽出 NotificationCenterIconUtils.kt
         // （480 → 420，纯搬移；18 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 420,
+        // 2026-10-17：行簇抽出 NotificationCenterRows.kt（420 → 283，纯搬移；
+        // 12 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 283,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
@@ -747,7 +753,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 303,
         // 2026-10-17：highlightedText 抽出 GlobalSearchHighlight.kt（483 → 475，纯搬移；
         // 2 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 475,
+        // 2026-10-17：节簇抽出 GlobalSearchSections.kt（475 → 353，纯搬移；
+        // 12 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 353,
         // G164b：Top-20 排名门禁纳入的 8 个
         // 2026-10-17：WebSocketTransport 整对象抽出同包 WebSocketTransport.kt
         // （770 → 100 纯搬移；新文件 675 行进前 20，按判据纳管），上限同步收紧（两份 map 一起改）。
