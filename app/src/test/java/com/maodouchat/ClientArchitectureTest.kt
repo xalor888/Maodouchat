@@ -369,7 +369,8 @@ class ClientArchitectureTest {
         // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026，纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：删闲置 import（1017 → 1014 纯删行），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：翻译语言选项簇抽出 ChatDetailTranslationOptions（1014 → 987 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 987,
+        // 2026-10-17：入口三弹窗抽出 ChatDetailRouteEntryDialogs（987 → 953 纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 953,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -638,7 +639,8 @@ class ClientArchitectureTest {
         val currentCaps = mapOf(
             // 2026-10-17：删闲置 import（1017 → 1014 纯删行），上限同步收紧（两份 map 一起改）。
             // 2026-10-17：翻译语言选项簇抽出 ChatDetailTranslationOptions（1014 → 987 纯搬移），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 987,
+            // 2026-10-17：入口三弹窗抽出 ChatDetailRouteEntryDialogs（987 → 953 纯搬移），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 953,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。
