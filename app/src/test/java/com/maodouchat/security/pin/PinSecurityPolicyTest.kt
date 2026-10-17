@@ -68,7 +68,7 @@ class PinSecurityPolicyTest {
     @Test
     fun rateLimiter_locksOutAfterMaxFailures_andResetsOnSuccess() {
         var currentTime = 1000000L
-        val limiter = PinSecurityPolicy.RateLimiter(
+        val limiter = RateLimiter(
             maxFailures = 3,
             lockoutMs = 30000L,
             clock = { currentTime }
@@ -107,7 +107,7 @@ class PinSecurityPolicyTest {
     @Test
     fun authenticatedSessionCache_enforcesTtlAndUserIsolation() {
         var currentTime = 500000L
-        val cache = PinSecurityPolicy.AuthenticatedSessionCache(
+        val cache = AuthenticatedSessionCache(
             ttlMs = 60000L,
             clock = { currentTime }
         )

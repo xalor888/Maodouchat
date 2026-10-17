@@ -53,11 +53,6 @@ fun parseSseChat(payload: String, onDelta: (String) -> Unit): OpenAiCompatClient
     return OpenAiCompatClient.Completion.Text(text)
 }
 
-internal data class SseDeltaParts(
-    val content: String = "",
-    val reasoning: String = ""
-)
-
 /**
  * Split Chat Completions SSE deltas. OpenCode zen (and similar gateways)
  * stream `reasoning_content` first. [JSONObject.optString] returns "" for a

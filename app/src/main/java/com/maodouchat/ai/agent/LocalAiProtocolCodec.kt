@@ -66,7 +66,7 @@ object LocalAiProtocolCodec {
     ): OpenAiCompatClient.Completion =
         LocalAiSseCodec.parseSseChat(payload, onDelta)
 
-    internal fun sseDeltaParts(delta: JSONObject?): LocalAiSseCodec.SseDeltaParts =
+    internal fun sseDeltaParts(delta: JSONObject?): SseDeltaParts =
         LocalAiSseCodec.sseDeltaParts(delta)
 
     internal fun sseVisibleText(delta: JSONObject?): String =
