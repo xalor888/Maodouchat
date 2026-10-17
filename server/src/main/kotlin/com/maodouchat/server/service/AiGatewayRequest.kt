@@ -27,20 +27,20 @@ internal suspend fun AiGatewayService.createResponse(
     userMessage: String
 ): AiGatewayResult<String> {
     val apiKey = apiKeyProvider().trim()
-    if (apiKey.isBlank()) return AiGatewayResult.NotConfigured
+    if (apiKey.isBlank()) return NotConfigured
     val input = listOf(
         OpenAiInputMessage(role = "developer", content = JsonPrimitive(developerMessage)),
         OpenAiInputMessage(role = "user", content = JsonPrimitive(userMessage))
     )
     val retryEnabled = RuntimeConfigService.isAiRetryEnabled()
     val maxAttempts = if (retryEnabled) AiGatewayService.MAX_RETRIES + 1 else 1
-    var last: AiGatewayResult<String> = AiGatewayResult.UpstreamError(0, "no attempt")
+    var last: AiGatewayResult<String> = UpstreamError(0, "no attempt")
     for (attempt in 0 until maxAttempts) {
         val result = performRequest(modelProvider(), input, AiGatewayService.MAX_OUTPUT_TOKENS)
         last = result
         when {
             result is AiGatewayResult.Success -> return result
-            result is AiGatewayResult.UpstreamError && retryEnabled &&
+            result is UpstreamError && retryEnabled &&
                 isTransient(result.statusCode, result.message) && attempt < maxAttempts - 1 -> {
                 delay(AiGatewayService.BACKOFF_MS.getOrElse(attempt) { AiGatewayService.BACKOFF_MS.last() })
             }
@@ -59,11 +59,11 @@ internal suspend fun AiGatewayService.performRequest(
             llmSemaphore.tryAcquire(AiGatewayService.LLM_ACQUIRE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
         }
     ) {
-        return AiGatewayResult.UpstreamError(429, "AI 并发已满，请稍后再试")
+        return UpstreamError(429, "AI 并发已满，请稍后再试")
     }
     return try {
         val apiKey = apiKeyProvider().trim()
-        if (apiKey.isBlank()) return AiGatewayResult.NotConfigured
+        if (apiKey.isBlank()) return NotConfigured
         val response = try {
             client.post("${baseUrlProvider().trimEnd('/')}/chat/completions") {
                 bearerAuth(apiKey)
@@ -73,14 +73,14 @@ internal suspend fun AiGatewayService.performRequest(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            return AiGatewayResult.UpstreamError(0, e.message)
+            return UpstreamError(0, e.message)
         }
         val body = response.bodyAsTextSafe()
         if (body == null) {
-            return AiGatewayResult.UpstreamError(0, "response body read failed")
+            return UpstreamError(0, "response body read failed")
         }
         if (response.status.value !in 200..299) {
-            return AiGatewayResult.UpstreamError(
+            return UpstreamError(
                 response.status.value,
                 extractErrorMessage(body) ?: "HTTP ${response.status.value} empty body"
             )
@@ -88,7 +88,7 @@ internal suspend fun AiGatewayService.performRequest(
         val output = OpenAiCompatibleCodec.extractOutputText(body)
         val usage = OpenAiCompatibleCodec.extractUsage(body)
         if (output.isNullOrBlank()) {
-            AiGatewayResult.InvalidResponse("AI 响应为空")
+            InvalidResponse("AI 响应为空")
         } else {
             val result = AiGatewayResult.Success(
                 output.trim(),

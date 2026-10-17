@@ -49,15 +49,15 @@ object ModerationEngine {
         }
         val text = when (raw) {
             is AiGatewayResult.Success -> raw.value
-            AiGatewayResult.NotConfigured -> {
+            NotConfigured -> {
                 log.info("AI content classify skipped: OpenAI not configured")
                 return null
             }
-            is AiGatewayResult.UpstreamError -> {
+            is UpstreamError -> {
                 log.warn("AI content classify upstream {} {}", raw.statusCode, raw.message)
                 return null
             }
-            is AiGatewayResult.InvalidResponse -> {
+            is InvalidResponse -> {
                 log.warn("AI content classify invalid: {}", raw.message)
                 return null
             }

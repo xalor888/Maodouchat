@@ -7,10 +7,6 @@ sealed class RotateRefreshResult {
         val refreshToken: String,
         val refreshExpiresAt: Long
     ) : RotateRefreshResult()
-    data class SessionCompromised(val userId: String, val sessionId: String) : RotateRefreshResult()
-    data object InvalidToken : RotateRefreshResult()
-    data object UserSuspended : RotateRefreshResult()
-    data object UserMissing : RotateRefreshResult()
 }
 
 data class RevokedSession(val userId: String, val sessionId: String?)

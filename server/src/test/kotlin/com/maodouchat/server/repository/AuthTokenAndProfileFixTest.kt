@@ -53,15 +53,15 @@ class AuthTokenAndProfileFixTest {
         assertTrue(first is RotateRefreshResult.Success, first.toString())
 
         val reuse = repo.rotateIfEligible(issued.token)
-        assertTrue(reuse is RotateRefreshResult.SessionCompromised, reuse.toString())
-        reuse as RotateRefreshResult.SessionCompromised
+        assertTrue(reuse is SessionCompromised, reuse.toString())
+        reuse as SessionCompromised
         assertEquals("u1", reuse.userId)
         assertEquals(issued.sessionId, reuse.sessionId)
 
         val rotated = first as RotateRefreshResult.Success
         val afterCompromise = repo.rotateIfEligible(rotated.refreshToken)
         assertTrue(
-            afterCompromise is RotateRefreshResult.InvalidToken,
+            afterCompromise is InvalidToken,
             afterCompromise.toString()
         )
         transaction {
@@ -80,7 +80,7 @@ class AuthTokenAndProfileFixTest {
         assertEquals("u1", revoked.userId)
         assertEquals(issued.sessionId, revoked.sessionId)
         val again = repo.rotateIfEligible(issued.token)
-        assertTrue(again is RotateRefreshResult.InvalidToken, again.toString())
+        assertTrue(again is InvalidToken, again.toString())
     }
 
     @Test
