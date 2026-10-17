@@ -371,7 +371,8 @@ class ClientArchitectureTest {
         // 2026-10-17：翻译语言选项簇抽出 ChatDetailTranslationOptions（1014 → 987 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：入口三弹窗抽出 ChatDetailRouteEntryDialogs（987 → 953 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：新设备风控提示弹窗调用点抽出 ChatDetailDeviceRiskDialog（953 → 942 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 942,
+        // 2026-10-17：聊天锁门控分支抽出 ChatDetailChatLockGate（942 → 932 纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 932,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -643,7 +644,8 @@ class ClientArchitectureTest {
             // 2026-10-17：翻译语言选项簇抽出 ChatDetailTranslationOptions（1014 → 987 纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-17：入口三弹窗抽出 ChatDetailRouteEntryDialogs（987 → 953 纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-17：新设备风控提示弹窗调用点抽出 ChatDetailDeviceRiskDialog（953 → 942 纯搬移），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 942,
+            // 2026-10-17：聊天锁门控分支抽出 ChatDetailChatLockGate（942 → 932 纯搬移），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 932,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。

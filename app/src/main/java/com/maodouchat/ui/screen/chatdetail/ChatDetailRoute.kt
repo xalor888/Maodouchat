@@ -720,20 +720,10 @@ internal fun ChatDetailRoute(
     } else if (secretGate.deviceRiskLocked) {
         SecretNewDeviceRiskLocked(onRegisterClick = { secretGate.showDeviceRiskDialog = true })
     } else if (chatLockBlocking) {
-        ChatLockGate(
-            chatName = state.contact.displayName.ifBlank {
-                state.chat?.groupName.orEmpty().ifBlank { stringResource(R.string.chat_this_chat) }
-            },
-            onUnlock = { pin, onResult -> viewModel.unlockChatWithPin(pin, onResult) },
-            onForgotPin = { chatLock.showForgotChatLockConfirm = true }
-        )
-        ForgotChatLockConfirmDialog(
-            visible = chatLock.showForgotChatLockConfirm,
-            onDismiss = { chatLock.showForgotChatLockConfirm = false },
-            onConfirm = {
-                chatLock.showForgotChatLockConfirm = false
-                viewModel.forgotChatLockAndClearLocal()
-            },
+        ChatDetailChatLockGate(
+            state = state,
+            chatLock = chatLock,
+            viewModel = viewModel,
         )
     } else CompositionLocalProvider(LocalDensity provides scaledDensity) {
     Box(
