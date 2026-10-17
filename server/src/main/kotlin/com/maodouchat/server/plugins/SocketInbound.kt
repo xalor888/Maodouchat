@@ -7,10 +7,11 @@ import com.maodouchat.server.repository.ConversationQueryRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.getMessageRestrictionUntil
 import com.maodouchat.server.repository.getSuspendedUntil
-import com.maodouchat.server.service.FcmPushService
-import com.maodouchat.server.service.RuntimeConfigService
 import com.maodouchat.server.service.CallInviteRateLimiter
-import com.maodouchat.server.service.SendOutcome
+import com.maodouchat.server.service.FcmPushService
+import com.maodouchat.server.service.Rejected
+import com.maodouchat.server.service.RuntimeConfigService
+import com.maodouchat.server.service.Stored
 import com.maodouchat.server.service.enqueueIncomingCall
 import com.maodouchat.server.service.isMaintenanceMode
 import com.maodouchat.server.service.send
@@ -99,9 +100,9 @@ internal suspend fun WebSocketSession.handleWsMessage(
                 payload.epoch, payload.sequence, payload.idempotencyKey,
             )
             when (val outcome = callSignalingService.send(request, senderId)) {
-                is SendOutcome.Rejected ->
+                is Rejected ->
                     sendError(outcome.message, json, outcome.code, outcome.retryAfterSeconds)
-                is SendOutcome.Stored -> {
+                is Stored -> {
                     val stored = outcome.request
                     val signalMsg = json.encodeToString(WsMessage("SIGNALING", json.encodeToString(
                         IncomingSignalingPayload(

@@ -80,9 +80,9 @@ fun ServiceMessageRepository.publish(
     recipientUserIds: Set<String>,
 ): PublishResult = transaction {
     val message = insertServiceMessageInTransaction(id, chatId, botUserId, content, timestamp, type)
-        ?: return@transaction PublishResult.Rejected
+        ?: return@transaction Rejected
     val mailbox = messagingV2Repository.enqueueServiceMessageInTransaction(message, recipientUserIds)
-    PublishResult.Published(message, mailbox)
+    Published(message, mailbox)
 }
 
 

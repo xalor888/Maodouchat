@@ -22,54 +22,54 @@ class UserDispositionService(private val users: UserRepository) {
     fun suspend(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): UserDispositionResult {
         val now = System.currentTimeMillis()
         if (until < 0 || until > now + DispositionService.MAX_SUSPEND_MS || (until in 1..now)) {
-            return UserDispositionResult.Invalid("封禁截止时间无效")
+            return Invalid("封禁截止时间无效")
         }
         val banDays = if (until <= 0L) 0 else
             (((until - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, DispositionService.MAX_BAN_DAYS)
         val ok = when (val d = DispositionService.validateDisposition(banDays, reasonCode, note)) {
-            is DispositionValidation.Invalid -> return UserDispositionResult.Invalid(d.message)
+            is DispositionValidation.Invalid -> return Invalid(d.message)
             is DispositionValidation.Ok -> d
         }
         val detail = DispositionService.auditDetail(until, ok.reasonCode, ok.note)
         return if (users.applyUserSuspension(actorId, userId, until, detail)) {
-            UserDispositionResult.Applied(ok.reasonCode, until)
-        } else UserDispositionResult.NotFound
+            Applied(ok.reasonCode, until)
+        } else NotFound
     }
 
     fun restrictPosts(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): UserDispositionResult {
         val now = System.currentTimeMillis()
         val maxMs = DispositionService.MAX_POST_RESTRICT_DAYS * 86_400_000L
         if (until < 0 || until > now + maxMs || (until in 1..now)) {
-            return UserDispositionResult.Invalid("禁动态截止时间无效")
+            return Invalid("禁动态截止时间无效")
         }
         val days = if (until <= 0L) 0 else
             (((until - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, DispositionService.MAX_POST_RESTRICT_DAYS)
         val ok = when (val d = DispositionService.validatePostRestrict(days, reasonCode, note)) {
-            is DispositionValidation.Invalid -> return UserDispositionResult.Invalid(d.message)
+            is DispositionValidation.Invalid -> return Invalid(d.message)
             is DispositionValidation.Ok -> d
         }
         val detail = DispositionService.auditPostRestrictDetail(until, ok.reasonCode, ok.note)
         return if (users.applyUserPostRestriction(actorId, userId, until, detail)) {
-            UserDispositionResult.Applied(ok.reasonCode, until)
-        } else UserDispositionResult.NotFound
+            Applied(ok.reasonCode, until)
+        } else NotFound
     }
 
     fun restrictMessages(actorId: String, userId: String, until: Long, reasonCode: String?, note: String?): UserDispositionResult {
         val now = System.currentTimeMillis()
         val maxMs = DispositionService.MAX_MESSAGE_RESTRICT_DAYS * 86_400_000L
         if (until < 0 || until > now + maxMs || (until in 1..now)) {
-            return UserDispositionResult.Invalid("禁消息截止时间无效")
+            return Invalid("禁消息截止时间无效")
         }
         val days = if (until <= 0L) 0 else
             (((until - now) + 86_399_999L) / 86_400_000L).toInt().coerceIn(1, DispositionService.MAX_MESSAGE_RESTRICT_DAYS)
         val ok = when (val d = DispositionService.validateMessageRestrict(days, reasonCode, note)) {
-            is DispositionValidation.Invalid -> return UserDispositionResult.Invalid(d.message)
+            is DispositionValidation.Invalid -> return Invalid(d.message)
             is DispositionValidation.Ok -> d
         }
         val detail = DispositionService.auditMessageRestrictDetail(until, ok.reasonCode, ok.note)
         return if (users.applyUserMessageRestriction(actorId, userId, until, detail)) {
-            UserDispositionResult.Applied(ok.reasonCode, until)
-        } else UserDispositionResult.NotFound
+            Applied(ok.reasonCode, until)
+        } else NotFound
     }
 
     // ─── B13：批量处置（收敛 AdminBulkRouting 的重复「skip+update+audit」）───

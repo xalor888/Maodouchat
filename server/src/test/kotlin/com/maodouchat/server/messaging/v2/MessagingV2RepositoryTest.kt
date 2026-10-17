@@ -17,7 +17,7 @@ import com.maodouchat.server.model.CreateReportRequest
 import com.maodouchat.server.model.MessageResponse
 import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.repository.CreateResult
-import com.maodouchat.server.repository.PublishResult
+import com.maodouchat.server.repository.Published
 import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.createReport
@@ -488,8 +488,8 @@ class MessagingV2RepositoryTest {
             recipientUserIds = setOf("alice", "bob", "carol"),
         )
 
-        assertTrue(result is PublishResult.Published)
-        val published = result as PublishResult.Published
+        assertTrue(result is Published)
+        val published = result as Published
         assertEquals(3, published.mailbox.envelopeCount)
         transaction {
             assertEquals(1, ServiceMessages.selectAll().count())
