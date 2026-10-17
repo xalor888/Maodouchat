@@ -3,6 +3,10 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.ErrorResponse
 import com.maodouchat.server.repository.BotCreateResult
 import com.maodouchat.server.repository.BotRepository
+import com.maodouchat.server.repository.InvalidInput
+import com.maodouchat.server.repository.MaxBotsReached
+import com.maodouchat.server.repository.OwnerInvalid
+import com.maodouchat.server.repository.UsernameTaken
 import com.maodouchat.server.repository.create
 import com.maodouchat.server.repository.regenerateToken
 import com.maodouchat.server.service.RuntimeConfigService
@@ -34,13 +38,13 @@ internal fun Route.configureDeveloperAccountBotCreateRoutes(
             val (name, username, description) = parseDeveloperBotCreateFields(obj)
             when (val result = BotRepository.create(userId, name, username, description)) {
                 is BotCreateResult.Success -> call.respond(result.bot)
-                BotCreateResult.UsernameTaken ->
+                UsernameTaken ->
                     call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人用户名已被占用"))
-                BotCreateResult.MaxBotsReached ->
+                MaxBotsReached ->
                     call.respond(HttpStatusCode.Conflict, ErrorResponse("机器人数量已达上限"))
-                BotCreateResult.InvalidInput ->
+                InvalidInput ->
                     call.respond(HttpStatusCode.BadRequest, ErrorResponse("创建机器人失败（用户名非法）"))
-                BotCreateResult.OwnerInvalid ->
+                OwnerInvalid ->
                     call.respond(HttpStatusCode.Forbidden, ErrorResponse("开发者账号状态不可用"))
             }
         }

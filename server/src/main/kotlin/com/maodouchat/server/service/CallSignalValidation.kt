@@ -51,8 +51,8 @@ internal fun CallSignalingService.rejectIfStale(
             last,
         )
     ) {
-        Admit.Accept -> null
-        Admit.RejectStale -> SendOutcome.Rejected(
+        Accept -> null
+        RejectStale -> SendOutcome.Rejected(
             HttpStatusCode.Conflict,
             "信令顺序已过期",
             "CALL_SIGNAL_STALE",

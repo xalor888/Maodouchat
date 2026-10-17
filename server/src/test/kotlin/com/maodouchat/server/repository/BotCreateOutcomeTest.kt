@@ -73,10 +73,10 @@ class BotCreateOutcomeTest {
         assertEquals(setOf("start", "help"), seeded)
 
         val duplicate = BotRepository.create("u1", "Test Bot", "TEST_BOT", "description")
-        assertEquals(BotCreateResult.UsernameTaken, duplicate)
+        assertEquals(UsernameTaken, duplicate)
 
         val invalid = BotRepository.create("u1", "Test Bot", "1bad", "description")
-        assertEquals(BotCreateResult.InvalidInput, invalid)
+        assertEquals(InvalidInput, invalid)
     }
 
     @Test
