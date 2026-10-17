@@ -25,7 +25,6 @@ object TotpService {
     // 登录路径的失败锁定对"连续成功"无效）。key 用 base32 secret（服务端本就明文存 DB）。
     // 8.51 修复 M2：内存态仅为兜底；权威重放保护由调用方经 [onAcceptedCounter] 持久化到 DB
     //（重启/多实例后不可重放）。
-    private data class ReplayRecord(val counter: Long, val acceptedAtMs: Long)
     private val lastVerifiedCounter = java.util.concurrent.ConcurrentHashMap<String, ReplayRecord>()
     private var lastReplayCounterSweepAt = 0L
 
