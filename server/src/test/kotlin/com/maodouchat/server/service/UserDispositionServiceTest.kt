@@ -54,7 +54,7 @@ class UserDispositionServiceTest {
         setupDb()
         val until = System.currentTimeMillis() + 7L * 86_400_000L
         val result = UserDispositionService(UserRepository()).suspend("admin", "u1", until, "spam", null)
-        val applied = assertIs<UserDispositionResult.Applied>(result)
+        val applied = assertIs<Applied>(result)
         assertEquals("spam", applied.reasonCode)
 
         transaction {
@@ -73,7 +73,7 @@ class UserDispositionServiceTest {
         setupDb()
         val past = System.currentTimeMillis() - 1_000L
         val result = UserDispositionService(UserRepository()).suspend("admin", "u1", past, "spam", null)
-        assertIs<UserDispositionResult.Invalid>(result)
+        assertIs<Invalid>(result)
     }
 
     @Test
@@ -81,7 +81,7 @@ class UserDispositionServiceTest {
         setupDb()
         val until = System.currentTimeMillis() + 86_400_000L
         val result = UserDispositionService(UserRepository()).suspend("admin", "missing", until, "spam", null)
-        assertEquals(UserDispositionResult.NotFound, result)
+        assertEquals(NotFound, result)
     }
 
     @Test
@@ -89,7 +89,7 @@ class UserDispositionServiceTest {
         setupDb()
         val until = System.currentTimeMillis() + 3L * 86_400_000L
         val result = UserDispositionService(UserRepository()).restrictMessages("admin", "u1", until, "spam_chat", null)
-        assertIs<UserDispositionResult.Applied>(result)
+        assertIs<Applied>(result)
         transaction {
             val row = Users.selectAll().where { Users.id eq "u1" }.single()
             assertEquals(until, row[Users.messageRestrictedUntil])

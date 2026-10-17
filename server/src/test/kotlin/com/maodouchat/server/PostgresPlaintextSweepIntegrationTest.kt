@@ -10,7 +10,7 @@ import com.maodouchat.server.db.initDatabase
 import com.maodouchat.server.messaging.v2.MessagingV2Repository
 import com.maodouchat.server.plugins.*
 import com.maodouchat.server.repository.PostRepository
-import com.maodouchat.server.repository.PublishResult
+import com.maodouchat.server.repository.Published
 import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.SignalingRepository
 import com.maodouchat.server.repository.UserRepository
@@ -346,7 +346,7 @@ class PostgresPlaintextSweepIntegrationTest {
                     )
                 }
                 assertTrue(
-                    publishResult is PublishResult.Published,
+                    publishResult is Published,
                     "ServiceMessageRepository.publish 必须成功，实际 $publishResult",
                 )
 

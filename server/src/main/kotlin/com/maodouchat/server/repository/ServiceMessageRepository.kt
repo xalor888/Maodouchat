@@ -1,7 +1,6 @@
 package com.maodouchat.server.repository
 
 import com.maodouchat.server.messaging.v2.MessagingV2Repository
-import com.maodouchat.server.messaging.v2.SendMessageV2Result
 import com.maodouchat.server.model.MessageResponse
 
 /** Dedicated plaintext store for server-authored bot messages. */
@@ -17,12 +16,6 @@ data class ServiceMessageMetadata(
 )
 
 sealed class PublishResult {
-    data class Published(
-        val message: MessageResponse,
-        val mailbox: SendMessageV2Result,
-    ) : PublishResult()
-
-    data object Rejected : PublishResult()
 }
 
 internal const val MAX_CONTENT_LENGTH = 8_000

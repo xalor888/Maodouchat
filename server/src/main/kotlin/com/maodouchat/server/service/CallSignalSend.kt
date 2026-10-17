@@ -18,7 +18,7 @@ fun CallSignalingService.send(request: SendSignalRequest, fromUserId: String): S
         val key = CallInviteRateLimiter.sessionKey(request.callId, request.groupId, request.toUserId)
         val decision = callInviteRateLimiter.tryAcquire(fromUserId, key)
         if (!decision.allowed) {
-            return SendOutcome.Rejected(
+            return Rejected(
                 HttpStatusCode.TooManyRequests,
                 "发起通话过于频繁，请稍后再试",
                 "CALL_INVITE_RATE_LIMITED",
@@ -41,7 +41,7 @@ fun CallSignalingService.send(request: SendSignalRequest, fromUserId: String): S
             request.epoch, request.sequence, request.idempotencyKey,
         )
     }
-    return SendOutcome.Stored(request)
+    return Stored(request)
 }
 
 fun CallSignalingService.hangUp(request: SendSignalRequest, userId: String): SendOutcome {
@@ -55,7 +55,7 @@ fun CallSignalingService.hangUp(request: SendSignalRequest, userId: String): Sen
         request.epoch, request.sequence, request.idempotencyKey,
     )
     revokeTurnForCall(request.callId, userId, request.toUserId)
-    return SendOutcome.Stored(request.copy(type = "hang-up"))
+    return Stored(request.copy(type = "hang-up"))
 }
 
 fun CallSignalingService.pending(userId: String, offersOnly: Boolean): List<SignalingMessage> =

@@ -3,7 +3,7 @@ package com.maodouchat.server.plugins
 import com.maodouchat.server.model.MessageResponse
 import com.maodouchat.server.model.WsMessage
 import com.maodouchat.server.repository.ConversationParticipantRepository
-import com.maodouchat.server.repository.PublishResult
+import com.maodouchat.server.repository.Published
 import com.maodouchat.server.repository.ServiceMessageRepository
 import com.maodouchat.server.repository.UserRepository
 import com.maodouchat.server.repository.blockedEitherWayIdsInTx
@@ -46,7 +46,7 @@ internal suspend fun publishBotServiceMessage(
         type = type,
         recipientUserIds = recipients,
     )
-    val published = result as? PublishResult.Published ?: return null
+    val published = result as? Published ?: return null
     val wakeup = json.encodeToString(WsMessage("INBOX_AVAILABLE_V2", "{}"))
     published.mailbox.recipientUserIds.forEach { LocalRealtimeBus.publish(it, wakeup) }
     return published.message
