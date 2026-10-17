@@ -18,9 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -32,13 +30,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -714,9 +710,8 @@ internal fun ChatDetailRoute(
     )
 
     if (chatLockPending) {
-        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-        }
+        // 聊天锁加载中占位抽到同包 ChatDetailLockPendingIndicator，纯搬移不改判断。
+        ChatDetailLockPendingIndicator()
     } else if (secretGate.deviceRiskLocked) {
         SecretNewDeviceRiskLocked(onRegisterClick = { secretGate.showDeviceRiskDialog = true })
     } else if (chatLockBlocking) {
@@ -778,38 +773,12 @@ internal fun ChatDetailRoute(
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().layerBackdrop(chatLiquidBackdrop).background(chatBackgroundColor)) {
-            // 自定义图片壁纸（本地 URI，按账号隔离）：绘制在聊天内容之下，无壁纸时不引入额外层
-            appearance.customWallpaperUri?.let { uri ->
-                coil.compose.AsyncImage(
-                    model = uri,
-                    contentDescription = null,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            // 9.205：TG 风格涂鸦纹理——叠加在默认与颜色壁纸之上（TG 是颜色+图案叠加），
-            // 仅当用户选了自定义图片壁纸时不叠加，避免盖住用户自选图片
-            if (appearance.customWallpaperUri == null) {
-                // 9.254：TG 式背景纵深——单色底上叠一层自上而下的微暗渐变，平面背景立刻有
-                // 空间感（从当前背景色派生，自定义主题/深浅模式自动跟随）
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                listOf(
-                                    chatBackgroundColor.copy(alpha = 0f),
-                                    chatBackgroundColor.copy(alpha = 0f),
-                                    Color.Black.copy(alpha = if (isDarkChat) 0.10f else 0.045f)
-                                )
-                            )
-                        )
-                )
-                com.maodouchat.ui.component.ChatBackgroundPattern(
-                    modifier = Modifier.fillMaxSize(),
-                    tint = LocalChatPalette.current.textSecondary.copy(alpha = if (isDarkChat) 0.07f else 0.09f)
-                )
-            }
+            // 聊天页壁纸与纹理层抽到同包 ChatDetailBackgroundLayers，纯搬移不改判断。
+            ChatDetailBackgroundLayers(
+                appearance = appearance,
+                chatBackgroundColor = chatBackgroundColor,
+                isDarkChat = isDarkChat,
+            )
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).imePadding()) {
             // G344：横幅栈组装抽到 ChatDetailBanners.kt 的 ChatDetailBannerStack，纯搬移不改判断。
             ChatDetailBannerStack(
