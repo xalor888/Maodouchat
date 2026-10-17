@@ -6,7 +6,7 @@ import okio.BufferedSink
 import java.io.File
 import java.io.RandomAccessFile
 
-private class FileChunkRequestBody(
+internal class FileChunkRequestBody(
     private val file: File,
     private val offset: Long,
     private val length: Long,
