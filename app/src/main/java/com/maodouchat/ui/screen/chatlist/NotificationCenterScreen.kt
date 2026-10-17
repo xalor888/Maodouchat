@@ -1,7 +1,5 @@
 package com.maodouchat.ui.screen.chatlist
 
-import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -18,7 +16,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -27,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -38,7 +34,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -56,14 +51,12 @@ import com.maodouchat.ui.theme.TextHint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 fun NotificationCenterScreen(
     onBack: () -> Unit,
     onOpenItem: (NotificationCenterItem) -> Unit = {},
     viewModel: NotificationCenterViewModel = viewModel()
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
-    val context = androidx.compose.ui.platform.LocalContext.current
     var showClearConfirm by rememberSaveable { mutableStateOf(false) }
     // 1.170：长按某条通知 → 清除该会话全部通知
     var clearChatId by remember { mutableStateOf<String?>(null) }
@@ -196,88 +189,13 @@ fun NotificationCenterScreen(
         }
     }
 
-    if (showClearConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearConfirm = false },
-            title = { Text(stringResource(R.string.notif_center_clear_all)) },
-            text = { Text(stringResource(R.string.notif_center_clear_confirm)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.clearAll(); showClearConfirm = false }) {
-                    Text(stringResource(R.string.notif_center_clear_confirm_ok), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearConfirm = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            }
-        )
-    }
-
-    // 1.170：清除某个会话的全部通知
-    clearChatId?.let { chatId ->
-        AlertDialog(
-            onDismissRequest = { clearChatId = null },
-            title = { Text(stringResource(R.string.notif_center_clear_chat_title)) },
-            text = { Text(stringResource(R.string.notif_center_clear_chat_confirm)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.removeChat(chatId)
-                    clearChatId = null
-                }) {
-                    Text(stringResource(R.string.notif_center_clear_chat_ok), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { clearChatId = null }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            }
-        )
-    }
-
-    // 1.268：长按操作菜单（复制通知内容 / 清除该会话通知）
-    notifyMenuFor?.let { (item, chatId) ->
-        AlertDialog(
-            onDismissRequest = { notifyMenuFor = null },
-            title = { Text(stringResource(R.string.notif_center_actions)) },
-            text = {
-                Column {
-                    TextButton(onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val copyText = buildString {
-                            append(item.title)
-                            if (item.preview?.isNotBlank() == true) {
-                                if (isNotEmpty()) append("\n")
-                                append(item.preview)
-                            }
-                        }
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.notif_center_actions), copyText))
-                        Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
-                        notifyMenuFor = null
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.chat_copy), modifier = Modifier.fillMaxWidth())
-                    }
-                    if (!chatId.isNullOrBlank()) {
-                        TextButton(onClick = {
-                            notifyMenuFor = null
-                            clearChatId = chatId
-                        }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.notif_center_clear_chat_title), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                    if (item.read) {
-                        TextButton(onClick = {
-                            viewModel.markUnread(item.id, item)
-                            notifyMenuFor = null
-                        }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.notif_center_mark_unread), modifier = Modifier.fillMaxWidth())
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { notifyMenuFor = null }) { Text(stringResource(R.string.common_cancel)) } }
-        )
-    }
+    NotificationCenterDialogs(
+        showClearConfirm = showClearConfirm,
+        clearChatId = clearChatId,
+        notifyMenuFor = notifyMenuFor,
+        viewModel = viewModel,
+        onShowClearConfirmChange = { showClearConfirm = it },
+        onClearChatIdChange = { clearChatId = it },
+        onNotifyMenuForChange = { notifyMenuFor = it }
+    )
 }

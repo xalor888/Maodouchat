@@ -516,7 +516,10 @@ class ClientArchitectureTest {
         // （480 → 420，纯搬移；18 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：行簇抽出 NotificationCenterRows.kt（420 → 283，纯搬移；
         // 12 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 283,
+        // 2026-10-17：通知中心对话框簇（清空确认/清会话通知/长按操作菜单）抽出
+        // NotificationCenterDialogs.kt（283 → 201，纯搬移；AlertDialog/TextButton/Toast/
+        // LocalContext/SuppressLint 随迁后在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 201,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
@@ -729,7 +732,10 @@ class ClientArchitectureTest {
         // （480 → 420，纯搬移；18 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：行簇抽出 NotificationCenterRows.kt（420 → 283，纯搬移；
         // 12 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 283,
+        // 2026-10-17：通知中心对话框簇（清空确认/清会话通知/长按操作菜单）抽出
+        // NotificationCenterDialogs.kt（283 → 201，纯搬移；AlertDialog/TextButton/Toast/
+        // LocalContext/SuppressLint 随迁后在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 201,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
         "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 671,
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
