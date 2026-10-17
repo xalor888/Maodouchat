@@ -541,7 +541,10 @@ class ClientArchitectureTest {
         // 2026-10-10：事件/错误枚举簇 → WebSocketEvents.kt（84）、payload 解析声明族 →
         // WebSocketPayloads.kt（119；11 个文件级 private data class 提为 internal 供同包 transport 用，
         // 另修两处遗留缩进；删 1 个闲置 import），969 → 770 纯搬移；新文件未进前 20，不纳管。
-        "com/maodouchat/network/WebSocketClient.kt" to 770,
+        // 2026-10-17：WebSocketTransport 整对象抽出同包 WebSocketTransport.kt
+        // （770 → 100 纯搬移；新文件 675 行进前 20，按判据纳管），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/network/WebSocketClient.kt" to 100,
+        "com/maodouchat/network/WebSocketTransport.kt" to 675,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
@@ -733,7 +736,10 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 303,
         "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 483,
         // G164b：Top-20 排名门禁纳入的 8 个
-        "com/maodouchat/network/WebSocketClient.kt" to 770,
+        // 2026-10-17：WebSocketTransport 整对象抽出同包 WebSocketTransport.kt
+        // （770 → 100 纯搬移；新文件 675 行进前 20，按判据纳管），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/network/WebSocketClient.kt" to 100,
+        "com/maodouchat/network/WebSocketTransport.kt" to 675,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         "com/maodouchat/ui/component/MarkdownParser.kt" to 121,
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
