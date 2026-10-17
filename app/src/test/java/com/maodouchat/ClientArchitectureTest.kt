@@ -592,7 +592,8 @@ class ClientArchitectureTest {
         // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 868,
+        // 2026-10-17：尾部对话框簇抽出 AccountSecurityDialogs（868 → 737 纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 737,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
@@ -798,7 +799,8 @@ class ClientArchitectureTest {
         // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 868,
+        // 2026-10-17：尾部对话框簇抽出 AccountSecurityDialogs（868 → 737 纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 737,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
