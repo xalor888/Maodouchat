@@ -11,8 +11,6 @@ class CallInviteRateLimiter(
     private val maxPerTenMinutes: Int = 20,
     private val nowMillis: () -> Long = System::currentTimeMillis
 ) {
-    private data class Attempt(val key: String, val timestamp: Long)
-    private data class DedupEntry(val hits: Int, val lastAccess: Long)
     private val attemptsByUser = mutableMapOf<String, ArrayDeque<Attempt>>()
     /** Tracks how many times a callId has been deduped; caps abuse of reused callIds. */
     private val dedupHitsByKey = mutableMapOf<String, DedupEntry>()

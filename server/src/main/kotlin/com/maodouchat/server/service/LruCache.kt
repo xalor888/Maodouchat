@@ -102,9 +102,4 @@ class LRUCache<K, V>(
         misses = misses.get(),
         evictions = evictions.get()
     )
-
-    private data class CacheEntry<V>(
-        val value: V,
-        val createdAt: Long
-    )
 }

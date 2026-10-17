@@ -127,12 +127,6 @@ object ApiService :
         org.json.JSONObject(String(decoded, Charsets.UTF_8)).optString("sub").trim().takeIf { it.isNotBlank() }
     }.getOrNull()
 
-    private data class AuthenticatedRequestSession(
-        val manager: TokenManager,
-        val userId: String,
-        val accessToken: String
-    )
-
     private fun authenticatedRequestSession(request: Request): AuthenticatedRequestSession? {
         val authorization = request.header("Authorization")?.takeIf { it.isNotBlank() } ?: return null
         val accessToken = authorization.removePrefix("Bearer ").trim().takeIf { it.isNotBlank() } ?: return null
@@ -214,16 +208,6 @@ object ApiService :
     @Volatile private var memoryAccessToken: String? = null
     @Volatile private var memoryAccessTokenExpiresAt: Long = 0L
     @Volatile private var memoryAccessTokenOwnerUserId: String? = null
-
-    private sealed class RefreshOutcome {
-        data class Success(val token: String) : RefreshOutcome()
-        /** 401 / 明确会话作废：应 tokenExpired */
-        data object SessionDead : RefreshOutcome()
-        /** 429/5xx/网络抖动：不得清库 */
-        data object TransientFailure : RefreshOutcome()
-        /** 请求所属账号已不再是当前会话：静默丢弃，禁止重放或清理新会话。 */
-        data object SessionChanged : RefreshOutcome()
-    }
 
     private suspend fun refreshAccessToken(
         failedAccessToken: String? = null,
