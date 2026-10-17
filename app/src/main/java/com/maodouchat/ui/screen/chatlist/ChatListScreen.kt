@@ -30,16 +30,6 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
 import com.maodouchat.ui.theme.LocalMotionSettings
 
-/** 1.54：底部导航「会话」未读角标总计数（ChatListViewModel 推送，BottomNavBar 订阅）。 */
-object UnreadBadgeStore {
-    val totalUnread = kotlinx.coroutines.flow.MutableStateFlow(0)
-}
-
-/** 1.112：底部导航「动态」未读互动角标（POST_INTERACTION 未读数，ChatListViewModel 推送）。 */
-object ExploreBadgeStore {
-    val count = kotlinx.coroutines.flow.MutableStateFlow(0)
-}
-
 /** Chat list (recovered): NavGraph API + folders + secret gates + public/status runtime sync. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
