@@ -7,11 +7,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
+import com.maodouchat.messaging.ChatMarkdown
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.TextHint
-
 
 // ─── CONTACT_CARD_USER_RE ───
 internal val CONTACT_CARD_USER_RE = Regex("\\[contactUser:([^\\]]+)")
@@ -41,7 +41,7 @@ internal fun RichTextContent(
         }
     }
     // 1.11：先剥离名片标记，接收端不会看到裸 [contactUser:...]（1.18 复用 ChatMarkdown 统一实现）
-    val cleanText = com.maodouchat.messaging.ChatMarkdown.stripContactCardMarker(text)
+    val cleanText = ChatMarkdown.stripContactCardMarker(text)
     // 1.17：名片消息整体渲染为可点击链接（点击打开该用户资料）
     val cardUserId = remember(text) { CONTACT_CARD_USER_RE.find(text)?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() } }
     if (cardUserId != null) {
@@ -150,26 +150,4 @@ internal fun RichTextContent(
         style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
         color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
     )
-}
-
-/** 扫描文本中的 http/https URL 起止区间（左闭右开），供 [RichTextContent] 渲染可点击链接。 */
-
-// ─── findUrlRanges ───
-internal fun findUrlRanges(text: String): List<Pair<Int, Int>> {
-    val ranges = mutableListOf<Pair<Int, Int>>()
-    var i = 0
-    while (i < text.length) {
-        val start = if (text.startsWith("http://", i) || text.startsWith("https://", i)) i else -1
-        if (start < 0) { i++; continue }
-        var end = start
-        while (end < text.length && !text[end].isWhitespace() && text[end] !in setOf('<', '>', '"', '\'')) {
-            end++
-        }
-        while (end > start && text[end - 1] in setOf('.', ',', ';', ':', '!', '?', ')', ']', '}')) {
-            end--
-        }
-        if (end > start) ranges += start to end
-        i = end.coerceAtLeast(start + 1)
-    }
-    return ranges
 }
