@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 
@@ -409,29 +408,7 @@ internal fun ChatDetailRoute(
         if (scroll.shouldLoadOlderMessages) viewModel.loadOlderMessages()
     }
 
-    LaunchedEffect(state.fileReadyToOpenUri) {
-        val uri = state.fileReadyToOpenUri ?: return@LaunchedEffect
-        openFile(context, uri)
-        viewModel.consumeFileReadyToOpen()
-    }
-
-    LaunchedEffect(state.scheduledInfoMessage) {
-        val msg = state.scheduledInfoMessage ?: return@LaunchedEffect
-        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
-        viewModel.clearScheduledInfo()
-    }
-
-    LaunchedEffect(state.exportInfoMessage) {
-        val msg = state.exportInfoMessage ?: return@LaunchedEffect
-        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
-        viewModel.clearExportInfo()
-    }
-
-    LaunchedEffect(state.chatLockInfoMessage) {
-        val msg = state.chatLockInfoMessage ?: return@LaunchedEffect
-        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
-        viewModel.clearChatLockInfo()
-    }
+    ChatDetailInfoEffects(state, viewModel, chatSnackbarHostState, context)
 
     // 密聊 / 阅后即焚：MediaStore 旁路截屏/录屏检测（FLAG_SECURE 之外的补充）
     val disappearingActive = !state.chatIsGroup && state.disappearingMessageSeconds > 0
@@ -473,74 +450,9 @@ internal fun ChatDetailRoute(
             kotlinx.coroutines.delay(10 * 60 * 1000L)
         }
     }
-    val captureGuardActive = disappearingActive || secretActive
-    val screenshotMsgDisappear = stringResource(R.string.chat_screenshot_detected_disappearing)
-    val screenshotMsgSecret = stringResource(R.string.secret_chat_screenshot_detected)
-    LaunchedEffect(captureGuardActive, disappearingActive, secretActive) {
-        if (!captureGuardActive) return@LaunchedEffect
-        // 密聊必须始终启动检测器：FLAG_SECURE 挡住系统截屏时不会有 MediaStore 事件，
-        // 检测器只覆盖 OEM / adb / 外置相机等绕过。SCREENSHOT_DETECT 只闸非密聊阅后即焚。
-        val detectEnabled = com.maodouchat.security.ScreenshotDetector.shouldStart(
-            secretActive = secretActive,
-            screenshotDetectFlag = RuntimeFlags.isEnabled(context, RuntimeFlags.SCREENSHOT_DETECT)
-        )
-        if (!detectEnabled) return@LaunchedEffect
-        val detector = com.maodouchat.security.ScreenshotDetector(context) {
-            val msg = when {
-                secretActive && disappearingActive ->
-                    screenshotMsgSecret + " · " + screenshotMsgDisappear
-                secretActive -> screenshotMsgSecret
-                else -> screenshotMsgDisappear
-            }
-            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-            viewModel.notifyLocalCaptureDetected(msg)
-        }
-        detector.start()
-        try {
-            kotlinx.coroutines.awaitCancellation()
-        } finally {
-            detector.stop()
-        }
-    }
+    ChatDetailScreenshotGuards(state = state, disappearingActive = disappearingActive, secretActive = secretActive, viewModel = viewModel, context = context)
 
-    // B2 截屏即焚（surface #71 burnz）：仅密聊会话启用——检测到截屏/录屏立即焚毁本地解密缓存。
-    // 与上方 ScreenshotDetector（告警）并存：即焚是更强动作，只清理本机缓存、不触碰服务端。
-    LaunchedEffect(secretActive, state.chat?.id) {
-        if (!secretActive) return@LaunchedEffect
-        val burnDetector = com.maodouchat.security.ScreenshotBurnDetector(context) { chatIds ->
-            if (chatIds.isNotEmpty()) {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.secret_chat_screenshot_burned),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-        burnDetector.start()
-        try {
-            kotlinx.coroutines.awaitCancellation()
-        } finally {
-            burnDetector.stop()
-        }
-    }
-
-    LaunchedEffect(state.secretChatInfoMessage) {
-        val msg = state.secretChatInfoMessage ?: return@LaunchedEffect
-        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
-        viewModel.clearSecretChatInfo()
-    }
-
-    LaunchedEffect(state.errorMessage) {
-        val msg = state.errorMessage ?: return@LaunchedEffect
-        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
-        viewModel.clearErrorMessage()
-    }
-
-    LaunchedEffect(state.infoMessage) {
-        val msg = state.infoMessage ?: return@LaunchedEffect
-        chatSnackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
-        viewModel.clearInfoMessage()
-    }
+    ChatDetailStatusInfoEffects(state, viewModel, chatSnackbarHostState)
 
     // Keep FLAG_SECURE in sync when 密聊 toggles without navigation.
     // LocalContext is usually a ContextWrapper — unwrap, do not cast directly.
@@ -581,57 +493,7 @@ internal fun ChatDetailRoute(
         deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )
 
-    LaunchedEffect(searchResults, search.searchIndex) {
-        val target = searchResults.getOrNull(search.searchIndex) ?: return@LaunchedEffect
-        val targetIndex = reversedChatItems.indexOfFirst { it is ChatItem.Msg && it.message.id == target.id }
-        if (targetIndex >= 0) {
-            chatListScroller.scrollToItem(listState, targetIndex)
-            // 1.343：搜索当前结果消息闪烁高亮（复用导航高亮机制，便于定位）
-            targets.navigationHighlightMessageId = target.id
-            try {
-                kotlinx.coroutines.delay(1_800)
-            } finally {
-                if (targets.navigationHighlightMessageId == target.id) targets.navigationHighlightMessageId = null
-            }
-        }
-    }
-
-    LaunchedEffect(state.navigationTargetMessageId, reversedChatItems.size) {
-        val targetId = state.navigationTargetMessageId ?: return@LaunchedEffect
-        val targetIndex = reversedChatItems.indexOfFirst { it is ChatItem.Msg && it.message.id == targetId }
-        if (targetIndex < 0) {
-            // 目标消息尚未加载（引用/置顶跳转可能指向已滚出当前窗口的旧消息）：
-            // 还有更早历史则继续翻页加载，翻完仍不存在（消息被删/目标无效）则放弃并提示。
-            if (state.hasMoreOlderMessages) {
-                viewModel.loadOlderMessages()
-            } else {
-                viewModel.consumeNavigationTarget()
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.chat_reply_target_not_found),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-            return@LaunchedEffect
-        }
-       chatListScroller.scrollToItem(listState, targetIndex)
-       targets.navigationHighlightMessageId = targetId
-        try {
-            kotlinx.coroutines.delay(1_800)
-        } finally {
-            if (targets.navigationHighlightMessageId == targetId) targets.navigationHighlightMessageId = null
-        }
-        viewModel.consumeNavigationTarget()
-    }
-
-    LaunchedEffect(search.searchMode, search.searchScope, search.searchWindow) {
-        search.searchIndex = 0
-    }
-
-    LaunchedEffect(searchResults.size) {
-        if (searchResults.isEmpty()) search.searchIndex = 0
-        else if (search.searchIndex >= searchResults.size) search.searchIndex = searchResults.lastIndex
-    }
+    ChatDetailNavigationEffects(state = state, search = search, searchResults = searchResults, reversedChatItems = reversedChatItems, targets = targets, viewModel = viewModel, chatListScroller = chatListScroller, listState = listState, context = context)
 
     // G351：上半区弹窗簇（安全码/定时族/聊天锁/GIF/联系人卡片/举报/群通话 + AI 弹窗挂载）
     // 抽到 ChatDetailDialogHosts.kt，纯搬移不改判断。
