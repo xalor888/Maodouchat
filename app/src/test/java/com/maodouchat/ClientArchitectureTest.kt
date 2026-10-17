@@ -1197,7 +1197,9 @@ class ClientArchitectureTest {
     @Test
     fun `every bare while true loop lives in a LaunchedEffect and yields with delay`() {
         val violations = mutableListOf<String>()
-        frozenHotspotLineCaps.keys.forEach { relativePath ->
+        // 2026-10-18：#836 把那处 `while (true)` 心跳纯搬进同包新文件，它不在热点上限表里；
+        // 已知的循环不能逃出本门禁的扫描，单独列入（静态核过：包在 LaunchedEffect 里、循环体有 delay）。
+        (frozenHotspotLineCaps.keys + "com/maodouchat/ui/screen/chatdetail/ChatDetailSecretChatEffects.kt").forEach { relativePath ->
             val lines = File(appMain, relativePath).readLines()
             // 先用花配平算出「每一行是否处于 LaunchedEffect 块内」——只看上方最近的一次出现
             // 是不够的：文件后半部分的行也会「找到」前半部分的 LaunchedEffect，从而假合规。
@@ -1243,8 +1245,11 @@ class ClientArchitectureTest {
 
     @Test
     fun `the gate sees the route hotspot so the loop rule is not vacuous`() {
-        val route = File(appMain, "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt")
-        assertTrue("ChatDetailRoute.kt 必须存在") { route.isFile }
+        // 2026-10-18（#836）：那处 `while (true)` 心跳（sealed sender 证书刷新、每 10 分钟）
+        // 从 ChatDetailRoute.kt 纯搬进同包 ChatDetailSecretChatEffects.kt，
+        // LaunchedEffect + delay 原样保留——门禁跟着搬，不放空炮。
+        val route = File(appMain, "com/maodouchat/ui/screen/chatdetail/ChatDetailSecretChatEffects.kt")
+        assertTrue("ChatDetailSecretChatEffects.kt 必须存在") { route.isFile }
         // G168b：剥注释——否则注释掉的 `while (true)` 会让这条自检「假通过」
         val text = stripComments(route.readText())
         assertTrue("该文件应当含 LaunchedEffect（否则上面的循环契约是空转）") {
