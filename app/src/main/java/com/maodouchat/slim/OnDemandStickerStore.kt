@@ -70,16 +70,10 @@ object OnDemandStickerStore {
         "❤️", "💔", "🎉", "🎊", "🔥", "💯", "⭐", "✨",
     )
 
-    private data class RemoteSticker(val name: String, val url: String, val sha256: String)
-
-    private data class RemotePack(val id: String, val stickers: List<RemoteSticker>)
-
     private val httpClient by lazy {
         com.maodouchat.network.HttpClients.mediaDownload()
     }
 
-    /** 8.34：每包下载互斥——getSticker 与 UI 手动下载同一包并发时此前互相覆盖 .part 导致 SHA 失败。 */
-    private class PackLock(val mutex: Mutex = Mutex(), var users: Int = 0)
     private val packLocks = ConcurrentHashMap<String, PackLock>()
 
     @Volatile
