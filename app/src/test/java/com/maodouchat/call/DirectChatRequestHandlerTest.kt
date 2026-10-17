@@ -1,6 +1,7 @@
 package com.maodouchat.call
 
 import com.maodouchat.session.CurrentSession
+import com.maodouchat.session.Snapshot
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,14 +26,14 @@ class DirectChatRequestHandlerTest {
 
     @Test
     fun noSessionShortCircuitsToSessionExpired() {
-        CurrentSession.override = { CurrentSession.Snapshot(null, null) }
+        CurrentSession.override = { Snapshot(null, null) }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
         assertEquals(Outcome.SessionExpired, outcome)
     }
 
     @Test
     fun tokenWithoutOwnerShortCircuitsToSessionExpired() {
-        CurrentSession.override = { CurrentSession.Snapshot("tok", null) }
+        CurrentSession.override = { Snapshot("tok", null) }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
         assertEquals(Outcome.SessionExpired, outcome)
     }

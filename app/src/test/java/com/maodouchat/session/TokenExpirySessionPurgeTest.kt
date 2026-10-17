@@ -28,31 +28,31 @@ class TokenExpirySessionPurgeTest {
 
     @Test
     fun matchingOwnerAndGenerationIsHandled() {
-        CurrentSession.override = { CurrentSession.Snapshot("tok", "u-1") }
+        CurrentSession.override = { Snapshot("tok", "u-1") }
         assertTrue(TokenExpirySessionPurge.shouldHandle(event("u-1", currentGeneration)))
     }
 
     @Test
     fun mismatchedGenerationIsNotHandled() {
-        CurrentSession.override = { CurrentSession.Snapshot("tok", "u-1") }
+        CurrentSession.override = { Snapshot("tok", "u-1") }
         assertFalse(TokenExpirySessionPurge.shouldHandle(event("u-1", currentGeneration - 1L)))
     }
 
     @Test
     fun otherOwnerIsNotHandled() {
-        CurrentSession.override = { CurrentSession.Snapshot("tok", "u-1") }
+        CurrentSession.override = { Snapshot("tok", "u-1") }
         assertFalse(TokenExpirySessionPurge.shouldHandle(event("u-2", currentGeneration)))
     }
 
     @Test
     fun blankOwnerIsNotHandled() {
-        CurrentSession.override = { CurrentSession.Snapshot("tok", "u-1") }
+        CurrentSession.override = { Snapshot("tok", "u-1") }
         assertFalse(TokenExpirySessionPurge.shouldHandle(event("", currentGeneration)))
     }
 
     @Test
     fun noLocalSessionIsNotHandled() {
-        CurrentSession.override = { CurrentSession.Snapshot(null, null) }
+        CurrentSession.override = { Snapshot(null, null) }
         assertFalse(TokenExpirySessionPurge.shouldHandle(event("u-1", currentGeneration)))
     }
 }

@@ -3,6 +3,7 @@ package com.maodouchat.chatlist
 import com.maodouchat.notification.AnnouncementData
 import com.maodouchat.notification.AnnouncementPolicy
 import com.maodouchat.security.SecureSessionManager
+import com.maodouchat.session.Snapshot
 import com.maodouchat.ui.screen.chatlist.ChatListAnnouncementCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import com.maodouchat.chatlist.PushVerifyKeyAction
@@ -42,7 +43,7 @@ class ChatListAnnouncementCoordinatorTest {
     fun refreshAnnouncementsParsesAndFiltersActivePayload() = runTest(dispatcher) {
         val now = 1_000_000L
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val raw = """
             {"announcements":[
               {"id":"a1","title":"T","content":"C","level":"INFO","startsAt":0,"expiresAt":2000000,"status":"ACTIVE","acked":false},
@@ -78,7 +79,7 @@ class ChatListAnnouncementCoordinatorTest {
             acked = false,
         )
         val uiState = MutableStateFlow(ChatListUiState(activeAnnouncements = listOf(item)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         var ackCount = 0
         val coordinator = ChatListAnnouncementCoordinator(
             scope = this,

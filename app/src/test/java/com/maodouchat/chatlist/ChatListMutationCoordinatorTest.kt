@@ -6,6 +6,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.security.SecureSessionManager
+import com.maodouchat.session.Snapshot
 import com.maodouchat.ui.screen.chatlist.ChatListMutationCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import io.mockk.every
@@ -48,7 +49,7 @@ class ChatListMutationCoordinatorTest {
         val chat = Chat(id = "c1", pinnedAt = 0, settingsUpdatedAt = 1)
         val optimistic = chat.copy(pinnedAt = 10, settingsUpdatedAt = 20)
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val cached = mutableListOf<List<Chat>>()
         var remoteCalls = 0
         val coordinator = buildCoordinator(
@@ -86,7 +87,7 @@ class ChatListMutationCoordinatorTest {
     fun updateChatSettingsIgnoresReentry() = runTest(dispatcher) {
         val chat = Chat(id = "c1")
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val inFlight = mutableSetOf("c1")
         var remoteCalls = 0
         val coordinator = buildCoordinator(
@@ -109,7 +110,7 @@ class ChatListMutationCoordinatorTest {
     fun deleteChatRemovesThenConfirmsLeave() = runTest(dispatcher) {
         val chat = Chat(id = "c1", lastMessage = "hi")
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val deleted = mutableSetOf<String>()
         var cleaned = false
         val coordinator = buildCoordinator(
@@ -136,7 +137,7 @@ class ChatListMutationCoordinatorTest {
         val chat = Chat(id = "c1", lastMessageTime = 50)
         val other = Chat(id = "c0", lastMessageTime = 10)
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat, other)))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = buildCoordinator(
             uiState = uiState,
             deleteChatRemote = { _ -> Result.failure(IllegalStateException("nope")) },

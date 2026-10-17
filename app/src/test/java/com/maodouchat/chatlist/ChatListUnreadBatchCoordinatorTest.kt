@@ -2,6 +2,7 @@ package com.maodouchat.chatlist
 
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
+import com.maodouchat.session.Snapshot
 import com.maodouchat.ui.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import com.maodouchat.ui.screen.chatlist.ChatListUnreadBatchCoordinator
@@ -35,7 +36,7 @@ class ChatListUnreadBatchCoordinatorTest {
         val cachedWrites = mutableListOf<Chat>()
         val cancelled = mutableListOf<String>()
         val receipts = mutableListOf<Triple<String, String, Long?>>()
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListUnreadBatchCoordinator(
             scope = this,
             uiState = uiState,
@@ -81,7 +82,7 @@ class ChatListUnreadBatchCoordinatorTest {
             ChatListUiState(chats = listOf(a, b), selectedChatIds = setOf("a"))
         )
         val receipts = mutableListOf<String>()
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = ChatListUnreadBatchCoordinator(
             scope = this,
             uiState = uiState,

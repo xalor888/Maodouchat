@@ -4,6 +4,7 @@ import com.maodouchat.conversation.ConversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MissedCall
 import com.maodouchat.network.ChatDto
+import com.maodouchat.session.Snapshot
 import com.maodouchat.ui.screen.chatlist.ChatListLoadCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListReloadPolicy
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
@@ -30,7 +31,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun userRefreshShowsLoadingAndAppliesRemoteSnapshot() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(Chat(id = "old"))))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val cached = mutableListOf<List<Chat>>()
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -54,7 +55,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun reconnectDebouncesSilentReload() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState(isLoading = true, chats = listOf(Chat(id = "keep"))))
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         var fetchCount = 0
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -83,7 +84,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun deletedChatIdsAreNotReinserted() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val coordinator = buildCoordinator(
             uiState = uiState,
             deletedChatIds = mutableSetOf("gone"),
@@ -107,7 +108,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun missedCallsProjectIntoUiState() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { com.maodouchat.session.CurrentSession.Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
         val missed = listOf(
             MissedCall(
                 id = "m1",
