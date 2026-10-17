@@ -2,7 +2,6 @@ package com.maodouchat.util
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -34,7 +33,6 @@ object LinkPreviewRepository {
 
     private val cache = ConcurrentHashMap<String, Preview>()
     private val negativeCache = ConcurrentHashMap.newKeySet<String>()
-    private class InFlightLock(val mutex: Mutex = Mutex(), var users: Int = 0)
     private val inFlight = ConcurrentHashMap<String, InFlightLock>()
     private val generation = AtomicLong(0L)
     // 9.142：跨 URL 并发 fetch 各自持 per-URL 锁，共享缓存的裁剪需要独立全局监视器——
