@@ -1,81 +1,76 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.util.RuntimeFlags
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.maodouchat.ui.component.SearchHighlightAccent
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.component.MessageStatusIcon
+import com.maodouchat.ui.component.AnimatedBottomNav
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.ui.component.AnimatedBottomNav
 import com.maodouchat.ui.component.BottomNavItem
 import com.maodouchat.ui.component.LiquidBottomTabItem
 import com.maodouchat.ui.component.LiquidBottomTabs
-import com.maodouchat.ui.theme.LocalMotionSettings
-import com.maodouchat.util.HapticGate
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import com.maodouchat.ui.component.MessageStatusIcon
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.Circle
-import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.filled.ChatBubble
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.outlined.Explore
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.dp
+import com.maodouchat.ui.theme.LocalMotionSettings
+import com.maodouchat.util.HapticGate
+import com.maodouchat.util.RuntimeFlags
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -357,38 +352,6 @@ fun BottomNavBar(
     }
 }
 
-// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
-private val chatTimeFormat: ThreadLocal<SimpleDateFormat> =
-    ThreadLocal.withInitial { SimpleDateFormat("HH:mm", Locale.getDefault()) }
-private val chatWeekdayFormat: ThreadLocal<SimpleDateFormat> =
-    ThreadLocal.withInitial { SimpleDateFormat("EEE", Locale.getDefault()) }
-private val chatDateFormat: ThreadLocal<SimpleDateFormat> =
-    ThreadLocal.withInitial { SimpleDateFormat("MM/dd", Locale.getDefault()) }
-
-internal fun formatChatTime(ts: Long): String {
-    if (ts <= 0L) return ""
-    val cal = Calendar.getInstance()
-    val msg = Calendar.getInstance().apply { timeInMillis = ts }
-    return if (cal.get(Calendar.YEAR) == msg.get(Calendar.YEAR) && cal.get(Calendar.DAY_OF_YEAR) == msg.get(Calendar.DAY_OF_YEAR)) {
-        chatTimeFormat.get().format(Date(ts))
-    } else {
-        // 9.278：TG 式时间分段——近一周内显示星期缩写（如「周一」/Mon），更早才显示日期
-        val dayDiff = daysBetween(msg, cal)
-        if (dayDiff in 1..6) {
-            chatWeekdayFormat.get().format(Date(ts))
-        } else {
-            chatDateFormat.get().format(Date(ts))
-        }
-    }
-}
-
-/** 两个日历之间的自然日差（按零点对齐）。 */
-internal fun daysBetween(earlier: Calendar, later: Calendar): Int {
-    val e = Calendar.getInstance().apply { timeInMillis = earlier.timeInMillis; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
-    val l = Calendar.getInstance().apply { timeInMillis = later.timeInMillis; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
-    return ((l.timeInMillis - e.timeInMillis) / 86400000L).toInt()
-}
-
 /**
  * 8.47：智能归档建议卡片（纯本地启发式，无 AI/服务端调用）。
  * 展示前 [suggestions] 条；每条可「归档」或「忽略」，整卡可一键关闭。
@@ -455,18 +418,4 @@ internal fun ArchiveSuggestionsCard(
             }
         }
     }
-}
-
-private fun chatNameForSuggestion(chat: Chat?): String? {
-    if (chat == null) return null
-    return chat.groupName
-        ?: chat.participants.firstOrNull()?.displayName
-        ?: chat.participants.firstOrNull()?.name
-}
-
-// G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
-@Composable
-private fun accentHighlightedText(text: String, query: String): AnnotatedString {
-    val (c, bg) = SearchHighlightAccent
-    return com.maodouchat.ui.component.highlightedText(text, query, c, bg)
 }
