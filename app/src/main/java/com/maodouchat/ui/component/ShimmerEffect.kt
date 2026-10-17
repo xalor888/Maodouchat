@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
@@ -25,10 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.ShimmerLight
 
-/**
- * Shimmer placeholder box — used for skeleton loading states.
- * Respects system animation scale settings.
- */
+// 骨架屏占位块，动画开关跟随系统设置。
 @Composable
 fun ShimmerBox(
     modifier: Modifier = Modifier,
@@ -63,51 +61,6 @@ fun ShimmerBox(
     }
 }
 
-/**
- * A complete skeleton row for a chat list item.
- */
-@Composable
-fun ShimmerChatRow(
-    modifier: Modifier = Modifier
-) {
-    Row(
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-    ) {
-        ShimmerBox(modifier = Modifier.size(48.dp), cornerRadius = 24.dp)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            ShimmerBox(modifier = Modifier.width(130.dp).height(14.dp))
-            Spacer(modifier = Modifier.height(8.dp))
-            ShimmerBox(modifier = Modifier.width(200.dp).height(12.dp))
-        }
-    }
-}
-
-/**
- * A skeleton row for a contact list item.
- */
-@Composable
-fun ShimmerContactRow(
-    modifier: Modifier = Modifier
-) {
-    Row(
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-    ) {
-        ShimmerBox(modifier = Modifier.size(40.dp), cornerRadius = 20.dp)
-        Spacer(modifier = Modifier.width(12.dp))
-        ShimmerBox(modifier = Modifier.width(120.dp).height(14.dp))
-    }
-}
-
-/**
- * A skeleton card for a moments/explore post.
- */
 @Composable
 fun ShimmerPostCard(
     modifier: Modifier = Modifier
@@ -117,7 +70,7 @@ fun ShimmerPostCard(
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Row(verticalAlignment = CenterVertically) {
             ShimmerBox(modifier = Modifier.size(40.dp), cornerRadius = 20.dp)
             Spacer(modifier = Modifier.width(10.dp))
             Column {
