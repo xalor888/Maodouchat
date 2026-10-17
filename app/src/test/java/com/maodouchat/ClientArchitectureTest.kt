@@ -498,7 +498,9 @@ class ClientArchitectureTest {
         // 才会被 G172 那条抓住，那已经太晚。按当前实测值冻结，只许降不许升。
         // 通话泡瘦身第一批：链接预览簇 → LinkPreviewBubble、富文本簇 → RichTextBubble
         // （1050 → 749，纯搬移；死 import 同步清理），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/component/TextMessageBubble.kt" to 749,
+        // 2026-10-17：辅助声明族 → TextBubbleHelpers（resolveBubbleShape/
+        // ReplyTargetBar/RoleBadge 纯搬移；删 2 个闲置 import），上限同步收紧。
+        "com/maodouchat/ui/component/TextMessageBubble.kt" to 680,
         // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 304,
@@ -700,7 +702,9 @@ class ClientArchitectureTest {
         // G163b：阈值下探到 1000 后补入的 5 个（此前在 1000–1100 盲带里）
         // 通话泡瘦身第一批：链接预览簇 → LinkPreviewBubble、富文本簇 → RichTextBubble
         // （1050 → 749，纯搬移；死 import 同步清理），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/component/TextMessageBubble.kt" to 749,
+        // 2026-10-17：辅助声明族 → TextBubbleHelpers（resolveBubbleShape/
+        // ReplyTargetBar/RoleBadge 纯搬移；删 2 个闲置 import），上限同步收紧。
+        "com/maodouchat/ui/component/TextMessageBubble.kt" to 680,
         // 本轮：分类内容簇搬出 MediaCenterCategoryContent（1048 → 377，纯搬移；
         // 另修 CI：同上，两段 import 头拼接，合并去重 417 → 377），上限同步收紧。
         "com/maodouchat/ui/screen/chatdetail/MediaCenterScreen.kt" to 304,
