@@ -15,14 +15,6 @@ internal object SignalDeviceIdRecoveryPolicy {
     const val DEVICE_STATUS_CONFIRMED = "CONFIRMED"
     const val DEVICE_STATUS_PENDING = "PENDING"
 
-    /** The key package was accepted, but this device cannot receive fan-out until approval. */
-    class DevicePendingApprovalException(val deviceId: Int) :
-        Exception("signal_device_pending_approval:$deviceId")
-
-    /** The server accepted the package but its authoritative device status could not be read. */
-    class DeviceStatusUnavailableException(cause: Throwable? = null) :
-        Exception("signal_device_status_unavailable", cause)
-
     fun isConfirmedDeviceStatus(status: String?): Boolean =
         status?.trim()?.equals(DEVICE_STATUS_CONFIRMED, ignoreCase = true) == true
 
@@ -31,10 +23,6 @@ internal object SignalDeviceIdRecoveryPolicy {
 
     /** A present marker is fail-closed, including a damaged/blank value. */
     fun isMigrationPendingMarkerPresent(value: String?): Boolean = value != null
-
-    /** Marks a failed migration so an ambiguous follow-up error cannot re-enable crypto. */
-    class IdentityRecoveryFailedException(cause: Throwable?) :
-        Exception("signal_identity_recovery_failed", cause)
 
     fun serverCode(error: Throwable?): String? {
         var current = error

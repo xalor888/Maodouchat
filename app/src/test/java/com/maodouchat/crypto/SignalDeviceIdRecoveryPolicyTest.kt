@@ -76,7 +76,7 @@ class SignalDeviceIdRecoveryPolicyTest {
         assertTrue(SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(conflict))
         assertTrue(
             SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(
-                SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(conflict)
+                IdentityRecoveryFailedException(conflict)
             )
         )
     }
@@ -152,14 +152,14 @@ class SignalDeviceIdRecoveryPolicyTest {
         assertFalse(SignalDeviceIdRecoveryPolicy.isConfirmedDeviceStatus("PENDING"))
         assertFalse(
             SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(
-                SignalDeviceIdRecoveryPolicy.DevicePendingApprovalException(9),
+                DevicePendingApprovalException(9),
             ),
         )
     }
 
     @Test
     fun unavailableStatusIsTransientAndDoesNotPretendToBePending() {
-        val error = SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException()
+        val error = DeviceStatusUnavailableException()
         assertFalse(SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus(null))
         assertFalse(SignalDeviceIdRecoveryPolicy.invalidatesLocalCrypto(error))
     }

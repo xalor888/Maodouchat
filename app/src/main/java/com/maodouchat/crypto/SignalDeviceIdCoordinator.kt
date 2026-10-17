@@ -124,7 +124,7 @@ internal class SignalDeviceIdCoordinator(
                 migrationStarted = true
                 occupiedDeviceIds = fetchOccupiedDeviceIds(token).getOrElse { fetchError ->
                     return Result.failure(
-                        SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(fetchError)
+                        IdentityRecoveryFailedException(fetchError)
                     )
                 }
             } else if (!SignalDeviceIdRecoveryPolicy.shouldRetryMigrationCandidate(
@@ -134,14 +134,14 @@ internal class SignalDeviceIdCoordinator(
                 )
             ) {
                 return Result.failure(
-                    SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(error)
+                    IdentityRecoveryFailedException(error)
                 )
             }
 
             val previousDeviceId = context.localDeviceId
             val replacement = allocateRecoveryDeviceId(previousDeviceId, attemptedDeviceIds, occupiedDeviceIds)
                 ?: return Result.failure(
-                    SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(error)
+                    IdentityRecoveryFailedException(error)
                 )
             switchLocalDeviceIdForRecovery(previousDeviceId, replacement)
             attemptedDeviceIds += replacement
@@ -150,7 +150,7 @@ internal class SignalDeviceIdCoordinator(
 
         return if (migrationStarted) {
             Result.failure(
-                SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(lastResult.exceptionOrNull())
+                IdentityRecoveryFailedException(lastResult.exceptionOrNull())
             )
         } else {
             lastResult
@@ -160,7 +160,7 @@ internal class SignalDeviceIdCoordinator(
     suspend fun verifyCurrentDevicePublication(token: String): Result<Unit> {
         val accountId = context.currentUserId
             ?: return Result.failure(
-                SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(
+                DeviceStatusUnavailableException(
                     IllegalStateException("signal_account_missing"),
                 )
             )
@@ -168,7 +168,7 @@ internal class SignalDeviceIdCoordinator(
             onSuccess = { devices ->
                 val current = devices.firstOrNull { it.deviceId == context.localDeviceId }
                     ?: return@fold Result.failure(
-                        SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(
+                        DeviceStatusUnavailableException(
                             IllegalStateException("signal_device_missing"),
                         )
                     )
@@ -178,7 +178,7 @@ internal class SignalDeviceIdCoordinator(
                 )
                 if (current.identityKey.trim() != expectedIdentity) {
                     return@fold Result.failure(
-                        SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(
+                        DeviceStatusUnavailableException(
                             IllegalStateException("signal_device_identity_changed"),
                         )
                     )
@@ -191,18 +191,18 @@ internal class SignalDeviceIdCoordinator(
                     SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus(current.status) -> {
                         context.devicePendingApproval = true
                         Result.failure(
-                            SignalDeviceIdRecoveryPolicy.DevicePendingApprovalException(context.localDeviceId)
+                            DevicePendingApprovalException(context.localDeviceId)
                         )
                     }
                     else -> Result.failure(
-                        SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(
+                        DeviceStatusUnavailableException(
                             IllegalStateException("signal_device_status_unknown:${current.status}"),
                         )
                     )
                 }
             },
             onFailure = { error ->
-                Result.failure(SignalDeviceIdRecoveryPolicy.DeviceStatusUnavailableException(error))
+                Result.failure(DeviceStatusUnavailableException(error))
             },
         )
     }
@@ -263,7 +263,7 @@ internal class SignalDeviceIdCoordinator(
         } catch (error: Exception) {
             context.cryptoLock.withLock { context.localDeviceId = previousDeviceId }
             runCatching { persistCoreKeys(deviceIdMigrationPending = true) }
-            throw SignalDeviceIdRecoveryPolicy.IdentityRecoveryFailedException(error)
+            throw IdentityRecoveryFailedException(error)
         }
         context.currentUserId?.let { SealedSenderSupport.clearCache(it, previousDeviceId) }
     }
