@@ -375,7 +375,8 @@ class ClientArchitectureTest {
         // 2026-10-17：壁纸纹理层抽出 ChatDetailBackgroundLayers、加载占位抽出 ChatDetailLockPendingIndicator（932 → 901 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：密聊门禁副作用簇（2FA 门禁 / 设备核验 / 新设备风控）抽出 ChatDetailSecretGateEffects（901 → 843 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：rebase 合入 #830 后，4 组副作用簇（信息/导航/截屏防护）抽出 3 个同包文件（843 → 705 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 705,
+        // 2026-10-18：3 组副作用簇（密聊生命周期/滚动与加载/消息到达）抽出 3 个同包文件（705 → 639 纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 639,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -651,7 +652,8 @@ class ClientArchitectureTest {
             // 2026-10-17：壁纸纹理层抽出 ChatDetailBackgroundLayers、加载占位抽出 ChatDetailLockPendingIndicator（932 → 901 纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-17：密聊门禁副作用簇（2FA 门禁 / 设备核验 / 新设备风控）抽出 ChatDetailSecretGateEffects（901 → 843 纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-18：rebase 合入 #830 后，4 组副作用簇（信息/导航/截屏防护）抽出 3 个同包文件（843 → 705 纯搬移），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 705,
+        // 2026-10-18：3 组副作用簇（密聊生命周期/滚动与加载/消息到达）抽出 3 个同包文件（705 → 639 纯搬移），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 639,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。
@@ -1195,7 +1197,9 @@ class ClientArchitectureTest {
     @Test
     fun `every bare while true loop lives in a LaunchedEffect and yields with delay`() {
         val violations = mutableListOf<String>()
-        frozenHotspotLineCaps.keys.forEach { relativePath ->
+        // 2026-10-18：#836 把那处 `while (true)` 心跳纯搬进同包新文件，它不在热点上限表里；
+        // 已知的循环不能逃出本门禁的扫描，单独列入（静态核过：包在 LaunchedEffect 里、循环体有 delay）。
+        (frozenHotspotLineCaps.keys + "com/maodouchat/ui/screen/chatdetail/ChatDetailSecretChatEffects.kt").forEach { relativePath ->
             val lines = File(appMain, relativePath).readLines()
             // 先用花配平算出「每一行是否处于 LaunchedEffect 块内」——只看上方最近的一次出现
             // 是不够的：文件后半部分的行也会「找到」前半部分的 LaunchedEffect，从而假合规。
@@ -1241,8 +1245,11 @@ class ClientArchitectureTest {
 
     @Test
     fun `the gate sees the route hotspot so the loop rule is not vacuous`() {
-        val route = File(appMain, "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt")
-        assertTrue("ChatDetailRoute.kt 必须存在") { route.isFile }
+        // 2026-10-18（#836）：那处 `while (true)` 心跳（sealed sender 证书刷新、每 10 分钟）
+        // 从 ChatDetailRoute.kt 纯搬进同包 ChatDetailSecretChatEffects.kt，
+        // LaunchedEffect + delay 原样保留——门禁跟着搬，不放空炮。
+        val route = File(appMain, "com/maodouchat/ui/screen/chatdetail/ChatDetailSecretChatEffects.kt")
+        assertTrue("ChatDetailSecretChatEffects.kt 必须存在") { route.isFile }
         // G168b：剥注释——否则注释掉的 `while (true)` 会让这条自检「假通过」
         val text = stripComments(route.readText())
         assertTrue("该文件应当含 LaunchedEffect（否则上面的循环契约是空转）") {
