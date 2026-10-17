@@ -55,7 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** AI 摘要对话框：摘要范围/历史/授权。所需输入全经参数传入。 */
+/** AI 摘要对话框：摘要范围/历史。所需输入全经参数传入。 */
 @Composable
 internal fun AiSummaryScopeDialog(
     searchResultCount: Int,
@@ -291,77 +291,6 @@ internal fun AiSummaryHistoryDialog(
                         }
                     }
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_done)) }
-        }
-    )
-}
-
-@Composable
-internal fun AiConsentDialog(
-    onAccept: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.chat_ai_consent_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    stringResource(R.string.chat_ai_consent_data),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    stringResource(R.string.chat_ai_consent_privacy),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = LocalChatPalette.current.textSecondary
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onAccept) { Text(stringResource(R.string.chat_ai_accept)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-        }
-    )
-}
-
-@Composable
-internal fun AiSummaryDialog(
-    summary: String,
-    scope: AiSummaryScope,
-    messageCount: Int,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(21.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.chat_ai_summary_title))
-                }
-                if (messageCount > 0) {
-                    Text(
-                        "${scope.localizedLabel()} · ${pluralStringResource(R.plurals.chat_ai_summary_messages, messageCount, messageCount)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = LocalChatPalette.current.textHint
-                    )
-                }
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text(stringResource(R.string.chat_ai_summary_disclaimer), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
             }
         },
         confirmButton = {
