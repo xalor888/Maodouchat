@@ -33,7 +33,7 @@
 | core 模块生产引用 | 在用 3（crypto 44 / realtime 25 / model 5）；**零引用 4**（util、serialization、network、session，已登记） | `ClientArchitectureTest.core modules are either adopted...` |
 | 就地 `OkHttpClient.Builder()` | 0 处（除共享工厂自身） | `ClientArchitectureTest.okhttp clients must come from the shared factory` |
 | lint 基线条数（只许降） | **53**（本战役起点 615） | `LintBaselineRatchetTest.frozenIssueCount` / `app/lint-baseline.xml` 块数 |
-| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **1077** / `ChatDetailViewModel.kt` **2035** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；Route 本轮系列 2525 → 1077；VM 2420 → 2035） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
+| 最热三个文件行数（不含 vendored） | `ChatDetailRoute.kt` **843** / `ChatDetailViewModel.kt` **2035** / `call/CallViewModel.kt` 1618（09-24: 2786/2545/858——GroupPlayPolicy 已拆出族文件；Route 本轮系列 2786 → 843；VM 2420 → 2035） | `ClientArchitectureTest.frozenHotspotLineCaps`（**零余量**） |
 
 > 验证口径补充（G328c 实测教训）：`app` 有**三个**编译单元 —— `compileDebugKotlin`（主源）、
 > `compileDebugUnitTestKotlin`（JVM 单测）、`compileDebugAndroidTestKotlin`（仪器测试）。
@@ -1257,7 +1257,7 @@ Gate：第 2、10、11 节全部勾选，才允许宣布“全项目重构完成
 | 项 | 现状（实测） | 为什么没做 |
 |----|-------------|-----------|
 | ~~`ChatDetailViewModel.kt` 的装配抽出~~ | **已完成**：2931 → **2598 行**（装配 475 行搬到 `ChatDetailDeps`） | 见下方第四轮小节。注意：这里原先写的「884 行装配」是**错的**——那是 `文件行数 − 方法行数` 的粗算，把空行与 companion 也算进去了；用声明级 span 实测是 **475 行** |
-| `ChatDetailRoute.kt` 继续拆 | 3013 行，仍是单个 composable | 剩余都是 15–40 行的中小块；大块（450 行弹层）已搬 |
+| `ChatDetailRoute.kt` 继续拆 | 843 行，仍是单个 composable（09-24: 2786） | 副作用簇持续抽出同包文件（ChatDetailSecretGateEffects 等），纯搬移 |
 | ui 直连 network | **41 → 24**（判据修准后的真实迁移） | 剩 24 个文件仍直接调 `ApiService`；已完成 7 批（公共端点/用户读取/会话读写/账号设备/2FA/举报审核/机器人+群）。下一批候选：`ChatListPorts`(7)、`AuthorProfileScreen`(7)、`ExploreNearbyScreen`(4)、`LoginViewModel`(5，其中 `refreshAccessTokenForCurrentSession` 读 TokenManager、属会话层操作，不适合搬进端点仓库) |
 | ~~`GroupPlayPolicy.kt`~~ | **已拆：1945 → 858 行** | 见下方第三轮小节（拆成 `GroupPlayClassicPolicy` 979 / `GroupPlayModePolicy` 492，父对象留同名委托） |
 | `NotificationCenterRepository` 的 `runBlocking` 桥接 | 4 处，DAO 配 `deleteForUserBlocking` 等同步变体 | 调用方含 Compose lambda 与非协程回调，改成 suspend 要连带改调用链；本轮已在 KDoc 写明「调用方含主线程」的现状与代价 |
