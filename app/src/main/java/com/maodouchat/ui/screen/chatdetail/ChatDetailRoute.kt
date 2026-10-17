@@ -512,20 +512,9 @@ internal fun ChatDetailRoute(
         secretGate.deviceRiskPrompted = true
         secretGate.showDeviceRiskDialog = true
     }
-    NewDeviceRiskPromptDialog(
-        onRegister = {
-            secretGate.showDeviceRiskDialog = false
-            secretGate.deviceRiskLocked = false
-            if (deviceRiskId.isNotBlank()) {
-                com.maodouchat.util.SecretNewDeviceRiskPrefs.registerDevice(context, deviceRiskId)
-                Toast.makeText(context, context.getString(R.string.secret_new_device_risk_registered), Toast.LENGTH_SHORT).show()
-            }
-        },
-        onKeepLocked = {
-            secretGate.showDeviceRiskDialog = false
-            secretGate.deviceRiskLocked = true
-            Toast.makeText(context, context.getString(R.string.secret_new_device_risk_locked), Toast.LENGTH_LONG).show()
-        },
+    ChatDetailDeviceRiskDialog(
+        secretGate = secretGate,
+        deviceRiskId = deviceRiskId,
     )
 
     // B4 本地 AI 聚合：会话画像 / 本周周报（仅非密聊会话，密聊不参与避免落可搜索缓存）
