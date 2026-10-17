@@ -584,9 +584,9 @@ class ClientArchitectureTest {
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 868,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
-        // 2026-10-16：chatlist UI 簇闲置 import 清理（零行为改动；ChatListComponents 473 → 472），
+        // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 472,
+        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 421,
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（700）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/MaodouchatApp.kt" to 700,
@@ -779,9 +779,9 @@ class ClientArchitectureTest {
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
         "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 868,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
-        // 2026-10-16：chatlist UI 簇闲置 import 清理（零行为改动；ChatListComponents 473 → 472），
+        // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 472,
+        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 421,
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（700）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         "com/maodouchat/MaodouchatApp.kt" to 700,
