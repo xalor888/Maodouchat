@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -17,3 +18,8 @@ internal fun ChatDetailSnackbarHost(chatSnackbarHostState: SnackbarHostState) {
             .padding(bottom = 80.dp)
     )
 }
+
+// Route 里裸写 `remember { SnackbarHostState() }` 的接线下沉：调用点和调用顺序都不动，槽位语义逐字等价。
+@Composable
+internal fun rememberChatDetailSnackbarHostState(): SnackbarHostState =
+    remember { SnackbarHostState() }

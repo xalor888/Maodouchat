@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SnackbarHostState
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -110,12 +109,12 @@ internal fun ChatDetailRoute(
     val dialogs = rememberChatDetailDialogState()
     // G337（第十六批）：消息引用/导航族收进持有类（见 ChatDetailMessageTargetState）。
     val targets = rememberChatDetailMessageTargetState()
-    val chatSnackbarHostState = remember { SnackbarHostState() }
+    val chatSnackbarHostState = rememberChatDetailSnackbarHostState()
     // 1.11：发送名片——联系人选择对话框
     // 1.02：临时静音至对话框
     // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
-    val particles = remember { ChatDetailParticleState() }
-    val bubbleBounds = remember { ChatDetailBubbleBoundsState() }
+    val particles = rememberChatDetailParticleState()
+    val bubbleBounds = rememberChatDetailBubbleBoundsState()
     val configuration = LocalConfiguration.current
     // 9.205：用主题真实深浅替代系统深浅/palette 身份比较（TG 主题与强制模式下不再误判）
     val isDarkChat = com.maodouchat.ui.theme.LocalDarkTheme.current
@@ -162,9 +161,9 @@ internal fun ChatDetailRoute(
     )
 
     // 8.48：禁言到期重组触发器收进持有类（见 ChatDetailTransientStates.kt）
-    val muteExpiry = remember { ChatDetailMuteExpiryState() }
+    val muteExpiry = rememberChatDetailMuteExpiryState()
     // G335：发送前待确认项收进持有类（见 ChatDetailTransientStates.kt）
-    val sendPending = remember { ChatDetailSendPendingState() }
+    val sendPending = rememberChatDetailSendPendingState()
     // G331：9 个 ActivityResult 入口搬进 `ChatDetailPickers.kt`（连带它们各自的
     // 「为什么选这个 contract」注释）。这里只留接线。
     val pickers = rememberChatDetailPickers(
