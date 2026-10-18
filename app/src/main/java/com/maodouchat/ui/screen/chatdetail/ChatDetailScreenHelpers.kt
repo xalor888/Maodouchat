@@ -63,6 +63,24 @@ internal fun senderDisplayName(
     )
 }
 
+// Route 里内联的发信人名字解析只是 senderDisplayName 的薄封装：把隐式捕获的
+// state/labels 显式化成参数，调用点传参语义逐字等价。
+internal fun resolveChatDetailSenderName(
+    message: Message,
+    state: ChatDetailUiState,
+    participantNamesById: Map<String, String>,
+    unknownLabel: String,
+    groupMemberLabel: String,
+    isOwn: Boolean = message.senderId == state.currentUserId,
+): String? = senderDisplayName(
+    state = state,
+    message = message,
+    isOwn = isOwn,
+    participantNamesById = participantNamesById,
+    unknownLabel = unknownLabel,
+    groupMemberLabel = groupMemberLabel,
+)
+
 internal fun truncatedSenderId(senderId: String): String? {
     val id = senderId.trim()
     if (id.isEmpty()) return null

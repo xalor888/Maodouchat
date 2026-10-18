@@ -25,7 +25,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.maodouchat.data.model.Message
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -130,17 +129,6 @@ internal fun ChatDetailRoute(
     )
     ChatDetailMessageArrivalEffects(state, targets, context)
     // G335（第十三批）：滚动到顶部附近触发加载更早消息，派生量收进 scroll 持有类
-    fun resolveSenderName(
-        message: Message,
-        isOwn: Boolean = message.senderId == state.currentUserId,
-    ): String? = senderDisplayName(
-        state = state,
-        message = message,
-        isOwn = isOwn,
-        participantNamesById = listDerived.participantNamesById,
-        unknownLabel = labels.unknownSenderLabel,
-        groupMemberLabel = labels.groupMemberLabel,
-    )
     val headerStatus = rememberChatHeaderStatus(state, context)
     BackHandler(enabled = dialogs.showChatOverflow || listDerived.messageSelectionMode || search.showSearchBar) {
         when {
@@ -361,7 +349,7 @@ internal fun ChatDetailRoute(
                     aiSafety = aiSafety,
                     targets = targets,
                     messagesById = listDerived.messagesById,
-                    resolveSenderName = { msg, isOwn -> resolveSenderName(msg, isOwn) },
+                    resolveSenderName = { msg, isOwn -> resolveChatDetailSenderName(msg, state, listDerived.participantNamesById, labels.unknownSenderLabel, labels.groupMemberLabel, isOwn) },
                     bubbleBounds = bubbleBounds,
                     media = media,
                     messageActions = messageActions,
@@ -378,7 +366,7 @@ internal fun ChatDetailRoute(
                 viewModel = viewModel,
                 targets = targets,
                 muteExpiry = muteExpiry,
-                resolveSenderName = { msg -> resolveSenderName(msg) },
+                resolveSenderName = { msg -> resolveChatDetailSenderName(msg, state, listDerived.participantNamesById, labels.unknownSenderLabel, labels.groupMemberLabel) },
             )
 
             // 输入区
@@ -417,7 +405,7 @@ internal fun ChatDetailRoute(
         pickers = pickers,
         listScrollScope = listScrollScope,
         selectedMessages = listDerived.selectedMessages,
-        resolveSenderName = { msg -> resolveSenderName(msg) },
+        resolveSenderName = { msg -> resolveChatDetailSenderName(msg, state, listDerived.participantNamesById, labels.unknownSenderLabel, labels.groupMemberLabel) },
         chatAiSurfacesVisible = chatAiSurfacesVisible,
         chatCopiedMsg = labels.chatCopiedMsg,
         chatTranslationCopiedMsg = labels.chatTranslationCopiedMsg,
