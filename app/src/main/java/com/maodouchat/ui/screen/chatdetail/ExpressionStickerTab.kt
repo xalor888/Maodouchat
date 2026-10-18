@@ -41,7 +41,6 @@ internal fun ExpressionStickerTab(
     var stickerQuery by stickerState.stickerQuery
     var recentStickers by stickerState.recentStickers
     val enabledPacks = stickerState.enabledPacks
-    val displayItems = stickerState.displayItems
     OutlinedTextField(
         value = stickerQuery,
         onValueChange = { stickerQuery = it.take(64) },
