@@ -332,27 +332,17 @@ fun Application.configureRouting(
             conversationQueryRepo = conversationQueryRepo,
             json = json,
         )
-        authenticate("auth-jwt") {
-            configureBotInteractionRoutes(
-                userRepo = userRepo,
-                conversationParticipantRepo = conversationParticipantRepo,
-                commandService = conversationCommandService,
-                conversationQueryRepo = conversationQueryRepo,
-                groupMembershipService = groupMembershipService,
-                botCreateRateLimiter = botCreateRateLimiter,
-                createChatRateLimiter = createChatRateLimiter,
-                json = json,
-            )
-
-            configureBotManagementRoutes(
-                userRepo = userRepo,
-                conversationParticipantRepo = conversationParticipantRepo,
-                botCreateRateLimiter = botCreateRateLimiter,
-                botTokenRateLimiter = botTokenRateLimiter,
-                json = json,
-            )
-
-        }
+        configureBotUserRoutes(
+            userRepo = userRepo,
+            conversationParticipantRepo = conversationParticipantRepo,
+            commandService = conversationCommandService,
+            conversationQueryRepo = conversationQueryRepo,
+            groupMembershipService = groupMembershipService,
+            botCreateRateLimiter = botCreateRateLimiter,
+            botTokenRateLimiter = botTokenRateLimiter,
+            createChatRateLimiter = createChatRateLimiter,
+            json = json,
+        )
         configureReportModerationRoutes(
             userRepo = userRepo,
             postRepo = postRepo,
