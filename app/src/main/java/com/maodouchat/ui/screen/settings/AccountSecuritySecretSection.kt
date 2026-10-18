@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import com.maodouchat.util.SecretSessionNoticePrefs
 import com.maodouchat.util.SecretSimChangePrefs
 
 /** B2 密聊安全分区：8 个 surface 开关（从 SettingsAccountSecurityScreen.kt 纯搬移；if (false) 禁用块原样保留）。 */
+@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 @Composable
 internal fun AccountSecuritySecretSection(
     userId: String

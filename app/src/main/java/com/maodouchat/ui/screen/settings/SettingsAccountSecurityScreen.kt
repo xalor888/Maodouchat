@@ -1,6 +1,5 @@
 package com.maodouchat.ui.screen.settings
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -62,7 +61,6 @@ import com.maodouchat.ui.theme.LocalChatPalette
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 fun AccountSecurityScreen(
     onBack: () -> Unit = {},
     onOpenMyQrCode: () -> Unit = {},

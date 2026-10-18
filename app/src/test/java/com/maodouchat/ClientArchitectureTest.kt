@@ -629,7 +629,9 @@ class ClientArchitectureTest {
         // 2026-10-19：应用锁分区抽出 AccountSecurityAppLockSection、B2 密聊安全分区抽出
         // AccountSecuritySecretSection（737 → 346 纯搬移+14 闲置 import；appLockEnabled 留母文件走参数；
         // 新文件 234/252 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 346,
+        // 2026-10-19：修 lint（LocalContextGetResourceValueCall 注解随分区代码迁入新文件；
+        // 母文件残留的注解+import 删掉），346 → 344，上限同步收紧。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 344,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
@@ -875,7 +877,9 @@ class ClientArchitectureTest {
         // 2026-10-19：应用锁分区抽出 AccountSecurityAppLockSection、B2 密聊安全分区抽出
         // AccountSecuritySecretSection（737 → 346 纯搬移+14 闲置 import；appLockEnabled 留母文件走参数；
         // 新文件 234/252 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 346,
+        // 2026-10-19：修 lint（LocalContextGetResourceValueCall 注解随分区代码迁入新文件；
+        // 母文件残留的注解+import 删掉），346 → 344，上限同步收紧。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 344,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
