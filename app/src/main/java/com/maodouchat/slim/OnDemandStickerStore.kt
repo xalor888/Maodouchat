@@ -5,7 +5,6 @@ import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.Request
