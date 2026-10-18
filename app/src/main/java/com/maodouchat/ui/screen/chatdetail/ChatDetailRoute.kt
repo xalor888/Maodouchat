@@ -138,21 +138,8 @@ internal fun ChatDetailRoute(
     val configuration = LocalConfiguration.current
     // 9.205：用主题真实深浅替代系统深浅/palette 身份比较（TG 主题与强制模式下不再误判）
     val isDarkChat = com.maodouchat.ui.theme.LocalDarkTheme.current
-    val themeChatPalette = LocalChatPalette.current
-    val chatBackgroundColor = remember(appearance.wallpaperPreset, isDarkChat, themeChatPalette) {
-        com.maodouchat.util.ChatAppearancePolicy.resolveBackground(
-            preset = appearance.wallpaperPreset,
-            isDark = isDarkChat,
-            fallback = themeChatPalette.chatBackground
-        )
-    }
-    val baseDensity = LocalDensity.current
-    val scaledDensity = remember(baseDensity, appearance.fontScale) {
-        androidx.compose.ui.unit.Density(
-            density = baseDensity.density,
-            fontScale = (baseDensity.fontScale * appearance.fontScale.multiplier).coerceIn(0.85f, 1.6f)
-        )
-    }
+    // 外观派生量（背景色/字号密度）收进持有类（见 ChatDetailAppearanceStates.kt），纯搬移不改判断。
+    val appearanceDerived = rememberChatDetailAppearanceDerived(appearance)
     val sensitiveAuthTitle = stringResource(R.string.sensitive_auth_title)
     val sensitiveAuthExport = stringResource(R.string.sensitive_auth_export_chat)
     val sensitiveAuthClearHistory = stringResource(R.string.sensitive_auth_clear_chat)
@@ -171,26 +158,15 @@ internal fun ChatDetailRoute(
     val chatTranslationCopiedMsg = stringResource(R.string.chat_translation_copied)
     val chatClipboardTranscriptLabel = stringResource(R.string.chat_clipboard_transcript)
     val chatTranscriptCopiedMsg = stringResource(R.string.chat_transcript_copied)
-    val chatItems = remember(state.messages, state.unreadSeparatorId, configuration.locales) {
-        buildChatItems(
-            state.messages,
-            labelForTimestamp = { timestamp -> formatDateLabel(context, timestamp) },
-            unreadSeparatorId = state.unreadSeparatorId
-        )
-    }
-    val reversedChatItems = remember(chatItems) { chatItems.asReversed() }
+    // 消息列表派生量族收进持有类（见 ChatDetailListDerived.kt），纯搬移不改判断。
+    val listDerived = rememberChatDetailListDerived(
+        state = state,
+        drafts = drafts,
+        configuration = configuration,
+        context = context,
+    )
     ChatDetailMessageArrivalEffects(state, targets, context)
     // G335（第十三批）：滚动到顶部附近触发加载更早消息，派生量收进 scroll 持有类
-    val messagesById = remember(state.messages) { state.messages.associateBy(Message::id) }
-    val participantNamesById = remember(state.chat?.participants, state.memberNicknameByUser, state.chatIsGroup) {
-        val base = state.chat?.participants.orEmpty().associate { it.id to it.displayName }
-        // 0.69 修复：群聊优先使用群内昵称（此前群昵称只作用于群成员列表，消息不生效）
-        if (state.chatIsGroup && state.memberNicknameByUser.isNotEmpty()) {
-            base + state.memberNicknameByUser
-        } else {
-            base
-        }
-    }
     val unknownSenderLabel = stringResource(R.string.chat_unknown)
     val groupMemberLabel = stringResource(R.string.chat_group_member)
     fun resolveSenderName(
@@ -200,7 +176,7 @@ internal fun ChatDetailRoute(
         state = state,
         message = message,
         isOwn = isOwn,
-        participantNamesById = participantNamesById,
+        participantNamesById = listDerived.participantNamesById,
         unknownLabel = unknownSenderLabel,
         groupMemberLabel = groupMemberLabel,
     )
@@ -211,21 +187,17 @@ internal fun ChatDetailRoute(
         isGroup = state.chatIsGroup,
         lastSeen = if (state.isSecretChat == true && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_LAST_SEEN_BLOCK)) 0L else state.contact.lastSeen
     )
-    val selectedMessages = remember(state.messages, drafts.selectedMessageIds) {
-        state.messages.filter { it.id in drafts.selectedMessageIds }
-    }
-    val messageSelectionMode = drafts.selectedMessageIds.isNotEmpty()
-    BackHandler(enabled = dialogs.showChatOverflow || messageSelectionMode || search.showSearchBar) {
+    BackHandler(enabled = dialogs.showChatOverflow || listDerived.messageSelectionMode || search.showSearchBar) {
         when {
             dialogs.showChatOverflow -> dialogs.showChatOverflow = false
-            messageSelectionMode -> drafts.selectedMessageIds = emptySet()
+            listDerived.messageSelectionMode -> drafts.selectedMessageIds = emptySet()
             search.showSearchBar -> search.showSearchBar = false
         }
     }
     // 搜索派生量族收进持有类（见 ChatDetailSearchDerived.kt），纯搬移不改判断。
     val searchDerived = rememberChatDetailSearchDerived(
         messages = state.messages,
-        messagesById = messagesById,
+        messagesById = listDerived.messagesById,
         search = search,
         semanticSearchResultIds = state.semanticSearchResultIds,
         semanticSearchQuery = state.semanticSearchQuery,
@@ -279,7 +251,7 @@ internal fun ChatDetailRoute(
         )
     }
 
-    ChatDetailScrollEffects(state, scroll, chatListScroller, listState, targets, viewModel, reversedChatItems)
+    ChatDetailScrollEffects(state, scroll, chatListScroller, listState, targets, viewModel, listDerived.reversedChatItems)
 
     ChatDetailInfoEffects(state, viewModel, chatSnackbarHostState, context)
 
@@ -322,7 +294,7 @@ internal fun ChatDetailRoute(
         deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )
 
-    ChatDetailNavigationEffects(state = state, search = search, searchResults = searchDerived.searchResults, reversedChatItems = reversedChatItems, targets = targets, viewModel = viewModel, chatListScroller = chatListScroller, listState = listState, context = context)
+    ChatDetailNavigationEffects(state = state, search = search, searchResults = searchDerived.searchResults, reversedChatItems = listDerived.reversedChatItems, targets = targets, viewModel = viewModel, chatListScroller = chatListScroller, listState = listState, context = context)
 
     // G351：上半区弹窗簇（安全码/定时族/聊天锁/GIF/联系人卡片/举报/群通话 + AI 弹窗挂载）
     // 抽到 ChatDetailDialogHosts.kt，纯搬移不改判断。
@@ -353,7 +325,7 @@ internal fun ChatDetailRoute(
             chatLock = chatLock,
             viewModel = viewModel,
         )
-    } else CompositionLocalProvider(LocalDensity provides scaledDensity) {
+    } else CompositionLocalProvider(LocalDensity provides appearanceDerived.scaledDensity) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -383,7 +355,7 @@ internal fun ChatDetailRoute(
             ChatDetailTopBar(
                 state = state,
                 headerStatus = headerStatus,
-                participantNamesById = participantNamesById,
+                participantNamesById = listDerived.participantNamesById,
                 viewModel = viewModel,
                 dialogs = dialogs,
                 schedule = schedule,
@@ -405,11 +377,11 @@ internal fun ChatDetailRoute(
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().layerBackdrop(chatLiquidBackdrop).background(chatBackgroundColor)) {
+        Box(modifier = Modifier.fillMaxSize().layerBackdrop(chatLiquidBackdrop).background(appearanceDerived.backgroundColor)) {
             // 聊天页壁纸与纹理层抽到同包 ChatDetailBackgroundLayers，纯搬移不改判断。
             ChatDetailBackgroundLayers(
                 appearance = appearance,
-                chatBackgroundColor = chatBackgroundColor,
+                chatBackgroundColor = appearanceDerived.backgroundColor,
                 isDarkChat = isDarkChat,
             )
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).imePadding()) {
@@ -419,7 +391,7 @@ internal fun ChatDetailRoute(
                 viewModel = viewModel,
                 flows = flows,
                 schedule = schedule,
-                participantNamesById = participantNamesById,
+                participantNamesById = listDerived.participantNamesById,
                 onOpenProfile = onOpenProfile,
                 chatAiSurfacesVisible = chatAiSurfacesVisible,
             )
@@ -438,8 +410,8 @@ internal fun ChatDetailRoute(
                 drafts = drafts,
                 messageActions = messageActions,
                 dialogs = dialogs,
-                messageSelectionMode = messageSelectionMode,
-                selectedMessages = selectedMessages,
+                messageSelectionMode = listDerived.messageSelectionMode,
+                selectedMessages = listDerived.selectedMessages,
                 chatClipboardMessageLabel = chatClipboardMessageLabel,
                 chatCopiedMsg = chatCopiedMsg,
             )
@@ -452,16 +424,16 @@ internal fun ChatDetailRoute(
                     state = state,
                     viewModel = viewModel,
                     listState = listState,
-                    reversedChatItems = reversedChatItems,
+                    reversedChatItems = listDerived.reversedChatItems,
                     motion = motion,
                     drafts = drafts,
-                    messageSelectionMode = messageSelectionMode,
+                    messageSelectionMode = listDerived.messageSelectionMode,
                     particles = particles,
                     searchResults = searchDerived.searchResults,
                     search = search,
                     aiSafety = aiSafety,
                     targets = targets,
-                    messagesById = messagesById,
+                    messagesById = listDerived.messagesById,
                     resolveSenderName = { msg, isOwn -> resolveSenderName(msg, isOwn) },
                     bubbleBounds = bubbleBounds,
                     media = media,
@@ -517,7 +489,7 @@ internal fun ChatDetailRoute(
         media = media,
         pickers = pickers,
         listScrollScope = listScrollScope,
-        selectedMessages = selectedMessages,
+        selectedMessages = listDerived.selectedMessages,
         resolveSenderName = { msg -> resolveSenderName(msg) },
         chatAiSurfacesVisible = chatAiSurfacesVisible,
         chatCopiedMsg = chatCopiedMsg,
