@@ -3,7 +3,6 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
@@ -12,10 +11,6 @@ internal class ConversationReactionCoordinator(
     private val facade: MessagingV2MutationFacade,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    private class ReactionLock(
-        val mutex: Mutex = Mutex(),
-        var users: Int = 0,
-    )
 
     private val locks = ConcurrentHashMap<String, ReactionLock>()
 

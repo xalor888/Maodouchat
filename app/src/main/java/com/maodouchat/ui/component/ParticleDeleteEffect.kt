@@ -93,13 +93,6 @@ class ParticleState(
         }
     }
 
-    private data class Particle(
-        val origin: Offset,
-        val velocity: Offset,
-        val size: Float,
-        val delay: Float,
-        val spin: Float
-    )
 }
 
 @Composable
