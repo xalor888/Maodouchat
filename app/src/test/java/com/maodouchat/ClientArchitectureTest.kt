@@ -386,7 +386,8 @@ class ClientArchitectureTest {
                 // 2026-10-18：scaffold 装配派生量（snackbar 宿主 + liquid 背景 remember）
         // 抽出 ChatDetailSnackbarHost/ChatDetailBackdropDerived，另删 8 个闲置 import
         // （450 → 435 纯搬移+纯删行），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 435,
+        // 2026-10-18：5 个裸 remember 下沉为 remember* 接线（snackbar 宿主 + 粒子/气泡边界/禁言 tick/发送待确认 4 持有类，435 → 434 纯搬移+纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 434,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -675,7 +676,8 @@ class ClientArchitectureTest {
                 // 2026-10-18：scaffold 装配派生量（snackbar 宿主 + liquid 背景 remember）
         // 抽出 ChatDetailSnackbarHost/ChatDetailBackdropDerived，另删 8 个闲置 import
         // （450 → 435 纯搬移+纯删行），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 435,
+        // 2026-10-18：5 个裸 remember 下沉为 remember* 接线（snackbar 宿主 + 粒子/气泡边界/禁言 tick/发送待确认 4 持有类，435 → 434 纯搬移+纯删行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 434,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。

@@ -48,6 +48,11 @@ internal class ChatDetailSendPendingState {
     }
 }
 
+// Route 里裸写 `remember { ChatDetailSendPendingState() }` 的接线下沉：调用点和顺序都不动，槽位语义逐字等价。
+@Composable
+internal fun rememberChatDetailSendPendingState(): ChatDetailSendPendingState =
+    remember { ChatDetailSendPendingState() }
+
 /**
  * G335：**粒子删除动效**的三个状态（哪条消息在动、动完做什么、粒子坐标表）。
  *
@@ -79,6 +84,11 @@ internal class ChatDetailParticleState {
     }
 }
 
+// Route 里裸写 `remember { ChatDetailParticleState() }` 的接线下沉：调用点和顺序都不动，槽位语义逐字等价。
+@Composable
+internal fun rememberChatDetailParticleState(): ChatDetailParticleState =
+    remember { ChatDetailParticleState() }
+
 /**
  * 8.48：**群禁言到期重组触发器**——禁言提示条只读 `state.myMutedUntil`（ViewModel 层），
  * 但禁言到期那一刻没有任何状态变化，重组不会发生，提示条就赖在那里不消失。
@@ -97,6 +107,11 @@ internal class ChatDetailMuteExpiryState {
         muteTick = System.currentTimeMillis()
     }
 }
+
+// Route 里裸写 `remember { ChatDetailMuteExpiryState() }` 的接线下沉：调用点和顺序都不动，槽位语义逐字等价。
+@Composable
+internal fun rememberChatDetailMuteExpiryState(): ChatDetailMuteExpiryState =
+    remember { ChatDetailMuteExpiryState() }
 
 /**
  * 第十九批：**气泡坐标缓存**——粒子动效/删除动画播之前，需要拿到目标消息气泡
@@ -124,6 +139,11 @@ internal class ChatDetailBubbleBoundsState {
         bounds.remove(messageId)
     }
 }
+
+// Route 里裸写 `remember { ChatDetailBubbleBoundsState() }` 的接线下沉：调用点和顺序都不动，槽位语义逐字等价。
+@Composable
+internal fun rememberChatDetailBubbleBoundsState(): ChatDetailBubbleBoundsState =
+    remember { ChatDetailBubbleBoundsState() }
 
 /**
  * 粒子动效启动器：原在 ChatDetailRoute 的局部函数 `startParticleEffect`。
