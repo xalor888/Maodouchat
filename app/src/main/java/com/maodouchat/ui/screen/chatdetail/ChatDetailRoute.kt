@@ -3,7 +3,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -12,13 +11,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 
 import androidx.compose.runtime.Composable
@@ -30,15 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.maodouchat.ui.theme.LocalMotionSettings
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -283,17 +275,10 @@ internal fun ChatDetailRoute(
         sensitiveAuthClearHistory = labels.sensitiveAuthClearHistory,
         sensitiveAuthFailed = labels.sensitiveAuthFailed,
     )
-    val chatLiquidBackdrop = rememberLayerBackdrop()
+    val chatLiquidBackdrop = rememberChatDetailLiquidBackdrop()
     CompositionLocalProvider(LocalLiquidGlassBackdrop provides chatLiquidBackdrop) {
     ChatDetailScaffold(
-        snackbarHost = {
-            SnackbarHost(
-                hostState = chatSnackbarHostState,
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .padding(bottom = 80.dp)
-            )
-        },
+        snackbarHost = { ChatDetailSnackbarHost(chatSnackbarHostState) },
         topBar = {
             // G343：顶栏（标题/状态/操作/溢出菜单）抽到 ChatDetailTopBar.kt，纯搬移不改判断。
             ChatDetailTopBar(
