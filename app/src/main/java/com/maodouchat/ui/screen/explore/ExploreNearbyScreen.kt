@@ -7,7 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,20 +19,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import android.text.format.DateUtils
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -64,8 +58,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.data.model.User
-import com.maodouchat.ui.component.Avatar
-import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout
@@ -73,7 +65,6 @@ import com.maodouchat.util.NearbyPolicy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -81,8 +72,9 @@ import androidx.compose.runtime.setValue
 /**
  * 「附近的人」页（G114 从 `ExploreSubScreens.kt` 拆出，原 324 行）。
  *
- * 附近的人列表 + 距离显示 + 点击进聊天。含 `NearbyItem`（单行）与
- * `formatNearbyDistance`（距离本地化：<1km 用米，否则用 km）。
+ * 附近的人列表 + 距离显示 + 点击进聊天。行组件簇（`NearbyItem`、
+ * `formatNearbyDistance`、距离 ThreadLocal、`nearbyDistanceLabel`）
+ * 已抽出同包 `ExploreNearbyRows.kt`，`NearbyScreen` 留此文件。
  *
  * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`。
  * 纯搬移，不改判断。
@@ -357,87 +349,3 @@ fun NearbyScreen(
         }
     }
 }
-
-@Composable
-private fun NearbyItem(person: NearbyPerson, onClick: () -> Unit) {
-    val user = person.user
-    val distanceText = if (user.isOnline) {
-        stringResource(R.string.explore_nearby_distance_online, formatNearbyDistance(person.distanceMeters))
-    } else {
-        formatNearbyDistance(person.distanceMeters)
-    }
-    val updatedText = if (person.locationUpdatedAt > 0L) {
-        val relative = DateUtils.getRelativeTimeSpanString(
-            person.locationUpdatedAt,
-            System.currentTimeMillis(),
-            DateUtils.MINUTE_IN_MILLIS
-        ).toString()
-        stringResource(R.string.explore_nearby_updated, relative)
-    } else {
-        null
-    }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }
-    ) {
-        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(name = user.name, avatarUrl = user.avatar, size = AvatarSize.MD, isOnline = user.isOnline)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(user.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = distanceText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (user.isOnline) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary
-                )
-                if (updatedText != null) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = updatedText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = LocalChatPalette.current.textHint
-                    )
-                }
-            }
-            Icon(Icons.Outlined.NearMe, contentDescription = null, tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
-        }
-    }
-}
-
-@Composable
-private fun formatNearbyDistance(distanceMeters: Int): String {
-    val (res, arg) = nearbyDistanceLabel(distanceMeters)
-    return if (arg == null) stringResource(res) else stringResource(res, arg)
-}
-
-// NumberFormat 非线程安全，ThreadLocal 每线程复用一个。
-// 半径选项的小数位随选项变化，每次调用前重设；距离文案固定一位小数。
-private val nearbyRadiusFormat: ThreadLocal<NumberFormat> =
-    ThreadLocal.withInitial { NumberFormat.getNumberInstance() }
-private val nearbyDistanceFormat: ThreadLocal<NumberFormat> =
-    ThreadLocal.withInitial {
-        NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 1
-            maximumFractionDigits = 1
-        }
-    }
-
-/**
- * 距离 → (文案资源, 实参)（G163 从 `formatNearbyDistance` 抽出的纯判定）。
- *
- * 抽开之前这段和 `stringResource` 耦在一起，只能靠仪器测试覆盖；
- * 现在返回二元组，普通 JVM 单测就能逐分支断言。
- *
- * 两个细节都有产品理由，改时必须连测试一起改：
- * - **米那一支 `coerceAtLeast(100)`**：定位精度有限，显示「约 3 米」比「约 0 米」更可信；
- * - **公里那一支固定一位小数**：`NumberFormat` 默认对 2.0 显示 "2"，
- *   加上 `minimumFractionDigits = 1` 才会显示 "2.0"，与米的精度观感一致。
- */
-internal fun nearbyDistanceLabel(distanceMeters: Int): Pair<Int, Any?> =
-    if (distanceMeters < 1_000) {
-        R.string.explore_nearby_distance_meters to distanceMeters.coerceAtLeast(100)
-    } else {
-        R.string.explore_nearby_distance_km to nearbyDistanceFormat.get().format(distanceMeters / 1_000.0)
-    }
