@@ -10,6 +10,7 @@ import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -187,6 +188,60 @@ class ConversationCommandFacadeTest {
         assertEquals((first as ConversationCommandOutcome.Staged).message.id, (second as ConversationCommandOutcome.Staged).message.id)
         assertEquals(1, gateway.messages.size)
         assertEquals(MessageType.STICKER, gateway.messages.single().type)
+    }
+
+    @Test
+    fun `account switch changes sender of subsequent sends`() = runTest {
+        // facade 的 owner 是每次发送时读的 lambda，不是构造时快照——账号切换后新消息必须归属新账号。
+        val gateway = FakeGateway()
+        var currentOwner = "owner-1"
+        var msgSeq = 0
+        val facade = facade(
+            gateway = gateway,
+            resolveChat = { chat() },
+            ownerUserId = { currentOwner },
+            messageId = { "msg-${++msgSeq}" },
+        )
+        fun command(key: String) = com.maodouchat.domain.messaging.SendMessageCommand(
+            conversationId = "chat-1",
+            content = com.maodouchat.domain.messaging.ContentPayload.Text("hi"),
+            idempotencyKey = key,
+        )
+
+        val first = facade.send(command("key-a1"))
+        currentOwner = "owner-2"
+        val second = facade.send(command("key-a2"))
+
+        assertTrue(first is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertTrue(second is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertEquals(listOf("owner-1", "owner-2"), gateway.messages.map { it.senderId })
+        assertNotEquals(
+            (first as com.maodouchat.domain.messaging.SendMessageResult.Success).localMessageId,
+            (second as com.maodouchat.domain.messaging.SendMessageResult.Success).localMessageId,
+        )
+    }
+
+    @Test
+    fun `blank idempotencyKey disables dedup and stages twice`() = runTest {
+        val gateway = FakeGateway()
+        var msgSeq = 0
+        val facade = facade(
+            gateway = gateway,
+            resolveChat = { chat() },
+            messageId = { "msg-${++msgSeq}" },
+        )
+        val command = com.maodouchat.domain.messaging.SendMessageCommand(
+            conversationId = "chat-1",
+            content = com.maodouchat.domain.messaging.ContentPayload.Text("hi"),
+            idempotencyKey = "",
+        )
+
+        val first = facade.send(command)
+        val second = facade.send(command)
+
+        assertTrue(first is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertTrue(second is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertEquals(2, gateway.messages.size)
     }
 
     private fun facade(
