@@ -651,6 +651,9 @@ class ClientArchitectureTest {
         // 滑入前 20 的 GroupPlayClassicDelegates（605）早已纳管），上限同步收紧。
         // 2026-10-16：BallState 提顶层加 1 行 import、删模板 KDoc 4 行（124 → 121），上限同步收紧（两处）。
         "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 121,
+        // 2026-10-19：SettingsAccountSecurityScreen 拆小（737 → 346）掉出前 20，
+        // ApiService（461 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
+        "com/maodouchat/network/ApiService.kt" to 461,
     )
 
     @Test
@@ -894,6 +897,9 @@ class ClientArchitectureTest {
         // 滑入前 20 的 GroupPlayClassicDelegates（605）早已纳管），上限同步收紧。
         // 2026-10-16：BallState 提顶层加 1 行 import、删模板 KDoc 4 行（124 → 121），上限同步收紧（两处）。
         "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 121,
+        // 2026-10-19：SettingsAccountSecurityScreen 拆小（737 → 346）掉出前 20，
+        // ApiService（461 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
+        "com/maodouchat/network/ApiService.kt" to 461,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
