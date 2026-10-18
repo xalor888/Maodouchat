@@ -111,7 +111,6 @@ internal fun ChatDetailRoute(
     // G335：粒子动效三件套收进持有类（见 ChatDetailTransientStates.kt）
     val particles = rememberChatDetailParticleState()
     val bubbleBounds = rememberChatDetailBubbleBoundsState()
-    val configuration = LocalConfiguration.current
     // 外观派生量（背景色/字号密度）收进持有类（见 ChatDetailAppearanceStates.kt），纯搬移不改判断。
     val appearanceDerived = rememberChatDetailAppearanceDerived(appearance)
     // 文案标签簇抽到 ChatDetailMessageLabels.kt，纯搬移。
@@ -120,12 +119,10 @@ internal fun ChatDetailRoute(
     val listDerived = rememberChatDetailListDerived(
         state = state,
         drafts = drafts,
-        configuration = configuration,
+        configuration = LocalConfiguration.current,
         context = context,
     )
     ChatDetailMessageArrivalEffects(state, targets, context)
-    // G335（第十三批）：滚动到顶部附近触发加载更早消息，派生量收进 scroll 持有类
-    val headerStatus = rememberChatHeaderStatus(state, context)
     // 返回键处理抽到同包 ChatDetailBackHandler（溢出菜单/多选/搜索条按优先级关闭），纯搬移。
     ChatDetailBackHandler(dialogs = dialogs, listDerived = listDerived, search = search, drafts = drafts)
     // 搜索派生量族收进持有类（见 ChatDetailSearchDerived.kt），纯搬移不改判断。
@@ -168,9 +165,6 @@ internal fun ChatDetailRoute(
         },
     )
 
-    // 粒子动效启动器收进 ChatDetailTransientStates.kt 的 remember 接线（纯搬移不改判断）。
-    val particleLauncher = rememberChatDetailParticleLauncher(particles, bubbleBounds, state.currentUserId)
-
     ChatDetailScrollEffects(state, scroll, chatListScroller, listState, targets, viewModel, listDerived.reversedChatItems)
 
     ChatDetailInfoEffects(state, viewModel, chatSnackbarHostState, context)
@@ -205,7 +199,6 @@ internal fun ChatDetailRoute(
     ChatDetailStatusInfoEffects(state, viewModel, chatSnackbarHostState)
 
     ChatDetailWindowPrivacyEffects(state = state, chatLockBlocking = gate.chatLockBlocking, context = context)
-    val secretPagePayload = rememberChatDetailSecretPagePayload(state, context)
 
     ChatDetailNavigationEffects(state = state, search = search, searchResults = searchDerived.searchResults, reversedChatItems = listDerived.reversedChatItems, targets = targets, viewModel = viewModel, chatListScroller = chatListScroller, listState = listState, context = context)
 
@@ -242,7 +235,7 @@ internal fun ChatDetailRoute(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .secretPageBlindWatermark(secretPagePayload)
+            .secretPageBlindWatermark(rememberChatDetailSecretPagePayload(state, context))
     ) {
     ChatDetailRouteEntryDialogs(
         dialogs = dialogs,
@@ -260,7 +253,8 @@ internal fun ChatDetailRoute(
             // G343：顶栏（标题/状态/操作/溢出菜单）抽到 ChatDetailTopBar.kt，纯搬移不改判断。
             ChatDetailTopBar(
                 state = state,
-                headerStatus = headerStatus,
+                // G335（第十三批）：滚动到顶部附近触发加载更早消息，派生量收进 scroll 持有类
+                headerStatus = rememberChatHeaderStatus(state, context),
                 participantNamesById = listDerived.participantNamesById,
                 viewModel = viewModel,
                 dialogs = dialogs,
@@ -402,7 +396,8 @@ internal fun ChatDetailRoute(
         chatCopiedMsg = labels.chatCopiedMsg,
         chatTranslationCopiedMsg = labels.chatTranslationCopiedMsg,
         chatTranscriptCopiedMsg = labels.chatTranscriptCopiedMsg,
-        onStartParticleEffect = particleLauncher,
+        // 粒子动效启动器收进 ChatDetailTransientStates.kt 的 remember 接线（纯搬移不改判断）。
+        onStartParticleEffect = rememberChatDetailParticleLauncher(particles, bubbleBounds, state.currentUserId),
         chatClipboardMessageLabel = labels.chatClipboardMessageLabel,
         chatClipboardTranslationLabel = labels.chatClipboardTranslationLabel,
         chatClipboardTranscriptLabel = labels.chatClipboardTranscriptLabel,
