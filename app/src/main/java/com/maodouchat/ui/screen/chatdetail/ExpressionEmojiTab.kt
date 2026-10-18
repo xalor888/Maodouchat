@@ -5,12 +5,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -43,7 +43,7 @@ import com.maodouchat.ui.theme.Secondary
 
 // 表情面板的表情页签：表情搜索、最近使用行、表情网格（纯搬移，判定逐字保留）。
 @Composable
-internal fun ExpressionEmojiTab(
+internal fun ColumnScope.ExpressionEmojiTab(
     stickerState: ExpressionStickerState,
     onEmojiClick: (String) -> Unit,
 ) {

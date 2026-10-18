@@ -4,13 +4,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +32,7 @@ import com.maodouchat.ui.theme.Primary
 
 // 表情面板的贴纸页签：搜索框、包页签行、贴纸网格与空态（纯搬移，判定逐字保留）。
 @Composable
-internal fun ExpressionStickerTab(
+internal fun ColumnScope.ExpressionStickerTab(
     stickerState: ExpressionStickerState,
     stickersEnabled: Boolean,
     onStickerClick: (String) -> Unit,
