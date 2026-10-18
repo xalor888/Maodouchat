@@ -1,10 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
-import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,24 +14,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -51,13 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
-import com.maodouchat.security.ScreenSecureManager
-import com.maodouchat.security.SensitiveAction
-import com.maodouchat.security.SensitiveActionGate
-import com.maodouchat.security.findActivity
 import com.maodouchat.ui.screen.settings.SettingsViewModel
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.util.RuntimeFlags
 
 /**
  * 账号安全页本体（G117 从 `SettingsAccountSecurity.kt` 拆出，原 1051 行）。
@@ -76,7 +61,6 @@ import com.maodouchat.util.RuntimeFlags
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调内读取，非组合作用域
 fun AccountSecurityScreen(
     onBack: () -> Unit = {},
     onOpenMyQrCode: () -> Unit = {},
@@ -87,7 +71,6 @@ fun AccountSecurityScreen(
     val context = LocalContext.current
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
-    val appLockUnavailableMsg = stringResource(R.string.settings_app_lock_unavailable)
     var oldPassword by rememberSaveable(state.userId) { mutableStateOf("") }
     var newPassword by rememberSaveable(state.userId) { mutableStateOf("") }
     var confirmPassword by rememberSaveable(state.userId) { mutableStateOf("") }
@@ -116,21 +99,6 @@ fun AccountSecurityScreen(
     }
     val confirmedDeviceCount = state.devices.count { it.status == "CONFIRMED" }
     var appLockEnabled by remember(state.userId) { mutableStateOf(AppLockManager.isEnabled(context)) }
-    var appLockTimeout by remember(state.userId) { mutableLongStateOf(AppLockManager.getTimeoutMinutes(context)) }
-    val appLockRuntimeOn = remember { RuntimeFlags.isEnabled(context, RuntimeFlags.APP_LOCK) }
-    var appLockError by remember(state.userId) { mutableStateOf<String?>(null) }
-    var sensitiveGateEnabled by remember(state.userId) { mutableStateOf(SensitiveActionGate.isEnabled(context)) }
-    var screenSecureEnabled by remember(state.userId) { mutableStateOf(ScreenSecureManager.isEnabled(context)) }
-
-    // B2 密聊安全 8 开关（服务端 status 下发同步；本地默认值兜底）
-    var secretScreenshotBurnEnabled by remember(state.userId) { mutableStateOf(com.maodouchat.util.SecretScreenshotBurnPrefs.isEnabled(context)) }
-    var secretAutoDestroyEnabled by remember(state.userId) { mutableStateOf(com.maodouchat.util.SecretAutoDestroyPrefs.isEnabled(context)) }
-    var secretForwardWhitelistEnabled by remember(state.userId) { mutableStateOf(com.maodouchat.util.SecretForwardWhitelistPrefs.isEnabled(context)) }
-    var secretSimChangeEnabled by remember(state.userId) { mutableStateOf(com.maodouchat.util.SecretSimChangePrefs.isEnabled(context)) }
-    var secret2faGateEnabled by remember(state.userId) { mutableStateOf(com.maodouchat.util.Secret2faGatePrefs.isEnabled(context)) }
-    var secretNewDeviceRiskEnabled by remember(state.userId) { mutableStateOf(com.maodouchat.util.SecretNewDeviceRiskPrefs.isEnabled(context)) }
-    var secretDeviceVerifyEnabled by remember(state.userId) { mutableStateOf(com.maodouchat.util.SecretDeviceVerifyPrefs.isEnabled(context)) }
-    var secretSessionNoticeEnabled by remember(state.userId) { mutableStateOf(com.maodouchat.util.SecretSessionNoticePrefs.isEnabled(context)) }
 
     var totpEnabled by remember(state.userId) { mutableStateOf(false) }
     var totpBusy by remember(state.userId) { mutableStateOf(false) }
@@ -334,376 +302,15 @@ fun AccountSecurityScreen(
                 }
             }
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        SecuritySectionLabel(stringResource(R.string.security_section_lock))
-        // App 锁定分组 — 轻量化安全功能，复用设备已有 PIN / 图案 / 指纹，应用不接触凭据数据
-        val sensitiveAuthTitle = stringResource(R.string.sensitive_auth_title)
-        val sensitiveAuthDisableLock = stringResource(R.string.sensitive_auth_disable_app_lock)
-        val sensitiveAuthFailed = stringResource(R.string.sensitive_auth_failed)
-        SecurityGroup {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.settings_app_lock), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                        Text(stringResource(R.string.settings_app_lock_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                    }
-                    Switch(
-                        checked = appLockEnabled,
-                        onCheckedChange = { enabled ->
-                            if (!enabled && appLockEnabled) {
-                                SensitiveActionGate.confirm(
-                                    context = context,
-                                    action = SensitiveAction.DISABLE_APP_LOCK,
-                                    title = sensitiveAuthTitle,
-                                    subtitle = sensitiveAuthDisableLock,
-                                    onSuccess = {
-                                        val changed = AppLockManager.setEnabled(context, false)
-                                        if (changed) {
-                                            appLockEnabled = false
-                                            appLockError = null
-                                        } else {
-                                            appLockEnabled = AppLockManager.isEnabled(context)
-                                            appLockError = appLockUnavailableMsg
-                                        }
-                                    },
-                                    onFailure = { msg ->
-                                        Toast.makeText(
-                                            context,
-                                            msg?.takeIf { it.isNotBlank() } ?: sensitiveAuthFailed,
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                )
-                            } else {
-                                if (!appLockRuntimeOn && enabled) {
-                                    appLockEnabled = false
-                                    return@Switch
-                                }
-                                val changed = AppLockManager.setEnabled(context, enabled)
-                                if (changed) {
-                                    appLockEnabled = enabled
-                                    appLockError = null
-                                    if (enabled) {
-                                        sensitiveGateEnabled = SensitiveActionGate.isEnabled(context)
-                                    }
-                                } else {
-                                    appLockEnabled = AppLockManager.isEnabled(context)
-                                    appLockError = appLockUnavailableMsg
-                                }
-                            }
-                        }
-                    )
-                }
-                appLockError?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-                if (appLockEnabled) {
-                    HorizontalDivider(color = LocalChatPalette.current.textHint.copy(alpha = 0.25f))
-                    Text(
-                        stringResource(R.string.settings_app_lock_timeout),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = LocalChatPalette.current.textSecondary,
-                        modifier = Modifier.padding(start = 16.dp, top = 10.dp, end = 16.dp)
-                    )
-                    val timeoutOptions = listOf(
-                        1L to R.string.settings_app_lock_timeout_1min,
-                        2L to R.string.settings_app_lock_timeout_2min,
-                        5L to R.string.settings_app_lock_timeout_5min,
-                        10L to R.string.settings_app_lock_timeout_10min,
-                        15L to R.string.settings_app_lock_timeout_15min,
-                        30L to R.string.settings_app_lock_timeout_30min,
-                        60L to R.string.settings_app_lock_timeout_60min,
-                        120L to R.string.settings_app_lock_timeout_120min,
-                        240L to R.string.settings_app_lock_timeout_240min,
-                        360L to R.string.settings_app_lock_timeout_360min
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        timeoutOptions.forEach { (minutes, label) ->
-                            TextButton(onClick = {
-                                appLockTimeout = minutes
-                                AppLockManager.setTimeoutMinutes(context, minutes)
-                                viewModel.pushSecurityClientPrefs(appLockTimeoutMinutes = minutes)
-                            }) {
-                                Text(
-                                    stringResource(label),
-                                    color = if (appLockTimeout == minutes) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary,
-                                    fontWeight = if (appLockTimeout == minutes) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
-                                )
-                            }
-                        }
-                    }
-                    HorizontalDivider(color = LocalChatPalette.current.textHint.copy(alpha = 0.25f))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                stringResource(R.string.settings_sensitive_gate),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                stringResource(R.string.settings_sensitive_gate_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = LocalChatPalette.current.textSecondary
-                            )
-                        }
-                        Switch(
-                            checked = sensitiveGateEnabled,
-                            onCheckedChange = { enabled ->
-                                SensitiveActionGate.setEnabled(context, enabled)
-                                sensitiveGateEnabled = enabled
-                                viewModel.pushSecurityClientPrefs(sensitiveGateEnabled = enabled)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        SecurityGroup {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_screen_secure),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        stringResource(R.string.settings_screen_secure_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalChatPalette.current.textSecondary
-                    )
-                }
-                Switch(
-                    checked = screenSecureEnabled,
-                    onCheckedChange = { enabled ->
-                        ScreenSecureManager.setEnabled(context, enabled)
-                        screenSecureEnabled = enabled
-                        viewModel.pushSecurityClientPrefs(screenSecureEnabled = enabled)
-                        (context.findActivity() as? com.maodouchat.MainActivity)
-                            ?.notifyScreenSecurePreferenceChanged()
-                    }
-                )
-            }
-        }
+        // 2026-10-19：应用锁分区抽出 AccountSecurityAppLockSection（纯搬移；appLockEnabled 留母文件走参数）。
+        AccountSecurityAppLockSection(
+            userId = state.userId,
+            appLockEnabled = appLockEnabled,
+            onAppLockEnabledChange = { appLockEnabled = it }
+        )
 
-        // B2 密聊安全（8 个 surface 开关，仅本机生效）
-        Spacer(modifier = Modifier.height(12.dp))
-        SecuritySectionLabel(stringResource(R.string.security_section_secret))
-        SecurityGroup {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(stringResource(R.string.settings_secret_security), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.settings_secret_security_hint), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-            }
-            HorizontalDividerLite()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.secret_screenshot_burn_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.secret_screenshot_burn_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-                Switch(
-                    checked = secretScreenshotBurnEnabled,
-                    onCheckedChange = { enabled ->
-                        com.maodouchat.util.SecretScreenshotBurnPrefs.setEnabled(context, enabled)
-                        secretScreenshotBurnEnabled = enabled
-                        Toast.makeText(
-                            context,
-                            context.getString(if (enabled) R.string.secret_screenshot_burn_enabled_toast else R.string.secret_screenshot_burn_disabled_toast),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-        }
-
-        if (false) {
-        SecurityGroup {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.secret_auto_destroy_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.secret_auto_destroy_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-                Switch(
-                    checked = secretAutoDestroyEnabled,
-                    onCheckedChange = { enabled ->
-                        com.maodouchat.util.SecretAutoDestroyPrefs.setEnabled(context, enabled)
-                        secretAutoDestroyEnabled = enabled
-                        Toast.makeText(
-                            context,
-                            context.getString(if (enabled) R.string.secret_auto_destroy_enabled_toast else R.string.secret_auto_destroy_disabled_toast),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-            HorizontalDividerLite()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.secret_forward_whitelist_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.secret_forward_whitelist_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-                Switch(
-                    checked = secretForwardWhitelistEnabled,
-                    onCheckedChange = { enabled ->
-                        com.maodouchat.util.SecretForwardWhitelistPrefs.setEnabled(context, enabled)
-                        secretForwardWhitelistEnabled = enabled
-                        Toast.makeText(
-                            context,
-                            context.getString(if (enabled) R.string.secret_forward_whitelist_enabled_toast else R.string.secret_forward_whitelist_disabled_toast),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-            HorizontalDividerLite()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.secret_sim_change_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.secret_sim_change_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-                Switch(
-                    checked = secretSimChangeEnabled,
-                    onCheckedChange = { enabled ->
-                        com.maodouchat.util.SecretSimChangePrefs.setEnabled(context, enabled)
-                        secretSimChangeEnabled = enabled
-                        Toast.makeText(
-                            context,
-                            context.getString(if (enabled) R.string.secret_sim_change_enabled_toast else R.string.secret_sim_change_disabled_toast),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-            HorizontalDividerLite()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.secret_2fa_gate_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.secret_2fa_gate_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-                Switch(
-                    checked = secret2faGateEnabled,
-                    onCheckedChange = { enabled ->
-                        com.maodouchat.util.Secret2faGatePrefs.setEnabled(context, enabled)
-                        secret2faGateEnabled = enabled
-                        if (enabled) com.maodouchat.util.Secret2faGatePrefs.clearGate(context)
-                        Toast.makeText(
-                            context,
-                            context.getString(if (enabled) R.string.secret_2fa_gate_enabled_toast else R.string.secret_2fa_gate_disabled_toast),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-            HorizontalDividerLite()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.secret_new_device_risk_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.secret_new_device_risk_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-                Switch(
-                    checked = secretNewDeviceRiskEnabled,
-                    onCheckedChange = { enabled ->
-                        com.maodouchat.util.SecretNewDeviceRiskPrefs.setEnabled(context, enabled)
-                        secretNewDeviceRiskEnabled = enabled
-                        Toast.makeText(
-                            context,
-                            context.getString(if (enabled) R.string.secret_new_device_risk_enabled_toast else R.string.secret_new_device_risk_disabled_toast),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-            HorizontalDividerLite()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.secret_device_verify_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.secret_device_verify_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-                Switch(
-                    checked = secretDeviceVerifyEnabled,
-                    onCheckedChange = { enabled ->
-                        com.maodouchat.util.SecretDeviceVerifyPrefs.setEnabled(context, enabled)
-                        secretDeviceVerifyEnabled = enabled
-                        Toast.makeText(
-                            context,
-                            context.getString(if (enabled) R.string.secret_device_verify_enabled_toast else R.string.secret_device_verify_disabled_toast),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-            HorizontalDividerLite()
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.secret_session_notice_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.secret_session_notice_subtitle), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                }
-                Switch(
-                    checked = secretSessionNoticeEnabled,
-                    onCheckedChange = { enabled ->
-                        com.maodouchat.util.SecretSessionNoticePrefs.setEnabled(context, enabled)
-                        secretSessionNoticeEnabled = enabled
-                        Toast.makeText(
-                            context,
-                            context.getString(if (enabled) R.string.secret_session_notice_enabled_toast else R.string.secret_session_notice_disabled_toast),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
-            }
-        }
-        }
+        // 2026-10-19：B2 密聊安全分区抽出 AccountSecuritySecretSection（纯搬移；if (false) 禁用块原样保留）。
+        AccountSecuritySecretSection(userId = state.userId)
 
         // G125：TOTP 2FA 区（261 行）抽到 SettingsTotpSection.kt，纯搬移不改判断。
         SettingsTotpSection(userId = state.userId)

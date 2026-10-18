@@ -626,7 +626,12 @@ class ClientArchitectureTest {
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
         // 2026-10-17：尾部对话框簇抽出 AccountSecurityDialogs（868 → 737 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 737,
+        // 2026-10-19：应用锁分区抽出 AccountSecurityAppLockSection、B2 密聊安全分区抽出
+        // AccountSecuritySecretSection（737 → 346 纯搬移+14 闲置 import；appLockEnabled 留母文件走参数；
+        // 新文件 234/252 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
+        // 2026-10-19：修 lint（LocalContextGetResourceValueCall 注解随分区代码迁入新文件；
+        // 母文件残留的注解+import 删掉），346 → 344，上限同步收紧。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 344,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
@@ -648,6 +653,9 @@ class ClientArchitectureTest {
         // 滑入前 20 的 GroupPlayClassicDelegates（605）早已纳管），上限同步收紧。
         // 2026-10-16：BallState 提顶层加 1 行 import、删模板 KDoc 4 行（124 → 121），上限同步收紧（两处）。
         "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 121,
+        // 2026-10-19：SettingsAccountSecurityScreen 拆小（737 → 346）掉出前 20，
+        // ApiService（461 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
+        "com/maodouchat/network/ApiService.kt" to 461,
     )
 
     @Test
@@ -866,7 +874,12 @@ class ClientArchitectureTest {
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
         // 2026-10-17：尾部对话框簇抽出 AccountSecurityDialogs（868 → 737 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 737,
+        // 2026-10-19：应用锁分区抽出 AccountSecurityAppLockSection、B2 密聊安全分区抽出
+        // AccountSecuritySecretSection（737 → 346 纯搬移+14 闲置 import；appLockEnabled 留母文件走参数；
+        // 新文件 234/252 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
+        // 2026-10-19：修 lint（LocalContextGetResourceValueCall 注解随分区代码迁入新文件；
+        // 母文件残留的注解+import 删掉），346 → 344，上限同步收紧。
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 344,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
@@ -888,6 +901,9 @@ class ClientArchitectureTest {
         // 滑入前 20 的 GroupPlayClassicDelegates（605）早已纳管），上限同步收紧。
         // 2026-10-16：BallState 提顶层加 1 行 import、删模板 KDoc 4 行（124 → 121），上限同步收紧（两处）。
         "com/maodouchat/ui/screen/ai/MaodouAgentScreen.kt" to 121,
+        // 2026-10-19：SettingsAccountSecurityScreen 拆小（737 → 346）掉出前 20，
+        // ApiService（461 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
+        "com/maodouchat/network/ApiService.kt" to 461,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
