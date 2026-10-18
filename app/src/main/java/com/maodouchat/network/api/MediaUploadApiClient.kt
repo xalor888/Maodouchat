@@ -1,6 +1,5 @@
 package com.maodouchat.network.api
 
-import com.maodouchat.util.toHexString
 import com.maodouchat.network.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -11,8 +10,6 @@ import kotlinx.serialization.builtins.serializer
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
-import java.io.RandomAccessFile
-import java.security.MessageDigest
 
 internal object MediaUploadApiClient : MediaUploadApi {
 private val json get() = ApiService.json
@@ -44,9 +41,7 @@ override suspend fun uploadEncryptedAttachment(
         while (!status.complete) {
             currentCoroutineContext().ensureActive()
             val offset = status.uploadedBytes
-            // 服务端 DB 进度可能滞后于文件写入（appendChunk 与进度更新乱序）：offset==total
-            // 时重新拉取状态自愈（服务端 reconcile 会补齐 UPLOADED），不得当作非法偏移失败；
-            // 但自愈轮询设上限，避免服务端异常时忙等
+            // 服务端进度可能滞后于文件写入：offset==total 时重拉状态自愈，上限 3 次
             if (offset >= total) {
                 var revalidated: AttachmentUploadStatusResponse? = null
                 for (i in 0 until 3) {
@@ -89,10 +84,7 @@ override suspend fun uploadEncryptedAttachment(
                 if (chunkResult.isSuccess) {
                     status = chunkResult.getOrThrow()
                     validateAttachmentUploadStatus(status, cipherSha256, total)
-                    // 8.33 修复：服务端按 messageId 幂等可能替换上传会话（verify 路径有
-                    // 410 attachment_session_replaced 语义）。此前 require 抛 IllegalArgumentException
-                    // 被兜底归为不可重试，传输被永久标记失败。改为重新锚定新会话继续上传
-                    // （新会话 uploadedBytes 通常归零，从 0 续传，正确性不受影响）。
+                    // 服务端可能按 messageId 幂等替换上传会话：重新锚定新会话 id 继续传
                     if (status.id != attachmentId) attachmentId = status.id
                     advanced = status.uploadedBytes > offset || status.complete
                     if (advanced) break
@@ -253,28 +245,4 @@ override suspend fun deleteUncommittedAttachment(token: String, attachmentId: St
             .delete()
             .build()
     )
-}
-
-internal fun File.sha256Hex(): String = sha256Hex(0L, length())
-
-// MessageDigest 非线程安全，ThreadLocal 每线程复用一个；异常路径走不到 digest()，取用前先 reset。
-internal val mediaApiSha256Digest: ThreadLocal<MessageDigest> =
-    ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
-
-internal fun File.sha256Hex(offset: Long, length: Long): String {
-    require(offset >= 0L && length >= 0L && offset + length <= this.length())
-    val digest = mediaApiSha256Digest.get().also { it.reset() }
-    RandomAccessFile(this, "r").use { input ->
-        input.seek(offset)
-        var remaining = length
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        while (remaining > 0L) {
-            val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
-            if (read < 0) break
-            digest.update(buffer, 0, read)
-            remaining -= read
-        }
-        require(remaining == 0L) { "attachment_source_changed" }
-    }
-    return digest.digest().toHexString()
 }
