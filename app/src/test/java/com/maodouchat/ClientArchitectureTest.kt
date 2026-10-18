@@ -377,7 +377,8 @@ class ClientArchitectureTest {
         // 2026-10-18：rebase 合入 #830 后，4 组副作用簇（信息/导航/截屏防护）抽出 3 个同包文件（843 → 705 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：3 组副作用簇（密聊生命周期/滚动与加载/消息到达）抽出 3 个同包文件（705 → 639 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：2 组剩余副作用簇（会话加密占用 LaunchedEffect+ON_RESUME、密聊/PIN 锁 FLAG_SECURE）抽出 2 个同包文件（639 → 560 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 560,
+        // 2026-10-18：AI-surface 降级 LaunchedEffect 抽出 ChatDetailAiSurfaceEffects（560 → 555 纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 555,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -655,7 +656,8 @@ class ClientArchitectureTest {
             // 2026-10-18：rebase 合入 #830 后，4 组副作用簇（信息/导航/截屏防护）抽出 3 个同包文件（843 → 705 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：3 组副作用簇（密聊生命周期/滚动与加载/消息到达）抽出 3 个同包文件（705 → 639 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：2 组剩余副作用簇（会话加密占用 LaunchedEffect+ON_RESUME、密聊/PIN 锁 FLAG_SECURE）抽出 2 个同包文件（639 → 560 纯搬移），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 560,
+            // 2026-10-18：AI-surface 降级 LaunchedEffect 抽出 ChatDetailAiSurfaceEffects（560 → 555 纯搬移），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 555,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。
