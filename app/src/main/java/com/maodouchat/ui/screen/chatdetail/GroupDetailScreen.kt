@@ -17,12 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,8 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,9 +33,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -51,24 +42,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
-import com.maodouchat.ui.screen.chatdetail.group.BotPickerDialog
 import com.maodouchat.ui.screen.chatdetail.group.CandidateRow
 import com.maodouchat.ui.screen.chatdetail.group.CollapsibleGroupSearchField
 import com.maodouchat.ui.screen.chatdetail.group.EmptyRow
 import com.maodouchat.ui.screen.chatdetail.group.GroupAuditRow
-import com.maodouchat.ui.screen.chatdetail.group.GroupAvatarPreview
 import com.maodouchat.ui.screen.chatdetail.group.GroupDetailFeedbackDialog
 import com.maodouchat.ui.screen.chatdetail.group.GroupSenderKeyStatusSection
 import com.maodouchat.ui.screen.chatdetail.group.MemberRow
-import com.maodouchat.ui.screen.chatdetail.group.MuteAllConfirmDialog
-import com.maodouchat.ui.screen.chatdetail.group.MuteMemberDialog
-import com.maodouchat.ui.screen.chatdetail.group.RemoveMemberDialog
 import com.maodouchat.ui.screen.chatdetail.group.SearchableSectionHeader
-import com.maodouchat.ui.screen.chatdetail.group.SetTitleDialog
-import com.maodouchat.ui.screen.chatdetail.group.TransferOwnershipDialog
 import com.maodouchat.ui.theme.LocalChatPalette
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @SuppressLint("HardwareIds")
 fun GroupDetailScreen(
@@ -138,126 +121,11 @@ fun GroupDetailScreen(
     ) {
         GroupDetailFeedbackDialog(state, viewModel)
 
-        titleTarget?.let { member ->
-            SetTitleDialog(
-                member = member,
-                onDismiss = { titleTarget = null },
-                onSave = { newTitle ->
-                    viewModel.updateTitle(member.userId, newTitle)
-                    titleTarget = null
-                }
-            )
-        }
-
-        removeTarget?.let { member ->
-            RemoveMemberDialog(
-                member = member,
-                onDismiss = { removeTarget = null },
-                onConfirm = {
-                    viewModel.removeMember(member.userId)
-                    removeTarget = null
-                }
-            )
-        }
-
-        ownershipTarget?.let { member ->
-            TransferOwnershipDialog(
-                member = member,
-                onDismiss = { ownershipTarget = null },
-                onConfirm = {
-                    viewModel.transferOwnership(member.userId)
-                    ownershipTarget = null
-                }
-            )
-        }
-
-        muteTarget?.let { member ->
-            MuteMemberDialog(
-                member = member,
-                onDismiss = { muteTarget = null },
-                onMuteUntil = { mutedUntil ->
-                    viewModel.updateMemberMute(member.userId, mutedUntil)
-                    muteTarget = null
-                }
-            )
-        }
-
-        if (showMuteAllConfirm) {
-            MuteAllConfirmDialog(
-                onDismiss = { showMuteAllConfirm = false },
-                onClearMuteAll = {
-                    showMuteAllConfirm = false
-                    viewModel.muteAllMembers(0L)
-                },
-                onMuteAll24h = {
-                    showMuteAllConfirm = false
-                    viewModel.muteAllMembers(System.currentTimeMillis() + 24L * 3600_000L)
-                }
-            )
-        }
-
-        if (showAvatarFull && !state.groupAvatar.isNullOrBlank()) {
-            GroupAvatarPreview(
-                avatarUrl = state.groupAvatar.orEmpty(),
-                groupName = state.groupName,
-                onDismiss = { showAvatarFull = false }
-            )
-        }
-
-        if (showBotPicker) {
-            BotPickerDialog(
-                ownedBots = state.ownedBots,
-                isInvitingBot = state.isInvitingBot,
-                onDismiss = { showBotPicker = false },
-                onInviteBot = { botId ->
-                    showBotPicker = false
-                    viewModel.inviteOwnedBot(botId)
-                }
-            )
-        }
+        GroupDetailDialogHost(interaction, state, viewModel)
 
         Scaffold(
             containerColor = LocalChatPalette.current.chatBackground,
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            stringResource(if (state.isChannel) R.string.chat_detail_channel_header else R.string.group_detail_title),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.semantics { heading() }
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = MaterialTheme.colorScheme.primary)
-                        }
-                    },
-                    actions = {
-                        IconButton(
-                            onClick = { onEditGroup(chatId) },
-                            enabled = !state.isLoading
-                        ) {
-                            Icon(
-                                Icons.Outlined.Edit,
-                                contentDescription = stringResource(R.string.group_detail_edit),
-                                tint = if (state.isLoading) LocalChatPalette.current.textHint else MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        IconButton(
-                            onClick = { onOpenGroupInvite(chatId) },
-                            enabled = state.canManageGroup && !state.isLoadingInvite
-                        ) {
-                            Icon(
-                                Icons.Outlined.QrCode,
-                                contentDescription = stringResource(R.string.group_detail_invite_qr),
-                                tint = if (state.canManageGroup) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.shadow(1.dp)
-                )
-            }
+            topBar = { GroupDetailTopBar(state, chatId, onBack, onEditGroup, onOpenGroupInvite) },
         ) { padding ->
             if (state.isLoading) {
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
