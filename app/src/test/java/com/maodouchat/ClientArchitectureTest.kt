@@ -390,7 +390,9 @@ class ClientArchitectureTest {
         // 2026-10-18：3 个裸 remember 下沉为 remember* 接线（消息操作弹层 + 密聊门禁 + AI 结果 3 持有类，434 → 433 纯搬移+纯删行），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：Route 内联发信人名字解析提为顶层 resolveChatDetailSenderName（进 ChatDetailScreenHelpers，3 调用点显式传参，另删 1 闲置 Message import，433 → 421 纯搬移+纯删行），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：Route 零散持有量收敛到唯一使用点（configuration/headerStatus/secretPagePayload/particleLauncher 4 个单使用点内联，413 → 408 纯内联无行为改动），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 408,
+        // 2026-10-18：路由组装层抽出 ChatDetailGateScreen（门禁路由）/ ChatDetailContentPane（主内容组装）
+        //（408 → 262 纯搬移+14 随迁闲置 import），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 262,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -688,7 +690,9 @@ class ClientArchitectureTest {
         // 2026-10-18：3 个裸 remember 下沉为 remember* 接线（消息操作弹层 + 密聊门禁 + AI 结果 3 持有类，434 → 433 纯搬移+纯删行），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：Route 内联发信人名字解析提为顶层 resolveChatDetailSenderName（进 ChatDetailScreenHelpers，3 调用点显式传参，另删 1 闲置 Message import，433 → 421 纯搬移+纯删行），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：Route 零散持有量收敛到唯一使用点（configuration/headerStatus/secretPagePayload/particleLauncher 4 个单使用点内联，413 → 408 纯内联无行为改动），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 408,
+        // 2026-10-18：路由组装层抽出 ChatDetailGateScreen（门禁路由）/ ChatDetailContentPane（主内容组装）
+        //（408 → 262 纯搬移+14 随迁闲置 import），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 262,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。
