@@ -15,7 +15,6 @@ import com.maodouchat.attachment.RoomTransferRepository
 import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
@@ -41,8 +40,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.serialization.json.Json
 
 /**
  * 聊天详情页的**装配**（G328c 从 `ChatDetailViewModel` 搬出，纯搬移不改判断）。
@@ -319,44 +316,12 @@ internal class ChatDetailDeps(
     }
     /** Senders that already got one ensureSessions this chat open (history must not storm). */
     internal val aiMessageResultStore = AiMessageResultStore(com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
-    internal val readSeenMessages = SeenSet()
-    internal var pendingReadWatermarkMessageId: String? = null
-    internal var lastMessagesSeen: List<Pair<String, MessageStatus>>? = null
-    internal var markReadJob: kotlinx.coroutines.Job? = null
-    internal var pendingAiAction: PendingAiAction? = null
-    internal var pendingAiOperationRetryId: String? = null
-    internal var aiSettingsLoaded = false
-    internal var unreadSummaryAttemptedForKey: String? = null
-    /** In-flight auto unread summary key; prevents concurrent duplicate summarizeChat calls. */
-    internal var unreadSummaryInFlightKey: String? = null
-    internal val semanticSearchGate = AiRequestGenerationGate()
+    internal val readReceiptBookkeeping = ChatDetailReadReceiptBookkeeping()
+    internal val aiBookkeeping = ChatDetailAiBookkeeping()
+    internal val liveLocationBookkeeping = ChatDetailLiveLocationBookkeeping()
+    internal val draftBookkeeping = ChatDetailDraftBookkeeping()
     internal val attachmentPreparationJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-    internal val aiOperationJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-    internal val aiAutoRetryJobs = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.Job>()
-    internal val aiAutoRetryAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
-    internal val aiOperationQueueMutex = Mutex()
-    internal val aiOperationJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    internal var aiRewriteStreamJob: kotlinx.coroutines.Job? = null
-    internal var aiReplyStreamJob: kotlinx.coroutines.Job? = null
-    internal var semanticSearchJob: kotlinx.coroutines.Job? = null
-    internal var groupAiJob: kotlinx.coroutines.Job? = null
-    internal var manualSummaryJob: kotlinx.coroutines.Job? = null
-    internal var unreadSummaryJob: kotlinx.coroutines.Job? = null
-    internal val aiRewriteGate = AiRequestGenerationGate()
-    internal val aiReplyGate = AiRequestGenerationGate()
-    internal val groupAiGate = AiRequestGenerationGate()
-    internal val manualSummaryGate = AiRequestGenerationGate()
-    internal var lastAiRewriteMode = "polish"
-    internal var lastAiRewriteTargetLanguage: String? = null
-    internal var lastAiReplyTone: String = "friendly"
-    internal var liveLocationJob: kotlinx.coroutines.Job? = null
-    internal var liveLocationCancel: (() -> Unit)? = null
-    internal val liveLocationUpdateMutex = Mutex()
     internal val inlineSendCompletions = java.util.concurrent.ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
-    @Volatile internal var lastLiveLocationPayload: com.maodouchat.data.model.LocationPayload? = null
-    internal var draftSaveJob: kotlinx.coroutines.Job? = null
-    /** Bumped on every schedule/clear so a late persist cannot resurrect a cleared draft. */
-    internal var draftGeneration = 0L
     internal val timelineStateController = ChatTimelineStateController(::mergeMessageVersions)
     internal val searchSelectionStateController = ChatSearchSelectionStateController()
     internal val groupSecurityStateController = ChatGroupSecurityStateController()
@@ -606,8 +571,8 @@ internal class ChatDetailDeps(
         aiMessageResultStore = aiMessageResultStore,
         aiSummaryRepo = aiSummaryRepo,
         aiTaskRepo = aiTaskRepo,
-        aiAutoRetryJobs = aiAutoRetryJobs,
-        aiAutoRetryAt = aiAutoRetryAt,
+        aiAutoRetryJobs = aiBookkeeping.aiAutoRetryJobs,
+        aiAutoRetryAt = aiBookkeeping.aiAutoRetryAt,
     )
     // G384：`observeAttachmentFinalizedEvents()`/`observeAttachmentTransfers()` 附件观察一族抽到
     // ChatAttachmentObservationController——VM 侧只留同签名委托。
@@ -642,12 +607,12 @@ internal class ChatDetailDeps(
         activeChatId = { host.activeChatId },
         chatId = host.chatId,
         updateState = { transform -> host._uiState.update(transform) },
-        getLastMessagesSeen = { lastMessagesSeen },
-        setLastMessagesSeen = { lastMessagesSeen = it },
-        readSeenMessages = readSeenMessages,
-        setPendingReadWatermarkMessageId = { pendingReadWatermarkMessageId = it },
-        getMarkReadJob = { markReadJob },
-        setMarkReadJob = { markReadJob = it },
+        getLastMessagesSeen = { readReceiptBookkeeping.lastMessagesSeen },
+        setLastMessagesSeen = { readReceiptBookkeeping.lastMessagesSeen = it },
+        readSeenMessages = readReceiptBookkeeping.readSeenMessages,
+        setPendingReadWatermarkMessageId = { readReceiptBookkeeping.pendingReadWatermarkMessageId = it },
+        getMarkReadJob = { readReceiptBookkeeping.markReadJob },
+        setMarkReadJob = { readReceiptBookkeeping.markReadJob = it },
         armSecretDisappearing = host::armSecretDisappearing,
     )
     // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
@@ -660,20 +625,20 @@ internal class ChatDetailDeps(
         text = { id -> host.text(id) },
         conversationLocalStateCoordinator = conversationLocalStateCoordinator,
         realtimeController = realtimeController,
-        semanticSearchGate = semanticSearchGate,
-        aiRewriteGate = aiRewriteGate,
-        aiReplyGate = aiReplyGate,
-        groupAiGate = groupAiGate,
-        manualSummaryGate = manualSummaryGate,
-        semanticSearchJob = { semanticSearchJob },
-        aiRewriteStreamJob = { aiRewriteStreamJob },
-        aiReplyStreamJob = { aiReplyStreamJob },
-        groupAiJob = { groupAiJob },
-        manualSummaryJob = { manualSummaryJob },
-        unreadSummaryJob = { unreadSummaryJob },
-        aiOperationJobs = aiOperationJobs,
-        aiAutoRetryJobs = aiAutoRetryJobs,
-        aiAutoRetryAt = aiAutoRetryAt,
+        semanticSearchGate = aiBookkeeping.semanticSearchGate,
+        aiRewriteGate = aiBookkeeping.aiRewriteGate,
+        aiReplyGate = aiBookkeeping.aiReplyGate,
+        groupAiGate = aiBookkeeping.groupAiGate,
+        manualSummaryGate = aiBookkeeping.manualSummaryGate,
+        semanticSearchJob = { aiBookkeeping.semanticSearchJob },
+        aiRewriteStreamJob = { aiBookkeeping.aiRewriteStreamJob },
+        aiReplyStreamJob = { aiBookkeeping.aiReplyStreamJob },
+        groupAiJob = { aiBookkeeping.groupAiJob },
+        manualSummaryJob = { aiBookkeeping.manualSummaryJob },
+        unreadSummaryJob = { aiBookkeeping.unreadSummaryJob },
+        aiOperationJobs = aiBookkeeping.aiOperationJobs,
+        aiAutoRetryJobs = aiBookkeeping.aiAutoRetryJobs,
+        aiAutoRetryAt = aiBookkeeping.aiAutoRetryAt,
         groupMessagingCoordinator = groupMessagingCoordinator,
         reloadChat = host::loadChat,
         refreshMyMemberRole = host::refreshMyMemberRole,
@@ -778,14 +743,14 @@ internal class ChatDetailDeps(
         stopLiveLocationSharing = host::stopLiveLocationSharing,
         stopRecordingMeter = host::stopRecordingMeter,
         cancelAiAutoRetryJobs = {
-            aiAutoRetryJobs.values.forEach { it.cancel() }
-            aiAutoRetryJobs.clear()
-            aiAutoRetryAt.clear()
+            aiBookkeeping.aiAutoRetryJobs.values.forEach { it.cancel() }
+            aiBookkeeping.aiAutoRetryJobs.clear()
+            aiBookkeeping.aiAutoRetryAt.clear()
         },
-        cancelDraftSaveJob = { draftSaveJob?.cancel(); draftSaveJob = null },
-        clearReadSeen = { readSeenMessages.clearAll() },
-        takePendingReadWatermark = { pendingReadWatermarkMessageId.also { pendingReadWatermarkMessageId = null } },
-        cancelMarkReadJob = { markReadJob?.cancel(); markReadJob = null },
+        cancelDraftSaveJob = { draftBookkeeping.draftSaveJob?.cancel(); draftBookkeeping.draftSaveJob = null },
+        clearReadSeen = { readReceiptBookkeeping.readSeenMessages.clearAll() },
+        takePendingReadWatermark = { readReceiptBookkeeping.pendingReadWatermarkMessageId.also { readReceiptBookkeeping.pendingReadWatermarkMessageId = null } },
+        cancelMarkReadJob = { readReceiptBookkeeping.markReadJob?.cancel(); readReceiptBookkeeping.markReadJob = null },
         persistDraft = { ownerUserId, chatId, text ->
             if (text.isBlank()) {
                 chatDraftDao.delete(ownerUserId, chatId)
