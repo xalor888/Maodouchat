@@ -502,7 +502,7 @@ class ClientArchitectureTest {
         //（437 → 435，VM 只剩接线与公开 intent 委托），两处同步收紧。
         "com/maodouchat/ui/screen/call/CallViewModel.kt" to 435,
                 // 2026-10-19：LikersDialog 抽出同包 ExploreLikersDialog（590 → 532 纯搬移），上限同步收紧（两份 map 一起改）。
-"com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 532,
+"com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 421,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
         // 1100+ 行源文件全部在监。
@@ -555,6 +555,7 @@ class ClientArchitectureTest {
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
                 // 2026-10-19：尾部两对话框抽出同包 ExplorePostDetailDialogs（671 → 621，状态走参数+回调），上限同步收紧（两份 map 一起改）。
                 // 2026-10-19：评论行抽出同包 PostDetailCommentRow（621 → 488，状态走参数+回调），上限同步收紧（两份 map 一起改）。
+                // 2026-10-19：头部搜索筛选簇 + 尾部对话框簇抽出同包 ExploreFeedHeader/ExploreFeedDialogs（532 → 421，状态走参数+回调），上限同步收紧（两份 map 一起改）。
 "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 488,
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
         // 评论框字段三助手）抽出同包 ExploreCommentController（1010 → 702，纯搬移；
@@ -769,7 +770,7 @@ class ClientArchitectureTest {
             //（437 → 435，VM 只剩接线与公开 intent 委托）。
             "com/maodouchat/ui/screen/call/CallViewModel.kt" to 435,
                     // 2026-10-19：LikersDialog 抽出同包 ExploreLikersDialog（590 → 532 纯搬移），上限同步收紧（两份 map 一起改）。
-"com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 532,
+"com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 421,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
             // 1100+ 行源文件全部在监。
@@ -819,6 +820,7 @@ class ClientArchitectureTest {
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
                 // 2026-10-19：尾部两对话框抽出同包 ExplorePostDetailDialogs（671 → 621，状态走参数+回调），上限同步收紧（两份 map 一起改）。
                 // 2026-10-19：评论行抽出同包 PostDetailCommentRow（621 → 488，状态走参数+回调），上限同步收紧（两份 map 一起改）。
+                // 2026-10-19：头部搜索筛选簇 + 尾部对话框簇抽出同包 ExploreFeedHeader/ExploreFeedDialogs（532 → 421，状态走参数+回调），上限同步收紧（两份 map 一起改）。
 "com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 488,
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
         // 评论框字段三助手）抽出同包 ExploreCommentController（1010 → 702，纯搬移；
