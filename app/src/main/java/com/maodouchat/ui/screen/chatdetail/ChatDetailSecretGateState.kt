@@ -1,7 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 /**
@@ -45,3 +47,8 @@ internal class ChatDetailSecretGateState {
         deviceRiskLocked = false
     }
 }
+
+// Route 里裸写 `remember { ChatDetailSecretGateState() }` 的接线下沉：调用点和顺序都不动，槽位语义逐字等价。
+@Composable
+internal fun rememberChatDetailSecretGateState(): ChatDetailSecretGateState =
+    remember { ChatDetailSecretGateState() }

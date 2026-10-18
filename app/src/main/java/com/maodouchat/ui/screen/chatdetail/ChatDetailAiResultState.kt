@@ -1,7 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.maodouchat.ai.ConversationProfile
 import com.maodouchat.ai.WeeklyReport
@@ -63,3 +65,8 @@ internal class ChatDetailAiResultState {
         classifyFailed = false
     }
 }
+
+// Route 里裸写 `remember { ChatDetailAiResultState() }` 的接线下沉：调用点和顺序都不动，槽位语义逐字等价。
+@Composable
+internal fun rememberChatDetailAiResultState(): ChatDetailAiResultState =
+    remember { ChatDetailAiResultState() }

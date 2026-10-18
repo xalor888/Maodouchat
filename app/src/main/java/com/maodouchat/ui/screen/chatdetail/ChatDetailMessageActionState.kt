@@ -1,7 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.maodouchat.data.model.Message
 
@@ -66,3 +68,8 @@ internal class ChatDetailMessageActionState {
     /** AI 文件问答（问题文本在 Route 的 `fileQuestionDraft`，那是 saveable）。 */
     var fileQuestionMessage by mutableStateOf<Message?>(null)
 }
+
+// Route 里裸写 `remember { ChatDetailMessageActionState() }` 的接线下沉：调用点和顺序都不动，槽位语义逐字等价。
+@Composable
+internal fun rememberChatDetailMessageActionState(): ChatDetailMessageActionState =
+    remember { ChatDetailMessageActionState() }
