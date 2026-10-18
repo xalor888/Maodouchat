@@ -87,9 +87,11 @@ class RouteRegistrySplitTest {
             "WebRtcBinaryRoutes.kt",
         ).joinToString("\n") { source(it) }
         val profile = source("PublicProfileRouting.kt")
-
-        assertTrue("configurePublicUpdateRoutes(cacheService)" in registry)
-        assertTrue("configurePublicProfileRoutes(" in registry)
+        // 公开更新/主页经装配层委托：Routing.kt 只调 configureAuthRoutes，内层调用收在装配文件里。
+        val authAssembly = source("AuthRoutesAssembly.kt")
+        assertTrue("configureAuthRoutes(" in registry)
+        assertTrue("configurePublicUpdateRoutes(cacheService)" in authAssembly)
+        assertTrue("configurePublicProfileRoutes(" in authAssembly)
         listOf(
             "/api/public/updates",
             "/api/public/app-update/latest.apk",
@@ -114,6 +116,8 @@ class RouteRegistrySplitTest {
         // Bot/群管理路由经两层委托：Routing.kt 只调装配入口，内层各族调用收在装配文件里。
         val botAssembly = source("BotRoutesAssembly.kt")
         val groupAdminAssembly = source("GroupAdminRoutesAssembly.kt")
+        // 认证四组经装配层委托：Routing.kt 只调 configureAuthRoutes，内层各族调用收在装配文件里。
+        val authRoutesAssembly = source("AuthRoutesAssembly.kt")
         val modules = listOf(
             source("AuthAccountRoutes.kt"),
             source("AuthLoginRoutes.kt"),
@@ -176,8 +180,7 @@ class RouteRegistrySplitTest {
         )
 
         listOf(
-            "configureAuthAccountRoutes(",
-            "configureAuthLoginRoutes(",
+            "configureAuthRoutes(",
             "configureAuthSessionRoutes(",
             "configureAccountRoutes(",
             "configureAttachmentRoutes(",
@@ -212,6 +215,12 @@ class RouteRegistrySplitTest {
             "configureGroupAdminProfileRoutes(",
             "configureGroupAdminAuditRoutes(",
         ).forEach { registration -> assertTrue(registration in groupAdminAssembly, registration) }
+        listOf(
+            "configurePublicUpdateRoutes(",
+            "configurePublicProfileRoutes(",
+            "configureAuthAccountRoutes(",
+            "configureAuthLoginRoutes(",
+        ).forEach { registration -> assertTrue(registration in authRoutesAssembly, registration) }
 
         listOf(
             "/api/auth/login",

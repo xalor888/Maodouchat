@@ -294,27 +294,16 @@ fun Application.configureRouting(
         )
 
         // Authentication and public identity routes.
-        configurePublicUpdateRoutes(cacheService)
-        configurePublicProfileRoutes(
-            userRepository = userRepo,
+        configureAuthRoutes(
             cacheService = cacheService,
-            rateLimiter = publicProfileRateLimiter,
-        )
-        configureAuthAccountRoutes(
-            userRepo = userRepo,
-            authTokenRepo = authTokenRepo,
-            loginIpRateLimiter = loginIpRateLimiter,
-            loginEmailRateLimiter = loginEmailRateLimiter,
-            sendCodeRateLimiter = sendCodeRateLimiter,
-            sendCodeIpRateLimiter = sendCodeIpRateLimiter,
-            sessionService = sessionService,
-        )
-        configureAuthLoginRoutes(
             userRepo = userRepo,
             authTokenRepo = authTokenRepo,
             pushTokenRepo = pushTokenRepo,
             loginIpRateLimiter = loginIpRateLimiter,
             loginEmailRateLimiter = loginEmailRateLimiter,
+            sendCodeRateLimiter = sendCodeRateLimiter,
+            sendCodeIpRateLimiter = sendCodeIpRateLimiter,
+            publicProfileRateLimiter = publicProfileRateLimiter,
             loginGate = loginGate,
             sessionService = sessionService,
         )
