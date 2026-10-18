@@ -18,16 +18,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.Campaign
-import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.QrCode
-import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -35,17 +28,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,44 +55,18 @@ import com.maodouchat.ui.screen.chatdetail.group.BotPickerDialog
 import com.maodouchat.ui.screen.chatdetail.group.CandidateRow
 import com.maodouchat.ui.screen.chatdetail.group.CollapsibleGroupSearchField
 import com.maodouchat.ui.screen.chatdetail.group.EmptyRow
-import com.maodouchat.ui.screen.chatdetail.group.GroupAnnouncementCard
 import com.maodouchat.ui.screen.chatdetail.group.GroupAuditRow
 import com.maodouchat.ui.screen.chatdetail.group.GroupAvatarPreview
 import com.maodouchat.ui.screen.chatdetail.group.GroupDetailFeedbackDialog
-import com.maodouchat.ui.screen.chatdetail.group.GroupFeatureAction
-import com.maodouchat.ui.screen.chatdetail.group.GroupFeaturesCard
-import com.maodouchat.ui.screen.chatdetail.group.GroupHeader
 import com.maodouchat.ui.screen.chatdetail.group.GroupSenderKeyStatusSection
 import com.maodouchat.ui.screen.chatdetail.group.MemberRow
 import com.maodouchat.ui.screen.chatdetail.group.MuteAllConfirmDialog
 import com.maodouchat.ui.screen.chatdetail.group.MuteMemberDialog
 import com.maodouchat.ui.screen.chatdetail.group.RemoveMemberDialog
 import com.maodouchat.ui.screen.chatdetail.group.SearchableSectionHeader
-import com.maodouchat.ui.screen.chatdetail.group.SectionTitle
 import com.maodouchat.ui.screen.chatdetail.group.SetTitleDialog
 import com.maodouchat.ui.screen.chatdetail.group.TransferOwnershipDialog
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.group.GroupMemberUi
-
-private enum class GroupDetailTab(val mediaCategory: MediaCenterCategory? = null) {
-    MEMBERS,
-    AUDIT,
-    MEDIA(MediaCenterCategory.MEDIA),
-    FILES(MediaCenterCategory.FILES),
-    VOICE(MediaCenterCategory.VOICE),
-    LOCATION(MediaCenterCategory.LOCATION),
-    LINKS(MediaCenterCategory.LINKS),
-}
-
-private fun GroupDetailTab.labelResource(): Int = when (this) {
-    GroupDetailTab.MEMBERS -> R.string.chat_group_member
-    GroupDetailTab.AUDIT -> R.string.group_detail_audit_title
-    GroupDetailTab.MEDIA -> R.string.media_center_media
-    GroupDetailTab.FILES -> R.string.media_center_files
-    GroupDetailTab.VOICE -> R.string.media_center_voice
-    GroupDetailTab.LOCATION -> R.string.media_center_location
-    GroupDetailTab.LINKS -> R.string.media_center_links
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,31 +89,25 @@ fun GroupDetailScreen(
     val mediaCenterState by mediaCenterViewModel.uiState.collectAsStateWithLifecycle()
     val chatId = viewModel.chatId
     var selectedTab by rememberSaveable { mutableStateOf(GroupDetailTab.MEMBERS) }
-    var titleTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
-    var removeTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
-    var muteTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
-    var showMuteAllConfirm by remember { mutableStateOf(false) }
-    var ownershipTarget by remember { mutableStateOf<GroupMemberUi?>(null) }
-    var showAvatarFull by remember { mutableStateOf(false) }
-    var showBotPicker by rememberSaveable { mutableStateOf(false) }
-    var memberSearch by rememberSaveable { mutableStateOf("") }
-    var memberSearchExpanded by rememberSaveable { mutableStateOf(false) }
-    var membersExpanded by rememberSaveable { mutableStateOf(false) }
-    var auditSearch by rememberSaveable { mutableStateOf("") }
-    var auditSearchExpanded by rememberSaveable { mutableStateOf(false) }
-    var auditExpanded by rememberSaveable { mutableStateOf(false) }
-    var candidateSearch by rememberSaveable { mutableStateOf("") }
-    var candidateSearchExpanded by rememberSaveable { mutableStateOf(false) }
-    var candidatesExpanded by rememberSaveable { mutableStateOf(false) }
+    // 对话框/搜索/展开交互状态簇收进持有类（见 GroupDetailInteractionState.kt），纯搬移不改判断。
+    val interaction = rememberGroupDetailInteractionState(state.members)
+    var titleTarget by interaction.titleTarget
+    var removeTarget by interaction.removeTarget
+    var muteTarget by interaction.muteTarget
+    var showMuteAllConfirm by interaction.showMuteAllConfirm
+    var ownershipTarget by interaction.ownershipTarget
+    var showAvatarFull by interaction.showAvatarFull
+    var showBotPicker by interaction.showBotPicker
+    var memberSearch by interaction.memberSearch
+    var memberSearchExpanded by interaction.memberSearchExpanded
+    var membersExpanded by interaction.membersExpanded
+    var auditSearch by interaction.auditSearch
+    var auditSearchExpanded by interaction.auditSearchExpanded
+    var auditExpanded by interaction.auditExpanded
+    var candidateSearch by interaction.candidateSearch
+    var candidateSearchExpanded by interaction.candidateSearchExpanded
+    var candidatesExpanded by interaction.candidatesExpanded
     val context = LocalContext.current
-
-    LaunchedEffect(state.members) {
-        val ids = state.members.mapTo(hashSetOf()) { it.userId }
-        if (titleTarget?.let { it.userId !in ids } == true) titleTarget = null
-        if (removeTarget?.let { it.userId !in ids } == true) removeTarget = null
-        if (muteTarget?.let { it.userId !in ids } == true) muteTarget = null
-        if (ownershipTarget?.let { it.userId !in ids } == true) ownershipTarget = null
-    }
 
     // 成员 / 审计 / 可添加联系人三条「过滤→分页」派生链收进持有类（见 GroupDetailSearchDerived.kt），纯搬移不改判断。
     val searchDerived = rememberGroupDetailSearchDerived(
@@ -164,78 +121,6 @@ fun GroupDetailScreen(
         candidateSearch = candidateSearch,
         candidatesExpanded = candidatesExpanded,
     )
-    val groupOverview: @Composable () -> Unit = {
-        GroupHeader(
-            groupName = state.groupName,
-            groupAvatar = state.groupAvatar,
-            memberCount = state.members.size,
-            myRole = state.myRole,
-            onShowAvatarFull = { showAvatarFull = true }
-        )
-        GroupAnnouncementCard(state.groupAnnouncement)
-        if (state.isChannel) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                Icon(
-                    Icons.Outlined.Campaign,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    if (state.canManageGroup) {
-                        pluralStringResource(
-                            R.plurals.chat_channel_member_count,
-                            state.members.size,
-                            state.members.size
-                        )
-                    } else {
-                        stringResource(R.string.chat_channel_subscriber_hint)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = LocalChatPalette.current.textSecondary,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-        SectionTitle(stringResource(R.string.group_detail_play))
-        GroupFeaturesCard(
-            actions = buildList {
-                add(GroupFeatureAction(stringResource(R.string.chat_group_ai_title), Icons.Outlined.AutoAwesome) { onOpenAgent() })
-                add(GroupFeatureAction(stringResource(R.string.group_play_poll), Icons.Outlined.Checklist) { onOpenGroupPoll(chatId) })
-                add(GroupFeatureAction(stringResource(R.string.group_play_checkin), Icons.Outlined.History) { onOpenGroupCheckin(chatId) })
-                add(GroupFeatureAction(stringResource(R.string.group_play_chain_title), Icons.Outlined.Link) { onOpenGroupChain(chatId) })
-                add(GroupFeatureAction(stringResource(R.string.group_play_pk_title), Icons.Outlined.SwapHoriz) { onOpenGroupPk(chatId) })
-                if (state.canManageGroup && !state.isChannel) {
-                    add(GroupFeatureAction(stringResource(R.string.group_play_invite_bot), Icons.Outlined.PersonAdd) { showBotPicker = true })
-                }
-            }
-        )
-    }
-
-    val groupTabs: @Composable () -> Unit = {
-        ScrollableTabRow(
-            selectedTabIndex = selectedTab.ordinal,
-            edgePadding = 8.dp,
-            containerColor = MaterialTheme.colorScheme.surface,
-            divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)) },
-        ) {
-            GroupDetailTab.entries.forEach { tab ->
-                Tab(
-                    selected = selectedTab == tab,
-                    onClick = { selectedTab = tab },
-                    text = { Text(stringResource(tab.labelResource()), maxLines = 1) },
-                )
-            }
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -383,8 +268,25 @@ fun GroupDetailScreen(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    item(key = "group_overview", contentType = "group_overview") { groupOverview() }
-                    item(key = "group_tabs", contentType = "group_tabs") { groupTabs() }
+                    item(key = "group_overview", contentType = "group_overview") {
+                        GroupDetailOverview(
+                            state = state,
+                            chatId = chatId,
+                            onShowAvatarFull = { showAvatarFull = true },
+                            onShowBotPicker = { showBotPicker = true },
+                            onOpenAgent = onOpenAgent,
+                            onOpenGroupPoll = onOpenGroupPoll,
+                            onOpenGroupCheckin = onOpenGroupCheckin,
+                            onOpenGroupChain = onOpenGroupChain,
+                            onOpenGroupPk = onOpenGroupPk,
+                        )
+                    }
+                    item(key = "group_tabs", contentType = "group_tabs") {
+                        GroupDetailTabs(
+                            selectedTab = selectedTab,
+                            onSelectTab = { selectedTab = it },
+                        )
+                    }
                     when (selectedTab) {
                         GroupDetailTab.MEMBERS -> {
                             item(key = "sender_key_status", contentType = "sender_key_status") {
