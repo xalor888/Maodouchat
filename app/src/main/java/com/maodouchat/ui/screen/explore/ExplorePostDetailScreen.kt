@@ -37,7 +37,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -589,82 +588,33 @@ fun PostDetailScreen(
 
     // 1.247：评论长按操作菜单
     commentMenuFor?.let { target ->
-        val isOwn = target.author.id == currentUserId
-        AlertDialog(
-            onDismissRequest = { commentMenuFor = null },
-            title = { Text(stringResource(R.string.explore_comment_actions), style = MaterialTheme.typography.titleMedium) },
-            text = {
-                Column {
-                    TextButton(onClick = { viewModel.setReplyToComment(target); commentMenuFor = null }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.explore_comment_reply), modifier = Modifier.fillMaxWidth())
-                    }
-                    TextButton(onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.explore_comment), target.content))
-                        Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
-                        commentMenuFor = null
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.chat_copy), modifier = Modifier.fillMaxWidth())
-                    }
-                    if (isOwn) {
-                        TextButton(onClick = {
-                            editingCommentFor = target
-                            editingCommentText = target.content
-                            commentMenuFor = null
-                        }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.explore_edit_comment), modifier = Modifier.fillMaxWidth())
-                        }
-                        TextButton(onClick = { viewModel.deleteComment(target); commentMenuFor = null }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.explore_delete_comment), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed)
-                        }
-                    } else {
-                        TextButton(onClick = { viewModel.reportComment(target); commentMenuFor = null }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.explore_report_comment), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed)
-                        }
-                    }
-                }
+        PostDetailCommentMenuDialog(
+            isOwn = target.author.id == currentUserId,
+            onReply = { viewModel.setReplyToComment(target); commentMenuFor = null },
+            onCopy = {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.getString(R.string.explore_comment), target.content))
+                Toast.makeText(context, context.getString(R.string.chat_copied), Toast.LENGTH_SHORT).show()
+                commentMenuFor = null
             },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { commentMenuFor = null }) { Text(stringResource(R.string.explore_close)) } }
+            onEdit = {
+                editingCommentFor = target
+                editingCommentText = target.content
+                commentMenuFor = null
+            },
+            onDelete = { viewModel.deleteComment(target); commentMenuFor = null },
+            onReport = { viewModel.reportComment(target); commentMenuFor = null },
+            onDismiss = { commentMenuFor = null }
         )
     }
 
     editingCommentFor?.let { target ->
-        AlertDialog(
-            onDismissRequest = { editingCommentFor = null },
-            title = { Text(stringResource(R.string.explore_edit_comment), style = MaterialTheme.typography.titleMedium) },
-            text = {
-                OutlinedTextField(
-                    value = editingCommentText,
-                    onValueChange = { editingCommentText = it.take(1_000) },
-                    label = { Text(stringResource(R.string.explore_comment_edit_hint)) },
-                    minLines = 3,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !state.isSavingCommentEdit,
-                    onClick = {
-                        viewModel.saveCommentEdit(target, editingCommentText)
-                        editingCommentFor = null
-                    }
-                ) {
-                    if (state.isSavingCommentEdit) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.common_save))
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !state.isSavingCommentEdit,
-                    onClick = { editingCommentFor = null }
-                ) {
-                    Text(stringResource(R.string.explore_close))
-                }
-            }
+        PostDetailEditCommentDialog(
+            text = editingCommentText,
+            onTextChange = { editingCommentText = it.take(1_000) },
+            isSaving = state.isSavingCommentEdit,
+            onSave = { viewModel.saveCommentEdit(target, editingCommentText); editingCommentFor = null },
+            onDismiss = { editingCommentFor = null }
         )
     }
 }
