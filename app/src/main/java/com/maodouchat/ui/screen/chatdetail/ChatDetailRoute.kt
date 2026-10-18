@@ -222,36 +222,15 @@ internal fun ChatDetailRoute(
             search.showSearchBar -> search.showSearchBar = false
         }
     }
-    val searchDocuments = remember(state.messages) { buildChatSearchDocuments(state.messages) }
-    val localSearchResults = remember(search.searchQuery, search.searchScope, search.searchWindow, searchDocuments) {
-        searchChatDocuments(
-            documents = searchDocuments,
-            query = search.searchQuery,
-            scope = search.searchScope,
-            window = search.searchWindow,
-            currentUserId = state.currentUserId
-        )
-    }
-    val semanticCandidates = remember(search.showSearchBar, search.searchMode, search.searchScope, search.searchWindow, searchDocuments) {
-        if (search.showSearchBar && search.searchMode == ChatSearchMode.SEMANTIC) {
-            semanticSearchCandidates(searchDocuments, search.searchScope, search.searchWindow, currentUserId = state.currentUserId)
-        } else {
-            emptyList()
-        }
-    }
-    val semanticSearchResults = remember(
-        state.semanticSearchResultIds,
-        state.semanticSearchQuery,
-        search.searchQuery,
-        state.messages
-    ) {
-        if (state.semanticSearchQuery != search.searchQuery.trim()) {
-            emptyList()
-        } else {
-            state.semanticSearchResultIds.mapNotNull(messagesById::get)
-        }
-    }
-    val searchResults = if (search.searchMode == ChatSearchMode.SEMANTIC) semanticSearchResults else localSearchResults
+    // 搜索派生量族收进持有类（见 ChatDetailSearchDerived.kt），纯搬移不改判断。
+    val searchDerived = rememberChatDetailSearchDerived(
+        messages = state.messages,
+        messagesById = messagesById,
+        search = search,
+        semanticSearchResultIds = state.semanticSearchResultIds,
+        semanticSearchQuery = state.semanticSearchQuery,
+        currentUserId = state.currentUserId,
+    )
 
     // 8.48：禁言到期重组触发器收进持有类（见 ChatDetailTransientStates.kt）
     val muteExpiry = remember { ChatDetailMuteExpiryState() }
@@ -343,7 +322,7 @@ internal fun ChatDetailRoute(
         deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
     )
 
-    ChatDetailNavigationEffects(state = state, search = search, searchResults = searchResults, reversedChatItems = reversedChatItems, targets = targets, viewModel = viewModel, chatListScroller = chatListScroller, listState = listState, context = context)
+    ChatDetailNavigationEffects(state = state, search = search, searchResults = searchDerived.searchResults, reversedChatItems = reversedChatItems, targets = targets, viewModel = viewModel, chatListScroller = chatListScroller, listState = listState, context = context)
 
     // G351：上半区弹窗簇（安全码/定时族/聊天锁/GIF/联系人卡片/举报/群通话 + AI 弹窗挂载）
     // 抽到 ChatDetailDialogHosts.kt，纯搬移不改判断。
@@ -351,7 +330,7 @@ internal fun ChatDetailRoute(
         state = state,
         viewModel = viewModel,
         search = search,
-        searchResults = searchResults,
+        searchResults = searchDerived.searchResults,
         aiResults = aiResults,
         schedule = schedule,
         chatLock = chatLock,
@@ -449,8 +428,8 @@ internal fun ChatDetailRoute(
                 state = state,
                 viewModel = viewModel,
                 search = search,
-                searchResults = searchResults,
-                semanticCandidates = semanticCandidates,
+                searchResults = searchDerived.searchResults,
+                semanticCandidates = searchDerived.semanticCandidates,
                 chatAiSurfacesVisible = chatAiSurfacesVisible,
             )
             ChatDetailSelectionSection(
@@ -478,7 +457,7 @@ internal fun ChatDetailRoute(
                     drafts = drafts,
                     messageSelectionMode = messageSelectionMode,
                     particles = particles,
-                    searchResults = searchResults,
+                    searchResults = searchDerived.searchResults,
                     search = search,
                     aiSafety = aiSafety,
                     targets = targets,
