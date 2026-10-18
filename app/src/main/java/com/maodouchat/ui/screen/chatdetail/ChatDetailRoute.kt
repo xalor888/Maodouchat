@@ -2,7 +2,6 @@
 
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.util.RuntimeFlags
 import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -31,12 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
@@ -138,24 +135,8 @@ internal fun ChatDetailRoute(
     val isDarkChat = com.maodouchat.ui.theme.LocalDarkTheme.current
     // 外观派生量（背景色/字号密度）收进持有类（见 ChatDetailAppearanceStates.kt），纯搬移不改判断。
     val appearanceDerived = rememberChatDetailAppearanceDerived(appearance)
-    val sensitiveAuthTitle = stringResource(R.string.sensitive_auth_title)
-    val sensitiveAuthExport = stringResource(R.string.sensitive_auth_export_chat)
-    val sensitiveAuthClearHistory = stringResource(R.string.sensitive_auth_clear_chat)
-    val sensitiveAuthFailed = stringResource(R.string.sensitive_auth_failed)
-    val chatPermissionRecordMsg = stringResource(R.string.chat_permission_record)
-    val chatPermissionVoiceCallMsg = stringResource(R.string.chat_permission_voice_call)
-    val chatPermissionVideoCallMsg = stringResource(R.string.chat_permission_video_call)
-    val chatPermissionLocationMsg = stringResource(R.string.chat_permission_location)
-    val chatCopiedMsg = stringResource(R.string.chat_copied)
-    val chatAiImageResultTitle = stringResource(R.string.chat_ai_image_result_title)
-    val chatAiFileResultTitle = stringResource(R.string.chat_ai_file_result_title)
-    val chatGroupAiTitle = stringResource(R.string.chat_group_ai_title)
-    val chatGroupAiCopiedMsg = stringResource(R.string.chat_group_ai_copied)
-    val chatClipboardMessageLabel = stringResource(R.string.chat_clipboard_message)
-    val chatClipboardTranslationLabel = stringResource(R.string.chat_clipboard_translation)
-    val chatTranslationCopiedMsg = stringResource(R.string.chat_translation_copied)
-    val chatClipboardTranscriptLabel = stringResource(R.string.chat_clipboard_transcript)
-    val chatTranscriptCopiedMsg = stringResource(R.string.chat_transcript_copied)
+    // 文案标签簇抽到 ChatDetailMessageLabels.kt，纯搬移。
+    val labels = rememberChatDetailMessageLabels()
     // 消息列表派生量族收进持有类（见 ChatDetailListDerived.kt），纯搬移不改判断。
     val listDerived = rememberChatDetailListDerived(
         state = state,
@@ -165,8 +146,6 @@ internal fun ChatDetailRoute(
     )
     ChatDetailMessageArrivalEffects(state, targets, context)
     // G335（第十三批）：滚动到顶部附近触发加载更早消息，派生量收进 scroll 持有类
-    val unknownSenderLabel = stringResource(R.string.chat_unknown)
-    val groupMemberLabel = stringResource(R.string.chat_group_member)
     fun resolveSenderName(
         message: Message,
         isOwn: Boolean = message.senderId == state.currentUserId,
@@ -175,16 +154,10 @@ internal fun ChatDetailRoute(
         message = message,
         isOwn = isOwn,
         participantNamesById = listDerived.participantNamesById,
-        unknownLabel = unknownSenderLabel,
-        groupMemberLabel = groupMemberLabel,
+        unknownLabel = labels.unknownSenderLabel,
+        groupMemberLabel = labels.groupMemberLabel,
     )
-    val headerStatus = resolveChatHeaderStatus(
-        typingUserId = state.typingContact,
-        isOnline = state.contact.isOnline,
-        customStatus = state.contact.status,
-        isGroup = state.chatIsGroup,
-        lastSeen = if (state.isSecretChat == true && RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_LAST_SEEN_BLOCK)) 0L else state.contact.lastSeen
-    )
+    val headerStatus = rememberChatHeaderStatus(state, context)
     BackHandler(enabled = dialogs.showChatOverflow || listDerived.messageSelectionMode || search.showSearchBar) {
         when {
             dialogs.showChatOverflow -> dialogs.showChatOverflow = false
@@ -210,10 +183,10 @@ internal fun ChatDetailRoute(
     // 「为什么选这个 contract」注释）。这里只留接线。
     val pickers = rememberChatDetailPickers(
         messages = ChatDetailPermissionMessages(
-            record = chatPermissionRecordMsg,
-            voiceCall = chatPermissionVoiceCallMsg,
-            videoCall = chatPermissionVideoCallMsg,
-            location = chatPermissionLocationMsg,
+            record = labels.chatPermissionRecordMsg,
+            voiceCall = labels.chatPermissionVoiceCallMsg,
+            videoCall = labels.chatPermissionVideoCallMsg,
+            location = labels.chatPermissionLocationMsg,
         ),
         onImagePicked = { uri -> sendPending.onPicked(uri, isVideo = false) },
         onVideoPicked = { uri -> sendPending.onPicked(uri, isVideo = true) },
@@ -317,9 +290,9 @@ internal fun ChatDetailRoute(
         dialogs = dialogs,
         flows = flows,
         viewModel = viewModel,
-        sensitiveAuthTitle = sensitiveAuthTitle,
-        sensitiveAuthClearHistory = sensitiveAuthClearHistory,
-        sensitiveAuthFailed = sensitiveAuthFailed,
+        sensitiveAuthTitle = labels.sensitiveAuthTitle,
+        sensitiveAuthClearHistory = labels.sensitiveAuthClearHistory,
+        sensitiveAuthFailed = labels.sensitiveAuthFailed,
     )
     val chatLiquidBackdrop = rememberLayerBackdrop()
     CompositionLocalProvider(LocalLiquidGlassBackdrop provides chatLiquidBackdrop) {
@@ -394,8 +367,8 @@ internal fun ChatDetailRoute(
                 dialogs = dialogs,
                 messageSelectionMode = listDerived.messageSelectionMode,
                 selectedMessages = listDerived.selectedMessages,
-                chatClipboardMessageLabel = chatClipboardMessageLabel,
-                chatCopiedMsg = chatCopiedMsg,
+                chatClipboardMessageLabel = labels.chatClipboardMessageLabel,
+                chatCopiedMsg = labels.chatCopiedMsg,
             )
 
             ChatTimelinePane(
@@ -422,7 +395,7 @@ internal fun ChatDetailRoute(
                     messageActions = messageActions,
                     scroll = scroll,
                     chatListScroller = chatListScroller,
-                    chatClipboardTranscriptLabel = chatClipboardTranscriptLabel,
+                    chatClipboardTranscriptLabel = labels.chatClipboardTranscriptLabel,
                     onOpenProfile = onOpenProfile,
                 )
             }
@@ -474,13 +447,13 @@ internal fun ChatDetailRoute(
         selectedMessages = listDerived.selectedMessages,
         resolveSenderName = { msg -> resolveSenderName(msg) },
         chatAiSurfacesVisible = chatAiSurfacesVisible,
-        chatCopiedMsg = chatCopiedMsg,
-        chatTranslationCopiedMsg = chatTranslationCopiedMsg,
-        chatTranscriptCopiedMsg = chatTranscriptCopiedMsg,
+        chatCopiedMsg = labels.chatCopiedMsg,
+        chatTranslationCopiedMsg = labels.chatTranslationCopiedMsg,
+        chatTranscriptCopiedMsg = labels.chatTranscriptCopiedMsg,
         onStartParticleEffect = particleLauncher,
-        chatClipboardMessageLabel = chatClipboardMessageLabel,
-        chatClipboardTranslationLabel = chatClipboardTranslationLabel,
-        chatClipboardTranscriptLabel = chatClipboardTranscriptLabel,
+        chatClipboardMessageLabel = labels.chatClipboardMessageLabel,
+        chatClipboardTranslationLabel = labels.chatClipboardTranslationLabel,
+        chatClipboardTranscriptLabel = labels.chatClipboardTranscriptLabel,
         onOpenProfile = onOpenProfile,
     )
     } // secret watermark Box
