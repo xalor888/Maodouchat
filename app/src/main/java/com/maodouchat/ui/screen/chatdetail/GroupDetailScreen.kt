@@ -82,14 +82,8 @@ import com.maodouchat.ui.screen.chatdetail.group.SearchableSectionHeader
 import com.maodouchat.ui.screen.chatdetail.group.SectionTitle
 import com.maodouchat.ui.screen.chatdetail.group.SetTitleDialog
 import com.maodouchat.ui.screen.chatdetail.group.TransferOwnershipDialog
-import com.maodouchat.ui.screen.chatdetail.group.groupAuditActionSearchTokens
-import com.maodouchat.ui.screen.chatdetail.group.roleRank
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.group.GroupMemberUi
-
-private const val AUDIT_PAGE_SIZE = 80
-private const val CANDIDATE_PAGE_SIZE = 32
-private const val MEMBER_PAGE_SIZE = 100
 
 private enum class GroupDetailTab(val mediaCategory: MediaCenterCategory? = null) {
     MEMBERS,
@@ -158,80 +152,18 @@ fun GroupDetailScreen(
         if (ownershipTarget?.let { it.userId !in ids } == true) ownershipTarget = null
     }
 
-    val filteredMembers = remember(state.members, memberSearch) {
-        val query = memberSearch.trim()
-        val base = if (query.isBlank()) state.members else state.members.filter {
-            it.displayName.contains(query, ignoreCase = true) ||
-                it.name.contains(query, ignoreCase = true) ||
-                it.title.orEmpty().contains(query, ignoreCase = true) ||
-                it.userId.contains(query, ignoreCase = true)
-        }
-        base.sortedWith(
-            compareBy<GroupMemberUi> { roleRank(it.role) }
-                .thenByDescending { it.isOnline }
-                .thenBy { it.displayName.lowercase() }
-        )
-    }
-    val visibleMembers = remember(filteredMembers, membersExpanded) {
-        if (membersExpanded || filteredMembers.size <= MEMBER_PAGE_SIZE) {
-            filteredMembers
-        } else {
-            filteredMembers.take(MEMBER_PAGE_SIZE)
-        }
-    }
-    val filteredAuditLogs = remember(state.auditLogs, auditSearch) {
-        val query = auditSearch.trim()
-        if (query.isBlank()) {
-            state.auditLogs
-        } else {
-            state.auditLogs.filter { audit ->
-                audit.actorName.contains(query, ignoreCase = true) ||
-                    audit.actorId.contains(query, ignoreCase = true) ||
-                    audit.action.contains(query, ignoreCase = true) ||
-                    audit.targetUserName.orEmpty().contains(query, ignoreCase = true) ||
-                    audit.targetUserId.orEmpty().contains(query, ignoreCase = true) ||
-                    groupAuditActionSearchTokens(audit.action).any { token ->
-                        token.contains(query, ignoreCase = true)
-                    }
-            }
-        }
-    }
-    val visibleAuditLogs = remember(filteredAuditLogs, auditExpanded) {
-        if (auditExpanded || filteredAuditLogs.size <= AUDIT_PAGE_SIZE) {
-            filteredAuditLogs
-        } else {
-            filteredAuditLogs.take(AUDIT_PAGE_SIZE)
-        }
-    }
-    val filteredCandidates = remember(state.candidates, candidateSearch) {
-        val query = candidateSearch.trim()
-        if (query.isBlank()) {
-            state.candidates
-        } else {
-            state.candidates.filter {
-                it.displayName.contains(query, ignoreCase = true) ||
-                    it.name.contains(query, ignoreCase = true) ||
-                it.id.contains(query, ignoreCase = true)
-            }
-        }
-    }
-    val visibleCandidates = remember(filteredCandidates, candidatesExpanded) {
-        if (candidatesExpanded || filteredCandidates.size <= CANDIDATE_PAGE_SIZE) {
-            filteredCandidates
-        } else {
-            filteredCandidates.take(CANDIDATE_PAGE_SIZE)
-        }
-    }
-    val secretPagePayload = rememberSecretPageWatermarkPayload(
-        isSecretChat = state.isSecretChat,
-        userId = state.currentUserId,
-        chatId = viewModel.chatId,
-        deviceHint = android.provider.Settings.Secure.getString(
-            context.contentResolver,
-            android.provider.Settings.Secure.ANDROID_ID
-        )
+    // 成员 / 审计 / 可添加联系人三条「过滤→分页」派生链收进持有类（见 GroupDetailSearchDerived.kt），纯搬移不改判断。
+    val searchDerived = rememberGroupDetailSearchDerived(
+        members = state.members,
+        memberSearch = memberSearch,
+        membersExpanded = membersExpanded,
+        auditLogs = state.auditLogs,
+        auditSearch = auditSearch,
+        auditExpanded = auditExpanded,
+        candidates = state.candidates,
+        candidateSearch = candidateSearch,
+        candidatesExpanded = candidatesExpanded,
     )
-
     val groupOverview: @Composable () -> Unit = {
         GroupHeader(
             groupName = state.groupName,
@@ -307,7 +239,17 @@ fun GroupDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .secretPageBlindWatermark(secretPagePayload)
+            .secretPageBlindWatermark(
+                rememberSecretPageWatermarkPayload(
+                    isSecretChat = state.isSecretChat,
+                    userId = state.currentUserId,
+                    chatId = viewModel.chatId,
+                    deviceHint = android.provider.Settings.Secure.getString(
+                        context.contentResolver,
+                        android.provider.Settings.Secure.ANDROID_ID
+                    )
+                )
+            )
     ) {
         GroupDetailFeedbackDialog(state, viewModel)
 
@@ -485,10 +427,10 @@ fun GroupDetailScreen(
                                     placeholder = stringResource(R.string.group_detail_search_members),
                                 )
                             }
-                            if (visibleMembers.isEmpty()) {
+                            if (searchDerived.visibleMembers.isEmpty()) {
                                 item(key = "members_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_no_member_results)) }
                             }
-                            items(visibleMembers, key = { it.userId }, contentType = { "group_member" }) { member ->
+                            items(searchDerived.visibleMembers, key = { it.userId }, contentType = { "group_member" }) { member ->
                                 Column {
                                     MemberRow(
                                         member = member,
@@ -508,9 +450,9 @@ fun GroupDetailScreen(
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
                                 }
                             }
-                            if (!membersExpanded && filteredMembers.size > MEMBER_PAGE_SIZE) {
+                            if (!membersExpanded && searchDerived.filteredMembers.size > MEMBER_PAGE_SIZE) {
                                 item(key = "members_more", contentType = "more") {
-                                    val remaining = filteredMembers.size - MEMBER_PAGE_SIZE
+                                    val remaining = searchDerived.filteredMembers.size - MEMBER_PAGE_SIZE
                                     TextButton(
                                         onClick = { membersExpanded = true },
                                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
@@ -542,18 +484,18 @@ fun GroupDetailScreen(
                                 }
                                 if (state.candidates.isEmpty()) {
                                     item(key = "candidates_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_no_addable_contacts)) }
-                                } else if (filteredCandidates.isEmpty()) {
+                                } else if (searchDerived.filteredCandidates.isEmpty()) {
                                     item(key = "candidates_no_results", contentType = "empty") {
                                         EmptyRow(stringResource(R.string.group_detail_no_candidate_results))
                                     }
                                 } else {
-                                    items(visibleCandidates, key = { it.id }, contentType = { "group_candidate" }) { user ->
+                                    items(searchDerived.visibleCandidates, key = { it.id }, contentType = { "group_candidate" }) { user ->
                                         CandidateRow(user = user, enabled = !state.isUpdating, onAdd = { viewModel.addMember(user.id) })
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
                                     }
-                                    if (filteredCandidates.size > CANDIDATE_PAGE_SIZE) {
+                                    if (searchDerived.filteredCandidates.size > CANDIDATE_PAGE_SIZE) {
                                         item(key = "candidates_toggle", contentType = "toggle") {
-                                            val remaining = filteredCandidates.size - CANDIDATE_PAGE_SIZE
+                                            val remaining = searchDerived.filteredCandidates.size - CANDIDATE_PAGE_SIZE
                                             TextButton(
                                                 onClick = { candidatesExpanded = !candidatesExpanded },
                                                 modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
@@ -596,18 +538,18 @@ fun GroupDetailScreen(
                             }
                             if (state.auditLogs.isEmpty()) {
                                 item(key = "audit_empty", contentType = "empty") { EmptyRow(stringResource(R.string.group_detail_audit_empty)) }
-                            } else if (filteredAuditLogs.isEmpty()) {
+                            } else if (searchDerived.filteredAuditLogs.isEmpty()) {
                                 item(key = "audit_no_results", contentType = "empty") {
                                     EmptyRow(stringResource(R.string.group_detail_audit_no_results))
                                 }
                             } else {
-                                items(visibleAuditLogs, key = { it.id }, contentType = { "audit_log" }) { audit ->
+                                items(searchDerived.visibleAuditLogs, key = { it.id }, contentType = { "audit_log" }) { audit ->
                                     GroupAuditRow(audit)
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 52.dp))
                                 }
-                                if (filteredAuditLogs.size > AUDIT_PAGE_SIZE || state.hasMoreAudit) {
+                                if (searchDerived.filteredAuditLogs.size > AUDIT_PAGE_SIZE || state.hasMoreAudit) {
                                     item(key = "audit_toggle", contentType = "toggle") {
-                                        val remaining = filteredAuditLogs.size - AUDIT_PAGE_SIZE
+                                        val remaining = searchDerived.filteredAuditLogs.size - AUDIT_PAGE_SIZE
                                         TextButton(
                                             onClick = {
                                                 if (auditExpanded && state.hasMoreAudit && !state.isLoadingMoreAudit) {
