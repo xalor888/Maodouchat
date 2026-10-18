@@ -222,6 +222,53 @@ class ConversationCommandFacadeTest {
     }
 
     @Test
+    fun `stageScheduledText pins the deterministic message id`() = runTest {
+        // 定时任务靠 deterministicMessageId 做幂等：同一 id 每次 stage 必须落到同一条消息，
+        // 进程死亡恢复后重建定时器才不会产生重复消息。
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val result = facade.stageScheduledText(chat(), "owner-1", "remind me", "scheduled-42")
+
+        assertTrue(result is ConversationCommandOutcome.Staged)
+        val staged = (result as ConversationCommandOutcome.Staged).message
+        assertEquals("scheduled-42", staged.id)
+        assertEquals("owner-1", staged.senderId)
+        assertEquals("remind me", staged.content)
+        assertEquals("scheduled-42", gateway.messages.single().id)
+    }
+
+    @Test
+    fun `stageScheduledText rejects blank text without hitting gateway`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val result = facade.stageScheduledText(chat(), "owner-1", "   ", "scheduled-x")
+
+        assertTrue(result is ConversationCommandOutcome.Rejected)
+        assertEquals(
+            ConversationCommandRejection.EMPTY_TEXT,
+            (result as ConversationCommandOutcome.Rejected).reason,
+        )
+        assertTrue(gateway.messages.isEmpty())
+    }
+
+    @Test
+    fun `forwardText keeps the original forwardedFrom on re-forward`() = runTest {
+        // 二次转发不断链：已带 forwardedFrom 的消息再转发，来源保持最初转发者，不被覆盖。
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+        val onceForwarded = message().copy(meta = MessageMeta(forwardedFrom = "Bob"))
+
+        val first = facade.forwardText(chat(), "owner-1", message(), "Alice")
+        val second = facade.forwardText(chat(), "owner-1", onceForwarded, "Alice")
+
+        assertEquals("Alice", (first as ConversationCommandOutcome.Staged).message.meta.forwardedFrom)
+        assertEquals("Bob", (second as ConversationCommandOutcome.Staged).message.meta.forwardedFrom)
+        assertEquals(2, gateway.messages.size)
+    }
+
+    @Test
     fun `blank idempotencyKey disables dedup and stages twice`() = runTest {
         val gateway = FakeGateway()
         var msgSeq = 0
