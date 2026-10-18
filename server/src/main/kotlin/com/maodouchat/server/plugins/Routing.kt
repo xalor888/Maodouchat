@@ -341,14 +341,7 @@ fun Application.configureRouting(
         // ─── 官网静态页面（无需认证） ─────────────
 
         configurePublicSiteRoutes()
-configureEncryptedAttachmentUploadSessionRoutes(
-            userRepo = userRepo,
-            encryptedAttachmentRepo = encryptedAttachmentRepo,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            rateLimiter = aiRateLimiter,
-        )
-        configureEncryptedAttachmentDownloadRoutes(
+        configureAttachmentRoutes(
             userRepo = userRepo,
             encryptedAttachmentRepo = encryptedAttachmentRepo,
             conversationParticipantRepo = conversationParticipantRepo,
@@ -420,75 +413,7 @@ configureEncryptedAttachmentUploadSessionRoutes(
             json = json,
             messagingV2Repository = messagingV2Repository,
         )
-        configureSocialPostStarPinRoutes(
-            userRepo = userRepo,
-            postRepo = postRepo,
-            moderationRuleRepo = moderationRuleRepo,
-            aiGateway = aiGateway,
-            pushService = pushService,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            starMessageRepo = starMessageRepo,
-            pinnedMessageRepo = pinnedMessageRepo,
-            postRateLimiter = postRateLimiter,
-            postImageRateLimiter = postImageRateLimiter,
-            commentRateLimiter = commentRateLimiter,
-            postLikeRateLimiter = postLikeRateLimiter,
-            commentLikeRateLimiter = commentLikeRateLimiter,
-            json = json,
-        )
-        configureSocialPostCoreRoutes(
-            userRepo = userRepo,
-            postRepo = postRepo,
-            moderationRuleRepo = moderationRuleRepo,
-            aiGateway = aiGateway,
-            pushService = pushService,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            starMessageRepo = starMessageRepo,
-            pinnedMessageRepo = pinnedMessageRepo,
-            postRateLimiter = postRateLimiter,
-            postImageRateLimiter = postImageRateLimiter,
-            commentRateLimiter = commentRateLimiter,
-            postLikeRateLimiter = postLikeRateLimiter,
-            commentLikeRateLimiter = commentLikeRateLimiter,
-            json = json,
-        )
-        configureSocialPostLikeRoutes(
-            userRepo = userRepo,
-            postRepo = postRepo,
-            moderationRuleRepo = moderationRuleRepo,
-            aiGateway = aiGateway,
-            pushService = pushService,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            starMessageRepo = starMessageRepo,
-            pinnedMessageRepo = pinnedMessageRepo,
-            postRateLimiter = postRateLimiter,
-            postImageRateLimiter = postImageRateLimiter,
-            commentRateLimiter = commentRateLimiter,
-            postLikeRateLimiter = postLikeRateLimiter,
-            commentLikeRateLimiter = commentLikeRateLimiter,
-            json = json,
-        )
-        configureSocialPostCommentRoutes(
-            userRepo = userRepo,
-            postRepo = postRepo,
-            moderationRuleRepo = moderationRuleRepo,
-            aiGateway = aiGateway,
-            pushService = pushService,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            starMessageRepo = starMessageRepo,
-            pinnedMessageRepo = pinnedMessageRepo,
-            postRateLimiter = postRateLimiter,
-            postImageRateLimiter = postImageRateLimiter,
-            commentRateLimiter = commentRateLimiter,
-            postLikeRateLimiter = postLikeRateLimiter,
-            commentLikeRateLimiter = commentLikeRateLimiter,
-            json = json,
-        )
-        configureSocialPostFileRoutes(
+        configureSocialPostRoutes(
             userRepo = userRepo,
             postRepo = postRepo,
             moderationRuleRepo = moderationRuleRepo,
