@@ -84,11 +84,6 @@ internal object ChatAiOperationFactory {
         else -> null
     }
 
-    private data class Descriptor(
-        val type: String,
-        val targetMessageId: String?,
-        val parameters: AiOperationParameters
-    )
 }
 
 internal fun classifyAiOperationError(error: Throwable): String = when {

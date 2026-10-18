@@ -24,7 +24,6 @@ import androidx.compose.material3.SnackbarHostState
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -122,12 +121,8 @@ internal fun ChatDetailRoute(
             com.maodouchat.util.RuntimeFlags.AI_MASTER
         )
     )
-    LaunchedEffect(chatAiSurfacesVisible) {
-        if (!chatAiSurfacesVisible && search.searchMode == ChatSearchMode.SEMANTIC) {
-            search.searchMode = ChatSearchMode.KEYWORD
-            viewModel.clearSemanticSearch()
-        }
-    }
+    // AI 入口关闭时把语义搜索降级回关键词搜索（见 ChatDetailAiSurfaceEffects.kt）。
+    ChatDetailAiSurfaceEffects(chatAiSurfacesVisible, search, viewModel)
     // G335（第十四批）：全屏媒体查看状态族收进持有类（见 ChatDetailFullscreenMediaState）。
     val media = rememberChatDetailFullscreenMediaState()
     // G336（第十五批）：会话级弹窗开关族收进持有类（见 ChatDetailDialogState）。
