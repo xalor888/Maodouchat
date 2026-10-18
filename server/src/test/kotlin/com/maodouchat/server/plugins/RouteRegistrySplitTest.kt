@@ -108,6 +108,9 @@ class RouteRegistrySplitTest {
     @Test
     fun `priority route families are delegated with endpoint parity`() {
         val registry = source("Routing.kt")
+        // 附件/动态路由经两层委托：Routing.kt 只调装配入口，内层各族调用收在装配文件里。
+        val attachmentAssembly = source("AttachmentRoutesAssembly.kt")
+        val socialPostAssembly = source("SocialPostRoutesAssembly.kt")
         val modules = listOf(
             source("AuthAccountRoutes.kt"),
             source("AuthLoginRoutes.kt"),
@@ -174,17 +177,24 @@ class RouteRegistrySplitTest {
             "configureAuthLoginRoutes(",
             "configureAuthSessionRoutes(",
             "configureAccountRoutes(",
+            "configureAttachmentRoutes(",
+            "configureReportModerationRoutes(",
+            "configureSocialPostRoutes(",
+            "configurePublicSiteRoutes()",
+            "configurePollLegacyRoutes(",
+        ).forEach { registration -> assertTrue(registration in registry, registration) }
+        // 装配层必须继续把内层各族接上，防止端点在搬运中被静默丢掉。
+        listOf(
             "configureEncryptedAttachmentUploadSessionRoutes(",
             "configureEncryptedAttachmentDownloadRoutes(",
-            "configureReportModerationRoutes(",
+        ).forEach { registration -> assertTrue(registration in attachmentAssembly, registration) }
+        listOf(
             "configureSocialPostStarPinRoutes(",
             "configureSocialPostCoreRoutes(",
             "configureSocialPostLikeRoutes(",
             "configureSocialPostCommentRoutes(",
             "configureSocialPostFileRoutes(",
-            "configurePublicSiteRoutes()",
-            "configurePollLegacyRoutes(",
-        ).forEach { registration -> assertTrue(registration in registry, registration) }
+        ).forEach { registration -> assertTrue(registration in socialPostAssembly, registration) }
 
         listOf(
             "/api/auth/login",
