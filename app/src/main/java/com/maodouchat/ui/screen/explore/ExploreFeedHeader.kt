@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
@@ -16,9 +17,6 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.component.SearchBar
 
-/**
- * 动态流头部搜索与筛选（原 ExploreScreen stickyHeader；状态走参数+回调）。
- */
 @Composable
 internal fun ExploreFeedHeader(
     feedSearch: String,
