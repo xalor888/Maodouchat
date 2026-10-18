@@ -554,7 +554,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 201,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
                 // 2026-10-19：尾部两对话框抽出同包 ExplorePostDetailDialogs（671 → 621，状态走参数+回调），上限同步收紧（两份 map 一起改）。
-"com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 621,
+                // 2026-10-19：评论行抽出同包 PostDetailCommentRow（621 → 488，状态走参数+回调），上限同步收紧（两份 map 一起改）。
+"com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 488,
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
         // 评论框字段三助手）抽出同包 ExploreCommentController（1010 → 702，纯搬移；
         // Orchestrator 留同签名委托），上限同步收紧（两份 map 一起改）。
@@ -817,7 +818,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 201,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
                 // 2026-10-19：尾部两对话框抽出同包 ExplorePostDetailDialogs（671 → 621，状态走参数+回调），上限同步收紧（两份 map 一起改）。
-"com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 621,
+                // 2026-10-19：评论行抽出同包 PostDetailCommentRow（621 → 488，状态走参数+回调），上限同步收紧（两份 map 一起改）。
+"com/maodouchat/ui/screen/explore/ExplorePostDetailScreen.kt" to 488,
         // 2026-10-08：评论簇（打开/关闭/发送/加载更多/点赞/删除/编辑/举报/复制 +
         // 评论框字段三助手）抽出同包 ExploreCommentController（1010 → 702，纯搬移；
         // Orchestrator 留同签名委托），上限同步收紧（两份 map 一起改）。
