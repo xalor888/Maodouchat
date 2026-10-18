@@ -5,7 +5,6 @@ import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,9 +29,6 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
@@ -411,153 +407,24 @@ fun PostDetailScreen(
                         }
                     }
                     items(filteredComments, key = { it.id }, contentType = { "post_comment" }) { c ->
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            // 1.134：通知跳转目标评论短暂高亮
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (c.id == highlightedCommentId) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                                    else Color.Transparent,
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .padding(vertical = 2.dp)
-                        ) {
-                            Avatar(
-                                name = c.author.name,
-                                avatarUrl = c.author.avatar,
-                                size = AvatarSize.SM,
-                                isOnline = c.author.isOnline,
-                                // 1.205：详情页评论头像点击打开作者主页
-                                modifier = Modifier.clickable { onOpenAuthor(c.author.id) }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                // 1.200：详情页评论作者名 + 楼主徽章同行
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        c.author.name,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                        // 1.213：点击作者名打开主页
-                                        modifier = Modifier.weight(1f, fill = false).clickable { onOpenAuthor(c.author.id) }
-                                    )
-                                    if (post?.author?.id == c.author.id) {
-                                        Spacer(Modifier.width(4.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
-                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                                .padding(horizontal = 4.dp, vertical = 1.dp)
-                                        ) {
-                                            Text(
-                                                stringResource(R.string.explore_comment_author_badge),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                }
-                                // 1.104：详情页回复目标标识（与评论弹窗一致，父作者不存在时隐藏）；1.105：点击跳转父评论
-                                if (!c.parentId.isNullOrBlank()) {
-                                    val parentAuthor = commentAuthorById[c.parentId]?.author?.name
-                                    if (!parentAuthor.isNullOrBlank()) {
-                                        val parentIndex = filteredComments.indexOfFirst { it.id == c.parentId }
-                                        Text(
-                                            stringResource(R.string.explore_reply_to, parentAuthor),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier
-                                                .clickable(enabled = parentIndex >= 0) {
-                                                    if (parentIndex >= 0) {
-                                                        commentListScope.launch {
-                                                            commentListState.animateScrollToItem(parentIndex)
-                                                        }
-                                                    }
-                                                }
-                                                .padding(vertical = 1.dp)
-                                        )
-                                    }
-                                }
-                                // 1.235：双击评论内容点赞；1.247：长按弹出操作菜单
-                                Text(
-                                    c.content,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.combinedClickable(
-                                        onClick = {},
-                                        onDoubleClick = { viewModel.toggleCommentLike(c) },
-                                        onLongClick = { commentMenuFor = c }
-                                    )
-                                )
-                                Text(relativeTime(c.createdAt), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
-                            }
-                            // 1.95：详情页评论操作（点赞/删除自己评论）
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                if (c.author.id == currentUserId) {
-                                    IconButton(onClick = { viewModel.deleteComment(c) }, modifier = Modifier.size(28.dp)) {
-                                        Icon(
-                                            Icons.Outlined.Delete,
-                                            contentDescription = stringResource(R.string.explore_delete_comment),
-                                            tint = LocalChatPalette.current.textSecondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                                IconButton(onClick = { viewModel.toggleCommentLike(c) }, modifier = Modifier.size(28.dp)) {
-                                    Icon(
-                                        if (c.likedByMe) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                        contentDescription = stringResource(R.string.explore_comment_like),
-                                        tint = if (c.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else LocalChatPalette.current.textSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                // 1.245：举报评论（他人评论）
-                                if (c.author.id != currentUserId) {
-                                    IconButton(onClick = { viewModel.reportComment(c) }, modifier = Modifier.size(28.dp)) {
-                                        Icon(
-                                            Icons.Outlined.Flag,
-                                            contentDescription = stringResource(R.string.explore_report_comment),
-                                            tint = LocalChatPalette.current.textSecondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                                if (c.likeCount > 0) {
-                                    Text(
-                                        c.likeCount.toString(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (c.likedByMe) androidx.compose.ui.graphics.Color(0xFFE91E63) else LocalChatPalette.current.textSecondary
-                                    )
-                                }
-                                // 1.97：回复该评论
-                                TextButton(
-                                    onClick = { viewModel.setReplyToComment(c) },
-                                    modifier = Modifier.height(28.dp),
-                                    contentPadding = PaddingValues(horizontal = 4.dp)
-                                ) {
-                                    Text(
-                                        stringResource(R.string.explore_comment_reply),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                // 1.115：复制评论文本（与评论弹窗一致）
-                                TextButton(
-                                    onClick = { viewModel.copyComment(c) },
-                                    modifier = Modifier.height(28.dp),
-                                    contentPadding = PaddingValues(horizontal = 4.dp)
-                                ) {
-                                    Text(
-                                        stringResource(R.string.explore_comment_copy),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = LocalChatPalette.current.textSecondary
-                                    )
-                                }
-                            }
-                        }
+                        PostDetailCommentRow(
+                            comment = c,
+                            postAuthorId = post?.author?.id,
+                            currentUserId = currentUserId,
+                            highlighted = c.id == highlightedCommentId,
+                            parentAuthorNameOf = { parentId -> commentAuthorById[parentId]?.author?.name },
+                            parentIndexOf = { parentId -> filteredComments.indexOfFirst { it.id == parentId } },
+                            onJumpToParent = { index ->
+                                commentListScope.launch { commentListState.animateScrollToItem(index) }
+                            },
+                            onOpenAuthor = onOpenAuthor,
+                            onLike = viewModel::toggleCommentLike,
+                            onDelete = viewModel::deleteComment,
+                            onReport = viewModel::reportComment,
+                            onReply = viewModel::setReplyToComment,
+                            onCopy = viewModel::copyComment,
+                            onShowMenu = { commentMenuFor = it }
+                        )
                     }
                 }
             }
