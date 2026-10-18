@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.data.model.Message
-import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -107,14 +106,9 @@ internal fun ChatDetailRoute(
     )
     // G335：这一族「弹层当前操作哪条消息」的状态收进持有类（见 ChatDetailMessageActionState）。
     val messageActions = remember { ChatDetailMessageActionState() }
-    val chatAiSurfacesVisible = com.maodouchat.ai.AiEntryPolicy.shouldShowAiSurfaces(
-        chatAiEnabled = state.aiEnabled,
-        consentAccepted = com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(context),
-        userEnabled = com.maodouchat.ai.AiPrivacyPreferences.userEnabled(context),
-        masterEnabled = com.maodouchat.util.RuntimeFlags.isEnabled(
-            context,
-            com.maodouchat.util.RuntimeFlags.AI_MASTER
-        )
+    val chatAiSurfacesVisible = rememberChatDetailAiSurfaceVisibility(
+        aiEnabled = state.aiEnabled,
+        context = context
     )
     // AI 入口关闭时把语义搜索降级回关键词搜索（见 ChatDetailAiSurfaceEffects.kt）。
     ChatDetailAiSurfaceEffects(chatAiSurfacesVisible, search, viewModel)
@@ -242,12 +236,7 @@ internal fun ChatDetailRoute(
     ChatDetailStatusInfoEffects(state, viewModel, chatSnackbarHostState)
 
     ChatDetailWindowPrivacyEffects(state = state, chatLockBlocking = gate.chatLockBlocking, context = context)
-    val secretPagePayload = rememberSecretPageWatermarkPayload(
-        isSecretChat = state.isSecretChat == true,
-        userId = com.maodouchat.session.CurrentSession.ownerUserId(),
-        chatId = state.chat?.id,
-        deviceHint = com.maodouchat.watermark.DeviceHint.androidId(context)
-    )
+    val secretPagePayload = rememberChatDetailSecretPagePayload(state, context)
 
     ChatDetailNavigationEffects(state = state, search = search, searchResults = searchDerived.searchResults, reversedChatItems = listDerived.reversedChatItems, targets = targets, viewModel = viewModel, chatListScroller = chatListScroller, listState = listState, context = context)
 
