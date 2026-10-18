@@ -28,13 +28,10 @@ import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
@@ -68,7 +65,6 @@ import com.maodouchat.network.PostDto
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
-import com.maodouchat.ui.component.SearchBar
 import com.maodouchat.ui.component.ShimmerPostCard
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -231,33 +227,15 @@ fun ExploreScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             stickyHeader(key = "feed_header") {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SearchBar(
-                        value = feedSearch,
-                        onValueChange = { feedSearch = it.take(160) },
-                        placeholder = stringResource(R.string.explore_feed_search_hint),
-                        modifier = Modifier.fillMaxWidth(),
-                        focusRequester = feedSearchFocus
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = showOnlyMine,
-                            onClick = { showOnlyMine = !showOnlyMine },
-                            label = { Text(stringResource(R.string.explore_feed_only_mine)) }
-                        )
-                        FilterChip(
-                            selected = showOnlyMedia,
-                            onClick = { showOnlyMedia = !showOnlyMedia },
-                            label = { Text(stringResource(R.string.explore_feed_only_media)) }
-                        )
-                    }
-                }
+                ExploreFeedHeader(
+                    feedSearch = feedSearch,
+                    onFeedSearchChange = { feedSearch = it },
+                    focusRequester = feedSearchFocus,
+                    showOnlyMine = showOnlyMine,
+                    onToggleOnlyMine = { showOnlyMine = !showOnlyMine },
+                    showOnlyMedia = showOnlyMedia,
+                    onToggleOnlyMedia = { showOnlyMedia = !showOnlyMedia }
+                )
             }
             if (uiState.composerDraftRestored) {
                 item(key = "composer_draft_hint", contentType = "draft_hint") {
@@ -432,96 +410,7 @@ fun ExploreScreen(
         }
     }
 
-    val selectedPostId = uiState.selectedPostId
-    if (selectedPostId != null) {
-        CommentsDialog(
-            comments = uiState.comments,
-            commentText = uiState.commentText,
-            isLoading = uiState.isCommentsLoading,
-            isLoadingOlder = uiState.isLoadingOlderComments,
-            hasMore = uiState.hasMoreComments,
-            isSending = uiState.isSendingComment,
-            onLoadOlder = viewModel::loadOlderComments,
-            onTextChange = viewModel::onCommentTextChange,
-            onSend = viewModel::sendComment,
-            onDismiss = viewModel::closeComments,
-            // 1.00：删除自己的评论
-            currentUserId = com.maodouchat.session.CurrentSession.ownerUserId(),
-            onDeleteComment = viewModel::deleteComment,
-            // 1.52：评论点赞
-            onToggleLike = viewModel::toggleCommentLike,
-            // 1.76：回复评论
-            replyToComment = uiState.replyToComment,
-            onReplyComment = viewModel::setReplyToComment,
-            onClearReply = viewModel::clearReplyToComment,
-            // 1.92：复制评论文本
-            onCopyComment = viewModel::copyComment,
-            // 1.183：评论头像/名字点击打开作者主页
-            onOpenAuthor = { onOpenAuthor(it) },
-            // 1.199：楼主（动态作者）徽章
-            postAuthorId = uiState.detailPost?.author?.id
-                ?: uiState.posts.firstOrNull { it.id == selectedPostId }?.author?.id,
-            // 1.246：举报评论
-            onReportComment = viewModel::reportComment
-        )
-    }
-
-    // 1.93：动态点赞者弹窗
-    if (uiState.likersPostId != null) {
-        LikersDialog(
-            likers = uiState.likers,
-            isLoading = uiState.isLikersLoading,
-            onDismiss = viewModel::closeLikers,
-            // 1.184：点赞者点击打开作者主页
-            onOpenUser = { onOpenAuthor(it) }
-        )
-    }
-
-    if (uiState.postPendingDeleteId != null) {
-        AlertDialog(
-            onDismissRequest = viewModel::cancelDeletePost,
-            title = { Text(stringResource(R.string.explore_delete_post)) },
-            text = { Text(stringResource(R.string.explore_delete_post_message)) },
-            confirmButton = { TextButton(onClick = viewModel::confirmDeletePost) { Text(stringResource(R.string.chat_delete), color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = viewModel::cancelDeletePost) { Text(stringResource(R.string.common_cancel)) } }
-        )
-    }
-
-    if (uiState.postPendingEditId != null) {
-        AlertDialog(
-            onDismissRequest = viewModel::cancelEditPost,
-            title = { Text(stringResource(R.string.explore_edit_post)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = uiState.editPostText,
-                        onValueChange = viewModel::onEditPostTextChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 8,
-                        placeholder = { Text(stringResource(R.string.explore_share_placeholder)) }
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        viewModel.visibilityOptions.forEach { option ->
-                            FilterChip(
-                                selected = uiState.editPostVisibility == option.value,
-                                onClick = { viewModel.onEditPostVisibilitySelected(option.value) },
-                                label = { Text(option.label, style = MaterialTheme.typography.labelSmall) }
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = viewModel::confirmEditPost,
-                    enabled = !uiState.isEditingPost && uiState.editPostText.isNotBlank()
-                ) {
-                    Text(if (uiState.isEditingPost) "…" else stringResource(R.string.common_save))
-                }
-            },
-            dismissButton = { TextButton(onClick = viewModel::cancelEditPost) { Text(stringResource(R.string.common_cancel)) } }
-        )
-    }
+    ExploreFeedDialogs(uiState = uiState, viewModel = viewModel, onOpenAuthor = onOpenAuthor)
 }
 
 
