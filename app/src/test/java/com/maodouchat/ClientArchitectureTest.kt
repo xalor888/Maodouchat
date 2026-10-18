@@ -380,7 +380,8 @@ class ClientArchitectureTest {
         // 2026-10-18：AI-surface 降级 LaunchedEffect 抽出 ChatDetailAiSurfaceEffects（560 → 555 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：搜索派生量簇抽出 ChatDetailSearchDerived（555 → 534 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：消息列表派生量簇 + 外观派生量抽出（534 → 506 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 506,
+        // 2026-10-18：门禁派生量簇 + 粒子启动器抽出（506 → 488 纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 488,
         // G345：sendNudge 抽出（2420 → 2343，纯搬移），上限同步收紧（两份 map 一起改）。
         // G346：retrySendMessage 抽出（2343 → 2275，纯搬移），上限同步收紧（两份 map 一起改）。
         // G349：sendEncryptedAttachment 抽出（2275 → 2147，纯搬移），上限同步收紧（两份 map 一起改）。
@@ -548,6 +549,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
         "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 320,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailMessageActionsSheet.kt" to 523,
+        // 拆小后 MainActivity（497）滑进前 20——按实测值纳入监管（两份 map 一起加）。
+        "com/maodouchat/MainActivity.kt" to 497,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
@@ -661,7 +664,8 @@ class ClientArchitectureTest {
             // 2026-10-18：AI-surface 降级 LaunchedEffect 抽出 ChatDetailAiSurfaceEffects（560 → 555 纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-18：搜索派生量簇抽出 ChatDetailSearchDerived（555 → 534 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：消息列表派生量簇 + 外观派生量抽出（534 → 506 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 506,
+        // 2026-10-18：门禁派生量簇 + 粒子启动器抽出（506 → 488 纯搬移），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt" to 488,
             // G389：B4 本地 AI 聚合 4 个 LaunchedEffect 抽出 ChatDetailAiResultEffects（1077 → 1026），上限同步收紧（两份 map 一起改）。
             // G386：ChatMessageStatusObservationController（1206 → 1124），上限同步收紧（两份 map 一起改）。
             // G387：ChatMessageLoadingController + ChatSessionCipherController（1124 → 873），上限同步收紧（两份 map 一起改）。
@@ -778,6 +782,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
         "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 320,
         "com/maodouchat/ui/screen/chatdetail/ChatDetailMessageActionsSheet.kt" to 523,
+        // 拆小后 MainActivity（497）滑进前 20——按实测值纳入监管（两份 map 一起加）。
+        "com/maodouchat/MainActivity.kt" to 497,
         "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），

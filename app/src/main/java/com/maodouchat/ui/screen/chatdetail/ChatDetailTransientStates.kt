@@ -1,10 +1,15 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.maodouchat.data.model.Message
 import com.maodouchat.ui.component.ParticleState
+import com.maodouchat.ui.theme.LocalChatBubbleColor
+import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
  * G335：**发送前的待确认项** —— 选完图/视频之后、真正发出去之前的那一小段状态。
@@ -117,5 +122,37 @@ internal class ChatDetailBubbleBoundsState {
 
     fun remove(messageId: String) {
         bounds.remove(messageId)
+    }
+}
+
+/**
+ * 粒子动效启动器：原在 ChatDetailRoute 的局部函数 `startParticleEffect`。
+ *
+ * 必须在 @Composable 上下文中抓取 palette（回调里不能直接读 CompositionLocal），
+ * 所以收成 remember 接线；palette / 气泡色 / currentUserId 变化时重建 lambda——
+ * 原先局部函数每次重组都会重建，语义一致。
+ */
+@Composable
+internal fun rememberChatDetailParticleLauncher(
+    particles: ChatDetailParticleState,
+    bubbleBounds: ChatDetailBubbleBoundsState,
+    currentUserId: String,
+): (Message, ParticleAction) -> Unit {
+    val palette = LocalChatPalette.current
+    val ownBubbleColor = LocalChatBubbleColor.current
+    return remember(particles, bubbleBounds, currentUserId, palette, ownBubbleColor) {
+        { message: Message, action: ParticleAction ->
+            val isOwn = message.senderId == currentUserId
+            val bounds = bubbleBounds[message.id] ?: BubbleBounds(
+                androidx.compose.ui.unit.IntOffset(if (isOwn) 280 else 80, 220),
+                androidx.compose.ui.unit.IntSize(220, 56)
+            )
+            val bubbleColor = if (isOwn) ownBubbleColor else palette.chatBubbleReceived
+            particles.start(
+                messageId = message.id,
+                action = action,
+                states = listOf(ParticleState(message.id, bounds.offset, bounds.size, bubbleColor)),
+            )
+        }
     }
 }

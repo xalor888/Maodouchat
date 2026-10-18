@@ -43,8 +43,6 @@ import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.maodouchat.ui.component.ParticleState
-import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -234,36 +232,22 @@ internal fun ChatDetailRoute(
         },
     )
 
-    // 粒子动效入口：提前在 @Composable 上下文中抓取 palette，避免在本地函数里调用
-    val palette = LocalChatPalette.current
-    val ownBubbleColor = com.maodouchat.ui.theme.LocalChatBubbleColor.current
-    fun startParticleEffect(message: Message, action: ParticleAction) {
-        val isOwn = message.senderId == state.currentUserId
-        val bounds = bubbleBounds[message.id] ?: BubbleBounds(
-            androidx.compose.ui.unit.IntOffset(if (isOwn) 280 else 80, 220),
-            androidx.compose.ui.unit.IntSize(220, 56)
-        )
-        val bubbleColor = if (isOwn) ownBubbleColor else palette.chatBubbleReceived
-        particles.start(
-            messageId = message.id,
-            action = action,
-            states = listOf(ParticleState(message.id, bounds.offset, bounds.size, bubbleColor)),
-        )
-    }
+    // 粒子动效启动器收进 ChatDetailTransientStates.kt 的 remember 接线（纯搬移不改判断）。
+    val particleLauncher = rememberChatDetailParticleLauncher(particles, bubbleBounds, state.currentUserId)
 
     ChatDetailScrollEffects(state, scroll, chatListScroller, listState, targets, viewModel, listDerived.reversedChatItems)
 
     ChatDetailInfoEffects(state, viewModel, chatSnackbarHostState, context)
 
     // 密聊 / 阅后即焚：MediaStore 旁路截屏/录屏检测（FLAG_SECURE 之外的补充）
-    val disappearingActive = !state.chatIsGroup && state.disappearingMessageSeconds > 0
-    val secretActive = state.isSecretChat == true
+    // 门禁派生量族收进 ChatDetailGateDerived（见同名文件），纯搬移不改判断。
+    val gate = rememberChatDetailGateDerived(state)
 
     // G335：密聊门禁进度收进持有类（见 ChatDetailSecretGateState.kt）
     val secretGate = remember { ChatDetailSecretGateState() }
     ChatDetailSecretGateEffects(
         state = state,
-        secretActive = secretActive,
+        secretActive = gate.secretActive,
         secretGate = secretGate,
         viewModel = viewModel,
         context = context,
@@ -280,13 +264,11 @@ internal fun ChatDetailRoute(
         viewModel = viewModel,
     )
 
-    ChatDetailScreenshotGuards(state = state, disappearingActive = disappearingActive, secretActive = secretActive, viewModel = viewModel, context = context)
+    ChatDetailScreenshotGuards(state = state, disappearingActive = gate.disappearingActive, secretActive = gate.secretActive, viewModel = viewModel, context = context)
 
     ChatDetailStatusInfoEffects(state, viewModel, chatSnackbarHostState)
 
-    val chatLockPending = state.isChatLocked == null
-    val chatLockBlocking = state.isChatLocked == true && !state.isChatUnlocked
-    ChatDetailWindowPrivacyEffects(state = state, chatLockBlocking = chatLockBlocking, context = context)
+    ChatDetailWindowPrivacyEffects(state = state, chatLockBlocking = gate.chatLockBlocking, context = context)
     val secretPagePayload = rememberSecretPageWatermarkPayload(
         isSecretChat = state.isSecretChat == true,
         userId = com.maodouchat.session.CurrentSession.ownerUserId(),
@@ -314,12 +296,12 @@ internal fun ChatDetailRoute(
         onVideoCall = onVideoCall,
     )
 
-    if (chatLockPending) {
+    if (gate.chatLockPending) {
         // 聊天锁加载中占位抽到同包 ChatDetailLockPendingIndicator，纯搬移不改判断。
         ChatDetailLockPendingIndicator()
     } else if (secretGate.deviceRiskLocked) {
         SecretNewDeviceRiskLocked(onRegisterClick = { secretGate.showDeviceRiskDialog = true })
-    } else if (chatLockBlocking) {
+    } else if (gate.chatLockBlocking) {
         ChatDetailChatLockGate(
             state = state,
             chatLock = chatLock,
@@ -495,7 +477,7 @@ internal fun ChatDetailRoute(
         chatCopiedMsg = chatCopiedMsg,
         chatTranslationCopiedMsg = chatTranslationCopiedMsg,
         chatTranscriptCopiedMsg = chatTranscriptCopiedMsg,
-        onStartParticleEffect = { msg, action -> startParticleEffect(msg, action) },
+        onStartParticleEffect = particleLauncher,
         chatClipboardMessageLabel = chatClipboardMessageLabel,
         chatClipboardTranslationLabel = chatClipboardTranslationLabel,
         chatClipboardTranscriptLabel = chatClipboardTranscriptLabel,
