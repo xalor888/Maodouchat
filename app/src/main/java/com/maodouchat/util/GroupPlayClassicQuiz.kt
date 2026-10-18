@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-// 问答知识类（测验/谜语/文字游戏等）：编解码实现（从 GroupPlayClassicPolicy 逐字搬出，零行为改动）。
+// 问答知识类（测验/谜语/知识竞答等）：编解码实现（从 GroupPlayClassicPolicy 逐字搬出，零行为改动）。
 internal object GroupPlayClassicQuiz {
 
     fun formatTwoTruthsOneLie(t1: String, t2: String, lie: String, hostLabel: String): String {
@@ -185,30 +185,13 @@ internal object GroupPlayClassicQuiz {
         return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.TOAST_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-    fun formatWordHint(hint: String, answer: String, hostLabel: String): String {
-        val h = hint.trim().take(60)
-        val a = answer.trim().take(40)
-        return "${GroupPlayPolicy.WORDHINT_PREFIX}${GroupPlayFieldEscape.esc(h)}|${GroupPlayFieldEscape.esc(a)}|${hostLabel} word hint"
-    }
+    fun formatWordHint(hint: String, answer: String, hostLabel: String): String = GroupPlayClassicWordGames.formatWordHint(hint, answer, hostLabel)
 
-    fun parseWordHint(content: String): Pair<String, String>? {
-        if (!content.startsWith(GroupPlayPolicy.WORDHINT_PREFIX)) return null
-        val body = content.removePrefix(GroupPlayPolicy.WORDHINT_PREFIX)
-        val h = GroupPlayFieldEscape.unesc(body.substringBefore('|'))
-        val a = GroupPlayFieldEscape.unesc(body.substringAfter('|').substringBefore('|'))
-        if (h.isBlank()) return null
-        return h to a
-    }
+    fun parseWordHint(content: String): Pair<String, String>? = GroupPlayClassicWordGames.parseWordHint(content)
 
-    fun formatAcrostic(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(20)
-        return "${GroupPlayPolicy.ACROSTIC_PREFIX}${GroupPlayFieldEscape.esc(s)}|${hostLabel} acrostic — start each line with letters of '$s'"
-    }
+    fun formatAcrostic(seed: String, hostLabel: String): String = GroupPlayClassicWordGames.formatAcrostic(seed, hostLabel)
 
-    fun parseAcrostic(content: String): String? {
-        if (!content.startsWith(GroupPlayPolicy.ACROSTIC_PREFIX)) return null
-        return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.ACROSTIC_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseAcrostic(content: String): String? = GroupPlayClassicWordGames.parseAcrostic(content)
 
     fun formatEmojiTranslate(prompt: String, answer: String, hostLabel: String): String {
         val p = prompt.trim().take(24)
@@ -235,15 +218,9 @@ internal object GroupPlayClassicQuiz {
         return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.TWENTYQ_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-    fun formatRhyme(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(20)
-        return "${GroupPlayPolicy.RHYME_PREFIX}${GroupPlayFieldEscape.esc(s)}|${hostLabel} rhyme chain — rhyme with '$s'"
-    }
+    fun formatRhyme(seed: String, hostLabel: String): String = GroupPlayClassicWordGames.formatRhyme(seed, hostLabel)
 
-    fun parseRhyme(content: String): String? {
-        if (!content.startsWith(GroupPlayPolicy.RHYME_PREFIX)) return null
-        return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.RHYME_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseRhyme(content: String): String? = GroupPlayClassicWordGames.parseRhyme(content)
 
     fun formatOddOneOut(options: String, answer: String, hostLabel: String): String {
         val o = options.trim().take(80)
@@ -270,36 +247,17 @@ internal object GroupPlayClassicQuiz {
         return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.CATEGORIES_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-    fun formatPasswordGame(hint: String, hostLabel: String): String {
-        val h = hint.trim().take(40)
-        return "${GroupPlayPolicy.PASSWORD_PREFIX}${GroupPlayFieldEscape.esc(h)}|${hostLabel} password game — guess under rules"
-    }
+    fun formatPasswordGame(hint: String, hostLabel: String): String = GroupPlayClassicWordGames.formatPasswordGame(hint, hostLabel)
 
-    fun parsePasswordGame(content: String): String? {
-        if (!content.startsWith(GroupPlayPolicy.PASSWORD_PREFIX)) return null
-        return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.PASSWORD_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parsePasswordGame(content: String): String? = GroupPlayClassicWordGames.parsePasswordGame(content)
 
-    fun formatTaboo(card: String, hostLabel: String): String {
-        val c = card.trim().take(60)
-        val word = c.substringBefore('|')
-        return "${GroupPlayPolicy.TABOO_PREFIX}${GroupPlayFieldEscape.esc(c)}|${hostLabel} taboo — describe '$word' without banned words"
-    }
+    fun formatTaboo(card: String, hostLabel: String): String = GroupPlayClassicWordGames.formatTaboo(card, hostLabel)
 
-    fun parseTaboo(content: String): String? {
-        if (!content.startsWith(GroupPlayPolicy.TABOO_PREFIX)) return null
-        return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.TABOO_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTaboo(content: String): String? = GroupPlayClassicWordGames.parseTaboo(content)
 
-    fun formatTwoWords(seed: String, hostLabel: String): String {
-        val s = seed.trim().take(20)
-        return "${GroupPlayPolicy.TWO_WORDS_PREFIX}${GroupPlayFieldEscape.esc(s)}|${hostLabel} two-word story — start with '$s'"
-    }
+    fun formatTwoWords(seed: String, hostLabel: String): String = GroupPlayClassicWordGames.formatTwoWords(seed, hostLabel)
 
-    fun parseTwoWords(content: String): String? {
-        if (!content.startsWith(GroupPlayPolicy.TWO_WORDS_PREFIX)) return null
-        return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.TWO_WORDS_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseTwoWords(content: String): String? = GroupPlayClassicWordGames.parseTwoWords(content)
 
     fun formatGeoGuess(clue: String, hostLabel: String): String {
         val c = clue.trim().take(50)
@@ -311,15 +269,9 @@ internal object GroupPlayClassicQuiz {
         return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.GEO_GUESS_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-    fun formatOneWord(word: String, hostLabel: String): String {
-        val w = word.trim().take(20)
-        return "${GroupPlayPolicy.ONE_WORD_PREFIX}${GroupPlayFieldEscape.esc(w)}|${hostLabel} one-word story — continue with one word"
-    }
+    fun formatOneWord(word: String, hostLabel: String): String = GroupPlayClassicWordGames.formatOneWord(word, hostLabel)
 
-    fun parseOneWord(content: String): String? {
-        if (!content.startsWith(GroupPlayPolicy.ONE_WORD_PREFIX)) return null
-        return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.ONE_WORD_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseOneWord(content: String): String? = GroupPlayClassicWordGames.parseOneWord(content)
 
     fun formatSpeedMath(q: String, hostLabel: String): String {
         val qq = q.trim().take(20)
@@ -381,15 +333,9 @@ internal object GroupPlayClassicQuiz {
         return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.FACT_OR_FICTION_PREFIX).substringBefore('|')).ifBlank { null }
     }
 
-    fun formatWordScramble(pair: String, hostLabel: String): String {
-        val p = pair.trim().take(40)
-        return "${GroupPlayPolicy.WORD_SCRAMBLE_PREFIX}${GroupPlayFieldEscape.esc(p)}|${hostLabel} word scramble"
-    }
+    fun formatWordScramble(pair: String, hostLabel: String): String = GroupPlayClassicWordGames.formatWordScramble(pair, hostLabel)
 
-    fun parseWordScramble(content: String): String? {
-        if (!content.startsWith(GroupPlayPolicy.WORD_SCRAMBLE_PREFIX)) return null
-        return GroupPlayFieldEscape.unesc(content.removePrefix(GroupPlayPolicy.WORD_SCRAMBLE_PREFIX).substringBefore('|')).ifBlank { null }
-    }
+    fun parseWordScramble(content: String): String? = GroupPlayClassicWordGames.parseWordScramble(content)
 
     fun formatCodeBreaker(code: String, hostLabel: String): String {
         val c = code.trim().take(8)

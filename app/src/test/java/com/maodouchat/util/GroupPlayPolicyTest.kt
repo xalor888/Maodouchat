@@ -216,6 +216,8 @@ class GroupPlayPolicyTest {
         "GroupPlayModePolicy.kt",
         "GroupPlayClassicDuel.kt",
         "GroupPlayClassicQuiz.kt",
+        // 本轮：文字游戏簇从 Quiz 抽出为独立对象，属同一声明族。
+        "GroupPlayClassicWordGames.kt",
         "GroupPlayClassicParty.kt",
         "GroupPlayClassicSprint.kt",
         "GroupPlayModeMedia.kt",
