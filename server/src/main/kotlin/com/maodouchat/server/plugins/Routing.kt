@@ -243,29 +243,19 @@ fun Application.configureRouting(
             chatFolderRepository = chatFolderRepo,
             clientPrefsRepository = clientPrefsRepo,
         )
-        configureGroupAdminMemberRoutes(
+        configureGroupAdminRoutes(
             userRepo = userRepo,
-            membershipService = groupMembershipService,
-            profileRepository = groupProfileRepo,
-            moderationRepository = groupModerationRepo,
-            queryRepository = conversationQueryRepo,
-            participantRepository = conversationParticipantRepo,
-            json = json,
-        )
-        configureGroupAdminProfileRoutes(
-            userRepo = userRepo,
-            profileRepository = groupProfileRepo,
-            invitationService = groupInvitationService,
-            queryRepository = conversationQueryRepo,
-            participantRepository = conversationParticipantRepo,
+            groupMembershipService = groupMembershipService,
+            groupProfileRepo = groupProfileRepo,
+            groupModerationRepo = groupModerationRepo,
+            groupInvitationService = groupInvitationService,
+            conversationQueryRepo = conversationQueryRepo,
+            conversationParticipantRepo = conversationParticipantRepo,
             avatarRateLimiter = avatarRateLimiter,
+            groupAuditRepo = groupAuditRepo,
+            signalKeyRepo = signalKeyRepo,
+            senderKeyDistributionRepo = senderKeyDistributionRepo,
             json = json,
-        )
-        configureGroupAdminAuditRoutes(
-            participantRepository = conversationParticipantRepo,
-            auditRepository = groupAuditRepo,
-            signalKeyRepository = signalKeyRepo,
-            senderKeyRepository = senderKeyDistributionRepo,
         )
         configureSignalKeyMaterialRoutes(
             signalKeyRepository = signalKeyRepo,
@@ -286,16 +276,7 @@ fun Application.configureRouting(
             pushService = pushService,
             json = json,
         )
-        configureBotProbeRoutes(botSendRateLimiter)
-        configureBotRuntimeFlagRoutes(botSendRateLimiter)
-        configureBotHintRoutes(
-            userRepository = userRepo,
-            participantRepository = conversationParticipantRepo,
-            serviceMessageRepository = serviceMessageRepo,
-            botRateLimiter = botSendRateLimiter,
-            json = json,
-        )
-        configureBotApiRoutes(
+        configureBotRoutes(
             userRepo = userRepo,
             starMessageRepo = starMessageRepo,
             pinnedMessageRepo = pinnedMessageRepo,
@@ -304,7 +285,7 @@ fun Application.configureRouting(
             groupProfileRepo = groupProfileRepo,
             groupModerationRepo = groupModerationRepo,
             groupInvitationService = groupInvitationService,
-            commandService = conversationCommandService,
+            conversationCommandService = conversationCommandService,
             conversationParticipantRepo = conversationParticipantRepo,
             conversationQueryRepo = conversationQueryRepo,
             botSendRateLimiter = botSendRateLimiter,
