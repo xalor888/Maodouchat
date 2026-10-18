@@ -122,6 +122,8 @@ class RouteRegistrySplitTest {
         val conversationAssembly = source("ConversationRoutesAssembly.kt")
         // 加密通信三组经装配层委托：Routing.kt 只调 configureSignalCallRoutes，内层各族调用收在装配文件里。
         val signalCallAssembly = source("SignalCallRoutesAssembly.kt")
+        // 用户侧 Bot 两组经装配层委托：Routing.kt 只调 configureBotUserRoutes，内层两族调用收在装配文件里。
+        val botUserAssembly = source("BotUserRoutesAssembly.kt")
         val modules = listOf(
             source("AuthAccountRoutes.kt"),
             source("AuthLoginRoutes.kt"),
@@ -194,6 +196,7 @@ class RouteRegistrySplitTest {
             "configureGroupAdminRoutes(",
             "configureConversationRoutes(",
             "configureSignalCallRoutes(",
+            "configureBotUserRoutes(",
             "configurePublicSiteRoutes()",
             "configurePollLegacyRoutes(",
         ).forEach { registration -> assertTrue(registration in registry, registration) }
@@ -238,6 +241,12 @@ class RouteRegistrySplitTest {
             "configureSealedSenderRoutes(",
             "configureCallSignalingRoutes(",
         ).forEach { registration -> assertTrue(registration in signalCallAssembly, registration) }
+        // auth-jwt 鉴权块随装配下移：两组调用与鉴权包装都在装配文件里，防止搬运中丢掉鉴权。
+        assertTrue("authenticate(\"auth-jwt\")" in botUserAssembly)
+        listOf(
+            "configureBotInteractionRoutes(",
+            "configureBotManagementRoutes(",
+        ).forEach { registration -> assertTrue(registration in botUserAssembly, registration) }
 
         listOf(
             "/api/auth/login",
