@@ -660,6 +660,9 @@ class ClientArchitectureTest {
         // 2026-10-19：SettingsAccountSecurityScreen 拆小（737 → 346）掉出前 20，
         // ApiService（461 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/network/ApiService.kt" to 461,
+        // 2026-10-19：本轮 feed 头部搜索筛选簇 + 尾部对话框簇抽出（ExploreFeedScreen 532 → 421）后
+        // CallScreen（451 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
+        "com/maodouchat/ui/screen/call/CallScreen.kt" to 451,
     )
 
     @Test
@@ -912,6 +915,9 @@ class ClientArchitectureTest {
         // 2026-10-19：SettingsAccountSecurityScreen 拆小（737 → 346）掉出前 20，
         // ApiService（461 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/network/ApiService.kt" to 461,
+        // 2026-10-19：本轮 feed 头部搜索筛选簇 + 尾部对话框簇抽出（ExploreFeedScreen 532 → 421）后
+        // CallScreen（451 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
+        "com/maodouchat/ui/screen/call/CallScreen.kt" to 451,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
