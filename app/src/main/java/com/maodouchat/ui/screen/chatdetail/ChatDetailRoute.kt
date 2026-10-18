@@ -18,7 +18,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -96,7 +95,7 @@ internal fun ChatDetailRoute(
         context = context,
     )
     // G335：这一族「弹层当前操作哪条消息」的状态收进持有类（见 ChatDetailMessageActionState）。
-    val messageActions = remember { ChatDetailMessageActionState() }
+    val messageActions = rememberChatDetailMessageActionState()
     val chatAiSurfacesVisible = rememberChatDetailAiSurfaceVisibility(
         aiEnabled = state.aiEnabled,
         context = context
@@ -202,7 +201,7 @@ internal fun ChatDetailRoute(
     val gate = rememberChatDetailGateDerived(state)
 
     // G335：密聊门禁进度收进持有类（见 ChatDetailSecretGateState.kt）
-    val secretGate = remember { ChatDetailSecretGateState() }
+    val secretGate = rememberChatDetailSecretGateState()
     ChatDetailSecretGateEffects(
         state = state,
         secretActive = gate.secretActive,
@@ -213,7 +212,7 @@ internal fun ChatDetailRoute(
 
     // B4 本地 AI 聚合：会话画像 / 本周周报（仅非密聊会话，密聊不参与避免落可搜索缓存）
     // G335：AI 三块结果的「值/加载中/失败」收进持有类（见 ChatDetailAiResultState.kt）
-    val aiResults = remember { ChatDetailAiResultState() }
+    val aiResults = rememberChatDetailAiResultState()
     // G389：4 个 AI 结果副作用（消息分类/情感回复/会话画像/本周周报）抽到 ChatDetailAiResultEffects.kt，纯搬移。
     ChatDetailAiResultEffects(
         aiPanels = aiPanels,
