@@ -1,15 +1,10 @@
 package com.maodouchat.server.plugins
 
 import com.maodouchat.server.config.ServerConfig
-import com.maodouchat.server.service.GroupMembershipService
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.ConversationCommandService
-import com.maodouchat.server.service.ConversationCreationService
-import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.AiGateway
 import com.maodouchat.server.service.AiGatewayService
-import com.maodouchat.server.service.MediaReferenceService
 import com.maodouchat.server.service.FcmPushService
 import com.maodouchat.server.service.TurnCredentialService
 import com.maodouchat.server.service.CallInviteRateLimiter
@@ -59,58 +54,22 @@ fun Application.configureRouting(
     }
     attributes.put(RoutingInstalledKey, Unit)
     attributes.put(RoutingPushServiceKey, pushService)
-    val signalKeyRepo = SignalKeyRepository()
-    val starMessageRepo = StarMessageRepository()
-    val pinnedMessageRepo = PinnedMessageRepository()
-    val serviceMessageRepo = ServiceMessageRepository(messagingV2Repository)
-    val authTokenRepo = AuthTokenRepository()
-    val sessionService = com.maodouchat.server.service.SessionService(authTokenRepo, pushTokenRepo)
-    val friendRepo = FriendRepository()
-    val chatFolderRepo = ChatFolderRepository()
-    val clientPrefsRepo = ClientPrefsRepository()
-    val aiRepo = AiRepository()
-    val encryptedAttachmentRepo = EncryptedAttachmentRepository()
-    val senderKeyDistributionRepo = SenderKeyDistributionRepository()
-    val reportRepo = ReportWorkflow()
-    val groupMembershipRepo = GroupMembershipRepository()
-    val groupMembershipService = GroupMembershipService(groupMembershipRepo)
-    val groupProfileRepo = GroupProfileRepository()
-    val groupModerationRepo = GroupModerationRepository()
-    val groupInvitationRepo = GroupInvitationRepository()
-    val groupInvitationService = GroupInvitationService(groupInvitationRepo)
-    val conversationLifecycleRepo = ConversationLifecycleRepository()
-    val conversationCreationRepo = ConversationCreationRepository()
-    val conversationCreationService = ConversationCreationService(
-        conversationCreationRepo,
-        groupInvitationService,
-    )
-    val conversationSettingsRepo = ConversationSettingsRepository()
-    val conversationCommandService = ConversationCommandService(
-        creationService = conversationCreationService,
-        lifecycleRepository = conversationLifecycleRepo,
-        settingsRepository = conversationSettingsRepo,
-    )
-    val conversationParticipantRepo = ConversationParticipantRepository()
-    val conversationQueryRepo = ConversationQueryRepository()
-    val groupAuditRepo = GroupAuditRepository()
-    val groupMediaReferenceRepo = GroupMediaReferenceRepository()
-    val mediaReferenceService = MediaReferenceService(encryptedAttachmentRepo, groupMediaReferenceRepo)
-    val orphanGcJob = com.maodouchat.server.service.OrphanGcJob(
-        encryptedAttachmentRepo,
-        postRepo,
-        mediaReferenceService,
+    val services = buildRoutingServiceAssembly(
+        postRepo = postRepo,
+        messagingV2Repository = messagingV2Repository,
+        pushTokenRepo = pushTokenRepo,
     )
     val aiSummaryCleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     // B01：周期维护循环本体在 MaintenanceRunner，路由只做装配与启停。
     com.maodouchat.server.service.MaintenanceRunner(
-        orphanGcJob = orphanGcJob,
-        aiRepo = aiRepo,
-        friendRepo = friendRepo,
-        groupAuditRepo = groupAuditRepo,
-        signalKeyRepo = signalKeyRepo,
+        orphanGcJob = services.orphanGcJob,
+        aiRepo = services.aiRepo,
+        friendRepo = services.friendRepo,
+        groupAuditRepo = services.groupAuditRepo,
+        signalKeyRepo = services.signalKeyRepo,
         postRepo = postRepo,
-        reportRepo = reportRepo,
-        authTokenRepo = authTokenRepo,
+        reportRepo = services.reportRepo,
+        authTokenRepo = services.authTokenRepo,
     ).start(aiSummaryCleanupScope)
     val (cacheService, cacheLifecycleId) =
         com.maodouchat.server.service.CacheService.acquireLifecycle()
@@ -121,57 +80,12 @@ fun Application.configureRouting(
         cacheService.shutdown(cacheLifecycleId)
         pushService.shutdown()
     }
-    val moderationRuleRepo = ModerationRuleRepository()
-    val nearbyRepo = NearbyRepository()
-    val preKeyFetchTracker = BoundedRateLimiter(maxBuckets = 20_000)
-    // 邮箱验证码发送频率限制：每邮箱每分钟最多 3 次
-    val sendCodeRateLimiter = BoundedRateLimiter()
-    // 邮箱验证码发送 IP 级限制：每 IP 每分钟最多 20 次（防邮件轰炸）
-    val sendCodeIpRateLimiter = BoundedRateLimiter()
-    // 登录+注册 IP 级限制：每 IP 每分钟最多 10 次（防暴破）
-    val loginIpRateLimiter = BoundedRateLimiter()
-    // 登录/注册/重置 按账号(email)限制：关闭「多源 IP 分布式爆破同一账号」的绕过路径
-    val loginEmailRateLimiter = BoundedRateLimiter()
-    // Single-account consecutive login failure lockout (B02 LoginAttemptGate).
-    val loginGate = com.maodouchat.server.service.LoginAttemptGate()
-    // 好友申请按发起用户限流：防止单用户向同/多目标狂发申请（通知轰炸/骚扰）
-    val friendRequestRateLimiter = BoundedRateLimiter()
-    // 用户目录查询按用户限流：防止整库抓取/枚举（/api/users 空 q 返回全量、/api/users/search 可遍历）
-    val userSearchRateLimiter = BoundedRateLimiter()
-    // 全局消息搜索按用户限流：底层 LIKE 全表扫描成本高，10/min 防止搜索 DoS
-    // 0.98：公开主页接口按 IP 限流（/api/public/profile、/u/{username} 匿名可被枚举）
-    val publicProfileRateLimiter = BoundedRateLimiter()
-    // 附近的人更新/查询按用户限流：10/min 更新 + 30/min 查询，防高频 DB 写与 haversine 计算
-    val nearbyUpdateRateLimiter = BoundedRateLimiter()
-    val nearbyQueryRateLimiter = BoundedRateLimiter()
-    // 表情回应按用户限流：每次请求全群 fanout，60/min 防帧风暴
-    val reactionRateLimiter = BoundedRateLimiter()
-    // bot 创建/轮换 token 按用户限流 + bot 发消息按 bot 限流：防 churn 与 fanout 风暴
-    val botCreateRateLimiter = BoundedRateLimiter()
-    val botTokenRateLimiter = BoundedRateLimiter()
-    val botSendRateLimiter = BoundedRateLimiter()
-    val aiRateLimiter = BoundedRateLimiter()
-    // 举报提交频率限制：每用户每分钟最多 5 次，防止刷爆审核队列（骚扰/审核资源耗尽）
-    val reportRateLimiter = BoundedRateLimiter()
-    // 头像上传频率限制：每用户每分钟最多 10 次，防止头像对象高频 churn / 存储放大
-    val avatarRateLimiter = BoundedRateLimiter()
-    // 创建聊天频率限制：每用户每分钟最多 20 次，防止群 spam / 聊天枚举
-    val createChatRateLimiter = BoundedRateLimiter()
-    // 动态发布频率限制：每用户每分钟最多 20 次，防止 feed spam / 存储放大
-    val postRateLimiter = BoundedRateLimiter()
-    // 动态图片上传频率限制：每用户每分钟最多 10 次，防止存储放大（与头像同量级）
-    val postImageRateLimiter = BoundedRateLimiter()
-    // 动态评论频率限制：每用户每分钟最多 30 次，防止评论洪水 / 通知轰炸作者
-    val commentRateLimiter = BoundedRateLimiter()
-    val postLikeRateLimiter = BoundedRateLimiter()
-    /** 1.83：评论点赞独立限流（与动态点赞预算隔离）。 */
-    val commentLikeRateLimiter = BoundedRateLimiter()
-    val totpManageRateLimiter = BoundedRateLimiter()
+    val limiters = buildRateLimiterAssembly()
     // 1-on-1 聊天创建锁：防止同一对用户并发创建多个聊天
     val json = Json { ignoreUnknownKeys = true }
 
     // 管理后台路由（/admin/*）—— 首个「明确未完成」模块落地
-    configureAdminRouting(userRepo, postRepo, moderationRuleRepo, reportRepo)
+    configureAdminRouting(userRepo, postRepo, services.moderationRuleRepo, services.reportRepo)
 
     routing {
         // 全局请求体大小拦截：JSON/普通 API 限 5MB；一次性附件上传与分块上传有各自上限
@@ -206,53 +120,53 @@ fun Application.configureRouting(
         }
         configureConversationRoutes(
             userRepo = userRepo,
-            commandService = conversationCommandService,
-            participantRepository = conversationParticipantRepo,
-            queryRepository = conversationQueryRepo,
-            invitationService = groupInvitationService,
+            commandService = services.conversationCommandService,
+            participantRepository = services.conversationParticipantRepo,
+            queryRepository = services.conversationQueryRepo,
+            invitationService = services.groupInvitationService,
             pushService = pushService,
-            createRateLimiter = createChatRateLimiter,
+            createRateLimiter = limiters.createChatRateLimiter,
             json = json,
         )
         configureGroupInvitationRoutes(
             userRepo = userRepo,
-            membershipService = groupMembershipService,
-            invitationService = groupInvitationService,
-            queryRepository = conversationQueryRepo,
-            participantRepository = conversationParticipantRepo,
+            membershipService = services.groupMembershipService,
+            invitationService = services.groupInvitationService,
+            queryRepository = services.conversationQueryRepo,
+            participantRepository = services.conversationParticipantRepo,
             pushService = pushService,
             json = json,
         )
         configureFriendRoutes(
             userRepository = userRepo,
-            friendRepository = friendRepo,
+            friendRepository = services.friendRepo,
             pushService = pushService,
-            requestRateLimiter = friendRequestRateLimiter,
+            requestRateLimiter = limiters.friendRequestRateLimiter,
             json = json,
         )
         configureClientSyncRoutes(
-            chatFolderRepository = chatFolderRepo,
-            clientPrefsRepository = clientPrefsRepo,
+            chatFolderRepository = services.chatFolderRepo,
+            clientPrefsRepository = services.clientPrefsRepo,
         )
         configureGroupAdminRoutes(
             userRepo = userRepo,
-            groupMembershipService = groupMembershipService,
-            groupProfileRepo = groupProfileRepo,
-            groupModerationRepo = groupModerationRepo,
-            groupInvitationService = groupInvitationService,
-            conversationQueryRepo = conversationQueryRepo,
-            conversationParticipantRepo = conversationParticipantRepo,
-            avatarRateLimiter = avatarRateLimiter,
-            groupAuditRepo = groupAuditRepo,
-            signalKeyRepo = signalKeyRepo,
-            senderKeyDistributionRepo = senderKeyDistributionRepo,
+            groupMembershipService = services.groupMembershipService,
+            groupProfileRepo = services.groupProfileRepo,
+            groupModerationRepo = services.groupModerationRepo,
+            groupInvitationService = services.groupInvitationService,
+            conversationQueryRepo = services.conversationQueryRepo,
+            conversationParticipantRepo = services.conversationParticipantRepo,
+            avatarRateLimiter = limiters.avatarRateLimiter,
+            groupAuditRepo = services.groupAuditRepo,
+            signalKeyRepo = services.signalKeyRepo,
+            senderKeyDistributionRepo = services.senderKeyDistributionRepo,
             json = json,
         )
         configureSignalCallRoutes(
             userRepo = userRepo,
-            signalKeyRepository = signalKeyRepo,
-            conversationQueryRepository = conversationQueryRepo,
-            preKeyFetchLimiter = preKeyFetchTracker,
+            signalKeyRepository = services.signalKeyRepo,
+            conversationQueryRepository = services.conversationQueryRepo,
+            preKeyFetchLimiter = limiters.preKeyFetchTracker,
             signalingRepo = signalingRepo,
             callInviteRateLimiter = callInviteRateLimiter,
             turnCredentialService = turnCredentialService,
@@ -261,17 +175,17 @@ fun Application.configureRouting(
         )
         configureBotRoutes(
             userRepo = userRepo,
-            starMessageRepo = starMessageRepo,
-            pinnedMessageRepo = pinnedMessageRepo,
-            serviceMessageRepo = serviceMessageRepo,
-            groupMembershipService = groupMembershipService,
-            groupProfileRepo = groupProfileRepo,
-            groupModerationRepo = groupModerationRepo,
-            groupInvitationService = groupInvitationService,
-            conversationCommandService = conversationCommandService,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            botSendRateLimiter = botSendRateLimiter,
+            starMessageRepo = services.starMessageRepo,
+            pinnedMessageRepo = services.pinnedMessageRepo,
+            serviceMessageRepo = services.serviceMessageRepo,
+            groupMembershipService = services.groupMembershipService,
+            groupProfileRepo = services.groupProfileRepo,
+            groupModerationRepo = services.groupModerationRepo,
+            groupInvitationService = services.groupInvitationService,
+            conversationCommandService = services.conversationCommandService,
+            conversationParticipantRepo = services.conversationParticipantRepo,
+            conversationQueryRepo = services.conversationQueryRepo,
+            botSendRateLimiter = limiters.botSendRateLimiter,
             json = json,
             messagingV2Repository = messagingV2Repository,
         )
@@ -280,15 +194,15 @@ fun Application.configureRouting(
         configureAuthRoutes(
             cacheService = cacheService,
             userRepo = userRepo,
-            authTokenRepo = authTokenRepo,
+            authTokenRepo = services.authTokenRepo,
             pushTokenRepo = pushTokenRepo,
-            loginIpRateLimiter = loginIpRateLimiter,
-            loginEmailRateLimiter = loginEmailRateLimiter,
-            sendCodeRateLimiter = sendCodeRateLimiter,
-            sendCodeIpRateLimiter = sendCodeIpRateLimiter,
-            publicProfileRateLimiter = publicProfileRateLimiter,
-            loginGate = loginGate,
-            sessionService = sessionService,
+            loginIpRateLimiter = limiters.loginIpRateLimiter,
+            loginEmailRateLimiter = limiters.loginEmailRateLimiter,
+            sendCodeRateLimiter = limiters.sendCodeRateLimiter,
+            sendCodeIpRateLimiter = limiters.sendCodeIpRateLimiter,
+            publicProfileRateLimiter = limiters.publicProfileRateLimiter,
+            loginGate = limiters.loginGate,
+            sessionService = services.sessionService,
         )
 
         // ─── 官网静态页面（无需认证） ─────────────
@@ -296,81 +210,81 @@ fun Application.configureRouting(
         configurePublicSiteRoutes()
         configureAttachmentRoutes(
             userRepo = userRepo,
-            encryptedAttachmentRepo = encryptedAttachmentRepo,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            rateLimiter = aiRateLimiter,
+            encryptedAttachmentRepo = services.encryptedAttachmentRepo,
+            conversationParticipantRepo = services.conversationParticipantRepo,
+            conversationQueryRepo = services.conversationQueryRepo,
+            rateLimiter = limiters.aiRateLimiter,
             messagingV2Repository = messagingV2Repository,
         )
         configureAuthSessionRoutes(
             mfaService = com.maodouchat.server.service.MfaService(),
-            sessionService = sessionService,
-            totpManageRateLimiter = totpManageRateLimiter,
+            sessionService = services.sessionService,
+            totpManageRateLimiter = limiters.totpManageRateLimiter,
         )
         configureAccountRoutes(
             userRepo = userRepo,
             postRepo = postRepo,
-            authTokenRepo = authTokenRepo,
+            authTokenRepo = services.authTokenRepo,
             pushTokenRepo = pushTokenRepo,
-            sessionService = sessionService,
+            sessionService = services.sessionService,
             notificationPreferenceRepo = notificationPreferenceRepo,
-            nearbyRepo = nearbyRepo,
+            nearbyRepo = services.nearbyRepo,
             cacheService = cacheService,
-            groupMediaReferenceRepo = groupMediaReferenceRepo,
-            encryptedAttachmentRepo = encryptedAttachmentRepo,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            userSearchRateLimiter = userSearchRateLimiter,
-            nearbyUpdateRateLimiter = nearbyUpdateRateLimiter,
-            nearbyQueryRateLimiter = nearbyQueryRateLimiter,
-            avatarRateLimiter = avatarRateLimiter,
+            groupMediaReferenceRepo = services.groupMediaReferenceRepo,
+            encryptedAttachmentRepo = services.encryptedAttachmentRepo,
+            conversationParticipantRepo = services.conversationParticipantRepo,
+            conversationQueryRepo = services.conversationQueryRepo,
+            userSearchRateLimiter = limiters.userSearchRateLimiter,
+            nearbyUpdateRateLimiter = limiters.nearbyUpdateRateLimiter,
+            nearbyQueryRateLimiter = limiters.nearbyQueryRateLimiter,
+            avatarRateLimiter = limiters.avatarRateLimiter,
             json = json,
         )
         configurePollLegacyRoutes(
             userRepo = userRepo,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
+            conversationParticipantRepo = services.conversationParticipantRepo,
+            conversationQueryRepo = services.conversationQueryRepo,
             json = json,
         )
         configureBotUserRoutes(
             userRepo = userRepo,
-            conversationParticipantRepo = conversationParticipantRepo,
-            commandService = conversationCommandService,
-            conversationQueryRepo = conversationQueryRepo,
-            groupMembershipService = groupMembershipService,
-            botCreateRateLimiter = botCreateRateLimiter,
-            botTokenRateLimiter = botTokenRateLimiter,
-            createChatRateLimiter = createChatRateLimiter,
+            conversationParticipantRepo = services.conversationParticipantRepo,
+            commandService = services.conversationCommandService,
+            conversationQueryRepo = services.conversationQueryRepo,
+            groupMembershipService = services.groupMembershipService,
+            botCreateRateLimiter = limiters.botCreateRateLimiter,
+            botTokenRateLimiter = limiters.botTokenRateLimiter,
+            createChatRateLimiter = limiters.createChatRateLimiter,
             json = json,
         )
         configureReportModerationRoutes(
             userRepo = userRepo,
             postRepo = postRepo,
-            reportRepo = reportRepo,
-            moderationRuleRepo = moderationRuleRepo,
-            authTokenRepo = authTokenRepo,
+            reportRepo = services.reportRepo,
+            moderationRuleRepo = services.moderationRuleRepo,
+            authTokenRepo = services.authTokenRepo,
             pushTokenRepo = pushTokenRepo,
-            sessionService = sessionService,
-            conversationParticipantRepo = conversationParticipantRepo,
-            reportRateLimiter = reportRateLimiter,
+            sessionService = services.sessionService,
+            conversationParticipantRepo = services.conversationParticipantRepo,
+            reportRateLimiter = limiters.reportRateLimiter,
             json = json,
             messagingV2Repository = messagingV2Repository,
         )
         configureSocialPostRoutes(
             userRepo = userRepo,
             postRepo = postRepo,
-            moderationRuleRepo = moderationRuleRepo,
+            moderationRuleRepo = services.moderationRuleRepo,
             aiGateway = aiGateway,
             pushService = pushService,
-            conversationParticipantRepo = conversationParticipantRepo,
-            conversationQueryRepo = conversationQueryRepo,
-            starMessageRepo = starMessageRepo,
-            pinnedMessageRepo = pinnedMessageRepo,
-            postRateLimiter = postRateLimiter,
-            postImageRateLimiter = postImageRateLimiter,
-            commentRateLimiter = commentRateLimiter,
-            postLikeRateLimiter = postLikeRateLimiter,
-            commentLikeRateLimiter = commentLikeRateLimiter,
+            conversationParticipantRepo = services.conversationParticipantRepo,
+            conversationQueryRepo = services.conversationQueryRepo,
+            starMessageRepo = services.starMessageRepo,
+            pinnedMessageRepo = services.pinnedMessageRepo,
+            postRateLimiter = limiters.postRateLimiter,
+            postImageRateLimiter = limiters.postImageRateLimiter,
+            commentRateLimiter = limiters.commentRateLimiter,
+            postLikeRateLimiter = limiters.postLikeRateLimiter,
+            commentLikeRateLimiter = limiters.commentLikeRateLimiter,
             json = json,
         )
     }
