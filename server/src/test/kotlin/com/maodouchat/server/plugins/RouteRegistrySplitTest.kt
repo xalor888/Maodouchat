@@ -111,6 +111,9 @@ class RouteRegistrySplitTest {
         // 附件/动态路由经两层委托：Routing.kt 只调装配入口，内层各族调用收在装配文件里。
         val attachmentAssembly = source("AttachmentRoutesAssembly.kt")
         val socialPostAssembly = source("SocialPostRoutesAssembly.kt")
+        // Bot/群管理路由经两层委托：Routing.kt 只调装配入口，内层各族调用收在装配文件里。
+        val botAssembly = source("BotRoutesAssembly.kt")
+        val groupAdminAssembly = source("GroupAdminRoutesAssembly.kt")
         val modules = listOf(
             source("AuthAccountRoutes.kt"),
             source("AuthLoginRoutes.kt"),
@@ -180,6 +183,8 @@ class RouteRegistrySplitTest {
             "configureAttachmentRoutes(",
             "configureReportModerationRoutes(",
             "configureSocialPostRoutes(",
+            "configureBotRoutes(",
+            "configureGroupAdminRoutes(",
             "configurePublicSiteRoutes()",
             "configurePollLegacyRoutes(",
         ).forEach { registration -> assertTrue(registration in registry, registration) }
@@ -195,6 +200,18 @@ class RouteRegistrySplitTest {
             "configureSocialPostCommentRoutes(",
             "configureSocialPostFileRoutes(",
         ).forEach { registration -> assertTrue(registration in socialPostAssembly, registration) }
+        // 装配层必须继续把内层各族接上，防止端点在搬运中被静默丢掉。
+        listOf(
+            "configureBotProbeRoutes(",
+            "configureBotRuntimeFlagRoutes(",
+            "configureBotHintRoutes(",
+            "configureBotApiRoutes(",
+        ).forEach { registration -> assertTrue(registration in botAssembly, registration) }
+        listOf(
+            "configureGroupAdminMemberRoutes(",
+            "configureGroupAdminProfileRoutes(",
+            "configureGroupAdminAuditRoutes(",
+        ).forEach { registration -> assertTrue(registration in groupAdminAssembly, registration) }
 
         listOf(
             "/api/auth/login",
