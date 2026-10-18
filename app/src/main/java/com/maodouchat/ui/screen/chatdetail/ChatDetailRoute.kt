@@ -3,7 +3,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import android.annotation.SuppressLint
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -68,7 +67,6 @@ internal fun ChatDetailRoute(
     // G335：搜索状态族收进持有类（带 Saver，保存语义不变——见 ChatDetailSearchState.kt）
     val search = rememberChatDetailSearchState()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val motion = LocalMotionSettings.current
     val listState = rememberLazyListState()
     val listScrollScope = rememberCoroutineScope()
     // 8.47：滚动合并执行器（B7 帧预算）——高频回底/跳转连点合并同帧请求，
@@ -114,8 +112,6 @@ internal fun ChatDetailRoute(
     val particles = rememberChatDetailParticleState()
     val bubbleBounds = rememberChatDetailBubbleBoundsState()
     val configuration = LocalConfiguration.current
-    // 9.205：用主题真实深浅替代系统深浅/palette 身份比较（TG 主题与强制模式下不再误判）
-    val isDarkChat = com.maodouchat.ui.theme.LocalDarkTheme.current
     // 外观派生量（背景色/字号密度）收进持有类（见 ChatDetailAppearanceStates.kt），纯搬移不改判断。
     val appearanceDerived = rememberChatDetailAppearanceDerived(appearance)
     // 文案标签簇抽到 ChatDetailMessageLabels.kt，纯搬移。
@@ -130,13 +126,8 @@ internal fun ChatDetailRoute(
     ChatDetailMessageArrivalEffects(state, targets, context)
     // G335（第十三批）：滚动到顶部附近触发加载更早消息，派生量收进 scroll 持有类
     val headerStatus = rememberChatHeaderStatus(state, context)
-    BackHandler(enabled = dialogs.showChatOverflow || listDerived.messageSelectionMode || search.showSearchBar) {
-        when {
-            dialogs.showChatOverflow -> dialogs.showChatOverflow = false
-            listDerived.messageSelectionMode -> drafts.selectedMessageIds = emptySet()
-            search.showSearchBar -> search.showSearchBar = false
-        }
-    }
+    // 返回键处理抽到同包 ChatDetailBackHandler（溢出菜单/多选/搜索条按优先级关闭），纯搬移。
+    ChatDetailBackHandler(dialogs = dialogs, listDerived = listDerived, search = search, drafts = drafts)
     // 搜索派生量族收进持有类（见 ChatDetailSearchDerived.kt），纯搬移不改判断。
     val searchDerived = rememberChatDetailSearchDerived(
         messages = state.messages,
@@ -297,7 +288,8 @@ internal fun ChatDetailRoute(
             ChatDetailBackgroundLayers(
                 appearance = appearance,
                 chatBackgroundColor = appearanceDerived.backgroundColor,
-                isDarkChat = isDarkChat,
+                // 9.205：用主题真实深浅替代系统深浅/palette 身份比较（TG 主题与强制模式下不再误判）
+                isDarkChat = com.maodouchat.ui.theme.LocalDarkTheme.current,
             )
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).imePadding()) {
             // G344：横幅栈组装抽到 ChatDetailBanners.kt 的 ChatDetailBannerStack，纯搬移不改判断。
@@ -340,7 +332,7 @@ internal fun ChatDetailRoute(
                     viewModel = viewModel,
                     listState = listState,
                     reversedChatItems = listDerived.reversedChatItems,
-                    motion = motion,
+                    motion = LocalMotionSettings.current,
                     drafts = drafts,
                     messageSelectionMode = listDerived.messageSelectionMode,
                     particles = particles,
