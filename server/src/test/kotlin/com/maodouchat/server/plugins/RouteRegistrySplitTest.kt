@@ -266,6 +266,23 @@ class RouteRegistrySplitTest {
         }
     }
 
+    @Test
+    fun `route assembly objects are built once and fully wired`() {
+        val registry = source("Routing.kt")
+        val limiterAssembly = source("RateLimiterAssembly.kt")
+        val serviceAssembly = source("RoutingServiceAssembly.kt")
+        // 构造只发生一次：Routing.kt 里只有一处 build 调用。
+        assertEquals(1, "buildRateLimiterAssembly()".toRegex().findAll(registry).count())
+        assertEquals(1, "buildRoutingServiceAssembly\\(".toRegex().findAll(registry).count())
+        // 接线侧每个 limiters.X / services.X 在装配文件里都有对应的 val 声明，搬运不丢线。
+        Regex("""\blimiters\.(\w+)""").findAll(registry).forEach { match ->
+            assertTrue("val ${match.groupValues[1]}:" in limiterAssembly, match.value)
+        }
+        Regex("""\bservices\.(\w+)""").findAll(registry).forEach { match ->
+            assertTrue("val ${match.groupValues[1]}:" in serviceAssembly, match.value)
+        }
+    }
+
     private companion object {
         val ENDPOINT_DECLARATION = Regex("(?m)^\\s*(get|post|put|delete|patch)\\(\\\"")
         val ADMIN_ROUTE_MODULES = listOf(
