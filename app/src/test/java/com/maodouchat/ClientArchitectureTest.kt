@@ -429,7 +429,7 @@ class ClientArchitectureTest {
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
         // 按实测值纳入监管（两份 map 一起加）。
         // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 844,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 809,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
@@ -707,7 +707,7 @@ class ClientArchitectureTest {
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
             // 按实测值纳入监管（两份 map 一起加）。
             // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 844,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 809,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；

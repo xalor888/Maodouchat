@@ -82,78 +82,78 @@ class ChatDetailViewModel(
     ) = sessionCipherController.occupySessionCipher(targetChatId, peerUserId, updatePeer)
 
     private var lastMessagesSeen
-        get() = deps.lastMessagesSeen
-        set(value) { deps.lastMessagesSeen = value }
+        get() = deps.readReceiptBookkeeping.lastMessagesSeen
+        set(value) { deps.readReceiptBookkeeping.lastMessagesSeen = value }
     internal var pendingAiAction
-        get() = deps.pendingAiAction
-        set(value) { deps.pendingAiAction = value }
+        get() = deps.aiBookkeeping.pendingAiAction
+        set(value) { deps.aiBookkeeping.pendingAiAction = value }
     internal var pendingAiOperationRetryId
-        get() = deps.pendingAiOperationRetryId
-        set(value) { deps.pendingAiOperationRetryId = value }
+        get() = deps.aiBookkeeping.pendingAiOperationRetryId
+        set(value) { deps.aiBookkeeping.pendingAiOperationRetryId = value }
     internal var aiSettingsLoaded
-        get() = deps.aiSettingsLoaded
-        set(value) { deps.aiSettingsLoaded = value }
+        get() = deps.aiBookkeeping.aiSettingsLoaded
+        set(value) { deps.aiBookkeeping.aiSettingsLoaded = value }
     internal var unreadSummaryAttemptedForKey
-        get() = deps.unreadSummaryAttemptedForKey
-        set(value) { deps.unreadSummaryAttemptedForKey = value }
+        get() = deps.aiBookkeeping.unreadSummaryAttemptedForKey
+        set(value) { deps.aiBookkeeping.unreadSummaryAttemptedForKey = value }
     internal var unreadSummaryInFlightKey
-        get() = deps.unreadSummaryInFlightKey
-        set(value) { deps.unreadSummaryInFlightKey = value }
-    internal val semanticSearchGate get() = deps.semanticSearchGate
+        get() = deps.aiBookkeeping.unreadSummaryInFlightKey
+        set(value) { deps.aiBookkeeping.unreadSummaryInFlightKey = value }
+    internal val semanticSearchGate get() = deps.aiBookkeeping.semanticSearchGate
     private val attachmentPreparationJobs get() = deps.attachmentPreparationJobs
-    internal val aiOperationJobs get() = deps.aiOperationJobs
-    internal val aiAutoRetryJobs get() = deps.aiAutoRetryJobs
-    internal val aiAutoRetryAt get() = deps.aiAutoRetryAt
-    internal val aiOperationQueueMutex get() = deps.aiOperationQueueMutex
-    internal val aiOperationJson get() = deps.aiOperationJson
+    internal val aiOperationJobs get() = deps.aiBookkeeping.aiOperationJobs
+    internal val aiAutoRetryJobs get() = deps.aiBookkeeping.aiAutoRetryJobs
+    internal val aiAutoRetryAt get() = deps.aiBookkeeping.aiAutoRetryAt
+    internal val aiOperationQueueMutex get() = deps.aiBookkeeping.aiOperationQueueMutex
+    internal val aiOperationJson get() = deps.aiBookkeeping.aiOperationJson
     internal var aiRewriteStreamJob
-        get() = deps.aiRewriteStreamJob
-        set(value) { deps.aiRewriteStreamJob = value }
+        get() = deps.aiBookkeeping.aiRewriteStreamJob
+        set(value) { deps.aiBookkeeping.aiRewriteStreamJob = value }
     internal var aiReplyStreamJob
-        get() = deps.aiReplyStreamJob
-        set(value) { deps.aiReplyStreamJob = value }
+        get() = deps.aiBookkeeping.aiReplyStreamJob
+        set(value) { deps.aiBookkeeping.aiReplyStreamJob = value }
     internal var semanticSearchJob
-        get() = deps.semanticSearchJob
-        set(value) { deps.semanticSearchJob = value }
+        get() = deps.aiBookkeeping.semanticSearchJob
+        set(value) { deps.aiBookkeeping.semanticSearchJob = value }
     internal var groupAiJob
-        get() = deps.groupAiJob
-        set(value) { deps.groupAiJob = value }
+        get() = deps.aiBookkeeping.groupAiJob
+        set(value) { deps.aiBookkeeping.groupAiJob = value }
     internal var manualSummaryJob
-        get() = deps.manualSummaryJob
-        set(value) { deps.manualSummaryJob = value }
+        get() = deps.aiBookkeeping.manualSummaryJob
+        set(value) { deps.aiBookkeeping.manualSummaryJob = value }
     internal var unreadSummaryJob
-        get() = deps.unreadSummaryJob
-        set(value) { deps.unreadSummaryJob = value }
-    internal val aiRewriteGate get() = deps.aiRewriteGate
-    internal val aiReplyGate get() = deps.aiReplyGate
-    internal val groupAiGate get() = deps.groupAiGate
-    internal val manualSummaryGate get() = deps.manualSummaryGate
+        get() = deps.aiBookkeeping.unreadSummaryJob
+        set(value) { deps.aiBookkeeping.unreadSummaryJob = value }
+    internal val aiRewriteGate get() = deps.aiBookkeeping.aiRewriteGate
+    internal val aiReplyGate get() = deps.aiBookkeeping.aiReplyGate
+    internal val groupAiGate get() = deps.aiBookkeeping.groupAiGate
+    internal val manualSummaryGate get() = deps.aiBookkeeping.manualSummaryGate
     internal var lastAiRewriteMode
-        get() = deps.lastAiRewriteMode
-        set(value) { deps.lastAiRewriteMode = value }
+        get() = deps.aiBookkeeping.lastAiRewriteMode
+        set(value) { deps.aiBookkeeping.lastAiRewriteMode = value }
     internal var lastAiRewriteTargetLanguage
-        get() = deps.lastAiRewriteTargetLanguage
-        set(value) { deps.lastAiRewriteTargetLanguage = value }
+        get() = deps.aiBookkeeping.lastAiRewriteTargetLanguage
+        set(value) { deps.aiBookkeeping.lastAiRewriteTargetLanguage = value }
     internal var lastAiReplyTone
-        get() = deps.lastAiReplyTone
-        set(value) { deps.lastAiReplyTone = value }
+        get() = deps.aiBookkeeping.lastAiReplyTone
+        set(value) { deps.aiBookkeeping.lastAiReplyTone = value }
     internal var liveLocationJob
-        get() = deps.liveLocationJob
-        set(value) { deps.liveLocationJob = value }
+        get() = deps.liveLocationBookkeeping.liveLocationJob
+        set(value) { deps.liveLocationBookkeeping.liveLocationJob = value }
     internal var liveLocationCancel
-        get() = deps.liveLocationCancel
-        set(value) { deps.liveLocationCancel = value }
-    internal val liveLocationUpdateMutex get() = deps.liveLocationUpdateMutex
+        get() = deps.liveLocationBookkeeping.liveLocationCancel
+        set(value) { deps.liveLocationBookkeeping.liveLocationCancel = value }
+    internal val liveLocationUpdateMutex get() = deps.liveLocationBookkeeping.liveLocationUpdateMutex
     internal val inlineSendCompletions get() = deps.inlineSendCompletions
     internal var lastLiveLocationPayload
-        get() = deps.lastLiveLocationPayload
-        set(value) { deps.lastLiveLocationPayload = value }
+        get() = deps.liveLocationBookkeeping.lastLiveLocationPayload
+        set(value) { deps.liveLocationBookkeeping.lastLiveLocationPayload = value }
     internal var draftSaveJob
-        get() = deps.draftSaveJob
-        set(value) { deps.draftSaveJob = value }
+        get() = deps.draftBookkeeping.draftSaveJob
+        set(value) { deps.draftBookkeeping.draftSaveJob = value }
     internal var draftGeneration
-        get() = deps.draftGeneration
-        set(value) { deps.draftGeneration = value }
+        get() = deps.draftBookkeeping.draftGeneration
+        set(value) { deps.draftBookkeeping.draftGeneration = value }
     @Volatile internal var hasUserEditedInput = false
     internal val currentUserId: String get() = com.maodouchat.session.CurrentSession.snapshot().userId ?: "me"
     internal val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token ?: ""
