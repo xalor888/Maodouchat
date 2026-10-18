@@ -204,24 +204,15 @@ fun Application.configureRouting(
                 }
             }
         }
-        configureHealthRoutes()
-        configureConversationSettingsRoutes(
+        configureConversationRoutes(
             userRepo = userRepo,
             commandService = conversationCommandService,
             participantRepository = conversationParticipantRepo,
-            json = json,
-        )
-        configureConversationLifecycleRoutes(
-            userRepo = userRepo,
-            commandService = conversationCommandService,
             queryRepository = conversationQueryRepo,
             invitationService = groupInvitationService,
             pushService = pushService,
             createRateLimiter = createChatRateLimiter,
             json = json,
-        )
-        configureConversationQueryRoutes(
-            queryRepository = conversationQueryRepo,
         )
         configureGroupInvitationRoutes(
             userRepo = userRepo,
@@ -257,21 +248,13 @@ fun Application.configureRouting(
             senderKeyDistributionRepo = senderKeyDistributionRepo,
             json = json,
         )
-        configureSignalKeyMaterialRoutes(
+        configureSignalCallRoutes(
+            userRepo = userRepo,
             signalKeyRepository = signalKeyRepo,
             conversationQueryRepository = conversationQueryRepo,
             preKeyFetchLimiter = preKeyFetchTracker,
-        )
-        configureSealedSenderRoutes()
-        configureCallSignalingRoutes(
-            userRepository = userRepo,
-            callSignalingService = com.maodouchat.server.service.CallSignalingService(
-                signalingRepo,
-                userRepo,
-                conversationQueryRepo,
-                callInviteRateLimiter,
-                turnCredentialService,
-            ),
+            signalingRepo = signalingRepo,
+            callInviteRateLimiter = callInviteRateLimiter,
             turnCredentialService = turnCredentialService,
             pushService = pushService,
             json = json,

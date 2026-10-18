@@ -118,6 +118,10 @@ class RouteRegistrySplitTest {
         val groupAdminAssembly = source("GroupAdminRoutesAssembly.kt")
         // 认证四组经装配层委托：Routing.kt 只调 configureAuthRoutes，内层各族调用收在装配文件里。
         val authRoutesAssembly = source("AuthRoutesAssembly.kt")
+        // 会话四组经装配层委托：Routing.kt 只调 configureConversationRoutes，内层各族调用收在装配文件里。
+        val conversationAssembly = source("ConversationRoutesAssembly.kt")
+        // 加密通信三组经装配层委托：Routing.kt 只调 configureSignalCallRoutes，内层各族调用收在装配文件里。
+        val signalCallAssembly = source("SignalCallRoutesAssembly.kt")
         val modules = listOf(
             source("AuthAccountRoutes.kt"),
             source("AuthLoginRoutes.kt"),
@@ -188,6 +192,8 @@ class RouteRegistrySplitTest {
             "configureSocialPostRoutes(",
             "configureBotRoutes(",
             "configureGroupAdminRoutes(",
+            "configureConversationRoutes(",
+            "configureSignalCallRoutes(",
             "configurePublicSiteRoutes()",
             "configurePollLegacyRoutes(",
         ).forEach { registration -> assertTrue(registration in registry, registration) }
@@ -221,6 +227,17 @@ class RouteRegistrySplitTest {
             "configureAuthAccountRoutes(",
             "configureAuthLoginRoutes(",
         ).forEach { registration -> assertTrue(registration in authRoutesAssembly, registration) }
+        listOf(
+            "configureHealthRoutes(",
+            "configureConversationSettingsRoutes(",
+            "configureConversationLifecycleRoutes(",
+            "configureConversationQueryRoutes(",
+        ).forEach { registration -> assertTrue(registration in conversationAssembly, registration) }
+        listOf(
+            "configureSignalKeyMaterialRoutes(",
+            "configureSealedSenderRoutes(",
+            "configureCallSignalingRoutes(",
+        ).forEach { registration -> assertTrue(registration in signalCallAssembly, registration) }
 
         listOf(
             "/api/auth/login",
