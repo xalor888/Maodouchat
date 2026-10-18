@@ -83,24 +83,15 @@ internal fun ExpressionPanel(
     stickersEnabled: Boolean
 ) {
     val context = LocalContext.current
-    var stickerTab by rememberSaveable { mutableStateOf(com.maodouchat.util.StickerCatalog.PACK_RECENT) }
-    var stickerQuery by rememberSaveable { mutableStateOf("") }
-    var showPackManager by rememberSaveable { mutableStateOf(false) }
-    var enabledPackIds by remember {
-        mutableStateOf(com.maodouchat.util.StickerPreferences.getEnabledPackIds(context))
-    }
-    var recentStickers by remember {
-        mutableStateOf(com.maodouchat.util.StickerPreferences.getRecent(context))
-    }
-    var recentEmojis by remember {
-        mutableStateOf(com.maodouchat.util.EmojiRecentPreferences.getRecent(context))
-    }
-    val enabledPacks = remember(enabledPackIds) {
-        com.maodouchat.util.StickerPolicy.enabledPacks(enabledPackIds)
-    }
-    val searchHits = remember(stickerQuery, enabledPackIds) {
-        com.maodouchat.util.StickerPolicy.searchStickers(stickerQuery, enabledPacks)
-    }
+    val stickerState = rememberExpressionStickerState()
+    var stickerTab by stickerState.stickerTab
+    var stickerQuery by stickerState.stickerQuery
+    var showPackManager by stickerState.showPackManager
+    var enabledPackIds by stickerState.enabledPackIds
+    var recentStickers by stickerState.recentStickers
+    var recentEmojis by stickerState.recentEmojis
+    val enabledPacks = stickerState.enabledPacks
+    val searchHits = stickerState.searchHits
 
     Column(
         modifier = Modifier
@@ -169,13 +160,7 @@ internal fun ExpressionPanel(
                 }
                 Spacer(modifier = Modifier.height(6.dp))
             }
-            val displayItems = when {
-                stickerQuery.isNotBlank() -> searchHits
-                stickerTab == com.maodouchat.util.StickerCatalog.PACK_RECENT -> recentStickers
-                else -> enabledPacks.firstOrNull { it.id == stickerTab }?.stickers
-                    ?: enabledPacks.firstOrNull()?.stickers
-                    ?: emptyList()
-            }
+            val displayItems = stickerState.displayItems
             if (displayItems.isEmpty()) {
                 Box(
                     modifier = Modifier
