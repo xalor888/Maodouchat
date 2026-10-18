@@ -471,7 +471,10 @@ class ClientArchitectureTest {
         // 2026-10-17：群编辑/邀请二维码两个纯委托抽出 GroupDetailScreenDelegates（671 → 655 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：成员/审计/候选三条搜索过滤派生链抽出 GroupDetailSearchDerived（655 → 597 纯搬移+单使用点内联），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：对话框/搜索/展开 16 交互状态抽出 GroupDetailInteractionState（含 LaunchedEffect 清理块）+ 总览区/页签区两个内联 lambda 抽出 GroupDetailOverview/GroupDetailTabs（597 → 499 纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 499,
+        // 2026-10-18：7 个对话框接线块抽出 GroupDetailDialogHost + 顶栏内联 lambda 抽出 GroupDetailTopBar（499 → 367 纯搬移+16 闲置 import），上限同步收紧（两份 map 一起改）。
+        // 2026-10-18：GroupDetailScreen 拆小（499 → 367）后 DeveloperBotsScreen（495）挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+        "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt" to 495,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 367,
         // 通话 VM 瘦身第一批：WebRtcNativeLoadException/CallUiState/NetworkQuality/
         // GroupCallParticipantUi 纯搬移到同包 CallUiModels.kt（1536 → 1500），两处同步收紧。
         // 通话 VM 瘦身第二批：出站信令发送簇（sendSdp/sendIceCandidate/sendSignalWithFallback）
@@ -725,7 +728,10 @@ class ClientArchitectureTest {
             // 2026-10-17：群编辑/邀请二维码两个纯委托抽出 GroupDetailScreenDelegates（671 → 655 纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-18：成员/审计/候选三条搜索过滤派生链抽出 GroupDetailSearchDerived（655 → 597 纯搬移+单使用点内联），上限同步收紧（两份 map 一起改）。
         // 2026-10-18：对话框/搜索/展开 16 交互状态抽出 GroupDetailInteractionState（含 LaunchedEffect 清理块）+ 总览区/页签区两个内联 lambda 抽出 GroupDetailOverview/GroupDetailTabs（597 → 499 纯搬移），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 499,
+            // 2026-10-18：7 个对话框接线块抽出 GroupDetailDialogHost + 顶栏内联 lambda 抽出 GroupDetailTopBar（499 → 367 纯搬移+16 闲置 import），上限同步收紧（两份 map 一起改）。
+            // 2026-10-18：GroupDetailScreen 拆小（499 → 367）后 DeveloperBotsScreen（495）挤进前 20——按实测值纳入监管（先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
+            "com/maodouchat/ui/screen/settings/DeveloperBotsScreen.kt" to 495,
+            "com/maodouchat/ui/screen/chatdetail/GroupDetailScreen.kt" to 367,
             // 通话 VM 瘦身第二批：出站信令发送簇纯搬移到同包 CallSignalingSender（1500 → 1449）。
             // 通话 VM 瘦身第三批：群组通话网格状态簇（成员连接状态/超时重连/确定性 mesh 建边）纯搬移到
             // 同包 CallGroupMesh（1449 → 1346，调用点改走 groupMesh）。
