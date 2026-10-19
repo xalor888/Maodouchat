@@ -36,4 +36,57 @@ class ConversationPrivacyPolicyTest {
         assertEquals(SecretChatState.ARMED, armed)
         assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onExpiry(armed))
     }
+
+    @Test
+    fun `locked chat allows every action except search`() {
+        val locked = ConversationPrivacyCapabilities(isSecretChat = false, isLocked = true)
+        assertFalse(ConversationPrivacyPolicy.allows(locked, PrivacyAction.SEARCH))
+        listOf(
+            PrivacyAction.FORWARD,
+            PrivacyAction.EXPORT,
+            PrivacyAction.AI,
+            PrivacyAction.SCREENSHOT,
+            PrivacyAction.NOTIFICATION_PREVIEW,
+        ).forEach { action ->
+            assertTrue(ConversationPrivacyPolicy.allows(locked, action), action.name)
+        }
+    }
+
+    @Test
+    fun `secret and locked together blocks everything`() {
+        val both = ConversationPrivacyCapabilities(isSecretChat = true, isLocked = true)
+        PrivacyAction.entries.forEach { action ->
+            assertFalse(ConversationPrivacyPolicy.allows(both, action), action.name)
+        }
+    }
+
+    @Test
+    fun `onRead without timer keeps active, non-active states are untouched`() {
+        assertEquals(SecretChatState.ACTIVE, SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer = false))
+        listOf(SecretChatState.ARMED, SecretChatState.EXPIRING, SecretChatState.DESTROYED).forEach { state ->
+            assertEquals(state, SecretChatStateMachine.onRead(state, hasTimer = true))
+            assertEquals(state, SecretChatStateMachine.onRead(state, hasTimer = false))
+        }
+    }
+
+    @Test
+    fun `onExpiry only fires on armed`() {
+        assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onExpiry(SecretChatState.ARMED))
+        listOf(SecretChatState.ACTIVE, SecretChatState.EXPIRING, SecretChatState.DESTROYED).forEach { state ->
+            assertEquals(state, SecretChatStateMachine.onExpiry(state))
+        }
+    }
+
+    @Test
+    fun `onDestroy collapses every state`() {
+        SecretChatState.entries.forEach { state ->
+            assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onDestroy(state))
+        }
+        val lifecycle = SecretChatStateMachine.onDestroy(
+            SecretChatStateMachine.onExpiry(
+                SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer = true)
+            )
+        )
+        assertEquals(SecretChatState.DESTROYED, lifecycle)
+    }
 }
