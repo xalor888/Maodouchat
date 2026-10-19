@@ -158,17 +158,73 @@ class GroupMessagingCoordinatorTest {
         assertTrue(harness.events.isEmpty())
     }
 
+    @Test
+    fun `non positive revision is normalized to null before the durable write`() = runTest {
+        val harness = Harness()
+
+        harness.coordinator.invalidateSenderKey("group", "alice", newRevision = 0)
+
+        assertEquals(
+            listOf("outbox:alice:group:null:99", "key:group", "attachments:alice:group"),
+            harness.events,
+        )
+    }
+
+    @Test
+    fun `session loss after the durable write stops before touching local key material`() = runTest {
+        val harness = Harness(nullSessionAfterEpochWrite = true)
+
+        harness.coordinator.invalidateSenderKey("group", "alice", newRevision = 8)
+
+        assertEquals(listOf("outbox:alice:group:8:99"), harness.events)
+        assertTrue(harness.reconciliationFailures.isEmpty())
+    }
+
+    @Test
+    fun `status fetch failure surfaces as failed result without throwing`() = runTest {
+        val offline = IllegalStateException("offline")
+        val harness = Harness(fetchFailure = offline)
+
+        val result = harness.coordinator.getSenderKeyCoverageStatus("group", 9)
+
+        assertEquals(offline, result.exceptionOrNull())
+        assertEquals(listOf("fetch:token-1:group:9:3"), harness.events)
+    }
+
+    @Test
+    fun `status fetch cancellation propagates instead of becoming a failed result`() = runTest {
+        val harness = Harness(fetchFailure = CancellationException("stop"))
+
+        assertFailsWith<CancellationException> {
+            harness.coordinator.getSenderKeyCoverageStatus("group", 9)
+        }
+    }
+
+    @Test
+    fun `hasLocalSenderKey guards blank chat and non positive epoch before material lookup`() = runTest {
+        val harness = Harness()
+
+        assertEquals(false, harness.coordinator.hasLocalSenderKey("", 7))
+        assertEquals(false, harness.coordinator.hasLocalSenderKey("group", 0))
+        assertEquals(false, harness.coordinator.hasLocalSenderKey("  ", -1))
+
+        assertTrue(harness.localKeyCalls.isEmpty())
+    }
+
     private class Harness(
         private val attachmentFailure: Throwable? = null,
         private val switchOwnerAfterEpochWrite: Boolean = false,
+        private val nullSessionAfterEpochWrite: Boolean = false,
         private val refreshTokenAfterCoverage: Boolean = false,
         private val switchOwnerDuringFetch: Boolean = false,
+        private val fetchFailure: Throwable? = null,
         private val redistributionFlushed: Boolean = true,
         private val ensureFailure: Throwable? = null,
     ) {
         var session: GroupMessagingSession? = GroupMessagingSession("alice", "token-1", 3)
         val events = mutableListOf<String>()
         val reconciliationFailures = mutableListOf<String>()
+        val localKeyCalls = mutableListOf<String>()
 
         val coordinator = GroupMessagingCoordinator(
             currentSession = { session },
@@ -176,6 +232,9 @@ class GroupMessagingCoordinatorTest {
                 events += "outbox:$owner:$chat:$revision:$now"
                 if (switchOwnerAfterEpochWrite) {
                     session = GroupMessagingSession("bob", "bob-token", 4)
+                }
+                if (nullSessionAfterEpochWrite) {
+                    session = null
                 }
             },
             invalidateLocalSenderKey = { events += "key:$it" },
@@ -199,6 +258,7 @@ class GroupMessagingCoordinatorTest {
                 if (switchOwnerDuringFetch) {
                     session = GroupMessagingSession("bob", "bob-token", 4)
                 }
+                fetchFailure?.let { throw it }
                 SenderKeyDistributionStatusDto(
                     chatId = chat,
                     epoch = epoch ?: 9,
@@ -206,7 +266,10 @@ class GroupMessagingCoordinatorTest {
                     sent = 2,
                 )
             },
-            hasLocalSenderKeyMaterial = { _, _ -> true },
+            hasLocalSenderKeyMaterial = { chat, epoch ->
+                localKeyCalls += "$chat:$epoch"
+                true
+            },
             enqueueCoverageRetryCommand = { chat, epoch, reason ->
                 events += "retry:$chat:$epoch:$reason"
             },
