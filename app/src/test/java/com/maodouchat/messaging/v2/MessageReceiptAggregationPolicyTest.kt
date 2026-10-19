@@ -123,4 +123,149 @@ class MessageReceiptAggregationPolicyTest {
         assertEquals(7000L, updated.playedAt)
         assertEquals(8000L, updated.updatedAt)
     }
+
+    @Test
+    fun `incoming null timestamps leave existing values untouched`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = 7000L,
+            updatedAt = 7500L,
+        )
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = null,
+            readAt = null,
+            playedAt = null,
+            now = 9000L,
+        )
+
+        assertEquals(5000L, updated.deliveredAt)
+        assertEquals(6000L, updated.readAt)
+        assertEquals(7000L, updated.playedAt)
+        assertEquals(9000L, updated.updatedAt)
+    }
+
+    @Test
+    fun `zero timestamps behave like missing`() {
+        val fresh = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = null,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 0L,
+            readAt = 0L,
+            playedAt = 0L,
+            now = 1050L,
+        )
+
+        assertNull(fresh.deliveredAt)
+        assertNull(fresh.readAt)
+        assertNull(fresh.playedAt)
+        assertEquals(1050L, fresh.updatedAt)
+    }
+
+    @Test
+    fun `duplicate receipt merge is idempotent`() {
+        val first = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = null,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 1000L,
+            readAt = null,
+            playedAt = null,
+            now = 1050L,
+        )
+
+        val second = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = first,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 1000L,
+            readAt = null,
+            playedAt = null,
+            now = 1050L,
+        )
+
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun `merge under a new owner re-keys the receipt identity`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = 7000L,
+            updatedAt = 7500L,
+        )
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "carol",
+            messageId = "msg-2",
+            conversationId = "conv-2",
+            recipientUserId = "dave",
+            deliveredAt = 9000L,
+            readAt = null,
+            playedAt = null,
+            now = 9100L,
+        )
+
+        assertEquals("carol", updated.ownerUserId)
+        assertEquals("msg-2", updated.messageId)
+        assertEquals("conv-2", updated.conversationId)
+        assertEquals("dave", updated.recipientUserId)
+        assertEquals(9000L, updated.deliveredAt)
+        assertEquals(6000L, updated.readAt)
+        assertEquals(7000L, updated.playedAt)
+        assertEquals(9100L, updated.updatedAt)
+    }
+
+    @Test
+    fun `updatedAt follows now even when it moves backward`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = 7000L,
+            updatedAt = 8000L,
+        )
+
+        // updatedAt is a last-write stamp, not a monotonic clock.
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 4000L,
+            readAt = null,
+            playedAt = null,
+            now = 1000L,
+        )
+
+        assertEquals(5000L, updated.deliveredAt)
+        assertEquals(1000L, updated.updatedAt)
+    }
 }
