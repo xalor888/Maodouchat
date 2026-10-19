@@ -12,10 +12,12 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -150,6 +152,129 @@ class MessagingV2InboxSynchronizerTest {
         assertEquals(listOf("e1"), acked[0])
         assertEquals(listOf("e1"), acked[1])
         coVerify(exactly = 2) { dao.deleteAcknowledgedInbox("u1", 1, listOf("e1")) }
+    }
+
+    @Test
+    fun `blank token is rejected before any network or database call`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        mockkObject(ApiService)
+
+        assertFailsWith<IllegalArgumentException> {
+            MessagingV2InboxSynchronizer(dao = dao, processor = { }).sync(
+                token = "   ",
+                ownerUserId = "u1",
+                deviceId = 1,
+            )
+        }
+
+        // require 在 mutex 内先行：dao 与网络都不得被碰。
+        coVerify(exactly = 0) { dao.recoverStaleInboxClaims(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { ApiService.getPendingInboxV2(any(), any()) }
+    }
+
+    @Test
+    fun `a failing pull propagates without inserting anything`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        coEvery { dao.recoverStaleInboxClaims(any(), any(), any(), any()) } returns 0
+        coEvery { dao.ackPendingIds(any(), any(), any()) } returns emptyList()
+        mockkObject(ApiService)
+        coEvery { ApiService.getPendingInboxV2(any(), any()) } returns
+            Result.failure(IllegalStateException("mailbox down"))
+
+        assertFailsWith<IllegalStateException> {
+            MessagingV2InboxSynchronizer(dao = dao, processor = { }).sync(
+                token = "token",
+                ownerUserId = "u1",
+                deviceId = 1,
+            )
+        }
+
+        // 拉取失败在落盘之前：inbox 不得有任何写入。
+        coVerify(exactly = 1) { dao.recoverStaleInboxClaims(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { dao.insertInbox(any()) }
+    }
+
+    @Test
+    fun `a poison envelope is dead-lettered without blocking later envelopes`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        val processed = mutableListOf<String>()
+        val bad = dto("e_bad").toEntity("u1", 1, 0)
+        val good = dto("e_good").toEntity("u1", 1, 0)
+
+        dao.stubInboxHappyPath()
+        coEvery { dao.claimNextInbox("u1", 1, any()) } returnsMany listOf(bad, good, null)
+        coEvery { dao.markInboxAckPending(any(), any()) } returns 1
+        coEvery { dao.markInboxDeadLetterAckPending(any(), any(), any()) } returns 1
+        mockkObject(ApiService)
+        coEvery { ApiService.getPendingInboxV2(any(), any()) } returns
+            Result.success(PendingInboxResponseV2(listOf(dto("e_bad"), dto("e_good")), hasMore = false))
+
+        val coordinator = MessagingV2InboxSynchronizer(
+            dao = dao,
+            processor = { envelope ->
+                if (envelope.envelopeId == "e_bad") error("messaging_v2_wrong_device")
+                processed += envelope.envelopeId
+            },
+        )
+        coordinator.sync(token = "token", ownerUserId = "u1", deviceId = 1)
+
+        // 永久失败走死信：后续信封继续处理，不会被毒信封卡死。
+        coVerify(exactly = 1) { dao.markInboxDeadLetterAckPending("e_bad", "messaging_v2_wrong_device", any()) }
+        coVerify(exactly = 0) { dao.markInboxFailed(any(), any(), any(), any()) }
+        assertEquals(listOf("e_good"), processed)
+        coVerify(exactly = 1) { dao.markInboxAckPending("e_good", any()) }
+    }
+
+    @Test
+    fun `an incomplete acknowledgement batch aborts without deleting pending ids`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+
+        dao.stubInboxHappyPath()
+        coEvery { dao.ackPendingIds("u1", 1, any()) } returns listOf("e1", "e2")
+        mockkObject(ApiService)
+        coEvery { ApiService.getPendingInboxV2(any(), any()) } returns
+            Result.success(PendingInboxResponseV2(emptyList(), hasMore = false))
+        // 服务端只认了一半：必须抛错，且本地不得删、不得把死信标为已确认。
+        coEvery { ApiService.acknowledgeInboxV2(any(), any()) } returns
+            Result.success(AcknowledgeEnvelopesResponseV2(acknowledged = 1))
+
+        assertFailsWith<IllegalStateException> {
+            MessagingV2InboxSynchronizer(dao = dao, processor = { }).sync(
+                token = "token",
+                ownerUserId = "u1",
+                deviceId = 1,
+            )
+        }
+
+        coVerify(exactly = 0) { dao.deleteAcknowledgedInbox(any(), any(), any()) }
+        coVerify(exactly = 0) { dao.markDeadLettersAcknowledged(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `processor cancellation propagates and releases the lock`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        val envelope: MessagingV2InboxEntity = dto("e1").toEntity("u1", 1, 0)
+
+        dao.stubInboxHappyPath()
+        coEvery { dao.claimNextInbox("u1", 1, any()) } returnsMany listOf(envelope, null)
+        mockkObject(ApiService)
+        coEvery { ApiService.getPendingInboxV2(any(), any()) } returns
+            Result.success(PendingInboxResponseV2(listOf(dto("e1")), hasMore = false))
+
+        val coordinator = MessagingV2InboxSynchronizer(
+            dao = dao,
+            processor = { throw CancellationException("scope gone") },
+        )
+
+        assertFailsWith<CancellationException> {
+            coordinator.sync(token = "token", ownerUserId = "u1", deviceId = 1)
+        }
+
+        // 取消不经过失败计数/死信路径；锁已释放，下一轮能正常走空转。
+        coVerify(exactly = 0) { dao.markInboxFailed(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { dao.markInboxDeadLetterAckPending(any(), any(), any()) }
+        coEvery { dao.claimNextInbox("u1", 1, any()) } returns null
+        coordinator.sync(token = "token", ownerUserId = "u1", deviceId = 1)
     }
 
     // ─── 多页拉取循环（PULL_LIMIT = 200 / MAX_PULL_PAGES = 20） ───
