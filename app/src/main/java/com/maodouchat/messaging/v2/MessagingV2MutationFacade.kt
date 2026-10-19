@@ -147,11 +147,16 @@ internal class MessagingV2MutationFacade(
         localProjection: suspend () -> Unit,
         refreshPreview: (() -> Unit)? = null,
     ): MessagingV2MutationCommit {
-        var projectionError: Throwable? = try {
-            withContext(Dispatchers.IO + NonCancellable) { localProjection() }
-            null
-        } catch (error: Exception) {
-            error
+        // Catch inside withContext and return the error as a value: letting it throw
+        // through the dispatcher machinery can replace the exception instance
+        // (observed with -ea: suppressed exceptions are lost).
+        var projectionError: Throwable? = withContext(Dispatchers.IO + NonCancellable) {
+            try {
+                localProjection()
+                null
+            } catch (error: Exception) {
+                error
+            }
         }
         try {
             refreshPreview?.invoke()

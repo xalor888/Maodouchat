@@ -403,6 +403,72 @@ class MessagingV2MutationFacadeTest {
         assertEquals(remaining, persisted?.reactions)
     }
 
+    @Test
+    fun `delete reports first local projection failure and suppresses the rest`() = runTest {
+        val first = IllegalStateException("room failed")
+        val second = IllegalStateException("attachment cleanup failed")
+        val third = IllegalStateException("notification cleanup failed")
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            persistDeleted = {
+                effects += "room"
+                throw first
+            },
+            cleanupAttachment = {
+                effects += "attachment"
+                throw second
+            },
+            cleanupTerminalNotification = {
+                effects += "notification"
+                throw third
+            },
+        )
+
+        val commit = facade.delete(message(), OWNER, groupRevision = null)
+
+        assertEquals(listOf("room", "attachment", "notification"), effects)
+        val projectionError = assertIs<IllegalStateException>(commit.localProjectionError)
+        assertEquals(first.message, projectionError.message)
+        assertEquals(
+            listOf(second.message, third.message),
+            projectionError.suppressed.map { it.message },
+        )
+    }
+
+    @Test
+    fun `edit without search index still refreshes preview`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistMessage = { effects += "room" },
+            indexMessage = { effects += "index" },
+            refreshPreview = { effects += "preview" },
+        )
+
+        facade.edit(
+            message(content = "edited"),
+            OWNER,
+            groupRevision = null,
+            indexForSearch = false,
+        )
+
+        assertEquals(listOf("outbox", "room", "preview"), effects)
+    }
+
+    @Test
+    fun `edit indexes the applied message returned by room persistence`() = runTest {
+        var indexed: Message? = null
+        val applied = message(content = "room applied")
+        val facade = facade(
+            persistEdited = { applied },
+            indexMessage = { indexed = it },
+        )
+
+        facade.edit(message(content = "edited"), OWNER, groupRevision = null)
+
+        assertEquals(applied, indexed)
+    }
+
     private fun facade(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistMessage: suspend (Message) -> Unit = {},
