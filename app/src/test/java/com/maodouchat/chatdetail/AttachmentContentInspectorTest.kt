@@ -38,5 +38,40 @@ class AttachmentContentInspectorTest {
         assertTrue(isAttachmentContentCompatible(MessageType.FILE, arbitrary))
     }
 
+    @Test
+    fun `gif87a variant is accepted as gif`() {
+        assertTrue(isAttachmentContentCompatible(MessageType.GIF, "GIF87a".encodeToByteArray()))
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, "GIF87a".encodeToByteArray()))
+    }
+
+    @Test
+    fun `truncated headers match nothing except generic files`() {
+        val shortJpeg = bytes(0xFF, 0xD8)
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, shortJpeg))
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, bytes(0x1A, 0x45)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, shortJpeg))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, ByteArray(0)))
+    }
+
+    @Test
+    fun `voice accepts only iso base media`() {
+        val ebml = bytes(0x1A, 0x45, 0xDF, 0xA3)
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, ebml))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, "GIF89a".encodeToByteArray()))
+    }
+
+    @Test
+    fun `near miss jpeg header is rejected`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0xFF, 0xD8, 0xE0)))
+    }
+
+    @Test
+    fun `non media message types reject everything but files`() {
+        val jpeg = bytes(0xFF, 0xD8, 0xFF)
+        assertFalse(isAttachmentContentCompatible(MessageType.STICKER, jpeg))
+        assertFalse(isAttachmentContentCompatible(MessageType.TEXT, jpeg))
+        assertFalse(isAttachmentContentCompatible(MessageType.LOCATION, ByteArray(0)))
+    }
+
     private fun bytes(vararg values: Int): ByteArray = values.map(Int::toByte).toByteArray()
 }
