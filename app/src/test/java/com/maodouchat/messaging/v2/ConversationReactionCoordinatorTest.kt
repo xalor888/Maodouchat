@@ -240,6 +240,111 @@ class ConversationReactionCoordinatorTest {
         assertEquals(8L, capturedRevision)
     }
 
+    @Test
+    fun `blank owner is ignored before any lock or facade call`() = runTest {
+        var current = message()
+        var enqueueCount = 0
+        var projected = false
+        val coordinator = coordinator(
+            enqueue = { _, _, _ -> enqueueCount++ },
+        )
+
+        val outcome = coordinator.toggle(
+            MESSAGE_ID,
+            "heart",
+            "",
+            { null },
+            currentMessage = { current },
+            project = { projected = true },
+        )
+
+        assertIs<ConversationReactionOutcome.Ignored>(outcome)
+        assertEquals(0, enqueueCount)
+        assertTrue(!projected)
+    }
+
+    @Test
+    fun `whitespace-only emoji is ignored without touching facade`() = runTest {
+        var current = message()
+        var enqueueCount = 0
+        var projected = false
+        val coordinator = coordinator(
+            enqueue = { _, _, _ -> enqueueCount++ },
+        )
+
+        val outcome = coordinator.toggle(
+            MESSAGE_ID,
+            "   ",
+            OWNER,
+            { null },
+            currentMessage = { current },
+            project = { projected = true },
+        )
+
+        assertIs<ConversationReactionOutcome.Ignored>(outcome)
+        assertEquals(0, enqueueCount)
+        assertTrue(!projected)
+    }
+
+    @Test
+    fun `stale owner toggle is rejected before enqueue and rolls back optimistic reaction`() = runTest {
+        val original = message(
+            reactions = listOf(MessageReaction("bob", "laugh", 2L)),
+        )
+        var current = original
+        var enqueueCount = 0
+        val coordinator = coordinator(
+            enqueue = { _, _, _ -> enqueueCount++ },
+        )
+
+        val outcome = coordinator.toggle(
+            MESSAGE_ID,
+            "heart",
+            "mallory",
+            { null },
+            currentMessage = { current },
+            project = { current = it },
+        )
+
+        assertIs<ConversationReactionOutcome.Failed>(outcome)
+        assertEquals(0, enqueueCount)
+        assertEquals(original, current)
+    }
+
+    @Test
+    fun `optimistic projection failure propagates without facade call and releases lock`() = runTest {
+        var current = message()
+        var enqueueCount = 0
+        val coordinator = coordinator(
+            enqueue = { _, _, _ -> enqueueCount++ },
+        )
+
+        assertFailsWith<IllegalStateException> {
+            coordinator.toggle(
+                MESSAGE_ID,
+                "heart",
+                OWNER,
+                { null },
+                currentMessage = { current },
+                project = { throw IllegalStateException("ui gone") },
+            )
+        }
+        assertEquals(0, enqueueCount)
+
+        val outcome = coordinator.toggle(
+            MESSAGE_ID,
+            "heart",
+            OWNER,
+            { null },
+            currentMessage = { current },
+            project = { current = it },
+        )
+
+        assertIs<ConversationReactionOutcome.Applied>(outcome)
+        assertEquals(1, enqueueCount)
+        assertEquals("heart", current.reactions.single().emoji)
+    }
+
     private fun coordinator(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistMessage: suspend (Message) -> Unit = {},
