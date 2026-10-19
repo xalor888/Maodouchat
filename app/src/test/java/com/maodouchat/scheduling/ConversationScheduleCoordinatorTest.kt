@@ -15,6 +15,10 @@ class ConversationScheduleCoordinatorTest {
         val scheduledJobs = mutableSetOf<String>()
         val reminders = mutableMapOf<String, MessageReminder>()
         val reminderJobs = mutableSetOf<String>()
+        var failAddScheduled: Throwable? = null
+        var failScheduleJob: Throwable? = null
+        var failCancelJob: Throwable? = null
+        var failRescheduleJob: Throwable? = null
 
         override fun listAllScheduled(ownerUserId: String): List<ScheduledMessage> =
             scheduled.values.filter { it.ownerUserId == ownerUserId }
@@ -26,6 +30,7 @@ class ConversationScheduleCoordinatorTest {
             scheduled[id]?.takeIf { it.ownerUserId == ownerUserId }
 
         override fun addScheduled(ownerUserId: String, request: ScheduledMessageRequest): ScheduledMessage? {
+            failAddScheduled?.let { throw it }
             val item = ScheduledMessage(
                 id = "sch_${scheduled.size + 1}",
                 chatId = request.chatId,
@@ -74,14 +79,17 @@ class ConversationScheduleCoordinatorTest {
         }
 
         override fun scheduleJob(item: ScheduledMessage) {
+            failScheduleJob?.let { throw it }
             scheduledJobs.add(item.id)
         }
 
         override fun cancelJob(id: String) {
+            failCancelJob?.let { throw it }
             scheduledJobs.remove(id)
         }
 
         override fun rescheduleJob(item: ScheduledMessage) {
+            failRescheduleJob?.let { throw it }
             scheduledJobs.add(item.id)
         }
 
@@ -185,5 +193,153 @@ class ConversationScheduleCoordinatorTest {
         coordinator.cancelReminder("rem_1")
         assertEquals(0, coordinator.listReminders("chat_1").size)
         assertTrue(!backend.reminderJobs.contains("rem_1"))
+    }
+
+    @Test
+    fun `queue failure when backend add throws reports STORAGE with cause and no job scheduled`() {
+        val backend = FakeBackend()
+        backend.failAddScheduled = RuntimeException("db down")
+        val coordinator = ConversationScheduleCoordinator(
+            ownerUserId = { "user_1" },
+            backend = backend,
+            now = { 10_000L },
+        )
+
+        val result = coordinator.queue(
+            ScheduledMessageRequest(
+                chatId = "chat_1",
+                peerUserId = "peer_1",
+                text = "Never persisted",
+                sendAtMillis = 60_000L,
+                isGroup = false,
+            )
+        )
+        assertTrue(result is ConversationScheduleResult.Failure)
+        val failure = result as ConversationScheduleResult.Failure
+        assertEquals(ConversationScheduleFailure.STORAGE, failure.reason)
+        assertTrue(failure.cause is RuntimeException)
+        assertTrue("Nothing persisted when add failed", backend.scheduled.isEmpty())
+        assertTrue("No job scheduled when add failed", backend.scheduledJobs.isEmpty())
+    }
+
+    @Test
+    fun `queue failure when scheduleJob throws removes the persisted row and reports STORAGE`() {
+        val backend = FakeBackend()
+        backend.failScheduleJob = RuntimeException("worker gone")
+        val coordinator = ConversationScheduleCoordinator(
+            ownerUserId = { "user_1" },
+            backend = backend,
+            now = { 10_000L },
+        )
+
+        val result = coordinator.queue(
+            ScheduledMessageRequest(
+                chatId = "chat_1",
+                peerUserId = "peer_1",
+                text = "Row must not leak",
+                sendAtMillis = 60_000L,
+                isGroup = false,
+            )
+        )
+        assertTrue(result is ConversationScheduleResult.Failure)
+        assertEquals(
+            ConversationScheduleFailure.STORAGE,
+            (result as ConversationScheduleResult.Failure).reason,
+        )
+        assertTrue("Compensating remove must clean the row", backend.scheduled.isEmpty())
+    }
+
+    @Test
+    fun `blank owner makes queue and cancel fail SESSION_MISSING with zero side effects`() {
+        val backend = FakeBackend()
+        val coordinator = ConversationScheduleCoordinator(
+            ownerUserId = { "   " },
+            backend = backend,
+            now = { 10_000L },
+        )
+
+        val queueResult = coordinator.queue(
+            ScheduledMessageRequest(
+                chatId = "chat_1",
+                peerUserId = "peer_1",
+                text = "No session",
+                sendAtMillis = 60_000L,
+                isGroup = false,
+            )
+        )
+        assertEquals(
+            ConversationScheduleFailure.SESSION_MISSING,
+            (queueResult as ConversationScheduleResult.Failure).reason,
+        )
+        assertTrue("No row may be written without an owner", backend.scheduled.isEmpty())
+
+        val cancelResult = coordinator.cancel("sch_1")
+        assertEquals(
+            ConversationScheduleFailure.SESSION_MISSING,
+            (cancelResult as ConversationScheduleResult.Failure).reason,
+        )
+        assertTrue("List must stay empty without an owner", coordinator.listScheduled("chat_1").isEmpty())
+    }
+
+    @Test
+    fun `cancel succeeds even when cancelJob throws because the row is already gone`() {
+        val backend = FakeBackend()
+        val coordinator = ConversationScheduleCoordinator(
+            ownerUserId = { "user_1" },
+            backend = backend,
+            now = { 10_000L },
+        )
+
+        val queueResult = coordinator.queue(
+            ScheduledMessageRequest(
+                chatId = "chat_1",
+                peerUserId = "peer_1",
+                text = "Stale worker path",
+                sendAtMillis = 60_000L,
+                isGroup = false,
+            )
+        )
+        val item = (queueResult as ConversationScheduleResult.Success).value
+        backend.failCancelJob = RuntimeException("worker already dead")
+
+        val cancelResult = coordinator.cancel(item.id)
+        assertTrue(
+            "Row is gone so a stale worker exits safely",
+            cancelResult is ConversationScheduleResult.Success,
+        )
+        assertNull(backend.scheduled[item.id])
+    }
+
+    @Test
+    fun `reschedule failure rolls back the row to previous text and time`() {
+        val backend = FakeBackend()
+        val coordinator = ConversationScheduleCoordinator(
+            ownerUserId = { "user_1" },
+            backend = backend,
+            now = { 10_000L },
+        )
+
+        val queueResult = coordinator.queue(
+            ScheduledMessageRequest(
+                chatId = "chat_1",
+                peerUserId = "peer_1",
+                text = "v1",
+                sendAtMillis = 60_000L,
+                isGroup = false,
+            )
+        )
+        val item = (queueResult as ConversationScheduleResult.Success).value
+        backend.failRescheduleJob = RuntimeException("worker gone")
+
+        val result = coordinator.reschedule(item.id, 90_000L, "v2")
+        assertTrue(result is ConversationScheduleResult.Failure)
+        assertEquals(
+            ConversationScheduleFailure.STORAGE,
+            (result as ConversationScheduleResult.Failure).reason,
+        )
+        val restored = backend.scheduled[item.id]
+        assertNotNull(restored)
+        assertEquals("v1", restored!!.text)
+        assertEquals(60_000L, restored.sendAtMillis)
     }
 }
