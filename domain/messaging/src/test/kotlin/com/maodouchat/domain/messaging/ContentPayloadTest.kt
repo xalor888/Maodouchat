@@ -60,4 +60,51 @@ class ContentPayloadTest {
         assertEquals("futureType_v9", content.rawType)
         assertTrue(content.rawPayload.contains("someField"), content.rawPayload)
     }
+
+    @Test
+    fun `location and contact round trip`() {
+        val original = ContentEnvelope(content = ContentPayload.Location(31.23, 121.47))
+        assertEquals(original, json.decodeFromString<ContentEnvelope>(json.encodeToString(original)))
+        val contact = ContentEnvelope(content = ContentPayload.Contact("u2", "Bob"))
+        assertEquals(contact, json.decodeFromString<ContentEnvelope>(json.encodeToString(contact)))
+    }
+
+    @Test
+    fun `attachment with null defaults round trips`() {
+        val original = ContentEnvelope(
+            content = ContentPayload.Attachment(kind = AttachmentKind.FILE, attachmentId = "att_x"),
+        )
+        val decoded = json.decodeFromString<ContentEnvelope>(json.encodeToString(original))
+        assertEquals(original, decoded)
+    }
+
+    @Test
+    fun `system event wire discriminator is stable`() {
+        val encoded = json.encodeToString<ContentPayload>(ContentPayload.SystemEvent("join"))
+        assertTrue("\"type\":\"system\"" in encoded)
+        val roundTripped = json.decodeFromString<ContentPayload>(encoded)
+        assertEquals(ContentPayload.SystemEvent("join"), roundTripped)
+    }
+
+    @Test
+    fun `garbage input degrades to unknown preserving raw`() {
+        val decoded = decodeContentEnvelopeFailSafe(json, "not json at all")
+        val content = decoded.content
+        assertTrue(content is ContentPayload.Unknown, "expected Unknown, got $content")
+        content as ContentPayload.Unknown
+        assertEquals("unknown", content.rawType)
+        assertEquals("not json at all", content.rawPayload)
+        assertEquals(1, decoded.version)
+    }
+
+    @Test
+    fun `nested unknown type inside reply degrades envelope to reply type`() {
+        val raw = """{"version":1,"content":{"type":"reply","replyToMessageId":"m1","content":{"type":"future_v9","x":1}}}"""
+        val decoded = decodeContentEnvelopeFailSafe(json, raw)
+        val content = decoded.content
+        assertTrue(content is ContentPayload.Unknown, "expected Unknown, got $content")
+        content as ContentPayload.Unknown
+        assertEquals("reply", content.rawType)
+        assertTrue(content.rawPayload.contains("future_v9"), content.rawPayload)
+    }
 }
