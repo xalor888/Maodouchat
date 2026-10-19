@@ -14,9 +14,11 @@ import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.AttachmentTransfer
 import com.maodouchat.domain.messaging.ForwardFailureReason
 import com.maodouchat.domain.messaging.ForwardRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
+import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -319,6 +321,107 @@ class ConversationForwardCoordinatorTest {
         // 2 forwarded messages + 1 note
         assertEquals(3, staged.size)
         assertEquals("Check this out", staged.last().content)
+    }
+
+    @Test
+    fun `sendNote rejects blank text before staging`() = runTest {
+        var stageCount = 0
+        val coordinator = coordinator(stageMessage = { _, _ -> stageCount += 1 })
+
+        val error = runCatching { coordinator.sendNote(chat(), "   ") }.exceptionOrNull()
+
+        assertTrue(error is IllegalArgumentException)
+        assertEquals("forward_note_empty", error?.message)
+        assertEquals(0, stageCount)
+    }
+
+    @Test
+    fun `forward request maps missing session to NOT_READY for all targets`() = runTest {
+        val coordinator = coordinator(
+            sessionActive = { false },
+            getChatById = { chat() },
+            getMessageById = { message() },
+        )
+        val request = ForwardRequest(
+            sourceConversationId = "chat-1",
+            sourceMessageId = "source-1",
+            targetConversationIds = listOf("target-1", "target-2"),
+        )
+
+        val results = coordinator.forward(request)
+
+        assertEquals(2, results.size)
+        assertTrue(results.all { !it.success && it.reason == ForwardFailureReason.NOT_READY })
+    }
+
+    @Test
+    fun `forward request cancellation on later target propagates`() = runTest {
+        val staged = mutableListOf<Message>()
+        val coordinator = coordinator(
+            getChatById = { chat() },
+            getMessageById = { message() },
+            resolveTargets = { _, targets -> targets },
+            stageMessage = { msg, _ ->
+                if (msg.chatId == "target-2") throw CancellationException("stopped")
+                staged += msg
+            },
+        )
+        val request = ForwardRequest(
+            sourceConversationId = "chat-1",
+            sourceMessageId = "source-1",
+            targetConversationIds = listOf("target-1", "target-2"),
+        )
+
+        val error = runCatching { coordinator.forward(request) }.exceptionOrNull()
+
+        assertTrue(error is CancellationException)
+        assertEquals(listOf("target-1"), staged.map { it.chatId })
+    }
+
+    @Test
+    fun `forward request marks attachment controller failure as PERMANENT`() = runTest {
+        val controller = FakeAttachmentIntentController().apply { failure = IOException("disk gone") }
+        val coordinator = coordinator(
+            getChatById = { chat() },
+            getMessageById = { message(content = "https://cdn.example.com/photo.jpg", type = MessageType.IMAGE) },
+            attachmentIntentController = controller,
+        )
+        val request = ForwardRequest(
+            sourceConversationId = "chat-1",
+            sourceMessageId = "source-1",
+            targetConversationIds = listOf("target-1"),
+        )
+
+        val results = coordinator.forward(request)
+
+        assertEquals(1, results.size)
+        assertFalse(results.single().success)
+        assertEquals(ForwardFailureReason.PERMANENT, results.single().reason)
+    }
+
+    @Test
+    fun `forwardBatch aborts remaining targets when session switches mid batch`() = runTest {
+        var active = true
+        val calls = mutableListOf<String>()
+        val coordinator = coordinator(
+            sessionActive = { active },
+            stageMessage = { message, _ ->
+                calls += "message:${message.chatId}:${message.parsedContent()}"
+                active = false
+            },
+        )
+
+        val error = runCatching {
+            coordinator.forwardBatch(
+                targets = listOf(chat("chat-1"), chat("chat-2")),
+                messages = listOf(message("one")),
+                note = null,
+                sourceName = { "Alice" },
+            )
+        }.exceptionOrNull()
+
+        assertTrue(error is CancellationException)
+        assertEquals(listOf("message:chat-1:one"), calls)
     }
 
     private class FakeAttachmentIntentController : AttachmentIntentController {
