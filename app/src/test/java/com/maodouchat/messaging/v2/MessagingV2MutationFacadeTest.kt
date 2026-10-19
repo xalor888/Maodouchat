@@ -560,6 +560,80 @@ class MessagingV2MutationFacadeTest {
         assertNull(commit.localProjectionError)
     }
 
+    @Test
+    fun `revoke id mismatch is rejected before the owner check`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistRevoked = { _, _ -> effects += "room" },
+            ownerIsCurrent = { false },
+        )
+        val other = message().copy(id = "message-2")
+
+        val thrown = assertFailsWith<IllegalArgumentException> {
+            facade.revoke(message(), other, "stale-owner", groupRevision = null)
+        }
+        assertEquals("messaging_v2_revoke_target_mismatch", thrown.message)
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `delete is durable in outbox before local projection changes`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistDeleted = { effects += "room" },
+            cleanupAttachment = { effects += "attachment" },
+            cleanupTerminalNotification = { effects += "notification" },
+            refreshPreview = { effects += "preview" },
+        )
+
+        val commit = facade.delete(message(content = "gone"), OWNER, groupRevision = null)
+
+        assertEquals(listOf("outbox", "room", "attachment", "notification", "preview"), effects)
+        assertNull(commit.localProjectionError)
+    }
+
+    @Test
+    fun `preview failure after successful projection is reported without undoing commit`() = runTest {
+        val effects = mutableListOf<String>()
+        val previewFailure = IllegalStateException("preview failed")
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistMessage = { effects += "room" },
+            refreshPreview = {
+                effects += "preview"
+                throw previewFailure
+            },
+        )
+
+        val commit = facade.edit(message(content = "edited"), OWNER, groupRevision = null)
+
+        assertEquals(listOf("outbox", "room", "preview"), effects)
+        val projectionError = assertIs<IllegalStateException>(commit.localProjectionError)
+        assertEquals(previewFailure.message, projectionError.message)
+    }
+
+    @Test
+    fun `revoke local projection failure continues remaining convergence steps`() = runTest {
+        val effects = mutableListOf<String>()
+        val roomFailure = IllegalStateException("room failed")
+        val facade = facade(
+            persistRevoked = { _, _ ->
+                effects += "room"
+                throw roomFailure
+            },
+            cleanupAttachment = { effects += "attachment" },
+            cleanupTerminalNotification = { effects += "notification" },
+        )
+
+        val commit = facade.revoke(message(), message(content = "revoked"), OWNER, groupRevision = null)
+
+        assertEquals(listOf("room", "attachment", "notification"), effects)
+        val projectionError = assertIs<IllegalStateException>(commit.localProjectionError)
+        assertEquals(roomFailure.message, projectionError.message)
+    }
+
     private fun facade(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistMessage: suspend (Message) -> Unit = {},
