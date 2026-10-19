@@ -1,5 +1,6 @@
 package com.maodouchat.attachment
 
+import com.maodouchat.crypto.NoRecipientDevicesException
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import java.io.IOException
@@ -51,7 +52,7 @@ class AttachmentTransferRetryPolicyTest {
     fun missingPeerPrekeysAndSignalInitAreRetryable() {
         assertTrue(
             AttachmentSendAfterUploadPolicy.isRetryable(
-                com.maodouchat.crypto.NoRecipientDevicesException()
+                NoRecipientDevicesException()
             )
         )
         assertTrue(
@@ -61,8 +62,68 @@ class AttachmentTransferRetryPolicyTest {
         )
         assertTrue(
             AttachmentSendAfterUploadPolicy.isRetryable(
-                RuntimeException("wrap", com.maodouchat.crypto.NoRecipientDevicesException())
+                RuntimeException("wrap", NoRecipientDevicesException())
             )
+        )
+    }
+
+    @Test
+    fun rateLimited429IsRetryable() {
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 429, serverMessage = "slow down")
+            )
+        )
+    }
+
+    @Test
+    fun attachmentNotReadyConflict409IsRetryable() {
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "附件尚未上传完成")
+            )
+        )
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "attachment upload not ready")
+            )
+        )
+    }
+
+    @Test
+    fun unrelated409AndSub500AreNotRetryable() {
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "version conflict")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 499, serverMessage = "client closed")
+            )
+        )
+    }
+
+    @Test
+    fun cryptoTransientMessagesAreRetryable() {
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(RuntimeException("attachment not ready")))
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                RuntimeException("wrap", RuntimeException("protocol initialization failed"))
+            )
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(RuntimeException("attachment corrupt")))
+    }
+
+    @Test
+    fun causeChainDeeperThanSixIsNotTreatedAsTransient() {
+        fun nested(depth: Int, leaf: Throwable): Throwable =
+            if (depth == 0) leaf else RuntimeException("level$depth", nested(depth - 1, leaf))
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(nested(5, NoRecipientDevicesException()))
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(nested(6, NoRecipientDevicesException()))
         )
     }
 }
