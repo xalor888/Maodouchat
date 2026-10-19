@@ -379,7 +379,7 @@ class ConversationMessageMutationCoordinatorTest {
         val outcome = coordinator.edit(original, updated, "  ", null, projections::add)
 
         assertEquals(
-            listOf(
+            listOf<MessageMutationProjection>(
                 MessageMutationProjection.Set(updated),
                 MessageMutationProjection.Set(original),
             ),
@@ -400,7 +400,7 @@ class ConversationMessageMutationCoordinatorTest {
         val outcome = coordinator.revoke(original, revoked, "  ", null, projections::add)
 
         assertEquals(
-            listOf(
+            listOf<MessageMutationProjection>(
                 MessageMutationProjection.Set(revoked),
                 MessageMutationProjection.Set(original),
             ),
