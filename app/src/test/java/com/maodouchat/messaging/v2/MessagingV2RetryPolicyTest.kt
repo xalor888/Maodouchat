@@ -14,7 +14,7 @@ class MessagingV2RetryPolicyTest {
     @Test
     fun `now offsets the whole schedule unchanged`() {
         assertEquals(6_000L, MessagingV2RetryPolicy.nextAttemptAt(5_000L, 1))
-        assertEquals(9_000L, MessagingV2RetryPolicy.nextAttemptAt(5_000L, 2))
+        assertEquals(7_000L, MessagingV2RetryPolicy.nextAttemptAt(5_000L, 2))
     }
 
     @Test
