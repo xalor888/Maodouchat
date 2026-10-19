@@ -33,4 +33,39 @@ class SignalStoreLoadPolicyTest {
         assertNull(SignalStoreLoadPolicy.logicalKeyOrNull("", prefix))
         assertEquals("orphan", SignalStoreLoadPolicy.logicalKeyOrNull("orphan", prefix))
     }
+
+    @Test
+    fun loadRowAcceptsPaddedButNonBlankFields() {
+        // keyType 先 trim 再判定：两端空格不影响加载
+        assertTrue(SignalStoreLoadPolicy.shouldLoadRow("  session:u1:1  ", "YWJj"))
+        // keyData 只要不是纯空白就加载，不做 Base64 合法性判定
+        assertTrue(SignalStoreLoadPolicy.shouldLoadRow("session:u1:1", "  YWJj  "))
+    }
+
+    @Test
+    fun loadRowDropsNullAndBlankFields() {
+        assertFalse(SignalStoreLoadPolicy.shouldLoadRow(null, null))
+        assertFalse(SignalStoreLoadPolicy.shouldLoadRow("  ", "YWJj"))
+        assertFalse(SignalStoreLoadPolicy.shouldLoadRow("session:u1:1", ""))
+    }
+
+    @Test
+    fun persistableRejectsBlankKeyTypeAndAcceptsZeroBytes() {
+        assertFalse(SignalStoreLoadPolicy.isPersistable("   ", byteArrayOf(1)))
+        assertTrue(SignalStoreLoadPolicy.isPersistable("prekey:1", byteArrayOf(0, 0)))
+    }
+
+    @Test
+    fun logicalKeyRejectsBlankPrefixAndBlankRemainder() {
+        assertNull(SignalStoreLoadPolicy.logicalKeyOrNull("session:u1:1", " "))
+        assertNull(SignalStoreLoadPolicy.logicalKeyOrNull("user:alice:   ", "user:alice:"))
+    }
+
+    @Test
+    fun logicalKeyPrefixMatchIsCaseSensitive() {
+        assertEquals(
+            "User:alice:session:u1:1",
+            SignalStoreLoadPolicy.logicalKeyOrNull("User:alice:session:u1:1", "user:alice:"),
+        )
+    }
 }
