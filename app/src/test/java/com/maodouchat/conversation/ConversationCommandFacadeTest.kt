@@ -269,6 +269,49 @@ class ConversationCommandFacadeTest {
     }
 
     @Test
+    fun `stageQuickReply stages plain text with generated message id`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val result = facade.stageQuickReply(chat(), "owner-1", "hello")
+
+        val staged = result as ConversationCommandOutcome.Staged
+        assertEquals("new-1", staged.message.id)
+        assertEquals("owner-1", staged.message.senderId)
+        assertEquals("hello", staged.message.content)
+        assertEquals(MessageType.TEXT, staged.message.type)
+        assertEquals("new-1", gateway.messages.single().id)
+    }
+
+    @Test
+    fun `stageQuickReply rejects blank text without hitting gateway`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val result = facade.stageQuickReply(chat(), "owner-1", "   ")
+
+        assertTrue(result is ConversationCommandOutcome.Rejected)
+        assertEquals(
+            ConversationCommandRejection.EMPTY_TEXT,
+            (result as ConversationCommandOutcome.Rejected).reason,
+        )
+        assertTrue(gateway.messages.isEmpty())
+    }
+
+    @Test
+    fun `stageQuickReply detects markdown and stages markdown message`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val result = facade.stageQuickReply(chat(), "owner-1", "hello **bold**")
+
+        val staged = result as ConversationCommandOutcome.Staged
+        assertEquals(MessageType.MARKDOWN, staged.message.type)
+        assertTrue(staged.message.meta.markdown)
+        assertEquals(MessageType.MARKDOWN, gateway.payloads.single().type)
+    }
+
+    @Test
     fun `blank idempotencyKey disables dedup and stages twice`() = runTest {
         val gateway = FakeGateway()
         var msgSeq = 0
