@@ -143,15 +143,83 @@ class ConversationMessageMutationCoordinatorTest {
         )
     }
 
+    @Test
+    fun `edit after authoritative delete is ignored without projecting`() = runTest {
+        val coordinator = coordinator()
+        coordinator.observeAuthoritative(MESSAGE_ID, MessageMutationKind.DELETE)
+
+        val outcome = coordinator.edit(
+            original = message(),
+            updated = message().copy(content = "edited"),
+            ownerUserId = OWNER,
+            groupRevision = null,
+            project = { error("terminal delete must not project") },
+        )
+
+        assertIs<ConversationMessageMutationOutcome.Ignored>(outcome)
+    }
+
+    @Test
+    fun `edit postcommit local failure keeps optimistic set and pinned reference`() = runTest {
+        val failure = IllegalStateException("sqlcipher unavailable")
+        val coordinator = coordinator(persistEdited = { throw failure })
+        val updated = message().copy(content = "edited")
+        val projections = mutableListOf<MessageMutationProjection>()
+
+        val outcome = coordinator.edit(
+            original = message(),
+            updated = updated,
+            ownerUserId = OWNER,
+            groupRevision = null,
+            project = projections::add,
+        )
+
+        assertEquals(
+            listOf<MessageMutationProjection>(MessageMutationProjection.Set(updated)),
+            projections,
+        )
+        val applied = assertIs<ConversationMessageMutationOutcome.Applied>(outcome)
+        val projectionError = assertIs<IllegalStateException>(applied.localProjectionError)
+        assertEquals(failure.message, projectionError.message)
+        assertEquals(false, applied.removePinnedReference)
+    }
+
+    @Test
+    fun `revoke postcommit cancellation is a projection warning not a rollback`() = runTest {
+        val coordinator = coordinator(
+            persistRevoked = { _, _ -> throw CancellationException("room cancelled") },
+        )
+        val revoked = message().copy(content = "revoked")
+        val projections = mutableListOf<MessageMutationProjection>()
+
+        val outcome = coordinator.revoke(
+            original = message(),
+            revoked = revoked,
+            ownerUserId = OWNER,
+            groupRevision = null,
+            project = projections::add,
+        )
+
+        assertEquals(
+            listOf<MessageMutationProjection>(MessageMutationProjection.Set(revoked)),
+            projections,
+        )
+        val applied = assertIs<ConversationMessageMutationOutcome.Applied>(outcome)
+        assertIs<CancellationException>(applied.localProjectionError)
+        assertEquals(true, applied.removePinnedReference)
+    }
+
     private fun coordinator(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistDeleted: suspend (String) -> Unit = {},
+        persistEdited: suspend (Message) -> Message? = { it },
+        persistRevoked: suspend (String, Message) -> Unit = { _, _ -> },
     ): ConversationMessageMutationCoordinator = ConversationMessageMutationCoordinator(
         MessagingV2MutationFacade(
             eventOutbox = MessagingV2EventOutbox(enqueue),
             persistDeleted = persistDeleted,
-            persistRevoked = { _, _ -> },
-            persistEdited = { it },
+            persistRevoked = persistRevoked,
+            persistEdited = persistEdited,
             persistReaction = { _, _, _, _ -> },
             indexMessage = {},
             cleanupAttachment = {},
