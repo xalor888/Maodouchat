@@ -209,6 +209,82 @@ class ConversationMessageMutationCoordinatorTest {
         assertEquals(true, applied.removePinnedReference)
     }
 
+    @Test
+    fun `revoke postcommit local failure keeps optimistic set and pinned reference`() = runTest {
+        val failure = IllegalStateException("sqlcipher unavailable")
+        val coordinator = coordinator(persistRevoked = { _, _ -> throw failure })
+        val revoked = message().copy(content = "revoked")
+        val projections = mutableListOf<MessageMutationProjection>()
+
+        val outcome = coordinator.revoke(
+            original = message(),
+            revoked = revoked,
+            ownerUserId = OWNER,
+            groupRevision = null,
+            project = projections::add,
+        )
+
+        assertEquals(
+            listOf<MessageMutationProjection>(MessageMutationProjection.Set(revoked)),
+            projections,
+        )
+        val applied = assertIs<ConversationMessageMutationOutcome.Applied>(outcome)
+        val projectionError = assertIs<IllegalStateException>(applied.localProjectionError)
+        assertEquals(failure.message, projectionError.message)
+        assertTrue(applied.removePinnedReference)
+    }
+
+    @Test
+    fun `edit postcommit cancellation is a projection warning not a rollback`() = runTest {
+        val coordinator = coordinator(
+            persistEdited = { throw CancellationException("room cancelled") },
+        )
+        val updated = message().copy(content = "edited")
+        val projections = mutableListOf<MessageMutationProjection>()
+
+        val outcome = coordinator.edit(
+            original = message(),
+            updated = updated,
+            ownerUserId = OWNER,
+            groupRevision = null,
+            project = projections::add,
+        )
+
+        assertEquals(
+            listOf<MessageMutationProjection>(MessageMutationProjection.Set(updated)),
+            projections,
+        )
+        val applied = assertIs<ConversationMessageMutationOutcome.Applied>(outcome)
+        assertIs<CancellationException>(applied.localProjectionError)
+        assertEquals(false, applied.removePinnedReference)
+    }
+
+    @Test
+    fun `account switch before commit rolls back optimistic projection and fails`() = runTest {
+        val coordinator = coordinator()
+        val original = message()
+        val projections = mutableListOf<MessageMutationProjection>()
+
+        val outcome = coordinator.edit(
+            original = original,
+            updated = original.copy(content = "edited"),
+            ownerUserId = "stale-user",
+            groupRevision = null,
+            project = projections::add,
+        )
+
+        assertEquals(
+            listOf<MessageMutationProjection>(
+                MessageMutationProjection.Set(original.copy(content = "edited")),
+                MessageMutationProjection.Set(original),
+            ),
+            projections,
+        )
+        val failed = assertIs<ConversationMessageMutationOutcome.Failed>(outcome)
+        assertEquals("messaging_v2_owner_session_changed", failed.error.message)
+        assertTrue(failed.rolledBack)
+    }
+
     private fun coordinator(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistDeleted: suspend (String) -> Unit = {},
