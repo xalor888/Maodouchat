@@ -49,4 +49,54 @@ class ForwardPolicyTest {
             ForwardPolicy.evaluate(isSecretChat = false, isTerminalMessage = false, senderForbidsForward = false),
         )
     }
+
+    @Test
+    fun `pin lock dominates all other blocks`() {
+        assertEquals(
+            Forwardability.PIN_LOCKED_BLOCKED,
+            ForwardPolicy.evaluate(
+                isSecretChat = true,
+                isTerminalMessage = true,
+                senderForbidsForward = true,
+                isPinLocked = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `secret chat dominates terminal message`() {
+        assertEquals(
+            Forwardability.SECRET_CHAT_BLOCKED,
+            ForwardPolicy.evaluate(isSecretChat = true, isTerminalMessage = true, senderForbidsForward = false),
+        )
+    }
+
+    @Test
+    fun `terminal message dominates sender privacy`() {
+        assertEquals(
+            Forwardability.TERMINAL_BLOCKED,
+            ForwardPolicy.evaluate(isSecretChat = false, isTerminalMessage = true, senderForbidsForward = true),
+        )
+    }
+
+    @Test
+    fun `secret chat dominates sender privacy`() {
+        assertEquals(
+            Forwardability.SECRET_CHAT_BLOCKED,
+            ForwardPolicy.evaluate(isSecretChat = true, isTerminalMessage = false, senderForbidsForward = true),
+        )
+    }
+
+    @Test
+    fun `default pin lock param behaves as unlocked`() {
+        assertEquals(
+            ForwardPolicy.evaluate(isSecretChat = false, isTerminalMessage = false, senderForbidsForward = false),
+            ForwardPolicy.evaluate(
+                isSecretChat = false,
+                isTerminalMessage = false,
+                senderForbidsForward = false,
+                isPinLocked = false,
+            ),
+        )
+    }
 }
