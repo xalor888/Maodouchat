@@ -285,4 +285,157 @@ class MessagingV2OutboxPlaintextBoundaryTest {
         assertFalse(body.contains(sentinel), "重加密排队路径上出站请求里也不许出现本机明文：$body")
         assertTrue(body.contains(ciphertext), "重加密排队的请求里仍应是每设备密文：$body")
     }
+
+    @Test
+    fun `preparation failure stages nothing and requeues without leaking plaintext`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        val retryState = slot<String>()
+        val preparing = sendingRow().copy(
+            state = MessagingV2OutboxState.PREPARING,
+            preparedEnvelopesJson = null,
+        )
+        coEvery { dao.recoverStaleOutboxClaims(any(), any(), any()) } returns 0
+        coEvery { dao.claimNextOutbox("u1", any()) } returnsMany listOf(preparing, null)
+        coEvery {
+            dao.markOutboxFailed(any(), any(), any(), capture(retryState), any(), any(), any())
+        } returns 1
+        mockkObject(ApiService)
+
+        val coordinator = MessagingV2OutboxCoordinator(
+            dao = dao,
+            preparer = { _, _ -> throw IllegalStateException("encryption blew up") },
+        )
+        coordinator.flush(token = "token", ownerUserId = "u1")
+
+        assertEquals(MessagingV2OutboxState.RETRY_PREPARE, retryState.captured)
+        coVerify(exactly = 0) {
+            dao.storePreparedOutbox(any(), any(), any(), any(), any())
+        }
+        coVerify(exactly = 0) { ApiService.sendMessageV2(any(), any()) }
+    }
+
+    @Test
+    fun `group revision mismatch on a data message requeues instead of discarding`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        val captured = slot<SendMessageRequestV2>()
+        val retryState = slot<String>()
+        coEvery { dao.recoverStaleOutboxClaims(any(), any(), any()) } returns 0
+        coEvery { dao.claimNextOutbox("u1", any()) } returnsMany listOf(sendingRow(), null)
+        coEvery {
+            dao.markOutboxFailed(any(), any(), any(), capture(retryState), any(), any(), any())
+        } returns 1
+        mockkObject(ApiService)
+        coEvery { ApiService.sendMessageV2(any(), capture(captured)) } returns
+            Result.failure(
+                ApiException(
+                    kind = ApiFailureKind.HTTP,
+                    statusCode = 409,
+                    serverCode = "GROUP_REVISION_MISMATCH",
+                ),
+            )
+
+        val coordinator = MessagingV2OutboxCoordinator(
+            dao = dao,
+            preparer = { _, _ -> error("本轮只走 SENDING，不该再走 prepare") },
+        )
+        coordinator.flush(token = "token", ownerUserId = "u1")
+
+        assertEquals(MessagingV2OutboxState.RETRY_PREPARE, retryState.captured)
+        coVerify(exactly = 0) { dao.discardOutbox(any(), any(), any()) }
+        val body = json.encodeToString(SendMessageRequestV2.serializer(), captured.captured)
+        assertFalse(body.contains(sentinel), "重加密排队路径上出站请求里也不许出现本机明文：$body")
+    }
+
+    @Test
+    fun `group fan-out keeps every recipient envelope on the wire`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        val captured = slot<SendMessageRequestV2>()
+        val envelopes = listOf(
+            EncryptedDeviceEnvelopeRequestV2("u2", 1, "TEXT", "CIPH-FOR-u2-77"),
+            EncryptedDeviceEnvelopeRequestV2("u3", 2, "TEXT", "CIPH-FOR-u3-88"),
+            EncryptedDeviceEnvelopeRequestV2("u4", 1, "TEXT", "CIPH-FOR-u4-99"),
+        )
+        coEvery { dao.recoverStaleOutboxClaims(any(), any(), any()) } returns 0
+        coEvery { dao.claimNextOutbox("u1", any()) } returnsMany listOf(
+            sendingRow().copy(
+                preparedEnvelopesJson = json.encodeToString(
+                    ListSerializer(EncryptedDeviceEnvelopeRequestV2.serializer()),
+                    envelopes,
+                ),
+            ),
+            null,
+        )
+        coEvery { dao.completeOutbox("m1", "u1") } returns 1
+        mockkObject(ApiService)
+        coEvery { ApiService.sendMessageV2(any(), capture(captured)) } returns
+            Result.success(SendMessageResponseV2("m1", 2L, 3, false))
+
+        val coordinator = MessagingV2OutboxCoordinator(
+            dao = dao,
+            preparer = { _, _ -> error("SENDING 状态不该再走 prepare") },
+        )
+        coordinator.flush(token = "token", ownerUserId = "u1")
+
+        val sent = captured.captured.envelopes
+        assertEquals(listOf("u2", "u3", "u4"), sent.map { it.recipientUserId })
+        val body = json.encodeToString(SendMessageRequestV2.serializer(), captured.captured)
+        assertFalse(body.contains(sentinel), "群发路径上出站请求里也不许出现本机明文：$body")
+        envelopes.forEach { envelope ->
+            assertTrue(body.contains(envelope.ciphertext), "设备 ${envelope.recipientUserId} 的密文被丢了")
+        }
+    }
+
+    @Test
+    fun `stale group control discovered during preparation is discarded locally`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        val preparing = sendingRow().copy(
+            state = MessagingV2OutboxState.PREPARING,
+            preparedEnvelopesJson = null,
+            kind = "SENDER_KEY",
+        )
+        coEvery { dao.recoverStaleOutboxClaims(any(), any(), any()) } returns 0
+        coEvery { dao.claimNextOutbox("u1", any()) } returnsMany listOf(preparing, null)
+        coEvery {
+            dao.discardOutbox("m1", "u1", MessagingV2OutboxState.PREPARING)
+        } returns 1
+        mockkObject(ApiService)
+
+        val coordinator = MessagingV2OutboxCoordinator(
+            dao = dao,
+            preparer = { _, _ -> throw MessagingV2StaleGroupControlException() },
+        )
+        coordinator.flush(token = "token", ownerUserId = "u1")
+
+        coVerify(exactly = 1) {
+            dao.discardOutbox("m1", "u1", MessagingV2OutboxState.PREPARING)
+        }
+        coVerify(exactly = 0) {
+            dao.storePreparedOutbox(any(), any(), any(), any(), any())
+        }
+        coVerify(exactly = 0) { ApiService.sendMessageV2(any(), any()) }
+    }
+
+    @Test
+    fun `flush with nothing claimed touches neither the wire nor the database`() = runTest {
+        val dao = mockk<MessagingV2Dao>()
+        coEvery { dao.recoverStaleOutboxClaims(any(), any(), any()) } returns 0
+        coEvery { dao.claimNextOutbox("u1", any()) } returns null
+        mockkObject(ApiService)
+
+        val coordinator = MessagingV2OutboxCoordinator(
+            dao = dao,
+            preparer = { _, _ -> error("空跑不该走到 prepare") },
+        )
+        coordinator.flush(token = "token", ownerUserId = "u1")
+
+        coVerify(exactly = 0) { ApiService.sendMessageV2(any(), any()) }
+        coVerify(exactly = 0) {
+            dao.storePreparedOutbox(any(), any(), any(), any(), any())
+        }
+        coVerify(exactly = 0) {
+            dao.markOutboxFailed(any(), any(), any(), any(), any(), any(), any())
+        }
+        coVerify(exactly = 0) { dao.discardOutbox(any(), any(), any()) }
+        coVerify(exactly = 0) { dao.completeOutbox(any(), any()) }
+    }
 }

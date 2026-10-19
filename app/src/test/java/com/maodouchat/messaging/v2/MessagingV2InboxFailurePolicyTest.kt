@@ -78,4 +78,49 @@ class MessagingV2InboxFailurePolicyTest {
         assertTrue(firstTrue == MessagingV2InboxFailurePolicy.MAX_RECOVERABLE_ATTEMPTS - 1)
         assertTrue(seen.drop(firstTrue).all { it })
     }
+
+    @Test
+    fun `permanent error codes are terminal even with zero attempts`() {
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_device", 0))
+        assertTrue(
+            MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_unsupported_ciphertext", 0),
+        )
+        assertTrue(
+            MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_sender_key_install_failed", 0),
+        )
+    }
+
+    @Test
+    fun `permanent error codes stay terminal at large attempt counts`() {
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_device", 100))
+        assertTrue(
+            MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_unsupported_ciphertext", 100),
+        )
+        assertTrue(
+            MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_sender_key_install_failed", 100),
+        )
+    }
+
+    @Test
+    fun `padded error codes do not count as permanent`() {
+        assertFalse(
+            MessagingV2InboxFailurePolicy.shouldDeadLetter(" messaging_v2_wrong_device", 1),
+        )
+        assertFalse(
+            MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_no_session ", 7),
+        )
+    }
+
+    @Test
+    fun `empty error code still exhausts the retry budget`() {
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("", 7))
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("", 8))
+    }
+
+    @Test
+    fun `negative attempts stay recoverable for non-permanent codes`() {
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_no_session", -1))
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_whatever", -50))
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_device", -1))
+    }
 }
