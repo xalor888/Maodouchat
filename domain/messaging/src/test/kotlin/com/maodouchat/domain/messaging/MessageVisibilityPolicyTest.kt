@@ -1,5 +1,6 @@
 package com.maodouchat.domain.messaging
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -167,6 +168,87 @@ class MessageVisibilityPolicyTest {
             assertTrue(
                 MessageVisibilityPolicy.isVisible(scope, defaults),
                 "Default context should be visible in $scope"
+            )
+        }
+    }
+
+    @Test
+    fun `session unlock flag without a lock changes nothing`() {
+        val context = MessageVisibilityContext(
+            isSecretChat = false,
+            isChatLocked = false,
+            isChatUnlockedInSession = true,
+        )
+
+        MessageVisibilityScope.entries.forEach { scope ->
+            assertTrue(MessageVisibilityPolicy.isVisible(scope, context), scope.name)
+        }
+    }
+
+    @Test
+    fun `session unlock flag does not lift the secret restriction`() {
+        val context = MessageVisibilityContext(
+            isSecretChat = true,
+            isChatLocked = false,
+            isChatUnlockedInSession = true,
+        )
+
+        assertFalse(MessageVisibilityPolicy.isVisible(MessageVisibilityScope.GLOBAL_SEARCH, context))
+        assertFalse(MessageVisibilityPolicy.isVisible(MessageVisibilityScope.STARRED_LIST, context))
+        assertTrue(MessageVisibilityPolicy.isVisible(MessageVisibilityScope.CONVERSATION_SEARCH, context))
+        assertTrue(MessageVisibilityPolicy.isVisible(MessageVisibilityScope.MEDIA_GALLERY, context))
+    }
+
+    @Test
+    fun `deleted and revoked together stay invisible everywhere`() {
+        val context = MessageVisibilityContext(
+            isSecretChat = false,
+            isChatLocked = false,
+            isDeleted = true,
+            isRevoked = true,
+        )
+
+        MessageVisibilityScope.entries.forEach { scope ->
+            assertFalse(MessageVisibilityPolicy.isVisible(scope, context), scope.name)
+        }
+    }
+
+    @Test
+    fun `revoked beats session unlock everywhere`() {
+        val context = MessageVisibilityContext(
+            isSecretChat = false,
+            isChatLocked = true,
+            isChatUnlockedInSession = true,
+            isRevoked = true,
+        )
+
+        MessageVisibilityScope.entries.forEach { scope ->
+            assertFalse(MessageVisibilityPolicy.isVisible(scope, context), scope.name)
+        }
+    }
+
+    @Test
+    fun `paired scopes always agree`() {
+        listOf(
+            Triple(false, false, false), Triple(true, false, false),
+            Triple(false, true, false), Triple(true, true, false),
+            Triple(false, false, true), Triple(true, false, true),
+            Triple(false, true, true), Triple(true, true, true),
+        ).forEach { (secret, locked, unlocked) ->
+            val context = MessageVisibilityContext(
+                isSecretChat = secret,
+                isChatLocked = locked,
+                isChatUnlockedInSession = unlocked,
+            )
+            assertEquals(
+                MessageVisibilityPolicy.isVisible(MessageVisibilityScope.GLOBAL_SEARCH, context),
+                MessageVisibilityPolicy.isVisible(MessageVisibilityScope.STARRED_LIST, context),
+                "GLOBAL_SEARCH vs STARRED_LIST secret=$secret locked=$locked unlocked=$unlocked"
+            )
+            assertEquals(
+                MessageVisibilityPolicy.isVisible(MessageVisibilityScope.CONVERSATION_SEARCH, context),
+                MessageVisibilityPolicy.isVisible(MessageVisibilityScope.MEDIA_GALLERY, context),
+                "CONVERSATION_SEARCH vs MEDIA_GALLERY secret=$secret locked=$locked unlocked=$unlocked"
             )
         }
     }
