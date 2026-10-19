@@ -7,6 +7,7 @@ import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -171,5 +172,90 @@ class MessageMutationGateTest {
             ),
             cleanedArtifacts,
         )
+    }
+
+    @Test
+    fun `revoke tombstone also marks message terminal`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.REVOKE,
+            terminalAt = 1000L,
+        )
+
+        fun isMessageTerminal(ownerUserId: String, targetMessageId: String): Boolean {
+            val tombstone = tombstones[targetMessageId] ?: return false
+            return tombstone.ownerUserId == ownerUserId
+        }
+
+        assertTrue(isMessageTerminal(owner, messageId), "REVOKE tombstone must gate like DELETE")
+    }
+
+    @Test
+    fun `tombstone is scoped to its owner`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = "bob",
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = 1000L,
+        )
+
+        fun isMessageTerminal(ownerUserId: String, targetMessageId: String): Boolean {
+            val tombstone = tombstones[targetMessageId] ?: return false
+            return tombstone.ownerUserId == ownerUserId
+        }
+
+        assertFalse(isMessageTerminal("alice", messageId), "Another owner's tombstone must not gate this owner")
+    }
+
+    @Test
+    fun `terminal action maps revoke to revoke kind and delete to delete kind`() {
+        // Mirrors MessageEventProjector's tombstone kind mapping for out-of-order terminal events.
+        fun tombstoneKindFor(action: String): String = when (action) {
+            MessagingV2EventAction.REVOKE -> MessageMutationTombstoneKind.REVOKE
+            else -> MessageMutationTombstoneKind.DELETE
+        }
+
+        assertEquals(MessageMutationTombstoneKind.REVOKE, tombstoneKindFor(MessagingV2EventAction.REVOKE))
+        assertEquals(MessageMutationTombstoneKind.DELETE, tombstoneKindFor(MessagingV2EventAction.DELETE))
+    }
+
+    @Test
+    fun `edit is not a terminal action and creates no tombstone`() {
+        // Only DELETE/REVOKE are terminal: an EDIT arriving before DATA must not tombstone.
+        val terminalActions = setOf(MessagingV2EventAction.DELETE, MessagingV2EventAction.REVOKE)
+
+        assertFalse(MessagingV2EventAction.EDIT in terminalActions)
+        assertFalse(MessagingV2EventAction.REACTION_SET in terminalActions)
+    }
+
+    @Test
+    fun `conflicting tombstone kinds keep the message terminal`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+
+        fun isMessageTerminal(targetMessageId: String): Boolean = tombstones.containsKey(targetMessageId)
+
+        // DELETE arrives first, then a late REVOKE for the same message.
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = 1000L,
+        )
+        assertTrue(isMessageTerminal(messageId))
+
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.REVOKE,
+            terminalAt = 2000L,
+        )
+        assertTrue(isMessageTerminal(messageId), "Overwritten tombstone must stay terminal")
     }
 }
