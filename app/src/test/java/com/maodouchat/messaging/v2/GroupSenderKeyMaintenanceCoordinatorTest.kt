@@ -1,11 +1,13 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.network.SenderKeyDistributionStatusDto
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -128,6 +130,104 @@ class GroupSenderKeyMaintenanceCoordinatorTest {
 
         assertIs<GroupSenderKeyMaintenanceOutcome.Skipped>(duplicate)
         assertIs<GroupSenderKeyMaintenanceOutcome.Ready>(first.await())
+    }
+
+    @Test
+    fun `automatic with blank id or zero epoch skips without side effects`() = runTest {
+        var ensured = 0
+        val retries = mutableListOf<String>()
+        val coordinator = coordinator(
+            ensure = {
+                ensured += 1
+                Result.success(status())
+            },
+            retries = retries,
+        )
+
+        val blank = coordinator.runAutomatic("", 7, null, false)
+        val zeroEpoch = coordinator.runAutomatic("group", 0, null, false)
+
+        assertIs<GroupSenderKeyMaintenanceOutcome.Skipped>(blank)
+        assertIs<GroupSenderKeyMaintenanceOutcome.Skipped>(zeroEpoch)
+        assertEquals(0, ensured)
+        assertTrue(retries.isEmpty())
+    }
+
+    @Test
+    fun `automatic ensure failure reports failed and queues durable retry`() = runTest {
+        val offline = IllegalStateException("offline")
+        val retries = mutableListOf<String>()
+        val coordinator = coordinator(
+            ensure = { Result.failure(offline) },
+            retries = retries,
+        )
+
+        val outcome = coordinator.runAutomatic("group", 7, null, false)
+
+        val failed = assertIs<GroupSenderKeyMaintenanceOutcome.Failed>(outcome)
+        assertEquals(offline, failed.error)
+        assertEquals(listOf("group:7:auto_failed:offline"), retries)
+    }
+
+    @Test
+    fun `manual with blank id fails fast without touching redistribute`() = runTest {
+        var redistributed = 0
+        val coordinator = coordinator(
+            redistribute = {
+                redistributed += 1
+                Result.success(status())
+            },
+        )
+
+        val outcome = coordinator.runManual("", 7)
+
+        val failed = assertIs<GroupSenderKeyMaintenanceOutcome.Failed>(outcome)
+        assertIs<IllegalArgumentException>(failed.error)
+        assertEquals("group_epoch_unknown", failed.error.message)
+        assertEquals(0, redistributed)
+    }
+
+    @Test
+    fun `cancellation in automatic run propagates and releases the epoch`() = runTest {
+        var ensured = 0
+        val coordinator = coordinator(
+            ensure = {
+                ensured += 1
+                if (ensured == 1) throw CancellationException("stop")
+                Result.success(status(total = 0, sent = 0))
+            },
+        )
+
+        assertFailsWith<CancellationException> {
+            coordinator.runAutomatic("group", 7, null, false)
+        }
+        val retry = coordinator.runAutomatic("group", 7, null, false)
+
+        assertIs<GroupSenderKeyMaintenanceOutcome.Ready>(retry)
+        assertEquals(2, ensured)
+    }
+
+    @Test
+    fun `failed retry enqueue is captured on the outcome without hiding the primary error`() = runTest {
+        val offline = IllegalStateException("offline")
+        val queueBroken = IllegalStateException("queue full")
+        var attempts = 0
+        val coordinator = GroupSenderKeyMaintenanceCoordinator(
+            ensureCoverage = { _, _ -> Result.failure(offline) },
+            redistribute = { _, _ -> Result.success(status()) },
+            hasLocalSenderKey = { _, _ -> true },
+            enqueueRetry = { _, _, _ ->
+                attempts += 1
+                throw queueBroken
+            },
+        )
+
+        val outcome = coordinator.runAutomatic("group", 7, null, false)
+
+        val failed = assertIs<GroupSenderKeyMaintenanceOutcome.Failed>(outcome)
+        assertEquals(offline, failed.error)
+        assertEquals(queueBroken, failed.retryQueueError)
+        assertEquals(1, attempts)
     }
 
     private fun coordinator(
