@@ -92,4 +92,82 @@ class MessageVisibilityPolicyTest {
             )
         }
     }
+
+    @Test
+    fun `locked secret chat still hidden without session unlock`() {
+        val lockedSecret = MessageVisibilityContext(
+            isSecretChat = true,
+            isChatLocked = true,
+            isChatUnlockedInSession = false,
+        )
+
+        MessageVisibilityScope.entries.forEach { scope ->
+            assertFalse(
+                MessageVisibilityPolicy.isVisible(scope, lockedSecret),
+                "Locked secret chat should hide message in $scope"
+            )
+        }
+    }
+
+    @Test
+    fun `session unlock reopens in-conversation scopes for locked secret chat`() {
+        val unlockedSecret = MessageVisibilityContext(
+            isSecretChat = true,
+            isChatLocked = true,
+            isChatUnlockedInSession = true,
+        )
+
+        assertFalse(MessageVisibilityPolicy.isVisible(MessageVisibilityScope.GLOBAL_SEARCH, unlockedSecret))
+        assertFalse(MessageVisibilityPolicy.isVisible(MessageVisibilityScope.STARRED_LIST, unlockedSecret))
+        assertTrue(MessageVisibilityPolicy.isVisible(MessageVisibilityScope.CONVERSATION_SEARCH, unlockedSecret))
+        assertTrue(MessageVisibilityPolicy.isVisible(MessageVisibilityScope.MEDIA_GALLERY, unlockedSecret))
+    }
+
+    @Test
+    fun `deleted beats session unlock everywhere`() {
+        val deletedUnlocked = MessageVisibilityContext(
+            isSecretChat = false,
+            isChatLocked = true,
+            isChatUnlockedInSession = true,
+            isDeleted = true,
+        )
+
+        MessageVisibilityScope.entries.forEach { scope ->
+            assertFalse(
+                MessageVisibilityPolicy.isVisible(scope, deletedUnlocked),
+                "Deleted message should be invisible in $scope even when unlocked"
+            )
+        }
+    }
+
+    @Test
+    fun `revoked secret message stays invisible in conversation search`() {
+        val revokedSecret = MessageVisibilityContext(
+            isSecretChat = true,
+            isChatLocked = false,
+            isRevoked = true,
+        )
+
+        MessageVisibilityScope.entries.forEach { scope ->
+            assertFalse(
+                MessageVisibilityPolicy.isVisible(scope, revokedSecret),
+                "Revoked message should be invisible in $scope"
+            )
+        }
+    }
+
+    @Test
+    fun `default context flags mean visible everywhere`() {
+        val defaults = MessageVisibilityContext(
+            isSecretChat = false,
+            isChatLocked = false,
+        )
+
+        MessageVisibilityScope.entries.forEach { scope ->
+            assertTrue(
+                MessageVisibilityPolicy.isVisible(scope, defaults),
+                "Default context should be visible in $scope"
+            )
+        }
+    }
 }
