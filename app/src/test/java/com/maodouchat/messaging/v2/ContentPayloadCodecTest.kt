@@ -81,4 +81,73 @@ class ContentPayloadCodecTest {
         assertEquals("see <meta> then ", decoded.body)
         assertEquals("Bob", decoded.metadata.forwardedFrom)
     }
+
+    @Test
+    fun `structured round trip preserves transport fields`() {
+        val original = DecodedContentPayload(
+            type = MessageType.IMAGE,
+            body = "caption",
+            metadata = MessageMeta(replyToId = "r1", mentions = listOf("u1"), attachmentId = "att-1"),
+            replyToMessageId = "r1",
+            attachmentIds = listOf("att-1"),
+            mentionedUserIds = listOf("u1"),
+            expiresInSeconds = 60,
+            attributes = mapOf("w" to "800"),
+        )
+
+        val decoded = ContentPayloadCodec.decode(ContentPayloadCodec.encode(original))
+
+        assertEquals(original, decoded)
+    }
+
+    @Test
+    fun `unknown wire type falls back to text`() {
+        val decoded = ContentPayloadCodec.decode(
+            MessagingV2Content(type = "FROBNICATOR", body = "hi"),
+        )
+
+        assertEquals(MessageType.TEXT, decoded.type)
+    }
+
+    @Test
+    fun `top level reply and mentions win over legacy metadata`() {
+        val content = MessagingV2Content(
+            type = "TEXT",
+            body = "hi",
+            replyToMessageId = "r1",
+            mentionedUserIds = listOf("u1"),
+            metadata = MessageMeta(replyToId = "r0", mentions = listOf("u0")),
+        )
+
+        val decoded = ContentPayloadCodec.decode(content)
+
+        assertEquals("r1", decoded.replyToMessageId)
+        assertEquals(listOf("u1"), decoded.mentionedUserIds)
+        assertEquals("r1", decoded.metadata.replyToId)
+        assertEquals(listOf("u1"), decoded.metadata.mentions)
+    }
+
+    @Test
+    fun `empty top level lists fall back to metadata`() {
+        val content = MessagingV2Content(
+            type = "FILE",
+            body = "doc",
+            metadata = MessageMeta(mentions = listOf("u2"), attachmentId = "att-2"),
+        )
+
+        val decoded = ContentPayloadCodec.decode(content)
+
+        assertEquals(listOf("att-2"), decoded.attachmentIds)
+        assertEquals(listOf("u2"), decoded.mentionedUserIds)
+    }
+
+    @Test
+    fun `malformed legacy meta json truncates body with empty metadata`() {
+        val decoded = ContentPayloadCodec.decode(
+            MessagingV2Content(type = "TEXT", body = "hello<meta>{not json</meta>"),
+        )
+
+        assertEquals("hello", decoded.body)
+        assertEquals(MessageMeta(), decoded.metadata)
+    }
 }
