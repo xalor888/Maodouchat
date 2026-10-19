@@ -349,6 +349,26 @@ class ConversationMessageMutationCoordinatorTest {
         )
     }
 
+    @Test
+    fun `blank owner delete rolls optimistic projection back`() = runTest {
+        val coordinator = coordinator()
+        val original = message()
+        val projections = mutableListOf<MessageMutationProjection>()
+
+        val outcome = coordinator.delete(original, "  ", null, projections::add)
+
+        assertEquals(
+            listOf(
+                MessageMutationProjection.Remove(MESSAGE_ID),
+                MessageMutationProjection.Set(original),
+            ),
+            projections,
+        )
+        val failed = assertIs<ConversationMessageMutationOutcome.Failed>(outcome)
+        assertEquals("messaging_v2_owner_session_changed", failed.error.message)
+        assertTrue(failed.rolledBack)
+    }
+
     private fun coordinator(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistDeleted: suspend (String) -> Unit = {},
