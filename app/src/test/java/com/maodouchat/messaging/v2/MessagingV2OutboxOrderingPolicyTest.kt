@@ -50,4 +50,42 @@ class MessagingV2OutboxOrderingPolicyTest {
             assertTrue(causal != bypass, "$kind must sit on exactly one side")
         }
     }
+
+    @Test
+    fun `whitespace-padded kinds are treated as unknown`() {
+        listOf(" DATA", "DATA ", "\tDATA", "RECEIPT ", "\nEVENT").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind))
+            assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
+        }
+    }
+
+    @Test
+    fun `only the documented causal kinds require conversation order`() {
+        listOf("SENDER_KEY", "KEY_REQUEST", "RECEIPT", "ACK", "DELIVERY", "MESSAGE", "OUTBOX").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind))
+        }
+    }
+
+    @Test
+    fun `only the documented kinds may bypass conversation order`() {
+        listOf("DATA", "EVENT", "ACK", "DELIVERY", "SENDERKEY", "KEYREQUEST", "SENDER-KEY").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
+        }
+    }
+
+    @Test
+    fun `truncated kind names are unknown`() {
+        listOf("DAT", "EVEN", "SENDER_KE", "R", "D").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind))
+            assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
+        }
+    }
+
+    @Test
+    fun `suffixed kind names are unknown`() {
+        listOf("DATAX", "EVENTS", "SENDER_KEYS", "KEY_REQUESTS", "RECEIPTS").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind))
+            assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
+        }
+    }
 }
