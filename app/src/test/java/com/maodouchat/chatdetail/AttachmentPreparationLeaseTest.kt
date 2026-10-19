@@ -88,9 +88,9 @@ class AttachmentPreparationLeaseTest {
         val effects = mutableListOf<String>()
         val lease = AttachmentPreparationLease(
             originalSourceUri = " ",
-            deleteEncryptedFile = { effects += "encrypted:$it" },
-            deletePreparedSource = { effects += "prepared:$it" },
-            releasePersistablePermission = { effects += "permission:$it" }
+            deleteEncryptedFile = { effects += it },
+            deletePreparedSource = { effects += it },
+            releasePersistablePermission = { effects += it }
         )
         lease.recordEncryptedPath("encrypted")
         lease.recordPreparedSource("prepared")
