@@ -108,4 +108,119 @@ class MessagingV2ContentPolicyTest {
         assertFalse(MessagingV2ServiceEnvelopePolicy.accepts("system", 1, "SERVICE_PLAINTEXT"))
         assertFalse(MessagingV2ServiceEnvelopePolicy.accepts("system", 0, "PREKEY"))
     }
+
+    @Test
+    fun `data kind pins version and type shape`() {
+        assertTrue(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(version = 1, type = "TEXT")))
+        assertFalse(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(version = 0, type = "TEXT")))
+        assertFalse(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(version = 3, type = "TEXT")))
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "DATA",
+                MessagingV2Content(type = "TEXT", event = MessagingV2Event("EDIT", "m1")),
+            ),
+        )
+        assertFalse(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(type = "SK_DIST")))
+    }
+
+    @Test
+    fun `event kind pins domain action set and version`() {
+        assertTrue(
+            MessagingV2ContentPolicy.accepts(
+                "EVENT",
+                MessagingV2Content(type = "EVENT", event = MessagingV2Event("REVOKE", "m1")),
+            ),
+        )
+        assertTrue(
+            MessagingV2ContentPolicy.accepts(
+                "EVENT",
+                MessagingV2Content(type = "EVENT", event = MessagingV2Event("REACTION_SNAPSHOT", "m1")),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "EVENT",
+                MessagingV2Content(version = 2, type = "EVENT", event = MessagingV2Event("EDIT", "m1")),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "EVENT",
+                MessagingV2Content(type = "EVENT", event = MessagingV2Event("READ_RECEIPT", "m1")),
+            ),
+        )
+        assertFalse(MessagingV2ContentPolicy.accepts("EVENT", MessagingV2Content(type = "EVENT")))
+    }
+
+    @Test
+    fun `receipt kind accepts delivery receipt and pins version`() {
+        assertTrue(
+            MessagingV2ContentPolicy.accepts(
+                "RECEIPT",
+                MessagingV2Content(type = "EVENT", event = MessagingV2Event("DELIVERY_RECEIPT", "m1")),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "RECEIPT",
+                MessagingV2Content(version = 2, type = "EVENT", event = MessagingV2Event("READ_RECEIPT", "m1")),
+            ),
+        )
+        assertFalse(MessagingV2ContentPolicy.accepts("RECEIPT", MessagingV2Content(type = "TEXT")))
+    }
+
+    @Test
+    fun `key request pins attribute lengths and payload emptiness`() {
+        val base = MessagingV2Content(
+            type = "SENDER_KEY_REQUEST",
+            attributes = mapOf(
+                "requestedSenderUserId" to "alice",
+                "failedMessageId" to "message-1",
+            ),
+        )
+
+        assertTrue(MessagingV2ContentPolicy.accepts("KEY_REQUEST", base))
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "KEY_REQUEST",
+                base.copy(attributes = base.attributes + ("requestedSenderUserId" to "a".repeat(51))),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "KEY_REQUEST",
+                base.copy(attributes = base.attributes + ("failedMessageId" to "m".repeat(101))),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "KEY_REQUEST",
+                base.copy(attachmentIds = listOf("att-1")),
+            ),
+        )
+    }
+
+    @Test
+    fun `service kind accepts constrained plain content and delete mutation`() {
+        assertTrue(MessagingV2ContentPolicy.accepts("SERVICE", MessagingV2Content(type = "TEXT", body = "hello")))
+        assertFalse(MessagingV2ContentPolicy.accepts("SERVICE", MessagingV2Content(type = "SK_DIST")))
+
+        val delete = MessagingV2Content(
+            type = "EVENT",
+            event = MessagingV2Event(action = "DELETE", targetMessageId = "m1"),
+        )
+        assertTrue(MessagingV2ContentPolicy.accepts("SERVICE", delete))
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                delete.copy(event = delete.event?.copy(content = "x")),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                delete.copy(event = delete.event?.copy(targetMessageId = "")),
+            ),
+        )
+    }
 }
