@@ -118,6 +118,27 @@ class ReactionMutationPolicyTest {
     }
 
     @Test
+    fun `legacy snapshot uses the actor latest entry when the snapshot repeats them`() {
+        val existing = listOf(
+            MessageReaction("alice", "like", 10L),
+            MessageReaction("bob", "heart", 20L),
+        )
+        val snapshot = listOf(
+            MessageReaction("alice", "laugh", 20L),
+            MessageReaction("bob", "angry", 30L),
+            MessageReaction("alice", "wow", 40L),
+        )
+
+        assertEquals(
+            listOf(
+                MessageReaction("bob", "heart", 20L),
+                MessageReaction("alice", "wow", 40L),
+            ),
+            ReactionMutationPolicy.applyLegacySnapshot(existing, "alice", snapshot, 99L),
+        )
+    }
+
+    @Test
     fun `first reaction on an empty list is appended as the only entry`() {
         assertEquals(
             listOf(MessageReaction("alice", "like", 10L)),
