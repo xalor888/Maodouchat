@@ -334,6 +334,54 @@ class ConversationCommandFacadeTest {
         assertEquals(2, gateway.messages.size)
     }
 
+    @Test
+    fun `cancel reports failure when the gateway cannot cancel`() = runTest {
+        val gateway = FakeGateway()
+        gateway.cancelResult = false
+        val facade = facade(gateway)
+
+        val cancelled = facade.cancel("m-unknown")
+
+        assertFalse(cancelled)
+        assertEquals(listOf("m-unknown"), gateway.cancelledIds)
+    }
+
+    @Test
+    fun `sendText deduplicates on idempotencyKey`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val first = facade.sendText(chat(), "owner-1", "hello", idempotencyKey = "text-key-1")
+        val second = facade.sendText(chat(), "owner-1", "hello", idempotencyKey = "text-key-1")
+
+        assertTrue(first is ConversationCommandOutcome.Staged)
+        assertTrue(second is ConversationCommandOutcome.Staged)
+        assertEquals(
+            (first as ConversationCommandOutcome.Staged).message.id,
+            (second as ConversationCommandOutcome.Staged).message.id,
+        )
+        assertEquals(1, gateway.messages.size)
+    }
+
+    @Test
+    fun `retry on locked conversation is rejected before gateway`() = runTest {
+        val gateway = FakeGateway()
+        val facade = facade(gateway)
+
+        val result = facade.retry(
+            chat(),
+            message(),
+            privacy = ConversationPrivacyContext(isLocked = true),
+        )
+
+        assertEquals(
+            ConversationCommandRejection.LOCKED_CONVERSATION,
+            (result as ConversationCommandOutcome.Rejected).reason,
+        )
+        assertEquals(0, gateway.retryCount)
+        assertTrue(gateway.messages.isEmpty())
+    }
+
     private fun facade(
         gateway: FakeGateway,
         resolveChat: (suspend (String) -> Chat?)? = null,
