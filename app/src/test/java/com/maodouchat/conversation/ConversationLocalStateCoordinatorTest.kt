@@ -3,6 +3,7 @@ package com.maodouchat.conversation
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -125,6 +126,136 @@ class ConversationLocalStateCoordinatorTest {
         assertTrue("resetConversationPreview" in backend.calls)
         assertFalse("deleteDraft" in backend.calls)
         assertFalse("deleteConversation" in backend.calls)
+    }
+
+    @Test
+    fun `capture message ids failure skips media deletion but continues remaining steps`() = runTest {
+        val backend = RecordingBackend(messageIds = listOf("m1"), failStep = "messageIds")
+        val coordinator = ConversationLocalStateCoordinator({ session() }, backend)
+
+        val report = coordinator.cleanup(
+            chatId = CHAT_ID,
+            expectedSession = session(),
+            mode = ConversationLocalCleanupMode.CLEAR_HISTORY,
+        )
+
+        assertTrue(report.completed)
+        assertEquals(
+            listOf(ConversationLocalCleanupStep.CAPTURE_MESSAGE_IDS),
+            report.failures.map { it.step },
+        )
+        assertTrue(backend.calls.none { it.startsWith("deleteMedia") })
+        assertTrue("deleteMessages" in backend.calls)
+        assertTrue("resetConversationPreview" in backend.calls)
+    }
+
+    @Test
+    fun `full deletion pins exact convergence order`() = runTest {
+        val backend = RecordingBackend(messageIds = listOf("m1"))
+        val coordinator = ConversationLocalStateCoordinator({ session() }, backend)
+
+        val report = coordinator.cleanup(
+            chatId = CHAT_ID,
+            expectedSession = session(),
+            mode = ConversationLocalCleanupMode.DELETE_CONVERSATION,
+        )
+
+        assertTrue(report.completed)
+        assertTrue(report.failures.isEmpty())
+        assertEquals(
+            listOf(
+                "messageIds",
+                "tombstoneMessages",
+                "cancelAttachments",
+                "cancelScheduledMessages:$OWNER",
+                "cancelReminders:$OWNER",
+                "deleteAiTasks",
+                "deleteAiOperations:$OWNER",
+                "deleteAiSummaries",
+                "deleteDraft",
+                "deleteLock",
+                "clearLockSession",
+                "deleteSecretTtl",
+                "deactivateSecretSession",
+                "deleteSenderKeyRetry:$OWNER",
+                "invalidateSenderKey",
+                "clearMessagingV2State:true",
+                "clearAttachmentWire:$OWNER",
+                "deleteMedia:m1",
+                "deleteSearchIndex",
+                "clearSyncCursors",
+                "removeNotificationItems",
+                "cancelMessageNotification",
+                "cancelAiReminders",
+                "deleteMessages",
+                "deleteConversation",
+            ),
+            backend.calls,
+        )
+    }
+
+    @Test
+    fun `session changed before first step leaves all state untouched`() = runTest {
+        val backend = RecordingBackend(messageIds = listOf("m1"))
+        val coordinator = ConversationLocalStateCoordinator(
+            { ConversationLocalCleanupSession("bob", 8L) },
+            backend,
+        )
+
+        val report = coordinator.cleanup(
+            chatId = CHAT_ID,
+            expectedSession = session(),
+            mode = ConversationLocalCleanupMode.DELETE_CONVERSATION,
+        )
+
+        assertTrue(report.sessionChanged)
+        assertFalse(report.completed)
+        assertTrue(backend.calls.isEmpty())
+    }
+
+    @Test
+    fun `blank chat id and blank owner are rejected before any backend call`() = runTest {
+        val backend = RecordingBackend()
+        val coordinator = ConversationLocalStateCoordinator({ session() }, backend)
+
+        assertFailsWith<IllegalArgumentException> {
+            coordinator.cleanup(
+                chatId = " ",
+                expectedSession = session(),
+                mode = ConversationLocalCleanupMode.CLEAR_HISTORY,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            coordinator.cleanup(
+                chatId = CHAT_ID,
+                expectedSession = ConversationLocalCleanupSession("", 7L),
+                mode = ConversationLocalCleanupMode.CLEAR_HISTORY,
+            )
+        }
+        assertTrue(backend.calls.isEmpty())
+    }
+
+    @Test
+    fun `repeated cleanup runs both complete without compounding failures`() = runTest {
+        val backend = RecordingBackend(messageIds = listOf("m1"))
+        val coordinator = ConversationLocalStateCoordinator({ session() }, backend)
+
+        val first = coordinator.cleanup(
+            chatId = CHAT_ID,
+            expectedSession = session(),
+            mode = ConversationLocalCleanupMode.DELETE_CONVERSATION,
+        )
+        val second = coordinator.cleanup(
+            chatId = CHAT_ID,
+            expectedSession = session(),
+            mode = ConversationLocalCleanupMode.DELETE_CONVERSATION,
+        )
+
+        assertTrue(first.completed)
+        assertTrue(second.completed)
+        assertTrue(first.failures.isEmpty())
+        assertTrue(second.failures.isEmpty())
+        assertEquals(2, backend.calls.count { it == "deleteConversation" })
     }
 
     private class RecordingBackend(
