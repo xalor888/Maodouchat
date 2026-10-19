@@ -18,7 +18,9 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -148,6 +150,116 @@ class ChatListMutationCoordinatorTest {
 
         assertEquals(setOf("c1", "c0"), uiState.value.chats.map { it.id }.toSet())
         assertEquals("msg-${R.string.chat_leave_failed}", uiState.value.errorMessage)
+    }
+
+    @Test
+    fun updateChatSettingsRemoteFailureRollsBackAndReportsSyncFailed() = runTest(dispatcher) {
+        val chat = Chat(id = "c1", pinnedAt = 0, settingsUpdatedAt = 1)
+        val optimistic = chat.copy(pinnedAt = 10, settingsUpdatedAt = 20)
+        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        val inFlight = mutableSetOf<String>()
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            settingsInFlight = inFlight,
+            updateChatSettingsRemote = { _, _ -> Result.failure(IllegalStateException("down")) },
+        )
+
+        coordinator.updateChatSettings(chat, optimistic, UpdateChatSettingsRequest(pinned = true))
+        advanceUntilIdle()
+
+        val restored = uiState.value.chats.single()
+        assertEquals(0L, restored.pinnedAt)
+        assertEquals(1L, restored.settingsUpdatedAt)
+        assertEquals("msg-${R.string.chat_settings_sync_failed}", uiState.value.errorMessage)
+        assertTrue(inFlight.isEmpty())
+    }
+
+    @Test
+    fun blankOwnerRejectsUpdateChatSettingsWithSessionExpired() = runTest(dispatcher) {
+        val chat = Chat(id = "c1", pinnedAt = 0)
+        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "") }
+        var remoteCalls = 0
+        val inFlight = mutableSetOf<String>()
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            settingsInFlight = inFlight,
+            updateChatSettingsRemote = { _, _ ->
+                remoteCalls += 1
+                Result.success(ChatSettingsResponse("c1", 0, false, false, false, 1))
+            },
+        )
+
+        coordinator.updateChatSettings(chat, chat.copy(pinnedAt = 9), UpdateChatSettingsRequest(pinned = true))
+        advanceUntilIdle()
+
+        assertEquals(0, remoteCalls)
+        assertEquals(0L, uiState.value.chats.single().pinnedAt)
+        assertEquals("msg-${R.string.error_session_expired}", uiState.value.errorMessage)
+        assertTrue(inFlight.isEmpty())
+    }
+
+    @Test
+    fun blankOwnerRejectsDeleteChatWithSessionExpired() = runTest(dispatcher) {
+        val chat = Chat(id = "c1")
+        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "") }
+        var remoteCalls = 0
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            deleteChatRemote = { _ ->
+                remoteCalls += 1
+                Result.success(Unit)
+            },
+        )
+
+        coordinator.deleteChat("c1")
+        advanceUntilIdle()
+
+        assertEquals(0, remoteCalls)
+        assertEquals(listOf("c1"), uiState.value.chats.map { it.id })
+        assertEquals("msg-${R.string.error_session_expired}", uiState.value.errorMessage)
+        assertTrue(uiState.value.deletingChatIds.isEmpty())
+    }
+
+    @Test
+    fun deleteChatIgnoresReentrantCallWhileInFlight() = runTest(dispatcher) {
+        val chat = Chat(id = "c1")
+        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat), deletingChatIds = setOf("c1")))
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        var remoteCalls = 0
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            deleteChatRemote = { _ ->
+                remoteCalls += 1
+                Result.success(Unit)
+            },
+        )
+
+        coordinator.deleteChat("c1")
+        advanceUntilIdle()
+
+        assertEquals(0, remoteCalls)
+        assertEquals(listOf("c1"), uiState.value.chats.map { it.id })
+    }
+
+    @Test
+    fun deleteChatCancellationRestoresChatAndClearsInFlight() = runTest(dispatcher) {
+        val chat = Chat(id = "c1", lastMessageTime = 50)
+        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            deleteChatRemote = { _ -> throw CancellationException("gone") },
+        )
+
+        coordinator.deleteChat("c1")
+        advanceUntilIdle()
+
+        assertEquals(listOf("c1"), uiState.value.chats.map { it.id })
+        assertTrue(uiState.value.deletingChatIds.isEmpty())
+        assertNull(uiState.value.errorMessage)
     }
 
     private fun kotlinx.coroutines.CoroutineScope.buildCoordinator(
