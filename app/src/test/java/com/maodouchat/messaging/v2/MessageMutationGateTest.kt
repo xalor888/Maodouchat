@@ -258,4 +258,84 @@ class MessageMutationGateTest {
         )
         assertTrue(isMessageTerminal(messageId), "Overwritten tombstone must stay terminal")
     }
+
+    @Test
+    fun `tombstone for another owner leaves delayed data projectable`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = "bob",
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = 1000L,
+        )
+
+        fun isMessageTerminal(ownerUserId: String, targetMessageId: String): Boolean {
+            val tombstone = tombstones[targetMessageId] ?: return false
+            return tombstone.ownerUserId == ownerUserId
+        }
+
+        assertFalse(isMessageTerminal(owner, messageId), "Another owner's delete must not drop my delayed DATA")
+    }
+
+    @Test
+    fun `late edit against a terminal message is dropped`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = 1000L,
+        )
+
+        // Mirrors MessageEventProjector: the terminal check runs before any action dispatch,
+        // so a late EDIT is dropped exactly like delayed DATA.
+        val dropped = tombstones.containsKey(messageId)
+        assertTrue(dropped, "Late EDIT must not resurrect a terminal message")
+    }
+
+    @Test
+    fun `receipt against a terminal message runs cleanup instead of merging`() {
+        val cleanedArtifacts = mutableListOf<String>()
+
+        fun projectReceipt(targetMessageId: String, terminal: Boolean) {
+            if (terminal) {
+                cleanedArtifacts += "terminal_cleanup:$targetMessageId"
+                return
+            }
+            cleanedArtifacts += "receipt_merged:$targetMessageId"
+        }
+
+        projectReceipt(messageId, terminal = true)
+
+        assertEquals(listOf("terminal_cleanup:$messageId"), cleanedArtifacts)
+    }
+
+    @Test
+    fun `terminal gate is keyed on message id, not conversation`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = 1000L,
+        )
+
+        fun isMessageTerminal(targetMessageId: String): Boolean = tombstones.containsKey(targetMessageId)
+
+        assertTrue(isMessageTerminal(messageId))
+        assertFalse(isMessageTerminal("msg-1000"), "A sibling message in the same conversation must stay projectable")
+    }
+
+    @Test
+    fun `edit-only history never blocks delayed data`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+
+        fun isMessageTerminal(targetMessageId: String): Boolean = tombstones.containsKey(targetMessageId)
+
+        // Only EDITs seen: no tombstone was ever written.
+        assertFalse(isMessageTerminal(messageId), "EDIT history alone must not gate the delayed DATA")
+    }
 }

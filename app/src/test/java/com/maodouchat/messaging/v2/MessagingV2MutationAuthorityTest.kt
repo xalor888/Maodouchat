@@ -135,6 +135,68 @@ class MessagingV2MutationAuthorityTest {
         )
     }
 
+    @Test
+    fun `service delete with non-service kind is rejected`() {
+        assertFalse(
+            allowed(
+                action = MessagingV2EventAction.DELETE,
+                targetSender = "alice",
+                envelopeSender = "system",
+                envelopeDevice = 0,
+                kind = "EVENT",
+            ),
+        )
+    }
+
+    @Test
+    fun `unknown action names pass through untouched`() {
+        // Authority gates only EDIT/REVOKE/DELETE; anything else is the projector's problem.
+        listOf(
+            MessagingV2EventAction.PLAY_RECEIPT,
+            "FROBNICATE",
+        ).forEach { action ->
+            assertTrue(allowed(action, targetSender = "alice", envelopeSender = "mallory"))
+        }
+    }
+
+    @Test
+    fun `author identity match is case-sensitive`() {
+        assertFalse(
+            allowed(
+                action = MessagingV2EventAction.EDIT,
+                targetSender = "Alice",
+                envelopeSender = "alice",
+            ),
+        )
+    }
+
+    @Test
+    fun `non-system sender on device zero gains nothing`() {
+        assertFalse(
+            allowed(
+                action = MessagingV2EventAction.REVOKE,
+                targetSender = "alice",
+                envelopeSender = "mallory",
+                envelopeDevice = 0,
+                kind = "SERVICE",
+            ),
+        )
+    }
+
+    @Test
+    fun `system principal may mutate messages sent by system itself`() {
+        // The author rule fires first: target == envelope always passes.
+        assertTrue(
+            allowed(
+                action = MessagingV2EventAction.EDIT,
+                targetSender = "system",
+                envelopeSender = "system",
+                envelopeDevice = 0,
+                kind = "SERVICE",
+            ),
+        )
+    }
+
     private fun allowed(
         action: String,
         targetSender: String,
