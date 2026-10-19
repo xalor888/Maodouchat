@@ -19,4 +19,32 @@ class SenderKeyRetrySessionPolicyTest {
         assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", "u2"))
         assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("", "tok", "u1"))
     }
+
+    @Test
+    fun blankBatchUserIdAlwaysAborts() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch(" ", "tok", "u1"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("\t", "tok", "u1"))
+    }
+
+    @Test
+    fun blankLiveUserIdAborts() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", " "))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", null))
+    }
+
+    @Test
+    fun blankLiveTokenAborts() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "  ", "u1"))
+    }
+
+    @Test
+    fun userMatchIsCaseSensitive() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("U1", "tok", "u1"))
+    }
+
+    @Test
+    fun stableSessionContinuesRegardlessOfTokenValue() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u9", "any-token-value", "u9"))
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u9", "rotated-token", "u9"))
+    }
 }
