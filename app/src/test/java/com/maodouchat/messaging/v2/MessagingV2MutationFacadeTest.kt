@@ -350,6 +350,59 @@ class MessagingV2MutationFacadeTest {
         assertTrue(effects.isEmpty())
     }
 
+    @Test
+    fun `changed owner session rejects revoke before any side effect`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistRevoked = { _, _ -> effects += "room" },
+            ownerIsCurrent = { false },
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            facade.revoke(message(), message(), OWNER, groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `changed owner session rejects setReaction before any side effect`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistMessage = { effects += "room" },
+            ownerIsCurrent = { false },
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            facade.setReaction(message(), emptyList(), "heart", OWNER, groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `reaction removal event carries null emoji while room keeps merged reactions`() = runTest {
+        var event: MessagingV2Event? = null
+        var persisted: Message? = null
+        val remaining = listOf(MessageReaction("bob", "laugh", 20L))
+        val facade = facade(
+            enqueue = { _, value, _ -> event = value },
+            persistMessage = { persisted = it },
+        )
+
+        facade.setReaction(
+            original = message(),
+            reactions = remaining,
+            reactionEmoji = null,
+            ownerUserId = OWNER,
+            groupRevision = null,
+        )
+
+        assertEquals(MessagingV2EventAction.REACTION_SET, event?.action)
+        assertNull(event?.reactionEmoji)
+        assertEquals(remaining, persisted?.reactions)
+    }
+
     private fun facade(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistMessage: suspend (Message) -> Unit = {},
