@@ -9,6 +9,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -204,5 +205,88 @@ class SignalMessagingV2EnvelopePreparerTest {
         assertFalse(envelope.ciphertext.contains(plaintextSentinel), "信封里出现了明文：${envelope.ciphertext}")
         assertFalse(envelope.ciphertextType.contains(plaintextSentinel))
         assertFalse(envelope.recipientUserId.contains(plaintextSentinel))
+    }
+
+    @Test
+    fun `a group encryption failure surfaces instead of producing envelopes`() = runTest {
+        val preparer = preparerFor(snapshot(isGroup = true, memberRevision = 7L))
+        every { protocol.encryptGroupContentEnvelope(any(), any(), any(), any()) } returns
+            Result.failure(IllegalStateException("crypto down"))
+
+        val error = assertFailsWith<IllegalStateException> { preparer.prepare("t", outbox()) }
+        assertTrue(error.message!!.contains("crypto down"), "加密失败必须原样上抛，不能吞成空信封：${error.message}")
+    }
+
+    @Test
+    fun `a direct encryption failure surfaces instead of producing envelopes`() = runTest {
+        val preparer = preparerFor(snapshot())
+        coEvery {
+            protocol.encryptMultiRecipientContentEnvelopeWithTargets(any(), any(), any(), any(), any(), any())
+        } returns Result.failure(IllegalStateException("crypto down"))
+
+        val error = assertFailsWith<IllegalStateException> { preparer.prepare("t", outbox()) }
+        assertTrue(error.message!!.contains("crypto down"), "加密失败必须原样上抛：${error.message}")
+    }
+
+    @Test
+    fun `cancellation in the encryption layer propagates instead of becoming a failure`() = runTest {
+        val preparer = preparerFor(snapshot())
+        coEvery {
+            protocol.encryptMultiRecipientContentEnvelopeWithTargets(any(), any(), any(), any(), any(), any())
+        } coAnswers { throw CancellationException("cancelled") }
+
+        assertFailsWith<CancellationException> { preparer.prepare("t", outbox()) }
+    }
+
+    @Test
+    fun `the token passed to prepare is the token used for encryption`() = runTest {
+        val seenTokens = mutableListOf<String>()
+        coEvery {
+            protocol.encryptMultiRecipientContentEnvelopeWithTargets(
+                token = capture(seenTokens),
+                recipientIds = any(),
+                plaintext = any(),
+                payloadType = any(),
+                includeCurrentUserDevices = any(),
+                requiredRecipientIds = any(),
+            )
+        } returns Result.success(directPayload(MessagingV2DeviceTarget("u2", 1)))
+        val preparer = preparerFor(snapshot())
+
+        preparer.prepare("token-A", outbox())
+        preparer.prepare("token-B", outbox())
+
+        assertEquals(
+            listOf("token-A", "token-B"),
+            seenTokens,
+            "每次 prepare 的 token 必须透传给加密层，不能缓存上一个账号的",
+        )
+    }
+
+    @Test
+    fun `a group send fans out the sender key ciphertext to every target`() = runTest {
+        val targets = setOf(MessagingV2DeviceTarget("u2", 1), MessagingV2DeviceTarget("u3", 2))
+        val readyCalls = mutableListOf<Pair<String, Long>>()
+        val preparer = SignalMessagingV2EnvelopePreparer(
+            signalProtocol = protocol,
+            snapshotProvider = { _, _ -> snapshot(isGroup = true, memberRevision = 7L, targets = targets) },
+            ensureGroupReady = { groupId, epoch -> readyCalls += groupId to epoch },
+        )
+        every { protocol.encryptGroupContentEnvelope(any(), any(), any(), any()) } returns
+            Result.success("CIPHER-GROUP")
+
+        val prepared = preparer.prepare("t", outbox())
+
+        assertEquals(listOf("c1" to 7L), readyCalls, "有目标设备时必须先确保群组就绪：$readyCalls")
+        assertEquals(7L, prepared.groupRevision, "群发信封带的是快照的成员修订")
+        assertEquals(
+            listOf("u2" to 1, "u3" to 2),
+            prepared.envelopes.map { it.recipientUserId to it.recipientDeviceId },
+            "每个目标设备恰好一个信封，按 (userId, deviceId) 排序",
+        )
+        assertTrue(
+            prepared.envelopes.all { it.ciphertextType == "SENDER_KEY" && it.ciphertext == "CIPHER-GROUP" },
+            "群发信封全是 sender key 密文：${prepared.envelopes}",
+        )
     }
 }

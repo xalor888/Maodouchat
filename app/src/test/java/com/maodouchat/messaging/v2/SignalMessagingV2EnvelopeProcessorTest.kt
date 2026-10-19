@@ -10,6 +10,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -244,5 +245,77 @@ class SignalMessagingV2EnvelopeProcessorTest {
         processor().process(envelope(kind = "SENDER_KEY", ciphertextType = "SENDER_KEY"))
 
         assertTrue(commits.isEmpty(), "sender key 分发不产生消息投影")
+    }
+
+    @Test
+    fun `cancellation in the domain sink propagates instead of being swallowed`() = runTest {
+        every { protocol.decryptDeviceCiphertext(any(), any(), any(), any()) } returns
+            DecryptResult.Success(validDataPayload)
+        val cancellingSink = MessagingV2DomainSink { _, _ -> throw CancellationException("sink cancelled") }
+
+        assertFailsWith<CancellationException> {
+            SignalMessagingV2EnvelopeProcessor(
+                signalProtocol = protocol,
+                domainSink = cancellingSink,
+                groupRevisionProvider = { null },
+                onSenderKeyMissing = { _, _ -> },
+                inboxDao = null,
+            ).process(envelope())
+        }
+    }
+
+    @Test
+    fun `a duplicate projection is scoped to the envelope owner`() = runTest {
+        every { protocol.decryptDeviceCiphertext(any(), any(), any(), any()) } returns DecryptResult.Duplicate
+        val dao = mockk<MessagingV2Dao>()
+        coEvery { dao.plaintextJournal(any()) } returns null
+        val projectedFor = mutableListOf<Pair<String, String>>()
+        coEvery { dao.isMessageProjected(any(), any()) } answers {
+            val owner = firstArg<String>()
+            val id = secondArg<String>()
+            projectedFor += owner to id
+            owner == "u1"
+        }
+
+        val error = assertFailsWith<IllegalStateException> {
+            processor(dao).process(envelope().copy(ownerUserId = "u2"))
+        }
+
+        assertTrue(error.message!!.contains("messaging_v2_duplicate_uncommitted"), error.message!!)
+        assertEquals(
+            listOf("u2" to "m1"),
+            projectedFor,
+            "投影查询必须按信封的 owner 查，不能拿另一个账号的投影冒充已提交：$projectedFor",
+        )
+        assertTrue(commits.isEmpty())
+    }
+
+    @Test
+    fun `a duplicate with an unrecoverable journal clears it without committing`() = runTest {
+        every { protocol.decryptDeviceCiphertext(any(), any(), any(), any()) } returns DecryptResult.Duplicate
+        val dao = mockk<MessagingV2Dao>()
+        coEvery { dao.plaintextJournal("e1") } returns "not-json{{{"
+        coEvery { dao.writePlaintextJournal(any(), any(), any()) } returns 1
+
+        processor(dao).process(envelope())
+
+        assertTrue(commits.isEmpty(), "journal 里解不出内容就不能提交")
+        coVerify(exactly = 1) { dao.writePlaintextJournal("e1", "", any()) }
+    }
+
+    @Test
+    fun `a service envelope with undecodable ciphertext is dropped without decrypting`() = runTest {
+        val bad = envelope(
+            kind = "SERVICE",
+            ciphertextType = "SERVICE_PLAINTEXT",
+            ciphertext = "not-json{{{",
+            senderUserId = "bot_helper",
+            senderDeviceId = 0,
+        )
+
+        processor().process(bad)
+
+        assertTrue(commits.isEmpty(), "解不出内容的 service 信封必须静默丢弃")
+        verify(exactly = 0) { protocol.decryptDeviceCiphertext(any(), any(), any(), any()) }
     }
 }
