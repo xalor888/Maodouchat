@@ -230,6 +230,98 @@ class GroupSenderKeyMaintenanceCoordinatorTest {
         assertEquals(1, attempts)
     }
 
+    @Test
+    fun `manual cancellation propagates without queuing a retry`() = runTest {
+        val retries = mutableListOf<String>()
+        val coordinator = coordinator(
+            redistribute = { throw CancellationException("stop") },
+            retries = retries,
+        )
+
+        assertFailsWith<CancellationException> {
+            coordinator.runManual("group", 7)
+        }
+        assertTrue(retries.isEmpty())
+    }
+
+    @Test
+    fun `automatic treats a stale server epoch as incomplete and queues a retry`() = runTest {
+        val retries = mutableListOf<String>()
+        val coordinator = coordinator(
+            ensure = { Result.success(status(epoch = 5, total = 2, sent = 2)) },
+            retries = retries,
+        )
+
+        val outcome = coordinator.runAutomatic("group", 7, status(epoch = 5, total = 2, sent = 2), true)
+
+        val pending = assertIs<GroupSenderKeyMaintenanceOutcome.Pending>(outcome)
+        assertEquals("sender_key_coverage_incomplete", pending.error.message)
+        assertEquals(listOf("group:7:auto_incomplete"), retries)
+    }
+
+    @Test
+    fun `a cancelled redistribute result is rethrown instead of becoming pending`() = runTest {
+        val retries = mutableListOf<String>()
+        val coordinator = coordinator(
+            redistribute = { Result.failure(CancellationException("stop")) },
+            retries = retries,
+        )
+
+        assertFailsWith<CancellationException> {
+            coordinator.runManual("group", 7)
+        }
+        assertTrue(retries.isEmpty())
+    }
+
+    @Test
+    fun `retry enqueue cancellation propagates and releases the epoch for a later run`() = runTest {
+        var attempts = 0
+        val coordinator = GroupSenderKeyMaintenanceCoordinator(
+            ensureCoverage = { _, _ ->
+                attempts += 1
+                if (attempts == 1) Result.failure(IllegalStateException("offline"))
+                else Result.success(status(total = 0, sent = 0))
+            },
+            redistribute = { _, _ -> Result.success(status()) },
+            hasLocalSenderKey = { _, _ -> true },
+            enqueueRetry = { _, _, _ -> throw CancellationException("stop") },
+        )
+
+        assertFailsWith<CancellationException> {
+            coordinator.runAutomatic("group", 7, null, false)
+        }
+        val retry = coordinator.runAutomatic("group", 7, null, false)
+
+        assertIs<GroupSenderKeyMaintenanceOutcome.Ready>(retry)
+        assertEquals(2, attempts)
+    }
+
+    @Test
+    fun `single flight is per epoch so different epochs proceed in parallel`() = runTest {
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val coordinator = GroupSenderKeyMaintenanceCoordinator(
+            ensureCoverage = { _, epoch ->
+                if (epoch == 7L) {
+                    entered.complete(Unit)
+                    release.await()
+                }
+                Result.success(status(epoch = epoch))
+            },
+            redistribute = { _, _ -> Result.success(status()) },
+            hasLocalSenderKey = { _, _ -> true },
+            enqueueRetry = { _, _, _ -> },
+        )
+
+        val first = async { coordinator.runAutomatic("group", 7, null, false) }
+        entered.await()
+        val second = async { coordinator.runAutomatic("group", 8, null, false) }
+        release.complete(Unit)
+
+        assertIs<GroupSenderKeyMaintenanceOutcome.Ready>(first.await())
+        assertIs<GroupSenderKeyMaintenanceOutcome.Ready>(second.await())
+    }
+
     private fun coordinator(
         ensure: suspend () -> Result<SenderKeyDistributionStatusDto?> = { Result.success(status()) },
         redistribute: suspend () -> Result<SenderKeyDistributionStatusDto?> = { Result.success(status()) },
