@@ -351,6 +351,51 @@ class MessagingV2MutationFacadeTest {
     }
 
     @Test
+    fun `blank owner rejects delete before any side effect`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistDeleted = { effects += "room" },
+            cleanupAttachment = { effects += "attachment" },
+            ownerIsCurrent = { true },
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            facade.delete(message(), "  ", groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `blank owner rejects revoke before any side effect`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistRevoked = { _, _ -> effects += "room" },
+            ownerIsCurrent = { true },
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            facade.revoke(message(), message(), "  ", groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `blank owner rejects setReaction before any side effect`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            ownerIsCurrent = { true },
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            facade.setReaction(message(), emptyList(), "👍", "  ", groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
     fun `changed owner session rejects revoke before any side effect`() = runTest {
         val effects = mutableListOf<String>()
         val facade = facade(
