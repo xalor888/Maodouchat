@@ -91,6 +91,51 @@ class MessagingV2ArrivalPolicyTest {
         assertTrue(decision.shouldSendDeliveryReceipt)
     }
 
+    @Test
+    fun `occupied arrival in foreground stays silent but still attempts the receipt`() {
+        val decision = evaluate(isConversationOccupied = true, appInForeground = true)
+
+        assertEquals(0, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `active chat list suppresses the notification without occupying the conversation`() {
+        val decision = evaluate(activeChatId = CHAT_ID)
+
+        assertEquals(1, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `non-service envelopes always attempt a delivery receipt`() {
+        val decision = evaluate(envelopeKind = "EVENT")
+
+        assertEquals(1, decision.unreadDelta)
+        assertTrue(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `occupied detail view keeps the notification suppressed and unread zero`() {
+        val decision = evaluate(isConversationOccupied = true, openChatDetailId = CHAT_ID)
+
+        assertEquals(0, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `foreground detail view suppresses the notification but keeps unread`() {
+        val decision = evaluate(appInForeground = true, openChatDetailId = CHAT_ID)
+
+        assertEquals(1, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
     private fun evaluate(
         isNew: Boolean = true,
         envelopeKind: String = "DATA",
