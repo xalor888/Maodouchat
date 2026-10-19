@@ -514,6 +514,52 @@ class MessagingV2MutationFacadeTest {
         assertEquals(applied, indexed)
     }
 
+    @Test
+    fun `cancellation during enqueue leaves every side effect untouched`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> throw CancellationException("cancelled before outbox") },
+            persistMessage = { effects += "room" },
+            refreshPreview = { effects += "preview" },
+        )
+
+        assertFailsWith<CancellationException> {
+            facade.edit(message(content = "edited"), OWNER, groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `duplicate delete of the same message enqueues a second durable event`() = runTest {
+        val events = mutableListOf<MessagingV2Event>()
+        val facade = facade(enqueue = { _, event, _ -> events += event })
+
+        facade.delete(message(content = "gone"), OWNER, groupRevision = null)
+        facade.delete(message(content = "gone"), OWNER, groupRevision = null)
+
+        assertEquals(2, events.size)
+        assertTrue(events.all { it.action == MessagingV2EventAction.DELETE })
+        assertTrue(events.all { it.targetMessageId == MESSAGE_ID })
+    }
+
+    @Test
+    fun `rejected stale edit still refreshes preview`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            persistEdited = {
+                effects += "room-rejected"
+                null
+            },
+            indexMessage = { effects += "index" },
+            refreshPreview = { effects += "preview" },
+        )
+
+        val commit = facade.edit(message(content = "stale", editedAt = 5L), OWNER, groupRevision = null)
+
+        assertEquals(listOf("room-rejected", "preview"), effects)
+        assertNull(commit.localProjectionError)
+    }
+
     private fun facade(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistMessage: suspend (Message) -> Unit = {},
