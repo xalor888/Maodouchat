@@ -162,17 +162,124 @@ class MessagingV2MutationFacadeTest {
         assertIs<IllegalStateException>(commit.localProjectionError)
     }
 
+    @Test
+    fun `revoke is durable before local projection and carries revoked content`() = runTest {
+        val effects = mutableListOf<String>()
+        var event: MessagingV2Event? = null
+        var revoked: Message? = null
+        val facade = facade(
+            enqueue = { _, value, _ ->
+                effects += "outbox"
+                event = value
+            },
+            persistRevoked = { _, value ->
+                effects += "room"
+                revoked = value
+            },
+            cleanupAttachment = { effects += "attachment" },
+            cleanupTerminalNotification = { effects += "notification" },
+            refreshPreview = { effects += "preview" },
+        )
+
+        val commit = facade.revoke(
+            original = message(content = "original"),
+            revoked = message(content = "revoked", editedAt = 99L),
+            ownerUserId = OWNER,
+            groupRevision = 5L,
+        )
+
+        assertEquals(listOf("outbox", "room", "attachment", "notification", "preview"), effects)
+        assertEquals(MessagingV2EventAction.REVOKE, event?.action)
+        assertEquals(MESSAGE_ID, event?.targetMessageId)
+        assertEquals("revoked", event?.content)
+        assertEquals(99L, event?.editedAt)
+        assertEquals("revoked", revoked?.content)
+        assertNull(commit.localProjectionError)
+    }
+
+    @Test
+    fun `revoke editedAt falls back when revoked message has none`() = runTest {
+        var event: MessagingV2Event? = null
+        val facade = facade(enqueue = { _, value, _ -> event = value })
+        val before = System.currentTimeMillis()
+
+        facade.revoke(message(), message(editedAt = null), OWNER, groupRevision = null)
+
+        val stamped = event?.editedAt
+        assertTrue(stamped != null && stamped >= before)
+    }
+
+    @Test
+    fun `revoke with mismatched message ids is rejected before any side effect`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistRevoked = { _, _ -> effects += "room" },
+            cleanupAttachment = { effects += "attachment" },
+            refreshPreview = { effects += "preview" },
+        )
+        val other = message().copy(id = "message-2")
+
+        assertFailsWith<IllegalArgumentException> {
+            facade.revoke(message(), other, OWNER, groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `changed owner session rejects delete before any side effect`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistDeleted = { effects += "room" },
+            cleanupAttachment = { effects += "attachment" },
+            cleanupTerminalNotification = { effects += "notification" },
+            refreshPreview = { effects += "preview" },
+            ownerIsCurrent = { false },
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            facade.delete(message(), OWNER, groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `edit without search index and preview refresh stays silent`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            persistMessage = { effects += "room" },
+            indexMessage = { effects += "index" },
+            refreshPreview = { effects += "preview" },
+        )
+
+        facade.edit(
+            message(content = "edited"),
+            OWNER,
+            groupRevision = null,
+            indexForSearch = false,
+            refreshPreview = false,
+        )
+
+        assertEquals(listOf("outbox", "room"), effects)
+    }
+
     private fun facade(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistMessage: suspend (Message) -> Unit = {},
+        persistDeleted: suspend (String) -> Unit = {},
+        persistRevoked: suspend (String, Message) -> Unit = { _, _ -> },
         persistEdited: (suspend (Message) -> Message?)? = null,
         indexMessage: suspend (Message) -> Unit = {},
         refreshPreview: (String) -> Unit = {},
         ownerIsCurrent: (String) -> Boolean = { true },
+        cleanupAttachment: suspend (String) -> Unit = {},
+        cleanupTerminalNotification: suspend (Message) -> Unit = {},
     ) = MessagingV2MutationFacade(
         eventOutbox = MessagingV2EventOutbox(enqueue),
-        persistDeleted = {},
-        persistRevoked = { _, _ -> },
+        persistDeleted = persistDeleted,
+        persistRevoked = persistRevoked,
         persistEdited = persistEdited ?: { message ->
             persistMessage(message)
             message
@@ -181,9 +288,10 @@ class MessagingV2MutationFacadeTest {
             persistMessage(original.copy(reactions = reactions))
         },
         indexMessage = indexMessage,
-        cleanupAttachment = {},
+        cleanupAttachment = cleanupAttachment,
         refreshConversationPreview = refreshPreview,
         isOwnerSessionCurrent = ownerIsCurrent,
+        cleanupTerminalNotification = cleanupTerminalNotification,
     )
 
     private fun message(
