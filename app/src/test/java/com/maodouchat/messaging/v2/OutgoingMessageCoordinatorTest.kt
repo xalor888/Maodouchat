@@ -101,6 +101,110 @@ class OutgoingMessageCoordinatorTest {
         assertEquals(listOf("c_retry"), retried.map(Message::chatId))
     }
 
+    @Test
+    fun `resolveConversation failure reports precommit failure without rebounding`() = runTest {
+        val persisted = mutableListOf<Message>()
+        var failureCallbackCount = 0
+        val coordinator = OutgoingMessageCoordinator(
+            resolveConversation = { error("conversation gone") },
+            stageDurableMessage = { _, _, _, _ -> },
+            persistFailedMessage = persisted::add,
+            isOwnerSessionCurrent = { true },
+        )
+
+        val result = coordinator.enqueue(
+            command(),
+            onDurableFailure = { failureCallbackCount += 1 },
+        )
+
+        val failed = assertIs<OutgoingMessageResult.Failed>(result)
+        assertEquals(MessageStatus.FAILED, failed.message.status)
+        assertEquals(false, failed.durableCommitCompleted)
+        assertEquals(1, failureCallbackCount)
+        // 解析失败时消息未被绑定到会话：chatId 保持 optimistic 原值。
+        assertEquals("temporary", failed.message.chatId)
+        assertEquals(listOf("temporary"), persisted.map(Message::chatId))
+    }
+
+    @Test
+    fun `failed staging of a message without a conversation skips persistence`() = runTest {
+        val persisted = mutableListOf<Message>()
+        val coordinator = OutgoingMessageCoordinator(
+            resolveConversation = { error("conversation gone") },
+            stageDurableMessage = { _, _, _, _ -> },
+            persistFailedMessage = persisted::add,
+            isOwnerSessionCurrent = { true },
+        )
+        val command = command().copy(
+            optimisticMessage = command().optimisticMessage.copy(chatId = ""),
+        )
+
+        val result = coordinator.enqueue(command)
+
+        val failed = assertIs<OutgoingMessageResult.Failed>(result)
+        assertEquals(MessageStatus.FAILED, failed.message.status)
+        assertEquals(false, failed.durableCommitCompleted)
+        assertTrue(persisted.isEmpty())
+    }
+
+    @Test
+    fun `post-commit projection failure is persisted with commit completed`() = runTest {
+        val persisted = mutableListOf<Message>()
+        var committed = false
+        var failed = false
+        val coordinator = coordinator(
+            persistFailed = persisted::add,
+        )
+
+        val result = coordinator.enqueue(
+            command(),
+            onDurableCommit = { committed = true },
+            onDurableFailure = { failed = true },
+            afterDurableCommit = { _, _ -> error("projection lost") },
+        )
+
+        val failure = assertIs<OutgoingMessageResult.Failed>(result)
+        assertEquals(true, failure.durableCommitCompleted)
+        assertEquals(MessageStatus.FAILED, failure.message.status)
+        assertTrue(committed)
+        // 落盘已完成：onDurableFailure 不触发，但失败投影仍要落库可恢复。
+        assertEquals(false, failed)
+        assertEquals(listOf("c_resolved"), persisted.map(Message::chatId))
+    }
+
+    @Test
+    fun `cancellation before commit propagates and skips failed persistence`() = runTest {
+        val persisted = mutableListOf<Message>()
+        var failureCallbackCount = 0
+        val coordinator = coordinator(
+            stage = { _, _, _, _ -> throw CancellationException("scope gone") },
+            persistFailed = persisted::add,
+        )
+
+        assertFailsWith<CancellationException> {
+            coordinator.enqueue(
+                command(),
+                onDurableFailure = { failureCallbackCount += 1 },
+            )
+        }
+
+        assertEquals(1, failureCallbackCount)
+        assertTrue(persisted.isEmpty())
+    }
+
+    @Test
+    fun `a throwing commit callback is swallowed and the message still stages`() = runTest {
+        val coordinator = coordinator()
+
+        val result = coordinator.enqueue(
+            command(),
+            onDurableCommit = { error("ui gone") },
+        )
+
+        val staged = assertIs<OutgoingMessageResult.Staged>(result)
+        assertEquals("c_resolved", staged.message.chatId)
+    }
+
     private fun coordinator(
         stage: suspend (Message, Long?, String, MessageType) -> Unit = { _, _, _, _ -> },
         persistFailed: suspend (Message) -> Unit = {},

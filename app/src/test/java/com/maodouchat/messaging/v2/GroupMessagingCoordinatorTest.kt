@@ -99,12 +99,72 @@ class GroupMessagingCoordinatorTest {
         assertEquals(listOf("retry:group:3:coverage_failed"), harness.events)
     }
 
+    @Test
+    fun `blank chat id or owner makes invalidation a silent no-op`() = runTest {
+        val harness = Harness()
+
+        harness.coordinator.invalidateSenderKey("", "alice")
+        harness.coordinator.invalidateSenderKey("group", "")
+        harness.coordinator.invalidateSenderKey("  ", "alice")
+
+        assertTrue(harness.events.isEmpty())
+        assertTrue(harness.reconciliationFailures.isEmpty())
+    }
+
+    @Test
+    fun `redistribute with an existing retry task skips ensure coverage`() = runTest {
+        val harness = Harness(redistributionFlushed = true)
+
+        val result = harness.coordinator.redistributeNow("group", 11)
+
+        assertTrue(result.isSuccess)
+        assertEquals(11, result.getOrThrow()?.epoch)
+        assertEquals(
+            listOf("redistribute:group", "fetch:token-1:group:11:3"),
+            harness.events,
+        )
+    }
+
+    @Test
+    fun `ensure coverage failure surfaces as failed result without throwing`() = runTest {
+        val offline = IllegalStateException("offline")
+        val harness = Harness(ensureFailure = offline)
+
+        val result = harness.coordinator.ensureSenderKeyCoverage("group", 9)
+
+        assertEquals(offline, result.exceptionOrNull())
+        assertEquals(listOf("ensure:group:9"), harness.events)
+    }
+
+    @Test
+    fun `coverage cancellation propagates instead of becoming a failed result`() = runTest {
+        val harness = Harness(ensureFailure = CancellationException("stop"))
+
+        assertFailsWith<CancellationException> {
+            harness.coordinator.ensureSenderKeyCoverage("group", 9)
+        }
+    }
+
+    @Test
+    fun `coverage status without a session fails before any network call`() = runTest {
+        val harness = Harness()
+        harness.session = null
+
+        val result = harness.coordinator.getSenderKeyCoverageStatus("group", 9)
+
+        val failure = result.exceptionOrNull()
+        assertIs<IllegalStateException>(failure)
+        assertEquals("sender_key_session_missing", failure.message)
+        assertTrue(harness.events.isEmpty())
+    }
+
     private class Harness(
         private val attachmentFailure: Throwable? = null,
         private val switchOwnerAfterEpochWrite: Boolean = false,
         private val refreshTokenAfterCoverage: Boolean = false,
         private val switchOwnerDuringFetch: Boolean = false,
         private val redistributionFlushed: Boolean = true,
+        private val ensureFailure: Throwable? = null,
     ) {
         var session: GroupMessagingSession? = GroupMessagingSession("alice", "token-1", 3)
         val events = mutableListOf<String>()
@@ -125,6 +185,7 @@ class GroupMessagingCoordinatorTest {
             },
             ensureCoverageNow = { chat, epoch ->
                 events += "ensure:$chat:$epoch"
+                ensureFailure?.let { throw it }
                 if (refreshTokenAfterCoverage) {
                     session = GroupMessagingSession("alice", "token-2", 3)
                 }
