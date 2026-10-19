@@ -65,6 +65,76 @@ class MessagingV2MutationAuthorityTest {
         )
     }
 
+    @Test
+    fun `author may delete own message`() {
+        assertTrue(
+            allowed(
+                action = MessagingV2EventAction.DELETE,
+                targetSender = "alice",
+                envelopeSender = "alice",
+            ),
+        )
+    }
+
+    @Test
+    fun `non-mutation actions pass through regardless of sender`() {
+        // Authority only gates EDIT/REVOKE/DELETE; receipts and reactions skip the check.
+        listOf(
+            MessagingV2EventAction.REACTION_SET,
+            MessagingV2EventAction.DELIVERY_RECEIPT,
+            MessagingV2EventAction.READ_RECEIPT,
+        ).forEach { action ->
+            assertTrue(allowed(action, targetSender = "alice", envelopeSender = "mallory"))
+        }
+    }
+
+    @Test
+    fun `trusted service principal may not revoke`() {
+        assertFalse(
+            allowed(
+                action = MessagingV2EventAction.REVOKE,
+                targetSender = "alice",
+                envelopeSender = "system",
+                envelopeDevice = 0,
+                kind = "SERVICE",
+            ),
+        )
+    }
+
+    @Test
+    fun `service delete requires exact system identity`() {
+        // Case-sensitive: "System" is not the trusted principal.
+        assertFalse(
+            allowed(
+                action = MessagingV2EventAction.DELETE,
+                targetSender = "alice",
+                envelopeSender = "System",
+                envelopeDevice = 0,
+                kind = "SERVICE",
+            ),
+        )
+        assertFalse(
+            allowed(
+                action = MessagingV2EventAction.DELETE,
+                targetSender = "alice",
+                envelopeSender = "",
+                envelopeDevice = 0,
+                kind = "SERVICE",
+            ),
+        )
+    }
+
+    @Test
+    fun `blank envelope sender cannot mutate another sender message`() {
+        assertFalse(
+            allowed(
+                action = MessagingV2EventAction.EDIT,
+                targetSender = "alice",
+                envelopeSender = "",
+            ),
+        )
+    }
+
     private fun allowed(
         action: String,
         targetSender: String,
