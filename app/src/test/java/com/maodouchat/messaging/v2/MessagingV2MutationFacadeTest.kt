@@ -10,6 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class MessagingV2MutationFacadeTest {
@@ -263,6 +264,90 @@ class MessagingV2MutationFacadeTest {
         )
 
         assertEquals(listOf("outbox", "room"), effects)
+    }
+
+    @Test
+    fun `edit editedAt falls back to send time when updated message has none`() = runTest {
+        var event: MessagingV2Event? = null
+        val facade = facade(
+            enqueue = { _, value, _ -> event = value },
+        )
+
+        val before = System.currentTimeMillis()
+        facade.edit(message(editedAt = null), OWNER, groupRevision = null)
+        val after = System.currentTimeMillis()
+
+        val editedAt = event?.editedAt
+        assertNotNull(editedAt)
+        assertTrue(editedAt in before..after)
+    }
+
+    @Test
+    fun `delete event carries action and id without message content`() = runTest {
+        var event: MessagingV2Event? = null
+        var revision: Long? = -1L
+        val facade = facade(
+            enqueue = { _, value, groupRevision ->
+                event = value
+                revision = groupRevision
+            },
+        )
+
+        facade.delete(message(content = "gone"), OWNER, groupRevision = 7L)
+
+        assertEquals(MessagingV2EventAction.DELETE, event?.action)
+        assertEquals(MESSAGE_ID, event?.targetMessageId)
+        assertNull(event?.content)
+        assertNull(event?.editedAt)
+        assertTrue(event?.reactions.orEmpty().isEmpty())
+        assertEquals(7L, revision)
+    }
+
+    @Test
+    fun `enqueue failure leaves every side effect untouched`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> throw IllegalStateException("outbox write failed") },
+            persistDeleted = { effects += "room" },
+            refreshPreview = { effects += "preview" },
+        )
+
+        assertFailsWith<IllegalStateException> {
+            facade.delete(message(), OWNER, groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `refreshPreview failure after projection failure is suppressed not thrown`() = runTest {
+        val roomFailure = IllegalStateException("room failed")
+        val previewFailure = IllegalStateException("preview failed")
+        val facade = facade(
+            persistMessage = { throw roomFailure },
+            refreshPreview = { throw previewFailure },
+        )
+
+        val commit = facade.edit(message(content = "edited"), OWNER, groupRevision = null)
+
+        val projectionError = assertIs<IllegalStateException>(commit.localProjectionError)
+        assertEquals(roomFailure.message, projectionError.message)
+        val suppressed = projectionError.suppressed.toList()
+        assertEquals(1, suppressed.size)
+        assertEquals(previewFailure.message, suppressed.single().message)
+    }
+
+    @Test
+    fun `blank owner is rejected before any side effect`() = runTest {
+        val effects = mutableListOf<String>()
+        val facade = facade(
+            enqueue = { _, _, _ -> effects += "outbox" },
+            ownerIsCurrent = { true },
+        )
+
+        assertFailsWith<IllegalArgumentException> {
+            facade.edit(message(), "  ", groupRevision = null)
+        }
+        assertTrue(effects.isEmpty())
     }
 
     private fun facade(
