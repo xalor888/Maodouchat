@@ -89,4 +89,63 @@ class ConversationPrivacyPolicyTest {
         )
         assertEquals(SecretChatState.DESTROYED, lifecycle)
     }
+
+    @Test
+    fun `allows truth table is pinned for all 24 combinations`() {
+        listOf(false to false, true to false, false to true, true to true).forEach { (secret, locked) ->
+            val caps = ConversationPrivacyCapabilities(isSecretChat = secret, isLocked = locked)
+            assertEquals(
+                !secret && !locked,
+                ConversationPrivacyPolicy.allows(caps, PrivacyAction.SEARCH),
+                "SEARCH secret=$secret locked=$locked"
+            )
+            val restExpected = !secret
+            listOf(
+                PrivacyAction.FORWARD,
+                PrivacyAction.EXPORT,
+                PrivacyAction.AI,
+                PrivacyAction.SCREENSHOT,
+                PrivacyAction.NOTIFICATION_PREVIEW,
+            ).forEach { action ->
+                assertEquals(
+                    restExpected,
+                    ConversationPrivacyPolicy.allows(caps, action),
+                    "$action secret=$secret locked=$locked"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `onDestroy wins over a pending expiry`() {
+        val armed = SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer = true)
+        assertEquals(SecretChatState.ARMED, armed)
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onExpiry(SecretChatStateMachine.onDestroy(armed)))
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onDestroy(SecretChatStateMachine.onDestroy(armed)))
+    }
+
+    @Test
+    fun `arming twice stays armed`() {
+        val armed = SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer = true)
+        assertEquals(SecretChatState.ARMED, SecretChatStateMachine.onRead(armed, hasTimer = true))
+        assertEquals(SecretChatState.ARMED, SecretChatStateMachine.onRead(armed, hasTimer = false))
+    }
+
+    @Test
+    fun `expiry never touches a chat that was never armed`() {
+        val active = SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer = false)
+        assertEquals(SecretChatState.ACTIVE, active)
+        assertEquals(SecretChatState.ACTIVE, SecretChatStateMachine.onExpiry(active))
+    }
+
+    @Test
+    fun `destroy then expiry stays destroyed`() {
+        SecretChatState.entries.forEach { state ->
+            assertEquals(
+                SecretChatState.DESTROYED,
+                SecretChatStateMachine.onExpiry(SecretChatStateMachine.onDestroy(state)),
+                state.name
+            )
+        }
+    }
 }
