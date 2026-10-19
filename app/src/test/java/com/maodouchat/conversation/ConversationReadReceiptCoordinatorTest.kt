@@ -7,6 +7,7 @@ import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.ChatDao
 import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.dao.UserDao
+import com.maodouchat.data.local.entity.MessageEntity
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.messaging.v2.MessagingV2Outbox
@@ -24,7 +25,9 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
+import kotlin.test.assertFailsWith
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -133,5 +136,88 @@ class ConversationReadReceiptCoordinatorTest {
         coVerify(exactly = 1) { MaodouchatApp.emitChatRead("secret-chat") }
         coVerify(exactly = 1) { MessageNotificationService.cancelMessage(context, "secret-chat") }
         coVerify(exactly = 1) { ConversationWidgetData.refreshAll(context) }
+    }
+
+    @Test
+    fun `non-secret chat with incoming message enqueues read receipt then marks local read`() = runTest {
+        coEvery { messageDao.getLatestIncomingMessage("chat-1", "user-1") } returns MessageEntity(
+            id = "msg-9",
+            chatId = "chat-1",
+            senderId = "other-user",
+            content = "hello",
+        )
+
+        val result = coordinator.markRead("chat-1")
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            outbox.enqueueReadReceipt(
+                conversationId = "chat-1",
+                throughMessageId = "msg-9",
+                groupRevision = null,
+            )
+        }
+        coVerify(exactly = 1) { chatRepository.markChatRead("chat-1") }
+        coVerify(exactly = 1) { MaodouchatApp.emitChatRead("chat-1") }
+        coVerify(exactly = 1) { MessageNotificationService.cancelMessage(context, "chat-1") }
+        coVerify(exactly = 1) { ConversationWidgetData.refreshAll(context) }
+    }
+
+    @Test
+    fun `outbox enqueue failure is swallowed and local read still succeeds`() = runTest {
+        coEvery { messageDao.getLatestIncomingMessage("chat-1", "user-1") } returns MessageEntity(
+            id = "msg-9",
+            chatId = "chat-1",
+            senderId = "other-user",
+            content = "hello",
+        )
+        coEvery { outbox.enqueueReadReceipt(any(), any(), any()) } throws RuntimeException("outbox down")
+
+        val result = coordinator.markRead("chat-1")
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { chatRepository.markChatRead("chat-1") }
+    }
+
+    @Test
+    fun `local mark chat read failure surfaces as result failure`() = runTest {
+        coEvery { chatRepository.markChatRead(any()) } throws IllegalStateException("db gone")
+
+        val result = coordinator.markRead("chat-1")
+
+        assertTrue(result.isFailure)
+        assertEquals("db gone", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `cancellation during chat lookup propagates instead of becoming failure`() = runTest {
+        coEvery { chatDao.getChatById(any()) } throws CancellationException()
+
+        assertFailsWith<CancellationException> {
+            coordinator.markRead("chat-1")
+        }
+    }
+
+    @Test
+    fun `repeated mark read succeeds without deduplication`() = runTest {
+        coEvery { messageDao.getLatestIncomingMessage("chat-1", "user-1") } returns MessageEntity(
+            id = "msg-9",
+            chatId = "chat-1",
+            senderId = "other-user",
+            content = "hello",
+        )
+
+        val first = coordinator.markRead("chat-1")
+        val second = coordinator.markRead("chat-1")
+
+        assertTrue(first.isSuccess)
+        assertTrue(second.isSuccess)
+        coVerify(exactly = 2) {
+            outbox.enqueueReadReceipt(
+                conversationId = "chat-1",
+                throughMessageId = "msg-9",
+                groupRevision = null,
+            )
+        }
     }
 }
