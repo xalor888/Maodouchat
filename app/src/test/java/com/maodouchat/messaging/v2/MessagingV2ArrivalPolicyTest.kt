@@ -46,22 +46,72 @@ class MessagingV2ArrivalPolicyTest {
         assertFalse(decision.shouldSendDeliveryReceipt)
     }
 
+    @Test
+    fun `blank owner suppresses all user-visible effects`() {
+        val decision = evaluate(ownerUserId = "")
+
+        assertEquals(0, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertFalse(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `own sent message has no user-visible effects`() {
+        val decision = evaluate(senderUserId = "alice")
+
+        assertEquals(0, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertFalse(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `sender key distribution message is invisible`() {
+        val decision = evaluate(messageType = MessageType.SK_DIST)
+
+        assertEquals(0, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertFalse(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `foreground arrival increments unread but does not notify`() {
+        val decision = evaluate(appInForeground = true)
+
+        assertEquals(1, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `open chat detail suppresses the notification but keeps the receipt`() {
+        val decision = evaluate(openChatDetailId = CHAT_ID)
+
+        assertEquals(1, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
     private fun evaluate(
         isNew: Boolean = true,
         envelopeKind: String = "DATA",
         isConversationOccupied: Boolean = false,
         activeChatId: String? = null,
+        ownerUserId: String = "alice",
+        senderUserId: String = "bob",
+        messageType: MessageType = MessageType.TEXT,
+        appInForeground: Boolean = false,
+        openChatDetailId: String? = null,
     ) = MessagingV2ArrivalPolicy.evaluate(
         isNew = isNew,
-        ownerUserId = "alice",
-        senderUserId = "bob",
+        ownerUserId = ownerUserId,
+        senderUserId = senderUserId,
         conversationId = CHAT_ID,
-        messageType = MessageType.TEXT,
+        messageType = messageType,
         envelopeKind = envelopeKind,
         isConversationOccupied = isConversationOccupied,
-        appInForeground = false,
+        appInForeground = appInForeground,
         activeChatId = activeChatId,
-        openChatDetailId = null,
+        openChatDetailId = openChatDetailId,
     )
 
     private companion object {

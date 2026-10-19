@@ -1,5 +1,6 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.crypto.LocalCryptoNotReadyException
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import kotlinx.coroutines.CancellationException
@@ -141,12 +142,85 @@ class OutgoingConversationResolverTest {
         assertEquals(listOf("offline-direct-charlie"), harness.cachedWrites.map(Chat::id))
     }
 
+    @Test
+    fun `non-io create failure is not masked by the offline fallback`() = runTest {
+        var offlineCalls = 0
+        val harness = Harness(
+            createFailure = RuntimeException("500"),
+            createOfflineDirect = { _, _, _ ->
+                offlineCalls += 1
+                directChat("offline", "charlie")
+            },
+        )
+
+        val failure = harness.resolver.resolve(harness.request(activeContactId = "charlie")).exceptionOrNull()
+
+        assertIs<RuntimeException>(failure)
+        assertEquals("500", failure.message)
+        assertEquals(0, offlineCalls)
+        assertTrue(harness.cachedWrites.isEmpty())
+        assertEquals(1, harness.createCount)
+    }
+
+    @Test
+    fun `blank auth token is rejected before any network or crypto work`() = runTest {
+        val harness = Harness(cached = directChat("cached", "alice"))
+
+        val failure = harness.resolver.resolve(harness.request(authToken = "")).exceptionOrNull()
+
+        assertIs<IllegalStateException>(failure)
+        assertEquals("login", failure.message)
+        assertEquals(0, harness.fetchCount)
+        assertEquals(0, harness.createCount)
+        assertEquals(0, harness.cryptoCount)
+    }
+
+    @Test
+    fun `fetch without a matching conversation fails without caching`() = runTest {
+        val harness = Harness(fetched = listOf(directChat("other", "x")))
+
+        val failure = harness.resolver.resolve(harness.request(activeConversationId = "group")).exceptionOrNull()
+
+        assertIs<IllegalStateException>(failure)
+        assertEquals("recipient", failure.message)
+        assertEquals(1, harness.fetchCount)
+        assertTrue(harness.cachedWrites.isEmpty())
+        assertEquals(0, harness.cryptoCount)
+    }
+
+    @Test
+    fun `session invalid at entry cancels before any io`() = runTest {
+        val harness = Harness(cached = directChat("cached", "alice"))
+        harness.sessionChecksBeforeInvalid = 0
+
+        assertFailsWith<CancellationException> {
+            harness.resolver.resolve(harness.request(activeConversationId = "cached"))
+        }
+
+        assertEquals(0, harness.fetchCount)
+        assertEquals(0, harness.createCount)
+        assertEquals(0, harness.cryptoCount)
+    }
+
+    @Test
+    fun `crypto not ready fails without creating a conversation`() = runTest {
+        val harness = Harness(cryptoReady = false)
+
+        val failure = harness.resolver.resolve(harness.request(activeContactId = "alice")).exceptionOrNull()
+
+        assertIs<LocalCryptoNotReadyException>(failure)
+        assertEquals(0, harness.createCount)
+        assertTrue(harness.cachedWrites.isEmpty())
+    }
+
     private class Harness(
         private val cached: Chat? = null,
         private val fetched: List<Chat> = emptyList(),
         private val created: Chat = directChat("created", "alice"),
         private val botIds: Set<String> = emptySet(),
         private val networkErrorOnCreate: Boolean = false,
+        private val createFailure: Throwable? = null,
+        private val cryptoReady: Boolean = true,
         private val findCachedDirect: (suspend (String) -> Chat?)? = null,
         private val createOfflineDirect: (suspend (String, String, Boolean) -> Chat)? = null,
     ) {
@@ -166,6 +240,7 @@ class OutgoingConversationResolverTest {
             },
             createDirectConversation = { _, _, secret ->
                 createCount += 1
+                createFailure?.let { throw it }
                 if (networkErrorOnCreate) throw java.io.IOException("offline")
                 secretCreateFlags += secret
                 created
@@ -173,7 +248,7 @@ class OutgoingConversationResolverTest {
             cacheConversation = { cachedWrites += it },
             ensureLocalCryptoReady = { _, _ ->
                 cryptoCount += 1
-                true
+                cryptoReady
             },
             isBotUserId = botIds::contains,
             isOwnerSessionCurrent = {
@@ -196,9 +271,10 @@ class OutgoingConversationResolverTest {
             paintedConversation: Chat? = null,
             activeContactId: String = "",
             createSecretConversation: Boolean = false,
+            authToken: String = "token",
         ) = OutgoingConversationRequest(
             ownerUserId = "owner",
-            authToken = "token",
+            authToken = authToken,
             activeConversationId = activeConversationId,
             constructorConversationId = "",
             paintedConversation = paintedConversation,
