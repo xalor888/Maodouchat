@@ -2,6 +2,7 @@ package com.maodouchat.messaging.v2
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MessagingV2RetryPolicyTest {
     @Test
@@ -42,5 +43,40 @@ class MessagingV2RetryPolicyTest {
     @Test
     fun `huge attempt counts stay capped without overflow`() {
         assertEquals(300_000L, MessagingV2RetryPolicy.nextAttemptAt(0L, Int.MAX_VALUE))
+    }
+
+    @Test
+    fun `attempts seven and eight fill the uncapped middle`() {
+        assertEquals(64_000L, MessagingV2RetryPolicy.nextAttemptAt(0L, 7))
+        assertEquals(128_000L, MessagingV2RetryPolicy.nextAttemptAt(0L, 8))
+    }
+
+    @Test
+    fun `negative now offsets the whole schedule`() {
+        assertEquals(-4_000L, MessagingV2RetryPolicy.nextAttemptAt(-5_000L, 1))
+        assertEquals(-44_000L, MessagingV2RetryPolicy.nextAttemptAt(-300_000L, 9))
+        assertEquals(0L, MessagingV2RetryPolicy.nextAttemptAt(-300_000L, 10))
+    }
+
+    @Test
+    fun `first attempt always yields the base delay on top of now`() {
+        listOf(0L, 5_000L, 1_000_000L).forEach { now ->
+            assertEquals(now + 1_000L, MessagingV2RetryPolicy.nextAttemptAt(now, 1))
+        }
+    }
+
+    @Test
+    fun `delays never shrink as attempts grow`() {
+        (1..20).forEach { attempt ->
+            val current = MessagingV2RetryPolicy.nextAttemptAt(0L, attempt)
+            val next = MessagingV2RetryPolicy.nextAttemptAt(0L, attempt + 1)
+            assertTrue(next >= current, "attempt $attempt delay must not shrink")
+        }
+    }
+
+    @Test
+    fun `capped delay stays at the five-minute ceiling past the clamp`() {
+        assertEquals(300_000L, MessagingV2RetryPolicy.nextAttemptAt(0L, 14))
+        assertEquals(300_000L, MessagingV2RetryPolicy.nextAttemptAt(0L, 100))
     }
 }

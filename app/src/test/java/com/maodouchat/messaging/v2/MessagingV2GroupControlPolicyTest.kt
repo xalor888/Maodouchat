@@ -52,4 +52,39 @@ class MessagingV2GroupControlPolicyTest {
         assertFalse(MessagingV2GroupControlPolicy.isStale("DATA", null, 5L))
         assertFalse(MessagingV2GroupControlPolicy.isStale("EVENT", null, 9L))
     }
+
+    @Test
+    fun `null queued revision is stale for sender key too`() {
+        assertTrue(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", null, 5L))
+        assertTrue(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", null, 1L))
+    }
+
+    @Test
+    fun `key request behind live revision is stale`() {
+        assertTrue(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", 3L, 5L))
+        assertFalse(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", 5L, 5L))
+    }
+
+    @Test
+    fun `null queued revision cannot go stale when live revision is non-positive`() {
+        assertFalse(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", null, 0L))
+        assertFalse(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", null, -5L))
+        assertFalse(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", null, -1L))
+    }
+
+    @Test
+    fun `near-miss wire names are never group controls`() {
+        listOf("sender-key", "KEYREQUEST", "SENDER KEY", "GROUP_CONTROL", "CONTROL").forEach { kind ->
+            assertFalse(MessagingV2GroupControlPolicy.isGroupControl(kind))
+            assertFalse(MessagingV2GroupControlPolicy.isStale(kind, 4L, 5L))
+        }
+    }
+
+    @Test
+    fun `re-syncing to the live revision clears the stale signal`() {
+        assertTrue(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", 4L, 5L))
+        assertFalse(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", 5L, 5L))
+        assertTrue(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", Long.MAX_VALUE - 1, Long.MAX_VALUE))
+        assertFalse(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", Long.MAX_VALUE, Long.MAX_VALUE))
+    }
 }
