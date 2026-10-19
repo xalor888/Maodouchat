@@ -285,6 +285,70 @@ class ConversationMessageMutationCoordinatorTest {
         assertTrue(failed.rolledBack)
     }
 
+    @Test
+    fun `revoke precommit failure rolls optimistic projection back`() = runTest {
+        val failure = IllegalStateException("outbox unavailable")
+        val coordinator = coordinator(enqueue = { _, _, _ -> throw failure })
+        val original = message()
+        val revoked = original.copy(content = "revoked")
+        val projections = mutableListOf<MessageMutationProjection>()
+
+        val outcome = coordinator.revoke(original, revoked, OWNER, null, projections::add)
+
+        assertEquals(
+            listOf<MessageMutationProjection>(
+                MessageMutationProjection.Set(revoked),
+                MessageMutationProjection.Set(original),
+            ),
+            projections,
+        )
+        val failed = assertIs<ConversationMessageMutationOutcome.Failed>(outcome)
+        assertSame(failure, failed.error)
+        assertTrue(failed.rolledBack)
+    }
+
+    @Test
+    fun `edit precommit failure rolls optimistic projection back`() = runTest {
+        val failure = IllegalStateException("outbox unavailable")
+        val coordinator = coordinator(enqueue = { _, _, _ -> throw failure })
+        val original = message()
+        val updated = original.copy(content = "edited")
+        val projections = mutableListOf<MessageMutationProjection>()
+
+        val outcome = coordinator.edit(original, updated, OWNER, null, projections::add)
+
+        assertEquals(
+            listOf<MessageMutationProjection>(
+                MessageMutationProjection.Set(updated),
+                MessageMutationProjection.Set(original),
+            ),
+            projections,
+        )
+        val failed = assertIs<ConversationMessageMutationOutcome.Failed>(outcome)
+        assertSame(failure, failed.error)
+        assertTrue(failed.rolledBack)
+    }
+
+    @Test
+    fun `optimistic projection failure is rethrown and tracker is released`() = runTest {
+        val failure = IllegalStateException("ui project failed")
+        val coordinator = coordinator()
+        val original = message()
+
+        val thrown = assertFailsWith<IllegalStateException> {
+            coordinator.delete(original, OWNER, null) { throw failure }
+        }
+        assertSame(failure, thrown)
+
+        val projections = mutableListOf<MessageMutationProjection>()
+        val outcome = coordinator.delete(original, OWNER, null, projections::add)
+        assertIs<ConversationMessageMutationOutcome.Applied>(outcome)
+        assertEquals(
+            listOf<MessageMutationProjection>(MessageMutationProjection.Remove(MESSAGE_ID)),
+            projections,
+        )
+    }
+
     private fun coordinator(
         enqueue: suspend (String, MessagingV2Event, Long?) -> Unit = { _, _, _ -> },
         persistDeleted: suspend (String) -> Unit = {},
