@@ -139,4 +139,50 @@ class MultiDeviceEnvelopePolicyTest {
         assertNull(MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188))
         assertNotNull(MultiDeviceEnvelopePolicy.selectEntry(parsed, "bob", 188))
     }
+
+    @Test
+    fun `non object root is rejected`() {
+        assertNull(MultiDeviceEnvelopePolicy.parse("""[{"senderDeviceId":76,"entries":[{"ciphertext":"x"}]}]"""))
+        assertNull(MultiDeviceEnvelopePolicy.parse("42"))
+        assertNull(MultiDeviceEnvelopePolicy.parse(""))
+    }
+
+    @Test
+    fun `out of range device entries are skipped but valid siblings survive`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientDeviceId":0,"ciphertext":"AAA="},{"recipientDeviceId":256,"ciphertext":"BBB="},{"recipientDeviceId":188,"ciphertextType":"prekey","ciphertext":"CCC="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(body)
+        assertNotNull(parsed)
+        assertEquals(1, parsed!!.entries.size)
+        assertEquals(188, parsed.entries.single().recipientDeviceId)
+        assertEquals("CCC=", parsed.entries.single().ciphertext)
+    }
+
+    @Test
+    fun `single explicit non default device is never guessed for default local device`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientUserId":"alice","recipientDeviceId":5,"ciphertextType":"prekey","ciphertext":"AAA="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(body)!!
+        assertNull(MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 1))
+        assertNotNull(MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 5))
+    }
+
+    @Test
+    fun `null current user id matches unaddressed compact entry`() {
+        val parsed = MultiDeviceEnvelopePolicy.parse(omittedAlgorithmWire)!!
+        val entry = MultiDeviceEnvelopePolicy.selectEntry(parsed, null, 188)
+        assertNotNull(entry)
+        assertEquals(188, entry!!.recipientDeviceId)
+        assertNull(entry.recipientUserId)
+    }
+
+    @Test
+    fun `missing payload type and unknown keys still select`() {
+        val body =
+            """{"senderDeviceId":76,"unknownTopLevel":true,"entries":[{"recipientUserId":"alice","recipientDeviceId":188,"ciphertextType":"prekey","ciphertext":"DDD="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(body)
+        assertNotNull(parsed)
+        assertNull(parsed!!.payloadType)
+        assertEquals("DDD=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188)?.ciphertext)
+    }
 }
