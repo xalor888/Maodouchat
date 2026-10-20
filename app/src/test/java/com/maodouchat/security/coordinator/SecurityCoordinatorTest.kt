@@ -91,7 +91,7 @@ class SecurityCoordinatorTest {
 
     @Test
     fun assessDeviceRisk_existingSuFile_reportsRootedHighRisk() {
-        val suFile = java.io.File.createTempFile("su", ".bin")
+        val suFile = java.io.File.createTempFile("sufile", ".bin")
         try {
             val report = coordinator.assessDeviceRisk(checkFiles = listOf(suFile.absolutePath))
             assertTrue(report.isRooted)
@@ -116,7 +116,7 @@ class SecurityCoordinatorTest {
 
     @Test
     fun assessDeviceRisk_rootedDebugBuild_reportsHighWithBothReasons() {
-        val suFile = java.io.File.createTempFile("su", ".bin")
+        val suFile = java.io.File.createTempFile("sufile", ".bin")
         try {
             val report = coordinator.assessDeviceRisk(
                 isDebugBuild = true,
