@@ -42,6 +42,51 @@ class SecretChatPolicyTest {
     }
 
     @Test
+    fun isSecretChatTypeToleratesPaddingAndMixedCase() {
+        assertTrue(SecretChatPolicy.isSecretChatType(" secret "))
+        assertTrue(SecretChatPolicy.isSecretChatType("\tSECRET\n"))
+        assertTrue(SecretChatPolicy.isSecretChatType("SeCrEt"))
+        assertFalse(SecretChatPolicy.isSecretChatType("SECRETX"))
+        assertFalse(SecretChatPolicy.isSecretChatType("SECRE"))
+        assertFalse(SecretChatPolicy.isSecretChatType("  "))
+    }
+
+    @Test
+    fun canStartFromDirectToleratesTypeFormatting() {
+        assertTrue(SecretChatPolicy.canStartFromDirect(isGroup = false, chatType = " direct "))
+        assertTrue(SecretChatPolicy.canStartFromDirect(isGroup = false, chatType = "Direct"))
+        assertFalse(SecretChatPolicy.canStartFromDirect(isGroup = false, chatType = "secret"))
+        assertFalse(SecretChatPolicy.canStartFromDirect(isGroup = true, chatType = null))
+        assertFalse(SecretChatPolicy.canStartFromDirect(isGroup = true, chatType = ""))
+    }
+
+    @Test
+    fun canCreateSecretRejectsNonTwoPerson() {
+        assertFalse(SecretChatPolicy.canCreateSecret(isGroup = false, participantCount = 0))
+        assertFalse(SecretChatPolicy.canCreateSecret(isGroup = false, participantCount = 3))
+        assertFalse(SecretChatPolicy.canCreateSecret(isGroup = false, participantCount = -1))
+        assertFalse(SecretChatPolicy.canCreateSecret(isGroup = true, participantCount = 2))
+        assertTrue(SecretChatPolicy.canCreateSecret(isGroup = false, participantCount = 2))
+    }
+
+    @Test
+    fun folderPlacementTruthTableIsComplementary() {
+        for (isSecret in listOf(true, false)) {
+            assertEquals(isSecret, SecretChatPolicy.excludeFromAllChats(isSecret))
+            assertEquals(!isSecret, SecretChatPolicy.allowInCustomOrLockedFolder(isSecret))
+            assertEquals(isSecret, SecretChatPolicy.excludeFromAllChats(isSecret))
+        }
+    }
+
+    @Test
+    fun mosaicDisplayNameAlwaysFixedLabel() {
+        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("😀昵称"))
+        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("  张三  "))
+        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("密聊"))
+        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName(null))
+    }
+
+    @Test
     fun mosaicHidesIdentity() {
         assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("张三"))
         assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("Alice"))
