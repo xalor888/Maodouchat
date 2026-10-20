@@ -133,4 +133,35 @@ class SafetyCodePolicyTest {
     fun `copy form normalizes padded input`() {
         assertEquals("01234 56789", SafetyCodePolicy.formatForCopy("  01234 56789  "))
     }
+
+    @Test
+    fun `codesMatch ignores regrouped digits`() {
+        assertTrue(SafetyCodePolicy.codesMatch("01234 56789", "0123456789"))
+        assertTrue(SafetyCodePolicy.codesMatch("01234-56789", "01234 56789"))
+    }
+
+    @Test
+    fun `display has no trailing separator on exact fives`() {
+        // chunked(5) 整除时 join 不会多出尾空格
+        assertEquals("01234 56789 01234", SafetyCodePolicy.formatForDisplay("012345678901234"))
+    }
+
+    @Test
+    fun `codesMatch rejects non-ascii digits on both sides`() {
+        // 正则只认 ASCII 0-9：两边都成空串也不算匹配
+        assertFalse(SafetyCodePolicy.codesMatch("٠١٢٣٤", "01234"))
+        assertFalse(SafetyCodePolicy.codesMatch("٠١٢٣٤", "٥٦٧٨٩"))
+    }
+
+    @Test
+    fun `display groups seventeen digits with a short tail`() {
+        assertEquals("01234 56789 01234 56", SafetyCodePolicy.formatForDisplay("01234567890123456"))
+    }
+
+    @Test
+    fun `codesMatch treats full-width spaces as separators`() {
+        // digitsOnly 剥掉一切非数字，全角空格也不例外
+        assertTrue(SafetyCodePolicy.codesMatch("\u300001234\u3000", "01234"))
+        assertTrue(SafetyCodePolicy.codesMatch("\u300001234\u3000", "\u300001234\u3000"))
+    }
 }
