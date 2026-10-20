@@ -60,4 +60,34 @@ class AppLockPolicyTest {
     fun `mid-window background stays unlocked`() {
         assertFalse(AppLockPolicy.shouldLock(true, true, true, 10_000L, 60_000L, 40_000L))
     }
+
+    @Test
+    fun `unauthenticated gate fires before the background timestamp check`() {
+        // 未通过当前账号验证即锁：即便 backgroundAt=0（从未切后台）也不豁免。
+        assertTrue(AppLockPolicy.shouldLock(true, true, false, 0L, 60_000L, 100_000L))
+    }
+
+    @Test
+    fun `logged out wins even when authenticated and timed out`() {
+        // 账号已登出：即便曾验证通过且超时已过，也不弹锁。
+        assertFalse(AppLockPolicy.shouldLock(true, false, true, 10_000L, 60_000L, 200_000L))
+    }
+
+    @Test
+    fun `fresh foreground instant with a background timestamp stays unlocked`() {
+        // elapsed=0：刚回到前台，超时窗口还没开始走。
+        assertFalse(AppLockPolicy.shouldLock(true, true, true, 10_000L, 60_000L, 10_000L))
+    }
+
+    @Test
+    fun `enormous timeout never overflows into a lock`() {
+        assertFalse(AppLockPolicy.shouldLock(true, true, true, 1_000L, Long.MAX_VALUE, 101_000L))
+    }
+
+    @Test
+    fun `decision is stable across repeated calls`() {
+        repeat(3) {
+            assertFalse(AppLockPolicy.shouldLock(true, true, true, 10_000L, 60_000L, 40_000L))
+        }
+    }
 }
