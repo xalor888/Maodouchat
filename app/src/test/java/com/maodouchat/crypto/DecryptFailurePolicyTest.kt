@@ -160,4 +160,65 @@ class DecryptFailurePolicyTest {
         assertTrue(a != c)
         assertFalse(a.contains("ciphertext-payload"))
     }
+
+    @Test
+    fun retryableResultsRecordFailureForTracking() {
+        listOf(
+            DecryptResult.NoSession,
+            DecryptResult.UntrustedIdentity,
+            DecryptResult.FutureEpoch,
+            DecryptResult.Failed,
+        ).forEach { result ->
+            assertEquals(TrackingAction.RECORD_FAILURE, DecryptFailurePolicy.trackingAction(result))
+        }
+    }
+
+    @Test
+    fun blankEnvelopeIdAcknowledgesOnlyTerminalResults() {
+        val tracker = DecryptRetryTracker()
+        assertTrue(tracker.shouldAcknowledge("", DecryptResult.Duplicate))
+        assertTrue(tracker.shouldAcknowledge("  ", DecryptResult.Success("x")))
+        assertFalse(tracker.shouldAcknowledge("", DecryptResult.Failed))
+        assertFalse(tracker.shouldAcknowledge("  ", DecryptResult.NoSession))
+    }
+
+    @Test
+    fun blankFingerprintsAreNoOpsAndNeverTerminal() {
+        val tracker = DecryptRetryTracker()
+        tracker.recordCryptoFailure("")
+        tracker.markTerminal("")
+        tracker.clear("")
+        assertFalse(tracker.isTerminal(""))
+        assertEquals(0, tracker.failureCount(""))
+        // 空 senderId 只计数不建归属：clearForSender 影响不到它
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u9", "c")
+        tracker.recordCryptoFailure("", fp)
+        assertEquals(1, tracker.failureCount(fp))
+        tracker.clearForSender("u9")
+        assertEquals(1, tracker.failureCount(fp))
+    }
+
+    @Test
+    fun trackerEvictsBeyondMaxTracked() {
+        val tracker = DecryptRetryTracker(maxAttempts = 5, maxTracked = 3)
+        val fps = (1..4).map { DecryptFailurePolicy.envelopeFingerprint("u$it", "c$it") }
+        fps.forEach { tracker.recordCryptoFailure(it) }
+        assertEquals(3, fps.sumOf { tracker.failureCount(it) })
+    }
+
+    @Test
+    fun clearAllResetsTracker() {
+        val tracker = DecryptRetryTracker()
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u1", "c")
+        val terminalFp = DecryptFailurePolicy.envelopeFingerprint("u2", "d")
+        repeat(3) { tracker.recordCryptoFailure("u1", fp) }
+        tracker.markTerminal(terminalFp)
+        tracker.clearAll()
+        assertEquals(0, tracker.failureCount(fp))
+        assertFalse(tracker.isTerminal(terminalFp))
+        tracker.recordCryptoFailure("u1", fp)
+        assertEquals(1, tracker.failureCount(fp))
+        tracker.clearForSender("u1")
+        assertEquals(0, tracker.failureCount(fp))
+    }
 }

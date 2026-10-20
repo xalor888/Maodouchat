@@ -96,4 +96,53 @@ class SignalSessionPolicyTest {
             ).isEmpty()
         )
     }
+
+    @Test
+    fun emptyDiscoveryKeepsDurableSessions() {
+        assertEquals(
+            listOf(2),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = emptyList(),
+                persistedSessionDeviceIds = listOf(2),
+            ),
+        )
+    }
+
+    @Test
+    fun outOfRangeDiscoveredIdsFallBackToPersisted() {
+        assertEquals(
+            listOf(3),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(0, 256),
+                persistedSessionDeviceIds = listOf(3),
+            ),
+        )
+    }
+
+    @Test
+    fun discoveredIdsAreDedupedSortedAndTrimmed() {
+        assertEquals(
+            listOf(2, 3, 5),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(5, 3, 5, 2, 300),
+                persistedSessionDeviceIds = listOf(9),
+            ),
+        )
+    }
+
+    @Test
+    fun blankCurrentUserIdSkipsSelfCheck() {
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("me", 2, "", 2))
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("me", 2, "  ", 2))
+    }
+
+    @Test
+    fun migrationMarkerAndMissingSessionBothRequireSetup() {
+        assertTrue(
+            SignalSessionPolicy.shouldEnsureSession(
+                hasSession = false,
+                requiresReestablishment = true,
+            )
+        )
+    }
 }
