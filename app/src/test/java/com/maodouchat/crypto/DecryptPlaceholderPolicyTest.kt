@@ -273,10 +273,10 @@ class DecryptPlaceholderPolicyTest {
     }
 
     @Test
-    fun `full-width spaces around legacy entry do not match`() {
-        // Kotlin trim() 只裁 U+0020 及以下，全角空格留着，归一化后对不上。
-        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("\u3000无法解密\u3000"))
-        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("\u3000[无法解密的消息]\u3000"))
+    fun `full-width spaces around placeholder still match`() {
+        // Kotlin 的 trim() 按 Unicode 空白类别裁边，全角空格也会被裁掉。
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\u3000无法解密\u3000"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\u3000[无法解密的消息]\u3000"))
     }
 
     @Test
