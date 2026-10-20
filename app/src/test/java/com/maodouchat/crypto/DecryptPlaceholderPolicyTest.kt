@@ -237,4 +237,38 @@ class DecryptPlaceholderPolicyTest {
         assertFalse(DecryptPlaceholderPolicy.isPlaceholder("［无法解密的消息］"))
         assertFalse(DecryptPlaceholderPolicy.isPlaceholder("【无法解密的消息】"))
     }
+
+    @Test
+    fun `non-breaking space around placeholder still matches`() {
+        // Kotlin 的 trim() 把不间断空格也当空白裁掉，归一化后仍命中。
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\u00a0无法解密\u00a0"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\u00a0[unable to decrypt message]\u00a0"))
+    }
+
+    @Test
+    fun `all-blank varargs never match`() {
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("普通文本", "", "   ", "\t"))
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("gone", "", "  "))
+    }
+
+    @Test
+    fun `placeholder embedded in prose is not a match`() {
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("xx 无法解密 yy"))
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("prefix [unable to decrypt message] suffix"))
+    }
+
+    @Test
+    fun `repeated calls return stable results`() {
+        repeat(3) {
+            assertTrue(DecryptPlaceholderPolicy.isPlaceholder("无法解密"))
+            assertFalse(DecryptPlaceholderPolicy.isPlaceholder("无法解密哦"))
+        }
+    }
+
+    @Test
+    fun `zero-width space inside placeholder breaks match`() {
+        // 零宽空格既不被 trim 裁掉也不被 lowercase 归一，精确匹配失效。
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("无法\u200b解密"))
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("[无法解密的消息]\u200b"))
+    }
 }

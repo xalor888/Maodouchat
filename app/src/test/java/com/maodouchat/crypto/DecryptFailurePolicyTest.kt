@@ -336,4 +336,64 @@ class DecryptFailurePolicyTest {
         fps.forEach { tracker.markTerminal(it) }
         assertEquals(2, fps.count { tracker.isTerminal(it) })
     }
+
+    @Test
+    fun terminalFingerprintSurvivesSenderRepair() {
+        val tracker = DecryptRetryTracker()
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u1", "malformed")
+        tracker.recordCryptoFailure("u1", fp)
+        tracker.markTerminal(fp)
+        // markTerminal 即剥离归属：之后按 sender 修掉会话，terminal 仍保留，
+        // 确定性失败不再走 crypto ratchet。
+        tracker.clearForSender("u1")
+        assertTrue(tracker.isTerminal(fp))
+        assertEquals(0, tracker.failureCount(fp))
+    }
+
+    @Test
+    fun stopResultAcknowledgmentResetsRetryCounter() {
+        val tracker = DecryptRetryTracker()
+        repeat(4) {
+            assertFalse(tracker.shouldAcknowledge("e5", DecryptResult.Failed))
+        }
+        // terminal 结果 ACK 时清掉累计计数：下一次重试从头计。
+        assertTrue(tracker.shouldAcknowledge("e5", DecryptResult.Duplicate))
+        assertFalse(tracker.shouldAcknowledge("e5", DecryptResult.Failed))
+    }
+
+    @Test
+    fun evictionKeepsTerminalBeforeAttempts() {
+        val tracker = DecryptRetryTracker(maxTracked = 2)
+        val fp1 = DecryptFailurePolicy.envelopeFingerprint("u1", "c1")
+        val fp2 = DecryptFailurePolicy.envelopeFingerprint("u2", "c2")
+        val terminalFp = DecryptFailurePolicy.envelopeFingerprint("u3", "c3")
+        tracker.recordCryptoFailure(fp1)
+        tracker.recordCryptoFailure(fp2)
+        tracker.markTerminal(terminalFp)
+        // 超限先驱逐可重试计数，terminal 保留。
+        assertTrue(tracker.isTerminal(terminalFp))
+        assertEquals(1, tracker.failureCount(fp1) + tracker.failureCount(fp2))
+    }
+
+    @Test
+    fun fingerprintDistinguishesSameLengthPairs() {
+        val a = DecryptFailurePolicy.envelopeFingerprint("ab", "cd")
+        val b = DecryptFailurePolicy.envelopeFingerprint("xy", "zw")
+        // 长度前缀相同（2:2:），但内容不同不能碰撞。
+        assertTrue(a.startsWith("2:2:"))
+        assertTrue(b.startsWith("2:2:"))
+        assertTrue(a != b)
+    }
+
+    @Test
+    fun successWithEmptyPlaintextPersistsEmpty() {
+        assertEquals(
+            "",
+            DecryptFailurePolicy.persistDecryptResultToRoom(
+                DecryptResult.Success(""),
+                "wire123",
+                "无法解密"
+            )
+        )
+    }
 }
