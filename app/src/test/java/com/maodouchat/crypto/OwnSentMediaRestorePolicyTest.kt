@@ -355,4 +355,93 @@ class OwnSentMediaRestorePolicyTest {
             )
         }
     }
+
+    @Test
+    fun textOwnSentNeverHydratesEvenWithAutoDownload() {
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.TEXT,
+                attachmentId = "att_own_text",
+                localUriReadable = false,
+                senderIsCurrentUser = true,
+                autoDownload = true
+            )
+        )
+    }
+
+    @Test
+    fun incomingFileWithAutoDownloadHydrates() {
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.FILE,
+                attachmentId = "att_peer_file",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = true
+            )
+        )
+    }
+
+    @Test
+    fun ownVideoHydratesWithoutAutoDownload() {
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.VIDEO,
+                attachmentId = "att_own_video",
+                localUriReadable = false,
+                senderIsCurrentUser = true,
+                autoDownload = false
+            )
+        )
+    }
+
+    @Test
+    fun attachmentIdPaddingVariants() {
+        // 前后填充普通空格仍是非空 id：可恢复。
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldRestore(
+                isSecretChat = false,
+                type = MessageType.IMAGE,
+                attachmentId = "  att_padded  ",
+                localUriReadable = false
+            )
+        )
+        // JVM 的 isBlank 按 Character.isWhitespace 判定，不间断空格不算空白：
+        // 它仍被视为有效附件 id，可恢复。
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldRestore(
+                isSecretChat = false,
+                type = MessageType.IMAGE,
+                attachmentId = "\u00a0",
+                localUriReadable = false
+            )
+        )
+    }
+
+    @Test
+    fun restoreDecisionIsDeterministic() {
+        repeat(3) {
+            assertTrue(
+                OwnSentMediaRestorePolicy.shouldRestore(
+                    isSecretChat = false,
+                    type = MessageType.IMAGE,
+                    attachmentId = "att_own",
+                    localUriReadable = false
+                )
+            )
+            assertFalse(
+                OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                    isSecretChat = false,
+                    type = MessageType.TEXT,
+                    attachmentId = "att_x",
+                    localUriReadable = false,
+                    senderIsCurrentUser = true,
+                    autoDownload = true
+                )
+            )
+        }
+    }
 }
