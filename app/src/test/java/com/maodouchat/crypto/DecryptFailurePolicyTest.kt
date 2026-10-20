@@ -221,4 +221,56 @@ class DecryptFailurePolicyTest {
         tracker.clearForSender("u1")
         assertEquals(0, tracker.failureCount(fp))
     }
+
+    @Test
+    fun negativeAttemptCountsNeverStop() {
+        listOf(DecryptResult.NoSession, DecryptResult.Failed).forEach { result ->
+            assertFalse(DecryptFailurePolicy.shouldStop(result, previousAttempts = -1))
+        }
+        assertFalse(DecryptFailurePolicy.shouldSkipCryptoAttempt(-1))
+        assertTrue(DecryptFailurePolicy.shouldStop(DecryptResult.Duplicate, previousAttempts = -1))
+    }
+
+    @Test
+    fun blankWireIsReturnedUntouchedEvenOnSuccess() {
+        assertEquals(
+            "",
+            DecryptFailurePolicy.persistDecryptResultToRoom(DecryptResult.Success("hello"), "", "无法解密")
+        )
+        assertEquals(
+            "   ",
+            DecryptFailurePolicy.persistDecryptResultToRoom(DecryptResult.Success("hello"), "   ", "无法解密")
+        )
+        assertEquals(
+            "",
+            DecryptFailurePolicy.persistDecryptResultToRoom(DecryptResult.Failed, "", "无法解密")
+        )
+    }
+
+    @Test
+    fun newFailureRevivesTerminalFingerprint() {
+        val tracker = DecryptRetryTracker()
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u1", "malformed")
+        tracker.markTerminal(fp)
+        assertTrue(tracker.isTerminal(fp))
+        tracker.recordCryptoFailure(fp)
+        assertFalse(tracker.isTerminal(fp))
+        assertEquals(1, tracker.failureCount(fp))
+    }
+
+    @Test
+    fun blankSenderClearIsNoOp() {
+        val tracker = DecryptRetryTracker()
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u1", "c")
+        tracker.recordCryptoFailure("u1", fp)
+        tracker.clearForSender("")
+        tracker.clearForSender("   ")
+        assertEquals(1, tracker.failureCount(fp))
+    }
+
+    @Test
+    fun fingerprintPrefixesEncodeLengths() {
+        assertTrue(DecryptFailurePolicy.envelopeFingerprint("alice", "ciphertext-payload").startsWith("5:18:"))
+        assertTrue(DecryptFailurePolicy.envelopeFingerprint("a", "b").startsWith("1:1:"))
+    }
 }
