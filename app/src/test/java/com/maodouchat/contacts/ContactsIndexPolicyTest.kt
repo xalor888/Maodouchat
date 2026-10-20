@@ -42,4 +42,54 @@ class ContactsIndexPolicyTest {
         assertEquals(listOf("u2"), grouped["A"])
         assertEquals(listOf("u4"), grouped["#"])
     }
+
+    @Test
+    fun `initialFor trims surrounding whitespace before taking first char`() {
+        // 前导空白（空格/制表符/换行）不影响首字母判定
+        assertEquals("A", ContactsIndexPolicy.initialFor("  alice"))
+        assertEquals("B", ContactsIndexPolicy.initialFor("\tbob\n"))
+        // 全空白已被 isBlank 拦下
+        assertEquals("#", ContactsIndexPolicy.initialFor(" \t\n "))
+    }
+
+    @Test
+    fun `initialFor hashes non latin non cjk initials`() {
+        // 非 ASCII 拉丁变音字母不归入 A-Z
+        assertEquals("#", ContactsIndexPolicy.initialFor("Émilie"))
+        // 全角数字不是 ASCII 数字
+        assertEquals("#", ContactsIndexPolicy.initialFor("１２３"))
+        // CJK 范围边界内仍是汉字首字
+        assertEquals("中", ContactsIndexPolicy.initialFor("中文"))
+    }
+
+    @Test
+    fun `leadingFixedItemCount ignores non positive request counts`() {
+        // 负数请求数不产生 header+行（判定是 > 0）
+        assertEquals(3, ContactsIndexPolicy.leadingFixedItemCount(-5, -1, -2))
+        // 负数尾行数钳制为 0
+        assertEquals(0, ContactsIndexPolicy.leadingFixedItemCount(0, 0, 0, trailingActionRows = -2))
+        // 只有 incoming 为正时只加它
+        assertEquals(3 + 4, ContactsIndexPolicy.leadingFixedItemCount(3, 0, -1))
+    }
+
+    @Test
+    fun `letterListIndex treats missing sizes as zero`() {
+        val letters = listOf("A", "B")
+        val sizes = mapOf("A" to 2)
+        // 缺失的 B 按 0 行算：A 占 header+2，B 紧随其后
+        assertEquals(1, ContactsIndexPolicy.letterListIndex(letters, sizes, "A"))
+        assertEquals(4, ContactsIndexPolicy.letterListIndex(letters, sizes, "B"))
+        // 空字母表直接 -1
+        assertEquals(-1, ContactsIndexPolicy.letterListIndex(emptyList(), emptyMap(), "A"))
+    }
+
+    @Test
+    fun `groupByInitial keeps ids order and handles empty input`() {
+        assertEquals(emptyMap<String, List<String>>(), ContactsIndexPolicy.groupByInitial(emptyList()))
+        val grouped = ContactsIndexPolicy.groupByInitial(
+            listOf("u1" to "amy", "u2" to "andy", "u3" to "amy")
+        )
+        // 同字母内保持原输入顺序，名字相同的两个 id 都在
+        assertEquals(listOf("u1", "u2", "u3"), grouped["A"])
+    }
 }

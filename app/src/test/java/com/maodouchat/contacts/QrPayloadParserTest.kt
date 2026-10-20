@@ -159,4 +159,52 @@ class QrPayloadParserTest {
         val nonNumeric = "maodouchat:safety:YWxpY2U=:nan:Ym9i:2:MTIz"
         assertTrue(QrPayloadParser.parse(nonNumeric) is QrParsedPayload.Invalid)
     }
+
+    @Test
+    fun parse_userIdLengthBoundary() {
+        // 64 字符恰好合法，65 字符超限
+        val ok = QrPayloadParser.parse("maodouchat:user:" + "a".repeat(64))
+        assertTrue(ok is QrParsedPayload.User)
+        assertEquals("a".repeat(64), (ok as QrParsedPayload.User).userId)
+        assertTrue(QrPayloadParser.parse("maodouchat:user:" + "a".repeat(65)) is QrParsedPayload.Invalid)
+    }
+
+    @Test
+    fun parse_schemePrefixIsCaseSensitive() {
+        // scheme 头忽略大小写，但子前缀匹配是大小写敏感的
+        assertTrue(QrPayloadParser.parse("MAODOUCHAT:user:abc") is QrParsedPayload.Invalid)
+        assertTrue(QrPayloadParser.parse("Maodouchat:USER:abc") is QrParsedPayload.Invalid)
+    }
+
+    @Test
+    fun parse_unknownSubPrefixIsRejected() {
+        assertTrue(QrPayloadParser.parse("maodouchat:wallet:abc") is QrParsedPayload.Invalid)
+        assertTrue(QrPayloadParser.parse("maodouchat:") is QrParsedPayload.Invalid)
+    }
+
+    @Test
+    fun parse_safetyDeviceIdBoundaryValues() {
+        // deviceId 边界 1 与 255 都是合法的
+        val min = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "alice", ownerDeviceId = 1,
+            peerUserId = "bob", peerDeviceId = 1, safetyCode = "654321"
+        )
+        val max = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "alice", ownerDeviceId = 255,
+            peerUserId = "bob", peerDeviceId = 255, safetyCode = "654321"
+        )
+        val parsedMin = QrPayloadParser.parse(min)
+        val parsedMax = QrPayloadParser.parse(max)
+        assertTrue(parsedMin is QrParsedPayload.Safety)
+        assertTrue(parsedMax is QrParsedPayload.Safety)
+        assertEquals(1, (parsedMin as QrParsedPayload.Safety).ownerDeviceId)
+        assertEquals(255, (parsedMax as QrParsedPayload.Safety).ownerDeviceId)
+    }
+
+    @Test
+    fun parse_trimsSurroundingWhitespace() {
+        val parsed = QrPayloadParser.parse("  maodouchat:user:abc \n")
+        assertTrue(parsed is QrParsedPayload.User)
+        assertEquals("abc", (parsed as QrParsedPayload.User).userId)
+    }
 }
