@@ -145,4 +145,41 @@ class SignalSessionPolicyTest {
             )
         )
     }
+
+    @Test
+    fun nullDiscoveryFallsBackToPersistedSessionsSorted() {
+        assertEquals(
+            listOf(1, 3),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = null,
+                persistedSessionDeviceIds = listOf(3, 1),
+            ),
+        )
+    }
+
+    @Test
+    fun emptyDiscoveryAndOutOfRangePersistedYieldsNoCandidates() {
+        assertTrue(
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = emptyList(),
+                persistedSessionDeviceIds = listOf(0, 256, -1),
+            ).isEmpty()
+        )
+    }
+
+    @Test
+    fun peerMayReuseLocalDeviceSlot() {
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("peer", 2, "me", 2))
+    }
+
+    @Test
+    fun blankRecipientRejectedEvenWithValidDevice() {
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("", 5, "me", 1))
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("   ", 5, null, 1))
+    }
+
+    @Test
+    fun selfCheckAppliesOnlyAfterRecipientAndDeviceValidation() {
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("me", 0, "me", 1))
+    }
 }
