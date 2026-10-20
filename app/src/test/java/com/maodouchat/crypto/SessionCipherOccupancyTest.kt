@@ -193,4 +193,67 @@ class SessionCipherOccupancyTest {
             SessionCipherOccupancy.occupyPeer(null)
         }
     }
+
+
+    @Test
+    fun doubleAcquireKeepsOnlyNewLeaseAlive() {
+        val stale = SessionCipherOccupancy.acquire("occ-a")
+        val current = SessionCipherOccupancy.acquire("occ-b")
+        try {
+            assertFalse(SessionCipherOccupancy.release(stale))
+            assertTrue(SessionCipherOccupancy.isChatOccupied("occ-b"))
+            assertTrue(SessionCipherOccupancy.release(current))
+            assertFalse(SessionCipherOccupancy.isChatOccupied("occ-b"))
+        } finally {
+            SessionCipherOccupancy.release(current)
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun occupyWithNullPeerAndUpdateClearsPeer() {
+        SessionCipherOccupancy.occupyPeer("alice")
+        SessionCipherOccupancy.occupy("occ-c", peerUserId = null, updatePeer = true)
+        try {
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("alice"))
+            assertTrue(SessionCipherOccupancy.isChatOccupied("occ-c"))
+        } finally {
+            SessionCipherOccupancy.release("occ-c")
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun peerMatchIsCaseSensitive() {
+        SessionCipherOccupancy.occupyPeer("alice")
+        try {
+            assertTrue(SessionCipherOccupancy.isPeerOccupied("alice"))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("Alice"))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("ALICE"))
+        } finally {
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun legacyReleaseBlankChatIdIsRejectedAndChatKept() {
+        SessionCipherOccupancy.occupy("occ-d")
+        try {
+            assertFalse(SessionCipherOccupancy.release("   "))
+            assertTrue(SessionCipherOccupancy.isChatOccupied("occ-d"))
+        } finally {
+            SessionCipherOccupancy.release("occ-d")
+        }
+    }
+
+    @Test
+    fun occupyPeerTrimsNewlineChars() {
+        SessionCipherOccupancy.occupyPeer("\nalice\n")
+        try {
+            assertTrue(SessionCipherOccupancy.isPeerOccupied("alice"))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("\nalice\n"))
+        } finally {
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
 }
