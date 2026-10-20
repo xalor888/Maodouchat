@@ -19,6 +19,7 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -224,6 +225,122 @@ class DefaultSecretConversationControllerTest {
         coVerify(exactly = 1) { messageDao.deleteMessagesByIds(expired) }
         coVerify(exactly = 1) { messageSearchDao.deleteDocument("msg-1") }
         coVerify(exactly = 1) { messageSearchDao.deleteDocument("msg-2") }
+
+        controllerScope.cancel()
+    }
+
+    @Test
+    fun `capabilities blank id returns neutral caps`() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val controllerScope = CoroutineScope(testDispatcher + Job())
+        activeScope = controllerScope
+        val controller = DefaultSecretConversationController(context, database, controllerScope, testDispatcher)
+        advanceUntilIdle()
+
+        val caps = controller.capabilities("")
+        assertFalse(caps.isSecretChat)
+        assertFalse(caps.isLocked)
+
+        val capsWhitespace = controller.capabilities("   ")
+        assertFalse(capsWhitespace.isSecretChat)
+        assertFalse(capsWhitespace.isLocked)
+
+        controllerScope.cancel()
+    }
+
+    @Test
+    fun `capabilities before init falls back to blocking dao reads`() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val controllerScope = CoroutineScope(testDispatcher + Job())
+        activeScope = controllerScope
+        val controller = DefaultSecretConversationController(context, database, controllerScope, testDispatcher)
+        // Deliberately no advanceUntilIdle: init has not run, so blocking DAO reads are the fallback.
+
+        val capsSecret = controller.capabilities("secret-1")
+        assertTrue(capsSecret.isSecretChat)
+        assertFalse(capsSecret.isLocked)
+
+        val capsLocked = controller.capabilities("locked-1")
+        assertFalse(capsLocked.isSecretChat)
+        assertTrue(capsLocked.isLocked)
+
+        val capsNormal = controller.capabilities("normal-1")
+        assertFalse(capsNormal.isSecretChat)
+        assertFalse(capsNormal.isLocked)
+
+        controllerScope.cancel()
+    }
+
+    @Test
+    fun `armOnRead blank id never touches dao`() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val controllerScope = CoroutineScope(testDispatcher + Job())
+        activeScope = controllerScope
+        val controller = DefaultSecretConversationController(context, database, controllerScope, testDispatcher)
+        advanceUntilIdle()
+
+        controller.armOnRead("")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { chatDao.getChatById(any()) }
+        coVerify(exactly = 0) { messageDao.armMessagesOnRead(any(), any()) }
+
+        controllerScope.cancel()
+    }
+
+    @Test
+    fun `armOnRead non-secret chat with zero timer does not arm`() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val controllerScope = CoroutineScope(testDispatcher + Job())
+        activeScope = controllerScope
+        val controller = DefaultSecretConversationController(context, database, controllerScope, testDispatcher)
+        advanceUntilIdle()
+
+        coEvery { chatDao.getChatById("normal-1") } returns ChatEntity(
+            id = "normal-1",
+            chatType = "DIRECT",
+            disappearingMessageSeconds = 0
+        )
+
+        controller.armOnRead("normal-1")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { messageDao.armMessagesOnRead(any(), any()) }
+        coVerify(exactly = 0) {
+            DisappearingMessageDestructionWorker.schedule(
+                context = any(),
+                delayMs = any(),
+                chatId = any(),
+                ownerUserId = any()
+            )
+        }
+
+        controllerScope.cancel()
+    }
+
+    @Test
+    fun `purgeExpiredMessages with none expired schedules next destruction`() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val controllerScope = CoroutineScope(testDispatcher + Job())
+        activeScope = controllerScope
+        val controller = DefaultSecretConversationController(context, database, controllerScope, testDispatcher)
+        advanceUntilIdle()
+
+        coEvery { messageDao.getExpiredMessageIds(any()) } returns emptyList()
+        coEvery { messageDao.getEarliestExpiryAfter(any()) } returns 105000L
+
+        val purged = controller.purgeExpiredMessages(nowMs = 100000L)
+
+        assertTrue(purged.isEmpty())
+        coVerify(exactly = 0) { messageDao.deleteMessagesByIds(any()) }
+        verify(exactly = 1) {
+            DisappearingMessageDestructionWorker.schedule(
+                context = context,
+                delayMs = 5000L,
+                chatId = null,
+                ownerUserId = "user-1"
+            )
+        }
 
         controllerScope.cancel()
     }

@@ -1,5 +1,6 @@
 package com.maodouchat.security
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -67,15 +68,68 @@ class FakeChatPolicyTest {
     }
 
     @Test
-    fun `unlocked session stays open across background when relock disabled`() {
+    fun `disabled overrides an unlocked backgrounded session`() {
+        assertFalse(
+            FakeChatPolicy.shouldShowFake(
+                enabled = false,
+                hasPin = true,
+                unlockedForCurrentUser = true,
+                relockOnBackground = true,
+                backgroundAtMillis = 10_000L
+            )
+        )
+    }
+
+    @Test
+    fun `locked session intercepts regardless of relock or background`() {
+        assertTrue(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = true,
+                unlockedForCurrentUser = false,
+                relockOnBackground = false,
+                backgroundAtMillis = 10_000L
+            )
+        )
+    }
+
+    @Test
+    fun `negative background timestamp keeps unlocked session open`() {
         assertFalse(
             FakeChatPolicy.shouldShowFake(
                 enabled = true,
                 hasPin = true,
                 unlockedForCurrentUser = true,
-                relockOnBackground = false,
-                backgroundAtMillis = 10_000L
+                relockOnBackground = true,
+                backgroundAtMillis = -1L
             )
         )
+    }
+
+    @Test
+    fun `background timestamp of one millisecond intercepts`() {
+        assertTrue(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = true,
+                unlockedForCurrentUser = true,
+                relockOnBackground = true,
+                backgroundAtMillis = 1L
+            )
+        )
+    }
+
+    @Test
+    fun `decision is stable across repeated calls`() {
+        fun decide() = FakeChatPolicy.shouldShowFake(
+            enabled = true,
+            hasPin = true,
+            unlockedForCurrentUser = true,
+            relockOnBackground = true,
+            backgroundAtMillis = 10_000L
+        )
+        val first = decide()
+        assertTrue(first)
+        assertEquals(first, decide())
     }
 }
