@@ -102,4 +102,33 @@ class SenderKeyRetrySessionPolicyTest {
         val longToken = "x".repeat(10_000)
         assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", longToken, "u1"))
     }
+
+    @Test
+    fun idsWithInternalSpacesMatch() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("user one", "tok", "user one"))
+    }
+
+    @Test
+    fun repeatedBatchChecksAreDeterministic() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", "u1"))
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", "u1"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", null, "u1"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", null, "u1"))
+    }
+
+    @Test
+    fun userIdPrefixDoesNotMatchSibling() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", "u12"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u12", "tok", "u1"))
+    }
+
+    @Test
+    fun newlinePaddedExpectedIdDoesNotMatch() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1\n", "tok", "u1"))
+    }
+
+    @Test
+    fun middleCaseDifferenceDoesNotMatch() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("userA1", "tok", "usera1"))
+    }
 }

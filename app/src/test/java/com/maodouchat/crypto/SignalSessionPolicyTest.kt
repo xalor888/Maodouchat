@@ -182,4 +182,53 @@ class SignalSessionPolicyTest {
     fun selfCheckAppliesOnlyAfterRecipientAndDeviceValidation() {
         assertFalse(SignalSessionPolicy.shouldEstablishSession("me", 0, "me", 1))
     }
+
+    @Test
+    fun persistedDuplicatesAreDedupedSortedAndTrimmed() {
+        assertEquals(
+            listOf(3, 7),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = null,
+                persistedSessionDeviceIds = listOf(7, 7, 3, 0, 256, 3),
+            ),
+        )
+    }
+
+    @Test
+    fun nullDiscoveryWithOnlyOutOfRangePersistedYieldsEmpty() {
+        assertTrue(
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = null,
+                persistedSessionDeviceIds = listOf(0, 256, -5),
+            ).isEmpty()
+        )
+    }
+
+    @Test
+    fun recipientCaseDiffersFromSelfIsNotSelf() {
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("ME", 2, "me", 2))
+    }
+
+    @Test
+    fun allDuplicateDiscoveredIdsCollapseToOne() {
+        assertEquals(
+            listOf(4),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(4, 4, 4),
+                persistedSessionDeviceIds = listOf(9),
+            ),
+        )
+    }
+
+    @Test
+    fun boundaryDeviceId255IsValid() {
+        assertEquals(
+            listOf(255),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(255),
+                persistedSessionDeviceIds = emptyList(),
+            ),
+        )
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("peer", 255, "me", 1))
+    }
 }

@@ -309,4 +309,90 @@ class MultiRecipientCoveragePolicyTest {
             )
         )
     }
+
+    @Test
+    fun paddedAndDuplicateRequiredTargetsStillCovered() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredTargetsCovered(
+                requiredTargets = listOf(
+                    Target(" peer ", 7),
+                    Target("peer", 8),
+                    Target("peer", 7),
+                ),
+                targets = listOf(
+                    Target("peer", 8),
+                    Target("peer", 7),
+                ),
+            )
+        )
+        assertTrue(
+            MultiRecipientCoveragePolicy.missingRequiredTargets(
+                requiredTargets = listOf(Target(" peer ", 7), Target("peer", 7)),
+                targets = listOf(Target("peer", 7)),
+            ).isEmpty()
+        )
+    }
+
+    @Test
+    fun nonTransientHttpForMissingDeviceYieldsNull() {
+        assertNull(
+            MultiRecipientCoveragePolicy.transientFailureForMissingTargets(
+                requiredTargets = listOf(Target("peer", 8)),
+                targets = emptyList(),
+                failuresByTarget = mapOf(
+                    Target("peer", 8) to SignalExchangeException(
+                        SignalExchangeFailure.HTTP,
+                        statusCode = 404,
+                    )
+                ),
+            )
+        )
+    }
+
+    @Test
+    fun onlyTransientSurfacesAmongSeveralMissingRecipients() {
+        val timeout = SignalExchangeException(SignalExchangeFailure.TIMEOUT)
+        val wrapped = MultiRecipientCoveragePolicy.transientFailureForMissingRecipients(
+            requiredRecipientIds = setOf("a", "b"),
+            targets = emptyList(),
+            failuresByRecipient = mapOf(
+                "a" to SignalExchangeException(
+                    SignalExchangeFailure.HTTP,
+                    statusCode = 404,
+                ),
+                "b" to timeout,
+            ),
+        )
+        assertTrue(wrapped is TransientCoverageException)
+        assertSame(timeout, wrapped?.cause)
+    }
+
+    @Test
+    fun blankRequiredRecipientIdsAreIgnored() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredRecipientsCovered(
+                requiredRecipientIds = setOf(" ", "", "peer"),
+                targets = listOf(Target("peer", 7)),
+            )
+        )
+        assertTrue(
+            MultiRecipientCoveragePolicy.missingRequiredRecipients(
+                requiredRecipientIds = setOf(" ", "peer"),
+                targets = listOf(Target("peer", 7)),
+            ).isEmpty()
+        )
+    }
+
+    @Test
+    fun coveredDeviceNeverSurfacesItsTransientFailure() {
+        assertNull(
+            MultiRecipientCoveragePolicy.transientFailureForMissingTargets(
+                requiredTargets = listOf(Target("peer", 7)),
+                targets = listOf(Target("peer", 7)),
+                failuresByTarget = mapOf(
+                    Target("peer", 7) to SignalExchangeException(SignalExchangeFailure.TIMEOUT)
+                ),
+            )
+        )
+    }
 }
