@@ -1,5 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.MaodouchatApp
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -254,6 +256,71 @@ class SessionCipherOccupancyTest {
             assertFalse(SessionCipherOccupancy.isPeerOccupied("\nalice\n"))
         } finally {
             SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun legacyReleaseTrimsChatIdBeforeMatching() {
+        SessionCipherOccupancy.occupy("occ-h")
+        try {
+            assertTrue(SessionCipherOccupancy.release("  occ-h  "))
+            assertFalse(SessionCipherOccupancy.isChatOccupied("occ-h"))
+        } finally {
+            SessionCipherOccupancy.release("occ-h")
+        }
+    }
+
+    @Test
+    fun legacyReleaseClearsPeerTogetherWithItsChatDetail() {
+        SessionCipherOccupancy.occupy("occ-f", "alice", updatePeer = true)
+        try {
+            assertTrue(SessionCipherOccupancy.release("occ-f"))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("alice"))
+        } finally {
+            SessionCipherOccupancy.release("occ-f")
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun staleLeaseReleaseLeavesNewConversationIntact() {
+        val old = SessionCipherOccupancy.acquire("occ-old")
+        assertTrue(SessionCipherOccupancy.occupy(old, "occ-old", "alice", updatePeer = true))
+        val current = SessionCipherOccupancy.acquire("occ-new")
+        try {
+            assertFalse(SessionCipherOccupancy.release(old))
+            assertTrue(SessionCipherOccupancy.isChatOccupied("occ-new"))
+            assertTrue(SessionCipherOccupancy.isPeerOccupied("alice"))
+            assertTrue(SessionCipherOccupancy.release(current))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("alice"))
+        } finally {
+            SessionCipherOccupancy.release(current)
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun refreshActiveChatOpenedAtNeverOverwritesExisting() {
+        MaodouchatApp.activeChatOpenedAtMs = 12345L
+        try {
+            SessionCipherOccupancy.refreshActiveChatOpenedAtIfUnset()
+            assertEquals(12345L, MaodouchatApp.activeChatOpenedAtMs)
+        } finally {
+            MaodouchatApp.activeChatOpenedAtMs = 0L
+        }
+    }
+
+    @Test
+    fun acquireWithBlankChatIdClaimsLeaseWithoutMarkers() {
+        val lease = SessionCipherOccupancy.acquire("   ")
+        try {
+            assertFalse(SessionCipherOccupancy.isChatOccupied(""))
+            assertFalse(SessionCipherOccupancy.isChatOccupied("   "))
+            assertTrue(SessionCipherOccupancy.release(lease))
+            assertFalse(SessionCipherOccupancy.isChatOccupied(""))
+        } finally {
+            SessionCipherOccupancy.release(lease)
+            SessionCipherOccupancy.release("   ")
         }
     }
 }
