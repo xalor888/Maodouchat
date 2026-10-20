@@ -83,4 +83,33 @@ class ChatLockPolicyTest {
             assertTrue(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
         }
     }
+
+    @Test
+    fun `empty unlock set keeps everything locked`() {
+        assertFalse(ChatLockPolicy.isUnlocked("c1", emptySet(), ownerUserId = "u1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `blank entry in the set never unlocks a blank chat id`() {
+        // 空串 chatId 先判否：即使解锁集合里真有空串也不放行。
+        assertFalse(ChatLockPolicy.isUnlocked("", setOf("", "c1"), ownerUserId = "u1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `owner flipping to blank string locks mid-session`() {
+        assertTrue(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = null, liveUserId = "u1"))
+        // 空串归属 ≠ null 归属：不是"没记录"，而是"对不上"。
+        assertFalse(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `membership is exact among multiple entries`() {
+        assertTrue(ChatLockPolicy.isUnlocked("c3", setOf("c1", "c3"), ownerUserId = "u1", liveUserId = "u1"))
+        assertFalse(ChatLockPolicy.isUnlocked("c2", setOf("c1", "c3"), ownerUserId = "u1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `live user case mismatch against owner fails closed`() {
+        assertFalse(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "u1", liveUserId = "U1"))
+    }
 }

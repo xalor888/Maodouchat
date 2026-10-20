@@ -260,4 +260,44 @@ class ScreenSecurePolicyTest {
         assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface("call/u1/Alice/AUDIO"))
         assertTrue(ScreenSecurePolicy.isOptimisticSecretSurface("starred_messages/c1"))
     }
+
+    @Test
+    fun `all inputs off leaves the window unsecured`() {
+        assertFalse(
+            ScreenSecurePolicy.shouldSecureWindow(
+                appLockShowing = false,
+                globalEnabled = false,
+                onChatSurface = false
+            )
+        )
+    }
+
+    @Test
+    fun `route heads are case sensitive`() {
+        assertFalse(ScreenSecurePolicy.isChatSurfaceRoute("CHAT_DETAIL/abc"))
+        assertFalse(ScreenSecurePolicy.isChatSurfaceRoute("Chat_Detail/abc"))
+    }
+
+    @Test
+    fun `bare head without id is still a chat surface but yields no chat id`() {
+        assertTrue(ScreenSecurePolicy.isChatSurfaceRoute("chat_detail"))
+        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("chat_detail"))
+    }
+
+    @Test
+    fun `blank chatId query param yields no chat id`() {
+        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("starred_messages?chatId="))
+        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("starred_messages?foo=1"))
+    }
+
+    @Test
+    fun `fillRoutePattern keeps tokens whose value is missing`() {
+        assertEquals(
+            "chat_detail/{chatId}?messageId=m1",
+            ScreenSecurePolicy.fillRoutePattern(
+                "chat_detail/{chatId}?messageId={messageId}",
+                mapOf("chatId" to null, "messageId" to "m1")
+            )
+        )
+    }
 }
