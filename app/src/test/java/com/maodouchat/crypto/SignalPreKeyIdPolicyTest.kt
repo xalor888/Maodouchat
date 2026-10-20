@@ -65,4 +65,60 @@ class SignalPreKeyIdPolicyTest {
         )
         assertEquals(1, start)
     }
+
+    @Test
+    fun `random id upper edge hits max`() {
+        val id = SignalPreKeyIdPolicy.randomSignedPreKeyId { n ->
+            assertEquals(SignalPreKeyIdPolicy.MAX_ID, n)
+            n - 1
+        }
+        assertEquals(SignalPreKeyIdPolicy.MAX_ID, id)
+        assertTrue(SignalPreKeyIdPolicy.isValid(id))
+    }
+
+    @Test
+    fun `exact fit sequential start takes boundary`() {
+        val maxStart = SignalPreKeyIdPolicy.MAX_ID - 50 + 1
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = maxStart - 1,
+            count = 50,
+            randomIntExclusive = { error("random must not be used on exact fit") },
+        )
+        assertEquals(maxStart, start)
+        assertTrue(start + 50 - 1 <= SignalPreKeyIdPolicy.MAX_ID)
+    }
+
+    @Test
+    fun `zero count coerces to one`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = 0,
+            count = 0,
+            randomIntExclusive = { error("unused") },
+        )
+        assertEquals(1, start)
+    }
+
+    @Test
+    fun `negative existing id falls back to random`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = -5,
+            count = 50,
+            randomIntExclusive = { n ->
+                assertEquals(SignalPreKeyIdPolicy.MAX_ID - 50 + 1, n)
+                0
+            },
+        )
+        assertEquals(1, start)
+    }
+
+    @Test
+    fun `count beyond 24-bit collapses max start`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = 0,
+            count = SignalPreKeyIdPolicy.MAX_ID + 1,
+            randomIntExclusive = { error("unused") },
+        )
+        assertEquals(1, start)
+        assertFalse(SignalPreKeyIdPolicy.isValid(Int.MIN_VALUE))
+    }
 }
