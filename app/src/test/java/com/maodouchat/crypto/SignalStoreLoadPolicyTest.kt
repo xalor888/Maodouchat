@@ -154,7 +154,7 @@ class SignalStoreLoadPolicyTest {
     fun logicalKeyPrefixMatchIsLiteral() {
         // startsWith 是字面匹配，* 不当通配符
         assertEquals("x", SignalStoreLoadPolicy.logicalKeyOrNull("user*alice:x", "user*alice:"))
-        assertEquals("1x", SignalStoreLoadPolicy.logicalKeyOrNull("prekey:1x", "prekey:1"))
+        assertEquals("x", SignalStoreLoadPolicy.logicalKeyOrNull("prekey:1x", "prekey:1"))
     }
 
     @Test
