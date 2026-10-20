@@ -412,4 +412,93 @@ class SignalDeviceIdRecoveryPolicyTest {
         assertFalse(SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus("confirmed"))
         assertFalse(SignalDeviceIdRecoveryPolicy.isConfirmedDeviceStatus("pending"))
     }
+
+    @Test
+    fun shouldReallocateForIdentityMismatchRequiresTheMismatchCode() {
+        val conflict = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            )
+        )
+        val sessionConflict = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_SESSION_CONFLICT_CODE,
+            )
+        )
+
+        assertFalse(
+            SignalDeviceIdRecoveryPolicy.shouldReallocateForIdentityMismatch(
+                conflict, identityRestoredFromStore = false, attempt = 0, maxAttempts = 4,
+            )
+        )
+        assertFalse(
+            SignalDeviceIdRecoveryPolicy.shouldReallocateForIdentityMismatch(
+                sessionConflict, identityRestoredFromStore = false, attempt = 0, maxAttempts = 4,
+            )
+        )
+        assertFalse(
+            SignalDeviceIdRecoveryPolicy.shouldReallocateForIdentityMismatch(
+                null, identityRestoredFromStore = false, attempt = 0, maxAttempts = 4,
+            )
+        )
+    }
+
+    @Test
+    fun shouldRetryRejectsNullAndCodelessErrors() {
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetry(null, attempt = 0, maxAttempts = 4))
+        assertFalse(
+            SignalDeviceIdRecoveryPolicy.shouldRetry(
+                RuntimeException("boom"), attempt = 0, maxAttempts = 4,
+            )
+        )
+    }
+
+    @Test
+    fun serverCodeSeesThroughPlainRuntimeWrappers() {
+        val mapped = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            )
+        )
+        val wrapped = RuntimeException("mid", mapped)
+
+        assertEquals(
+            SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            SignalDeviceIdRecoveryPolicy.serverCode(wrapped),
+        )
+        assertEquals(null, SignalDeviceIdRecoveryPolicy.serverCode(RuntimeException("plain")))
+    }
+
+    @Test
+    fun shouldRetryMigrationCandidateEnforcesTheAttemptBudget() {
+        val collision = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            )
+        )
+
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetryMigrationCandidate(collision, -1, 4))
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetryMigrationCandidate(collision, 0, 1))
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetryMigrationCandidate(collision, 0, 0))
+        assertTrue(SignalDeviceIdRecoveryPolicy.shouldRetryMigrationCandidate(collision, 2, 4))
+    }
+
+    @Test
+    fun mayReallocateDeviceIdRejectsUnknownAndNullErrors() {
+        assertFalse(SignalDeviceIdRecoveryPolicy.mayReallocateDeviceId(true, null))
+        assertFalse(SignalDeviceIdRecoveryPolicy.mayReallocateDeviceId(false, null))
+        assertFalse(
+            SignalDeviceIdRecoveryPolicy.mayReallocateDeviceId(
+                false, RuntimeException("boom"),
+            )
+        )
+    }
 }

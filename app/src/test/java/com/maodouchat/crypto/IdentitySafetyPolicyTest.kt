@@ -217,4 +217,71 @@ class IdentitySafetyPolicyTest {
             IdentitySafetyPolicy.warningKind(IdentitySafetyPolicy.aggregateTrust(states))
         )
     }
+
+    @Test
+    fun `single unknown aggregates unknown but stays verifiable`() {
+        val states = listOf(device(1, IdentityTrustState.UNKNOWN))
+        assertEquals(
+            IdentityTrustState.UNKNOWN,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertEquals(
+            WarningKind.UNKNOWN,
+            IdentitySafetyPolicy.warningKind(IdentitySafetyPolicy.aggregateTrust(states))
+        )
+        assertTrue(IdentitySafetyPolicy.canVerifyAny(states))
+        assertFalse(IdentitySafetyPolicy.isStickyWarning(IdentityTrustState.UNKNOWN))
+    }
+
+    @Test
+    fun `single trusted and single verified aggregate to themselves`() {
+        assertEquals(
+            IdentityTrustState.TRUSTED,
+            IdentitySafetyPolicy.aggregateTrust(listOf(device(1, IdentityTrustState.TRUSTED)))
+        )
+        assertEquals(
+            IdentityTrustState.VERIFIED,
+            IdentitySafetyPolicy.aggregateTrust(listOf(device(1, IdentityTrustState.VERIFIED)))
+        )
+    }
+
+    @Test
+    fun `primary device one wins regardless of trust state`() {
+        val states = listOf(
+            device(5, IdentityTrustState.CHANGED),
+            device(1, IdentityTrustState.VERIFIED, current = true)
+        )
+        assertEquals(1, IdentitySafetyPolicy.primaryDevice(states)?.deviceId)
+    }
+
+    @Test
+    fun `unverifiable when every device lacks a usable code`() {
+        assertFalse(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(device(1, IdentityTrustState.UNKNOWN, code = null))
+            )
+        )
+        assertFalse(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(device(1, IdentityTrustState.CHANGED, code = "   "))
+            )
+        )
+    }
+
+    @Test
+    fun `verified plus unknown poisons to unknown`() {
+        val states = listOf(
+            device(1, IdentityTrustState.VERIFIED),
+            device(2, IdentityTrustState.UNKNOWN)
+        )
+        assertEquals(
+            IdentityTrustState.UNKNOWN,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertEquals(
+            WarningKind.UNKNOWN,
+            IdentitySafetyPolicy.warningKind(IdentitySafetyPolicy.aggregateTrust(states))
+        )
+        assertTrue(IdentitySafetyPolicy.canVerifyAny(states))
+    }
 }

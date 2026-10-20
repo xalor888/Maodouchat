@@ -185,4 +185,50 @@ class MultiDeviceEnvelopePolicyTest {
         assertNull(parsed!!.payloadType)
         assertEquals("DDD=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188)?.ciphertext)
     }
+
+    @Test
+    fun `omitted senderDeviceId defaults to one`() {
+        val parsed = MultiDeviceEnvelopePolicy.parse(
+            """{"payloadType":"TEXT","entries":[{"recipientDeviceId":188,"ciphertextType":"prekey","ciphertext":"AAA="}]}"""
+        )
+        assertNotNull(parsed)
+        assertEquals(1, parsed!!.senderDeviceId)
+    }
+
+    @Test
+    fun `blank recipientUserId is treated as unaddressed`() {
+        val parsed = MultiDeviceEnvelopePolicy.parse(
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientUserId":"","ciphertextType":"prekey","ciphertext":"AAA="}]}"""
+        )!!
+        assertNull(parsed.entries.single().recipientUserId)
+        val entry = MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188)
+        assertNotNull(entry)
+        assertEquals(188, entry!!.recipientDeviceId)
+    }
+
+    @Test
+    fun `non object entry elements are skipped but valid siblings survive`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":["junk",{"recipientUserId":"alice","recipientDeviceId":188,"ciphertextType":"prekey","ciphertext":"BBB="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(body)
+        assertNotNull(parsed)
+        assertEquals(1, parsed!!.entries.size)
+        assertEquals("BBB=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188)?.ciphertext)
+    }
+
+    @Test
+    fun `first matching entry wins when several match the local device`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientUserId":"alice","recipientDeviceId":188,"ciphertext":"AAA="},{"recipientUserId":"alice","recipientDeviceId":188,"ciphertext":"BBB="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(body)!!
+        assertEquals("AAA=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188)?.ciphertext)
+    }
+
+    @Test
+    fun `only the entry matching the local device is selected`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientUserId":"alice","recipientDeviceId":5,"ciphertext":"AAA="},{"recipientUserId":"alice","recipientDeviceId":188,"ciphertext":"BBB="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(body)!!
+        assertEquals("BBB=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188)?.ciphertext)
+    }
 }
