@@ -78,4 +78,36 @@ class ConfirmedDevicePolicyTest {
         assertEquals(1, ConfirmedDevicePolicy.resolve(1, listOf(2), defaultDeviceId = 2))
         assertNull(ConfirmedDevicePolicy.resolve(300, listOf(1, 2), defaultDeviceId = 2))
     }
+
+    @Test
+    fun `nonLegacyDefaultDeviceIdSwitchesDefaultPath`() {
+        assertEquals(2, ConfirmedDevicePolicy.resolve(2, listOf(9, 2), defaultDeviceId = 5))
+        assertEquals(9, ConfirmedDevicePolicy.resolve(5, listOf(9, 12), defaultDeviceId = 5))
+        assertEquals(3, ConfirmedDevicePolicy.resolve(3, listOf(9), defaultDeviceId = 5))
+    }
+
+    @Test
+    fun `boundary 256 is dropped from confirmed but valid as custom default`() {
+        assertEquals(1, ConfirmedDevicePolicy.resolve(1, listOf(1, 256, 0)))
+        assertNull(ConfirmedDevicePolicy.resolve(256, listOf(3)))
+        assertEquals(3, ConfirmedDevicePolicy.resolve(256, listOf(3), defaultDeviceId = 256))
+    }
+
+    @Test
+    fun `invalid custom default id still behaves as the default slot`() {
+        assertEquals(3, ConfirmedDevicePolicy.resolve(0, listOf(3), defaultDeviceId = 0))
+        assertNull(ConfirmedDevicePolicy.resolve(0, emptyList(), defaultDeviceId = 0))
+    }
+
+    @Test
+    fun `explicit out-of-range request never falls back to confirmed`() {
+        assertNull(ConfirmedDevicePolicy.resolve(999, listOf(2, 4)))
+        assertNull(ConfirmedDevicePolicy.resolve(-9, listOf(1)))
+    }
+
+    @Test
+    fun `duplicate default among confirmed resolves to itself`() {
+        assertEquals(1, ConfirmedDevicePolicy.resolve(1, listOf(1, 1, 1)))
+        assertEquals(4, ConfirmedDevicePolicy.resolve(4, listOf(4, 4), defaultDeviceId = 4))
+    }
 }
