@@ -444,4 +444,79 @@ class OwnSentMediaRestorePolicyTest {
             )
         }
     }
+
+    @Test
+    fun wipeAndKeepMetaAreExactInverses() {
+        assertFalse(OwnSentMediaRestorePolicy.wipeOrdinaryMediaOnLogout(destroyEncryptedDatabase = false))
+        assertTrue(OwnSentMediaRestorePolicy.keepAttachmentMetaOnLogout(destroyEncryptedDatabase = false))
+        assertTrue(OwnSentMediaRestorePolicy.wipeOrdinaryMediaOnLogout(destroyEncryptedDatabase = true))
+        assertFalse(OwnSentMediaRestorePolicy.keepAttachmentMetaOnLogout(destroyEncryptedDatabase = true))
+    }
+
+    @Test
+    fun hydrateIncomingVoiceFollowsAutoDownloadFlag() {
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.VOICE,
+                attachmentId = "att_peer_voice",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = true
+            )
+        )
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.VOICE,
+                attachmentId = "att_peer_voice",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = false
+            )
+        )
+    }
+
+    @Test
+    fun hydrateSecretChatIncomingWithAutoDownloadStillNever() {
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = true,
+                type = MessageType.VIDEO,
+                attachmentId = "att_secret_vid",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = true
+            )
+        )
+    }
+
+    @Test
+    fun richNonMediaTypesNeverRestore() {
+        for (type in listOf(
+            MessageType.MARKDOWN, MessageType.LOCATION, MessageType.NUDGE,
+            MessageType.SYSTEM, MessageType.REVOKED, MessageType.SK_DIST
+        )) {
+            assertFalse(
+                OwnSentMediaRestorePolicy.shouldRestore(
+                    isSecretChat = false,
+                    type = type,
+                    attachmentId = "att_meta",
+                    localUriReadable = false
+                )
+            )
+        }
+    }
+
+    @Test
+    fun paddedAttachmentIdStillRestores() {
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldRestore(
+                isSecretChat = false,
+                type = MessageType.IMAGE,
+                attachmentId = " att_own ",
+                localUriReadable = false
+            )
+        )
+    }
 }

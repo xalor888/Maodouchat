@@ -137,4 +137,34 @@ class ConfirmedDevicePolicyTest {
         assertEquals(2, ConfirmedDevicePolicy.resolve(-3, listOf(2, 9), defaultDeviceId = -3))
         assertNull(ConfirmedDevicePolicy.resolve(-3, emptyList(), defaultDeviceId = -3))
     }
+
+    @Test
+    fun `requested equal to huge custom default falls back to the confirmed list`() {
+        assertEquals(2, ConfirmedDevicePolicy.resolve(300, listOf(2, 9), defaultDeviceId = 300))
+        assertNull(ConfirmedDevicePolicy.resolve(300, emptyList(), defaultDeviceId = 300))
+    }
+
+    @Test
+    fun `explicit request inside the confirmed list takes the explicit path`() {
+        assertEquals(7, ConfirmedDevicePolicy.resolve(7, listOf(7, 2), defaultDeviceId = 2))
+        assertEquals(3, ConfirmedDevicePolicy.resolve(3, listOf(9, 3), defaultDeviceId = 9))
+    }
+
+    @Test
+    fun `max custom default still consults the confirmed slot`() {
+        assertEquals(1, ConfirmedDevicePolicy.resolve(255, listOf(1, 9), defaultDeviceId = 255))
+        assertEquals(255, ConfirmedDevicePolicy.resolve(255, listOf(255), defaultDeviceId = 255))
+    }
+
+    @Test
+    fun `custom default missing from confirmed falls back to smallest`() {
+        assertEquals(4, ConfirmedDevicePolicy.resolve(9, listOf(4, 12), defaultDeviceId = 9))
+        assertNull(ConfirmedDevicePolicy.resolve(9, emptyList(), defaultDeviceId = 9))
+    }
+
+    @Test
+    fun `boundary duplicates collapse before picking the smallest`() {
+        assertEquals(1, ConfirmedDevicePolicy.resolve(1, listOf(256, 256, 1, 0, 0)))
+        assertEquals(255, ConfirmedDevicePolicy.resolve(1, listOf(0, 255, 255)))
+    }
 }
