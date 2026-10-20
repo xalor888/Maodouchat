@@ -173,4 +173,68 @@ class DecryptPlaceholderPolicyTest {
         assertTrue(DecryptPlaceholderPolicy.isPlaceholder("decrypt failed", "[totally different]"))
         assertTrue(DecryptPlaceholderPolicy.isPlaceholder("[encrypted message]", "decrypt failed"))
     }
+
+    @Test
+    fun `remaining legacy entries are recognized`() {
+        listOf(
+            "[无法解密的群聊消息]",
+            "[加密消息]",
+            "[无法解密的 gif]",
+            "[无法解密的贴纸]",
+            "[无法解密的位置]",
+            "[无法解密的语音]",
+            "[缺少群聊 sender key，请等待成员重新发送]",
+            "[unable to decrypt message]",
+            "[unable to decrypt group message]",
+            "[member safety number changed. verify identity]",
+            "[newer group key epoch. refresh group info]",
+            "[unable to decrypt gif]",
+            "[unable to decrypt sticker]",
+            "[unable to decrypt location]",
+            "[unable to decrypt video]",
+            "[unable to decrypt file]",
+            "[unable to decrypt image]",
+        ).forEach { placeholder ->
+            assertTrue(placeholder, DecryptPlaceholderPolicy.isPlaceholder(placeholder))
+        }
+    }
+
+    @Test
+    fun `legacy english matching ignores case`() {
+        listOf(
+            "Identity Changed",
+            "SESSION MISSING",
+            "Decrypt Failed",
+            "[UNABLE TO DECRYPT MESSAGE]",
+            "[Missing Group Sender Key. Waiting For Redistribution]",
+        ).forEach { variant ->
+            assertTrue(variant, DecryptPlaceholderPolicy.isPlaceholder(variant))
+        }
+    }
+
+    @Test
+    fun `internal whitespace breaks legacy match`() {
+        listOf(
+            "[无法解密 的消息]",
+            "无法 解密",
+            "decrypt  failed",
+            "[unable  to decrypt message]",
+        ).forEach { nearMiss ->
+            assertFalse(nearMiss, DecryptPlaceholderPolicy.isPlaceholder(nearMiss))
+        }
+    }
+
+    @Test
+    fun `newline inside placeholder breaks match`() {
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("[无法解密\n的消息]"))
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("decrypt\nfailed"))
+        // 换行只在外层时仍可匹配
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\ndecrypt failed\n"))
+    }
+
+    @Test
+    fun `full-width brackets are not recognized`() {
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("［无法解密的消息］"))
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("【无法解密的消息】"))
+    }
 }
