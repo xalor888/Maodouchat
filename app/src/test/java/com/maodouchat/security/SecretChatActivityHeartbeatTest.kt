@@ -1,6 +1,7 @@
 package com.maodouchat.security
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -31,6 +32,7 @@ class SecretChatActivityHeartbeatTest {
         lastActivityAt: Long?,
         expired: Boolean,
         readFails: Boolean = false,
+        intervalMs: Long = SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS,
     ): Harness {
         val h = Harness()
         try {
@@ -44,6 +46,7 @@ class SecretChatActivityHeartbeatTest {
                 isExpired = { _, _ -> h.events += "isExpired"; expired },
                 destroy = { h.events += "destroy" },
                 touch = { h.events += "touch" },
+                intervalMs = intervalMs,
                 sleep = { ms ->
                     h.events += "sleep:$ms"
                     if (h.events.count { it.startsWith("sleep") } >= cycles) throw StopHeartbeat()
@@ -201,6 +204,97 @@ class SecretChatActivityHeartbeatTest {
             listOf("read"),
             h.events,
             "读取之后已被取消，就不该再判过期、销毁或写活动：${h.events}",
+        )
+    }
+
+    @Test
+    fun `destroy, touch and the expiry check all see the injected chat id`() = runTest {
+        val destroyArgs = mutableListOf<String>()
+        val touchArgs = mutableListOf<String>()
+        val expiryArgs = mutableListOf<Pair<String, Long>>()
+        try {
+            SecretChatActivityHeartbeat.run(
+                chatId = CHAT,
+                readLastActivityAt = { LAST_ACTIVITY_AT },
+                isExpired = { chatId, at -> expiryArgs += chatId to at; true },
+                destroy = { chatId -> destroyArgs += chatId },
+                touch = { chatId -> touchArgs += chatId },
+                sleep = { throw StopHeartbeat() },
+            )
+            fail("心跳循环不应当自然结束")
+        } catch (_: StopHeartbeat) {
+        }
+        assertEquals(listOf(CHAT), destroyArgs, "销毁必须带上注入的 chatId")
+        assertEquals(listOf(CHAT to LAST_ACTIVITY_AT), expiryArgs, "判过期必须拿到 chatId 与记录时间戳")
+        assertEquals(listOf(CHAT), touchArgs, "写活动必须带上注入的 chatId")
+    }
+
+    @Test
+    fun `the expiry check runs exactly once across multiple cycles`() = runTest {
+        val h = Harness()
+        var expiryChecks = 0
+        try {
+            SecretChatActivityHeartbeat.run(
+                chatId = CHAT,
+                readLastActivityAt = { 10L },
+                isExpired = { _, _ -> expiryChecks++; h.events += "isExpired"; false },
+                destroy = { h.events += "destroy" },
+                touch = { h.events += "touch" },
+                sleep = { ms ->
+                    h.events += "sleep:$ms"
+                    if (h.events.count { it.startsWith("sleep") } >= 3) throw StopHeartbeat()
+                },
+            )
+            fail("心跳循环不应当自然结束")
+        } catch (_: StopHeartbeat) {
+        }
+        assertEquals(1, expiryChecks, "判过期只在进入时做一次，循环里不再重复：${h.events}")
+    }
+
+    @Test
+    fun `touch and sleep strictly alternate per cycle`() = runTest {
+        val h = runCycles(cycles = 2, lastActivityAt = 10L, expired = false)
+        val heartbeat = h.events.dropWhile { it != "touch" }
+        assertEquals(
+            listOf(
+                "touch",
+                "sleep:${SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS}",
+                "touch",
+                "sleep:${SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS}",
+            ),
+            heartbeat,
+            "每轮必须是 写活动→睡一轮 的交替：${h.events}",
+        )
+    }
+
+    @Test
+    fun `a custom interval is honored by the sleep`() = runTest {
+        val h = runCycles(cycles = 2, lastActivityAt = 10L, expired = false, intervalMs = 1_000L)
+        assertEquals(
+            listOf("sleep:1000", "sleep:1000"),
+            h.events.filter { it.startsWith("sleep") },
+            "注入的 intervalMs 必须生效：${h.events}",
+        )
+    }
+
+    @Test
+    fun `cancellation right after destroy skips the first touch`() = runTest {
+        val h = Harness()
+        lateinit var job: Job
+        job = launch {
+            SecretChatActivityHeartbeat.run(
+                chatId = CHAT,
+                readLastActivityAt = { h.events += "read"; 10L },
+                isExpired = { _, _ -> h.events += "isExpired"; true },
+                destroy = { h.events += "destroy"; job.cancel() },
+                touch = { h.events += "touch" },
+            )
+        }
+        job.join()
+        assertEquals(
+            listOf("read", "isExpired", "destroy"),
+            h.events,
+            "销毁之后被取消，就不该再写活动：${h.events}",
         )
     }
 

@@ -65,7 +65,68 @@ class LogoutStorePolicyTest {
         }
     }
 
-    private fun assertEqualsKeep(previous: String, next: String) {
+    @Test
+    fun destroyVerdictTruthTableCoversEveryReason() {
+        val expected = mapOf(
+            Reason.LOGOUT to false,
+            Reason.TOKEN_EXPIRED to false,
+            Reason.ACCOUNT_SWITCH to true,
+            Reason.DELETE_ACCOUNT to true,
+            Reason.TRUST_DOMAIN_CHANGE to true
+        )
+        expected.forEach { (reason, verdict) ->
+            assertEquals(reason.name, verdict, LogoutStorePolicy.destroyEncryptedDatabase(reason))
+        }
+    }
+
+    @Test
+    fun reasonEnumStaysExactlyFiveEntries() {
+        assertEquals(5, Reason.entries.size)
+        assertTrue(
+            Reason.entries.containsAll(
+                listOf(
+                    Reason.LOGOUT,
+                    Reason.TOKEN_EXPIRED,
+                    Reason.ACCOUNT_SWITCH,
+                    Reason.DELETE_ACCOUNT,
+                    Reason.TRUST_DOMAIN_CHANGE
+                )
+            )
+        )
+    }
+
+    @Test
+    fun destroyVerdictIsStableAcrossRepeatedCalls() {
+        Reason.entries.forEach { reason ->
+            val first = listOf(
+                LogoutStorePolicy.destroyEncryptedDatabase(reason),
+                LogoutStorePolicy.wipeOrdinaryMediaCache(reason),
+                LogoutStorePolicy.wipeCoilDiskCache(reason),
+                LogoutStorePolicy.wipeInFlightAttachmentTransfers(reason),
+                LogoutStorePolicy.cancelSenderKeyRetryWork(reason)
+            )
+            val second = listOf(
+                LogoutStorePolicy.destroyEncryptedDatabase(reason),
+                LogoutStorePolicy.wipeOrdinaryMediaCache(reason),
+                LogoutStorePolicy.wipeCoilDiskCache(reason),
+                LogoutStorePolicy.wipeInFlightAttachmentTransfers(reason),
+                LogoutStorePolicy.cancelSenderKeyRetryWork(reason)
+            )
+            assertEquals(reason.name, first, second)
+        }
+    }
+
+    @Test
+    fun firstLoginWithNoPreviousSessionKeepsLocalData() {
+        assertEqualsKeep(null, "user-b")
+    }
+
+    @Test
+    fun differentAccountsPurgeRegardlessOfOrder() {
+        assertEqualsPurge("user-b", "user-a")
+    }
+
+    private fun assertEqualsKeep(previous: String?, next: String) {
         org.junit.Assert.assertEquals(
             AccountSwitchAction.KEEP_LOCAL_DATA,
             AccountIsolationPolicy.onLoginAccount(previous, next)
