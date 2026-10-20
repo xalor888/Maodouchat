@@ -90,4 +90,34 @@ class AppLockPolicyTest {
             assertFalse(AppLockPolicy.shouldLock(true, true, true, 10_000L, 60_000L, 40_000L))
         }
     }
+
+    @Test
+    fun `wall clock rollback fails closed regardless of timeout size`() {
+        // elapsed<0 先判锁：再大的超时窗口也豁免不了时钟回拨。
+        assertTrue(AppLockPolicy.shouldLock(true, true, true, 200_000L, Long.MAX_VALUE, 100_000L))
+    }
+
+    @Test
+    fun `disabled outranks a wall clock rollback`() {
+        // enabled 检查在前：开关关了，时钟回拨也不会误弹锁。
+        assertFalse(AppLockPolicy.shouldLock(false, true, true, 100_000L, 60_000L, 90_000L))
+    }
+
+    @Test
+    fun `explicit one millisecond timeout behaves like the coerced zero`() {
+        assertFalse(AppLockPolicy.shouldLock(true, true, true, 10_000L, 1L, 10_000L))
+        assertTrue(AppLockPolicy.shouldLock(true, true, true, 10_000L, 1L, 10_001L))
+    }
+
+    @Test
+    fun `unauthenticated locks at the exact foreground instant`() {
+        // 切账号后未验证：即使 elapsed=0（刚回前台）也直接锁。
+        assertTrue(AppLockPolicy.shouldLock(true, true, false, 10_000L, 60_000L, 10_000L))
+    }
+
+    @Test
+    fun `account switch to unauthenticated locks mid-window`() {
+        assertFalse(AppLockPolicy.shouldLock(true, true, true, 10_000L, 60_000L, 40_000L))
+        assertTrue(AppLockPolicy.shouldLock(true, true, false, 10_000L, 60_000L, 40_000L))
+    }
 }
