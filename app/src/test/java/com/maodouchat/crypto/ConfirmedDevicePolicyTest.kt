@@ -47,4 +47,35 @@ class ConfirmedDevicePolicyTest {
         assertNull(ConfirmedDevicePolicy.resolve(256, listOf(3)))
         assertEquals(9, ConfirmedDevicePolicy.resolve(9, emptyList()))
     }
+
+    @Test
+    fun `custom default not confirmed falls back to smallest confirmed`() {
+        assertEquals(4, ConfirmedDevicePolicy.resolve(2, listOf(9, 4), defaultDeviceId = 2))
+        assertNull(ConfirmedDevicePolicy.resolve(2, emptyList(), defaultDeviceId = 2))
+    }
+
+    @Test
+    fun `explicit negative and huge ids resolve to null`() {
+        assertNull(ConfirmedDevicePolicy.resolve(-5, listOf(1, 2)))
+        assertNull(ConfirmedDevicePolicy.resolve(1000, listOf(1)))
+        assertNull(ConfirmedDevicePolicy.resolve(-1, emptyList()))
+    }
+
+    @Test
+    fun `upper range boundary 255 is a valid device id`() {
+        assertEquals(255, ConfirmedDevicePolicy.resolve(255, emptyList()))
+        assertEquals(255, ConfirmedDevicePolicy.resolve(1, listOf(255)))
+        assertEquals(254, ConfirmedDevicePolicy.resolve(1, listOf(0, 256, 254)))
+    }
+
+    @Test
+    fun `requested equal to custom default collapses duplicates`() {
+        assertEquals(2, ConfirmedDevicePolicy.resolve(2, listOf(9, 2, 9, 4), defaultDeviceId = 2))
+    }
+
+    @Test
+    fun `custom default changes what counts as explicit`() {
+        assertEquals(1, ConfirmedDevicePolicy.resolve(1, listOf(2), defaultDeviceId = 2))
+        assertNull(ConfirmedDevicePolicy.resolve(300, listOf(1, 2), defaultDeviceId = 2))
+    }
 }

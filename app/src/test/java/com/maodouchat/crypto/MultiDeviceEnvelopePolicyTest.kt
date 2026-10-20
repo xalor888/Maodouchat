@@ -91,4 +91,52 @@ class MultiDeviceEnvelopePolicyTest {
         assertEquals("CCC=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 1)?.ciphertext)
         assertNull(MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188))
     }
+
+    @Test
+    fun `isRecognizedAlgorithm accepts blank and the exact signal name`() {
+        assertTrue(MultiDeviceEnvelopePolicy.isRecognizedAlgorithm(""))
+        assertTrue(MultiDeviceEnvelopePolicy.isRecognizedAlgorithm("   "))
+        assertTrue(MultiDeviceEnvelopePolicy.isRecognizedAlgorithm(MultiDeviceEnvelopePolicy.ALGORITHM_SIGNAL_MULTI_DEVICE))
+        assertFalse(MultiDeviceEnvelopePolicy.isRecognizedAlgorithm("signal-multi-device-v2"))
+        assertFalse(MultiDeviceEnvelopePolicy.isRecognizedAlgorithm("Signal-Multi-Device-V1"))
+    }
+
+    @Test
+    fun `explicit non-v3 versions are rejected`() {
+        listOf(1, 2, 4).forEach { version ->
+            val body =
+                """{"version":$version,"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"AAA="}]}"""
+            assertNull("version $version", MultiDeviceEnvelopePolicy.parse(body))
+        }
+    }
+
+    @Test
+    fun `looksLikeWire edge cases`() {
+        assertTrue(MultiDeviceEnvelopePolicy.looksLikeOmittedAlgorithmWire("""  {"senderDeviceId":76,"entries":[{"ciphertext":"x"}]}  """))
+        assertFalse(MultiDeviceEnvelopePolicy.looksLikeOmittedAlgorithmWire("""{"senderDeviceId":76,"ciphertext":"x"}"""))
+        assertFalse(MultiDeviceEnvelopePolicy.looksLikeOmittedAlgorithmWire("""[{"senderDeviceId":76,"entries":[{"ciphertext":"x"}]}]"""))
+        assertFalse(MultiDeviceEnvelopePolicy.looksLikeOmittedAlgorithmWire(""))
+    }
+
+    @Test
+    fun `blank ciphertext entries are dropped`() {
+        val onlyBlank =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":" "}]}"""
+        assertNull(MultiDeviceEnvelopePolicy.parse(onlyBlank))
+        val mixed =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":""},{"ciphertextType":"signal","ciphertext":"CCC="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(mixed)
+        assertNotNull(parsed)
+        assertEquals(1, parsed!!.entries.size)
+        assertEquals("CCC=", parsed.entries.single().ciphertext)
+    }
+
+    @Test
+    fun `compact entry addressed to another user is not selected`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientUserId":"bob","ciphertextType":"prekey","ciphertext":"AAA="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(body)!!
+        assertNull(MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188))
+        assertNotNull(MultiDeviceEnvelopePolicy.selectEntry(parsed, "bob", 188))
+    }
 }
