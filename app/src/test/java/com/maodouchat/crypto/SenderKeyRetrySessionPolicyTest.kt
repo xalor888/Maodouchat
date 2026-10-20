@@ -131,4 +131,31 @@ class SenderKeyRetrySessionPolicyTest {
     fun middleCaseDifferenceDoesNotMatch() {
         assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("userA1", "tok", "usera1"))
     }
+
+    @Test
+    fun batchOwnerIsPerCallNotSticky() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", "u2"))
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u2", "tok", "u2"))
+    }
+
+    @Test
+    fun tokenWithInternalNewlineStillCountsAsLive() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok\nx", "u1"))
+    }
+
+    @Test
+    fun bothIdsBlankAborts() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch(" ", "tok", " "))
+    }
+
+    @Test
+    fun zeroWidthSpaceIdsMatchExactly() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("\u200Bu1", "tok", "\u200Bu1"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("\u200Bu1", "tok", "u1"))
+    }
+
+    @Test
+    fun nonBreakingSpaceOnlyTokenAborts() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "\u00A0", "u1"))
+    }
 }
