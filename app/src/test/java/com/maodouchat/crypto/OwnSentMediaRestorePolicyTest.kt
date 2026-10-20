@@ -174,4 +174,86 @@ class OwnSentMediaRestorePolicyTest {
             )
         )
     }
+
+    @Test
+    fun secretChatHydrateNeverEvenWhenOwnSent() {
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = true,
+                type = MessageType.IMAGE,
+                attachmentId = "att_secret_img",
+                localUriReadable = false,
+                senderIsCurrentUser = true,
+                autoDownload = true
+            )
+        )
+    }
+
+    @Test
+    fun incomingImageWithoutAutoDownloadNeverHydrates() {
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.IMAGE,
+                attachmentId = "att_peer_img",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = false
+            )
+        )
+    }
+
+    @Test
+    fun blankAttachmentIdNeverRestores() {
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldRestore(
+                isSecretChat = false,
+                type = MessageType.IMAGE,
+                attachmentId = "   ",
+                localUriReadable = false
+            )
+        )
+    }
+
+    @Test
+    fun nonMediaTypesNeverRestore() {
+        for (type in listOf(
+            MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER,
+            MessageType.LOCATION, MessageType.NUDGE, MessageType.SK_DIST,
+            MessageType.SYSTEM, MessageType.REVOKED
+        )) {
+            assertFalse(
+                OwnSentMediaRestorePolicy.shouldRestore(
+                    isSecretChat = false,
+                    type = type,
+                    attachmentId = "att_x",
+                    localUriReadable = false
+                )
+            )
+        }
+    }
+
+    @Test
+    fun videoIncomingWithAutoDownloadHydratesButStickerNever() {
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.VIDEO,
+                attachmentId = "att_peer_vid",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = true
+            )
+        )
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.STICKER,
+                attachmentId = "att_peer_sticker",
+                localUriReadable = false,
+                senderIsCurrentUser = true,
+                autoDownload = true
+            )
+        )
+    }
 }
