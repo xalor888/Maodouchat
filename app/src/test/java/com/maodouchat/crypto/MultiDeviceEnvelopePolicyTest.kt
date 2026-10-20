@@ -231,4 +231,53 @@ class MultiDeviceEnvelopePolicyTest {
         val parsed = MultiDeviceEnvelopePolicy.parse(body)!!
         assertEquals("BBB=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188)?.ciphertext)
     }
+
+    @Test
+    fun `entries that is not an array is rejected`() {
+        assertNull(
+            MultiDeviceEnvelopePolicy.parse("""{"senderDeviceId":76,"entries":{"ciphertext":"x"}}""")
+        )
+        assertNull(
+            MultiDeviceEnvelopePolicy.parse("""{"senderDeviceId":76,"entries":"x"}""")
+        )
+        assertNull(MultiDeviceEnvelopePolicy.parse("""{"senderDeviceId":76}"""))
+    }
+
+    @Test
+    fun `non numeric senderDeviceId falls back to default one`() {
+        val parsed = MultiDeviceEnvelopePolicy.parse(
+            """{"senderDeviceId":"abc","payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"AAA="}]}"""
+        )
+        assertNotNull(parsed)
+        assertEquals(1, parsed!!.senderDeviceId)
+    }
+
+    @Test
+    fun `non numeric recipientDeviceId falls back to default one`() {
+        val parsed = MultiDeviceEnvelopePolicy.parse(
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientUserId":"alice","recipientDeviceId":"abc","ciphertext":"AAA="}]}"""
+        )!!
+        assertFalse(parsed.entries.single().recipientDeviceIdOmitted)
+        assertEquals(1, parsed.entries.single().recipientDeviceId)
+        assertEquals("AAA=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 1)?.ciphertext)
+    }
+
+    @Test
+    fun `non numeric version is treated as omitted`() {
+        val parsed = MultiDeviceEnvelopePolicy.parse(
+            """{"version":"abc","senderDeviceId":76,"entries":[{"ciphertext":"AAA="}]}"""
+        )
+        assertNotNull(parsed)
+        assertEquals(MultiDeviceEnvelopePolicy.MULTI_DEVICE_ENVELOPE_VERSION, parsed!!.version)
+    }
+
+    @Test
+    fun `negative device id entry is skipped but valid sibling survives`() {
+        val body =
+            """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientDeviceId":-5,"ciphertext":"AAA="},{"recipientUserId":"alice","recipientDeviceId":188,"ciphertextType":"prekey","ciphertext":"CCC="}]}"""
+        val parsed = MultiDeviceEnvelopePolicy.parse(body)
+        assertNotNull(parsed)
+        assertEquals(1, parsed!!.entries.size)
+        assertEquals("CCC=", MultiDeviceEnvelopePolicy.selectEntry(parsed, "alice", 188)?.ciphertext)
+    }
 }

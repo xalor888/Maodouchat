@@ -291,4 +291,57 @@ class SenderKeyCoveragePolicyTest {
             SenderKeyCoveragePolicy.requiresDistribution(true, 4, 4, statuses)
         )
     }
+
+    @Test
+    fun `positive reported total with empty target list is complete`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 4,
+            statusEpoch = 4,
+            targetStatuses = emptyList(),
+            reportedTotal = 5
+        )
+        assertFalse(assessment.requiresDistribution)
+        assertEquals(Reason.COMPLETE, assessment.reason)
+    }
+
+    @Test
+    fun `zero total and zero epoch with non empty list follows counts`() {
+        val failed = SenderKeyCoveragePolicy.assess(true, 0, 0, listOf("FAILED"), reportedTotal = 0)
+        assertTrue(failed.requiresDistribution)
+        assertEquals(Reason.FAILED_TARGETS, failed.reason)
+        val sent = SenderKeyCoveragePolicy.assess(true, 0, 0, listOf("SENT"), reportedTotal = 0)
+        assertFalse(sent.requiresDistribution)
+        assertEquals(Reason.COMPLETE, sent.reason)
+    }
+
+    @Test
+    fun `equal negative epochs are not a mismatch`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, -2, -2, listOf("SENT"))
+        assertFalse(assessment.requiresDistribution)
+        assertEquals(Reason.COMPLETE, assessment.reason)
+        assertFalse(SenderKeyCoveragePolicy.requiresDistribution(true, -2, -2, listOf("SENT")))
+    }
+
+    @Test
+    fun `whitespace only status counts as unknown`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 4, 4, listOf("SENT", " "))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.UNKNOWN_TARGETS, assessment.reason)
+        assertEquals(1, assessment.unknownCount)
+        assertEquals(1, assessment.sentCount)
+    }
+
+    @Test
+    fun `null reported total with empty list after epoch match is complete`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 4,
+            statusEpoch = 4,
+            targetStatuses = emptyList(),
+            reportedTotal = null
+        )
+        assertFalse(assessment.requiresDistribution)
+        assertEquals(Reason.COMPLETE, assessment.reason)
+    }
 }
