@@ -325,4 +325,38 @@ class SignalSessionPolicyTest {
             )
         )
     }
+
+    @Test
+    fun blankRecipientRejectedBeforeNullSelfCheckSkip() {
+        // recipient.isBlank() 判在最前：currentUserId 为 null 时也不放行空白 recipient。
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("  ", 2, null, 2))
+    }
+
+    @Test
+    fun untrimmedRecipientNotTreatedAsSelf() {
+        // self 判定是精确相等：带前后空格的 recipient 与 currentUserId 对不上，不算自己。
+        assertTrue(SignalSessionPolicy.shouldEstablishSession(" me ", 2, "me", 2))
+    }
+
+    @Test
+    fun nullCurrentUserIdSkipsSelfCheckForExactSelfMatch() {
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("me", 2, null, 2))
+    }
+
+    @Test
+    fun deviceIdAbove255StillEstablishesSession() {
+        // shouldEstablishSession 只拦 deviceId <= 0：255 上限是 candidateDeviceIds 的过滤，这里不管。
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("peer", 300, "me", 1))
+    }
+
+    @Test
+    fun persistedBoundaryIdsSurviveRangeFilter() {
+        assertEquals(
+            listOf(1, 255),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = null,
+                persistedSessionDeviceIds = listOf(255, 0, 1, 256, -3),
+            ),
+        )
+    }
 }

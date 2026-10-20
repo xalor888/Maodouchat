@@ -347,4 +347,78 @@ class IdentitySafetyPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `all unknown aggregates unknown`() {
+        val states = listOf(
+            device(1, IdentityTrustState.UNKNOWN),
+            device(2, IdentityTrustState.UNKNOWN)
+        )
+        assertEquals(
+            IdentityTrustState.UNKNOWN,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertEquals(
+            WarningKind.UNKNOWN,
+            IdentitySafetyPolicy.warningKind(IdentitySafetyPolicy.aggregateTrust(states))
+        )
+        assertTrue(IdentitySafetyPolicy.canVerifyAny(states))
+        assertFalse(IdentitySafetyPolicy.isStickyWarning(IdentityTrustState.UNKNOWN))
+    }
+
+    @Test
+    fun `changed without code is not verifiable but still sticky`() {
+        // CHANGED 没 code 验证不了，但告警照样是 sticky 的：两条规则互不干扰。
+        val states = listOf(device(1, IdentityTrustState.CHANGED, code = null))
+        assertFalse(IdentitySafetyPolicy.canVerifyAny(states))
+        assertTrue(IdentitySafetyPolicy.isStickyWarning(IdentitySafetyPolicy.aggregateTrust(states)))
+        assertEquals(
+            WarningKind.CHANGED,
+            IdentitySafetyPolicy.warningKind(IdentitySafetyPolicy.aggregateTrust(states))
+        )
+    }
+
+    @Test
+    fun `primary picks first listed when non-one id repeats`() {
+        val states = listOf(
+            device(2, IdentityTrustState.TRUSTED),
+            device(2, IdentityTrustState.VERIFIED)
+        )
+        assertEquals(
+            IdentityTrustState.TRUSTED,
+            IdentitySafetyPolicy.primaryDevice(states)?.trustState
+        )
+    }
+
+    @Test
+    fun `verified trusted unknown poisons to unknown`() {
+        val states = listOf(
+            device(1, IdentityTrustState.VERIFIED),
+            device(2, IdentityTrustState.TRUSTED),
+            device(3, IdentityTrustState.UNKNOWN)
+        )
+        assertEquals(
+            IdentityTrustState.UNKNOWN,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertTrue(IdentitySafetyPolicy.canVerifyAny(states))
+    }
+
+    @Test
+    fun `worst wins is independent of device order`() {
+        // 聚合只用 any/all：设备顺序不影响结果。
+        val forward = listOf(
+            device(1, IdentityTrustState.CHANGED),
+            device(2, IdentityTrustState.VERIFIED)
+        )
+        val backward = forward.reversed()
+        assertEquals(
+            IdentitySafetyPolicy.aggregateTrust(forward),
+            IdentitySafetyPolicy.aggregateTrust(backward)
+        )
+        assertEquals(
+            IdentityTrustState.CHANGED,
+            IdentitySafetyPolicy.aggregateTrust(backward)
+        )
+    }
 }

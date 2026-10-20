@@ -344,4 +344,75 @@ class SenderKeyCoveragePolicyTest {
         assertFalse(assessment.requiresDistribution)
         assertEquals(Reason.COMPLETE, assessment.reason)
     }
+
+    @Test
+    fun `epoch mismatch outranks no server record edge`() {
+        // epoch 先判：即使 reportedTotal=0 且 statusEpoch<=0，也先走 EPOCH_MISMATCH。
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 5,
+            statusEpoch = 0,
+            targetStatuses = emptyList(),
+            reportedTotal = 0
+        )
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.EPOCH_MISMATCH, assessment.reason)
+    }
+
+    @Test
+    fun `negative status epoch with zero total is no server record`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = -1,
+            statusEpoch = -1,
+            targetStatuses = emptyList(),
+            reportedTotal = 0
+        )
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.NO_SERVER_RECORD, assessment.reason)
+    }
+
+    @Test
+    fun `negative reported total with non empty list follows counts`() {
+        // total <= 0 的空表分支要求 targetStatuses 为空：非空表直接走计数。
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 4,
+            statusEpoch = 4,
+            targetStatuses = listOf("FAILED", "SENT"),
+            reportedTotal = -2
+        )
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.FAILED_TARGETS, assessment.reason)
+        assertEquals(1, assessment.failedCount)
+        assertEquals(1, assessment.sentCount)
+    }
+
+    @Test
+    fun `mixed statuses tally into four counters`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            true, 4, 4, listOf("FAILED", "failed", "PENDING", "QUEUED", "SENT", "sent")
+        )
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.FAILED_TARGETS, assessment.reason)
+        assertEquals(2, assessment.failedCount)
+        assertEquals(1, assessment.pendingCount)
+        assertEquals(1, assessment.unknownCount)
+        assertEquals(2, assessment.sentCount)
+    }
+
+    @Test
+    fun `local missing skips target counting entirely`() {
+        // LOCAL_MISSING 在计数之前直接返回：计数器保持 0。
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = false,
+            requestedEpoch = 4,
+            statusEpoch = 4,
+            targetStatuses = listOf("SENT", "SENT"),
+            reportedTotal = 2
+        )
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.LOCAL_MISSING, assessment.reason)
+        assertEquals(0, assessment.sentCount)
+    }
 }
