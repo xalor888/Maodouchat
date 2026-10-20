@@ -87,4 +87,72 @@ class IdentitySafetyPolicyTest {
         val states = listOf(device(1, IdentityTrustState.TRUSTED, code = null))
         assertFalse(IdentitySafetyPolicy.canVerifyAny(states))
     }
+
+    @Test
+    fun `unknown poisons trusted aggregation`() {
+        val states = listOf(
+            device(1, IdentityTrustState.TRUSTED),
+            device(2, IdentityTrustState.UNKNOWN)
+        )
+        assertEquals(
+            IdentityTrustState.UNKNOWN,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertEquals(
+            WarningKind.UNKNOWN,
+            IdentitySafetyPolicy.warningKind(IdentityTrustState.UNKNOWN)
+        )
+        assertFalse(IdentitySafetyPolicy.isStickyWarning(IdentityTrustState.UNKNOWN))
+    }
+
+    @Test
+    fun `changed beats unknown in worst wins`() {
+        val states = listOf(
+            device(1, IdentityTrustState.UNKNOWN),
+            device(2, IdentityTrustState.CHANGED)
+        )
+        assertEquals(
+            IdentityTrustState.CHANGED,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertTrue(IdentitySafetyPolicy.isStickyWarning(IdentityTrustState.CHANGED))
+    }
+
+    @Test
+    fun `primary falls back to first listed device`() {
+        val states = listOf(
+            device(2, IdentityTrustState.TRUSTED),
+            device(3, IdentityTrustState.VERIFIED)
+        )
+        assertEquals(2, IdentitySafetyPolicy.primaryDevice(states)?.deviceId)
+    }
+
+    @Test
+    fun `blank safety code cannot verify`() {
+        assertFalse(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(device(1, IdentityTrustState.TRUSTED, code = ""))
+            )
+        )
+        assertFalse(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(device(1, IdentityTrustState.TRUSTED, code = "   "))
+            )
+        )
+        assertTrue(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(device(1, IdentityTrustState.TRUSTED))
+            )
+        )
+    }
+
+    @Test
+    fun `verified needs no warning`() {
+        assertFalse(IdentitySafetyPolicy.isStickyWarning(IdentityTrustState.VERIFIED))
+        assertFalse(IdentitySafetyPolicy.isStickyWarning(IdentityTrustState.TRUSTED))
+        assertEquals(
+            WarningKind.TRUSTED,
+            IdentitySafetyPolicy.warningKind(IdentityTrustState.TRUSTED)
+        )
+    }
 }
