@@ -15,6 +15,45 @@ class SecretChatSessionTest {
     }
 
     @Test
+    fun `markSurfaceInactive drops marker without touching others`() {
+        SecretChatSession.markSurfaceActive("a")
+        SecretChatSession.markSurfaceActive("b")
+        SecretChatSession.markSurfaceInactive("a")
+        assertEquals(setOf("b"), SecretChatSession.activeSecretSurfaceChatIds())
+        assertTrue(SecretChatSession.hasActiveSecretSurface())
+    }
+
+    @Test
+    fun `duplicate mark is idempotent`() {
+        SecretChatSession.markSurfaceActive("a")
+        SecretChatSession.markSurfaceActive("a")
+        assertEquals(setOf("a"), SecretChatSession.activeSecretSurfaceChatIds())
+    }
+
+    @Test
+    fun `clearSurfaceMarkersExcept with blank keep clears all`() {
+        SecretChatSession.markSurfaceActive("a")
+        SecretChatSession.markSurfaceActive("b")
+        SecretChatSession.clearSurfaceMarkersExcept("  ")
+        assertEquals(emptySet<String>(), SecretChatSession.activeSecretSurfaceChatIds())
+        assertFalse(SecretChatSession.hasActiveSecretSurface())
+    }
+
+    @Test
+    fun `clearSurfaceMarkersExcept with null keep clears all`() {
+        SecretChatSession.markSurfaceActive("a")
+        SecretChatSession.clearSurfaceMarkersExcept(null)
+        assertFalse(SecretChatSession.hasActiveSecretSurface())
+    }
+
+    @Test
+    fun `clearSurfaceMarkersExcept with unknown keep empties set`() {
+        SecretChatSession.markSurfaceActive("a")
+        SecretChatSession.clearSurfaceMarkersExcept("ghost")
+        assertEquals(emptySet<String>(), SecretChatSession.activeSecretSurfaceChatIds())
+    }
+
+    @Test
     fun `clearSurfaceMarkersExcept keeps concurrent notify id`() {
         SecretChatSession.markSurfaceActive("old")
         SecretChatSession.markSurfaceActive("keep")

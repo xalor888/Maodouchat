@@ -13,6 +13,59 @@ import org.junit.Test
 class SecretChatPrivacyPolicyTest {
 
     @Test
+    fun `secret chat denies everything even when locked`() {
+        val caps = ConversationPrivacyCapabilities(isSecretChat = true, isLocked = true)
+
+        PrivacyAction.values().forEach { action ->
+            assertFalse(
+                "Secret+locked should deny action $action",
+                ConversationPrivacyPolicy.allows(caps, action)
+            )
+        }
+    }
+
+    @Test
+    fun `privacy decision is stable across repeated calls`() {
+        val caps = ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false)
+
+        val first = PrivacyAction.values().map { ConversationPrivacyPolicy.allows(caps, it) }
+        val second = PrivacyAction.values().map { ConversationPrivacyPolicy.allows(caps, it) }
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun `onRead keeps armed state without timer`() {
+        assertEquals(
+            SecretChatState.ARMED,
+            SecretChatStateMachine.onRead(SecretChatState.ARMED, hasTimer = false)
+        )
+    }
+
+    @Test
+    fun `expiring and destroyed are terminal on read`() {
+        assertEquals(
+            SecretChatState.EXPIRING,
+            SecretChatStateMachine.onRead(SecretChatState.EXPIRING, hasTimer = true)
+        )
+        assertEquals(
+            SecretChatState.EXPIRING,
+            SecretChatStateMachine.onRead(SecretChatState.EXPIRING, hasTimer = false)
+        )
+        assertEquals(
+            SecretChatState.DESTROYED,
+            SecretChatStateMachine.onRead(SecretChatState.DESTROYED, hasTimer = false)
+        )
+    }
+
+    @Test
+    fun `onExpiry keeps expiring state`() {
+        assertEquals(
+            SecretChatState.EXPIRING,
+            SecretChatStateMachine.onExpiry(SecretChatState.EXPIRING)
+        )
+    }
+
+    @Test
     fun `secret chat denies all privacy-sensitive actions`() {
         val secretCaps = ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false)
 
