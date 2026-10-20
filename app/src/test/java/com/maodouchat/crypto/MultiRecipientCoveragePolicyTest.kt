@@ -384,6 +384,66 @@ class MultiRecipientCoveragePolicyTest {
     }
 
     @Test
+    fun emptyRequiredConcreteTargetsAreAlwaysCovered() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredTargetsCovered(
+                requiredTargets = emptyList(),
+                targets = emptyList(),
+            )
+        )
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredTargetsCovered(
+                requiredTargets = emptyList(),
+                targets = listOf(Target("peer", 7)),
+            )
+        )
+    }
+
+    @Test
+    fun zeroDeviceIdStillCountsForUserLevelCoverage() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredRecipientsCovered(
+                requiredRecipientIds = setOf("peer"),
+                targets = listOf(Target("peer", 0)),
+            )
+        )
+    }
+
+    @Test
+    fun paddedFailureKeysMatchTrimmedRecipientIds() {
+        val transient = SignalExchangeException(SignalExchangeFailure.TIMEOUT)
+        val wrapped = MultiRecipientCoveragePolicy.transientFailureForMissingRecipients(
+            requiredRecipientIds = setOf("peer"),
+            targets = emptyList(),
+            failuresByRecipient = mapOf("  peer  " to transient),
+        )
+        assertTrue(wrapped is TransientCoverageException)
+        assertSame(transient, wrapped?.cause)
+    }
+
+    @Test
+    fun firstTransientInRequiredOrderSurfaces() {
+        val first = SignalExchangeException(SignalExchangeFailure.NETWORK)
+        val second = SignalExchangeException(SignalExchangeFailure.TIMEOUT)
+        val wrapped = MultiRecipientCoveragePolicy.transientFailureForMissingRecipients(
+            requiredRecipientIds = setOf("a", "b"),
+            targets = emptyList(),
+            failuresByRecipient = mapOf("a" to first, "b" to second),
+        )
+        assertTrue(wrapped is TransientCoverageException)
+        assertSame(first, wrapped?.cause)
+    }
+
+    @Test
+    fun signalExchangeWrappedInRuntimeExceptionStillTransient() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.isTransient(
+                RuntimeException(SignalExchangeException(SignalExchangeFailure.NETWORK))
+            )
+        )
+    }
+
+    @Test
     fun coveredDeviceNeverSurfacesItsTransientFailure() {
         assertNull(
             MultiRecipientCoveragePolicy.transientFailureForMissingTargets(

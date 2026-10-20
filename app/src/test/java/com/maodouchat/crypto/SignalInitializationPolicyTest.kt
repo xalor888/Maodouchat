@@ -246,6 +246,58 @@ class SignalInitializationPolicyTest {
     }
 
     @Test
+    fun selectAccountToNullFromEmptyStaysEmpty() {
+        val selected = SignalInitializationPolicy.selectAccount(
+            SignalInitializationPolicy.cleared(),
+            null,
+        )
+
+        assertEquals(null, selected.accountId)
+        assertFalse(selected.localCryptoReady)
+        assertFalse(selected.publicationReady)
+    }
+
+    @Test
+    fun nullAccountAgainstNullRequestFallsThroughToFullInitialization() {
+        assertEquals(
+            SignalInitializationAction.FULL_INITIALIZATION,
+            SignalInitializationPolicy.action(SignalInitializationState(), null),
+        )
+    }
+
+    @Test
+    fun canReuseAndLocalCryptoRejectNullCurrentAndNullRequested() {
+        assertFalse(SignalInitializationPolicy.canReuse(null, true, null))
+        assertFalse(SignalInitializationPolicy.canUseLocalCrypto(null, true, null))
+    }
+
+    @Test
+    fun publicationSucceededPreservesAccountAndLocalReadiness() {
+        val published = SignalInitializationPolicy.publicationSucceeded(
+            SignalInitializationState(accountId = "u1", localCryptoReady = true),
+        )
+
+        assertEquals("u1", published.accountId)
+        assertTrue(published.localCryptoReady)
+        assertTrue(published.publicationReady)
+    }
+
+    @Test
+    fun localStoreReadyDoesNotTouchPublicationReadiness() {
+        val restored = SignalInitializationPolicy.localStoreReady(
+            SignalInitializationState(
+                accountId = "u1",
+                localCryptoReady = false,
+                publicationReady = true,
+            ),
+        )
+
+        assertEquals("u1", restored.accountId)
+        assertTrue(restored.localCryptoReady)
+        assertTrue(restored.publicationReady)
+    }
+
+    @Test
     fun doublePublicationFailureIsIdempotent() {
         val failed = SignalInitializationPolicy.publicationFailed(
             SignalInitializationState(accountId = "u1", localCryptoReady = true),

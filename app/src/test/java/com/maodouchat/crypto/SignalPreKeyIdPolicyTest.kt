@@ -231,6 +231,67 @@ class SignalPreKeyIdPolicyTest {
     }
 
     @Test
+    fun `huge count on empty store keeps sequential start without random`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = 0,
+            count = Int.MAX_VALUE,
+            randomIntExclusive = { error("sequential fits on empty store") },
+        )
+        assertEquals(1, start)
+    }
+
+    @Test
+    fun `nearly full store leaves a two-slot random domain`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = SignalPreKeyIdPolicy.MAX_ID - 1,
+            count = SignalPreKeyIdPolicy.MAX_ID - 1,
+            randomIntExclusive = { n ->
+                assertEquals(2, n)
+                1
+            },
+        )
+        assertEquals(2, start)
+    }
+
+    @Test
+    fun `negative existing id with zero count coerces before falling back to random`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = -3,
+            count = 0,
+            randomIntExclusive = { n ->
+                assertEquals(SignalPreKeyIdPolicy.MAX_ID, n)
+                7
+            },
+        )
+        assertEquals(8, start)
+        assertTrue(SignalPreKeyIdPolicy.isValid(start))
+    }
+
+    @Test
+    fun `random signed prekey id near top maps to max minus one`() {
+        val id = SignalPreKeyIdPolicy.randomSignedPreKeyId { n ->
+            assertEquals(SignalPreKeyIdPolicy.MAX_ID, n)
+            n - 2
+        }
+        assertEquals(SignalPreKeyIdPolicy.MAX_ID - 1, id)
+        assertTrue(SignalPreKeyIdPolicy.isValid(id))
+    }
+
+    @Test
+    fun `overflowed max existing id falls back to random`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = Int.MAX_VALUE,
+            count = 1,
+            randomIntExclusive = { n ->
+                assertEquals(SignalPreKeyIdPolicy.MAX_ID, n)
+                0
+            },
+        )
+        assertEquals(1, start)
+        assertTrue(SignalPreKeyIdPolicy.isValid(start))
+    }
+
+    @Test
     fun `sequential start just below max start boundary fits`() {
         val maxStart = SignalPreKeyIdPolicy.MAX_ID - 10 + 1
         val start = SignalPreKeyIdPolicy.nextBatchStartId(
