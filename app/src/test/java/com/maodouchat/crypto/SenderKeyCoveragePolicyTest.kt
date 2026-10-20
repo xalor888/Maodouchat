@@ -402,6 +402,67 @@ class SenderKeyCoveragePolicyTest {
     }
 
     @Test
+    fun `convenience overload ignores the reported total edge`() {
+        // reportedTotal 是 assess 的专属参数：便捷入口不走 NO_SERVER_RECORD。
+        val assessed = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 0,
+            statusEpoch = 0,
+            targetStatuses = emptyList(),
+            reportedTotal = 0
+        )
+        assertTrue(assessed.requiresDistribution)
+        assertEquals(Reason.NO_SERVER_RECORD, assessed.reason)
+        assertFalse(
+            SenderKeyCoveragePolicy.requiresDistribution(
+                hasLocalDistribution = true,
+                requestedEpoch = 0,
+                statusEpoch = 0,
+                targetStatuses = emptyList()
+            )
+        )
+    }
+
+    @Test
+    fun `single pending target forces redistribution`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 4, 4, listOf("PENDING"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.PENDING_TARGETS, assessment.reason)
+        assertEquals(1, assessment.pendingCount)
+        assertEquals(0, assessment.failedCount)
+    }
+
+    @Test
+    fun `tab and newline statuses count as unknown`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 4, 4, listOf("\t", "\n"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.UNKNOWN_TARGETS, assessment.reason)
+        assertEquals(2, assessment.unknownCount)
+    }
+
+    @Test
+    fun `empty list with positive reported total still checks epoch first`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 5,
+            statusEpoch = 4,
+            targetStatuses = emptyList(),
+            reportedTotal = 3
+        )
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.EPOCH_MISMATCH, assessment.reason)
+    }
+
+    @Test
+    fun `failed outranks unknown when only those two present`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 4, 4, listOf("QUEUED", "FAILED"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.FAILED_TARGETS, assessment.reason)
+        assertEquals(1, assessment.failedCount)
+        assertEquals(1, assessment.unknownCount)
+    }
+
+    @Test
     fun `local missing skips target counting entirely`() {
         // LOCAL_MISSING 在计数之前直接返回：计数器保持 0。
         val assessment = SenderKeyCoveragePolicy.assess(
