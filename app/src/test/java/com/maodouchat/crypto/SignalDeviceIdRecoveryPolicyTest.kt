@@ -199,4 +199,117 @@ class SignalDeviceIdRecoveryPolicyTest {
         assertTrue(SignalDeviceIdRecoveryPolicy.isMigrationPendingMarkerPresent(""))
         assertFalse(SignalDeviceIdRecoveryPolicy.isMigrationPendingMarkerPresent(null))
     }
+
+    @Test
+    fun serverCodeUnwrapsWrappedTransportErrorsAndStopsAtPlainFailures() {
+        val api = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            )
+        )
+        val wrapped = SignalExchangeException(
+            failure = SignalExchangeFailure.HTTP,
+            serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_IDENTITY_MISMATCH_CODE,
+            cause = api,
+        )
+
+        assertEquals(
+            SignalDeviceIdRecoveryPolicy.DEVICE_IDENTITY_MISMATCH_CODE,
+            SignalDeviceIdRecoveryPolicy.serverCode(wrapped),
+        )
+        assertEquals(null, SignalDeviceIdRecoveryPolicy.serverCode(null))
+        assertEquals(null, SignalDeviceIdRecoveryPolicy.serverCode(RuntimeException("boom")))
+    }
+
+    @Test
+    fun retryBudgetBoundsRejectOutOfRangeAttemptsAndExhaustedCounters() {
+        val conflict = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            )
+        )
+
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetry(conflict, attempt = -1, maxAttempts = 4))
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetry(conflict, attempt = 0, maxAttempts = 0))
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetry(conflict, attempt = 0, maxAttempts = 1))
+
+        val transient = SignalKeyExchange.mapFailure(ApiException(ApiFailureKind.TIMEOUT))
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetry(transient, attempt = 0, maxAttempts = 4))
+    }
+
+    @Test
+    fun availableCandidateRejectsAttemptedIdsAndEnforcesRangeBounds() {
+        assertEquals(
+            null,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 9,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+                attemptedDeviceIds = setOf(9),
+            ),
+        )
+        assertEquals(
+            null,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 1,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+            ),
+        )
+        assertEquals(
+            null,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 256,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+            ),
+        )
+        assertEquals(
+            255,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 255,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+            ),
+        )
+    }
+
+    @Test
+    fun identityMismatchReallocationStopsWhenAttemptBudgetIsExhausted() {
+        val mapped = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_IDENTITY_MISMATCH_CODE,
+            )
+        )
+
+        assertFalse(
+            SignalDeviceIdRecoveryPolicy.shouldReallocateForIdentityMismatch(
+                mapped, true, attempt = 3, maxAttempts = 4,
+            )
+        )
+        assertFalse(
+            SignalDeviceIdRecoveryPolicy.shouldReallocateForIdentityMismatch(
+                mapped, false, attempt = -1, maxAttempts = 4,
+            )
+        )
+        assertFalse(
+            SignalDeviceIdRecoveryPolicy.shouldReallocateForIdentityMismatch(
+                mapped, true, attempt = 0, maxAttempts = 1,
+            )
+        )
+    }
+
+    @Test
+    fun unknownDeviceStatusIsNeitherConfirmedNorPending() {
+        assertFalse(SignalDeviceIdRecoveryPolicy.isConfirmedDeviceStatus("unknown"))
+        assertFalse(SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus("unknown"))
+        assertFalse(SignalDeviceIdRecoveryPolicy.isConfirmedDeviceStatus(""))
+        assertFalse(SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus(""))
+    }
 }

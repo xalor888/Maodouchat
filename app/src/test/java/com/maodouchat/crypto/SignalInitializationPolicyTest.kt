@@ -111,4 +111,81 @@ class SignalInitializationPolicyTest {
             SignalInitializationPolicy.action(readyU1, "u2"),
         )
     }
+
+    @Test
+    fun clearedStateHasNoReadinessAndRequiresFullInitialization() {
+        val cleared = SignalInitializationPolicy.cleared()
+
+        assertEquals(null, cleared.accountId)
+        assertFalse(cleared.localCryptoReady)
+        assertFalse(cleared.publicationReady)
+        assertEquals(
+            SignalInitializationAction.FULL_INITIALIZATION,
+            SignalInitializationPolicy.action(cleared, "u1"),
+        )
+    }
+
+    @Test
+    fun publicationSucceededRequiresLocalCryptoAndKnownAccount() {
+        val noLocalCrypto = SignalInitializationPolicy.publicationSucceeded(
+            SignalInitializationState(accountId = "u1", localCryptoReady = false),
+        )
+        assertFalse(noLocalCrypto.publicationReady)
+
+        val anonymous = SignalInitializationPolicy.publicationSucceeded(
+            SignalInitializationState(accountId = null, localCryptoReady = true),
+        )
+        assertFalse(anonymous.publicationReady)
+    }
+
+    @Test
+    fun reselectingSameAccountDropsReadinessButKeepsAccountId() {
+        val ready = SignalInitializationState(
+            accountId = "u1",
+            localCryptoReady = true,
+            publicationReady = true,
+        )
+
+        val reselected = SignalInitializationPolicy.selectAccount(ready, "u1")
+
+        assertEquals("u1", reselected.accountId)
+        assertFalse(reselected.localCryptoReady)
+        assertFalse(reselected.publicationReady)
+    }
+
+    @Test
+    fun anonymousOrBlankRequestNeverReusesEvenWhenFullyReady() {
+        val fullyReady = SignalInitializationState(
+            accountId = "u1",
+            localCryptoReady = true,
+            publicationReady = true,
+        )
+
+        assertEquals(
+            SignalInitializationAction.FULL_INITIALIZATION,
+            SignalInitializationPolicy.action(fullyReady, null),
+        )
+        assertEquals(
+            SignalInitializationAction.FULL_INITIALIZATION,
+            SignalInitializationPolicy.action(fullyReady, ""),
+        )
+    }
+
+    @Test
+    fun nonInvalidatingPublicationFailureKeepsLocalReadinessAndRequestsUploadOnly() {
+        val ready = SignalInitializationState(
+            accountId = "u1",
+            localCryptoReady = true,
+            publicationReady = false,
+        )
+
+        val failed = SignalInitializationPolicy.publicationFailed(ready, invalidateLocalCrypto = false)
+
+        assertEquals("u1", failed.accountId)
+        assertTrue(failed.localCryptoReady)
+        assertEquals(
+            SignalInitializationAction.UPLOAD_ONLY,
+            SignalInitializationPolicy.action(failed, "u1"),
+        )
+    }
 }
