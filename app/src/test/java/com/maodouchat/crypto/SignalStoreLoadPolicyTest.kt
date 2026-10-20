@@ -103,4 +103,32 @@ class SignalStoreLoadPolicyTest {
         assertFalse(SignalStoreLoadPolicy.isPersistable("\t", byteArrayOf(1)))
         assertFalse(SignalStoreLoadPolicy.isPersistable("\n", byteArrayOf(1)))
     }
+
+    @Test
+    fun logicalKeyReturnsNullWhenPrefixConsumesWholeKey() {
+        assertNull(SignalStoreLoadPolicy.logicalKeyOrNull("user:alice:", "user:alice:"))
+        assertNull(SignalStoreLoadPolicy.logicalKeyOrNull("prekey:1", "prekey:1"))
+    }
+
+    @Test
+    fun logicalKeyKeepsKeyWhenPrefixIsLonger() {
+        assertEquals("ab", SignalStoreLoadPolicy.logicalKeyOrNull("ab", "abcdef"))
+    }
+
+    @Test
+    fun logicalKeyDoesNotTrimRemainder() {
+        // 剥前缀后只判非空，剩余部分原样保留不做 trim
+        assertEquals("  x  ", SignalStoreLoadPolicy.logicalKeyOrNull("user:alice:  x  ", "user:alice:"))
+    }
+
+    @Test
+    fun persistableAcceptsKeyTypeWithInternalSpaces() {
+        assertTrue(SignalStoreLoadPolicy.isPersistable("pre key:1", byteArrayOf(1)))
+    }
+
+    @Test
+    fun loadRowAcceptsNewlinePaddedKeyType() {
+        assertTrue(SignalStoreLoadPolicy.shouldLoadRow("\nsession:u1:1\n", "YWJj"))
+        assertFalse(SignalStoreLoadPolicy.shouldLoadRow("\n  \n", "YWJj"))
+    }
 }

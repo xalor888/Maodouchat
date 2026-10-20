@@ -113,4 +113,40 @@ class DecryptHistoryPolicyTest {
         assertTrue(DecryptHistoryPolicy.shouldKeepWire(DecryptResult.FutureEpoch))
         assertFalse(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.FutureEpoch))
     }
+
+    @Test
+    fun repairAttemptRequiresNormalizedDedupKeys() {
+        // 只有输入被 trim，去重集合的键按原样比对：调用方必须自己存归一化后的 id
+        assertTrue(DecryptHistoryPolicy.shouldAttemptSessionRepair("u2", setOf(" u2 ")))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("u2", setOf("u2", " u3 ")))
+    }
+
+    @Test
+    fun repairAttemptTrimsControlWhitespace() {
+        assertTrue(DecryptHistoryPolicy.shouldAttemptSessionRepair("u2\n", emptySet()))
+        assertTrue(DecryptHistoryPolicy.shouldAttemptSessionRepair("\t u2 \r\n", emptySet()))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("\n \t", emptySet()))
+    }
+
+    @Test
+    fun successNeverKeepsWireRegardlessOfPayload() {
+        // 保线只看结果类型，正文内容不影响决策
+        assertFalse(DecryptHistoryPolicy.shouldKeepWire(DecryptResult.Success("Failed")))
+        assertFalse(DecryptHistoryPolicy.shouldKeepWire(DecryptResult.Success("  ")))
+    }
+
+    @Test
+    fun repairableFailuresKeepWireAndDeferTogether() {
+        listOf(DecryptResult.NoSession, DecryptResult.UntrustedIdentity).forEach { result ->
+            assertTrue(result.toString(), DecryptHistoryPolicy.shouldKeepWire(result))
+            assertTrue(result.toString(), DecryptHistoryPolicy.shouldDeferSessionRepair(result))
+        }
+    }
+
+    @Test
+    fun blankSenderNeverAttemptsEvenIfSetContainsIt() {
+        // 空白先于去重被拒，集合里有没有它都不尝试
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("  ", setOf("  ")))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("", setOf("")))
+    }
 }
