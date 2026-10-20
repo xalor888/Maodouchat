@@ -246,4 +246,49 @@ class SenderKeyCoveragePolicyTest {
         assertFalse(assessment.requiresDistribution)
         assertEquals(Reason.COMPLETE, assessment.reason)
     }
+
+    @Test
+    fun `epoch mismatch outranks failed targets`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 5, 4, listOf("FAILED", "PENDING"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.EPOCH_MISMATCH, assessment.reason)
+    }
+
+    @Test
+    fun `reported total zero with non-empty list still completes`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 4,
+            statusEpoch = 4,
+            targetStatuses = listOf("SENT"),
+            reportedTotal = 0
+        )
+        assertFalse(assessment.requiresDistribution)
+        assertEquals(Reason.COMPLETE, assessment.reason)
+    }
+
+    @Test
+    fun `unrecognized status variants all count as unknown`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 4, 4, listOf("QUEUED", "DELIVERED", "ACKED"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.UNKNOWN_TARGETS, assessment.reason)
+        assertEquals(3, assessment.unknownCount)
+    }
+
+    @Test
+    fun `negative status epoch mismatches zero requested epoch`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 0, -1, listOf("SENT"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.EPOCH_MISMATCH, assessment.reason)
+    }
+
+    @Test
+    fun `convenience overload matches assess on mixed failed list`() {
+        val statuses = listOf("SENT", "FAILED")
+        assertTrue(SenderKeyCoveragePolicy.requiresDistribution(true, 4, 4, statuses))
+        assertEquals(
+            SenderKeyCoveragePolicy.assess(true, 4, 4, statuses).requiresDistribution,
+            SenderKeyCoveragePolicy.requiresDistribution(true, 4, 4, statuses)
+        )
+    }
 }

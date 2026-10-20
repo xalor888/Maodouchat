@@ -231,4 +231,53 @@ class SignalSessionPolicyTest {
         )
         assertTrue(SignalSessionPolicy.shouldEstablishSession("peer", 255, "me", 1))
     }
+
+    @Test
+    fun smallerDiscoveredSetRemainsAuthoritative() {
+        assertEquals(
+            listOf(5),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(5),
+                persistedSessionDeviceIds = listOf(1, 2, 3),
+            ),
+        )
+    }
+
+    @Test
+    fun discoveryReplacesPersistedRatherThanMerging() {
+        assertEquals(
+            listOf(3, 4),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(4, 3),
+                persistedSessionDeviceIds = listOf(3, 9),
+            ),
+        )
+    }
+
+    @Test
+    fun boundaryDeviceIdOneIsValid() {
+        assertEquals(
+            listOf(1),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(1),
+                persistedSessionDeviceIds = emptyList(),
+            ),
+        )
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("peer", 1, "me", 1))
+    }
+
+    @Test
+    fun allOutOfRangeDiscoveryWithEmptyPersistedYieldsEmpty() {
+        assertTrue(
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(0, 256, -3),
+                persistedSessionDeviceIds = emptyList(),
+            ).isEmpty()
+        )
+    }
+
+    @Test
+    fun whitespaceOnlyRecipientRejectedBeforeSelfCheckSkip() {
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("  ", 2, "  ", 2))
+    }
 }
