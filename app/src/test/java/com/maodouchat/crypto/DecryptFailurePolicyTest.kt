@@ -396,4 +396,66 @@ class DecryptFailurePolicyTest {
             )
         )
     }
+
+    @Test
+    fun everyResultVariantHasPinnedDispositionAndTracking() {
+        val expected = mapOf<DecryptResult, Pair<Disposition, TrackingAction>>(
+            DecryptResult.Success("x") to (Disposition.STOP to TrackingAction.CLEAR),
+            DecryptResult.Duplicate to (Disposition.STOP to TrackingAction.MARK_TERMINAL),
+            DecryptResult.UnsupportedEnvelope to (Disposition.STOP to TrackingAction.MARK_TERMINAL),
+            DecryptResult.NotForThisDevice to (Disposition.STOP to TrackingAction.MARK_TERMINAL),
+            DecryptResult.NoSession to (Disposition.RETRY to TrackingAction.RECORD_FAILURE),
+            DecryptResult.UntrustedIdentity to (Disposition.RETRY to TrackingAction.RECORD_FAILURE),
+            DecryptResult.FutureEpoch to (Disposition.RETRY to TrackingAction.RECORD_FAILURE),
+            DecryptResult.Failed to (Disposition.RETRY to TrackingAction.RECORD_FAILURE),
+        )
+        expected.forEach { (result, pinned) ->
+            assertEquals(result.toString(), pinned.first, DecryptFailurePolicy.disposition(result))
+            assertEquals(result.toString(), pinned.second, DecryptFailurePolicy.trackingAction(result))
+        }
+    }
+
+    @Test
+    fun emptySenderAndContentFingerprintEncodesZeroLengths() {
+        val fp = DecryptFailurePolicy.envelopeFingerprint("", "")
+        assertTrue(fp.startsWith("0:0:"))
+        assertEquals(fp, DecryptFailurePolicy.envelopeFingerprint("", ""))
+        assertFalse(fp.contains("cipher"))
+    }
+
+    @Test
+    fun whitespaceOnlyFingerprintsAreNoOps() {
+        val tracker = DecryptRetryTracker()
+        tracker.recordCryptoFailure(" \t")
+        tracker.markTerminal("  ")
+        tracker.clear("\n")
+        assertFalse(tracker.isTerminal(" "))
+        assertFalse(tracker.isTerminal(" \t"))
+        assertEquals(0, tracker.failureCount("  "))
+    }
+
+    @Test
+    fun sharedFingerprintHasIndependentSenderOwnership() {
+        val tracker = DecryptRetryTracker()
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u1", "c")
+        tracker.recordCryptoFailure("u1", fp)
+        tracker.recordCryptoFailure("u2", fp)
+        assertEquals(2, tracker.failureCount(fp))
+        // u1 的修复只清自己那份计数，u2 的归属还留着。
+        tracker.clearForSender("u1")
+        assertEquals(0, tracker.failureCount(fp))
+        tracker.recordCryptoFailure("u2", fp)
+        assertEquals(1, tracker.failureCount(fp))
+        tracker.clearForSender("u2")
+        assertEquals(0, tracker.failureCount(fp))
+    }
+
+    @Test
+    fun clearingUnknownSenderIsNoOp() {
+        val tracker = DecryptRetryTracker()
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u1", "c")
+        repeat(2) { tracker.recordCryptoFailure("u1", fp) }
+        tracker.clearForSender("u9")
+        assertEquals(2, tracker.failureCount(fp))
+    }
 }
