@@ -137,4 +137,40 @@ class DecryptPlaceholderPolicyTest {
             assertTrue(variant, DecryptPlaceholderPolicy.isPlaceholder(variant))
         }
     }
+
+    @Test
+    fun `trailing punctuation breaks the match`() {
+        listOf(
+            "[无法解密的消息]。",
+            "[无法解密的消息]!",
+            "[unable to decrypt message].",
+        ).forEach { nearMiss ->
+            assertFalse(nearMiss, DecryptPlaceholderPolicy.isPlaceholder(nearMiss))
+        }
+    }
+
+    @Test
+    fun `multiline whitespace around placeholder still matches`() {
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\n\t [unable to decrypt voice message] \r\n"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder(" \n[缺少会话密钥，请等待对方重新发送]\t "))
+    }
+
+    @Test
+    fun `bracketed single word is not a placeholder`() {
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("[无法解密]"))
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("[解密失败]"))
+    }
+
+    @Test
+    fun `localized vararg ignores order and surrounding whitespace`() {
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("  [无法恢复的消息]  ", "[无法恢复的消息]"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("[gone]", "[other]", "[gone]"))
+        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("  ", "[x]", "[y]"))
+    }
+
+    @Test
+    fun `legacy match wins regardless of varargs`() {
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("decrypt failed", "[totally different]"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("[encrypted message]", "decrypt failed"))
+    }
 }
