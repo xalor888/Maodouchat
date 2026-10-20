@@ -4,6 +4,7 @@ import com.maodouchat.ai.AiPrivacyPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -61,6 +62,56 @@ class AccountIsolationPolicyTest {
         assertNotEquals(a, b)
         assertEquals(AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "alice"), a)
         assertEquals("items:alice", AccountIsolationPolicy.preferenceKey("items", "alice"))
+    }
+
+    @Test
+    fun `padded identical accounts keep local store`() {
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount(" user-a ", "user-a")
+        )
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount("user-a", " user-a ")
+        )
+    }
+
+    @Test
+    fun `whitespace-only next account does not purge`() {
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount("user-a", "   ")
+        )
+    }
+
+    @Test
+    fun `owned rows trim whitespace before matching`() {
+        assertTrue(AccountIsolationPolicy.acceptsOwnedRow(" u1 ", "u1"))
+        assertTrue(AccountIsolationPolicy.acceptsOwnedRow("u1", "u1 "))
+        assertFalse(AccountIsolationPolicy.acceptsOwnedRow(null, null))
+    }
+
+    @Test
+    fun `preference key rejects blank base or user`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            AccountIsolationPolicy.preferenceKey("", "alice")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            AccountIsolationPolicy.preferenceKey("  ", "alice")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            AccountIsolationPolicy.preferenceKey("items", " ")
+        }
+    }
+
+    @Test
+    fun `draft primary key rejects blank owner or chat`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            AccountIsolationPolicy.draftPrimaryKey("", "chat-9")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            AccountIsolationPolicy.draftPrimaryKey("u1", "  ")
+        }
     }
 
     @Test
