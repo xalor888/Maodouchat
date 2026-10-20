@@ -81,4 +81,63 @@ class SenderKeyCoveragePolicyTest {
         assertTrue(assessment.requiresDistribution)
         assertEquals(Reason.NO_SERVER_RECORD, assessment.reason)
     }
+
+    @Test
+    fun `local missing outranks epoch mismatch and failed targets`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 5, 4, listOf("FAILED"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.EPOCH_MISMATCH, assessment.reason)
+        val localMissing = SenderKeyCoveragePolicy.assess(false, 5, 4, listOf("FAILED"))
+        assertTrue(localMissing.requiresDistribution)
+        assertEquals(Reason.LOCAL_MISSING, localMissing.reason)
+    }
+
+    @Test
+    fun `failed reason outranks pending and counts are case insensitive`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            true, 4, 4, listOf("failed", "Pending", "sent")
+        )
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.FAILED_TARGETS, assessment.reason)
+        assertEquals(1, assessment.failedCount)
+        assertEquals(1, assessment.pendingCount)
+        assertEquals(1, assessment.sentCount)
+    }
+
+    @Test
+    fun `pending targets aggregate count`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            true, 4, 4, listOf("PENDING", "pending", "PENDING")
+        )
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.PENDING_TARGETS, assessment.reason)
+        assertEquals(3, assessment.pendingCount)
+    }
+
+    @Test
+    fun `reported total larger than status list does not force unknown`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 4,
+            statusEpoch = 4,
+            targetStatuses = listOf("SENT", "SENT"),
+            reportedTotal = 5
+        )
+        assertFalse(assessment.requiresDistribution)
+        assertEquals(Reason.COMPLETE, assessment.reason)
+        assertEquals(2, assessment.sentCount)
+    }
+
+    @Test
+    fun `explicit zero total with nonzero epoch is complete not no record`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 4,
+            statusEpoch = 4,
+            targetStatuses = emptyList(),
+            reportedTotal = 0
+        )
+        assertFalse(assessment.requiresDistribution)
+        assertEquals(Reason.COMPLETE, assessment.reason)
+    }
 }

@@ -47,4 +47,30 @@ class SenderKeyRetrySessionPolicyTest {
         assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u9", "any-token-value", "u9"))
         assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u9", "rotated-token", "u9"))
     }
+
+    @Test
+    fun nullTokenAndNullUserIdTogetherAbort() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", null, null))
+    }
+
+    @Test
+    fun liveUserIdWithTrailingSpaceDoesNotMatch() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", "u1 "))
+    }
+
+    @Test
+    fun symmetricWhitespacePaddedIdsStillMatch() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch(" u1", "tok", " u1"))
+    }
+
+    @Test
+    fun tabOnlyTokenAborts() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "\t", "u1"))
+    }
+
+    @Test
+    fun nonAsciiUserIdMatchesExactly() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("用户1", "tok", "用户1"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("用户1", "tok", "用户2"))
+    }
 }
