@@ -455,4 +455,52 @@ class MultiRecipientCoveragePolicyTest {
             )
         )
     }
+
+    @Test
+    fun normalizeRequiredRecipientIdKeepsFullWidthSpaces() {
+        // Kotlin 的 trim() 默认只裁 <= ' ' 的字符，全角空格原样保留
+        assertEquals(
+            "\u3000peer\u3000",
+            MultiRecipientCoveragePolicy.normalizeRequiredRecipientId("\u3000peer\u3000"),
+        )
+    }
+
+    @Test
+    fun isTransientSeesThroughTwoLayersOfWrapping() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.isTransient(
+                RuntimeException(RuntimeException(java.io.IOException("offline")))
+            )
+        )
+    }
+
+    @Test
+    fun zeroDeviceIdRequiredTargetIsDroppedFromRequiredSet() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredTargetsCovered(
+                requiredTargets = listOf(Target("peer", 0)),
+                targets = emptyList(),
+            )
+        )
+    }
+
+    @Test
+    fun blankUserIdRequiredTargetIsDroppedFromRequiredSet() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredTargetsCovered(
+                requiredTargets = listOf(Target("   ", 7)),
+                targets = emptyList(),
+            )
+        )
+    }
+
+    @Test
+    fun duplicatePaddedRequiredRecipientIdsCollapse() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredRecipientsCovered(
+                requiredRecipientIds = listOf("peer", " peer ", "peer"),
+                targets = listOf(Target("peer", 2)),
+            )
+        )
+    }
 }
