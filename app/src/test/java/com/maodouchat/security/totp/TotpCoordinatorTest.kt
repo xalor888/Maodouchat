@@ -85,15 +85,71 @@ class TotpCoordinatorTest {
         assertTrue(coordinator.state.value is TotpState.Disabled)
     }
 
+    @Test
+    fun loadStatus_blankToken_disablesWithoutNetworkCall() = runBlocking {
+        val res = coordinator.loadStatus("   ")
+        assertTrue(res.isSuccess)
+        assertFalse(res.getOrThrow())
+        assertTrue(coordinator.state.value is TotpState.Disabled)
+    }
+
+    @Test
+    fun loadStatus_primaryFails_fallsBackToLegacyEndpoint() = runBlocking {
+        fakeAuthApi.statusResult = Result.failure(IllegalStateException("primary down"))
+        fakeAuthApi.rawStatusJson = """{"enabled":true}"""
+        val res = coordinator.loadStatus("token_123")
+        assertTrue(res.isSuccess)
+        assertTrue(res.getOrThrow())
+        assertTrue(coordinator.state.value is TotpState.Enabled)
+    }
+
+    @Test
+    fun startSetup_networkFailure_transitionsToErrorWithDisabledPrevious() = runBlocking {
+        fakeAuthApi.setupResult = Result.failure(IllegalStateException("offline"))
+        val res = coordinator.startSetup("token_123")
+        assertTrue(res.isFailure)
+        val err = coordinator.state.value as TotpState.Error
+        assertEquals("offline", err.message)
+        assertTrue(err.previousState is TotpState.Disabled)
+    }
+
+    @Test
+    fun confirmSetup_withoutPriorSetup_goesToErrorState() = runBlocking {
+        fakeAuthApi.confirmResult = Result.failure(IllegalArgumentException("No setup"))
+        val res = coordinator.confirmSetup("token_123", "123456")
+        assertTrue(res.isFailure)
+        val err = coordinator.state.value as TotpState.Error
+        assertEquals("No setup", err.message)
+        assertTrue(err.previousState is TotpState.Uninitialized)
+    }
+
+    @Test
+    fun disable_failure_preservesEnabledWithError() = runBlocking {
+        fakeAuthApi.setupResult = Result.success("""{"secret":"JBSWY3DPEHPK3PXP"}""")
+        coordinator.startSetup("token_123")
+        fakeAuthApi.confirmResult = Result.success(listOf("rc1"))
+        coordinator.confirmSetup("token_123", "123456")
+
+        fakeAuthApi.disableResult = Result.failure(IllegalStateException("Wrong code"))
+        val res = coordinator.disable("token_123", "000000")
+        assertTrue(res.isFailure)
+        val enabled = coordinator.state.value as TotpState.Enabled
+        assertFalse(enabled.isWorking)
+        assertEquals("Wrong code", enabled.error)
+        assertEquals(listOf("rc1"), enabled.recoveryCodes)
+    }
+
     private class FakeAuthApi : AuthApi {
         var statusResult: Result<Boolean> = Result.success(false)
         var setupResult: Result<String> = Result.success("{}")
         var confirmResult: Result<List<String>> = Result.success(emptyList())
         var disableResult: Result<String> = Result.success("ok")
         var regenerateResult: Result<List<String>> = Result.success(emptyList())
+        // Set to simulate the legacy getTotpStatus endpoint behaving differently from totpStatus
+        var rawStatusJson: String? = null
 
         override suspend fun getTotpStatus(token: String): Result<String> =
-            statusResult.map { """{"enabled":$it}""" }
+            rawStatusJson?.let { Result.success(it) } ?: statusResult.map { """{"enabled":$it}""" }
 
         override suspend fun totpStatus(token: String): Result<Boolean> = statusResult
 

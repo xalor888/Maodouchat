@@ -17,9 +17,9 @@ class PinSecurityPolicyTest {
         assertTrue(PinSecurityPolicy.isValidPinFormat("123456"))
         assertTrue(PinSecurityPolicy.isValidPinFormat("123456789012"))
 
-        assertFalse(PinSecurityPolicy.isValidPinFormat("123")) // too short
-        assertFalse(PinSecurityPolicy.isValidPinFormat("1234567890123")) // too long
-        assertFalse(PinSecurityPolicy.isValidPinFormat("123a")) // non-digit
+        assertFalse(PinSecurityPolicy.isValidPinFormat("123"))
+        assertFalse(PinSecurityPolicy.isValidPinFormat("1234567890123"))
+        assertFalse(PinSecurityPolicy.isValidPinFormat("123a"))
         assertFalse(PinSecurityPolicy.isValidPinFormat(""))
     }
 
@@ -87,17 +87,14 @@ class PinSecurityPolicyTest {
         assertTrue(limiter.isLocked("chat_1"))
         assertEquals(30000L, limiter.remainingLockoutMs("chat_1"))
 
-        // Advance time by 10s
         currentTime += 10000L
         assertTrue(limiter.isLocked("chat_1"))
         assertEquals(20000L, limiter.remainingLockoutMs("chat_1"))
 
-        // Advance time past lockout
         currentTime += 20001L
         assertFalse(limiter.isLocked("chat_1"))
         assertEquals(0L, limiter.remainingLockoutMs("chat_1"))
 
-        // Record success resets count
         limiter.recordFailure("chat_1")
         limiter.recordSuccess("chat_1")
         limiter.recordFailure("chat_1")
@@ -114,14 +111,11 @@ class PinSecurityPolicyTest {
 
         cache.markAuthenticated("chat_42", "user_alice")
         assertTrue(cache.isAuthenticated("chat_42", "user_alice"))
-        // User Bob should not be authenticated
         assertFalse(cache.isAuthenticated("chat_42", "user_bob"))
 
-        // Advance time 50s - still valid
         currentTime += 50000L
         assertTrue(cache.isAuthenticated("chat_42", "user_alice"))
 
-        // Advance time another 15s - expired
         currentTime += 15000L
         assertFalse(cache.isAuthenticated("chat_42", "user_alice"))
     }
@@ -133,22 +127,96 @@ class PinSecurityPolicyTest {
 
         assertFalse(repo.hasPin("wallet"))
 
-        // Set pin
         assertTrue(repo.setPin("wallet", "8888"))
         assertTrue(repo.hasPin("wallet"))
 
-        // Verify correct pin
         assertTrue(repo.verifyPin("wallet", "8888", "user_1"))
         assertTrue(repo.isSessionAuthenticated("wallet", "user_1"))
         assertFalse(repo.isSessionAuthenticated("wallet", "user_2"))
 
-        // Verify wrong pin
         assertFalse(repo.verifyPin("wallet", "0000"))
 
-        // Remove pin
         repo.removePin("wallet")
         assertFalse(repo.hasPin("wallet"))
         assertFalse(repo.isSessionAuthenticated("wallet", "user_1"))
+    }
+
+    @Test
+    fun verifyPin_malformedStoredHash_returnsCorrupted() {
+        assertEquals(VerificationOutcome.Corrupted, PinSecurityPolicy.verifyPin("1234", ""))
+        assertEquals(VerificationOutcome.Corrupted, PinSecurityPolicy.verifyPin("1234", "pbkdf2$" + "1000"))
+        assertEquals(VerificationOutcome.Corrupted, PinSecurityPolicy.verifyPin("1234", "pbkdf2$" + "abc" + "$" + "salt" + "$" + "hash"))
+    }
+
+    @Test
+    fun verifyPin_lowIterationPbkdf2_flagsUpgradeWithReusableHash() {
+        val salt = PinSecurityPolicy.generateSalt()
+        val stored = PinSecurityPolicy.encodeStoredHash("5678", salt, 1000)
+        assertEquals(32, stored.saltHex.length)
+
+        val outcome = PinSecurityPolicy.verifyPin("5678", stored.formattedString, minDesiredIterations = 2000)
+        assertTrue(outcome is VerificationOutcome.Success)
+        val success = outcome as VerificationOutcome.Success
+        assertTrue(success.needsUpgrade)
+        assertNotNull(success.upgradedHash)
+        assertTrue(success.upgradedHash!!.formattedString.startsWith("pbkdf2$" + 2000 + "$"))
+
+        val reverify = PinSecurityPolicy.verifyPin(
+            "5678",
+            success.upgradedHash!!.formattedString,
+            minDesiredIterations = 2000
+        )
+        assertTrue(reverify is VerificationOutcome.Success)
+        assertFalse((reverify as VerificationOutcome.Success).needsUpgrade)
+    }
+
+    @Test
+    fun rateLimiter_failuresAreIsolatedPerKey() {
+        var currentTime = 2000000L
+        val limiter = RateLimiter(maxFailures = 2, lockoutMs = 30000L, clock = { currentTime })
+
+        assertEquals(0L, limiter.recordFailure("alice"))
+        assertEquals(30000L, limiter.recordFailure("alice"))
+        assertTrue(limiter.isLocked("alice"))
+
+        assertFalse(limiter.isLocked("bob"))
+
+        limiter.resetAll()
+        assertFalse(limiter.isLocked("alice"))
+    }
+
+    @Test
+    fun authenticatedSessionCache_invalidate_dropsPerUserAndAll() {
+        var currentTime = 700000L
+        val cache = AuthenticatedSessionCache(ttlMs = 60000L, clock = { currentTime })
+
+        cache.markAuthenticated("chat_1", "user_alice")
+        cache.markAuthenticated("chat_2", "user_alice")
+        cache.markAuthenticated("chat_3", "user_bob")
+
+        cache.invalidateUser("user_alice")
+        assertFalse(cache.isAuthenticated("chat_1", "user_alice"))
+        assertFalse(cache.isAuthenticated("chat_2", "user_alice"))
+        assertTrue(cache.isAuthenticated("chat_3", "user_bob"))
+
+        cache.invalidateAll()
+        assertFalse(cache.isAuthenticated("chat_3", "user_bob"))
+    }
+
+    @Test
+    fun pinLockRepository_setPinTwice_overwritesOldHash() = runBlocking {
+        val fakePrefs = FakeSharedPreferences()
+        val repo = DefaultPinLockRepository(fakePrefs)
+
+        assertFalse(repo.setPin("chat_x", "12"))
+        assertFalse(repo.hasPin("chat_x"))
+
+        assertTrue(repo.setPin("chat_x", "1111"))
+        assertTrue(repo.verifyPin("chat_x", "1111"))
+
+        assertTrue(repo.setPin("chat_x", "2222"))
+        assertTrue(repo.verifyPin("chat_x", "2222"))
+        assertFalse(repo.verifyPin("chat_x", "1111"))
     }
 
     private class FakeSharedPreferences : SharedPreferences {
