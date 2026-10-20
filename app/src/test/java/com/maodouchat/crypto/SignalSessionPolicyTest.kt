@@ -350,6 +350,47 @@ class SignalSessionPolicyTest {
     }
 
     @Test
+    fun ownOtherDeviceIsNotSelfSkipped() {
+        // self 判定是账号+设备槽双一致：自己账号的其他槽位照建。
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("me", 3, "me", 5))
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("me", 5, "me", 5))
+    }
+
+    @Test
+    fun discoveryBoundsAreInclusive() {
+        assertEquals(
+            listOf(1, 255),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(0, 1, 255, 256, 300),
+                persistedSessionDeviceIds = emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun blankRecipientShortCircuitsInvalidDevice() {
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("", -1, null, 1))
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("  ", 0, "me", 1))
+    }
+
+    @Test
+    fun outOfRangeOnlyDiscoveryCollapsesToSinglePersisted() {
+        assertEquals(
+            listOf(6),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(300, 300, 0),
+                persistedSessionDeviceIds = listOf(6),
+            ),
+        )
+    }
+
+    @Test
+    fun tabNewlineRecipientIsBlank() {
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("\t\n", 2, null, 1))
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("\n", 1, "peer", 1))
+    }
+
+    @Test
     fun persistedBoundaryIdsSurviveRangeFilter() {
         assertEquals(
             listOf(1, 255),

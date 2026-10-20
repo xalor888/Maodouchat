@@ -405,6 +405,65 @@ class IdentitySafetyPolicyTest {
     }
 
     @Test
+    fun `primary prefers device one over first listed changed device`() {
+        // primary 只认 deviceId == 1：当前设备排第一也没用。
+        val states = listOf(
+            device(2, IdentityTrustState.VERIFIED, current = true),
+            device(1, IdentityTrustState.CHANGED)
+        )
+        assertEquals(1, IdentitySafetyPolicy.primaryDevice(states)?.deviceId)
+        assertEquals(
+            IdentityTrustState.CHANGED,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertTrue(IdentitySafetyPolicy.isStickyWarning(IdentitySafetyPolicy.aggregateTrust(states)))
+    }
+
+    @Test
+    fun `canVerifyAny is false for empty list`() {
+        assertFalse(IdentitySafetyPolicy.canVerifyAny(emptyList()))
+    }
+
+    @Test
+    fun `verified with blank code does not block unknown verification`() {
+        val states = listOf(
+            device(1, IdentityTrustState.VERIFIED, code = ""),
+            device(2, IdentityTrustState.UNKNOWN)
+        )
+        assertTrue(IdentitySafetyPolicy.canVerifyAny(states))
+    }
+
+    @Test
+    fun `warning kind tracks aggregate for changed over verified`() {
+        val states = listOf(
+            device(1, IdentityTrustState.VERIFIED),
+            device(2, IdentityTrustState.CHANGED)
+        )
+        val aggregate = IdentitySafetyPolicy.aggregateTrust(states)
+        assertEquals(IdentityTrustState.CHANGED, aggregate)
+        assertEquals(WarningKind.CHANGED, IdentitySafetyPolicy.warningKind(aggregate))
+        assertTrue(IdentitySafetyPolicy.isStickyWarning(aggregate))
+    }
+
+    @Test
+    fun `primary falls back to first listed with non positive ids`() {
+        val states = listOf(
+            device(0, IdentityTrustState.TRUSTED),
+            device(-3, IdentityTrustState.VERIFIED)
+        )
+        assertEquals(0, IdentitySafetyPolicy.primaryDevice(states)?.deviceId)
+        assertEquals(
+            1,
+            IdentitySafetyPolicy.primaryDevice(
+                listOf(
+                    device(0, IdentityTrustState.TRUSTED),
+                    device(1, IdentityTrustState.UNKNOWN)
+                )
+            )?.deviceId
+        )
+    }
+
+    @Test
     fun `worst wins is independent of device order`() {
         // 聚合只用 any/all：设备顺序不影响结果。
         val forward = listOf(
