@@ -54,4 +54,33 @@ class ChatLockPolicyTest {
     fun `missing chat id stays locked even without an owner`() {
         assertFalse(ChatLockPolicy.isUnlocked("c9", setOf("c1"), ownerUserId = null, liveUserId = "u1"))
     }
+
+    @Test
+    fun `blank chat id fails closed against a populated unlock set`() {
+        assertFalse(ChatLockPolicy.isUnlocked("", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `blank live user id fails closed`() {
+        assertFalse(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "u1", liveUserId = ""))
+    }
+
+    @Test
+    fun `set membership is exact with no whitespace tolerance`() {
+        assertFalse(ChatLockPolicy.isUnlocked("c1 ", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
+        assertFalse(ChatLockPolicy.isUnlocked(" c1", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `account switch between calls flips the verdict`() {
+        assertTrue(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
+        assertFalse(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "u1", liveUserId = "u2"))
+    }
+
+    @Test
+    fun `decision is stable across repeated calls`() {
+        repeat(3) {
+            assertTrue(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
+        }
+    }
 }

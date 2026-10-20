@@ -206,4 +206,58 @@ class ScreenSecurePolicyTest {
         // 列表页仍是聊天表面（全局开关可生效），但不乐观当密聊
         assertTrue(ScreenSecurePolicy.isChatSurfaceRoute("chat_detail_list_pane"))
     }
+
+    @Test
+    fun `app lock showing secures regardless of other inputs`() {
+        assertTrue(
+            ScreenSecurePolicy.shouldSecureWindow(
+                appLockShowing = true,
+                globalEnabled = true,
+                onChatSurface = true,
+                secretChatSurfaceActive = true,
+                chatLockSurfaceActive = true
+            )
+        )
+    }
+
+    @Test
+    fun `chat lock surface plus chat surface stays forced with global off`() {
+        assertTrue(
+            ScreenSecurePolicy.shouldSecureWindow(
+                appLockShowing = false,
+                globalEnabled = false,
+                onChatSurface = true,
+                chatLockSurfaceActive = true
+            )
+        )
+    }
+
+    @Test
+    fun `extract chat id handles extra query params and plus encoding`() {
+        assertEquals("c9", ScreenSecurePolicy.extractChatIdFromRoute("starred_messages?foo=1&chatId=c9"))
+        // "+" 在 path 段里按字面保留，不被当空格。
+        assertEquals("a+b", ScreenSecurePolicy.extractChatIdFromRoute("chat_detail/a%2Bb"))
+    }
+
+    @Test
+    fun `resolveChatId falls through a blank argument to the filled route`() {
+        assertEquals(
+            "abc",
+            ScreenSecurePolicy.resolveChatId(
+                argumentChatId = "  ",
+                filledRoute = "chat_detail/abc",
+                routePattern = "chat_detail/{chatId}"
+            )
+        )
+    }
+
+    @Test
+    fun `optimistic secret surface excludes forensic and call surfaces`() {
+        // 取证页与通话页虽是聊天表面（全局开关可生效），但没有可直接展示某会话消息的乐观密聊窗口。
+        assertTrue(ScreenSecurePolicy.isChatSurfaceRoute("watermark_forensic/w1"))
+        assertTrue(ScreenSecurePolicy.isChatSurfaceRoute("call/u1/Alice/AUDIO"))
+        assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface("watermark_forensic/w1"))
+        assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface("call/u1/Alice/AUDIO"))
+        assertTrue(ScreenSecurePolicy.isOptimisticSecretSurface("starred_messages/c1"))
+    }
 }
