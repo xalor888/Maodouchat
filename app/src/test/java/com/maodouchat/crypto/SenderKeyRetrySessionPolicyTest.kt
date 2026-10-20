@@ -158,4 +158,32 @@ class SenderKeyRetrySessionPolicyTest {
     fun nonBreakingSpaceOnlyTokenAborts() {
         assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "\u00A0", "u1"))
     }
+
+    @Test
+    fun fullWidthSpacePaddedIdsMatchExactly() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("\u3000u1\u3000", "tok", "\u3000u1\u3000"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("\u3000u1\u3000", "tok", "u1"))
+    }
+
+    @Test
+    fun verticalTabOnlyIdsAbort() {
+        // '\x0B' 是 Kotlin 认定的空白字符，纯纵向制表 id 视为空白
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("\u000B", "tok", "\u000B"))
+    }
+
+    @Test
+    fun internalNewlineIdsMatchExactly() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u\n1", "tok", "u\n1"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u\n1", "tok", "u1"))
+    }
+
+    @Test
+    fun symmetricTrailingTabIdsStillMatch() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u1\t", "tok", "u1\t"))
+    }
+
+    @Test
+    fun formFeedOnlyBatchIdAborts() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("\u000C", "tok", "u1"))
+    }
 }

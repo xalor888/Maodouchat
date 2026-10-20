@@ -501,4 +501,67 @@ class SignalDeviceIdRecoveryPolicyTest {
             )
         )
     }
+
+    @Test
+    fun availableCandidateAcceptsDefaultLowerBoundary() {
+        assertEquals(
+            2,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 2,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+            ),
+        )
+    }
+
+    @Test
+    fun availableCandidateRejectsNegativeCandidate() {
+        assertEquals(
+            null,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = -5,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+            ),
+        )
+    }
+
+    @Test
+    fun shouldRetryAcceptsTheLastBudgetedAttempt() {
+        val conflict = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            )
+        )
+
+        assertTrue(SignalDeviceIdRecoveryPolicy.shouldRetry(conflict, attempt = 2, maxAttempts = 4))
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetry(conflict, attempt = 3, maxAttempts = 4))
+    }
+
+    @Test
+    fun serverCodeIgnoresApiExceptionBuriedBeyondFourLevels() {
+        val mapped = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            )
+        )
+        // serverCode 只往下看四层：三层包装还能命中，四层就够不着了
+        val threeDeep = RuntimeException("a", RuntimeException("b", RuntimeException("c", mapped)))
+        val fourDeep = RuntimeException("a", threeDeep)
+        assertEquals(
+            SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            SignalDeviceIdRecoveryPolicy.serverCode(threeDeep),
+        )
+        assertEquals(null, SignalDeviceIdRecoveryPolicy.serverCode(fourDeep))
+    }
+
+    @Test
+    fun isPendingDeviceStatusTrimsAndIgnoresCase() {
+        assertTrue(SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus(" pEnDiNg "))
+        assertTrue(SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus("PENDING"))
+    }
 }
