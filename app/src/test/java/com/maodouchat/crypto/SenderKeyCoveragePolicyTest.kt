@@ -140,4 +140,51 @@ class SenderKeyCoveragePolicyTest {
         assertFalse(assessment.requiresDistribution)
         assertEquals(Reason.COMPLETE, assessment.reason)
     }
+
+    @Test
+    fun `blank status string counts as unknown not sent`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 4, 4, listOf("SENT", ""))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.UNKNOWN_TARGETS, assessment.reason)
+        assertEquals(1, assessment.unknownCount)
+        assertEquals(1, assessment.sentCount)
+    }
+
+    @Test
+    fun `status match is whitespace sensitive`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 4, 4, listOf("SENT "))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.UNKNOWN_TARGETS, assessment.reason)
+        assertEquals(1, assessment.unknownCount)
+    }
+
+    @Test
+    fun `pending outranks unknown in reason priority`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, 4, 4, listOf("PENDING", "QUEUED"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.PENDING_TARGETS, assessment.reason)
+        assertEquals(1, assessment.pendingCount)
+        assertEquals(1, assessment.unknownCount)
+    }
+
+    @Test
+    fun `null reported total falls back to target list size`() {
+        val assessment = SenderKeyCoveragePolicy.assess(
+            hasLocalDistribution = true,
+            requestedEpoch = 4,
+            statusEpoch = 4,
+            targetStatuses = listOf("SENT"),
+            reportedTotal = null
+        )
+        assertFalse(assessment.requiresDistribution)
+        assertEquals(Reason.COMPLETE, assessment.reason)
+    }
+
+    @Test
+    fun `negative requested epoch still forces distribution`() {
+        val assessment = SenderKeyCoveragePolicy.assess(true, -1, 4, listOf("SENT"))
+        assertTrue(assessment.requiresDistribution)
+        assertEquals(Reason.EPOCH_MISMATCH, assessment.reason)
+        assertTrue(SenderKeyCoveragePolicy.requiresDistribution(true, -1, 4, listOf("SENT")))
+    }
 }

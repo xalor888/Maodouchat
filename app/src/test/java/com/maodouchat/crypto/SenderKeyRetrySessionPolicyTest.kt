@@ -73,4 +73,33 @@ class SenderKeyRetrySessionPolicyTest {
         assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("用户1", "tok", "用户1"))
         assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("用户1", "tok", "用户2"))
     }
+
+    @Test
+    fun paddedTokenStillCountsAsLive() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", " tok ", "u1"))
+    }
+
+    @Test
+    fun newlineOnlyTokenAborts() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "\n", "u1"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "\r\n", "u1"))
+    }
+
+    @Test
+    fun paddedExpectedIdDoesNotMatchCleanLiveId() {
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("\tu1", "tok", "u1"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", "tok", "\tu1"))
+    }
+
+    @Test
+    fun emojiUserIdsMatchExactly() {
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("用户🚀", "tok", "用户🚀"))
+        assertFalse(SenderKeyRetrySessionPolicy.mayContinueBatch("用户🚀", "tok", "用户🛰"))
+    }
+
+    @Test
+    fun longTokenDoesNotAffectStableSession() {
+        val longToken = "x".repeat(10_000)
+        assertTrue(SenderKeyRetrySessionPolicy.mayContinueBatch("u1", longToken, "u1"))
+    }
 }

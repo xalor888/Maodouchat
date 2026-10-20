@@ -252,4 +252,61 @@ class MultiRecipientCoveragePolicyTest {
             )
         )
     }
+
+    @Test
+    fun tabAndNewlineOnlyRecipientIdNormalizesToNull() {
+        assertNull(MultiRecipientCoveragePolicy.normalizeRequiredRecipientId("\t \n"))
+    }
+
+    @Test
+    fun duplicateConcreteTargetsCollapseToOne() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredTargetsCovered(
+                requiredTargets = listOf(Target("peer", 7), Target("peer", 7)),
+                targets = listOf(Target("peer", 7)),
+            )
+        )
+        assertTrue(
+            MultiRecipientCoveragePolicy.missingRequiredTargets(
+                requiredTargets = listOf(Target("peer", 7), Target("peer", 7)),
+                targets = listOf(Target("peer", 7)),
+            ).isEmpty()
+        )
+    }
+
+    @Test
+    fun failureKeysNormalizeLikeCoverageTargets() {
+        val transient = SignalExchangeException(SignalExchangeFailure.TIMEOUT)
+        val wrapped = MultiRecipientCoveragePolicy.transientFailureForMissingTargets(
+            requiredTargets = listOf(Target("peer", 8)),
+            targets = emptyList(),
+            failuresByTarget = mapOf(Target(" peer ", 8) to transient),
+        )
+        assertTrue(wrapped is TransientCoverageException)
+        assertSame(transient, wrapped?.cause)
+    }
+
+    @Test
+    fun nullErrorIsNotTransientButWrappedIoCauseIs() {
+        assertFalse(MultiRecipientCoveragePolicy.isTransient(null))
+        assertTrue(
+            MultiRecipientCoveragePolicy.isTransient(
+                RuntimeException(java.io.IOException("offline"))
+            )
+        )
+    }
+
+    @Test
+    fun httpStatusBoundaryAndNullStatusAreNotTransient() {
+        assertFalse(
+            MultiRecipientCoveragePolicy.isTransient(
+                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = 600)
+            )
+        )
+        assertFalse(
+            MultiRecipientCoveragePolicy.isTransient(
+                SignalExchangeException(SignalExchangeFailure.HTTP, statusCode = null)
+            )
+        )
+    }
 }
