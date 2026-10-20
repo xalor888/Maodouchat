@@ -167,4 +167,31 @@ class ConfirmedDevicePolicyTest {
         assertEquals(1, ConfirmedDevicePolicy.resolve(1, listOf(256, 256, 1, 0, 0)))
         assertEquals(255, ConfirmedDevicePolicy.resolve(1, listOf(0, 255, 255)))
     }
+
+    @Test
+    fun `extreme custom default still takes the default slot`() {
+        assertEquals(3, ConfirmedDevicePolicy.resolve(Int.MIN_VALUE, listOf(3), defaultDeviceId = Int.MIN_VALUE))
+        assertNull(ConfirmedDevicePolicy.resolve(Int.MIN_VALUE, emptyList(), defaultDeviceId = Int.MIN_VALUE))
+    }
+
+    @Test
+    fun `huge explicit request never consults the confirmed list`() {
+        assertNull(ConfirmedDevicePolicy.resolve(Int.MAX_VALUE, listOf(2, 4)))
+        assertNull(ConfirmedDevicePolicy.resolve(Int.MAX_VALUE, emptyList()))
+    }
+
+    @Test
+    fun `confirmed garbage collapses to the single valid id`() {
+        assertEquals(42, ConfirmedDevicePolicy.resolve(1, listOf(Int.MIN_VALUE, -1, 0, 256, Int.MAX_VALUE, 42)))
+    }
+
+    @Test
+    fun `explicit lower boundary bypasses an empty confirmed list under a foreign default`() {
+        assertEquals(1, ConfirmedDevicePolicy.resolve(1, emptyList(), defaultDeviceId = 9))
+    }
+
+    @Test
+    fun `default slot picks itself from unsorted garbage`() {
+        assertEquals(1, ConfirmedDevicePolicy.resolve(1, listOf(300, 5, 1, -2)))
+    }
 }

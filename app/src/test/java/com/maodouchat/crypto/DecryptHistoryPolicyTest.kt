@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.DecryptResult
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -148,5 +149,64 @@ class DecryptHistoryPolicyTest {
         // 空白先于去重被拒，集合里有没有它都不尝试
         assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("  ", setOf("  ")))
         assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("", setOf("")))
+    }
+
+    @Test
+    fun keepAndDeferFormAnExhaustiveCrossTable() {
+        // 八种结果 × 两个决策，一张表钉死
+        val table = mapOf(
+            DecryptResult.Success("x") to (false to false),
+            DecryptResult.NotForThisDevice to (true to false),
+            DecryptResult.NoSession to (true to true),
+            DecryptResult.UntrustedIdentity to (true to true),
+            DecryptResult.FutureEpoch to (true to false),
+            DecryptResult.Failed to (true to false),
+            DecryptResult.Duplicate to (true to false),
+            DecryptResult.UnsupportedEnvelope to (true to false),
+        )
+        table.forEach { (result, expected) ->
+            val (keep, defer) = expected
+            assertEquals(result.toString(), keep, DecryptHistoryPolicy.shouldKeepWire(result))
+            assertEquals(result.toString(), defer, DecryptHistoryPolicy.shouldDeferSessionRepair(result))
+        }
+    }
+
+    @Test
+    fun deferIsTrueOnlyForTheTwoRepairableResults() {
+        assertTrue(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.NoSession))
+        assertTrue(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.UntrustedIdentity))
+        listOf(
+            DecryptResult.Success("x"),
+            DecryptResult.NotForThisDevice,
+            DecryptResult.FutureEpoch,
+            DecryptResult.Failed,
+            DecryptResult.Duplicate,
+            DecryptResult.UnsupportedEnvelope,
+        ).forEach { result ->
+            assertFalse(result.toString(), DecryptHistoryPolicy.shouldDeferSessionRepair(result))
+        }
+    }
+
+    @Test
+    fun repairAttemptTrimsUnicodeWhitespaceAroundSenderId() {
+        // Kotlin trim() 按 Unicode 空白类别裁边：全角空格与不间断空格也会被裁掉
+        assertTrue(DecryptHistoryPolicy.shouldAttemptSessionRepair("\u3000u2\u3000", emptySet()))
+        assertTrue(DecryptHistoryPolicy.shouldAttemptSessionRepair("\u00a0u2\u00a0", emptySet()))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("\u3000", emptySet()))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("\u00a0", emptySet()))
+    }
+
+    @Test
+    fun repairAttemptKeepsInteriorWhitespace() {
+        // trim 只裁两端：中间的换行留着，id 按原样比对
+        assertTrue(DecryptHistoryPolicy.shouldAttemptSessionRepair("u\n2", emptySet()))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("u2 ", setOf("u2")))
+    }
+
+    @Test
+    fun successNeverDefersRegardlessOfPayload() {
+        // defer 只看结果类型，正文写什么都不影响
+        assertFalse(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.Success("")))
+        assertFalse(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.Success("NoSession")))
     }
 }
