@@ -122,4 +122,75 @@ class SessionCipherOccupancyTest {
         }
         assertFalse(SessionCipherOccupancy.isPeerOccupied("alice"))
     }
+
+    @Test
+    fun acquireSetsMarkersAndDoubleReleaseIsRejected() {
+        val lease = SessionCipherOccupancy.acquire("cov-a")
+        try {
+            assertTrue(SessionCipherOccupancy.isChatOccupied("cov-a"))
+            assertTrue(SessionCipherOccupancy.release(lease))
+            assertFalse(SessionCipherOccupancy.isChatOccupied("cov-a"))
+            assertFalse(SessionCipherOccupancy.release(lease))
+        } finally {
+            SessionCipherOccupancy.release("cov-a")
+        }
+    }
+
+    @Test
+    fun occupyTrimsChatIdBeforeMarking() {
+        SessionCipherOccupancy.occupy("  cov-b  ")
+        try {
+            assertTrue(SessionCipherOccupancy.isChatOccupied("cov-b"))
+            assertFalse(SessionCipherOccupancy.isChatOccupied("  cov-b  "))
+            assertTrue(SessionCipherOccupancy.release("cov-b"))
+        } finally {
+            SessionCipherOccupancy.release("cov-b")
+        }
+    }
+
+    @Test
+    fun occupyPeerTrimsButBlankClears() {
+        SessionCipherOccupancy.occupyPeer("  bob  ")
+        try {
+            assertTrue(SessionCipherOccupancy.isPeerOccupied("bob"))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("  bob  "))
+            SessionCipherOccupancy.occupyPeer("   ")
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("bob"))
+        } finally {
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun shouldSkipSessionCipherIgnoresBlankIds() {
+        SessionCipherOccupancy.occupyPeer(null)
+        SessionCipherOccupancy.occupy("cov-d")
+        try {
+            assertTrue(SessionCipherOccupancy.shouldSkipSessionCipher("cov-d", "nobody"))
+            assertFalse(SessionCipherOccupancy.shouldSkipSessionCipher("", ""))
+            assertFalse(SessionCipherOccupancy.shouldSkipSessionCipher("", "nobody"))
+            assertFalse(SessionCipherOccupancy.shouldSkipSessionCipher("other", "nobody"))
+        } finally {
+            SessionCipherOccupancy.release("cov-d")
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun newAcquireSupersedesOldMarkersButKeepsPeerUntilRelease() {
+        val old = SessionCipherOccupancy.acquire("cov-e")
+        assertTrue(SessionCipherOccupancy.occupy(old, "cov-e", "eve", updatePeer = true))
+        val current = SessionCipherOccupancy.acquire("cov-f")
+        try {
+            assertFalse(SessionCipherOccupancy.isChatOccupied("cov-e"))
+            assertTrue(SessionCipherOccupancy.isChatOccupied("cov-f"))
+            assertTrue(SessionCipherOccupancy.isPeerOccupied("eve"))
+            assertTrue(SessionCipherOccupancy.release(current))
+            assertFalse(SessionCipherOccupancy.isChatOccupied("cov-f"))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("eve"))
+        } finally {
+            SessionCipherOccupancy.release(current)
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
 }

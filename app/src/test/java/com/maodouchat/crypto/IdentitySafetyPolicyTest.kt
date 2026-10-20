@@ -155,4 +155,66 @@ class IdentitySafetyPolicyTest {
             IdentitySafetyPolicy.warningKind(IdentityTrustState.TRUSTED)
         )
     }
+
+    @Test
+    fun `all trusted aggregates trusted`() {
+        val states = listOf(
+            device(1, IdentityTrustState.TRUSTED),
+            device(2, IdentityTrustState.TRUSTED)
+        )
+        assertEquals(
+            IdentityTrustState.TRUSTED,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertTrue(IdentitySafetyPolicy.canVerifyAny(states))
+        assertEquals(
+            WarningKind.TRUSTED,
+            IdentitySafetyPolicy.warningKind(IdentitySafetyPolicy.aggregateTrust(states))
+        )
+    }
+
+    @Test
+    fun `single changed aggregates changed`() {
+        val states = listOf(device(1, IdentityTrustState.CHANGED))
+        assertEquals(
+            IdentityTrustState.CHANGED,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertTrue(IdentitySafetyPolicy.isStickyWarning(IdentitySafetyPolicy.aggregateTrust(states)))
+    }
+
+    @Test
+    fun `verified device with safety code is not verifiable`() {
+        assertFalse(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(device(1, IdentityTrustState.VERIFIED))
+            )
+        )
+    }
+
+    @Test
+    fun `primary ignores isCurrent flag`() {
+        val states = listOf(
+            device(2, IdentityTrustState.TRUSTED, current = true),
+            device(1, IdentityTrustState.TRUSTED)
+        )
+        assertEquals(1, IdentitySafetyPolicy.primaryDevice(states)?.deviceId)
+    }
+
+    @Test
+    fun `changed still wins over trusted and unknown together`() {
+        val states = listOf(
+            device(1, IdentityTrustState.TRUSTED),
+            device(2, IdentityTrustState.UNKNOWN),
+            device(3, IdentityTrustState.CHANGED)
+        )
+        assertEquals(
+            IdentityTrustState.CHANGED,
+            IdentitySafetyPolicy.aggregateTrust(states)
+        )
+        assertEquals(
+            WarningKind.CHANGED,
+            IdentitySafetyPolicy.warningKind(IdentitySafetyPolicy.aggregateTrust(states))
+        )
+    }
 }

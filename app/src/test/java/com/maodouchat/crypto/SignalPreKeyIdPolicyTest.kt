@@ -121,4 +121,68 @@ class SignalPreKeyIdPolicyTest {
         assertEquals(1, start)
         assertFalse(SignalPreKeyIdPolicy.isValid(Int.MIN_VALUE))
     }
+
+    @Test
+    fun `sequential off by one past max start falls back to random`() {
+        val maxStart = SignalPreKeyIdPolicy.MAX_ID - 1
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = SignalPreKeyIdPolicy.MAX_ID - 1,
+            count = 2,
+            randomIntExclusive = { n ->
+                assertEquals(maxStart, n)
+                n - 1
+            },
+        )
+        assertEquals(maxStart, start)
+        assertEquals(SignalPreKeyIdPolicy.MAX_ID, start + 2 - 1)
+    }
+
+    @Test
+    fun `random start at top never overflows 24-bit`() {
+        val maxStart = SignalPreKeyIdPolicy.MAX_ID - 100 + 1
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = SignalPreKeyIdPolicy.MAX_ID,
+            count = 100,
+            randomIntExclusive = { n ->
+                assertEquals(maxStart, n)
+                n - 1
+            },
+        )
+        assertEquals(maxStart, start)
+        assertEquals(SignalPreKeyIdPolicy.MAX_ID, start + 100 - 1)
+    }
+
+    @Test
+    fun `random signed prekey id maps midpoint`() {
+        val id = SignalPreKeyIdPolicy.randomSignedPreKeyId { n ->
+            assertEquals(SignalPreKeyIdPolicy.MAX_ID, n)
+            n / 2
+        }
+        assertEquals(1 + SignalPreKeyIdPolicy.MAX_ID / 2, id)
+        assertTrue(SignalPreKeyIdPolicy.isValid(id))
+    }
+
+    @Test
+    fun `negative count coerces to one`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = 0,
+            count = -7,
+            randomIntExclusive = { error("unused") },
+        )
+        assertEquals(1, start)
+    }
+
+    @Test
+    fun `full store falls back to random single id`() {
+        val start = SignalPreKeyIdPolicy.nextBatchStartId(
+            maxExistingId = SignalPreKeyIdPolicy.MAX_ID,
+            count = 1,
+            randomIntExclusive = { n ->
+                assertEquals(SignalPreKeyIdPolicy.MAX_ID, n)
+                n - 1
+            },
+        )
+        assertEquals(SignalPreKeyIdPolicy.MAX_ID, start)
+        assertTrue(SignalPreKeyIdPolicy.isValid(start))
+    }
 }
