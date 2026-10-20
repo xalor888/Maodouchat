@@ -273,4 +273,67 @@ class DecryptFailurePolicyTest {
         assertTrue(DecryptFailurePolicy.envelopeFingerprint("alice", "ciphertext-payload").startsWith("5:18:"))
         assertTrue(DecryptFailurePolicy.envelopeFingerprint("a", "b").startsWith("1:1:"))
     }
+
+    @Test
+    fun trackerHonorsCustomAttemptCap() {
+        val tracker = DecryptRetryTracker(maxAttempts = 2)
+        assertFalse(tracker.shouldAcknowledge("e1", DecryptResult.Failed))
+        assertTrue(tracker.shouldAcknowledge("e1", DecryptResult.Failed))
+        // 达上限后计数已清，下一次重新计数
+        assertFalse(tracker.shouldAcknowledge("e1", DecryptResult.Failed))
+    }
+
+    @Test
+    fun markTerminalDropsAccumulatedRetryCount() {
+        val tracker = DecryptRetryTracker()
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u1", "c")
+        repeat(3) { tracker.recordCryptoFailure(fp) }
+        assertEquals(3, tracker.failureCount(fp))
+        tracker.markTerminal(fp)
+        assertEquals(0, tracker.failureCount(fp))
+        assertTrue(tracker.isTerminal(fp))
+    }
+
+    @Test
+    fun clearRemovesSenderOwnership() {
+        val tracker = DecryptRetryTracker()
+        val fp = DecryptFailurePolicy.envelopeFingerprint("u1", "c")
+        tracker.recordCryptoFailure("u1", fp)
+        tracker.clear(fp)
+        tracker.recordCryptoFailure(fp)
+        // clear 已剥离归属：之后按 sender 清理影响不到它
+        tracker.clearForSender("u1")
+        assertEquals(1, tracker.failureCount(fp))
+    }
+
+    @Test
+    fun senderKeyDistOutcomeForOtherExceptionTypes() {
+        assertEquals(
+            SenderKeyDistOutcome.Failed,
+            SenderKeyDistributionFailurePolicy.outcomeFor(NullPointerException("x"))
+        )
+        assertEquals(
+            SenderKeyDistOutcome.Failed,
+            SenderKeyDistributionFailurePolicy.outcomeFor(NoRecipientDevicesException())
+        )
+        assertEquals(
+            SenderKeyDistOutcome.Failed,
+            SenderKeyDistributionFailurePolicy.outcomeFor(
+                SignalStorePersistenceException(IllegalStateException("x"))
+            )
+        )
+        // IllegalArgumentException 子类同样跳过
+        assertEquals(
+            SenderKeyDistOutcome.Skipped,
+            SenderKeyDistributionFailurePolicy.outcomeFor(NumberFormatException("x"))
+        )
+    }
+
+    @Test
+    fun terminalFingerprintsAreAlsoEvictedBeyondCap() {
+        val tracker = DecryptRetryTracker(maxTracked = 2)
+        val fps = (1..3).map { DecryptFailurePolicy.envelopeFingerprint("u$it", "c$it") }
+        fps.forEach { tracker.markTerminal(it) }
+        assertEquals(2, fps.count { tracker.isTerminal(it) })
+    }
 }
