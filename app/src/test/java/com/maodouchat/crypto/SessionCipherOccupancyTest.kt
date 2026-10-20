@@ -311,6 +311,74 @@ class SessionCipherOccupancyTest {
     }
 
     @Test
+    fun occupyWithLeaseAfterLegacyReleaseIsRejected() {
+        val lease = SessionCipherOccupancy.acquire("occ-x")
+        try {
+            assertTrue(SessionCipherOccupancy.release("occ-x"))
+            assertFalse(SessionCipherOccupancy.occupy(lease, "occ-x", "alice", updatePeer = true))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("alice"))
+        } finally {
+            SessionCipherOccupancy.release("occ-x")
+            SessionCipherOccupancy.occupyPeer(null)
+        }
+    }
+
+    @Test
+    fun occupyWithBlankChatIdStillSucceedsWhenLeaseIsCurrent() {
+        val lease = SessionCipherOccupancy.acquire("occ-y")
+        try {
+            // 空 chatId 不写标记，但租约校验已过，返回 true
+            assertTrue(SessionCipherOccupancy.occupy(lease, "   "))
+            assertTrue(SessionCipherOccupancy.isChatOccupied("occ-y"))
+        } finally {
+            SessionCipherOccupancy.release(lease)
+        }
+    }
+
+    @Test
+    fun shouldSkipSessionCipherSkipsOnChatEvenWithBlankPeer() {
+        SessionCipherOccupancy.occupy("occ-z")
+        try {
+            assertTrue(SessionCipherOccupancy.shouldSkipSessionCipher("occ-z", ""))
+            assertTrue(SessionCipherOccupancy.shouldSkipSessionCipher("occ-z", "   "))
+            assertFalse(SessionCipherOccupancy.shouldSkipSessionCipher("other", ""))
+        } finally {
+            SessionCipherOccupancy.release("occ-z")
+        }
+    }
+
+    @Test
+    fun refreshActiveChatOpenedAtSetsOnceWhenZero() {
+        MaodouchatApp.activeChatOpenedAtMs = 0L
+        try {
+            SessionCipherOccupancy.refreshActiveChatOpenedAtIfUnset()
+            val first = MaodouchatApp.activeChatOpenedAtMs
+            assertTrue(first > 0L)
+            SessionCipherOccupancy.refreshActiveChatOpenedAtIfUnset()
+            assertEquals(first, MaodouchatApp.activeChatOpenedAtMs)
+        } finally {
+            MaodouchatApp.activeChatOpenedAtMs = 0L
+        }
+    }
+
+    @Test
+    fun releaseLeaseClearsOpenedAtAndAllMarkers() {
+        val lease = SessionCipherOccupancy.acquire("occ-w")
+        assertTrue(SessionCipherOccupancy.occupy(lease, "occ-w", "alice", updatePeer = true))
+        MaodouchatApp.activeChatOpenedAtMs = 777L
+        try {
+            assertTrue(SessionCipherOccupancy.release(lease))
+            assertFalse(SessionCipherOccupancy.isChatOccupied("occ-w"))
+            assertFalse(SessionCipherOccupancy.isPeerOccupied("alice"))
+            assertEquals(0L, MaodouchatApp.activeChatOpenedAtMs)
+        } finally {
+            SessionCipherOccupancy.release(lease)
+            SessionCipherOccupancy.occupyPeer(null)
+            MaodouchatApp.activeChatOpenedAtMs = 0L
+        }
+    }
+
+    @Test
     fun acquireWithBlankChatIdClaimsLeaseWithoutMarkers() {
         val lease = SessionCipherOccupancy.acquire("   ")
         try {

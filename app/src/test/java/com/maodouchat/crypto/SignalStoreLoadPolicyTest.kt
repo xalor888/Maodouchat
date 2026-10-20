@@ -131,4 +131,34 @@ class SignalStoreLoadPolicyTest {
         assertTrue(SignalStoreLoadPolicy.shouldLoadRow("\nsession:u1:1\n", "YWJj"))
         assertFalse(SignalStoreLoadPolicy.shouldLoadRow("\n  \n", "YWJj"))
     }
+
+    @Test
+    fun loadRowDropsTabPaddedBlankKeyData() {
+        assertFalse(SignalStoreLoadPolicy.shouldLoadRow("session:u1:1", "\t \t"))
+        assertTrue(SignalStoreLoadPolicy.shouldLoadRow("session:u1:1", "\tYWJj\t"))
+    }
+
+    @Test
+    fun loadRowZeroWidthSpaceIsNotBlank() {
+        // U+200B 不是 Unicode 空白，isBlank 判它非空
+        assertTrue(SignalStoreLoadPolicy.shouldLoadRow("session:u1:1", "\u200B"))
+    }
+
+    @Test
+    fun isPersistableAcceptsPaddedKeyTypeButRejectsEmpty() {
+        assertTrue(SignalStoreLoadPolicy.isPersistable("  prekey:1  ", byteArrayOf(0)))
+        assertFalse(SignalStoreLoadPolicy.isPersistable("", byteArrayOf(1)))
+    }
+
+    @Test
+    fun logicalKeyPrefixMatchIsLiteral() {
+        // startsWith 是字面匹配，* 不当通配符
+        assertEquals("x", SignalStoreLoadPolicy.logicalKeyOrNull("user*alice:x", "user*alice:"))
+        assertEquals("1x", SignalStoreLoadPolicy.logicalKeyOrNull("prekey:1x", "prekey:1"))
+    }
+
+    @Test
+    fun logicalKeyReturnsKeyVerbatimWhenPrefixNotAtHead() {
+        assertEquals("  session:u1  ", SignalStoreLoadPolicy.logicalKeyOrNull("  session:u1  ", "session:"))
+    }
 }
