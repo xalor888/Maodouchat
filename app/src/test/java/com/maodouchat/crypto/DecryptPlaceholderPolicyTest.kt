@@ -271,4 +271,47 @@ class DecryptPlaceholderPolicyTest {
         assertFalse(DecryptPlaceholderPolicy.isPlaceholder("无法\u200b解密"))
         assertFalse(DecryptPlaceholderPolicy.isPlaceholder("[无法解密的消息]\u200b"))
     }
+
+    @Test
+    fun `full-width spaces around placeholder still match`() {
+        // Kotlin 的 trim() 按 Unicode 空白类别裁边，全角空格也会被裁掉。
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\u3000无法解密\u3000"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\u3000[无法解密的消息]\u3000"))
+    }
+
+    @Test
+    fun `unbracketed english phrases still require brackets`() {
+        listOf(
+            "unable to decrypt message",
+            "missing session key. waiting for resend",
+            "member safety number changed. verify identity",
+            "unable to decrypt voice message",
+        ).forEach { phrase ->
+            assertFalse(phrase, DecryptPlaceholderPolicy.isPlaceholder(phrase))
+        }
+    }
+
+    @Test
+    fun `punctuation after unbracketed legacy breaks match`() {
+        listOf(
+            "无法解密！",
+            "decrypt failed?",
+            "密钥缺失，",
+        ).forEach { nearMiss ->
+            assertFalse(nearMiss, DecryptPlaceholderPolicy.isPlaceholder(nearMiss))
+        }
+    }
+
+    @Test
+    fun `duplicate localized varargs still match case-insensitively`() {
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("[gone]", "[gone]", "[gone]"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("[GONE]", "[gone]"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("  Gone  ", "gone"))
+    }
+
+    @Test
+    fun `tabs and carriage returns around legacy entry still match`() {
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\t无法解密\t"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\r\n[unable to decrypt voice message]\r\n"))
+    }
 }

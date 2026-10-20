@@ -280,4 +280,49 @@ class SignalSessionPolicyTest {
     fun whitespaceOnlyRecipientRejectedBeforeSelfCheckSkip() {
         assertFalse(SignalSessionPolicy.shouldEstablishSession("  ", 2, "  ", 2))
     }
+
+    @Test
+    fun sessionPresentWithoutMarkerNeedsNothing() {
+        assertFalse(
+            SignalSessionPolicy.shouldEnsureSession(
+                hasSession = true,
+                requiresReestablishment = false,
+            )
+        )
+    }
+
+    @Test
+    fun whitespaceCurrentUserIdSkipsSelfCheck() {
+        // 纯空白 currentUserId 视同缺失：self 判定跳过，直接放行建会话。
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("u1", 1, "  ", 1))
+        assertTrue(SignalSessionPolicy.shouldEstablishSession("u1", 1, "\t", 1))
+    }
+
+    @Test
+    fun negativeDeviceIdNeverEstablishesSession() {
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("u2", -1, "u1", 1))
+        assertFalse(SignalSessionPolicy.shouldEstablishSession("u2", Int.MIN_VALUE, "u1", 1))
+    }
+
+    @Test
+    fun singleDiscoveredIdIsAuthoritativeOverLargerPersistedSet() {
+        assertEquals(
+            listOf(7),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = listOf(7),
+                persistedSessionDeviceIds = listOf(3, 7, 9),
+            )
+        )
+    }
+
+    @Test
+    fun negativePersistedIdsAreDroppedBeforeSort() {
+        assertEquals(
+            listOf(2, 9),
+            SignalSessionPolicy.candidateDeviceIds(
+                discoveredDeviceIds = null,
+                persistedSessionDeviceIds = listOf(9, -1, 2, 0),
+            )
+        )
+    }
 }
