@@ -104,4 +104,33 @@ class SafetyCodePolicyTest {
         assertEquals("00000 00000 000", SafetyCodePolicy.formatForDisplay("0".repeat(13)))
         assertEquals("01234 56789 01234 5", SafetyCodePolicy.formatForDisplay("0123456789012345"))
     }
+
+    @Test
+    fun `digitsOnly keeps ASCII digits only`() {
+        // 正则只认 0-9，非 ASCII 数字整段丢弃
+        assertEquals("", SafetyCodePolicy.digitsOnly("٠١٢٣٤"))
+        assertEquals("12345678", SafetyCodePolicy.digitsOnly("+1 (234) x5678"))
+    }
+
+    @Test
+    fun `display groups exactly ten digits`() {
+        assertEquals("01234 56789", SafetyCodePolicy.formatForDisplay("0123456789"))
+        assertEquals("5", SafetyCodePolicy.formatForDisplay("5"))
+    }
+
+    @Test
+    fun `codesMatch rejects different lengths`() {
+        assertFalse(SafetyCodePolicy.codesMatch("01234", "012345"))
+        assertFalse(SafetyCodePolicy.codesMatch("01234", "0123"))
+    }
+
+    @Test
+    fun `codesMatch rejects null versus empty`() {
+        assertFalse(SafetyCodePolicy.codesMatch(null, ""))
+    }
+
+    @Test
+    fun `copy form normalizes padded input`() {
+        assertEquals("01234 56789", SafetyCodePolicy.formatForCopy("  01234 56789  "))
+    }
 }
