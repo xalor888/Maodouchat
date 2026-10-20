@@ -457,10 +457,10 @@ class MultiRecipientCoveragePolicyTest {
     }
 
     @Test
-    fun normalizeRequiredRecipientIdKeepsFullWidthSpaces() {
-        // Kotlin 的 trim() 默认只裁 <= ' ' 的字符，全角空格原样保留
+    fun normalizeRequiredRecipientIdTrimsFullWidthSpaces() {
+        // trim() 按 Char.isWhitespace 裁剪，全角空格同样去掉
         assertEquals(
-            "\u3000peer\u3000",
+            "peer",
             MultiRecipientCoveragePolicy.normalizeRequiredRecipientId("\u3000peer\u3000"),
         )
     }
