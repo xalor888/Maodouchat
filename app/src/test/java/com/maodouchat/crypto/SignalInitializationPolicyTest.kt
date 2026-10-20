@@ -188,4 +188,72 @@ class SignalInitializationPolicyTest {
             SignalInitializationPolicy.action(failed, "u1"),
         )
     }
+
+    @Test
+    fun fullyReadyStateStillRequiresFullInitializationForAnotherAccount() {
+        val readyU1 = SignalInitializationState(
+            accountId = "u1",
+            localCryptoReady = true,
+            publicationReady = true,
+        )
+
+        assertEquals(
+            SignalInitializationAction.FULL_INITIALIZATION,
+            SignalInitializationPolicy.action(readyU1, "u2"),
+        )
+        assertFalse(SignalInitializationPolicy.canReuse("u1", true, "u2"))
+        assertFalse(SignalInitializationPolicy.canUseLocalCrypto("u1", true, "u2"))
+    }
+
+    @Test
+    fun canReuseRejectsBlankRequestedUserId() {
+        assertFalse(SignalInitializationPolicy.canReuse("u1", true, "   "))
+        assertFalse(SignalInitializationPolicy.canUseLocalCrypto("u1", true, "   "))
+    }
+
+    @Test
+    fun selectAccountWithBlankRequestedIdResetsToFreshState() {
+        val ready = SignalInitializationState(
+            accountId = "u1",
+            localCryptoReady = true,
+            publicationReady = true,
+        )
+
+        val reselected = SignalInitializationPolicy.selectAccount(ready, "")
+
+        assertEquals("", reselected.accountId)
+        assertFalse(reselected.localCryptoReady)
+        assertFalse(reselected.publicationReady)
+        assertEquals(
+            SignalInitializationAction.FULL_INITIALIZATION,
+            SignalInitializationPolicy.action(reselected, "u1"),
+        )
+    }
+
+    @Test
+    fun anonymousPublicationFailureKeepsLocalCryptoButNeverReuses() {
+        val anonymous = SignalInitializationPolicy.publicationFailed(
+            SignalInitializationState(accountId = null, localCryptoReady = true),
+        )
+
+        assertEquals(null, anonymous.accountId)
+        assertTrue(anonymous.localCryptoReady)
+        assertFalse(anonymous.publicationReady)
+        assertEquals(
+            SignalInitializationAction.FULL_INITIALIZATION,
+            SignalInitializationPolicy.action(anonymous, "u1"),
+        )
+    }
+
+    @Test
+    fun doublePublicationFailureIsIdempotent() {
+        val failed = SignalInitializationPolicy.publicationFailed(
+            SignalInitializationState(accountId = "u1", localCryptoReady = true),
+        )
+        val failedAgain = SignalInitializationPolicy.publicationFailed(failed)
+
+        assertEquals("u1", failedAgain.accountId)
+        assertTrue(failedAgain.localCryptoReady)
+        assertFalse(failedAgain.publicationReady)
+    }
 }

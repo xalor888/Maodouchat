@@ -312,4 +312,104 @@ class SignalDeviceIdRecoveryPolicyTest {
         assertFalse(SignalDeviceIdRecoveryPolicy.isConfirmedDeviceStatus(""))
         assertFalse(SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus(""))
     }
+
+    @Test
+    fun shouldRetryMigrationCandidateAcceptsIdentityMismatchToo() {
+        val mismatch = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_IDENTITY_MISMATCH_CODE,
+            )
+        )
+
+        assertTrue(SignalDeviceIdRecoveryPolicy.shouldRetryMigrationCandidate(mismatch, 0, 4))
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetryMigrationCandidate(mismatch, 3, 4))
+        // Identity mismatch is a different code from ordinary conflict: plain retry stays off.
+        assertFalse(SignalDeviceIdRecoveryPolicy.shouldRetry(mismatch, 0, 4))
+    }
+
+    @Test
+    fun availableCandidateHonorsCustomRangeBounds() {
+        assertEquals(
+            1,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 1,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+                minDeviceId = 1,
+            ),
+        )
+        assertEquals(
+            300,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 300,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+                maxDeviceId = 300,
+            ),
+        )
+        assertEquals(
+            null,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 0,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+                minDeviceId = 1,
+            ),
+        )
+        assertEquals(
+            null,
+            SignalDeviceIdRecoveryPolicy.availableCandidate(
+                candidate = 301,
+                previousDeviceId = 7,
+                occupiedDeviceIds = emptySet(),
+                maxDeviceId = 300,
+            ),
+        )
+    }
+
+    @Test
+    fun sessionConflictNeverReallocatesDeviceId() {
+        val conflict = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_SESSION_CONFLICT_CODE,
+            )
+        )
+
+        assertFalse(SignalDeviceIdRecoveryPolicy.mayReallocateDeviceId(true, conflict))
+        assertFalse(SignalDeviceIdRecoveryPolicy.mayReallocateDeviceId(false, conflict))
+    }
+
+    @Test
+    fun serverCodePrefersOutermostWrapperCode() {
+        val inner = SignalKeyExchange.mapFailure(
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 409,
+                serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_IDENTITY_MISMATCH_CODE,
+            )
+        )
+        val outer = SignalExchangeException(
+            failure = SignalExchangeFailure.HTTP,
+            serverCode = SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            cause = inner,
+        )
+
+        assertEquals(
+            SignalDeviceIdRecoveryPolicy.DEVICE_ID_CONFLICT_CODE,
+            SignalDeviceIdRecoveryPolicy.serverCode(outer),
+        )
+        // The outermost wrapper's code decides: an outer conflict is retried even over a mismatch.
+        assertTrue(SignalDeviceIdRecoveryPolicy.shouldRetry(outer, 0, 4))
+    }
+
+    @Test
+    fun confirmedStatusTrimsAndIgnoresCaseButPendingIsDistinct() {
+        assertTrue(SignalDeviceIdRecoveryPolicy.isConfirmedDeviceStatus(" Confirmed "))
+        assertFalse(SignalDeviceIdRecoveryPolicy.isPendingDeviceStatus("confirmed"))
+        assertFalse(SignalDeviceIdRecoveryPolicy.isConfirmedDeviceStatus("pending"))
+    }
 }
