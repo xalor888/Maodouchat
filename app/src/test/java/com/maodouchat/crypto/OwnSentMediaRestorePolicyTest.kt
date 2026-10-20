@@ -409,9 +409,9 @@ class OwnSentMediaRestorePolicyTest {
                 localUriReadable = false
             )
         )
-        // JVM 的 isBlank 按 Character.isWhitespace 判定，不间断空格不算空白：
-        // 它仍被视为有效附件 id，可恢复。
-        assertTrue(
+        // Kotlin 的 isBlank 按 Char.isWhitespace 判定，不间断空格算空白：
+        // 纯不间断空格的 id 视为空，不可恢复。
+        assertFalse(
             OwnSentMediaRestorePolicy.shouldRestore(
                 isSecretChat = false,
                 type = MessageType.IMAGE,

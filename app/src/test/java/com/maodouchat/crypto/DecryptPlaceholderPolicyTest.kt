@@ -239,10 +239,10 @@ class DecryptPlaceholderPolicyTest {
     }
 
     @Test
-    fun `non-breaking space around placeholder does not match`() {
-        // trim() 只裁掉 <= ' ' 的字符，不间断空格留存，整体不再命中。
-        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("\u00a0无法解密\u00a0"))
-        assertFalse(DecryptPlaceholderPolicy.isPlaceholder("\u00a0[unable to decrypt message]\u00a0"))
+    fun `non-breaking space around placeholder still matches`() {
+        // Kotlin 的 trim() 把不间断空格也当空白裁掉，归一化后仍命中。
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\u00a0无法解密\u00a0"))
+        assertTrue(DecryptPlaceholderPolicy.isPlaceholder("\u00a0[unable to decrypt message]\u00a0"))
     }
 
     @Test
