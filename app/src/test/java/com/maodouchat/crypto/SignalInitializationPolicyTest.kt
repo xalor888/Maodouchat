@@ -308,4 +308,58 @@ class SignalInitializationPolicyTest {
         assertTrue(failedAgain.localCryptoReady)
         assertFalse(failedAgain.publicationReady)
     }
+
+    @Test
+    fun actionWithLocalReadyButDifferentAccountSkipsUploadOnly() {
+        val localReady = SignalInitializationState(
+            accountId = "u1",
+            localCryptoReady = true,
+            publicationReady = false,
+        )
+        assertEquals(
+            SignalInitializationAction.FULL_INITIALIZATION,
+            SignalInitializationPolicy.action(localReady, "u2"),
+        )
+    }
+
+    @Test
+    fun publicationFailedInvalidatingKeepsAccountId() {
+        val failed = SignalInitializationPolicy.publicationFailed(
+            SignalInitializationState(
+                accountId = "u1",
+                localCryptoReady = true,
+                publicationReady = true,
+            ),
+            invalidateLocalCrypto = true,
+        )
+        assertEquals("u1", failed.accountId)
+        assertFalse(failed.localCryptoReady)
+        assertFalse(failed.publicationReady)
+    }
+
+    @Test
+    fun publicationSucceededTreatsBlankAccountAsKnown() {
+        // 实现只判 accountId != null，纯空白账号仍被视为已知
+        val published = SignalInitializationPolicy.publicationSucceeded(
+            SignalInitializationState(accountId = "   ", localCryptoReady = true),
+        )
+        assertTrue(published.publicationReady)
+    }
+
+    @Test
+    fun publicationFailedInvalidatingOnAnonymousKeepsNullAccount() {
+        val failed = SignalInitializationPolicy.publicationFailed(
+            SignalInitializationState(accountId = null, localCryptoReady = true),
+            invalidateLocalCrypto = true,
+        )
+        assertEquals(null, failed.accountId)
+        assertFalse(failed.localCryptoReady)
+        assertFalse(failed.publicationReady)
+    }
+
+    @Test
+    fun nullCurrentUserNeverReusesOrUsesLocalCrypto() {
+        assertFalse(SignalInitializationPolicy.canReuse(null, true, "u1"))
+        assertFalse(SignalInitializationPolicy.canUseLocalCrypto(null, true, "u1"))
+    }
 }
