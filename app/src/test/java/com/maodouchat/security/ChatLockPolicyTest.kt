@@ -27,4 +27,31 @@ class ChatLockPolicyTest {
     fun `unset owner still honors membership for the current process`() {
         assertTrue(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = null, liveUserId = "u1"))
     }
+
+    @Test
+    fun `empty string owner fails closed against a live user`() {
+        // 空串不是 null：owner != live，直接判锁定。
+        assertFalse(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `chat id match is case sensitive`() {
+        assertFalse(ChatLockPolicy.isUnlocked("C1", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `owner match is case sensitive`() {
+        assertFalse(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "U1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `null live user with null owner still honors the set`() {
+        // 两边都没记录归属时，只看解锁集合。
+        assertTrue(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = null, liveUserId = null))
+    }
+
+    @Test
+    fun `missing chat id stays locked even without an owner`() {
+        assertFalse(ChatLockPolicy.isUnlocked("c9", setOf("c1"), ownerUserId = null, liveUserId = "u1"))
+    }
 }
