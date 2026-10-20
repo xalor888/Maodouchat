@@ -1,5 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.network.ApiException
+import com.maodouchat.network.ApiFailureKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -158,6 +160,95 @@ class MultiRecipientCoveragePolicyTest {
                 failuresByRecipient = mapOf(
                     "peer" to SignalExchangeException(SignalExchangeFailure.TIMEOUT)
                 ),
+            )
+        )
+    }
+
+    @Test
+    fun missingRequiredRecipientsListsOnlyUncovered() {
+        assertEquals(
+            setOf("b"),
+            MultiRecipientCoveragePolicy.missingRequiredRecipients(
+                requiredRecipientIds = setOf("a", "b"),
+                targets = listOf(Target("a", 1)),
+            )
+        )
+        assertTrue(
+            MultiRecipientCoveragePolicy.missingRequiredRecipients(
+                requiredRecipientIds = setOf("a"),
+                targets = listOf(Target("a", 1)),
+            ).isEmpty()
+        )
+    }
+
+    @Test
+    fun blankUserIdTargetAndZeroDeviceIdDoNotCountAsCoverage() {
+        assertFalse(
+            MultiRecipientCoveragePolicy.requiredRecipientsCovered(
+                requiredRecipientIds = setOf("peer"),
+                targets = listOf(Target("   ", 7)),
+            )
+        )
+        assertFalse(
+            MultiRecipientCoveragePolicy.requiredTargetsCovered(
+                requiredTargets = listOf(Target("peer", 7)),
+                targets = listOf(Target("peer", 0)),
+            )
+        )
+    }
+
+    @Test
+    fun whitespacePaddedRequiredIdMatchesTrimmedTarget() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.requiredRecipientsCovered(
+                requiredRecipientIds = setOf("  peer "),
+                targets = listOf(Target("peer", 7)),
+            )
+        )
+    }
+
+    @Test
+    fun apiExceptionNetworkAndRetryableHttpAreTransient() {
+        assertTrue(
+            MultiRecipientCoveragePolicy.isTransient(
+                ApiException(ApiFailureKind.NETWORK)
+            )
+        )
+        assertTrue(
+            MultiRecipientCoveragePolicy.isTransient(
+                ApiException(ApiFailureKind.TIMEOUT)
+            )
+        )
+        assertTrue(
+            MultiRecipientCoveragePolicy.isTransient(
+                ApiException(ApiFailureKind.HTTP, statusCode = 503)
+            )
+        )
+        assertFalse(
+            MultiRecipientCoveragePolicy.isTransient(
+                ApiException(ApiFailureKind.HTTP, statusCode = 404)
+            )
+        )
+        assertFalse(
+            MultiRecipientCoveragePolicy.isTransient(
+                ApiException(ApiFailureKind.UNEXPECTED)
+            )
+        )
+    }
+
+    @Test
+    fun signalExchangeExceptionDoesNotUnwrapNestedTransientCause() {
+        assertFalse(
+            MultiRecipientCoveragePolicy.isTransient(
+                SignalExchangeException(
+                    SignalExchangeFailure.UNEXPECTED,
+                    cause = java.io.IOException("offline"),
+                )
+            )
+        )
+        assertTrue(
+            MultiRecipientCoveragePolicy.isTransient(
+                RuntimeException(java.net.SocketTimeoutException("t"))
             )
         )
     }
