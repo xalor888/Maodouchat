@@ -256,4 +256,103 @@ class OwnSentMediaRestorePolicyTest {
             )
         )
     }
+
+    @Test
+    fun voiceOwnSentHydratesWithoutAutoDownload() {
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.VOICE,
+                attachmentId = "att_own_voice",
+                localUriReadable = false,
+                senderIsCurrentUser = true,
+                autoDownload = false
+            )
+        )
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.VOICE,
+                attachmentId = "att_peer_voice",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = false
+            )
+        )
+    }
+
+    @Test
+    fun gifHydrateFollowsOwnSentRule() {
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.GIF,
+                attachmentId = "att_own_gif",
+                localUriReadable = false,
+                senderIsCurrentUser = true,
+                autoDownload = false
+            )
+        )
+        assertTrue(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.GIF,
+                attachmentId = "att_peer_gif",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = true
+            )
+        )
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.GIF,
+                attachmentId = "att_peer_gif",
+                localUriReadable = false,
+                senderIsCurrentUser = false,
+                autoDownload = false
+            )
+        )
+    }
+
+    @Test
+    fun whitespaceAttachmentIdNeverHydrates() {
+        assertFalse(
+            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                isSecretChat = false,
+                type = MessageType.IMAGE,
+                attachmentId = "   ",
+                localUriReadable = false,
+                senderIsCurrentUser = true,
+                autoDownload = true
+            )
+        )
+    }
+
+    @Test
+    fun wipeAndMetaDecisionsAgreeOnLogout() {
+        assertFalse(OwnSentMediaRestorePolicy.wipeOrdinaryMediaOnLogout(destroyEncryptedDatabase = false))
+        assertTrue(OwnSentMediaRestorePolicy.keepAttachmentMetaOnLogout(destroyEncryptedDatabase = false))
+        assertTrue(OwnSentMediaRestorePolicy.wipeOrdinaryMediaOnLogout(destroyEncryptedDatabase = true))
+        assertFalse(OwnSentMediaRestorePolicy.keepAttachmentMetaOnLogout(destroyEncryptedDatabase = true))
+    }
+
+    @Test
+    fun nonRestorableTypesNeverHydrateEvenWithAutoDownload() {
+        for (type in listOf(
+            MessageType.MARKDOWN, MessageType.LOCATION, MessageType.NUDGE,
+            MessageType.SK_DIST, MessageType.SYSTEM, MessageType.REVOKED
+        )) {
+            assertFalse(
+                OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
+                    isSecretChat = false,
+                    type = type,
+                    attachmentId = "att_x",
+                    localUriReadable = false,
+                    senderIsCurrentUser = true,
+                    autoDownload = true
+                )
+            )
+        }
+    }
 }
