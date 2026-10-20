@@ -284,4 +284,67 @@ class IdentitySafetyPolicyTest {
         )
         assertTrue(IdentitySafetyPolicy.canVerifyAny(states))
     }
+
+    @Test
+    fun `changed device with safety code remains verifiable`() {
+        assertTrue(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(device(1, IdentityTrustState.CHANGED))
+            )
+        )
+        assertFalse(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(device(1, IdentityTrustState.CHANGED, code = null))
+            )
+        )
+    }
+
+    @Test
+    fun `primary prefers device one even when changed`() {
+        val states = listOf(
+            device(5, IdentityTrustState.VERIFIED),
+            device(1, IdentityTrustState.CHANGED)
+        )
+        assertEquals(1, IdentitySafetyPolicy.primaryDevice(states)?.deviceId)
+    }
+
+    @Test
+    fun `warning kinds map every trust state`() {
+        assertEquals(WarningKind.NONE, IdentitySafetyPolicy.warningKind(IdentityTrustState.VERIFIED))
+        assertEquals(WarningKind.TRUSTED, IdentitySafetyPolicy.warningKind(IdentityTrustState.TRUSTED))
+        assertEquals(WarningKind.UNKNOWN, IdentitySafetyPolicy.warningKind(IdentityTrustState.UNKNOWN))
+        assertEquals(WarningKind.CHANGED, IdentitySafetyPolicy.warningKind(IdentityTrustState.CHANGED))
+    }
+
+    @Test
+    fun `primary picks first listed when device one appears twice`() {
+        val states = listOf(
+            device(1, IdentityTrustState.TRUSTED),
+            device(1, IdentityTrustState.VERIFIED)
+        )
+        assertEquals(
+            IdentityTrustState.TRUSTED,
+            IdentitySafetyPolicy.primaryDevice(states)?.trustState
+        )
+    }
+
+    @Test
+    fun `no verifiable device when only verified carry codes`() {
+        assertFalse(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(
+                    device(1, IdentityTrustState.VERIFIED),
+                    device(2, IdentityTrustState.UNKNOWN, code = null)
+                )
+            )
+        )
+        assertTrue(
+            IdentitySafetyPolicy.canVerifyAny(
+                listOf(
+                    device(1, IdentityTrustState.VERIFIED),
+                    device(2, IdentityTrustState.UNKNOWN)
+                )
+            )
+        )
+    }
 }
