@@ -110,4 +110,31 @@ class ConfirmedDevicePolicyTest {
         assertEquals(1, ConfirmedDevicePolicy.resolve(1, listOf(1, 1, 1)))
         assertEquals(4, ConfirmedDevicePolicy.resolve(4, listOf(4, 4), defaultDeviceId = 4))
     }
+
+    @Test
+    fun `default slot with all confirmed invalid resolves to null`() {
+        assertNull(ConfirmedDevicePolicy.resolve(1, listOf(0, 256, -1)))
+    }
+
+    @Test
+    fun `explicit in-range request ignores the confirmed list`() {
+        assertEquals(2, ConfirmedDevicePolicy.resolve(2, listOf(1)))
+        assertEquals(200, ConfirmedDevicePolicy.resolve(200, listOf(3, 4)))
+    }
+
+    @Test
+    fun `confirmed ids sort before picking the smallest`() {
+        assertEquals(150, ConfirmedDevicePolicy.resolve(1, listOf(255, 200, 150)))
+    }
+
+    @Test
+    fun `custom default inside confirmed returns itself`() {
+        assertEquals(4, ConfirmedDevicePolicy.resolve(4, listOf(2, 4, 9), defaultDeviceId = 4))
+    }
+
+    @Test
+    fun `negative custom default still behaves as the default slot`() {
+        assertEquals(2, ConfirmedDevicePolicy.resolve(-3, listOf(2, 9), defaultDeviceId = -3))
+        assertNull(ConfirmedDevicePolicy.resolve(-3, emptyList(), defaultDeviceId = -3))
+    }
 }

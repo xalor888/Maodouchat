@@ -73,4 +73,35 @@ class SafetyCodePolicyTest {
             assertEquals(state == IdentityTrustState.CHANGED, SafetyCodePolicy.isStickyIdentityWarning(state))
         }
     }
+
+    @Test
+    fun `formatForDisplay normalizes separators before grouping`() {
+        assertEquals("01234 56789", SafetyCodePolicy.formatForDisplay("0123-4567-89"))
+        assertEquals("01234 56789", SafetyCodePolicy.formatForCopy("01234-56789"))
+    }
+
+    @Test
+    fun `non-digit codes yield null`() {
+        assertNull(SafetyCodePolicy.formatForDisplay(""))
+        assertNull(SafetyCodePolicy.formatForDisplay("abc"))
+        assertNull(SafetyCodePolicy.formatForDisplay("---"))
+    }
+
+    @Test
+    fun `codesMatch ignores unicode whitespace around codes`() {
+        assertTrue(SafetyCodePolicy.codesMatch(" 01234 ", "01234"))
+        assertTrue(SafetyCodePolicy.codesMatch("0 1 2 3 4", "01234"))
+    }
+
+    @Test
+    fun `codesMatch rejects one-sided empties`() {
+        assertFalse(SafetyCodePolicy.codesMatch("", "01234"))
+        assertFalse(SafetyCodePolicy.codesMatch(null, null))
+    }
+
+    @Test
+    fun `long codes group in exact fives`() {
+        assertEquals("00000 00000 000", SafetyCodePolicy.formatForDisplay("0".repeat(13)))
+        assertEquals("01234 56789 01234 5", SafetyCodePolicy.formatForDisplay("0123456789012345"))
+    }
 }

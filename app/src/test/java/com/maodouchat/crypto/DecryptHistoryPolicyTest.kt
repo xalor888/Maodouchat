@@ -78,4 +78,39 @@ class DecryptHistoryPolicyTest {
     fun emptySuccessPayloadStillDropsWire() {
         assertFalse(DecryptHistoryPolicy.shouldKeepWire(DecryptResult.Success("")))
     }
+
+    @Test
+    fun unsupportedEnvelopeKeepsWireWithoutDeferringRepair() {
+        assertTrue(DecryptHistoryPolicy.shouldKeepWire(DecryptResult.UnsupportedEnvelope))
+        assertFalse(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.UnsupportedEnvelope))
+        assertFalse(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.Duplicate))
+    }
+
+    @Test
+    fun failedAndDuplicateKeepWireButAreNotRepairSignals() {
+        assertTrue(DecryptHistoryPolicy.shouldKeepWire(DecryptResult.Failed))
+        assertTrue(DecryptHistoryPolicy.shouldKeepWire(DecryptResult.Duplicate))
+        assertFalse(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.Failed))
+    }
+
+    @Test
+    fun whitespaceOnlySenderIdsNeverAttemptRepair() {
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("", emptySet()))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("   ", emptySet()))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("\n\t", emptySet()))
+    }
+
+    @Test
+    fun repairAttemptIsDeterministicForRepeatedCalls() {
+        assertTrue(DecryptHistoryPolicy.shouldAttemptSessionRepair("u9", emptySet()))
+        assertTrue(DecryptHistoryPolicy.shouldAttemptSessionRepair("u9", emptySet()))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("u9", setOf("u9")))
+        assertFalse(DecryptHistoryPolicy.shouldAttemptSessionRepair("u9", setOf("u9")))
+    }
+
+    @Test
+    fun futureEpochKeepsWireButNeverTriggersRepair() {
+        assertTrue(DecryptHistoryPolicy.shouldKeepWire(DecryptResult.FutureEpoch))
+        assertFalse(DecryptHistoryPolicy.shouldDeferSessionRepair(DecryptResult.FutureEpoch))
+    }
 }
