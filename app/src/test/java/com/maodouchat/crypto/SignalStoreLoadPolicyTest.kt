@@ -68,4 +68,39 @@ class SignalStoreLoadPolicyTest {
             SignalStoreLoadPolicy.logicalKeyOrNull("User:alice:session:u1:1", "user:alice:"),
         )
     }
+
+
+    @Test
+    fun logicalKeyStripsOnlyFirstPrefixOccurrence() {
+        assertEquals(
+            "user:alice:x",
+            SignalStoreLoadPolicy.logicalKeyOrNull("user:alice:user:alice:x", "user:alice:"),
+        )
+    }
+
+    @Test
+    fun logicalKeyRejectsBlankPrefix() {
+        assertNull(SignalStoreLoadPolicy.logicalKeyOrNull("session:u1:1", ""))
+        assertNull(SignalStoreLoadPolicy.logicalKeyOrNull("session:u1:1", "   "))
+    }
+
+    @Test
+    fun logicalKeyKeepsKeyWhenPrefixIsNotAHeadMatch() {
+        assertEquals(
+            "my-session:u1",
+            SignalStoreLoadPolicy.logicalKeyOrNull("my-session:u1", "session:"),
+        )
+    }
+
+    @Test
+    fun shouldLoadRowAcceptsNewlinePaddedKeyData() {
+        assertTrue(SignalStoreLoadPolicy.shouldLoadRow("session:u1:1", "\nYWJj\n"))
+        assertFalse(SignalStoreLoadPolicy.shouldLoadRow("session:u1:1", "\n  \n"))
+    }
+
+    @Test
+    fun isPersistableRejectsBlankKeyTypeVariants() {
+        assertFalse(SignalStoreLoadPolicy.isPersistable("\t", byteArrayOf(1)))
+        assertFalse(SignalStoreLoadPolicy.isPersistable("\n", byteArrayOf(1)))
+    }
 }
