@@ -68,6 +68,71 @@ class SecurityCoordinatorTest {
     }
 
     @Test
+    fun evaluateScreenSecurity_chatSurfaceRouteAlone_doesNotSecure() {
+        val secured = coordinator.evaluateScreenSecurity(
+            appLockShowing = false,
+            globalEnabled = false,
+            currentRoute = "chat_detail/user123"
+        )
+        assertFalse(secured)
+    }
+
+    @Test
+    fun evaluateScreenSecurity_nullAndBlankRoute_doesNotSecure() {
+        listOf(null, "").forEach { route ->
+            val secured = coordinator.evaluateScreenSecurity(
+                appLockShowing = false,
+                globalEnabled = false,
+                currentRoute = route
+            )
+            assertFalse("route=$route", secured)
+        }
+    }
+
+    @Test
+    fun assessDeviceRisk_existingSuFile_reportsRootedHighRisk() {
+        val suFile = java.io.File.createTempFile("su", ".bin")
+        try {
+            val report = coordinator.assessDeviceRisk(checkFiles = listOf(suFile.absolutePath))
+            assertTrue(report.isRooted)
+            assertEquals(RiskLevel.HIGH, report.riskLevel)
+            assertEquals(listOf("Device appears rooted"), report.riskReasons)
+        } finally {
+            suFile.delete()
+        }
+    }
+
+    @Test
+    fun assessDeviceRisk_debugBuildWithCleanFiles_reportsMediumNotHigh() {
+        val report = coordinator.assessDeviceRisk(
+            isDebugBuild = true,
+            checkFiles = listOf("/path/that/does/not/exist/su")
+        )
+        assertFalse(report.isRooted)
+        assertTrue(report.isDebuggable)
+        assertEquals(RiskLevel.MEDIUM, report.riskLevel)
+        assertEquals(listOf("Running in debuggable mode"), report.riskReasons)
+    }
+
+    @Test
+    fun assessDeviceRisk_rootedDebugBuild_reportsHighWithBothReasons() {
+        val suFile = java.io.File.createTempFile("su", ".bin")
+        try {
+            val report = coordinator.assessDeviceRisk(
+                isDebugBuild = true,
+                checkFiles = listOf(suFile.absolutePath)
+            )
+            assertTrue(report.isRooted)
+            assertTrue(report.isDebuggable)
+            assertEquals(RiskLevel.HIGH, report.riskLevel)
+            assertTrue(report.riskReasons.contains("Device appears rooted"))
+            assertTrue(report.riskReasons.contains("Running in debuggable mode"))
+        } finally {
+            suFile.delete()
+        }
+    }
+
+    @Test
     fun assessDeviceRisk_whenNonRootAndNonDebug_reportsLowRisk() {
         val report = coordinator.assessDeviceRisk(
             isDebugBuild = false,
