@@ -81,4 +81,42 @@ class MessageSafetyScannerTest {
         )
         assertEquals(2, findings.size)
     }
+
+    @Test
+    fun ipHostIsFlaggedAsSuspiciousLink() {
+        val findings = MessageSafetyScanner.scan("打开 http://192.168.1.100/login 看看")
+        assertEquals(1, findings.size)
+        assertEquals(MessageSafetyScanner.CODE_SUSPICIOUS_LINK, findings[0].code)
+    }
+
+    @Test
+    fun brandImpersonationSubdomainFlaggedButBrandSubdomainNot() {
+        val bad = MessageSafetyScanner.scan("请登录 https://paypal-secure.example.com/signin")
+        assertTrue(bad.any { it.code == MessageSafetyScanner.CODE_SUSPICIOUS_LINK })
+        // 品牌官方子域名（如 www.google.com）不被品牌规则误伤。
+        assertTrue(MessageSafetyScanner.scan("看看 https://www.google.com/x 的内容").isEmpty())
+    }
+
+    @Test
+    fun singleLetterShortLinkIsFlagged() {
+        val findings = MessageSafetyScanner.scan("点击 https://t.ly/x 查看详情")
+        assertEquals(1, findings.size)
+        assertEquals(MessageSafetyScanner.CODE_SUSPICIOUS_LINK, findings[0].code)
+    }
+
+    @Test
+    fun zeroMaxFindingsIsCoercedToOne() {
+        // coerceIn(1, 10)：传 0 也至少返回一条。
+        val findings = MessageSafetyScanner.scan(
+            "官方客服紧急：立刻转账并发送验证码，卡号 6222021234567890123 http://claim-prize.gq/x",
+            maxFindings = 0
+        )
+        assertEquals(1, findings.size)
+    }
+
+    @Test
+    fun repeatedScanIsDeterministic() {
+        val text = "请把短信验证码发给我，卡号 6222021234567890123"
+        assertEquals(MessageSafetyScanner.scan(text), MessageSafetyScanner.scan(text))
+    }
 }
