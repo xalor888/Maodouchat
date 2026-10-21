@@ -12,7 +12,9 @@ import com.maodouchat.network.ReportResponse
 import com.maodouchat.network.SetUsernameResponse
 import com.maodouchat.network.UserDto
 import com.maodouchat.network.api.SocialApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
+import kotlin.test.assertFailsWith
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -173,17 +175,109 @@ class PostMutationRepositoryTest {
         assertEquals(listOf("post-100"), fakeSocialApi.deletePostCalls)
     }
 
+    @Test
+    fun publishPost_gateRejected_failsWithSessionExceptionAndTouchesNothing() = runTest {
+        val gatedRepo = DefaultPostMutationRepository(
+            socialApi = fakeSocialApi,
+            sessionGateCheck = { _, _ -> false }
+        )
+
+        val result = gatedRepo.publishPost(
+            ownerUserId = "stale-user",
+            token = "invalid",
+            content = "Hello",
+            imageUrls = emptyList(),
+            visibility = null
+        )
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is MutationSessionChangedException)
+        assertTrue(gatedRepo.journal.getPendingEntries().isEmpty())
+    }
+
+    @Test
+    fun toggleCommentLike_blankStatus_fallsBackToOptimisticValue() = runTest {
+        fakeSocialApi.likeCommentResult = Result.success(CommentLikeResponse(status = "", likeCount = 9))
+
+        val result = mutationRepo.toggleCommentLike(
+            ownerUserId = "me",
+            token = "valid-token",
+            postId = "post-100",
+            comment = sampleComment
+        )
+
+        assertTrue(result.isSuccess)
+        val updated = result.getOrThrow()
+        assertTrue(updated.likedByMe) // 空 status 时回退到乐观值 newLiked
+        assertEquals(9, updated.likeCount) // likeCount 仍取服务端返回值
+        assertTrue(mutationRepo.journal.getPendingEntries().isEmpty())
+    }
+
+    @Test
+    fun togglePostLike_unlikeAtZeroCount_neverGoesNegative() = runTest {
+        val zeroCountPost = samplePost.copy(likeCount = 0, likedByMe = true)
+        val updates = mutableListOf<PostDto>()
+        fakeSocialApi.unlikePostResult = Result.success(zeroCountPost.copy(likedByMe = false, likeCount = 0))
+
+        val result = mutationRepo.togglePostLike(
+            ownerUserId = "me",
+            token = "valid-token",
+            post = zeroCountPost,
+            onOptimisticUpdate = { updates.add(it) }
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, updates.size)
+        assertFalse(updates[0].likedByMe)
+        assertEquals(0, updates[0].likeCount) // (0 - 1).coerceAtLeast(0)
+    }
+
+    @Test
+    fun togglePostLike_cancelledDuringApiCall_propagatesAndLeavesJournalPending() = runTest {
+        fakeSocialApi.likePostThrowable = CancellationException("cancelled")
+
+        assertFailsWith<CancellationException> {
+            mutationRepo.togglePostLike(
+                ownerUserId = "me",
+                token = "valid-token",
+                post = samplePost
+            )
+        }
+        // journal.record 已执行、commit/rollback 没跑：停留在 pending
+        assertEquals(1, mutationRepo.journal.getPendingEntries().size)
+    }
+
+    @Test
+    fun togglePostLike_calledTwice_togglesBackToOriginal() = runTest {
+        val updates = mutableListOf<PostDto>()
+        fakeSocialApi.likePostResult = Result.success(samplePost.copy(likedByMe = true, likeCount = 6))
+        fakeSocialApi.unlikePostResult = Result.success(samplePost.copy(likedByMe = false, likeCount = 5))
+
+        val first = mutationRepo.togglePostLike("me", "valid-token", samplePost) { updates.add(it) }
+        assertTrue(first.isSuccess)
+        val liked = samplePost.copy(likedByMe = true, likeCount = 6)
+        val second = mutationRepo.togglePostLike("me", "valid-token", liked) { updates.add(it) }
+        assertTrue(second.isSuccess)
+
+        assertEquals(2, updates.size)
+        assertFalse(updates[1].likedByMe) // 第二次乐观回调把 likedByMe 翻转回原值
+        assertEquals(2, fakeSocialApi.likePostCalls.size) // 两次各走一条独立 journal+api
+        assertTrue(mutationRepo.journal.getPendingEntries().isEmpty())
+    }
+
     private inner class FakeSocialApi : SocialApi {
         var likePostResult: Result<PostDto> = Result.success(PostDto("1", UserDto("1", "A"), "", createdAt = 0))
         var unlikePostResult: Result<PostDto> = Result.success(PostDto("1", UserDto("1", "A"), "", createdAt = 0))
         var likeCommentResult: Result<CommentLikeResponse> = Result.success(CommentLikeResponse(status = "LIKED", likeCount = 1))
         var unlikeCommentResult: Result<CommentLikeResponse> = Result.success(CommentLikeResponse(status = "UNLIKED", likeCount = 0))
         var deletePostResult: Result<Unit> = Result.success(Unit)
+        var likePostThrowable: Throwable? = null
         val likePostCalls = mutableListOf<String>()
         val deletePostCalls = mutableListOf<String>()
 
         override suspend fun likePost(token: String, postId: String): Result<PostDto> {
             likePostCalls.add(postId)
+            likePostThrowable?.let { throw it }
             return likePostResult
         }
         override suspend fun unlikePost(token: String, postId: String): Result<PostDto> {

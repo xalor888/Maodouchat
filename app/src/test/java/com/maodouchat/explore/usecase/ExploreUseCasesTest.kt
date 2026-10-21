@@ -20,11 +20,16 @@ import com.maodouchat.network.ReportResponse
 import com.maodouchat.network.SetUsernameResponse
 import com.maodouchat.network.UserDto
 import com.maodouchat.network.api.SocialApi
+import com.maodouchat.session.CurrentSession
+import com.maodouchat.session.Snapshot
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.explore.repository.FeedSession
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
+import kotlin.test.assertFailsWith
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -46,6 +51,11 @@ class ExploreUseCasesTest {
         content = "Great post!",
         createdAt = 1010L
     )
+
+    @After
+    fun tearDown() {
+        CurrentSession.override = null
+    }
 
     @Test
     fun loadFeedUseCase_refresh_delegatesToRepository() = runTest {
@@ -93,6 +103,94 @@ class ExploreUseCasesTest {
         assertTrue(result.isSuccess)
         assertTrue(fakeDraftRepo.clearDraftCalled)
         assertEquals("CONTACTS", fakeMutationRepo.lastVisibility)
+    }
+
+    @Test
+    fun publishPostUseCase_contentTooLong_failsBeforeRepository() = runTest {
+        val fakeMutationRepo = FakePostMutationRepository()
+        val fakeDraftRepo = FakeDraftRepository()
+        val useCase = PublishPostUseCase(fakeMutationRepo, fakeDraftRepo, FakeMediaUploadQueue())
+
+        val result = useCase.publish(
+            ownerUserId = "user-1",
+            token = "token-1",
+            content = "x".repeat(5001),
+            imageUrls = emptyList()
+        )
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertEquals(0, fakeMutationRepo.publishCalls)
+        assertFalse(fakeDraftRepo.clearDraftCalled)
+    }
+
+    @Test
+    fun publishPostUseCase_repositoryFailure_keepsDraft() = runTest {
+        val fakeMutationRepo = FakePostMutationRepository()
+        val fakeDraftRepo = FakeDraftRepository()
+        val useCase = PublishPostUseCase(fakeMutationRepo, fakeDraftRepo, FakeMediaUploadQueue())
+        fakeMutationRepo.publishFailure = IllegalStateException("network down")
+
+        val result = useCase.publish(
+            ownerUserId = "user-1",
+            token = "token-1",
+            content = "Hello",
+            imageUrls = emptyList()
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(1, fakeMutationRepo.publishCalls)
+        assertFalse(fakeDraftRepo.clearDraftCalled)
+    }
+
+    @Test
+    fun publishPostUseCase_nullToken_fallsBackToLiveSessionToken() = runTest {
+        CurrentSession.override = { Snapshot("live-token-9", "user-1") }
+        val fakeMutationRepo = FakePostMutationRepository()
+        val useCase = PublishPostUseCase(fakeMutationRepo, FakeDraftRepository(), FakeMediaUploadQueue())
+
+        val result = useCase.publish(
+            ownerUserId = "user-1",
+            token = null,
+            content = "Hello",
+            imageUrls = emptyList()
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals("live-token-9", fakeMutationRepo.lastToken)
+    }
+
+    @Test
+    fun editPostUseCase_blankContent_failsValidation() = runTest {
+        val fakeMutationRepo = FakePostMutationRepository()
+        val useCase = PublishPostUseCase(fakeMutationRepo, FakeDraftRepository(), FakeMediaUploadQueue())
+
+        val result = useCase.edit(
+            ownerUserId = "user-1",
+            token = "token-1",
+            postId = "post-1",
+            content = "   "
+        )
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertEquals(0, fakeMutationRepo.editCalls)
+    }
+
+    @Test
+    fun publishPostUseCase_cancelledMidFlight_propagates() = runTest {
+        val fakeMutationRepo = FakePostMutationRepository()
+        val useCase = PublishPostUseCase(fakeMutationRepo, FakeDraftRepository(), FakeMediaUploadQueue())
+        fakeMutationRepo.publishThrow = CancellationException("cancelled")
+
+        assertFailsWith<CancellationException> {
+            useCase.publish(
+                ownerUserId = "user-1",
+                token = "token-1",
+                content = "Hello",
+                imageUrls = emptyList()
+            )
+        }
     }
 
     @Test
@@ -167,6 +265,11 @@ class ExploreUseCasesTest {
 
     private class FakePostMutationRepository : PostMutationRepository {
         var lastVisibility: String? = null
+        var lastToken: String? = null
+        var publishCalls = 0
+        var editCalls = 0
+        var publishFailure: Throwable? = null
+        var publishThrow: Throwable? = null
         override val journal: PostMutationJournal = com.maodouchat.explore.repository.InMemoryPostMutationJournal()
 
         override suspend fun togglePostLike(ownerUserId: String, token: String, post: PostDto, onOptimisticUpdate: (PostDto) -> Unit) =
@@ -176,12 +279,18 @@ class ExploreUseCasesTest {
             Result.success(comment.copy(likedByMe = !comment.likedByMe))
 
         override suspend fun publishPost(ownerUserId: String, token: String, content: String, imageUrls: List<String>, visibility: String?): Result<PostDto> {
+            publishCalls++
             lastVisibility = visibility
+            lastToken = token
+            publishThrow?.let { throw it }
+            publishFailure?.let { return Result.failure(it) }
             return Result.success(PostDto("p1", UserDto("u1", "A"), content, createdAt = 0))
         }
 
-        override suspend fun editPost(ownerUserId: String, token: String, postId: String, content: String, visibility: String?) =
-            Result.success(PostDto(postId, UserDto("u1", "A"), content, createdAt = 0))
+        override suspend fun editPost(ownerUserId: String, token: String, postId: String, content: String, visibility: String?): Result<PostDto> {
+            editCalls++
+            return Result.success(PostDto(postId, UserDto("u1", "A"), content, createdAt = 0))
+        }
 
         override suspend fun deletePost(ownerUserId: String, token: String, post: PostDto, originalIndex: Int) = Result.success(Unit)
 
