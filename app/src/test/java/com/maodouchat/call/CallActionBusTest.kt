@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -125,21 +127,27 @@ class CallActionBusTest {
     }
 
     @Test
-    fun `repeated requestHangUp always returns true within buffer`() = runTest {
-        // 16 槽 buffer：连续发射不丢，tryEmit 恒成功。
+    fun `repeated requestHangUp always returns true and delivers in order`() = runTest {
+        // 有订阅者时连续发射不丢：tryEmit 恒成功且按序到达。
+        val collected = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(2_000) { CallActionBus.hangUpRequests.take(3).toList() }
+        }
         repeat(3) { i ->
             assertTrue(CallActionBus.requestHangUp("rapid-$i"))
         }
-        val events = withTimeout(2_000) { CallActionBus.hangUpRequests.take(3).toList() }
+        val events = collected.await()
         assertEquals(listOf("rapid-0", "rapid-1", "rapid-2"), events.map { it.callId })
     }
 
     @Test
-    fun `late subscriber receives buffered emit`() = runTest {
-        // 无订阅者时发射被缓冲：迟到的订阅者仍能收到（稍后启动的 VM 接住前台服务的挂断）。
-        assertTrue(CallActionBus.requestHangUp("late-call"))
-        val received = withTimeout(1_000) { CallActionBus.hangUpRequests.first() }
-        assertEquals("late-call", received.callId)
+    fun `emit without subscriber is dropped despite tryEmit true`() = runTest {
+        // SharedFlow 文档行为：无订阅者时 extraBufferCapacity 不生效，
+        // tryEmit 照样返回 true，但值被丢弃（只有 replay 会留给迟到订阅者）。
+        // 生产侧收集器（CallLifecycleController）在可发射时总是已订阅，
+        // 这里把该语义钉死，防止后人误以为"buffer 能接住迟到订阅者"。
+        assertTrue(CallActionBus.requestHangUp("unheard-call"))
+        val got = withTimeoutOrNull(500) { CallActionBus.hangUpRequests.first() }
+        assertNull(got)
     }
 
     @Test

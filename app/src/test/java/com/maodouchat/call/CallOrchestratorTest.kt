@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -122,14 +124,14 @@ class CallOrchestratorTest {
     }
 
     @Test
-    fun rapidEmitsWithoutCollectorFirstWinsWhenBufferFull() = runTest {
-        // buffer=1：无订阅者时第二次 tryEmit 静默丢弃，第一条保留。
+    fun emitsWithoutCollectorAreDroppedDespiteTryEmitSuccess() = runTest {
+        // 与 CallActionBus 同理：无订阅者时 extraBufferCapacity 不生效，
+        // 两次发射都被丢弃（tryEmit 在内部仍返回 true，但 requestGroupCall 不透出它）。
+        // 生产侧 NavGraph 的 LaunchedEffect 在可发射时总是已订阅，这里钉死该语义。
         CallOrchestrator.requestGroupCall("chat-first", listOf("u1"), CallType.AUDIO)
         CallOrchestrator.requestGroupCall("chat-second", listOf("u2"), CallType.VIDEO)
-        val received = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(1_000) { CallOrchestrator.groupCallRequests.first() }
-        }
-        assertEquals("chat-first", received.await().chatId)
+        val got = withTimeoutOrNull(500) { CallOrchestrator.groupCallRequests.first() }
+        assertNull(got)
     }
 
     @Test
