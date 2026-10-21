@@ -2,9 +2,11 @@ package com.maodouchat.call
 
 import com.maodouchat.webrtc.CallAudioRoute
 import com.maodouchat.webrtc.WebRTCManager
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
+import kotlin.test.assertFailsWith
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -200,5 +202,85 @@ class CallMediaBridgeTest {
         CallAudioRoute.entries.forEach { route ->
             verify(exactly = 1) { manager.selectAudioRoute(route) }
         }
+    }
+
+    @Test
+    fun `release when manager throws leaves bridge bound`() {
+        // 失败：manager.release 抛错时桥不清空引用，异常向上传播。
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>()
+        every { manager.release() } throws RuntimeException("boom")
+        bridge.bind(manager)
+
+        assertFailsWith<RuntimeException> { bridge.release() }
+        assertSame(manager, bridge.manager)
+    }
+
+    @Test
+    fun `bind same manager twice then release calls release exactly once`() {
+        // 重复：同一 manager 连续 bind 两次，release 只调一次。
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        bridge.bind(manager)
+        bridge.bind(manager)
+
+        bridge.release()
+
+        verify(exactly = 1) { manager.release() }
+        assertNull(bridge.manager)
+    }
+
+    @Test
+    fun `two bridges share a manager and release independently`() {
+        // 隔离：两个桥绑同一 manager，A release 不影响 B 的转发。
+        val bridgeA = CallMediaBridge()
+        val bridgeB = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        bridgeA.bind(manager)
+        bridgeB.bind(manager)
+
+        bridgeA.release()
+
+        assertNull(bridgeA.manager)
+        bridgeB.toggleMute(true)
+        verify(exactly = 1) { manager.toggleMute(true) }
+    }
+
+    @Test
+    fun `detach and remote intents after release never reach the manager`() {
+        // 取消：release 后所有 renderer 绑定/分离意图全部丢弃。
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        val renderer = mockk<SurfaceViewRenderer>(relaxed = true)
+        bridge.bind(manager)
+        bridge.release()
+
+        bridge.attachRemoteRenderer(renderer)
+        bridge.detachRemoteRenderer(renderer)
+        bridge.attachGroupRemoteRenderer("u1", renderer)
+        bridge.detachGroupRemoteRenderer("u1", renderer)
+        bridge.detachLocalRenderer(renderer)
+
+        verify(exactly = 0) { manager.attachRemoteRenderer(any()) }
+        verify(exactly = 0) { manager.detachRemoteRenderer(any()) }
+        verify(exactly = 0) { manager.attachGroupRemoteRenderer(any(), any()) }
+        verify(exactly = 0) { manager.detachGroupRemoteRenderer(any(), any()) }
+        verify(exactly = 0) { manager.detachLocalRenderer(any()) }
+    }
+
+    @Test
+    fun `detach remote renderer after rebind reaches only the latest`() {
+        // 成功：rebind 后 detach remote 只到新 manager，旧的收不到。
+        val bridge = CallMediaBridge()
+        val first = mockk<WebRTCManager>(relaxed = true)
+        val second = mockk<WebRTCManager>(relaxed = true)
+        val renderer = mockk<SurfaceViewRenderer>(relaxed = true)
+        bridge.bind(first)
+        bridge.bind(second)
+
+        bridge.detachRemoteRenderer(renderer)
+
+        verify(exactly = 0) { first.detachRemoteRenderer(any()) }
+        verify(exactly = 1) { second.detachRemoteRenderer(renderer) }
     }
 }

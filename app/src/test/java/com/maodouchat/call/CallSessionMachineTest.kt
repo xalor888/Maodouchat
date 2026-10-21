@@ -153,4 +153,70 @@ class CallSessionMachineTest {
         assertEquals(Phase.CONNECTED, machine.snapshot().phase)
         assertTrue(machine.isCurrent(started.epoch))
     }
+
+    @Test
+    fun markConnectedDirectlyFromRingingSkipsConnecting() {
+        // 成功：CONNECTED 允许从 RINGING 直达，不必经过 CONNECTING。
+        val machine = CallSessionMachine()
+        val started = machine.beginOutgoing("peer-1")
+
+        assertEquals(Phase.CONNECTED, machine.markConnected(started.epoch).phase)
+        assertTrue(machine.isCurrent(started.epoch))
+    }
+
+    @Test
+    fun beginWhileConnectingIsRejectedAndSnapshotUnchanged() {
+        // 失败：CONNECTING 中再起呼叫被拒，快照不动。
+        val machine = CallSessionMachine()
+        val started = machine.beginOutgoing("peer-1")
+        machine.markConnecting(started.epoch)
+
+        assertFailsWith<IllegalStateException> { machine.beginIncoming("peer-2") }
+        assertEquals(Phase.CONNECTING, machine.snapshot().phase)
+        assertEquals(started.epoch, machine.snapshot().epoch)
+    }
+
+    @Test
+    fun endingFromConnectingThenFinishEndsSession() {
+        // 取消：接通前挂断——CONNECTING→ENDING→ENDED，会话收尾。
+        val machine = CallSessionMachine()
+        val started = machine.beginOutgoing("peer-1")
+        machine.markConnecting(started.epoch)
+
+        assertEquals(Phase.ENDING, machine.beginEnding(started.epoch).phase)
+        assertEquals(Phase.ENDED, machine.finish(started.epoch).phase)
+        assertFalse(machine.isCurrent(started.epoch))
+    }
+
+    @Test
+    fun doubleBeginEndingStaysEndingAndCurrent() {
+        // 重复：beginEnding 两次仍是 ENDING，会话还在（没真正结束）。
+        val machine = CallSessionMachine()
+        val started = machine.beginOutgoing("peer-1")
+        machine.markConnected(started.epoch)
+
+        machine.beginEnding(started.epoch)
+        val again = machine.beginEnding(started.epoch)
+
+        assertEquals(Phase.ENDING, again.phase)
+        assertTrue(machine.isCurrent(started.epoch))
+    }
+
+    @Test
+    fun newSessionAfterEndingResetsPeerAndIncomingFlag() {
+        // 切换：上轮去电结束后来电——peerId/incoming 随新会话重置，epoch 递增。
+        val machine = CallSessionMachine()
+        val first = machine.beginOutgoing("peer-1")
+        machine.beginEnding(first.epoch)
+        machine.finish(first.epoch)
+
+        val second = machine.beginIncoming("peer-2")
+
+        assertEquals(first.epoch + 1L, second.epoch)
+        assertEquals("peer-2", second.peerId)
+        assertTrue(second.incoming)
+        assertEquals(Phase.INCOMING_RINGING, second.phase)
+        assertFalse(machine.isCurrent(first.epoch))
+        assertTrue(machine.isCurrent(second.epoch))
+    }
 }

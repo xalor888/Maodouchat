@@ -179,4 +179,72 @@ class MissedCallRoomActionsTest {
         assertEquals(listOf("  "), dao.deletedIds)
         assertEquals(0, dao.deleteAllCalls)
     }
+
+    @Test
+    fun deleteThenClearAllHitsTheDaoInOrder() {
+        // 成功：delete 在前、clearAll 在后——各走各的 dao 方法，按序落库。
+        MissedCallRoomActions.repositoryFactory = { MissedCallRepository(dao) }
+        runBlocking {
+            MissedCallRoomActions.delete("call-9")
+            MissedCallRoomActions.clearAll()
+        }
+        assertEquals(listOf("call-9"), dao.deletedIds)
+        assertEquals(1, dao.deleteAllCalls)
+    }
+
+    @Test
+    fun clearAllFailureDoesNotPoisonTheNextAttempt() {
+        // 失败：clearAll 抛错后开关复位，重试照样成功。
+        dao.throwOnDeleteAll = true
+        MissedCallRoomActions.repositoryFactory = { MissedCallRepository(dao) }
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { MissedCallRoomActions.clearAll() }
+        }
+
+        dao.throwOnDeleteAll = false
+        runBlocking { MissedCallRoomActions.clearAll() }
+        assertEquals(1, dao.deleteAllCalls)
+    }
+
+    @Test
+    fun deleteStillReachesDaoAfterClearAllFailure() {
+        // 取消：clearAll 失败不影响 delete——两个动作互不污染。
+        dao.throwOnDeleteAll = true
+        MissedCallRoomActions.repositoryFactory = { MissedCallRepository(dao) }
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { MissedCallRoomActions.clearAll() }
+        }
+
+        runBlocking { MissedCallRoomActions.delete("call-9") }
+        assertEquals(listOf("call-9"), dao.deletedIds)
+    }
+
+    @Test
+    fun throwingFactoryThrowsOnEveryCallWithoutCaching() {
+        // 重复：抛错工厂每次调用都抛，不会缓存第一次的结果。
+        MissedCallRoomActions.repositoryFactory = { throw RuntimeException("no app") }
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { MissedCallRoomActions.clearAll() }
+        }
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { MissedCallRoomActions.delete("call-9") }
+        }
+    }
+
+    @Test
+    fun factorySwitchMidSequenceReroutesOnlySubsequentCalls() {
+        // 切换：工厂中途换仓库——换之前走旧 dao，换之后走新 dao。
+        val firstDao = FakeDao()
+        val secondDao = FakeDao()
+        MissedCallRoomActions.repositoryFactory = { MissedCallRepository(firstDao) }
+        runBlocking { MissedCallRoomActions.clearAll() }
+
+        MissedCallRoomActions.repositoryFactory = { MissedCallRepository(secondDao) }
+        runBlocking { MissedCallRoomActions.delete("call-9") }
+
+        assertEquals(1, firstDao.deleteAllCalls)
+        assertTrue(firstDao.deletedIds.isEmpty())
+        assertEquals(0, secondDao.deleteAllCalls)
+        assertEquals(listOf("call-9"), secondDao.deletedIds)
+    }
 }
