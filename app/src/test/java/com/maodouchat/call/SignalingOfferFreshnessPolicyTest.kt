@@ -50,6 +50,87 @@ class SignalingOfferFreshnessPolicyTest {
     }
 
     @Test
+    fun zeroMaxAgeWindowRejectsEvenFreshOffers() {
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.isOfferFresh(
+                timestampMillis = now,
+                nowMillis = now,
+                maxAgeMs = 0L,
+            )
+        )
+    }
+
+    @Test
+    fun negativeMaxAgeWindowRejectsEverything() {
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.isOfferFresh(
+                timestampMillis = now - 1L,
+                nowMillis = now,
+                maxAgeMs = -1L,
+            )
+        )
+    }
+
+    @Test
+    fun customWindowBoundaryIsInclusive() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.isOfferFresh(
+                timestampMillis = now - 5_000L,
+                nowMillis = now,
+                maxAgeMs = 5_000L,
+            )
+        )
+        assertFalse(
+            SignalingOfferFreshnessPolicy.isOfferFresh(
+                timestampMillis = now - 5_001L,
+                nowMillis = now,
+                maxAgeMs = 5_000L,
+            )
+        )
+    }
+
+    @Test
+    fun shouldKeepOfferMatchesTypeCaseInsensitively() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "OFFER",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 10_000L,
+                nowMillis = now,
+            )
+        )
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "Offer",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 10_000L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun blankCallIdSkipsTerminatedCheck() {
+        // 空 callId 不参与 terminated 集合比对：遗留行无 id 时走新鲜度判定。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "",
+                terminatedCallIds = setOf(""),
+                timestampMillis = now - 10_000L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
     fun shouldKeepOfferFiltersTypeTerminalAndAge() {
         // now must exceed STALE_MS so (now - STALE - 5) stays positive (unknown-ts path is separate).
         val now = 1_000_000L
