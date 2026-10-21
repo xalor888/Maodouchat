@@ -14,7 +14,6 @@ import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.security.DefaultSecretConversationController
 
 import com.maodouchat.widget.ConversationWidgetData
-import io.mockk.capture
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
