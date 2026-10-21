@@ -1,9 +1,11 @@
 package com.maodouchat.call
 
 import com.maodouchat.webrtc.CallType
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -83,9 +85,17 @@ class CallOrchestratorTest {
     @Test
     fun requestsAcrossInvalidateCarryDistinctGenerations() = runTest {
         val genBefore = CallOrchestrator.currentSessionGeneration()
+        // buffer 只有 1：订阅没建好时第二个 tryEmit 会被静默丢弃，先握手再发射。
+        val subscribed = CompletableDeferred<Unit>()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
-            withTimeout(2_000) { CallOrchestrator.groupCallRequests.take(2).toList() }
+            withTimeout(2_000) {
+                CallOrchestrator.groupCallRequests
+                    .onSubscription { subscribed.complete(Unit) }
+                    .take(2)
+                    .toList()
+            }
         }
+        subscribed.await()
         CallOrchestrator.requestGroupCall("chat-1", listOf("u1"), CallType.AUDIO)
         CallOrchestrator.invalidateSession()
         val genAfter = CallOrchestrator.currentSessionGeneration()
