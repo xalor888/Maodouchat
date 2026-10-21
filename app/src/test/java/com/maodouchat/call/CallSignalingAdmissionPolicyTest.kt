@@ -83,6 +83,168 @@ class CallSignalingAdmissionPolicyTest {
     }
 
     @Test
+    fun `blank sender is always dropped`() {
+        assertEquals(
+            Decision.DROP,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "",
+                activeCallId = "",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "offer",
+            ),
+        )
+        // 群通话也不豁免空发送者
+        assertEquals(
+            Decision.DROP,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "  ",
+                activeCallId = "",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "offer",
+            ),
+        )
+    }
+
+    @Test
+    fun `group call accepts any non-blank sender`() {
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "b",
+                activeCallId = "",
+                incomingCallId = "call-9",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "offer",
+            ),
+        )
+    }
+
+    @Test
+    fun `group metadata mismatch busy-rejects offer and drops answer`() {
+        // 群 id 不一致
+        assertEquals(
+            Decision.BUSY_REJECT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "",
+                incomingCallId = "call-1",
+                activeGroupId = "g1",
+                incomingGroupId = "g2",
+                activeMembers = listOf("a", "b"),
+                incomingMembers = listOf("a", "b"),
+                signalType = "offer",
+            ),
+        )
+        assertEquals(
+            Decision.DROP,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "",
+                incomingCallId = "call-1",
+                activeGroupId = "g1",
+                incomingGroupId = "g2",
+                activeMembers = listOf("a", "b"),
+                incomingMembers = listOf("a", "b"),
+                signalType = "answer",
+            ),
+        )
+        // 群 id 一致但成员集合不一致同样拒绝
+        assertEquals(
+            Decision.BUSY_REJECT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "",
+                incomingCallId = "call-1",
+                activeGroupId = "g1",
+                incomingGroupId = "g1",
+                activeMembers = listOf("a", "b"),
+                incomingMembers = listOf("a", "c"),
+                signalType = "offer",
+            ),
+        )
+    }
+
+    @Test
+    fun `legacy zero cursor bypasses order check`() {
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "answer",
+                incomingEpoch = 0,
+                incomingSequence = 0,
+                lastAcceptedCursor = Cursor(5, 9),
+            ),
+        )
+    }
+
+    @Test
+    fun `signal type normalization drives busy-reject decision`() {
+        // " OFFER " 归一化后仍是 offer → 忙拒绝
+        assertEquals(
+            Decision.BUSY_REJECT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-2",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = " OFFER ",
+            ),
+        )
+        assertEquals(
+            Decision.DROP,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-2",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = " ICE-CANDIDATE ",
+            ),
+        )
+    }
+
+    @Test
     fun `matching call accepts and unbound receiver accepts initial offer`() {
         assertEquals(
             Decision.ACCEPT,

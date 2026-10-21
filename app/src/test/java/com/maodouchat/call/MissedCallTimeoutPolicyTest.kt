@@ -95,6 +95,68 @@ class MissedCallTimeoutPolicyTest {
     }
 
     @Test
+    fun paddedSignalingCallIdIsTrimmed() {
+        assertEquals(
+            "sig-7",
+            MissedCallTimeoutPolicy.missedRecordId(
+                signalingCallId = "  sig-7  ",
+                fromUserId = "u1",
+                nowMs = 99L,
+            )
+        )
+    }
+
+    @Test
+    fun blankFromUserFallsBackToUnknownPeer() {
+        assertEquals(
+            "mc_unknown_1",
+            MissedCallTimeoutPolicy.missedRecordId(
+                signalingCallId = " ",
+                fromUserId = "  ",
+                nowMs = 61_000L,
+            )
+        )
+    }
+
+    @Test
+    fun syntheticIdMinuteBucketEdge() {
+        assertEquals(
+            "mc_u9_0",
+            MissedCallTimeoutPolicy.missedRecordId(" ", "u9", 59_999L),
+        )
+        assertEquals(
+            "mc_u9_1",
+            MissedCallTimeoutPolicy.missedRecordId(" ", "u9", 60_000L),
+        )
+    }
+
+    @Test
+    fun differentContactSameCallIdDoesNotRecord() {
+        assertFalse(
+            MissedCallTimeoutPolicy.shouldRecordMissed(
+                pending(callId = "c1", contactId = "u1"),
+                pending(callId = "c1", contactId = "u2"),
+            )
+        )
+    }
+
+    @Test
+    fun peerCancelWireStateIsCaseInsensitive() {
+        assertTrue(
+            MissedCallTimeoutPolicy.shouldRecordPeerCancelAsMissed(
+                isIncoming = true,
+                callStateWire = "ringing",
+            )
+        )
+        assertFalse(
+            MissedCallTimeoutPolicy.shouldRecordPeerCancelAsMissed(
+                isIncoming = true,
+                callStateWire = "",
+            )
+        )
+    }
+
+    @Test
     fun peerCancelWhileIncomingRingingIsMissed() {
         assertTrue(
             MissedCallTimeoutPolicy.shouldRecordPeerCancelAsMissed(
