@@ -10,7 +10,6 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlin.test.assertFailsWith
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -178,11 +177,15 @@ class MediaUploadQueueTest {
         fakeMediaApi.uploadPostImageThrowable = CancellationException("upload cancelled")
         queue.enqueue(id = "img-1", ownerUserId = "user-1", base64Data = "data")
 
+        var completionCause: Throwable? = null
         val job = requireNotNull(queue.startUpload("img-1", "token-1"))
+        // join() 永不重抛 job 自身的完成异常（JobSupport 完成即 fast-path 返回），用 completion handler 断言异常透传
+        job.invokeOnCompletion { cause -> completionCause = cause }
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(UploadStatus.CANCELLED, queue.itemsFlow.value["img-1"]?.status)
-        assertFailsWith<CancellationException> { job.join() }
+        assertTrue(completionCause is CancellationException)
+        assertEquals("upload cancelled", completionCause?.message)
     }
 
     @Test
