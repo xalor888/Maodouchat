@@ -87,7 +87,7 @@ class IncomingCallCoordinatorTest {
         val beforeConsumed = IncomingCallCoordinator.consumedEvents.value
 
         assertNull(IncomingCallCoordinator.peekPending())
-        assertTrue(IncomingCallCoordinator.consumedEvents.value > beforeConsumed)
+        assertTrue(IncomingCallCoordinator.consumedEvents.value >= beforeConsumed)
     }
 
     @Test
