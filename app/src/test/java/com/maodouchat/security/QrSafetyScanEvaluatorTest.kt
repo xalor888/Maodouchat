@@ -154,4 +154,55 @@ class QrSafetyScanEvaluatorTest {
         )
         assertEquals(SafetyScanStatus.CODE_MISMATCH, status)
     }
+
+    @Test
+    fun whitespaceOnlyCurrentUserIdIsSessionExpired() {
+        val status = QrSafetyScanEvaluator.evaluate(
+            request(),
+            currentUserId = "  ",
+            signal = FakeSignal(),
+        )
+        assertEquals(SafetyScanStatus.SESSION_EXPIRED, status)
+    }
+
+    @Test
+    fun peerFingerprintMismatchWinsOverOwnerMismatch() {
+        // 对端指纹先判：即使 owner 指纹也错，也是扫错了设备。
+        val status = QrSafetyScanEvaluator.evaluate(
+            request(peerFingerprint = "FF:FF:FF", ownerFingerprint = "11:22:33"),
+            currentUserId = "u-me",
+            signal = FakeSignal(),
+        )
+        assertEquals(SafetyScanStatus.WRONG_DEVICE_QR, status)
+    }
+
+    @Test
+    fun blankOwnerFingerprintFallsBackToCodePath() {
+        // 指纹路径要求两侧都不为空：一侧缺失就走安全码路径。
+        val status = QrSafetyScanEvaluator.evaluate(
+            request(ownerFingerprint = null, peerFingerprint = "AA:BB:CC"),
+            currentUserId = "u-me",
+            signal = FakeSignal(),
+        )
+        assertEquals(SafetyScanStatus.CODE_MATCH, status)
+    }
+
+    @Test
+    fun whitespaceQrCodeIsInvalidCode() {
+        val status = QrSafetyScanEvaluator.evaluate(
+            request(ownerFingerprint = null, peerFingerprint = null, safetyCode = "  "),
+            currentUserId = "u-me",
+            signal = FakeSignal(),
+        )
+        assertEquals(SafetyScanStatus.INVALID_CODE, status)
+    }
+
+    @Test
+    fun repeatedEvaluationIsDeterministic() {
+        val fake = FakeSignal()
+        val first = QrSafetyScanEvaluator.evaluate(request(), currentUserId = "u-me", signal = fake)
+        val second = QrSafetyScanEvaluator.evaluate(request(), currentUserId = "u-me", signal = fake)
+        assertEquals(first, second)
+        assertEquals(SafetyScanStatus.FINGERPRINT_MATCH, first)
+    }
 }
