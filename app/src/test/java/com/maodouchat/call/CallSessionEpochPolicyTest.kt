@@ -103,4 +103,68 @@ class CallSessionEpochPolicyTest {
             )
         }
     }
+
+    @Test
+    fun `negative generations follow the same rule`() {
+        assertTrue(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = -1L,
+                currentGenerationAtHangUp = -1L,
+                postInvalidateGeneration = 0L,
+            )
+        )
+        assertFalse(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = -1L,
+                currentGenerationAtHangUp = -1L,
+                postInvalidateGeneration = -1L,
+            )
+        )
+    }
+
+    @Test
+    fun `hang-up stamped ahead of current generation is dropped`() {
+        // 挂断盖的是"未来"的戳，与活 VM 的当前代对不上：丢弃。
+        assertFalse(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = 5L,
+                currentGenerationAtHangUp = 4L,
+                postInvalidateGeneration = 6L,
+            )
+        )
+    }
+
+    @Test
+    fun `post-invalidate one step ahead is the minimal safe bump`() {
+        assertTrue(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = 9L,
+                currentGenerationAtHangUp = 9L,
+                postInvalidateGeneration = 10L,
+            )
+        )
+    }
+
+    @Test
+    fun `max long epoch with no room to bump stays unsafe`() {
+        // 代已到顶、无处再 bump：比较不做算术，不会溢出回绕。
+        assertFalse(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = Long.MAX_VALUE,
+                currentGenerationAtHangUp = Long.MAX_VALUE,
+                postInvalidateGeneration = Long.MAX_VALUE,
+            )
+        )
+    }
+
+    @Test
+    fun `mismatched hang-up is unsafe even with a large post bump`() {
+        assertFalse(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = 4L,
+                currentGenerationAtHangUp = 3L,
+                postInvalidateGeneration = 9L,
+            )
+        )
+    }
 }

@@ -62,4 +62,37 @@ class WebRtcNativeDownloadPolicyTest {
         assertFalse(WebRtcNativeDownloadPolicy.verifyIntegrity("abc", sha))
         assertFalse(WebRtcNativeDownloadPolicy.verifyIntegrity(sha, null))
     }
+
+    @Test
+    fun requestAbiFallsBackToArm64Prefix() {
+        assertEquals(
+            "arm64-custom",
+            WebRtcNativeDownloadPolicy.requestAbi(arrayOf("armeabi-v7a", "arm64-custom"))
+        )
+    }
+
+    @Test
+    fun requestAbiDefaultsOnEmptyList() {
+        assertEquals("arm64-v8a", WebRtcNativeDownloadPolicy.requestAbi(arrayOf()))
+    }
+
+    @Test
+    fun originTrustLocalhostVariants() {
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("http://localhost:8080/lib/arm64-v8a"))
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("http://127.0.0.1:9000/lib/x86_64"))
+    }
+
+    @Test
+    fun originTrustSubdomainWithPort() {
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("https://files.mdou.me:8443/lib"))
+        assertFalse(WebRtcNativeDownloadPolicy.isOriginTrusted("https://evilmdou.me/"))
+    }
+
+    @Test
+    fun parseChecksumHandlesWeakPrefixCaseAndPadding() {
+        assertEquals(sha, WebRtcNativeDownloadPolicy.parseChecksum("w/\"$sha\"", null))
+        assertEquals(sha, WebRtcNativeDownloadPolicy.parseChecksum("  $sha  ", null))
+        assertNull(WebRtcNativeDownloadPolicy.parseChecksum("g".repeat(64), null))
+        assertNull(WebRtcNativeDownloadPolicy.parseChecksum("a".repeat(63), null))
+    }
 }
