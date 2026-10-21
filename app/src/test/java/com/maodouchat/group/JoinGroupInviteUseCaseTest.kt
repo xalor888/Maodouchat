@@ -106,4 +106,95 @@ class JoinGroupInviteUseCaseTest {
             assertIs<JoinGroupInviteResult.Aborted>(result)
         }
     }
+
+    @Test
+    fun treatsThrowingJoinLambdaAsFailure() {
+        runBlocking {
+            val useCase = JoinGroupInviteUseCase(
+                tokenProvider = { "tok" },
+                userIdProvider = { "u1" },
+                sessionGate = { true },
+                join = { _, _ -> throw IllegalStateException("boom") },
+            )
+            val result = useCase.join("A".repeat(40))
+            assertIs<JoinGroupInviteResult.Failed>(result)
+        }
+    }
+
+    @Test
+    fun rejectsBlankOwnerWithSessionExpired() {
+        runBlocking {
+            val useCase = JoinGroupInviteUseCase(
+                tokenProvider = { "tok" },
+                userIdProvider = { "   " },
+                sessionGate = { true },
+                join = { _, _ -> error("should not call") },
+            )
+            val result = useCase.join("A".repeat(40))
+            assertIs<JoinGroupInviteResult.Failed>(result)
+            assertEquals(Kind.SESSION_EXPIRED, result.feedback.kind)
+        }
+    }
+
+    @Test
+    fun gateClosedAtEntryNeverReachesNetwork() {
+        runBlocking {
+            var called = false
+            val useCase = JoinGroupInviteUseCase(
+                tokenProvider = { "tok" },
+                userIdProvider = { "u1" },
+                sessionGate = { false },
+                join = { _, _ ->
+                    called = true
+                    error("should not call")
+                },
+            )
+            val result = useCase.join("A".repeat(40))
+            assertIs<JoinGroupInviteResult.Failed>(result)
+            assertEquals(Kind.SESSION_EXPIRED, result.feedback.kind)
+            assertTrue(!called)
+        }
+    }
+
+    @Test
+    fun sameInviteCodeJoinsTwiceWithNoDedup() {
+        runBlocking {
+            val seen = mutableListOf<String>()
+            val useCase = JoinGroupInviteUseCase(
+                tokenProvider = { "tok" },
+                userIdProvider = { "u1" },
+                sessionGate = { true },
+                join = { _, invite ->
+                    seen.add(invite)
+                    Result.success(ChatDto(id = "g1", isGroup = true, groupName = "Team"))
+                },
+            )
+            val code = "A".repeat(40)
+            assertIs<JoinGroupInviteResult.Joined>(useCase.join(code))
+            assertIs<JoinGroupInviteResult.Joined>(useCase.join(code))
+            assertEquals(listOf(code, code), seen)
+        }
+    }
+
+    @Test
+    fun accountSwitchRefreshesTokenBeforeJoin() {
+        runBlocking {
+            var reads = 0
+            val useCase = JoinGroupInviteUseCase(
+                tokenProvider = {
+                    reads++
+                    if (reads == 1) "tokOld" else "tokNew"
+                },
+                userIdProvider = { "u1" },
+                sessionGate = { true },
+                join = { token, _ ->
+                    assertEquals("tokNew", token)
+                    Result.success(ChatDto(id = "g1", isGroup = true, groupName = "Team"))
+                },
+            )
+            val result = useCase.join("A".repeat(40))
+            assertIs<JoinGroupInviteResult.Joined>(result)
+            assertEquals(2, reads)
+        }
+    }
 }
