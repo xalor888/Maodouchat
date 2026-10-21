@@ -3,13 +3,18 @@ package com.maodouchat.explore.repository
 import com.maodouchat.network.AttachmentUploadResponse
 import com.maodouchat.network.AttachmentUploadStatusResponse
 import com.maodouchat.network.api.MediaApi
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlin.test.assertFailsWith
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -119,14 +124,99 @@ class MediaUploadQueueTest {
         assertEquals(UploadStatus.CANCELLED, item?.status)
     }
 
+    @Test
+    fun startUpload_duplicateWhileUploading_returnsSameJobWithSingleApiCall() = runTest(testDispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        fakeMediaApi.uploadGate = gate
+        queue.enqueue(id = "img-1", ownerUserId = "user-1", base64Data = "base64-data")
+
+        val first = requireNotNull(queue.startUpload("img-1", "token-1"))
+        testScheduler.runCurrent() // 让协程跑到上传挂起点，状态变为 UPLOADING
+
+        assertEquals(UploadStatus.UPLOADING, queue.itemsFlow.value["img-1"]?.status)
+        val second = queue.startUpload("img-1", "token-1")
+        assertSame(first, second)
+        assertEquals(1, fakeMediaApi.uploadPostImageCalls.size)
+
+        gate.complete(Unit)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(UploadStatus.SUCCESS, queue.itemsFlow.value["img-1"]?.status)
+    }
+
+    @Test
+    fun startUpload_unknownId_returnsNullWithoutSideEffects() = runTest(testDispatcher) {
+        val job = queue.startUpload("ghost-id", "token-1")
+
+        assertNull(job)
+        assertTrue(fakeMediaApi.uploadPostImageCalls.isEmpty())
+        assertTrue(queue.itemsFlow.value.isEmpty())
+    }
+
+    @Test
+    fun startUpload_sessionChangedAfterUpload_marksFailed() = runTest(testDispatcher) {
+        fakeMediaApi.uploadPostImageResult = Result.success("https://cdn.example.com/post9.jpg")
+        var gateCalls = 0
+        val switchedQueue = DefaultMediaUploadQueue(
+            mediaApi = fakeMediaApi,
+            dispatcher = testDispatcher,
+            scope = testScope,
+            sessionGateCheck = { _, _ -> ++gateCalls <= 1 } // 上传前通过、上传后拒绝
+        )
+
+        switchedQueue.enqueue(id = "img-1", ownerUserId = "user-1", base64Data = "data")
+        switchedQueue.startUpload("img-1", "token-1")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val item = switchedQueue.itemsFlow.value["img-1"]
+        assertEquals(UploadStatus.FAILED, item?.status)
+        assertEquals("Session changed after upload", item?.errorMessage)
+        assertEquals(1, fakeMediaApi.uploadPostImageCalls.size)
+    }
+
+    @Test
+    fun startUpload_cancelledDuringUpload_marksCancelledAndRethrows() = runTest(testDispatcher) {
+        fakeMediaApi.uploadPostImageThrowable = CancellationException("upload cancelled")
+        queue.enqueue(id = "img-1", ownerUserId = "user-1", base64Data = "data")
+
+        val job = requireNotNull(queue.startUpload("img-1", "token-1"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(UploadStatus.CANCELLED, queue.itemsFlow.value["img-1"]?.status)
+        assertFailsWith<CancellationException> { job.join() }
+    }
+
+    @Test
+    fun discardUploaded_gateRejected_failsWithoutApiCall() = runTest(testDispatcher) {
+        val gatedQueue = DefaultMediaUploadQueue(
+            mediaApi = fakeMediaApi,
+            dispatcher = testDispatcher,
+            scope = testScope,
+            sessionGateCheck = { _, _ -> false }
+        )
+
+        val result = gatedQueue.discardUploaded(
+            token = "token-1",
+            ownerUserId = "user-1",
+            url = "https://cdn.example.com/post1.jpg"
+        )
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalStateException)
+        assertTrue(fakeMediaApi.discardPostImageCalls.isEmpty())
+    }
+
     private class FakeMediaApi : MediaApi {
         var uploadPostImageResult: Result<String> = Result.success("url")
         var discardPostImageResult: Result<Unit> = Result.success(Unit)
+        var uploadGate: CompletableDeferred<Unit>? = null
+        var uploadPostImageThrowable: Throwable? = null
         val uploadPostImageCalls = mutableListOf<String>()
         val discardPostImageCalls = mutableListOf<String>()
 
         override suspend fun uploadPostImage(token: String, base64Data: String): Result<String> {
             uploadPostImageCalls.add(base64Data)
+            uploadGate?.await()
+            uploadPostImageThrowable?.let { throw it }
             return uploadPostImageResult
         }
 
