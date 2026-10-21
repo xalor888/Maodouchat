@@ -389,6 +389,126 @@ class CallSignalingAdmissionPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun `群元数据一致且游标递增时群通话被接受`() {
+        // 群元数据全匹配（含成员顺序无关）+ epoch/sequence 前进 → 完整路径放行。
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "b",
+                activeCallId = "",
+                incomingCallId = "call-g",
+                activeGroupId = "g1",
+                incomingGroupId = "g1",
+                activeMembers = listOf("a", "b"),
+                incomingMembers = listOf("b", "a"),
+                signalType = "offer",
+                incomingEpoch = 1,
+                incomingSequence = 2,
+                lastAcceptedCursor = Cursor(1, 1),
+            ),
+        )
+    }
+
+    @Test
+    fun `空 incomingCallId 不能绑定活跃通话`() {
+        // 活跃通话要求精确 id：空 incoming 绑定不上，offer 照样忙拒绝。
+        assertEquals(
+            Decision.BUSY_REJECT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "offer",
+            ),
+        )
+    }
+
+    @Test
+    fun `自己活跃通话的 hang-up 信令被接受`() {
+        // 取消类信令只给陌生 callId 丢弃：callId 对上自己就放行。
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "hang-up",
+            ),
+        )
+    }
+
+    @Test
+    fun `陌生通话 offer 重发两次都稳定忙拒绝`() {
+        // 准入判定无状态：同一拒绝信令重发，结论不变。
+        repeat(2) {
+            assertEquals(
+                Decision.BUSY_REJECT,
+                CallSignalingAdmissionPolicy.admit(
+                    isGroupCall = false,
+                    expectedContactId = "a",
+                    fromUserId = "a",
+                    activeCallId = "call-1",
+                    incomingCallId = "call-2",
+                    activeGroupId = "",
+                    incomingGroupId = "",
+                    activeMembers = emptyList(),
+                    incomingMembers = emptyList(),
+                    signalType = "offer",
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `切换账号后旧联系人来信被丢弃`() {
+        // expectedContactId 跟随当前账号：换账号后旧联系人的 sender 不再可信。
+        assertEquals(
+            Decision.DROP,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "b",
+                fromUserId = "a",
+                activeCallId = "",
+                incomingCallId = "call-9",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "offer",
+            ),
+        )
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "b",
+                fromUserId = "b",
+                activeCallId = "",
+                incomingCallId = "call-9",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "offer",
+            ),
+        )
+    }
 }
 
 class CallSignalingIdempotencyStoreTest {
