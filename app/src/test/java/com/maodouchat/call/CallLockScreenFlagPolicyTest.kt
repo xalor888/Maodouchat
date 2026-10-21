@@ -126,9 +126,9 @@ class CallLockScreenFlagPolicyTest {
     }
 
     @Test
-    fun nonBreakingSpaceIdCountsAsNonBlank() {
-        // U+00A0 不被 isBlank 视为空白：这类 id 照样点亮锁屏标志。
-        assertTrue(
+    fun nonBreakingSpaceIdCountsAsBlank() {
+        // U+00A0 被 Kotlin 的 isBlank 视为空白（Unicode 空格分隔符）：纯 NBSP 的 id 不点亮锁屏标志。
+        assertFalse(
             CallLockScreenFlagPolicy.shouldEnable(
                 activeCallId = "\u00A0",
                 hasPendingIncomingCall = false,
