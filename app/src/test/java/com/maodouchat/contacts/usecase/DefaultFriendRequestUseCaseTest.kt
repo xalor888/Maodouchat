@@ -164,4 +164,90 @@ class DefaultFriendRequestUseCaseTest {
         assertTrue("Switched account must abort result", sendResult.isFailure)
         assertFalse(friendAcceptedCalled.get())
     }
+
+    @Test
+    fun rejectFriendRequest_successMarksSettled() = runBlocking {
+        val useCase = DefaultFriendRequestUseCase(
+            sessionProvider = { "alice" to "token-alice" },
+            rejectFriendRequestApi = { _, _ -> Result.success(mockDto("req-7", "bob", "alice", status = "REJECTED")) }
+        )
+
+        val rejectResult = useCase.rejectFriendRequest("req-7")
+        assertTrue(rejectResult.isSuccess)
+
+        val acceptResult = useCase.acceptFriendRequest("req-7")
+        assertTrue(acceptResult.isFailure)
+        assertTrue(acceptResult.exceptionOrNull()?.message?.contains("already been settled") == true)
+    }
+
+    @Test
+    fun cancelFriendRequest_successMarksSettled() = runBlocking {
+        val useCase = DefaultFriendRequestUseCase(
+            sessionProvider = { "alice" to "token-alice" },
+            cancelFriendRequestApi = { _, _ -> Result.success(mockDto("req-8", "alice", "bob", status = "CANCELLED")) }
+        )
+
+        val cancelResult = useCase.cancelFriendRequest("req-8")
+        assertTrue(cancelResult.isSuccess)
+
+        val rejectResult = useCase.rejectFriendRequest("req-8")
+        assertTrue(rejectResult.isFailure)
+        assertTrue(rejectResult.exceptionOrNull()?.message?.contains("already been settled") == true)
+    }
+
+    @Test
+    fun loadRequests_partialFailureStillSucceeds() = runBlocking {
+        val useCase = DefaultFriendRequestUseCase(
+            sessionProvider = { "alice" to "token-alice" },
+            getIncomingRequestsApi = { Result.failure(RuntimeException("offline")) },
+            getOutgoingRequestsApi = {
+                Result.success(listOf(mockDto("req-out", "alice", "bob", createdAt = 200L)))
+            }
+        )
+
+        val result = useCase.loadRequests()
+        assertTrue(result.isSuccess)
+        val snapshot = result.getOrNull()!!
+        assertTrue(snapshot.incoming.isEmpty())
+        assertEquals(1, snapshot.outgoing.size)
+        assertEquals("req-out", snapshot.outgoing[0].id)
+        assertTrue(snapshot.outgoing[0].outgoing)
+    }
+
+    @Test
+    fun sendFriendRequest_successReturnsOutgoingItem() = runBlocking {
+        val useCase = DefaultFriendRequestUseCase(
+            sessionProvider = { "alice" to "token-alice" },
+            sendFriendRequestApi = { _, target, _ ->
+                assertEquals("bob", target)
+                Result.success(mockDto("req-9", "alice", "bob"))
+            }
+        )
+
+        val result = useCase.sendFriendRequest("bob", "hey")
+        assertTrue(result.isSuccess)
+        val item = result.getOrNull()!!
+        assertEquals("req-9", item.id)
+        assertEquals("bob", item.user.id)
+        assertEquals("Hi", item.message)
+        assertTrue(item.outgoing)
+    }
+
+    @Test
+    fun batchAcceptFriendRequests_deduplicatesIds() = runBlocking {
+        var apiCalls = 0
+        val useCase = DefaultFriendRequestUseCase(
+            sessionProvider = { "alice" to "token-alice" },
+            acceptFriendRequestApi = { _, id ->
+                apiCalls++
+                Result.success(mockDto(id, "bob", "alice", status = "ACCEPTED"))
+            }
+        )
+
+        val results = useCase.batchAcceptFriendRequests(listOf("req-a", "req-a", "req-b"))
+        assertEquals(2, results.size)
+        assertEquals(2, apiCalls)
+        assertTrue(results["req-a"]?.isSuccess == true)
+        assertTrue(results["req-b"]?.isSuccess == true)
+    }
 }

@@ -6,6 +6,7 @@ import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.domain.messaging.ContentPayload
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.domain.messaging.QuickReplyRequest
+import com.maodouchat.domain.messaging.SendFailureReason
 import com.maodouchat.domain.messaging.SendMessageCommand
 import com.maodouchat.domain.messaging.SendMessageResult
 import com.maodouchat.network.TokenManager
@@ -19,7 +20,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.slot
 import io.mockk.unmockkAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -158,5 +161,51 @@ class DefaultQuickReplyUseCaseTest {
         coVerify { MessageNotificationService.cancelMessage(context, "chat-1") }
         coVerify { com.maodouchat.MaodouchatApp.emitMessageSent("chat-1", "hello", "TEXT", false) }
         coVerify { ConversationWidgetData.refreshAll(context) }
+    }
+
+    @Test
+    fun `sanitized blank text fails with empty_text`() = runTest {
+        every { QuickReplyPolicy.sanitizeReplyText(any()) } returns "   "
+        val result = useCase.reply(QuickReplyRequest("chat-1", "hello", "k1"))
+        assertTrue(result.isFailure)
+        assertEquals("empty_text", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `send failure returns send_failed with reason`() = runTest {
+        coEvery { commandFacade.send(any()) } returns SendMessageResult.Failure(SendFailureReason.OFFLINE)
+        val result = useCase.reply(QuickReplyRequest("chat-1", "hello", "k1"))
+        assertTrue(result.isFailure)
+        assertEquals("send_failed: OFFLINE", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `blank idempotency key falls back to policy dedupe key`() = runTest {
+        val commandSlot = slot<SendMessageCommand>()
+        coEvery { commandFacade.send(capture(commandSlot)) } returns SendMessageResult.Success("m-1", durableCommitted = true)
+
+        val result = useCase.reply(QuickReplyRequest("chat-1", "hello", ""))
+        assertTrue(result.isSuccess)
+        assertEquals("dedupe-user-123", commandSlot.captured.idempotencyKey)
+    }
+
+    @Test
+    fun `gate denial fails with not_logged_in`() = runTest {
+        every { BackgroundSessionGate.mayContinue("user-123", "valid-token", "user-123") } returns false
+        val result = useCase.reply(QuickReplyRequest("chat-1", "hello", "k1"))
+        assertTrue(result.isFailure)
+        assertEquals("not_logged_in", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `send cancellation propagates instead of failing`() = runTest {
+        coEvery { commandFacade.send(any()) } throws CancellationException("job gone")
+        var thrown: Throwable? = null
+        try {
+            useCase.reply(QuickReplyRequest("chat-1", "hello", "k1"))
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+        assertEquals("job gone", (thrown as? CancellationException)?.message)
     }
 }
