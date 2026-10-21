@@ -39,6 +39,45 @@ class DirectChatRequestHandlerTest {
     }
 
     @Test
+    fun tokenMissingWithOwnerShortCircuitsToSessionExpired() {
+        CurrentSession.override = { Snapshot(null, "u1") }
+        val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
+        assertEquals(Outcome.SessionExpired, outcome)
+    }
+
+    @Test
+    fun whitespaceTokenShortCircuitsToSessionExpired() {
+        CurrentSession.override = { Snapshot("   ", "u1") }
+        val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
+        assertEquals(Outcome.SessionExpired, outcome)
+    }
+
+    @Test
+    fun blankOwnerWithTokenShortCircuitsToSessionExpired() {
+        CurrentSession.override = { Snapshot("tok", "") }
+        val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
+        assertEquals(Outcome.SessionExpired, outcome)
+    }
+
+    @Test
+    fun whitespaceOwnerWithTokenShortCircuitsToSessionExpired() {
+        CurrentSession.override = { Snapshot("tok", "  ") }
+        val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
+        assertEquals(Outcome.SessionExpired, outcome)
+    }
+
+    @Test
+    fun sessionGateIgnoresRequestFields() {
+        // 门禁只看会话不看请求字段：同一个无会话快照下，换 userId 结果恒定。
+        CurrentSession.override = { Snapshot(null, null) }
+        val other = DirectChatRequest(userId = "u-other", userName = "Other")
+        val first = runBlocking { DirectChatRequestHandler.handle(request) }
+        val second = runBlocking { DirectChatRequestHandler.handle(other) }
+        assertEquals(Outcome.SessionExpired, first)
+        assertEquals(Outcome.SessionExpired, second)
+    }
+
+    @Test
     fun outcomeTypesAreExhaustiveByConstruction() {
         // 编译期穷尽性之外，钉一眼四类结果的身份（防止有人把 Dropped 合并回 SessionExpired——
         // 那会改变「在途失效静默丢弃」的语义）。

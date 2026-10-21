@@ -68,4 +68,45 @@ class CallOfferSelectorTest {
         assertEquals("m1", primary.id)
         assertTrue(rest.isEmpty())
     }
+
+    @Test
+    fun terminalTypesRejectPaddedInput() {
+        // lowercase 之后才比较：带空白的变体不被当作终端信令。
+        assertFalse(CallOfferSelector.isTerminalType(" busy "))
+        assertFalse(CallOfferSelector.isTerminalType("hang-up "))
+        assertFalse(CallOfferSelector.isTerminalType("HangUp"))
+    }
+
+    @Test
+    fun terminatedIdsDeduplicate() {
+        val ids = CallOfferSelector.terminatedCallIds(
+            listOf(
+                msg(type = "hang-up", callId = "a"),
+                msg(type = "HANG-UP", callId = "a"),
+                msg(type = "busy", callId = "b"),
+            )
+        )
+        assertEquals(setOf("a", "b"), ids)
+    }
+
+    @Test
+    fun whitespaceGroupIdStillDirectRing() {
+        assertTrue(CallOfferSelector.isDirectRingOffer("  ", false))
+    }
+
+    @Test
+    fun preferMiddleKeepsRelativeOrder() {
+        val offers = listOf(msg(id = "m1", callId = "c1"), msg(id = "m2", callId = "c2"), msg(id = "m3", callId = "c3"))
+        val (primary, rest) = CallOfferSelector.selectPrimary(offers, "c2")
+        assertEquals("m2", primary.id)
+        assertEquals(listOf("m1", "m3"), rest.map { it.id })
+    }
+
+    @Test
+    fun singleOfferPreferMatchYieldsEmptyRest() {
+        val offers = listOf(msg(id = "m1", callId = "c1"))
+        val (primary, rest) = CallOfferSelector.selectPrimary(offers, "c1")
+        assertEquals("m1", primary.id)
+        assertTrue(rest.isEmpty())
+    }
 }
