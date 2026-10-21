@@ -96,4 +96,57 @@ class IncomingCallCoordinatorTest {
         assertTrue(IncomingCallCoordinator.markAutoAnswer("call-1"))
         assertTrue(IncomingCallCoordinator.peekPending()?.autoAnswer == true)
     }
+
+    @Test
+    fun `consumePending returns fresh pending and stamps consumedEvents`() {
+        val beforeConsumed = IncomingCallCoordinator.consumedEvents.value
+        val call = pending()
+        IncomingCallCoordinator.setPending(call)
+
+        val consumed = IncomingCallCoordinator.consumePending()
+
+        assertSame(call, consumed)
+        assertNull(IncomingCallCoordinator.peekPending())
+        assertTrue(IncomingCallCoordinator.consumedEvents.value >= beforeConsumed)
+    }
+
+    @Test
+    fun `consumePending on stale pending returns null but clears and stamps`() {
+        IncomingCallCoordinator.setPending(
+            pending(receivedAtMillis = System.currentTimeMillis() - IncomingCallCoordinator.STALE_MS - 1L),
+        )
+        val beforeConsumed = IncomingCallCoordinator.consumedEvents.value
+
+        assertNull(IncomingCallCoordinator.consumePending())
+        assertNull(IncomingCallCoordinator.peekPending())
+        assertTrue(IncomingCallCoordinator.consumedEvents.value >= beforeConsumed)
+    }
+
+    @Test
+    fun `clear on empty pending leaves consumedEvents untouched`() {
+        val beforeConsumed = IncomingCallCoordinator.consumedEvents.value
+
+        IncomingCallCoordinator.clear()
+
+        assertNull(IncomingCallCoordinator.peekPending())
+        assertEquals(beforeConsumed, IncomingCallCoordinator.consumedEvents.value)
+    }
+
+    @Test
+    fun `setPending replaces previous pending without stamping consumedEvents`() {
+        val beforeConsumed = IncomingCallCoordinator.consumedEvents.value
+        IncomingCallCoordinator.setPending(pending(callId = "call-1"))
+        IncomingCallCoordinator.setPending(pending(callId = "call-2"))
+
+        assertEquals("call-2", IncomingCallCoordinator.peekPending()?.callId)
+        assertEquals(beforeConsumed, IncomingCallCoordinator.consumedEvents.value)
+    }
+
+    @Test
+    fun `markAutoAnswer with blank arg bypasses identity check on non-blank pending`() {
+        IncomingCallCoordinator.setPending(pending(callId = "call-1"))
+
+        assertTrue(IncomingCallCoordinator.markAutoAnswer(""))
+        assertTrue(IncomingCallCoordinator.peekPending()?.autoAnswer == true)
+    }
 }
