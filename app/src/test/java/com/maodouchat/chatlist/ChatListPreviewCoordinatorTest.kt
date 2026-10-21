@@ -14,7 +14,9 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -116,8 +118,123 @@ class ChatListPreviewCoordinatorTest {
         assertTrue(enriched.lastMessageTime >= 50L)
     }
 
+    @Test
+    fun applyChatListPreviewStaleSessionReturnsEarly() = runTest(dispatcher) {
+        val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 1L)
+        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        val persisted = mutableListOf<Chat>()
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            isOwnerSessionCurrent = { false },
+            getCachedChat = { chat },
+            cacheChats = { persisted += it },
+        )
+
+        coordinator.applyChatListPreview(
+            chatId = "c1",
+            previewText = "hello",
+            messageType = MessageType.TEXT,
+            timestamp = 99L,
+            ownerUserId = "me",
+            sessionGeneration = 1L,
+        )
+        advanceUntilIdle()
+
+        assertEquals("old", uiState.value.chats.single().lastMessage)
+        assertTrue(persisted.isEmpty())
+    }
+
+    @Test
+    fun applyChatListPreviewRoomWriteFailureKeepsMemoryProjection() = runTest(dispatcher) {
+        // Room 回写失败只打日志：内存投影已完成，不崩。
+        val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 1L)
+        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        val persisted = mutableListOf<Chat>()
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            getCachedChat = { chat },
+            cacheChats = { persisted += it },
+            withOwnerRoomWrite = { _, _ -> throw RuntimeException("room down") },
+        )
+
+        coordinator.applyChatListPreview(
+            chatId = "c1",
+            previewText = "hello",
+            messageType = MessageType.TEXT,
+            timestamp = 99L,
+            ownerUserId = "me",
+            sessionGeneration = 1L,
+        )
+        advanceUntilIdle()
+
+        assertEquals("hello", uiState.value.chats.single().lastMessage)
+        assertTrue(persisted.isEmpty())
+    }
+
+    @Test
+    fun enrichServerChatPreviewCancellationPropagates() = runTest(dispatcher) {
+        val uiState = MutableStateFlow(ChatListUiState())
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            getRecentMessages = { _, _ -> throw CancellationException("gone") },
+        )
+        val server = Chat(
+            id = "c1",
+            lastMessage = "preview_encrypted",
+            lastMessageType = MessageType.TEXT,
+            lastMessageTime = 10L,
+        )
+
+        assertFailsWith<CancellationException> {
+            coordinator.enrichServerChatPreview(server, ownerUserId = "me")
+        }
+    }
+
+    @Test
+    fun applyChatListPreviewStaleTimestampDoesNotRewindPersistedSortKey() =
+        runTest(dispatcher) {
+            val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 100L)
+            val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+            val persisted = mutableListOf<Chat>()
+            val coordinator = buildCoordinator(
+                uiState = uiState,
+                getCachedChat = { chat },
+                cacheChats = { persisted += it },
+            )
+
+            coordinator.applyChatListPreview(
+                chatId = "c1",
+                previewText = "late",
+                messageType = MessageType.TEXT,
+                timestamp = 50L,
+                ownerUserId = "me",
+                sessionGeneration = 1L,
+            )
+            advanceUntilIdle()
+
+            assertEquals(1, persisted.size)
+            assertEquals(100L, persisted.single().lastMessageTime)
+        }
+
+    @Test
+    fun refreshChatListPreviewFromLocalFailureIsSwallowed() = runTest(dispatcher) {
+        val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 1L)
+        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        val coordinator = buildCoordinator(
+            uiState = uiState,
+            getRecentMessages = { _, _ -> throw RuntimeException("db gone") },
+        )
+
+        coordinator.refreshChatListPreviewFromLocal(chatId = "c1")
+        advanceUntilIdle()
+
+        assertEquals("old", uiState.value.chats.single().lastMessage)
+        assertEquals(1L, uiState.value.chats.single().lastMessageTime)
+    }
+
     private fun buildCoordinator(
         uiState: MutableStateFlow<ChatListUiState>,
+        isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean = { true },
         getCachedChat: suspend (String) -> Chat? = { null },
         cacheChats: suspend (List<Chat>) -> Unit = {},
         getRecentMessages: suspend (String, Int) -> List<Message> = { _, _ -> emptyList() },
@@ -132,7 +249,7 @@ class ChatListPreviewCoordinatorTest {
             uiState = uiState,
             currentUserId = { "me" },
             currentSessionGeneration = { 1L },
-            isOwnerSessionCurrent = { true },
+            isOwnerSessionCurrent = isOwnerSessionCurrent,
             withOwnerRoomWrite = withOwnerRoomWrite,
             getCachedChat = getCachedChat,
             cacheChats = cacheChats,
