@@ -1,6 +1,7 @@
 package com.maodouchat.notification
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -162,6 +163,74 @@ class NotificationSoundPolicyTest {
                 runtimeFlagEnabled = true,
                 userPreferenceEnabled = true,
                 chatMuted = true,
+            )
+        )
+    }
+
+    @Test
+    fun ringtoneBothOffStaysSilent() {
+        // 补齐 ringtone 2x2 矩阵最后一格。
+        assertFalse(
+            NotificationSoundPolicy.ringtoneEnabled(
+                runtimeFlagEnabled = false,
+                userPreferenceEnabled = false
+            )
+        )
+    }
+
+    @Test
+    fun traySoundForegroundWithPreferenceOffIsSilent() {
+        // 补齐 traySoundAllowed 2x2 矩阵最后一格。
+        assertFalse(
+            NotificationSoundPolicy.traySoundAllowed(
+                appInForeground = true,
+                preferenceSoundEnabled = false,
+            )
+        )
+    }
+
+    @Test
+    fun inAppToneDefaultsToBackground() {
+        // appInForeground 缺省为 false：不传即视为后台。
+        assertTrue(
+            NotificationSoundPolicy.inAppReceiveToneEnabled(
+                inAppSoundsFlag = true,
+                notificationsEnabled = true,
+                notificationSoundFlag = true,
+                soundPreference = true,
+            )
+        )
+    }
+
+    @Test
+    fun soundDecisionsAreDeterministic() {
+        assertEquals(
+            NotificationSoundPolicy.messageSoundEnabled(true, true),
+            NotificationSoundPolicy.messageSoundEnabled(true, true)
+        )
+        assertEquals(
+            NotificationSoundPolicy.trayMessageSoundEnabled(true, true, false),
+            NotificationSoundPolicy.trayMessageSoundEnabled(true, true, false)
+        )
+        assertEquals(
+            NotificationSoundPolicy.traySoundAllowed(false, true),
+            NotificationSoundPolicy.traySoundAllowed(false, true)
+        )
+    }
+
+    @Test
+    fun ringtoneGateIsIndependentFromMessageSoundGate() {
+        // 来电铃声走独立的服务端 flag：消息音被管理员关掉不影响响铃。
+        assertTrue(
+            NotificationSoundPolicy.ringtoneEnabled(
+                runtimeFlagEnabled = true,
+                userPreferenceEnabled = true
+            )
+        )
+        assertFalse(
+            NotificationSoundPolicy.messageSoundEnabled(
+                runtimeFlagEnabled = false,
+                userPreferenceEnabled = true
             )
         )
     }

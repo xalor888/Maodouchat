@@ -132,4 +132,101 @@ class NotificationCenterMergePolicyTest {
         )
         assertFalse(NotificationCenterMergePolicy.isSameStableExtra("r1", "r2"))
     }
+
+    @Test
+    fun blankIncomingMessageIdFallsBackToItemId() {
+        // incoming messageId 为空时回退到 item id 比对。
+        assertTrue(
+            NotificationCenterMergePolicy.isSameMessagePayload(
+                existingId = "msg_c1_m1",
+                existingMessageId = "m1",
+                incomingId = "msg_c1_m1",
+                incomingMessageId = "",
+            )
+        )
+        // 反过来：incomingId 为空但 messageId 命中，仍判重复。
+        assertTrue(
+            NotificationCenterMergePolicy.isSameMessagePayload(
+                existingId = "x",
+                existingMessageId = "m1",
+                incomingId = "",
+                incomingMessageId = "m1",
+            )
+        )
+    }
+
+    @Test
+    fun blankIncomingIdNeverMatchesByItemId() {
+        assertFalse(
+            NotificationCenterMergePolicy.isSameMessagePayload(
+                existingId = "msg_c1_m1",
+                existingMessageId = "m1",
+                incomingId = "",
+                incomingMessageId = "m2",
+            )
+        )
+    }
+
+    @Test
+    fun missedCallBlankIncomingCallIdFallsBackToItemId() {
+        assertTrue(
+            NotificationCenterMergePolicy.isSameMissedCallPayload(
+                existingId = "missed_call-1",
+                existingCallId = "call-1",
+                incomingId = "missed_call-1",
+                incomingCallId = "",
+            )
+        )
+        // callId 为空时不回退到 callId 比对：item id 不一致即判不同。
+        assertFalse(
+            NotificationCenterMergePolicy.isSameMissedCallPayload(
+                existingId = "missed_a",
+                existingCallId = "call-1",
+                incomingId = "missed_b",
+                incomingCallId = "",
+            )
+        )
+    }
+
+    @Test
+    fun stableExtraIsCaseSensitiveAndBlankSafe() {
+        assertTrue(NotificationCenterMergePolicy.isSameStableExtra("r1", "r1"))
+        assertFalse(NotificationCenterMergePolicy.isSameStableExtra("r1", "R1"))
+        assertFalse(NotificationCenterMergePolicy.isSameStableExtra("r1", ""))
+        assertFalse(NotificationCenterMergePolicy.isSameStableExtra("r1", null))
+    }
+
+    @Test
+    fun skipCountIncrementForBlankIncomingExtrasAndUnknownType() {
+        // MESSAGE：incomingId 为空但 messageId 命中仍跳过计数。
+        assertTrue(
+            NotificationCenterMergePolicy.shouldSkipCountIncrement(
+                itemType = "MESSAGE",
+                existingId = "x",
+                existingExtra = mapOf("messageId" to "m1"),
+                incomingId = "",
+                incomingExtra = mapOf("messageId" to "m1"),
+            )
+        )
+        // FRIEND_REQUEST：incoming requestId 为空不跳过。
+        assertFalse(
+            NotificationCenterMergePolicy.shouldSkipCountIncrement(
+                itemType = "FRIEND_REQUEST",
+                existingId = "friend_r1",
+                existingExtra = mapOf("requestId" to "r1"),
+                incomingId = "friend_push_r1_CREATED",
+                incomingExtra = mapOf("requestId" to ""),
+            )
+        )
+        // 未知类型永远递增。
+        assertFalse(
+            NotificationCenterMergePolicy.shouldSkipCountIncrement(
+                itemType = "COMMENT",
+                existingId = "post_1",
+                existingExtra = emptyMap(),
+                incomingId = "post_1",
+                incomingExtra = emptyMap(),
+            )
+        )
+    }
 }
