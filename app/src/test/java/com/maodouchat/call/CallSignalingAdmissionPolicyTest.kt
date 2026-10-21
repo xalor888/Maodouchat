@@ -280,6 +280,115 @@ class CallSignalingAdmissionPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun `equal cursor re-delivery is accepted as benign repeat`() {
+        // 同游标 compare 为 0 而非落后 → 放行，去重由下游幂等层承担。
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "answer",
+                incomingEpoch = 1,
+                incomingSequence = 2,
+                lastAcceptedCursor = Cursor(1, 2),
+            ),
+        )
+    }
+
+    @Test
+    fun `higher epoch is accepted even with older sequence`() {
+        // epoch 先比：2 > 1 直接胜出，sequence 不再参与判定。
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "answer",
+                incomingEpoch = 2,
+                incomingSequence = 0,
+                lastAcceptedCursor = Cursor(1, 9),
+            ),
+        )
+    }
+
+    @Test
+    fun `first signal of a fresh session is accepted without cursor`() {
+        // 账号切换后新会话尚无已接受游标（null），首信令直接放行。
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "answer",
+                incomingEpoch = 3,
+                incomingSequence = 1,
+                lastAcceptedCursor = null,
+            ),
+        )
+    }
+
+    @Test
+    fun `hangup signal for a foreign call id is dropped silently`() {
+        // 取消类信令只给 offer 发忙拒绝，其余陌生 callId 信令静默丢弃。
+        assertEquals(
+            Decision.DROP,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-9",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "hang-up",
+            ),
+        )
+    }
+
+    @Test
+    fun `matching group metadata still busy-rejects a foreign call offer`() {
+        // 群元数据一致先过审，接着 callId 不一致仍忙拒绝。
+        assertEquals(
+            Decision.BUSY_REJECT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-2",
+                activeGroupId = "g1",
+                incomingGroupId = "g1",
+                activeMembers = listOf("a", "b"),
+                incomingMembers = listOf("a", "b"),
+                signalType = "offer",
+            ),
+        )
+    }
 }
 
 class CallSignalingIdempotencyStoreTest {

@@ -171,4 +171,88 @@ class SignalingOfferFreshnessPolicyTest {
             )
         )
     }
+
+    @Test
+    fun shouldKeepOfferHonorsCustomMaxAge() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 4_000L,
+                nowMillis = now,
+                maxAgeMs = 5_000L,
+            )
+        )
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 6_000L,
+                nowMillis = now,
+                maxAgeMs = 5_000L,
+            )
+        )
+    }
+
+    @Test
+    fun terminatedCallIdMatchIsExact() {
+        // terminated 集合按精确匹配：大小写不同不算命中。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "Call-A",
+                terminatedCallIds = setOf("call-a"),
+                timestampMillis = now - 1_000L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun typeWithWhitespaceIsNotOffer() {
+        // type 比对只忽略大小写不裁空白，衬垫过的 type 不是 offer。
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = " offer ",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 1_000L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun unrelatedCallIdIsKeptDespiteTerminatedSibling() {
+        // 同一批轮询里兄弟 callId 被终止，不连累其他 callId 的新鲜 offer。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "c2",
+                terminatedCallIds = setOf("c1"),
+                timestampMillis = now - 1_000L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun negativeTimestampKeptByKeepOffer() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = -5L,
+                nowMillis = now,
+            )
+        )
+    }
 }
