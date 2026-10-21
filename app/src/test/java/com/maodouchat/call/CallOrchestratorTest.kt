@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -85,7 +86,9 @@ class CallOrchestratorTest {
     @Test
     fun requestsAcrossInvalidateCarryDistinctGenerations() = runTest {
         val genBefore = CallOrchestrator.currentSessionGeneration()
-        // buffer 只有 1：订阅没建好时第二个 tryEmit 会被静默丢弃，先握手再发射。
+        // buffer 只有 1：tryEmit 永远先入 buffer 再唤醒收集器，而唤醒是排队到
+        // dispatcher 上的；两次发射之间必须 runCurrent 让收集器先消费第一条，
+        // 否则第二条会因 buffer 满被静默丢弃。
         val subscribed = CompletableDeferred<Unit>()
         val collected = async(start = CoroutineStart.UNDISPATCHED) {
             withTimeout(2_000) {
@@ -97,6 +100,7 @@ class CallOrchestratorTest {
         }
         subscribed.await()
         CallOrchestrator.requestGroupCall("chat-1", listOf("u1"), CallType.AUDIO)
+        runCurrent() // 让收集器消费第一条，腾出 buffer
         CallOrchestrator.invalidateSession()
         val genAfter = CallOrchestrator.currentSessionGeneration()
         CallOrchestrator.requestGroupCall("chat-2", listOf("u2"), CallType.AUDIO)
