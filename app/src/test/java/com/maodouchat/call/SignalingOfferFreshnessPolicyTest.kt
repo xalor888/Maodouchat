@@ -255,4 +255,90 @@ class SignalingOfferFreshnessPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `offer 到达即时 age 为零被保留`() {
+        // age = 0 走不到负分支，窗口判定含边界：刚落库的行必须可响铃。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun `re-offer 前缀类型不是 offer 被过滤`() {
+        // equals 只忽略大小写不做子串匹配："re-offer" 不是 offer。
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "re-offer",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 1_000L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun `已终止通话的 offer 即使时间戳未知也被丢弃`() {
+        // terminated 检查排在新鲜度之前：挂断过的 callId 不会因时间戳未知被复活。
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "c1",
+                terminatedCallIds = setOf("c1"),
+                timestampMillis = -5L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun `同一新鲜 offer 重复轮询两次都被保留`() {
+        // 新鲜度判定是无状态纯函数：重复轮询同一 offer 结果必须一致。
+        val now = 1_000_000L
+        repeat(2) {
+            assertTrue(
+                SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                    type = "offer",
+                    callId = "c1",
+                    terminatedCallIds = emptySet(),
+                    timestampMillis = now - 1_000L,
+                    nowMillis = now,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `切换账号后旧账号的 terminated 集合不再过滤同一 offer`() {
+        // terminated 集合是调用方上下文：换账号后传入空集合，同一 offer 重新被保留。
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "c1",
+                terminatedCallIds = setOf("c1"),
+                timestampMillis = now - 1_000L,
+                nowMillis = now,
+            )
+        )
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "c1",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 1_000L,
+                nowMillis = now,
+            )
+        )
+    }
 }

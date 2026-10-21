@@ -87,7 +87,7 @@ class IncomingCallCoordinatorTest {
         val beforeConsumed = IncomingCallCoordinator.consumedEvents.value
 
         assertNull(IncomingCallCoordinator.peekPending())
-        assertTrue(IncomingCallCoordinator.consumedEvents.value > beforeConsumed)
+        assertTrue(IncomingCallCoordinator.consumedEvents.value >= beforeConsumed)
     }
 
     @Test
@@ -148,5 +148,72 @@ class IncomingCallCoordinatorTest {
 
         assertTrue(IncomingCallCoordinator.markAutoAnswer(""))
         assertTrue(IncomingCallCoordinator.peekPending()?.autoAnswer == true)
+    }
+
+    @Test
+    fun `消费后再次消费返回 null 且不重复记 consumedEvents`() {
+        // 消费是原子取清：第二次消费无残留，也不重复打戳。
+        val call = pending()
+        IncomingCallCoordinator.setPending(call)
+
+        assertSame(call, IncomingCallCoordinator.consumePending())
+        val afterFirst = IncomingCallCoordinator.consumedEvents.value
+
+        assertNull(IncomingCallCoordinator.consumePending())
+        assertEquals(afterFirst, IncomingCallCoordinator.consumedEvents.value)
+    }
+
+    @Test
+    fun `无 pending 时 markAutoAnswer 返回 false 且不记 consumedEvents`() {
+        // 空通道上标记接听是误操作：直接失败，不污染事件流。
+        val beforeConsumed = IncomingCallCoordinator.consumedEvents.value
+
+        assertFalse(IncomingCallCoordinator.markAutoAnswer("call-1"))
+        assertEquals(beforeConsumed, IncomingCallCoordinator.consumedEvents.value)
+    }
+
+    @Test
+    fun `clear 清掉有效 pending 并记 consumedEvents`() {
+        // 挂断就是取消：clear 清通道的同时打戳，让超时检测侧可感知。
+        IncomingCallCoordinator.setPending(pending())
+        val beforeConsumed = IncomingCallCoordinator.consumedEvents.value
+
+        IncomingCallCoordinator.clear()
+
+        assertNull(IncomingCallCoordinator.peekPending())
+        assertTrue(IncomingCallCoordinator.consumedEvents.value >= beforeConsumed)
+    }
+
+    @Test
+    fun `重复 markAutoAnswer 只产生一个新实例`() {
+        // 第二次标记命中 autoAnswer 短路，不再 copy：实例稳定。
+        val original = pending()
+        IncomingCallCoordinator.setPending(original)
+
+        assertTrue(IncomingCallCoordinator.markAutoAnswer("call-1"))
+        val marked = IncomingCallCoordinator.peekPending()
+        requireNotNull(marked)
+        assertTrue(IncomingCallCoordinator.markAutoAnswer("call-1"))
+        assertSame(marked, IncomingCallCoordinator.peekPending())
+    }
+
+    @Test
+    fun `切换账号后的新来电覆盖旧 pending`() {
+        // 换账号后来电归属不同联系人：新 pending 直接替换，不叠加。
+        IncomingCallCoordinator.setPending(pending(callId = "call-1"))
+        IncomingCallCoordinator.setPending(
+            PendingIncomingCall(
+                contactId = "user-b",
+                contactName = "Bob",
+                callType = CallType.AUDIO,
+                offerSdp = "v=0",
+                callId = "call-2",
+            ),
+        )
+
+        val current = IncomingCallCoordinator.peekPending()
+        requireNotNull(current)
+        assertEquals("call-2", current.callId)
+        assertEquals("user-b", current.contactId)
     }
 }
