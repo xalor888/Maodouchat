@@ -87,4 +87,70 @@ class CallSessionMachineTest {
         assertEquals(second.epoch, machine.snapshot().epoch)
         assertEquals(Phase.OUTGOING_RINGING, machine.snapshot().phase)
     }
+
+    @Test
+    fun staleEpochMarkConnectingIsNoop() {
+        val machine = CallSessionMachine()
+        val first = machine.beginOutgoing("peer-1")
+        machine.beginEnding(first.epoch)
+        machine.finish(first.epoch)
+        val second = machine.beginOutgoing("peer-2")
+
+        // 旧 epoch 的过渡指令不得改动新会话——重试重放的陈旧信令被隔离。
+        val before = machine.snapshot()
+        machine.markConnecting(first.epoch)
+        assertEquals(before, machine.snapshot())
+        assertEquals(second.epoch, machine.snapshot().epoch)
+        assertEquals(Phase.OUTGOING_RINGING, machine.snapshot().phase)
+    }
+
+    @Test
+    fun beginEndingOnIdleIsNoop() {
+        val machine = CallSessionMachine()
+        val before = machine.snapshot()
+
+        machine.beginEnding(1L)
+
+        assertEquals(before, machine.snapshot())
+        assertEquals(Phase.IDLE, machine.snapshot().phase)
+        assertFalse(machine.isCurrent(1L))
+    }
+
+    @Test
+    fun doubleFinishStaysEndedAndNotCurrent() {
+        val machine = CallSessionMachine()
+        val started = machine.beginOutgoing("peer-1")
+        machine.beginEnding(started.epoch)
+        machine.finish(started.epoch)
+
+        val again = machine.finish(started.epoch)
+
+        assertEquals(Phase.ENDED, again.phase)
+        assertFalse(machine.isCurrent(started.epoch))
+    }
+
+    @Test
+    fun markConnectedTwiceIsIdempotent() {
+        val machine = CallSessionMachine()
+        val started = machine.beginOutgoing("peer-1")
+        machine.markConnected(started.epoch)
+
+        val after = machine.markConnected(started.epoch)
+
+        assertEquals(Phase.CONNECTED, after.phase)
+        assertEquals(started.epoch, after.epoch)
+        assertTrue(machine.isCurrent(started.epoch))
+    }
+
+    @Test
+    fun beginEndingWithWrongEpochIsNoop() {
+        val machine = CallSessionMachine()
+        val started = machine.beginOutgoing("peer-1")
+        machine.markConnected(started.epoch)
+
+        machine.beginEnding(started.epoch + 99L)
+
+        assertEquals(Phase.CONNECTED, machine.snapshot().phase)
+        assertTrue(machine.isCurrent(started.epoch))
+    }
 }

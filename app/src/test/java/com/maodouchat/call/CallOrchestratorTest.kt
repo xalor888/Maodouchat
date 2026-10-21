@@ -120,4 +120,67 @@ class CallOrchestratorTest {
         assertEquals("chat-empty", req.chatId)
         assertTrue(req.memberIds.isEmpty())
     }
+
+    @Test
+    fun rapidEmitsWithoutCollectorFirstWinsWhenBufferFull() = runTest {
+        // buffer=1：无订阅者时第二次 tryEmit 静默丢弃，第一条保留。
+        CallOrchestrator.requestGroupCall("chat-first", listOf("u1"), CallType.AUDIO)
+        CallOrchestrator.requestGroupCall("chat-second", listOf("u2"), CallType.VIDEO)
+        val received = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(1_000) { CallOrchestrator.groupCallRequests.first() }
+        }
+        assertEquals("chat-first", received.await().chatId)
+    }
+
+    @Test
+    fun groupCallRequestDefaultGenerationIsCurrent() {
+        CallOrchestrator.invalidateSession()
+        val req = GroupCallRequest("chat-d", listOf("u1"), CallType.AUDIO)
+        assertEquals(CallOrchestrator.currentSessionGeneration(), req.sessionGeneration)
+    }
+
+    @Test
+    fun memberIdsDuplicatesAndOrderPassThroughVerbatim() = runTest {
+        val received = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(1_000) { CallOrchestrator.groupCallRequests.first() }
+        }
+        CallOrchestrator.requestGroupCall("chat-dup", listOf("u2", "u1", "u2"), CallType.AUDIO)
+        assertEquals(listOf("u2", "u1", "u2"), received.await().memberIds)
+    }
+
+    @Test
+    fun directChatEmptyUserNameStillEmits() = runTest {
+        val received = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(1_000) { CallOrchestrator.directChatRequests.first() }
+        }
+        CallOrchestrator.requestDirectChat("user-z", "")
+        val req = received.await()
+        assertEquals("user-z", req.userId)
+        assertEquals("", req.userName)
+    }
+
+    @Test
+    fun directChatRequestsAcrossInvalidateCarryDistinctGenerations() = runTest {
+        val genBefore = CallOrchestrator.currentSessionGeneration()
+        // 与群通话路径同理：buffer 只有 1，两次发射之间必须 runCurrent 让收集器先消费。
+        val subscribed = CompletableDeferred<Unit>()
+        val collected = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(2_000) {
+                CallOrchestrator.directChatRequests
+                    .onSubscription { subscribed.complete(Unit) }
+                    .take(2)
+                    .toList()
+            }
+        }
+        subscribed.await()
+        CallOrchestrator.requestDirectChat("user-a", "A")
+        runCurrent()
+        CallOrchestrator.invalidateSession()
+        val genAfter = CallOrchestrator.currentSessionGeneration()
+        CallOrchestrator.requestDirectChat("user-b", "B")
+        val (first, second) = collected.await()
+        assertEquals(genBefore, first.sessionGeneration)
+        assertEquals(genAfter, second.sessionGeneration)
+        assertTrue(first.sessionGeneration < second.sessionGeneration)
+    }
 }
