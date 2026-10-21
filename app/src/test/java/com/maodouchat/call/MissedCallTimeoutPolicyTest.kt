@@ -187,4 +187,51 @@ class MissedCallTimeoutPolicyTest {
             )
         )
     }
+
+    @Test
+    fun blankCallIdsNeverMatchByIdentity() {
+        // stillPending 的 callId 为空：即使联系人相同也不判同一通（防空 id 串扰）。
+        assertFalse(
+            MissedCallTimeoutPolicy.shouldRecordMissed(
+                pending(callId = "c1", contactId = "u1"),
+                pending(callId = "", contactId = "u1"),
+            )
+        )
+    }
+
+    @Test
+    fun observedBlankCallIdDoesNotMatchNewCallId() {
+        assertFalse(
+            MissedCallTimeoutPolicy.shouldRecordMissed(
+                pending(callId = "", contactId = "u1"),
+                pending(callId = "c1", contactId = "u1"),
+            )
+        )
+    }
+
+    @Test
+    fun syntheticIdTrimsPaddedPeer() {
+        assertEquals(
+            "mc_u9_1",
+            MissedCallTimeoutPolicy.missedRecordId(" ", "  u9  ", 61_000L),
+        )
+    }
+
+    @Test
+    fun syntheticIdWithNegativeNowTruncatesTowardZero() {
+        // Kotlin 整数除法向零截断：-1ms 落 0 号桶，-60001ms 落 -1 号桶。
+        assertEquals("mc_u9_0", MissedCallTimeoutPolicy.missedRecordId(" ", "u9", -1L))
+        assertEquals("mc_u9_-1", MissedCallTimeoutPolicy.missedRecordId(" ", "u9", -60_001L))
+    }
+
+    @Test
+    fun equalByFieldsDespiteDifferentNameRecords() {
+        // data 类不等（contactName 不同）时回退到 callId+contactId 字段比对。
+        val a = PendingIncomingCall(
+            contactId = "u1", contactName = "Alice", callType = CallType.AUDIO,
+            offerSdp = "v=0", callId = "c1", receivedAtMillis = 1000L,
+        )
+        val b = a.copy(contactName = "Alicia")
+        assertTrue(MissedCallTimeoutPolicy.shouldRecordMissed(a, b))
+    }
 }

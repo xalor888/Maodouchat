@@ -284,4 +284,60 @@ class PolledIncomingBatchPolicyTest {
 
         assertTrue(decision.terminals.single().missedRecord != null)
     }
+
+    @Test
+    fun `a reject terminal matching the pending cancels without a missed tombstone`() {
+        val decision = decide(
+            messages = listOf(msg(type = "reject", callId = "c1")),
+            existingPending = pending(),
+        )
+
+        assertEquals(1, decision.terminals.size)
+        assertNull(decision.terminals.single().missedRecord, "只有对方挂断记未接：reject 走各自收尾语义")
+    }
+
+    @Test
+    fun `a prefer call id with a surviving offer is not cancelled`() {
+        val decision = decide(
+            messages = listOf(msg(type = "offer", callId = "c1")),
+            preferCallId = "c1",
+        )
+
+        assertFalse(decision.cancelPreferCallId, "FCM 指定的 offer 仍存活：不是幽灵响铃")
+        assertEquals("c1", decision.primary!!.callId)
+        assertTrue(decision.shouldNavigate)
+    }
+
+    @Test
+    fun `a ghost prefer is cancelled but the surviving offer still rings`() {
+        val decision = decide(
+            messages = listOf(msg(type = "offer", callId = "c2")),
+            preferCallId = "c9",
+        )
+
+        assertTrue(decision.cancelPreferCallId, "FCM 唤醒的 callId 已无 offer：掐掉幽灵响铃")
+        assertEquals("c2", decision.primary!!.callId, "存活的 offer 照常响铃")
+        assertTrue(decision.shouldNavigate)
+    }
+
+    @Test
+    fun `a hang-up with no pending still cancels and buses without a tombstone`() {
+        val decision = decide(messages = listOf(msg(type = "hang-up", callId = "c1")))
+
+        assertEquals(1, decision.terminals.size)
+        assertNull(decision.terminals.single().missedRecord, "没有 pending 可匹配：不能凭空记墓碑")
+        assertNull(decision.primary)
+        assertFalse(decision.shouldNavigate)
+    }
+
+    @Test
+    fun `a hang-up for a blank-contact pending falls back to the terminal sender`() {
+        val decision = decide(
+            messages = listOf(msg(type = "hang-up", callId = "c1", from = "u9")),
+            existingPending = pending(contactId = ""),
+        )
+
+        val missed = decision.terminals.single().missedRecord
+        assertEquals("u9", missed!!.fromUserId, "pending 联系人空白时回退终端信令的发送者")
+    }
 }

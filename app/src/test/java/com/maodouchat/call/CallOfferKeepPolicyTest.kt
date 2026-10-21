@@ -258,4 +258,91 @@ class CallOfferKeepPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `uppercase offer type is kept`() {
+        // type 比对大小写不敏感：大写 OFFER 仍是 offer。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "OFFER",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 1_000L,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `custom max age window is honored`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 500L,
+                nowMillis = now,
+                maxAgeMs = 1_000L
+            )
+        )
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 500L,
+                nowMillis = now,
+                maxAgeMs = 499L
+            )
+        )
+    }
+
+    @Test
+    fun `far future timestamp is kept despite tiny window`() {
+        // 时钟偏移：未来时间戳恒判新鲜，不看窗口大小。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now + 1_000_000L,
+                nowMillis = now,
+                maxAgeMs = 1L
+            )
+        )
+    }
+
+    @Test
+    fun `zero timestamp is kept despite zero max age`() {
+        // 时间戳未知（<=0）先于窗口判定：宁可走挂断路径也不静默丢弃存量 offer。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = 0L,
+                nowMillis = now,
+                maxAgeMs = 0L
+            )
+        )
+    }
+
+    @Test
+    fun `padded terminated entry does not match`() {
+        // 集合匹配精确不裁边：衬垫过的条目不误杀新鲜 offer。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = setOf(" call-a "),
+                timestampMillis = now - 1_000L,
+                nowMillis = now
+            )
+        )
+    }
 }
