@@ -215,4 +215,73 @@ class PolledIncomingBatchPolicyTest {
         assertTrue(decision.terminals.isEmpty())
         assertFalse(decision.shouldNavigate)
     }
+
+    @Test
+    fun `only the terminal matching the pending records a missed call`() {
+        val decision = decide(
+            messages = listOf(
+                msg(type = "hang-up", callId = "c1"),
+                msg(type = "hang-up", callId = "c2"),
+            ),
+            existingPending = pending(callId = "c1"),
+        )
+
+        assertEquals(2, decision.terminals.size)
+        val byId = decision.terminals.associateBy { it.callId }
+        assertTrue(byId.getValue("c1").missedRecord != null)
+        assertNull(byId.getValue("c2").missedRecord)
+        assertNull(decision.primary)
+        assertFalse(decision.shouldNavigate)
+    }
+
+    @Test
+    fun `a group pending hang-up records a group video tombstone`() {
+        val decision = decide(
+            messages = listOf(msg(type = "hang-up", callId = "c1")),
+            existingPending = pending(callId = "c1", groupId = "g1", callType = CallType.VIDEO),
+        )
+
+        val missed = decision.terminals.single().missedRecord
+        assertTrue(missed != null)
+        assertTrue(missed.isGroup)
+        assertTrue(missed.isVideo)
+        assertEquals("c1", missed.signalingCallId)
+    }
+
+    @Test
+    fun `non-primary offers are returned as busy replies`() {
+        val decision = decide(
+            messages = listOf(
+                msg(id = "m1", callId = "c1"),
+                msg(id = "m2", callId = "c2"),
+            ),
+        )
+
+        assertEquals("c1", decision.primary?.callId)
+        assertEquals(listOf("c2"), decision.busyReplies.map { it.callId })
+        assertTrue(decision.shouldNavigate)
+        assertFalse(decision.cancelPreferCallId)
+    }
+
+    @Test
+    fun `an empty batch with a dangling prefer cancels the prefer`() {
+        val decision = decide(messages = emptyList(), preferCallId = "c9")
+
+        assertNull(decision.primary)
+        assertFalse(decision.shouldNavigate)
+        assertTrue(decision.terminals.isEmpty())
+        assertTrue(decision.busyReplies.isEmpty())
+        // FCM 唤醒但库中已无该 call 的 offer：防幽灵响铃，取消 prefer 通知。
+        assertTrue(decision.cancelPreferCallId)
+    }
+
+    @Test
+    fun `an uppercase HANG-UP terminal still records the missed call`() {
+        val decision = decide(
+            messages = listOf(msg(type = "HANG-UP", callId = "c1")),
+            existingPending = pending(callId = "c1"),
+        )
+
+        assertTrue(decision.terminals.single().missedRecord != null)
+    }
 }
