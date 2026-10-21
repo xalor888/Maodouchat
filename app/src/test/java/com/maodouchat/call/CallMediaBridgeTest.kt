@@ -4,6 +4,7 @@ import com.maodouchat.webrtc.CallAudioRoute
 import com.maodouchat.webrtc.WebRTCManager
 import io.mockk.mockk
 import io.mockk.verify
+import io.mockk.verifyOrder
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -129,5 +130,75 @@ class CallMediaBridgeTest {
         verify(exactly = 1) { manager.toggleMute(true) }
         verify(exactly = 1) { manager.toggleMute(false) }
         verify(exactly = 1) { manager.toggleVideo(true) }
+    }
+
+    @Test
+    fun `rebind does not release the old manager`() {
+        val bridge = CallMediaBridge()
+        val first = mockk<WebRTCManager>(relaxed = true)
+        val second = mockk<WebRTCManager>(relaxed = true)
+        bridge.bind(first)
+        bridge.bind(second)
+
+        verify(exactly = 0) { first.release() }
+        assertSame(second, bridge.manager)
+    }
+
+    @Test
+    fun `intents after rebind reach only the latest manager`() {
+        val bridge = CallMediaBridge()
+        val first = mockk<WebRTCManager>(relaxed = true)
+        val second = mockk<WebRTCManager>(relaxed = true)
+        bridge.bind(first)
+        bridge.bind(second)
+
+        bridge.toggleMute(true)
+
+        verify(exactly = 0) { first.toggleMute(any()) }
+        verify(exactly = 1) { second.toggleMute(true) }
+    }
+
+    @Test
+    fun `media intents keep call order`() {
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        bridge.bind(manager)
+
+        bridge.toggleMute(true)
+        bridge.toggleMute(false)
+        bridge.toggleVideo(true)
+
+        verifyOrder {
+            manager.toggleMute(true)
+            manager.toggleMute(false)
+            manager.toggleVideo(true)
+        }
+    }
+
+    @Test
+    fun `group renderer intents carry exact user id including blank`() {
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        val renderer = mockk<SurfaceViewRenderer>(relaxed = true)
+        bridge.bind(manager)
+
+        bridge.attachGroupRemoteRenderer("u-1", renderer)
+        bridge.detachGroupRemoteRenderer("", renderer)
+
+        verify(exactly = 1) { manager.attachGroupRemoteRenderer("u-1", renderer) }
+        verify(exactly = 1) { manager.detachGroupRemoteRenderer("", renderer) }
+    }
+
+    @Test
+    fun `select audio route forwards every route value`() {
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        bridge.bind(manager)
+
+        CallAudioRoute.entries.forEach { bridge.selectAudioRoute(it) }
+
+        CallAudioRoute.entries.forEach { route ->
+            verify(exactly = 1) { manager.selectAudioRoute(route) }
+        }
     }
 }

@@ -19,6 +19,7 @@ class MissedCallRoomActionsTest {
         var deleteAllCalls = 0
         val deletedIds = mutableListOf<String>()
         var throwOnDeleteAll = false
+        var throwOnDeleteById = false
 
         override suspend fun insert(call: MissedCallEntity) {
             inserted += call
@@ -33,6 +34,7 @@ class MissedCallRoomActionsTest {
         override suspend fun deleteOlderThan(olderThan: Long) = Unit
 
         override suspend fun deleteById(callId: String) {
+            if (throwOnDeleteById) throw RuntimeException("boom")
             deletedIds += callId
         }
 
@@ -127,5 +129,54 @@ class MissedCallRoomActionsTest {
         assertThrows(RuntimeException::class.java) {
             runBlocking { MissedCallRoomActions.clearAll() }
         }
+    }
+
+    @Test
+    fun deleteErrorsPropagateToTheCaller() {
+        dao.throwOnDeleteById = true
+        MissedCallRoomActions.repositoryFactory = { MissedCallRepository(dao) }
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { MissedCallRoomActions.delete("call-9") }
+        }
+        assertTrue(dao.deletedIds.isEmpty())
+        assertEquals(0, dao.deleteAllCalls)
+    }
+
+    @Test
+    fun deleteTwiceHitsTheDaoTwiceWithoutDedup() {
+        MissedCallRoomActions.repositoryFactory = { MissedCallRepository(dao) }
+        runBlocking {
+            MissedCallRoomActions.delete("call-9")
+            MissedCallRoomActions.delete("call-9")
+        }
+        assertEquals(listOf("call-9", "call-9"), dao.deletedIds)
+    }
+
+    @Test
+    fun throwingFactoryPropagatesToTheCaller() {
+        MissedCallRoomActions.repositoryFactory = { throw RuntimeException("no app") }
+        assertThrows(RuntimeException::class.java) {
+            runBlocking { MissedCallRoomActions.clearAll() }
+        }
+    }
+
+    @Test
+    fun nullFactoryIsARepeatableSilentNoOp() {
+        MissedCallRoomActions.repositoryFactory = { null }
+        runBlocking {
+            MissedCallRoomActions.clearAll()
+            MissedCallRoomActions.delete("call-9")
+            MissedCallRoomActions.clearAll()
+        }
+        assertEquals(0, dao.deleteAllCalls)
+        assertTrue(dao.deletedIds.isEmpty())
+    }
+
+    @Test
+    fun deletePassesWhitespaceIdThroughVerbatim() {
+        MissedCallRoomActions.repositoryFactory = { MissedCallRepository(dao) }
+        runBlocking { MissedCallRoomActions.delete("  ") }
+        assertEquals(listOf("  "), dao.deletedIds)
+        assertEquals(0, dao.deleteAllCalls)
     }
 }
