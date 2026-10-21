@@ -59,4 +59,75 @@ class CallMediaBridgeTest {
         bridge.switchCamera()
         assertNull(bridge.manager)
     }
+
+    @Test
+    fun `rebind swaps the manager and release only touches the latest`() {
+        val bridge = CallMediaBridge()
+        val first = mockk<WebRTCManager>(relaxed = true)
+        val second = mockk<WebRTCManager>(relaxed = true)
+        bridge.bind(first)
+        bridge.bind(second)
+        assertSame(second, bridge.manager)
+
+        bridge.release()
+
+        verify(exactly = 0) { first.release() }
+        verify(exactly = 1) { second.release() }
+        assertNull(bridge.manager)
+    }
+
+    @Test
+    fun `release without a bound manager is a silent no-op`() {
+        val bridge = CallMediaBridge()
+        bridge.release()
+        assertNull(bridge.manager)
+    }
+
+    @Test
+    fun `double release calls manager release exactly once`() {
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        bridge.bind(manager)
+
+        bridge.release()
+        bridge.release()
+
+        verify(exactly = 1) { manager.release() }
+    }
+
+    @Test
+    fun `intents after release never reach the manager`() {
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        val renderer = mockk<SurfaceViewRenderer>(relaxed = true)
+        bridge.bind(manager)
+        bridge.release()
+
+        bridge.toggleMute(true)
+        bridge.toggleVideo(true)
+        bridge.switchCamera()
+        bridge.selectAudioRoute(CallAudioRoute.SPEAKER)
+        bridge.attachLocalRenderer(renderer)
+
+        verify(exactly = 0) { manager.toggleMute(any()) }
+        verify(exactly = 0) { manager.toggleVideo(any()) }
+        verify(exactly = 0) { manager.switchCamera() }
+        verify(exactly = 0) { manager.selectAudioRoute(any()) }
+        verify(exactly = 0) { manager.attachLocalRenderer(any()) }
+    }
+
+    @Test
+    fun `mute and video intents carry exact boolean values`() {
+        val bridge = CallMediaBridge()
+        val manager = mockk<WebRTCManager>(relaxed = true)
+        bridge.bind(manager)
+
+        bridge.toggleMute(true)
+        bridge.toggleMute(false)
+        bridge.toggleVideo(true)
+
+        verify(exactly = 1) { manager.toggleMute(true) }
+        verify(exactly = 1) { manager.toggleMute(false) }
+        verify(exactly = 1) { manager.toggleVideo(true) }
+    }
 }
