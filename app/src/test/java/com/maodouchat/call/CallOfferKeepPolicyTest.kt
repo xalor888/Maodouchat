@@ -75,6 +75,95 @@ class CallOfferKeepPolicyTest {
     }
 
     @Test
+    fun `future timestamp is kept as clock skew`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now + 5_000L,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `unknown timestamp is kept`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = 0L,
+                nowMillis = now
+            )
+        )
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = -1L,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `zero max age rejects even fresh offers`() {
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now,
+                nowMillis = now,
+                maxAgeMs = 0L
+            )
+        )
+    }
+
+    @Test
+    fun `whitespace-only call id is not treated as terminated`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "   ",
+                terminatedCallIds = setOf("   "),
+                timestampMillis = now,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `boundary age is kept, one millisecond over is dropped`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - IncomingCallCoordinator.STALE_MS,
+                nowMillis = now
+            )
+        )
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - IncomingCallCoordinator.STALE_MS - 1L,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
     fun `blank call id is not treated as terminated`() {
         val now = 1_000_000L
         assertTrue(
