@@ -340,4 +340,70 @@ class PolledIncomingBatchPolicyTest {
         val missed = decision.terminals.single().missedRecord
         assertEquals("u9", missed!!.fromUserId, "pending 联系人空白时回退终端信令的发送者")
     }
+
+    @Test
+    fun `an offer and an unrelated terminal in one batch ring the offer while bussing the terminal`() {
+        val decision = decide(
+            messages = listOf(
+                msg(id = "m1", type = "offer", callId = "c1"),
+                msg(id = "m2", type = "hang-up", callId = "c2"),
+            ),
+        )
+
+        assertEquals("c1", decision.primary!!.callId, "无关终端不能拖住正常来电")
+        assertTrue(decision.shouldNavigate)
+        assertEquals(1, decision.terminals.size)
+        assertNull(decision.terminals.single().missedRecord, "c2 没有 pending 可匹配：只转发不记墓碑")
+        assertTrue(decision.busyReplies.isEmpty())
+    }
+
+    @Test
+    fun `an offer killed by its own hang-up in the same batch never rings`() {
+        val decision = decide(
+            messages = listOf(
+                msg(type = "offer", callId = "c1"),
+                msg(type = "hang-up", callId = "c1"),
+            ),
+            preferCallId = "c1",
+        )
+
+        assertNull(decision.primary, "同批到达的 offer 已被终端覆盖：不得响铃")
+        assertFalse(decision.shouldNavigate)
+        assertTrue(decision.cancelPreferCallId, "FCM 指定的 callId 同批被终端覆盖：掐掉")
+        assertEquals(1, decision.terminals.size)
+    }
+
+    @Test
+    fun `duplicate poll rows for the same call ring once and bus the duplicate`() {
+        val decision = decide(
+            messages = listOf(
+                msg(id = "m1", callId = "c1"),
+                msg(id = "m2", callId = "c1"),
+            ),
+        )
+
+        assertEquals("m1", decision.primary!!.id, "同一批次重复行：只响一次")
+        assertEquals(listOf("m2"), decision.busyReplies.map { it.id }, "重复行走 busy 回复，不重复响铃")
+        assertTrue(decision.shouldNavigate)
+    }
+
+    @Test
+    fun `a stale pending from another call does not suppress the new offer`() {
+        val decision = decide(
+            messages = listOf(msg(type = "offer", callId = "c1")),
+            existingPending = pending(callId = "c-old"),
+        )
+
+        assertEquals("c1", decision.primary!!.callId)
+        assertTrue(decision.shouldNavigate, "上通电话（或上个账号）的 pending 残留不得压制新来电")
+    }
+
+    @Test
+    fun `a blank prefer never cancels anything`() {
+        val decision = decide(messages = emptyList())
+
+        assertFalse(decision.cancelPreferCallId, "空 prefer 不是幽灵响铃")
+        assertNull(decision.primary)
+        assertFalse(decision.shouldNavigate)
+    }
 }
