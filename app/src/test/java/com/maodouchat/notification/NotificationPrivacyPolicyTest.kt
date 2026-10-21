@@ -2,6 +2,7 @@ package com.maodouchat.notification
 
 import com.maodouchat.util.NotificationPrivacyPolicy
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -15,5 +16,42 @@ class NotificationPrivacyPolicyTest {
     fun `preview preference is respected without app lock`() {
         assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = false))
         assertFalse(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = true))
+    }
+
+    @Test
+    fun `app lock hides details even when preview is off`() {
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = false))
+    }
+
+    @Test
+    fun `only the unlocked preview-on state reveals details`() {
+        val combos = listOf(true to true, true to false, false to true, false to false)
+        val revealed = combos.filterNot { (lock, preview) ->
+            NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = lock, previewEnabled = preview)
+        }
+        assertEquals(listOf(false to true), revealed)
+    }
+
+    @Test
+    fun `engaging app lock never reveals details`() {
+        for (preview in listOf(true, false)) {
+            val before = NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = preview)
+            val after = NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = preview)
+            assertTrue(!before || after)
+        }
+    }
+
+    @Test
+    fun `without app lock hiding is exactly preview off`() {
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = false))
+        assertFalse(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = true))
+    }
+
+    @Test
+    fun `decision is stable across repeated evaluations`() {
+        repeat(3) {
+            assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = true))
+            assertFalse(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = true))
+        }
     }
 }
