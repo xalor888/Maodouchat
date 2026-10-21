@@ -104,4 +104,63 @@ class CallLockScreenFlagPolicyTest {
             )
         }
     }
+
+    @Test
+    fun tabAndNewlineIdDisablesFlags() {
+        assertFalse(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\t\n",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun paddedNonBlankIdKeepsEnabled() {
+        assertTrue(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "  call-1 ",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun nonBreakingSpaceIdCountsAsBlank() {
+        // U+00A0 被 Kotlin 的 isBlank 视为空白（Unicode 空格分隔符）：纯 NBSP 的 id 不点亮锁屏标志。
+        assertFalse(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\u00A0",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun pendingPathIsDeterministicAcrossRepeatedCalls() {
+        repeat(3) {
+            assertTrue(
+                CallLockScreenFlagPolicy.shouldEnable(
+                    activeCallId = null,
+                    hasPendingIncomingCall = true,
+                )
+            )
+            assertTrue(
+                CallLockScreenFlagPolicy.shouldEnable(
+                    activeCallId = "  ",
+                    hasPendingIncomingCall = true,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun singleSpaceIdDisablesFlags() {
+        assertFalse(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = " ",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
 }
