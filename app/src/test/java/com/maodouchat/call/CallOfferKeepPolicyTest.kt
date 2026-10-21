@@ -176,4 +176,86 @@ class CallOfferKeepPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `keeps offer when terminated set names another call`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-b",
+                terminatedCallIds = setOf("call-a"),
+                timestampMillis = now - 1_000L,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `negative max age rejects even fresh offers`() {
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now,
+                nowMillis = now,
+                maxAgeMs = -1L
+            )
+        )
+    }
+
+    @Test
+    fun `reject and busy are never kept as incoming offers`() {
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "reject",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now,
+                nowMillis = now
+            )
+        )
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "busy",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `offer type with padding is not kept`() {
+        // type 比对不裁空白：衬垫过的 type 不等于 offer。
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = " offer ",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `case-differing terminated id does not drop the offer`() {
+        // 集合匹配精确、大小写敏感：错配不误杀新鲜 offer。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "Call-A",
+                terminatedCallIds = setOf("call-a"),
+                timestampMillis = now - 1_000L,
+                nowMillis = now
+            )
+        )
+    }
 }
