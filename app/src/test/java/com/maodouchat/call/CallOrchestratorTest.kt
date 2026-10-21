@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -119,5 +121,68 @@ class CallOrchestratorTest {
         val req = received.await()
         assertEquals("chat-empty", req.chatId)
         assertTrue(req.memberIds.isEmpty())
+    }
+
+    @Test
+    fun emitsWithoutCollectorAreDroppedDespiteTryEmitSuccess() = runTest {
+        // 与 CallActionBus 同理：无订阅者时 extraBufferCapacity 不生效，
+        // 两次发射都被丢弃（tryEmit 在内部仍返回 true，但 requestGroupCall 不透出它）。
+        // 生产侧 NavGraph 的 LaunchedEffect 在可发射时总是已订阅，这里钉死该语义。
+        CallOrchestrator.requestGroupCall("chat-first", listOf("u1"), CallType.AUDIO)
+        CallOrchestrator.requestGroupCall("chat-second", listOf("u2"), CallType.VIDEO)
+        val got = withTimeoutOrNull(500) { CallOrchestrator.groupCallRequests.first() }
+        assertNull(got)
+    }
+
+    @Test
+    fun groupCallRequestDefaultGenerationIsCurrent() {
+        CallOrchestrator.invalidateSession()
+        val req = GroupCallRequest("chat-d", listOf("u1"), CallType.AUDIO)
+        assertEquals(CallOrchestrator.currentSessionGeneration(), req.sessionGeneration)
+    }
+
+    @Test
+    fun memberIdsDuplicatesAndOrderPassThroughVerbatim() = runTest {
+        val received = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(1_000) { CallOrchestrator.groupCallRequests.first() }
+        }
+        CallOrchestrator.requestGroupCall("chat-dup", listOf("u2", "u1", "u2"), CallType.AUDIO)
+        assertEquals(listOf("u2", "u1", "u2"), received.await().memberIds)
+    }
+
+    @Test
+    fun directChatEmptyUserNameStillEmits() = runTest {
+        val received = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(1_000) { CallOrchestrator.directChatRequests.first() }
+        }
+        CallOrchestrator.requestDirectChat("user-z", "")
+        val req = received.await()
+        assertEquals("user-z", req.userId)
+        assertEquals("", req.userName)
+    }
+
+    @Test
+    fun directChatRequestsAcrossInvalidateCarryDistinctGenerations() = runTest {
+        val genBefore = CallOrchestrator.currentSessionGeneration()
+        // 与群通话路径同理：buffer 只有 1，两次发射之间必须 runCurrent 让收集器先消费。
+        val subscribed = CompletableDeferred<Unit>()
+        val collected = async(start = CoroutineStart.UNDISPATCHED) {
+            withTimeout(2_000) {
+                CallOrchestrator.directChatRequests
+                    .onSubscription { subscribed.complete(Unit) }
+                    .take(2)
+                    .toList()
+            }
+        }
+        subscribed.await()
+        CallOrchestrator.requestDirectChat("user-a", "A")
+        runCurrent()
+        CallOrchestrator.invalidateSession()
+        val genAfter = CallOrchestrator.currentSessionGeneration()
+        CallOrchestrator.requestDirectChat("user-b", "B")
+        val (first, second) = collected.await()
+        assertEquals(genBefore, first.sessionGeneration)
+        assertEquals(genAfter, second.sessionGeneration)
+        assertTrue(first.sessionGeneration < second.sessionGeneration)
     }
 }
