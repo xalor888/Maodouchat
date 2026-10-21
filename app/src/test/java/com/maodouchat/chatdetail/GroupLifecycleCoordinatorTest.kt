@@ -3,6 +3,7 @@ package com.maodouchat.chatdetail
 import com.maodouchat.network.ChatDto
 import com.maodouchat.group.GroupLifecycleCoordinator
 import com.maodouchat.group.GroupLifecycleSessionException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -107,6 +108,116 @@ class GroupLifecycleCoordinatorTest {
         assertSame(mutationFailure, thrown)
         assertFalse(fetchCalled)
         assertFalse(invalidateCalled)
+    }
+
+    @Test
+    fun `blank chatId rejected before any session read or mutation`() = runTest {
+        var mutationCalled = false
+        var sessionRead = false
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = {
+                sessionRead = true
+                "owner-1"
+            },
+            token = { "token-1" },
+            sessionActive = { sessionRead = true; true },
+            fetchChat = { _, _ -> Result.success(null) },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is IllegalArgumentException)
+        assertEquals("group_chat_id_missing", thrown?.message)
+        assertFalse(mutationCalled)
+        assertFalse(sessionRead)
+    }
+
+    @Test
+    fun `blank owner rejects before mutation`() = runTest {
+        var mutationCalled = false
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "  " },
+            token = { "token-1" },
+            sessionActive = { true },
+            fetchChat = { _, _ -> Result.success(null) },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is GroupLifecycleSessionException)
+        assertFalse(mutationCalled)
+    }
+
+    @Test
+    fun `session inactive pre-mutation rejects without touching remote`() = runTest {
+        var mutationCalled = false
+        var fetchCalled = false
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "owner-1" },
+            token = { "token-1" },
+            sessionActive = { false },
+            fetchChat = { _, _ ->
+                fetchCalled = true
+                Result.success(null)
+            },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is GroupLifecycleSessionException)
+        assertFalse(mutationCalled)
+        assertFalse(fetchCalled)
+    }
+
+    @Test
+    fun `mutation cancellation propagates without refresh`() = runTest {
+        val cancelled = CancellationException("cancelled")
+        var fetchCalled = false
+        var invalidateCalled = false
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                fetchCalled = true
+                Result.success(null)
+            },
+            invalidateEpoch = { _, _, _ -> invalidateCalled = true },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) { throw cancelled }
+        }.exceptionOrNull()
+
+        assertSame(cancelled, thrown)
+        assertFalse(fetchCalled)
+        assertFalse(invalidateCalled)
+    }
+
+    @Test
+    fun `token is re-read live for post-commit refresh`() = runTest {
+        val seen = mutableListOf<String>()
+        val tokens = ArrayDeque(listOf("tok-1", "tok-2"))
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "owner-1" },
+            token = { tokens.removeFirst() },
+            sessionActive = { true },
+            fetchChat = { token, _ ->
+                seen += token
+                Result.success(ChatDto(id = "group-1", isGroup = true))
+            },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        coordinator.mutate("group-1") { token -> seen += token }
+
+        assertEquals(listOf("tok-1", "tok-2"), seen)
     }
 
     private fun coordinator(
