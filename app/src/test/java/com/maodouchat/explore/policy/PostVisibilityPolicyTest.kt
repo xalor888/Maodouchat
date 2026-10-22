@@ -106,4 +106,48 @@ class PostVisibilityPolicyTest {
         val visibleIds = visible.map { it.id }
         assertEquals(listOf("p1", "p3", "p6"), visibleIds)
     }
+
+    @Test
+    fun formatForApi_mapsAllTiersToWireStrings() {
+        assertEquals("PUBLIC", PostVisibilityPolicy.formatForApi(PostVisibilityTier.PUBLIC))
+        assertEquals("CONTACTS", PostVisibilityPolicy.formatForApi(PostVisibilityTier.CONTACTS))
+        assertEquals("PRIVATE", PostVisibilityPolicy.formatForApi(PostVisibilityTier.PRIVATE))
+    }
+
+    @Test
+    fun reportedOwnPost_hiddenEvenFromAuthor() {
+        val post = createPost("p8", "me", "PRIVATE", isMine = true)
+        assertFalse(PostVisibilityPolicy.isVisible(post, viewerUserId = "me", isReported = true))
+    }
+
+    @Test
+    fun blockedAuthor_hidesContactsPostFromFriend() {
+        val post = createPost("p9", "author9", "CONTACTS")
+        assertFalse(
+            PostVisibilityPolicy.isVisible(
+                post,
+                viewerUserId = "viewer1",
+                isFriend = true,
+                isAuthorBlocked = true
+            )
+        )
+    }
+
+    @Test
+    fun isMineFlag_grantsAuthorshipAcrossAccountIds() {
+        // 账号切换后 author.id 仍是旧号，isMine 标记保证作者特权不丢失
+        val migrated = createPost("p10", "old-account", "PRIVATE", isMine = true)
+        assertTrue(PostVisibilityPolicy.isVisible(migrated, viewerUserId = "new-account"))
+        val unflagged = createPost("p10", "old-account", "PRIVATE")
+        assertFalse(PostVisibilityPolicy.isVisible(unflagged, viewerUserId = "new-account"))
+    }
+
+    @Test
+    fun blankViewerId_notTreatedAsAuthor() {
+        val private = createPost("p11", "author11", "PRIVATE")
+        assertFalse(PostVisibilityPolicy.isVisible(private, viewerUserId = ""))
+        assertFalse(PostVisibilityPolicy.isVisible(private, viewerUserId = "   "))
+        val public = createPost("p12", "author11", "PUBLIC")
+        assertTrue(PostVisibilityPolicy.isVisible(public, viewerUserId = ""))
+    }
 }
