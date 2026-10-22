@@ -87,4 +87,79 @@ class AttachMenuPolicyTest {
         assertTrue(AttachMenuKind.FILE in items)
         assertFalse(AttachMenuKind.AI in items)
     }
+
+    @Test
+    fun channelKeepsMediaFirstOrder() {
+        val items = AttachMenuPolicy.items(
+            isGroup = true,
+            isChannel = true,
+            viewOnceEnabled = true,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+        )
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.SILENT,
+            ),
+            items
+        )
+    }
+
+    @Test
+    fun channelAiSitsBetweenScheduleAndSilent() {
+        val items = AttachMenuPolicy.items(
+            isGroup = true,
+            isChannel = true,
+            viewOnceEnabled = true,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+            aiEnabled = true,
+        )
+        assertEquals(AttachMenuKind.AI, items[items.size - 2])
+        assertEquals(AttachMenuKind.SILENT, items.last())
+    }
+
+    @Test
+    fun dmWithoutContactCardDropsOnlyThatTile() {
+        val items = AttachMenuPolicy.items(
+            isGroup = false,
+            isChannel = false,
+            viewOnceEnabled = true,
+            contactCardEnabled = false,
+            nudgeEnabled = true,
+        )
+        assertFalse(AttachMenuKind.CONTACT_CARD in items)
+        assertTrue(AttachMenuKind.IMAGE in items)
+        assertTrue(AttachMenuKind.VIEW_ONCE in items)
+    }
+
+    @Test
+    fun dmWithoutViewOnceKeepsLiveLocation() {
+        val items = AttachMenuPolicy.items(
+            isGroup = false,
+            isChannel = false,
+            viewOnceEnabled = false,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+        )
+        assertFalse(AttachMenuKind.VIEW_ONCE in items)
+        assertTrue(AttachMenuKind.LIVE_LOCATION in items)
+        assertTrue(AttachMenuKind.IMAGE in items)
+    }
+
+    @Test
+    fun noDuplicateTilesInAnyMode() {
+        listOf(
+            AttachMenuPolicy.items(false, false, true, true, true, aiEnabled = true),
+            AttachMenuPolicy.items(true, false, true, true, true, aiEnabled = true),
+            AttachMenuPolicy.items(true, true, true, true, true, aiEnabled = true),
+        ).forEach { items ->
+            assertEquals(items.distinct().size, items.size)
+        }
+    }
 }
