@@ -54,4 +54,51 @@ class NudgeDisplayPolicyTest {
         assertEquals("Alex", NudgeDisplayPolicy.extractTargetName("You nudged Alex"))
         assertEquals("张三", NudgeDisplayPolicy.extractTargetName("你拍了拍张三"))
     }
+
+    @Test
+    fun ownMessageWithPlainStoredContentRebuildsYouForm() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "hello",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍hello", text)
+    }
+
+    @Test
+    fun englishPrefixIsCaseInsensitive() {
+        assertEquals("Alex", NudgeDisplayPolicy.extractTargetName("you NUDGED Alex"))
+    }
+
+    @Test
+    fun blankSenderFallsBackToEllipsis() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "你拍了拍张三",
+            senderDisplayName = "  ",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("… 拍了拍你", text)
+    }
+
+    @Test
+    fun blankStoredContentFallsBackToEllipsisInGroup() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "   ",
+            senderDisplayName = "李四",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍…", text)
+    }
+
+    @Test
+    fun extractTargetNameBlankInput() {
+        assertEquals("", NudgeDisplayPolicy.extractTargetName(""))
+        assertEquals("", NudgeDisplayPolicy.extractTargetName("   "))
+    }
 }

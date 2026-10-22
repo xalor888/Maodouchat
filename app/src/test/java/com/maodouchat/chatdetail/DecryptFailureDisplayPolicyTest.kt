@@ -7,10 +7,6 @@ import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * XAL-20：解密失败不得覆盖已可读明文，也不得在重开会话时把占位文案互相覆盖成抖动 UI。
- * 对应 ChatDetailViewModel 把 DecryptResult 映射为文案后，走 mergeMessageVersions 落库/展示。
- */
 class DecryptFailureDisplayPolicyTest {
 
     @Test
@@ -86,6 +82,51 @@ class DecryptFailureDisplayPolicyTest {
             assertEquals(content, mergeMessageVersions(listOf(readable), listOf(wire)).single().content)
             assertEquals(content, mergeMessageVersions(listOf(wire), listOf(readable)).single().content)
         }
+    }
+
+    @Test
+    fun `revoked is terminal and never replaced by plaintext`() {
+        val revoked = message("m1", "hello").copy(type = MessageType.REVOKED)
+        val readable = message("m1", "hello")
+
+        assertEquals(revoked, mergeMessageVersions(listOf(revoked), listOf(readable)).single())
+        assertEquals(revoked, mergeMessageVersions(listOf(readable), listOf(revoked)).single())
+    }
+
+    @Test
+    fun `equal revision never regresses local delivery status`() {
+        val delivered = message("m1", "hello").copy(status = MessageStatus.DELIVERED)
+        val read = message("m1", "hello").copy(status = MessageStatus.READ)
+
+        assertEquals(MessageStatus.READ, mergeMessageVersions(listOf(delivered), listOf(read)).single().status)
+        assertEquals(MessageStatus.READ, mergeMessageVersions(listOf(read), listOf(delivered)).single().status)
+    }
+
+    @Test
+    fun `failed side channel never lingers when server state arrives`() {
+        val failed = message("m1", "hello").copy(status = MessageStatus.FAILED)
+        val sent = message("m1", "hello").copy(status = MessageStatus.SENT)
+
+        assertEquals(MessageStatus.SENT, mergeMessageVersions(listOf(failed), listOf(sent)).single().status)
+        assertEquals(MessageStatus.SENT, mergeMessageVersions(listOf(sent), listOf(failed)).single().status)
+    }
+
+    @Test
+    fun `plaintext wins over base64 wire envelope`() {
+        val readable = message("m1", "hello")
+        val wire = message("m1", "eyJ2ZXJzaW9uIjoxLCJhbGdvcml0aG0iOiJzaWduYWwifQ==")
+
+        assertEquals("hello", mergeMessageVersions(listOf(readable), listOf(wire)).single().content)
+        assertEquals("hello", mergeMessageVersions(listOf(wire), listOf(readable)).single().content)
+    }
+
+    @Test
+    fun `padded placeholder is still recognized as placeholder`() {
+        val readable = message("m1", "hello")
+        val padded = message("m1", "  无法解密  ")
+
+        assertEquals("hello", mergeMessageVersions(listOf(readable), listOf(padded)).single().content)
+        assertEquals("hello", mergeMessageVersions(listOf(padded), listOf(readable)).single().content)
     }
 
     private fun message(id: String, content: String) = Message(
