@@ -37,4 +37,37 @@ class ChatRealtimeEventPolicyTest {
         assertTrue(shouldInvalidateGroupKey(5L, 6L, GroupRevisionImpact.REFRESH))
         assertFalse(shouldInvalidateGroupKey(6L, 5L, GroupRevisionImpact.REFRESH))
     }
+
+    @Test
+    fun `current user leaving is terminal like removal`() {
+        val left = groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "MEMBER_LEFT")
+        assertEquals(GroupRevisionImpact.CURRENT_USER_REMOVED, left)
+        assertTrue(shouldInvalidateGroupKey(7L, 7L, left))
+    }
+
+    @Test
+    fun `other member removal is plain refresh not terminal`() {
+        val impact = groupRevisionImpact("chat-a", "user-1", "chat-a", "user-2", "MEMBER_REMOVED")
+        assertEquals(GroupRevisionImpact.REFRESH, impact)
+        assertFalse(shouldInvalidateGroupKey(5L, 5L, impact))
+        assertTrue(shouldInvalidateGroupKey(5L, 6L, impact))
+    }
+
+    @Test
+    fun `non-removal event never marks current user removed`() {
+        val impact = groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "MEMBER_JOINED")
+        assertEquals(GroupRevisionImpact.REFRESH, impact)
+    }
+
+    @Test
+    fun `presence requires non-blank contact id`() {
+        assertFalse(shouldApplyContactPresence(false, "", ""))
+        assertFalse(shouldApplyContactPresence(false, "", "user-2"))
+    }
+
+    @Test
+    fun `mismatched or blank event chat never counts as active`() {
+        assertFalse(isActiveChatEvent("chat-a", ""))
+        assertFalse(isActiveChatEvent("", "chat-a"))
+    }
 }
