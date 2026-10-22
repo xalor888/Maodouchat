@@ -174,7 +174,7 @@ class ChatMediaStateControllerTest {
         val entity = transfer("m1", AttachmentTransferState.UPLOADING).copy(uploadedBytes = 50L, cipherSize = 100L)
         val updated = controller.applyTransfers(ChatDetailUiState(), listOf(entity))
 
-        assertEquals(0.625f, updated.fileTransferProgress["m1"], 0.0001f)
+        assertEquals(0.625f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
     }
 
     @Test
