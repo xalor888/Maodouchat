@@ -1,6 +1,7 @@
 package com.maodouchat.notification
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -194,6 +195,109 @@ class NotificationCenterReadPolicyTest {
                 deeplink = null,
                 extraChatId = null
             )
+        )
+    }
+
+    @Test
+    fun nonMessageRowWithExtraChatIdIsNotMessageItem() {
+        // 只有 mergeKey 带 msg_ 前缀才算消息行：post 等行即使 extra.chatId 命中也不算。
+        assertFalse(
+            NotificationCenterReadPolicy.isChatMessageItem(
+                chatId = "c1",
+                mergeKey = "post_1",
+                deeplink = null,
+                extraChatId = "c1"
+            )
+        )
+        assertTrue(
+            NotificationCenterReadPolicy.isChatMessageItem(
+                chatId = "c1",
+                mergeKey = "msg_x",
+                deeplink = null,
+                extraChatId = "c1"
+            )
+        )
+    }
+
+    @Test
+    fun aiTasksChannelsAreIsolated() {
+        // mergeKey 与 deeplink 两个通道可独立命中 AI 任务行。
+        assertTrue(
+            NotificationCenterReadPolicy.belongsToChat(
+                chatId = "c1",
+                mergeKey = "ai_tasks_c1",
+                deeplink = null,
+                extraChatId = null
+            )
+        )
+        assertTrue(
+            NotificationCenterReadPolicy.belongsToChat(
+                chatId = "c1",
+                mergeKey = "other",
+                deeplink = "maodouchat:ai_tasks:c1",
+                extraChatId = null
+            )
+        )
+    }
+
+    @Test
+    fun referencesMessageWithoutMarkerAnchorFallsThrough() {
+        // 找不到 "_m_" 锚点时不匹配，不误判 msg_ 前缀后的任意后缀。
+        assertFalse(
+            NotificationCenterReadPolicy.referencesMessage(
+                messageId = "m_9",
+                itemId = "msg_c1",
+                extraMessageId = null
+            )
+        )
+        // 多个锚点时取最后一个嵌入段比对：以最后一个为准。
+        assertFalse(
+            NotificationCenterReadPolicy.referencesMessage(
+                messageId = "m_8",
+                itemId = "msg_c_m_8_m_9",
+                extraMessageId = null
+            )
+        )
+        assertTrue(
+            NotificationCenterReadPolicy.referencesMessage(
+                messageId = "m_9",
+                itemId = "msg_c_m_8_m_9",
+                extraMessageId = null
+            )
+        )
+    }
+
+    @Test
+    fun blankMessageIdNeverReferencesEvenWithMatchingItem() {
+        assertFalse(
+            NotificationCenterReadPolicy.referencesMessage(
+                messageId = "",
+                itemId = "msg_c1_m_9",
+                extraMessageId = null
+            )
+        )
+        assertFalse(
+            NotificationCenterReadPolicy.referencesMessage(
+                messageId = "  ",
+                itemId = "msg_c1_m_9",
+                extraMessageId = "  "
+            )
+        )
+    }
+
+    @Test
+    fun readDecisionsAreDeterministic() {
+        assertEquals(
+            NotificationCenterReadPolicy.isChatMessageItem("c1", "msg_c1", null, "c1"),
+            NotificationCenterReadPolicy.isChatMessageItem("c1", "msg_c1", null, "c1")
+        )
+        assertEquals(
+            NotificationCenterReadPolicy.belongsToChat("c1", "post_1", null, "c1"),
+            NotificationCenterReadPolicy.belongsToChat("c1", "post_1", null, "c1")
+        )
+        assertEquals(
+            NotificationCenterReadPolicy.referencesMessage("m_9", "msg_c1_m_9", null),
+            NotificationCenterReadPolicy.referencesMessage("m_9", "msg_c1_m_9", null)
         )
     }
 
