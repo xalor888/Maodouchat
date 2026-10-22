@@ -3,6 +3,8 @@ package com.maodouchat.chatdetail
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
+import com.maodouchat.ui.screen.chatdetail.chooseMessageVersion
+import com.maodouchat.ui.screen.chatdetail.higherDeliveryStatus
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -74,6 +76,51 @@ class MessageStatusMachineTest {
         val tracker = com.maodouchat.messaging.v2.MessageMutationTracker()
         assertTrue(tracker.begin("m9", com.maodouchat.messaging.v2.MessageMutationKind.DELETE) != null)
         assertEquals(null, tracker.begin("m9", com.maodouchat.messaging.v2.MessageMutationKind.EDIT))
+    }
+
+    @Test
+    fun `merged list is sorted by timestamp then id`() {
+        val merged = mergeMessageVersions(
+            listOf(base("m2").copy(timestamp = 2000L)),
+            listOf(base("m1").copy(timestamp = 500L), base("m0").copy(timestamp = 500L))
+        )
+        assertEquals(listOf("m0", "m1", "m2"), merged.map { it.id })
+    }
+
+    @Test
+    fun `terminal revoke is never resurrected by a later server edit`() {
+        val revoked = base("m1").copy(type = MessageType.REVOKED)
+        val edited = revoked.copy(type = MessageType.TEXT, content = "edited", editedAt = 99L)
+        val result = chooseMessageVersion(revoked, edited)
+        assertEquals(MessageType.REVOKED, result.type)
+        assertEquals("text", result.content)
+    }
+
+    @Test
+    fun `newer server edit wins content but keeps local READ`() {
+        val local = base("m1").copy(status = MessageStatus.READ, editedAt = 10L, content = "old text")
+        val server = local.copy(status = MessageStatus.SENT, editedAt = 20L, content = "new text")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("new text", merged.content)
+        assertEquals(20L, merged.editedAt)
+        assertEquals(MessageStatus.READ, merged.status)
+    }
+
+    @Test
+    fun `stale server edit cannot overwrite newer local edit`() {
+        val local = base("m1").copy(editedAt = 20L, content = "newer", starred = true)
+        val server = local.copy(editedAt = 10L, content = "older", starred = false)
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("newer", merged.content)
+        assertEquals(20L, merged.editedAt)
+        assertTrue(merged.starred)
+    }
+
+    @Test
+    fun `FAILED is transparent in delivery status merge`() {
+        assertEquals(MessageStatus.DELIVERED, higherDeliveryStatus(MessageStatus.FAILED, MessageStatus.DELIVERED))
+        assertEquals(MessageStatus.SENT, higherDeliveryStatus(MessageStatus.SENT, MessageStatus.FAILED))
+        assertEquals(MessageStatus.READ, higherDeliveryStatus(MessageStatus.DELIVERED, MessageStatus.READ))
     }
 
     private fun base(id: String) = Message(
