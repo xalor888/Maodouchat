@@ -64,4 +64,50 @@ class AiRetryPolicyWindowTest {
         assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
         assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
     }
+
+    @Test
+    fun globalWindowBoundaryAt239And240() {
+        repeat(239) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.recordCall("chat-239", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun clearSessionAlsoDropsPerChatWindow() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun globalBlockSurfacesDelayOnUnseenChat() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        val delay = AiRetryPolicy.remainingDelayMs("never-seen", AiRetryPolicyCategory.HEAVY)
+        assertTrue("global-blocked fresh chat should report a positive delay, was $delay", delay > 0L)
+    }
+
+    @Test
+    fun lightAndHeavyRemainingDelaysStayIndependent() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.HEAVY)
+        val light = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT)
+        val heavy = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.HEAVY)
+        assertTrue("LIGHT remaining should be ~30s, was $light", light in 1L..30_000L)
+        assertTrue("HEAVY remaining should be ~60s, was $heavy", heavy in 1L..60_000L)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun chatIdIsMatchedExactlyWithoutTrimming() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        // "chat-a " 是另一个键：窗口 key 不裁边。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a ", AiRetryPolicyCategory.LIGHT))
+    }
 }

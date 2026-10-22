@@ -31,4 +31,48 @@ class AiPrivacyPreferencesTest {
         assertEquals("ai_consent_accepted", consent)
         assertNotEquals(consent, dismissed)
     }
+
+    @Test
+    fun `all preference keys are mutually distinct`() {
+        val keys = setOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE
+        )
+        assertEquals(5, keys.size)
+    }
+
+    @Test
+    fun `key constants match the cluster's raw key names`() {
+        assertEquals("ai_user_enabled", AiPrivacyPreferences.KEY_USER_ENABLED)
+        assertEquals("ai_local_safety_enabled", AiPrivacyPreferences.KEY_LOCAL_SAFETY)
+        assertEquals("ai_local_safety_dismissed_ids", AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS)
+        assertEquals("ai_auto_translate_incoming", AiPrivacyPreferences.KEY_AUTO_TRANSLATE)
+    }
+
+    @Test
+    fun `scoped key always keeps base-colon-userId shape`() {
+        assertEquals(
+            "ai_user_enabled:u-1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "u-1")
+        )
+    }
+
+    @Test
+    fun `scoped key never trims the user id`() {
+        assertEquals(
+            AiPrivacyPreferences.KEY_CONSENT + ": u ",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, " u ")
+        )
+    }
+
+    @Test
+    fun `scoped key with blank user id keeps trailing colon`() {
+        assertEquals(
+            AiPrivacyPreferences.KEY_CONSENT + ":",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "")
+        )
+    }
 }

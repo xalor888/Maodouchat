@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -34,5 +35,51 @@ class AgentSecretGatePolicyTest {
     fun ordinaryChatAllowed() {
         assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, false, false))
         assertTrue(AgentSecretGatePolicy.includeInChatList(false, false, false))
+    }
+
+    @Test
+    fun secretDenialBeatsPinDenial() {
+        assertEquals(
+            AgentSecretGatePolicy.SECRET_DENIED,
+            AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret = true, isLocked = true, unlocked = true)
+        )
+        assertFalse(AgentSecretGatePolicy.includeInChatList(isSecret = true, isLocked = true, unlocked = true))
+    }
+
+    @Test
+    fun denialAndListingAgreeAcrossAllEightCombinations() {
+        for (isSecret in listOf(false, true)) {
+            for (isLocked in listOf(false, true)) {
+                for (unlocked in listOf(false, true)) {
+                    val denied = AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret, isLocked, unlocked) != null
+                    val listed = AgentSecretGatePolicy.includeInChatList(isSecret, isLocked, unlocked)
+                    assertEquals("($isSecret, $isLocked, $unlocked)", !listed, denied)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun denialConstantsAreDistinctAndNonBlank() {
+        assertNotEquals(AgentSecretGatePolicy.SECRET_DENIED, AgentSecretGatePolicy.PIN_DENIED)
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.isNotBlank())
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.isNotBlank())
+    }
+
+    @Test
+    fun decisionsAreRepeatable() {
+        repeat(3) {
+            assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, false, false))
+            assertEquals(
+                AgentSecretGatePolicy.SECRET_DENIED,
+                AgentSecretGatePolicy.denyIfSecretOrLocked(true, false, false)
+            )
+        }
+    }
+
+    @Test
+    fun unlockedFlagAloneNeverDenies() {
+        assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, false, true))
+        assertTrue(AgentSecretGatePolicy.includeInChatList(false, false, true))
     }
 }
