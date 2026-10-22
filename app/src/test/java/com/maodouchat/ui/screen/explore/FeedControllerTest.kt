@@ -294,4 +294,111 @@ class FeedControllerTest {
         assertEquals(true, controller.isCurrent(session))
         assertEquals(false, controller.isCurrent(FeedSession("other")))
     }
+
+    @Test
+    fun publishReturnsCreatedPostOnSuccess() = runTest {
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = true
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(emptyList<PostDto>())
+            override suspend fun publish(
+                session: FeedSession,
+                content: String,
+                imageUrls: List<String>,
+                visibility: String?,
+            ) = Result.success(post)
+        }
+
+        val result = FeedController(repository).publish(session, "hello", emptyList(), null)
+
+        assertEquals(post, result.getOrNull())
+    }
+
+    @Test
+    fun loadRejectsStaleSessionEvenOnSuccess() = runTest {
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = false
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(listOf(post))
+            override suspend fun publish(
+                session: FeedSession,
+                content: String,
+                imageUrls: List<String>,
+                visibility: String?,
+            ) = Result.success(post)
+        }
+
+        val error = FeedController(repository).load(session).exceptionOrNull()
+
+        assertIs<FeedSessionChangedException>(error)
+    }
+
+    @Test
+    fun currentSessionNullPassthrough() = runTest {
+        val repository = object : FeedRepository {
+            override fun currentSession(): FeedSession? = null
+            override fun isCurrent(session: FeedSession) = true
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(emptyList<PostDto>())
+            override suspend fun publish(
+                session: FeedSession,
+                content: String,
+                imageUrls: List<String>,
+                visibility: String?,
+            ) = Result.success(post)
+        }
+
+        assertNull(FeedController(repository).currentSession())
+    }
+
+    @Test
+    fun publishForwardsNullVisibilityVerbatim() = runTest {
+        var visibility: String? = "sentinel"
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = true
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(emptyList<PostDto>())
+            override suspend fun publish(
+                session: FeedSession,
+                content: String,
+                imageUrls: List<String>,
+                visibilityValue: String?,
+            ): Result<PostDto> {
+                visibility = visibilityValue
+                return Result.success(post)
+            }
+        }
+
+        FeedController(repository).publish(session, "hello", emptyList(), null)
+
+        assertNull(visibility)
+    }
+
+    @Test
+    fun publishDoesNotTrimNonBreakingSpace() = runTest {
+        var content = ""
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = true
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(emptyList<PostDto>())
+            override suspend fun publish(
+                session: FeedSession,
+                contentValue: String,
+                imageUrls: List<String>,
+                visibility: String?,
+            ): Result<PostDto> {
+                content = contentValue
+                return Result.success(post)
+            }
+        }
+
+        // trim 只去 <= ' ' 的字符：U+00A0 留下，钉住该语义
+        val nbsp = "\u00A0"
+        FeedController(repository).publish(session, "${nbsp}hi${nbsp}", emptyList(), null)
+
+        assertEquals("${nbsp}hi${nbsp}", content)
+    }
 }
