@@ -78,4 +78,49 @@ class NearbyDistanceLabelTest {
             assertTrue("$d 的米实参不应为负", (nearbyDistanceLabel(d).second as Int) > 0)
         }
     }
+
+    @Test
+    fun `kilometre branch pins exact one-decimal values`() {
+        mapOf(
+            1_100 to "1.1",
+            1_500 to "1.5",
+            1_900 to "1.9",
+            2_500 to "2.5",
+            12_345 to "12.3",
+            9_999 to "10.0"
+        ).forEach { (d, expected) ->
+            assertEquals("$d 应格式化为 $expected", expected, nearbyDistanceLabel(d).second)
+        }
+    }
+
+    @Test
+    fun `whole kilometres keep the trailing zero`() {
+        // minimumFractionDigits = 1 的产品理由：2 公里显示 "2.0" 而不是 "2"
+        mapOf(2_000 to "2.0", 30_000 to "30.0", 100_000 to "100.0").forEach { (d, expected) ->
+            assertEquals(expected, nearbyDistanceLabel(d).second)
+        }
+    }
+
+    @Test
+    fun `extreme values stay in branch without overflow`() {
+        val (maxRes, maxArg) = nearbyDistanceLabel(Int.MAX_VALUE)
+        assertEquals(km, maxRes)
+        assertTrue(maxArg is String)
+        val (minRes, minArg) = nearbyDistanceLabel(Int.MIN_VALUE)
+        assertEquals(meters, minRes)
+        assertEquals(100, minArg)
+    }
+
+    @Test
+    fun `argument types are stable across the branch boundary`() {
+        assertTrue(nearbyDistanceLabel(999).second is Int)
+        assertTrue(nearbyDistanceLabel(1_000).second is String)
+    }
+
+    @Test
+    fun `repeated calls return equal pairs`() {
+        listOf(0, 999, 1_000, 12_345, Int.MAX_VALUE).forEach { d ->
+            assertEquals(nearbyDistanceLabel(d), nearbyDistanceLabel(d))
+        }
+    }
 }
