@@ -76,4 +76,36 @@ class ExploreViewModelTest {
     fun `visibilityOption subtitle defaults to empty`() {
         assertEquals("", VisibilityOption("PUBLIC", "公开").subtitle)
     }
+
+    @Test
+    fun `normalizeVisibility does not trim padded value`() {
+        // 精确匹配 VISIBILITY_VALUES，不做 trim：前后带空格的值照样回落
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility(" PUBLIC "))
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("PRIVATE\n"))
+    }
+
+    @Test
+    fun `normalizeVisibility is idempotent`() {
+        assertEquals("PUBLIC", ExploreDraftPolicy.normalizeVisibility("PUBLIC"))
+        val once = ExploreDraftPolicy.normalizeVisibility("UNKNOWN")
+        assertEquals(once, ExploreDraftPolicy.normalizeVisibility(once))
+    }
+
+    @Test
+    fun `scopedKey passes userId through verbatim`() {
+        // 只做 isBlank 守卫，不 trim、不归一化 userId
+        assertEquals("k:u 1", ExploreDraftPolicy.scopedKey("k", "u 1"))
+    }
+
+    @Test
+    fun `scopedKey isolates accounts on the same base`() {
+        val a = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "u1")
+        val b = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "u2")
+        assertFalse(a == b, "accounts must not share a draft key")
+    }
+
+    @Test
+    fun `each option subtitle is non-blank`() {
+        options.forEach { assertFalse(it.subtitle.isBlank(), "subtitle for ${it.value} is blank") }
+    }
 }
