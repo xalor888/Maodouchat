@@ -78,6 +78,89 @@ class SenderDisplayNameTest {
         assertEquals("abcd1234", listSenderLabel(null, "abcd1234zzzz", unknownLabel = "未知"))
     }
 
+    @Test
+    fun group_prefersMappedName_blankMappedFallsToTruncated() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val named = senderDisplayName(
+            state = state,
+            message = message("abcdefghij"),
+            isOwn = false,
+            participantNamesById = mapOf("abcdefghij" to "群友名"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("群友名", named)
+
+        val blankMapped = senderDisplayName(
+            state = state,
+            message = message("abcdefghij"),
+            isOwn = false,
+            participantNamesById = mapOf("abcdefghij" to "  "),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("abcdefgh", blankMapped)
+    }
+
+    @Test
+    fun directChat_contactBlankFallsToMapped_thenUnknown() {
+        val state = ChatDetailUiState(
+            contact = User(id = "", name = ""),
+            chatIsGroup = false,
+        )
+        val mapped = senderDisplayName(
+            state = state,
+            message = message("peer"),
+            isOwn = false,
+            participantNamesById = mapOf("peer" to "列表名"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("列表名", mapped)
+
+        val unknown = senderDisplayName(
+            state = state,
+            message = message(""),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("未知", unknown)
+    }
+
+    @Test
+    fun listSenderLabel_nullChat_shortIdReturnedAsIs() {
+        assertEquals("abc", listSenderLabel(null, "abc", unknownLabel = "未知"))
+        assertEquals("abcd1234", listSenderLabel(null, "abcd1234zzzz"))
+    }
+
+    @Test
+    fun listSenderLabel_unmatchedParticipant_fallsBackToTruncated() {
+        val chat = Chat(
+            id = "c",
+            participants = listOf(User(id = "other", name = "别人")),
+            isGroup = true,
+        )
+        assertEquals("abcdefgh", listSenderLabel(chat, "abcdefghij"))
+    }
+
+    @Test
+    fun resolveChatDetailSenderName_matchesSenderDisplayName() {
+        val state = ChatDetailUiState(
+            contact = User(id = "peer", name = "", nickname = "备注名"),
+            chatIsGroup = false,
+        )
+        val msg = message("peer")
+        val names = mapOf("peer" to "列表名")
+        assertEquals(
+            senderDisplayName(state, msg, false, names, "未知", "群成员"),
+            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+                msg, state, names, "未知", "群成员",
+            ),
+        )
+    }
+
     private fun message(senderId: String) = Message(
         id = "m",
         chatId = "c",
