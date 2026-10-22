@@ -57,4 +57,79 @@ class MessagePreviewTextTest {
             MessagePreviewText.replyOrQuote(msg, { "[image]" }, "[encrypted]"),
         )
     }
+
+    @Test
+    fun revokedMessageShowsEncryptedPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "撤回了一条消息",
+            type = MessageType.REVOKED,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun senderKeyDistributionEnvelopeShowsPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = """{"distributionMessage":"abc"}""",
+            type = MessageType.SK_DIST,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun newlinesInTextReplyAreFoldedToSpaces() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "hello\nworld",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "hello world",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun blankTextFallsBackToEncryptedPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "   ",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun voiceReplyUsesMediaLabel() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://voice",
+            type = MessageType.VOICE,
+        )
+        assertEquals(
+            "[voice]",
+            MessagePreviewText.replyOrQuote(msg, { "[voice]" }, "[encrypted]"),
+        )
+    }
 }

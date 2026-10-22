@@ -6,6 +6,7 @@ import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.ChatSearchScope
 import com.maodouchat.ui.screen.chatdetail.ChatSearchWindow
+import com.maodouchat.ui.screen.chatdetail.MentionPolicy
 import com.maodouchat.ui.screen.chatdetail.buildChatSearchDocuments
 import com.maodouchat.ui.screen.chatdetail.searchChatDocuments
 import com.maodouchat.ui.screen.chatdetail.semanticSearchCandidates
@@ -73,6 +74,69 @@ class ChatSearchModelTest {
         assertEquals("m0", candidates.first().id)
         assertEquals("m64", candidates.last().id)
         assertTrue(candidates.none { it.id == "hidden" })
+    }
+
+    @Test
+    fun `media scope with blank query lists every media message`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("pic", MessageType.IMAGE, "file://pic", timestamp = 2L),
+                message("note", MessageType.TEXT, "note", timestamp = 3L)
+            )
+        )
+
+        assertEquals(listOf("pic"), searchChatDocuments(documents, "", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `media scope matches Chinese type keyword`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("pic", MessageType.IMAGE, "file://pic"))
+        )
+
+        assertEquals("pic", searchChatDocuments(documents, "图片", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).single().id)
+        assertEquals("pic", searchChatDocuments(documents, "image", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).single().id)
+    }
+
+    @Test
+    fun `mentions scope keeps direct mention and at-everyone only`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("direct", MessageType.TEXT, "hi", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
+                message("everyone", MessageType.TEXT, "all", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+                message("other", MessageType.TEXT, "them", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L)
+            )
+        )
+
+        val ids = searchChatDocuments(documents, "", ChatSearchScope.MENTIONS, ChatSearchWindow.ALL, currentUserId = "me").map { it.id }
+        assertEquals(listOf("everyone", "direct"), ids)
+    }
+
+    @Test
+    fun `seven day window boundary is inclusive`() {
+        val now = 1_000_000L
+        val windowStart = now - 7L * 24L * 60L * 60L * 1_000L
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("edge", MessageType.TEXT, "keep me", timestamp = windowStart),
+                message("outside", MessageType.TEXT, "keep me", timestamp = windowStart - 1L)
+            )
+        )
+
+        assertEquals(listOf("edge"), searchChatDocuments(documents, "keep", ChatSearchScope.ALL, ChatSearchWindow.SEVEN_DAYS, now = now).map { it.id })
+    }
+
+    @Test
+    fun `system and nudge messages never become search documents`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("sys", MessageType.SYSTEM, "joined", timestamp = 1L),
+                message("nudge", MessageType.NUDGE, "buzz", timestamp = 2L),
+                message("plain", MessageType.TEXT, "hello", timestamp = 3L)
+            )
+        )
+
+        assertEquals(listOf("plain"), documents.map { it.message.id })
     }
 
     private fun message(
