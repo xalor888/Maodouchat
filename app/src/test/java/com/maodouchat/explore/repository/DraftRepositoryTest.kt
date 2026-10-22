@@ -87,6 +87,80 @@ class DraftRepositoryTest {
         assertEquals("PRIVATE", draft.selectedVisibility)
     }
 
+    @Test
+    fun saveVisibility_normalizesUnknownValueToPrivate() {
+        draftRepo.saveVisibility("userA", "EVERYONE")
+        assertEquals("PRIVATE", draftRepo.getDraft("userA").selectedVisibility)
+
+        // 归一化大小写敏感：小写 public 不在白名单里
+        draftRepo.saveVisibility("userA", "public")
+        assertEquals("PRIVATE", draftRepo.getDraft("userA").selectedVisibility)
+
+        draftRepo.saveVisibility("userA", "CONTACTS")
+        assertEquals("CONTACTS", draftRepo.getDraft("userA").selectedVisibility)
+    }
+
+    @Test
+    fun clearAllDrafts_onlyAffectsOwner() {
+        draftRepo.saveComposerText("userA", "A draft")
+        draftRepo.saveVisibility("userA", "PUBLIC")
+        draftRepo.saveComposerText("userB", "B draft")
+        draftRepo.saveVisibility("userB", "CONTACTS")
+
+        draftRepo.clearAllDrafts("userA")
+
+        val draftA = draftRepo.getDraft("userA", defaultVisibility = "CONTACTS")
+        assertEquals("", draftA.composerText)
+        assertEquals("CONTACTS", draftA.selectedVisibility)
+
+        val draftB = draftRepo.getDraft("userB")
+        assertEquals("B draft", draftB.composerText)
+        assertEquals("CONTACTS", draftB.selectedVisibility)
+    }
+
+    @Test
+    fun repeatedSave_lastWriteWins_noDuplication() {
+        draftRepo.saveComposerText("userA", "first")
+        draftRepo.saveComposerText("userA", "second")
+        draftRepo.saveImageUris("userA", listOf("content://img1"))
+        draftRepo.saveImageUris("userA", listOf("content://img1"))
+
+        val draft = draftRepo.getDraft("userA")
+        assertEquals("second", draft.composerText)
+        assertEquals(listOf("content://img1"), draft.imageUris)
+    }
+
+    @Test
+    fun blankOwner_allMutationsAreNoOps() {
+        draftRepo.saveComposerText("userA", "keep me")
+        draftRepo.saveVisibility("userA", "PUBLIC")
+        draftRepo.saveImageUris("userA", listOf("content://img1"))
+
+        draftRepo.saveComposerText("", "Should not save")
+        draftRepo.saveVisibility("", "CONTACTS")
+        draftRepo.saveImageUris("", listOf("content://evil"))
+        draftRepo.clearComposerDraft("")
+        draftRepo.clearAllDrafts("")
+
+        val draft = draftRepo.getDraft("userA")
+        assertEquals("keep me", draft.composerText)
+        assertEquals("PUBLIC", draft.selectedVisibility)
+        assertEquals(listOf("content://img1"), draft.imageUris)
+
+        val blank = draftRepo.getDraft("")
+        assertEquals("", blank.composerText)
+        assertTrue(blank.imageUris.isEmpty())
+    }
+
+    @Test
+    fun imageUris_emptySaveRemoves_blankEntriesFiltered() {
+        draftRepo.saveImageUris("userA", listOf("content://a", "", "content://b"))
+        assertEquals(listOf("content://a", "content://b"), draftRepo.getDraft("userA").imageUris)
+
+        draftRepo.saveImageUris("userA", emptyList())
+        assertTrue(draftRepo.getDraft("userA").imageUris.isEmpty())
+    }
+
     /**
      * Minimal in-memory fake for SharedPreferences.
      */
