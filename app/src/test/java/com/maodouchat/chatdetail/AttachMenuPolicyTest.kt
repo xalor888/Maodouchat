@@ -162,4 +162,101 @@ class AttachMenuPolicyTest {
             assertEquals(items.distinct().size, items.size)
         }
     }
+
+    @Test
+    fun dmMenuOrderIsMediaFirstExact() {
+        val items = AttachMenuPolicy.items(
+            isGroup = false,
+            isChannel = false,
+            viewOnceEnabled = true,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+        )
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.VIEW_ONCE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.CONTACT_CARD,
+                AttachMenuKind.SILENT,
+            ),
+            items
+        )
+    }
+
+    @Test
+    fun groupMenuOrderIsMediaFirstExact() {
+        val items = AttachMenuPolicy.items(
+            isGroup = true,
+            isChannel = false,
+            viewOnceEnabled = true,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+        )
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.CONTACT_CARD,
+                AttachMenuKind.SILENT,
+            ),
+            items
+        )
+    }
+
+    @Test
+    fun groupWithAiAiSitsBetweenContactCardAndSilent() {
+        val items = AttachMenuPolicy.items(
+            isGroup = true,
+            isChannel = false,
+            viewOnceEnabled = true,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+            aiEnabled = true,
+        )
+        assertEquals(AttachMenuKind.CONTACT_CARD, items[items.size - 3])
+        assertEquals(AttachMenuKind.AI, items[items.size - 2])
+        assertEquals(AttachMenuKind.SILENT, items.last())
+    }
+
+    @Test
+    fun channelWithoutAiHasSixTilesEndingSilent() {
+        val items = AttachMenuPolicy.items(
+            isGroup = true,
+            isChannel = true,
+            viewOnceEnabled = true,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+        )
+        assertEquals(6, items.size)
+        assertFalse(AttachMenuKind.AI in items)
+        assertEquals(AttachMenuKind.SILENT, items.last())
+    }
+
+    @Test
+    fun silentIsLastAcrossAllModes() {
+        listOf(
+            AttachMenuPolicy.items(false, false, true, true, true, aiEnabled = true),
+            AttachMenuPolicy.items(true, false, true, true, true),
+            AttachMenuPolicy.items(true, true, true, true, true),
+            AttachMenuPolicy.items(false, false, false, false, false),
+        ).forEach { items ->
+            assertEquals(AttachMenuKind.SILENT, items.last())
+        }
+    }
 }

@@ -101,4 +101,52 @@ class NudgeDisplayPolicyTest {
         assertEquals("", NudgeDisplayPolicy.extractTargetName(""))
         assertEquals("", NudgeDisplayPolicy.extractTargetName("   "))
     }
+
+    @Test
+    fun extractTargetNameTrimsSurroundingWhitespace() {
+        assertEquals("张三", NudgeDisplayPolicy.extractTargetName("你拍了拍 张三  "))
+        assertEquals("Alex", NudgeDisplayPolicy.extractTargetName("You nudged   Alex "))
+    }
+
+    @Test
+    fun extractTargetNamePrefixOnlyReturnsEmpty() {
+        assertEquals("", NudgeDisplayPolicy.extractTargetName("你拍了拍"))
+        assertEquals("", NudgeDisplayPolicy.extractTargetName("You nudged "))
+    }
+
+    @Test
+    fun nonOwnDirectWithPlainContentRebuildsTheyYou() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "hello",
+            senderDisplayName = "李四",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍你", text)
+    }
+
+    @Test
+    fun nonOwnGroupWithPlainContentUsesRawTextAsTarget() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "hello",
+            senderDisplayName = "李四",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍hello", text)
+    }
+
+    @Test
+    fun ownMessageWithBlankStoredContentReturnsStoredAsIs() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "  ",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("  ", text)
+    }
 }
