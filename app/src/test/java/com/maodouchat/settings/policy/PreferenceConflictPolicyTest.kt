@@ -82,6 +82,125 @@ class PreferenceConflictPolicyTest {
     }
 
     @Test
+    fun `local owner mismatch is rejected carrying session owner as localOwner`() {
+        val local = MultiDevicePreferences(ownerUserId = "user_2", revision = 9L)
+        val remote = MultiDevicePreferences(ownerUserId = "user_1", revision = 1L)
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+        )
+
+        assertTrue(result is ConflictResolutionResult.AccountMismatchRejected)
+        val rejected = result as ConflictResolutionResult.AccountMismatchRejected
+        assertEquals("user_1", rejected.localOwner)
+        assertEquals("user_2", rejected.remoteOwner)
+    }
+
+    @Test
+    fun `remote older than local keeps local and requires push`() {
+        val local = MultiDevicePreferences(ownerUserId = "user_1", revision = 5L, themeMode = "light")
+        val remote = MultiDevicePreferences(ownerUserId = "user_1", revision = 2L, themeMode = "dark")
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+        )
+
+        assertTrue(result is ConflictResolutionResult.Merged)
+        val merged = result as ConflictResolutionResult.Merged
+        assertEquals(5L, merged.mergedPreferences.revision)
+        assertEquals("light", merged.mergedPreferences.themeMode)
+        assertEquals("user_1", merged.mergedPreferences.ownerUserId)
+        assertTrue(merged.requiresPushToRemote)
+        assertTrue(merged.conflictFields.isEmpty())
+    }
+
+    @Test
+    fun `equal revision with older remote timestamp keeps local`() {
+        val local = MultiDevicePreferences(
+            ownerUserId = "user_1",
+            revision = 3L,
+            updatedAtEpochMs = 2000L,
+            themeMode = "light",
+        )
+        val remote = MultiDevicePreferences(
+            ownerUserId = "user_1",
+            revision = 3L,
+            updatedAtEpochMs = 1000L,
+            themeMode = "dark",
+        )
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+        )
+
+        assertTrue(result is ConflictResolutionResult.AcceptedRemote)
+        val accepted = (result as ConflictResolutionResult.AcceptedRemote).preferences
+        assertEquals("light", accepted.themeMode)
+    }
+
+    @Test
+    fun `blank session owner skips isolation guard`() {
+        val local = MultiDevicePreferences(ownerUserId = "user_1", revision = 1L)
+        val remote = MultiDevicePreferences(ownerUserId = "user_2", revision = 2L)
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "",
+            local = local,
+            remote = remote,
+        )
+
+        // 不触发 AccountMismatchRejected：revision 高的 remote 被接受，owner 归一为 session（空串）
+        assertTrue(result is ConflictResolutionResult.AcceptedRemote)
+        val accepted = (result as ConflictResolutionResult.AcceptedRemote).preferences
+        assertEquals("", accepted.ownerUserId)
+    }
+
+    @Test
+    fun `pending patch matching remote value records no conflict field`() {
+        val local = MultiDevicePreferences(ownerUserId = "user_1", revision = 2L, themeMode = "light")
+        val remote = MultiDevicePreferences(ownerUserId = "user_1", revision = 4L, themeMode = "dark")
+        val patch = PreferencesPatch(themeMode = "dark")
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+            pendingLocalPatch = patch,
+            currentTimestampMs = 5000L,
+        )
+
+        assertTrue(result is ConflictResolutionResult.Merged)
+        val merged = result as ConflictResolutionResult.Merged
+        assertEquals(5L, merged.mergedPreferences.revision)
+        assertEquals("dark", merged.mergedPreferences.themeMode)
+        assertTrue(merged.conflictFields.isEmpty())
+        assertTrue(merged.requiresPushToRemote)
+    }
+
+    @Test
+    fun `empty patch is treated as no pending edits`() {
+        val local = MultiDevicePreferences(ownerUserId = "user_1", revision = 2L)
+        val remote = MultiDevicePreferences(ownerUserId = "user_1", revision = 3L, themeMode = "dark")
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+            pendingLocalPatch = PreferencesPatch(),
+        )
+
+        assertTrue(result is ConflictResolutionResult.AcceptedRemote)
+        val accepted = (result as ConflictResolutionResult.AcceptedRemote).preferences
+        assertEquals("dark", accepted.themeMode)
+    }
+
+    @Test
     fun `local pending edits preempt remote conflicting fields and merge non-conflicting fields`() {
         val local = MultiDevicePreferences(
             ownerUserId = "user_1",
