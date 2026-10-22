@@ -3,6 +3,7 @@ package com.maodouchat.chatdetail
 import com.maodouchat.attachment.AttachmentPreparationLease
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -131,5 +132,98 @@ class AttachmentPreparationLeaseTest {
         lease.recordEncryptedPath("second")
         assertFalse(lease.cleanupIfOwned())
         assertEquals(listOf("encrypted:first", "permission:content://original"), effects)
+    }
+
+    @Test
+    fun `recording a path twice keeps only the latest`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordEncryptedPath("first")
+        lease.recordEncryptedPath("second")
+
+        assertTrue(lease.cleanupIfOwned())
+        assertEquals(listOf("encrypted:second", "permission:content://original"), effects)
+    }
+
+    @Test
+    fun `blank overwrite clears the earlier record`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordEncryptedPath("/private/encrypted.bin")
+        lease.recordEncryptedPath("   ")
+
+        assertTrue(lease.cleanupIfOwned())
+        assertEquals(listOf("permission:content://original"), effects)
+    }
+
+    @Test
+    fun `exception in encrypted deletion propagates and skips remaining cleanup`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = {
+                effects += "encrypted:$it"
+                throw IllegalStateException("boom")
+            },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordEncryptedPath("/private/encrypted.bin")
+        lease.recordPreparedSource("file://prepared.jpg")
+
+        val thrown = assertThrows(IllegalStateException::class.java) {
+            lease.cleanupIfOwned()
+        }
+        assertEquals("boom", thrown.message)
+        assertEquals(listOf("encrypted:/private/encrypted.bin"), effects)
+        assertFalse(lease.cleanupIfOwned())
+    }
+
+    @Test
+    fun `concurrent cleanup runs exactly once`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordEncryptedPath("/private/encrypted.bin")
+        val results = java.util.Collections.synchronizedList(mutableListOf<Boolean>())
+        val threads = (1..8).map { Thread { results += lease.cleanupIfOwned() } }
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+
+        assertEquals(1, results.count { it })
+        assertEquals(7, results.count { !it })
+        assertEquals(listOf("encrypted:/private/encrypted.bin", "permission:content://original"), effects)
+    }
+
+    @Test
+    fun `handoff is idempotent`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += it },
+            deletePreparedSource = { effects += it },
+            releasePersistablePermission = { effects += it }
+        )
+        lease.recordEncryptedPath("encrypted")
+        lease.handOff()
+        lease.handOff()
+
+        assertTrue(lease.isHandedOff())
+        assertFalse(lease.cleanupIfOwned())
+        assertTrue(effects.isEmpty())
     }
 }
