@@ -104,4 +104,34 @@ class QuietHoursAndAnnouncementTest {
         // 过期的高优先级不触发
         assertFalse(AnnouncementPolicy.shouldNotifyNow(listOf(announcement("e", level = "EMERGENCY", expiresAt = 5)), 10))
     }
+
+    @Test
+    fun `announcement window boundaries are inclusive`() {
+        // 生效窗口两端都含入：startsAt==now 与 expiresAt==now 的公告都保留。
+        val edge = announcement("edge", startsAt = 1000L, expiresAt = 1000L)
+        assertEquals(listOf("edge"), AnnouncementPolicy.filterForDisplay(listOf(edge), 1000L).map { it.id })
+    }
+
+    @Test
+    fun `shouldNotifyNow is false on empty list`() {
+        assertFalse(AnnouncementPolicy.shouldNotifyNow(emptyList(), 10))
+    }
+
+    @Test
+    fun `forceShowAcked still drops expired`() {
+        // forceShowAcked 只忽略已读，不放宽生效窗口。
+        val old = announcement("old", acked = true, expiresAt = 5L)
+        assertEquals(
+            0,
+            AnnouncementPolicy.filterForDisplay(listOf(old), 10L, forceShowAcked = true).size
+        )
+    }
+
+    @Test
+    fun `level priority map is frozen`() {
+        assertEquals(
+            mapOf("EMERGENCY" to 0, "MAINTENANCE" to 1, "WARNING" to 2, "INFO" to 3),
+            AnnouncementPolicy.LEVEL_PRIORITY
+        )
+    }
 }
