@@ -2,6 +2,7 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.MessagePinPolicy
+import com.maodouchat.ui.screen.chatdetail.PreviewKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -45,5 +46,49 @@ class MessagePinPolicyTest {
         val preview = MessagePinPolicy.textPreview(long, 48)
         assertTrue(preview.endsWith("…"))
         assertTrue(preview.length <= 48)
+    }
+
+    @Test
+    fun group_role_check_is_case_insensitive() {
+        assertTrue(MessagePinPolicy.canPin(true, "owner", MessageType.TEXT))
+        assertTrue(MessagePinPolicy.canPin(true, "Admin", MessageType.TEXT))
+        assertFalse(MessagePinPolicy.canPin(true, "member", MessageType.TEXT))
+    }
+
+    @Test
+    fun media_and_file_types_are_pinnable() {
+        assertTrue(MessagePinPolicy.canPin(false, null, MessageType.VIDEO))
+        assertTrue(MessagePinPolicy.canPin(false, null, MessageType.FILE))
+        assertTrue(MessagePinPolicy.canPin(false, null, MessageType.VOICE))
+        assertTrue(MessagePinPolicy.canPin(false, null, MessageType.STICKER))
+        assertTrue(MessagePinPolicy.canPin(false, null, MessageType.LOCATION))
+        assertTrue(MessagePinPolicy.canPin(false, null, MessageType.MARKDOWN))
+    }
+
+    @Test
+    fun preview_kind_maps_each_media_type() {
+        assertEquals(PreviewKind.TEXT, MessagePinPolicy.previewKind(MessageType.TEXT))
+        assertEquals(PreviewKind.TEXT, MessagePinPolicy.previewKind(MessageType.MARKDOWN))
+        assertEquals(PreviewKind.IMAGE, MessagePinPolicy.previewKind(MessageType.IMAGE))
+        assertEquals(PreviewKind.VOICE, MessagePinPolicy.previewKind(MessageType.VOICE))
+        assertEquals(PreviewKind.VIDEO, MessagePinPolicy.previewKind(MessageType.VIDEO))
+        assertEquals(PreviewKind.FILE, MessagePinPolicy.previewKind(MessageType.FILE))
+        assertEquals(PreviewKind.LOCATION, MessagePinPolicy.previewKind(MessageType.LOCATION))
+        assertEquals(PreviewKind.STICKER, MessagePinPolicy.previewKind(MessageType.STICKER))
+        assertEquals(PreviewKind.GENERIC, MessagePinPolicy.previewKind(MessageType.SYSTEM))
+    }
+
+    @Test
+    fun limit_trips_exactly_at_max_pins() {
+        assertTrue(MessagePinPolicy.wouldExceedLimit(MessagePinPolicy.MAX_PINS, alreadyPinned = false))
+        assertFalse(MessagePinPolicy.wouldExceedLimit(MessagePinPolicy.MAX_PINS - 1, alreadyPinned = false))
+        assertFalse(MessagePinPolicy.wouldExceedLimit(MessagePinPolicy.MAX_PINS, alreadyPinned = true))
+    }
+
+    @Test
+    fun text_preview_folds_newlines_and_keeps_literal_meta_text() {
+        assertEquals("a b", MessagePinPolicy.textPreview("a\nb<meta>x"))
+        assertEquals("a <meta> b", MessagePinPolicy.textPreview("a <meta> b<meta>{\"a\":1}"))
+        assertEquals("", MessagePinPolicy.textPreview("   "))
     }
 }
