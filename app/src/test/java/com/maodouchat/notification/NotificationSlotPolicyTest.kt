@@ -136,4 +136,77 @@ class NotificationSlotPolicyTest {
             NotificationSlotPolicy.scheduledMessageFailedNotifyId()
         )
     }
+
+    @Test
+    fun reminderSpaceIsIsolatedFromMessageSpace() {
+        // 稍后提醒与会话消息的 tag/id/requestCode 必须互不重叠，清理一边永不擦掉另一边。
+        assertNotEquals(
+            NotificationSlotPolicy.messageTag("c1"),
+            NotificationSlotPolicy.reminderTag("c1")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.messageNotifyId(),
+            NotificationSlotPolicy.reminderNotifyId("m1")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.chatRequestCode("c1"),
+            NotificationSlotPolicy.reminderRequestCode("c1")
+        )
+    }
+
+    @Test
+    fun chatActionRequestCodesAreDistinct() {
+        // 同一会话的三种动作 requestCode 按 +1/+2 错开，互不踩踏。
+        val chat = NotificationSlotPolicy.chatRequestCode("c1")
+        assertEquals(chat + 1, NotificationSlotPolicy.markReadRequestCode("c1"))
+        assertEquals(chat + 2, NotificationSlotPolicy.quickReplyRequestCode("c1"))
+        assertNotEquals(
+            NotificationSlotPolicy.markReadRequestCode("c1"),
+            NotificationSlotPolicy.quickReplyRequestCode("c1")
+        )
+    }
+
+    @Test
+    fun postNotifyIdIsIsolatedFromPostRequestCode() {
+        // 动态通知 id 用 "post_" 前缀哈希，requestCode 用裸 id 哈希：两空间隔离。
+        assertNotEquals(
+            NotificationSlotPolicy.postNotifyId("p1"),
+            NotificationSlotPolicy.postRequestCode("p1")
+        )
+        assertEquals("p1".hashCode(), NotificationSlotPolicy.postRequestCode("p1"))
+    }
+
+    @Test
+    fun slotFunctionsAreDeterministic() {
+        // 纯函数：重复调用结果恒定，钉死"无隐式状态"契约。
+        repeat(2) {
+            assertEquals("maodouchat_c1", NotificationSlotPolicy.messageTag("c1"))
+            assertEquals(0, NotificationSlotPolicy.messageNotifyId())
+            assertEquals("maodouchat_reminder_c1", NotificationSlotPolicy.reminderTag("c1"))
+            assertEquals(
+                "call-1".hashCode(),
+                NotificationSlotPolicy.incomingCallNotifyId("call-1")
+            )
+            assertEquals(
+                "call-1".hashCode() xor NotificationSlotPolicy.MISSED_CALL_ID_SALT,
+                NotificationSlotPolicy.missedCallNotifyId("call-1")
+            )
+            assertEquals("ai_tasks_c1", NotificationSlotPolicy.aiTaskGroupKey("c1"))
+        }
+    }
+
+    @Test
+    fun emptyInputsProduceStableDegenerateSlots() {
+        // 空 id 不抛异常，槽位字符串仍按前缀规则拼出且互不相同。
+        assertEquals("maodouchat_", NotificationSlotPolicy.messageTag(""))
+        assertEquals("maodouchat_reminder_", NotificationSlotPolicy.reminderTag(""))
+        assertNotEquals(
+            NotificationSlotPolicy.messageTag(""),
+            NotificationSlotPolicy.reminderTag("")
+        )
+        assertEquals(
+            "maodouchat-notify://chat/",
+            NotificationSlotPolicy.chatDataUri("")
+        )
+    }
 }

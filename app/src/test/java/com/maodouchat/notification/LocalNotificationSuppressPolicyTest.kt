@@ -143,4 +143,117 @@ class LocalNotificationSuppressPolicyTest {
             )
         )
     }
+
+    @Test
+    fun minuteWindowSameDayEndExclusive() {
+        // 分钟精度同日窗口同样是 [start, end) 半开区间。
+        fun suppressAt(minute: Int) = LocalNotificationSuppressPolicy.shouldSuppress(
+            notificationsEnabled = true,
+            dndStartHour = 9,
+            dndEndHour = 17,
+            hourOfDay = 12,
+            dndEnabled = true,
+            startMinute = 9 * 60,
+            endMinute = 17 * 60,
+            currentMinute = minute
+        )
+        assertTrue(suppressAt(9 * 60))
+        assertTrue(suppressAt(17 * 60 - 1))
+        assertFalse(suppressAt(17 * 60))
+    }
+
+    @Test
+    fun hourFallbackKeepsLegacySemantics() {
+        // currentMinute=null 但给了分钟窗口：按 hourOfDay*60 回退（兼容旧调用）。
+        fun suppressAt(hour: Int) = LocalNotificationSuppressPolicy.shouldSuppress(
+            notificationsEnabled = true,
+            dndStartHour = 9,
+            dndEndHour = 17,
+            hourOfDay = hour,
+            dndEnabled = true,
+            startMinute = 9 * 60,
+            endMinute = 17 * 60
+        )
+        assertTrue(suppressAt(12))
+        assertFalse(suppressAt(17))
+    }
+
+    @Test
+    fun outOfRangeInputsAreCoerced() {
+        // 输入先钳制再比较：负分钟→0，超限小时→23。
+        assertTrue(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 22,
+                dndEndHour = 7,
+                hourOfDay = 12,
+                dndEnabled = true,
+                startMinute = 22 * 60,
+                endMinute = 7 * 60,
+                currentMinute = -5
+            )
+        )
+        assertFalse(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 9,
+                dndEndHour = 17,
+                hourOfDay = 30,
+                dndEnabled = true,
+                startMinute = 9 * 60,
+                endMinute = 17 * 60
+            )
+        )
+    }
+
+    @Test
+    fun dndEnabledNullMeansLegacyEnabled() {
+        // dndEnabled 不传时默认启用（兼容旧版"未设置计划即关闭"之外的旧调用）。
+        assertTrue(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 22,
+                dndEndHour = 7,
+                hourOfDay = 23,
+                startMinute = 22 * 60 + 30,
+                endMinute = 7 * 60,
+                currentMinute = 23 * 60 + 20
+            )
+        )
+    }
+
+    @Test
+    fun globalOffDominatesAllFlags() {
+        // 全局关闭压过一切：即使运行时开关与显式开关都关，仍抑制。
+        assertTrue(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = false,
+                dndStartHour = 22,
+                dndEndHour = 7,
+                hourOfDay = 12,
+                dndRuntimeEnabled = false,
+                dndEnabled = false,
+                startMinute = 0,
+                endMinute = 1439,
+                currentMinute = 12 * 60
+            )
+        )
+    }
+
+    @Test
+    fun equalMinuteBoundsMeansDndOff() {
+        // 分钟参数同样：start==end 视为关闭。
+        assertFalse(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 10,
+                dndEndHour = 10,
+                hourOfDay = 10,
+                dndEnabled = true,
+                startMinute = 600,
+                endMinute = 600,
+                currentMinute = 600
+            )
+        )
+    }
 }
