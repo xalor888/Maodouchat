@@ -89,11 +89,11 @@ class ComposerStateTest {
         state.openQuickPhrases()
         state.openContactCardPicker()
 
-        // save 是 SaverScope 的扩展函数，测试里给一个恒可存的 scope
+        // save 是 Saver 的成员扩展函数：dispatch receiver 必须是 Saver 实例
         val scope = object : SaverScope {
             override fun canBeSaved(value: Any): Boolean = true
         }
-        val saved = with(scope) { ComposerState.Saver.save(state) }
+        val saved = with(ComposerState.Saver) { scope.save(state) }
         val restored = ComposerState.Saver.restore(saved!!)
 
         assertEquals(state.snapshot(), restored?.snapshot())
