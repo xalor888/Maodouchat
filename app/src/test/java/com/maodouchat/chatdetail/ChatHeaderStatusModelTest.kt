@@ -39,4 +39,49 @@ class ChatHeaderStatusModelTest {
             resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = true)
         )
     }
+
+    @Test
+    fun `typing id is trimmed before priority check`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("u2"),
+            resolveChatHeaderStatus("  u2  ", isOnline = false, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `typing outranks online custom status and lastSeen`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("u9"),
+            resolveChatHeaderStatus("u9", isOnline = true, customStatus = "Busy", lastSeen = 123L)
+        )
+    }
+
+    @Test
+    fun `lastSeen is shown for one-to-one chats only`() {
+        assertEquals(
+            ChatHeaderStatus.LastSeen(999L),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = false, lastSeen = 999L)
+        )
+        assertEquals(
+            ChatHeaderStatus.None,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = true, lastSeen = 999L)
+        )
+    }
+
+    @Test
+    fun `zero lastSeen falls back to binary offline`() {
+        assertEquals(
+            ChatHeaderStatus.Offline,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = false, lastSeen = 0)
+        )
+    }
+
+    @Test
+    fun `custom status text is returned verbatim`() {
+        // Regression pin: blank check only, no trimming.
+        assertEquals(
+            ChatHeaderStatus.Custom("  Busy  "),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  Busy  ")
+        )
+    }
 }
