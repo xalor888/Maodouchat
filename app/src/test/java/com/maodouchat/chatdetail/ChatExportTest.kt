@@ -177,4 +177,65 @@ class ChatExportTest {
         val nudgeMsg = Message(id = "4", chatId = "c", senderId = "u", content = "", type = MessageType.NUDGE)
         assertEquals("[戳一戳]", ChatExport.renderBody(nudgeMsg))
     }
+
+    @Test
+    fun renderBody_coversMarkdownStickerVideoGif() {
+        val mdMsg = Message(id = "1", chatId = "c", senderId = "u", content = "**加粗**", type = MessageType.MARKDOWN)
+        assertEquals("**加粗**", ChatExport.renderBody(mdMsg))
+
+        val stickerMsg = Message(id = "2", chatId = "c", senderId = "u", content = "", type = MessageType.STICKER)
+        assertEquals("[表情]", ChatExport.renderBody(stickerMsg))
+
+        val videoMsg = Message(id = "3", chatId = "c", senderId = "u", content = "", type = MessageType.VIDEO)
+        assertEquals("[视频]", ChatExport.renderBody(videoMsg))
+
+        val gifMsg = Message(id = "4", chatId = "c", senderId = "u", content = "content://cached/a.gif", type = MessageType.GIF)
+        assertEquals("content://cached/a.gif", ChatExport.renderBody(gifMsg))
+    }
+
+    @Test
+    fun buildText_blankChatNameRendersDash() {
+        val text = ChatExport.buildText(
+            chatName = "",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = emptyList(),
+            exportedAt = 1600000100000L
+        )
+        assertTrue("Should render dash for blank chat name", text.contains("=== - ==="))
+    }
+
+    @Test
+    fun buildText_skipsSkDistAndEmptyBodyMessages() {
+        val messages = listOf(
+            Message(id = "d", chatId = "c", senderId = "me", content = "dist-payload", type = MessageType.SK_DIST, timestamp = 1600000000000L),
+            Message(id = "e", chatId = "c", senderId = "me", content = "", type = MessageType.TEXT, timestamp = 1600000001000L)
+        )
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = messages,
+            exportedAt = 1600000100000L
+        )
+        assertFalse("Should skip SK_DIST", text.contains("dist-payload"))
+        assertTrue("Only header lines for fully skipped body", !text.contains("[2020-09-13"))
+    }
+
+    @Test
+    fun write_blankTextReturnsNull() {
+        assertNull(ChatExport.write(dummyContext, "whatever", "   "))
+    }
+
+    @Test
+    fun write_sanitizesUnsafeCharsAndTruncatesLongFileName() {
+        val file = ChatExport.write(dummyContext, "a/b:c", "hello")
+        assertNotNull(file)
+        assertEquals("a_b_c.txt", file!!.name)
+        assertEquals("hello", file.readText())
+
+        val long = ChatExport.write(dummyContext, "x".repeat(100), "hi")
+        assertNotNull(long)
+        assertEquals(84, long!!.name.length)
+    }
 }
