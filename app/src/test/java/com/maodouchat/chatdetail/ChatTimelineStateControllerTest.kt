@@ -56,6 +56,69 @@ class ChatTimelineStateControllerTest {
         assertEquals(MessageStatus.SENT, updated.messages.single().status)
     }
 
+    @Test
+    fun `mergeIncoming appends and sorts by timestamp`() {
+        val state = ChatDetailUiState(messages = listOf(message("b", 2L)))
+
+        val updated = controller.mergeIncoming(state, listOf(message("a", 1L), message("c", 3L)))
+
+        assertEquals(listOf("a", "b", "c"), updated.messages.map(Message::id))
+    }
+
+    @Test
+    fun `replaceMessage transforms only the target row in place`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L), message("two", 2L)))
+
+        val updated = controller.replaceMessage(state, "two") { it.copy(content = "changed") }
+
+        assertEquals(listOf("one", "two"), updated.messages.map(Message::id))
+        assertEquals("one", updated.messages[0].content)
+        assertEquals("changed", updated.messages[1].content)
+    }
+
+    @Test
+    fun `applyMutation Set inserts unknown id through merge ordering`() {
+        val state = ChatDetailUiState(messages = listOf(message("b", 2L)))
+
+        val updated = controller.applyMutation(state, MessageMutationProjection.Set(message("a", 1L)))
+
+        assertEquals(listOf("a", "b"), updated.messages.map(Message::id))
+    }
+
+    @Test
+    fun `updateStatus advances the ladder and recovers server-authoritative failed`() {
+        val state = ChatDetailUiState(
+            messages = listOf(
+                message("one", 1L),
+                message("two", 2L).copy(status = MessageStatus.FAILED),
+            ),
+        )
+
+        val updated = controller.updateStatus(state, "one", MessageStatus.SENT)
+        val recovered = controller.updateStatus(updated, "two", MessageStatus.DELIVERED)
+
+        assertEquals(MessageStatus.SENT, recovered.messages.single { it.id == "one" }.status)
+        assertEquals(MessageStatus.DELIVERED, recovered.messages.single { it.id == "two" }.status)
+    }
+
+    @Test
+    fun `initialHistoryLoaded ready even with empty history`() {
+        val state = ChatDetailUiState(
+            messages = emptyList(),
+            isLoading = true,
+            initialLoadError = "old error",
+            hasMoreOlderMessages = true,
+        )
+
+        val updated = controller.initialHistoryLoaded(state, emptyList(), null)
+
+        assertTrue(updated.messages.isEmpty())
+        assertTrue(updated.initialTimelineReady)
+        assertFalse(updated.hasMoreOlderMessages)
+        assertEquals(null, updated.initialLoadError)
+        assertEquals(null, updated.unreadSeparatorId)
+    }
+
     private fun message(id: String, timestamp: Long) = Message(
         id = id,
         chatId = "chat",
