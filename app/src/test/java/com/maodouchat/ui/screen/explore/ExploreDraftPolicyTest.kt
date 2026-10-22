@@ -59,4 +59,39 @@ class ExploreDraftPolicyTest {
         val second = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "user-a")
         assertEquals(first, second)
     }
+
+    @Test
+    fun scopedKeyRejectsWhitespaceOnlyOwner() {
+        // 全空白 owner 也不是合法账号：不能落 key
+        assertNull(ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "   "))
+        assertNull(ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_VISIBILITY, "\t"))
+    }
+
+    @Test
+    fun keyConstantsPinnedForStoredDrafts() {
+        // key 命名钉住：改名会让已存草稿读不回来
+        assertEquals("composer_text", ExploreDraftPolicy.KEY_COMPOSER_TEXT)
+        assertEquals("selected_visibility", ExploreDraftPolicy.KEY_VISIBILITY)
+    }
+
+    @Test
+    fun scopedKeysStableAcrossAccountSwitch() {
+        val before = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "user-a")
+        ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "user-b")
+        val after = ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "user-a")
+        assertEquals(before, after)
+    }
+
+    @Test
+    fun normalizeVisibilityDoesNotTrim() {
+        // 前后带空格不认，直接回落
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility(" PUBLIC "))
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("CONTACTS "))
+    }
+
+    @Test
+    fun normalizeVisibilityAcceptsOnlyExactCase() {
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("Public"))
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("private"))
+    }
 }
