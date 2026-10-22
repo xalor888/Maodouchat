@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.explore.repository.FeedSession
@@ -155,6 +156,122 @@ class FeedControllerTest {
         FeedController(repository).publish(session, "  a  b  ", emptyList(), null)
 
         assertEquals("a  b", content)
+    }
+
+    @Test
+    fun publishPropagatesRepositoryFailure() = runTest {
+        val boom = RuntimeException("boom")
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = true
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(emptyList<PostDto>())
+            override suspend fun publish(
+                session: FeedSession,
+                content: String,
+                imageUrls: List<String>,
+                visibility: String?,
+            ) = Result.failure<PostDto>(boom)
+        }
+
+        val result = FeedController(repository).publish(session, "hello", emptyList(), null)
+
+        assertEquals(boom, result.exceptionOrNull())
+    }
+
+    @Test
+    fun publishForwardsImageUrlsAndVisibilityVerbatim() = runTest {
+        var urls: List<String> = emptyList()
+        var visibility: String? = null
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = true
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(emptyList<PostDto>())
+            override suspend fun publish(
+                session: FeedSession,
+                content: String,
+                imageUrls: List<String>,
+                visibilityValue: String?,
+            ): Result<PostDto> {
+                urls = imageUrls
+                visibility = visibilityValue
+                return Result.success(post)
+            }
+        }
+
+        FeedController(repository).publish(session, "hello", listOf("https://x/1.jpg"), "CONTACTS")
+
+        assertEquals(listOf("https://x/1.jpg"), urls)
+        assertEquals("CONTACTS", visibility)
+    }
+
+    @Test
+    fun sessionChangeOverridesLoadFailure() = runTest {
+        val boom = RuntimeException("boom")
+        var current = true
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = current
+            override suspend fun load(session: FeedSession, cursor: Cursor?): Result<List<PostDto>> {
+                current = false
+                return Result.failure(boom)
+            }
+            override suspend fun publish(session: FeedSession, content: String, imageUrls: List<String>, visibility: String?) = Result.success(post)
+        }
+
+        val error = FeedController(repository).load(session).exceptionOrNull()
+
+        assertIs<FeedSessionChangedException>(error)
+    }
+
+    @Test
+    fun publishBlankContentStillReachesRepository() = runTest {
+        var content = "untouched"
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = true
+            override suspend fun load(session: FeedSession, cursor: Cursor?) = Result.success(emptyList<PostDto>())
+            override suspend fun publish(
+                session: FeedSession,
+                contentValue: String,
+                imageUrls: List<String>,
+                visibility: String?,
+            ): Result<PostDto> {
+                content = contentValue
+                return Result.success(post)
+            }
+        }
+
+        FeedController(repository).publish(session, "   ", emptyList(), null)
+
+        assertEquals("", content)
+    }
+
+    @Test
+    fun loadDefaultCursorIsNull() = runTest {
+        var seen: Cursor? = Cursor(createdAt = 1L, postId = "sentinel")
+        val session = FeedSession("owner")
+        val repository = object : FeedRepository {
+            override fun currentSession() = session
+            override fun isCurrent(session: FeedSession) = true
+            override suspend fun load(session: FeedSession, cursor: Cursor?): Result<List<PostDto>> {
+                seen = cursor
+                return Result.success(emptyList())
+            }
+            override suspend fun publish(
+                session: FeedSession,
+                content: String,
+                imageUrls: List<String>,
+                visibility: String?,
+            ) = Result.success(post)
+        }
+
+        FeedController(repository).load(session)
+
+        assertNull(seen)
     }
 
     @Test
