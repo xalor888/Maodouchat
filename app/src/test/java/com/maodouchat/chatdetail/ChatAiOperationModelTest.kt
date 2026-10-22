@@ -10,6 +10,7 @@ import com.maodouchat.ui.screen.chatdetail.AiSummaryScope
 import com.maodouchat.ui.screen.chatdetail.ChatAiOperationFactory
 import com.maodouchat.ui.screen.chatdetail.PendingAiAction
 import com.maodouchat.ui.screen.chatdetail.classifyAiOperationError
+import com.maodouchat.ui.screen.chatdetail.classifyAiOperationErrorDetailed
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.ai.AiRetryPolicyCategory
