@@ -46,6 +46,85 @@ class ConversationScheduledMessageDispatcherTest {
         assertEquals(null, gateway.message)
     }
 
+    @Test
+    fun `id without sch prefix keeps raw suffix`() = runTest {
+        val gateway = RecordingGateway()
+        val dispatcher = ConversationScheduledMessageDispatcher(
+            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            resolveChat = { Chat(id = it) },
+        )
+
+        val result = dispatcher.stage(scheduled("abc_123"), "owner-1")
+
+        assertTrue(result is ConversationCommandOutcome.Staged)
+        assertEquals("sm_abc_123", gateway.message?.id)
+    }
+
+    @Test
+    fun `sch prefix is stripped only once`() = runTest {
+        val gateway = RecordingGateway()
+        val dispatcher = ConversationScheduledMessageDispatcher(
+            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            resolveChat = { Chat(id = it) },
+        )
+
+        val result = dispatcher.stage(scheduled("sch_sch_x"), "owner-1")
+
+        assertTrue(result is ConversationCommandOutcome.Staged)
+        assertEquals("sm_sch_x", gateway.message?.id)
+    }
+
+    @Test
+    fun `blank text is rejected as EMPTY_TEXT without staging`() = runTest {
+        val gateway = RecordingGateway()
+        val dispatcher = ConversationScheduledMessageDispatcher(
+            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            resolveChat = { Chat(id = it) },
+        )
+        val blank = scheduled("sch_t").copy(text = "   ")
+
+        val result = dispatcher.stage(blank, "owner-1")
+
+        assertEquals(
+            ConversationCommandRejection.EMPTY_TEXT,
+            (result as ConversationCommandOutcome.Rejected).reason,
+        )
+        // 拒绝发生在网关调用之前
+        assertEquals(null, gateway.message)
+    }
+
+    @Test
+    fun `staged id is stable across repeated staging`() = runTest {
+        val gateway = RecordingGateway()
+        val dispatcher = ConversationScheduledMessageDispatcher(
+            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            resolveChat = { Chat(id = it) },
+        )
+
+        dispatcher.stage(scheduled("sch_dup"), "owner-1")
+        val firstId = gateway.message?.id
+        dispatcher.stage(scheduled("sch_dup"), "owner-1")
+
+        assertEquals("sm_dup", firstId)
+        assertEquals(firstId, gateway.message?.id)
+    }
+
+    @Test
+    fun `resolveChat receives the scheduled item chatId`() = runTest {
+        var resolvedChatId: String? = null
+        val dispatcher = ConversationScheduledMessageDispatcher(
+            facade = ConversationCommandFacade(RecordingGateway(), now = { 10L }),
+            resolveChat = {
+                resolvedChatId = it
+                Chat(id = it)
+            },
+        )
+
+        dispatcher.stage(scheduled("sch_x"), "owner-1")
+
+        assertEquals("chat-1", resolvedChatId)
+    }
+
     private fun scheduled(id: String) = ScheduledMessage(
         id = id,
         chatId = "chat-1",
