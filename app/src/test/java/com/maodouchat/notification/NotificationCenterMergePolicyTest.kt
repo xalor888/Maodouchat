@@ -1,6 +1,7 @@
 package com.maodouchat.notification
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -194,6 +195,119 @@ class NotificationCenterMergePolicyTest {
         assertFalse(NotificationCenterMergePolicy.isSameStableExtra("r1", "R1"))
         assertFalse(NotificationCenterMergePolicy.isSameStableExtra("r1", ""))
         assertFalse(NotificationCenterMergePolicy.isSameStableExtra("r1", null))
+    }
+
+    @Test
+    fun allBlankIdentifiersNeverMatch() {
+        // 全空标识永远不等：不误把两条"无 id"行合并。
+        assertFalse(
+            NotificationCenterMergePolicy.isSameMessagePayload(
+                existingId = "",
+                existingMessageId = null,
+                incomingId = "",
+                incomingMessageId = null
+            )
+        )
+        assertFalse(
+            NotificationCenterMergePolicy.isSameMessagePayload(
+                existingId = "msg_c1_m1",
+                existingMessageId = "m1",
+                incomingId = "",
+                incomingMessageId = "   "
+            )
+        )
+        assertFalse(
+            NotificationCenterMergePolicy.isSameMissedCallPayload(
+                existingId = "",
+                existingCallId = null,
+                incomingId = "",
+                incomingCallId = null
+            )
+        )
+    }
+
+    @Test
+    fun nullExistingStableValueNeverMatchesNonBlankIncoming() {
+        // 存量无值、来值非空：不等（防脏数据跨行吸附）。
+        assertFalse(NotificationCenterMergePolicy.isSameStableExtra(null, "r1"))
+        assertFalse(
+            NotificationCenterMergePolicy.isSameMessagePayload(
+                existingId = "x",
+                existingMessageId = null,
+                incomingId = "y",
+                incomingMessageId = "m1"
+            )
+        )
+        assertFalse(
+            NotificationCenterMergePolicy.isSameMissedCallPayload(
+                existingId = "missed_a",
+                existingCallId = null,
+                incomingId = "missed_b",
+                incomingCallId = "sig-9"
+            )
+        )
+    }
+
+    @Test
+    fun stableItemIdEqualitySkipsCountIncrement() {
+        // item id 命中即跳过计数，即使 extra 里的稳定键不一致（item id 优先级）。
+        assertTrue(
+            NotificationCenterMergePolicy.shouldSkipCountIncrement(
+                itemType = "MISSED_CALL",
+                existingId = "missed_c1",
+                existingExtra = mapOf("callId" to "c1"),
+                incomingId = "missed_c1",
+                incomingExtra = mapOf("callId" to "c2"),
+            )
+        )
+        assertTrue(
+            NotificationCenterMergePolicy.shouldSkipCountIncrement(
+                itemType = "MESSAGE",
+                existingId = "msg_c_m1",
+                existingExtra = emptyMap(),
+                incomingId = "msg_c_m1",
+                incomingExtra = emptyMap(),
+            )
+        )
+    }
+
+    @Test
+    fun stableExtraIsNotTrimmed() {
+        // 精确匹配：不裁空白、不忽略大小写差异。
+        assertFalse(NotificationCenterMergePolicy.isSameStableExtra(" r1", "r1"))
+        assertFalse(NotificationCenterMergePolicy.isSameStableExtra("r1", "r1 "))
+        assertFalse(
+            NotificationCenterMergePolicy.isSameMessagePayload(
+                existingId = "x",
+                existingMessageId = " m1",
+                incomingId = "y",
+                incomingMessageId = "m1"
+            )
+        )
+    }
+
+    @Test
+    fun mergeDecisionsAreDeterministic() {
+        assertEquals(
+            NotificationCenterMergePolicy.shouldSkipCountIncrement(
+                itemType = "MESSAGE",
+                existingId = "x",
+                existingExtra = mapOf("messageId" to "m1"),
+                incomingId = "y",
+                incomingExtra = mapOf("messageId" to "m1"),
+            ),
+            NotificationCenterMergePolicy.shouldSkipCountIncrement(
+                itemType = "MESSAGE",
+                existingId = "x",
+                existingExtra = mapOf("messageId" to "m1"),
+                incomingId = "y",
+                incomingExtra = mapOf("messageId" to "m1"),
+            )
+        )
+        assertEquals(
+            NotificationCenterMergePolicy.isSameMissedCallPayload("missed_a", "c1", "missed_a", "c2"),
+            NotificationCenterMergePolicy.isSameMissedCallPayload("missed_a", "c1", "missed_a", "c2")
+        )
     }
 
     @Test
