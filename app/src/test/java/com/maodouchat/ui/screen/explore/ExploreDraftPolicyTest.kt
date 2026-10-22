@@ -111,13 +111,9 @@ class ExploreDraftPolicyTest {
     }
 
     @Test
-    fun scopedKeyTreatsNonBreakingSpaceAsNonBlank() {
-        // isBlank 不认 U+00A0：不断言它合法，只钉住当前行为
-        val nbsp = "\u00A0"
-        assertEquals(
-            "composer_text:$nbsp",
-            ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, nbsp)
-        )
+    fun scopedKeyTreatsNonBreakingSpaceAsBlank() {
+        // Kotlin 的 isBlank 把 U+00A0 判空白：不断言合理，只钉住当前行为
+        assertNull(ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "\u00A0"))
     }
 
     @Test

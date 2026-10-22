@@ -377,7 +377,7 @@ class FeedControllerTest {
     }
 
     @Test
-    fun publishDoesNotTrimNonBreakingSpace() = runTest {
+    fun publishTrimsNonBreakingSpaceToo() = runTest {
         var content = ""
         val session = FeedSession("owner")
         val repository = object : FeedRepository {
@@ -395,10 +395,10 @@ class FeedControllerTest {
             }
         }
 
-        // trim 只去 <= ' ' 的字符：U+00A0 留下，钉住该语义
+        // trim 按 isWhitespace 裁边：U+00A0 也会被裁掉，钉住该语义
         val nbsp = "\u00A0"
         FeedController(repository).publish(session, "${nbsp}hi${nbsp}", emptyList(), null)
 
-        assertEquals("${nbsp}hi${nbsp}", content)
+        assertEquals("hi", content)
     }
 }
