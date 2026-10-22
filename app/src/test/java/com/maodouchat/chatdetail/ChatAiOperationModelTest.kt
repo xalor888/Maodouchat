@@ -179,4 +179,71 @@ class ChatAiOperationModelTest {
         assertEquals(40L, detailed.retryAfterSeconds)
         assertEquals("RATE_LIMITED:40", detailed.persistedCode)
     }
+
+    @Test
+    fun `stream-only suggest replies and semantic search are untracked`() {
+        assertEquals(
+            AiOperationPreparation.Untracked,
+            ChatAiOperationFactory.prepare(PendingAiAction.SuggestReplies("friendly"), "user-1", "chat-1")
+        )
+        assertEquals(
+            AiOperationPreparation.Untracked,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.SemanticSearch("query", listOf("m1")),
+                "user-1",
+                "chat-1"
+            )
+        )
+    }
+
+    @Test
+    fun `translate message clips target language to forty chars`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranslateMessage("message-1", "x".repeat(100)),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.TRANSLATE_MESSAGE, preparation.operation.type)
+        assertEquals("x".repeat(40), parameters.targetLanguage)
+    }
+
+    @Test
+    fun `transcribe voice persists with type and target message`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranscribeVoice("voice-1"),
+            ownerUserId = "user-1",
+            chatId = "chat-1",
+            now = 42L
+        ) as AiOperationPreparation.Persisted
+
+        assertEquals(AiOperationType.TRANSCRIBE_VOICE, preparation.operation.type)
+        assertEquals("voice-1", preparation.operation.targetMessageId)
+        assertEquals(42L, preparation.operation.createdAt)
+    }
+
+    @Test
+    fun `generated operation ids carry the aiop prefix`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranscribeVoice("voice-1"),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+
+        assertTrue(preparation.operation.id.startsWith("aiop_"))
+    }
+
+    @Test
+    fun `detailed server failure without retry hint carries no wait`() {
+        val detailed = classifyAiOperationErrorDetailed(
+            ApiException(ApiFailureKind.HTTP, statusCode = 503)
+        )
+
+        assertEquals(AiOperationError.SERVER, detailed.code)
+        assertEquals(null, detailed.retryAfterSeconds)
+    }
 }
