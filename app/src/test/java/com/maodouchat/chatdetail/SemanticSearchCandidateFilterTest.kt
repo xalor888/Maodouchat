@@ -136,7 +136,8 @@ class SemanticSearchCandidateFilterTest {
             now = 10_000L
         )
         assertEquals(100, candidates.size)
-        assertEquals("m20", candidates.first().id)
+        // 单发送者场景下多样性上限按输入顺序先截断，保留的是最早的 100 条
+        assertEquals("m0", candidates.first().id)
     }
 
     @Test
