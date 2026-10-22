@@ -161,6 +161,91 @@ class SenderDisplayNameTest {
         )
     }
 
+    @Test
+    fun directChat_contactNameFallsToIdWhenBlankNicknameAndName() {
+        val state = ChatDetailUiState(
+            contact = User(id = "peer007", name = ""),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("peer007"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("peer007", name)
+    }
+
+    @Test
+    fun directChat_nicknameWithWhitespace_isTrimmed() {
+        val state = ChatDetailUiState(
+            contact = User(id = "p", name = "原始名", nickname = "  备注名  "),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("p"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("备注名", name)
+    }
+
+    @Test
+    fun group_ownMessage_returnsNull() {
+        val state = ChatDetailUiState(currentUserId = "me", chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("me"),
+            isOwn = true,
+            participantNamesById = mapOf("me" to "自己"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertNull(name)
+    }
+
+    @Test
+    fun directChat_blankMappedName_skipsToTruncatedId() {
+        val state = ChatDetailUiState(
+            contact = User(id = "", name = ""),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("peer"),
+            isOwn = false,
+            participantNamesById = mapOf("peer" to "  "),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("peer", name)
+    }
+
+    @Test
+    fun resolveChatDetailSenderName_derivesIsOwnFromSenderId() {
+        val state = ChatDetailUiState(
+            currentUserId = "me",
+            contact = User(id = "peer", name = "", nickname = "备注名"),
+            chatIsGroup = false,
+        )
+        assertNull(
+            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+                message("me"), state, emptyMap(), "未知", "群成员",
+            )
+        )
+        assertEquals(
+            "备注名",
+            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+                message("peer"), state, emptyMap(), "未知", "群成员",
+            ),
+        )
+    }
+
     private fun message(senderId: String) = Message(
         id = "m",
         chatId = "c",
