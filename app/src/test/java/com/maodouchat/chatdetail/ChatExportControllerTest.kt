@@ -14,7 +14,7 @@ import com.maodouchat.ui.screen.chatdetail.ChatExportController
 import com.maodouchat.util.ChatExport
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
+import io.mockk.coVerify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -138,7 +138,7 @@ class ChatExportControllerTest {
         advanceUntilIdle()
 
         assertEquals("text_${R.string.chat_export_disabled}", uiState.value.infoMessage)
-        verify(exactly = 0) { messageRepo.getRecentMessages(any(), any()) }
+        coVerify(exactly = 0) { messageRepo.getRecentMessages(any(), any()) }
     }
 
     @Test
