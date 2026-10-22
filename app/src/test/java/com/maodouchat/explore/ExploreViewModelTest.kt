@@ -5,6 +5,7 @@ import com.maodouchat.explore.policy.ExploreDraftPolicy
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 /**
  * ExploreViewModel 的纯 JVM 单测：可见范围选项模型 / normalizeVisibility 逻辑。
@@ -39,5 +40,40 @@ class ExploreViewModelTest {
     @Test
     fun `each option label is non-blank`() {
         options.forEach { assertFalse(it.label.isBlank(), "label for ${it.value} is blank") }
+    }
+
+    @Test
+    fun `scopedKey namespaces key by user id`() {
+        assertEquals(
+            "composer_text:u1",
+            ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "u1")
+        )
+        assertEquals(
+            "selected_visibility:u2",
+            ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_VISIBILITY, "u2")
+        )
+    }
+
+    @Test
+    fun `scopedKey returns null for blank user id`() {
+        assertNull(ExploreDraftPolicy.scopedKey("composer_text", ""))
+        assertNull(ExploreDraftPolicy.scopedKey("composer_text", "   "))
+    }
+
+    @Test
+    fun `normalizeVisibility is case sensitive and fails closed`() {
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("public"))
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("Public"))
+    }
+
+    @Test
+    fun `draft key constants are stable`() {
+        assertEquals("composer_text", ExploreDraftPolicy.KEY_COMPOSER_TEXT)
+        assertEquals("selected_visibility", ExploreDraftPolicy.KEY_VISIBILITY)
+    }
+
+    @Test
+    fun `visibilityOption subtitle defaults to empty`() {
+        assertEquals("", VisibilityOption("PUBLIC", "公开").subtitle)
     }
 }
