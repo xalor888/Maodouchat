@@ -1,5 +1,6 @@
 package com.maodouchat.chatdetail
 
+import androidx.compose.runtime.saveable.SaverScope
 import com.maodouchat.ui.screen.chatdetail.ComposerState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -88,7 +89,12 @@ class ComposerStateTest {
         state.openQuickPhrases()
         state.openContactCardPicker()
 
-        val restored = ComposerState.Saver.restore(ComposerState.Saver.save(state)!!)
+        // save 是 SaverScope 的扩展函数，测试里给一个恒可存的 scope
+        val scope = object : SaverScope {
+            override fun canBeSaved(value: Any): Boolean = true
+        }
+        val saved = with(scope) { ComposerState.Saver.save(state) }
+        val restored = ComposerState.Saver.restore(saved!!)
 
         assertEquals(state.snapshot(), restored?.snapshot())
     }
