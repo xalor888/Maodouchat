@@ -74,7 +74,7 @@ class MediaCenterModelTest {
     fun trimsTrailingUrlPunctuationIncludingFullWidth() {
         val message = Message(
             "m", "chat", "u",
-            "见 https://example.com，(https://a.com/foo) 尾",
+            "见 https://example.com， 尾 (https://a.com/foo)",
             MessageType.TEXT
         )
         assertEquals(
