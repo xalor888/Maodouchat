@@ -1,6 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.User
+import com.maodouchat.ui.screen.chatdetail.InsertResult
 import com.maodouchat.ui.screen.chatdetail.MentionPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -115,7 +116,7 @@ class MentionPolicyTest {
     @Test
     fun insertMention_blankName_keepsText_and_implicitQuery() {
         assertEquals(
-            MentionPolicy.InsertResult("hi @Al", 6),
+            InsertResult("hi @Al", 6),
             MentionPolicy.insertMention("hi @Al", 6, "   "),
         )
         val r = MentionPolicy.insertMention("hi @Al", 6, "Alice")
