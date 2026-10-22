@@ -34,6 +34,63 @@ class AttachmentPreparationModelTest {
         assertEquals(0L, normalized.sizeBytes)
     }
 
+    @Test
+    fun `voice ignores declared name and mime entirely`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VOICE,
+            LocalFileMetadata("clip.wav", "audio/wav", 100L)
+        )
+
+        assertEquals("voice.m4a", normalized.fileName)
+        assertEquals("audio/mp4", normalized.mimeType)
+        assertEquals(100L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `typed image forces canonical extension and zeroes negative size`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.IMAGE,
+            LocalFileMetadata("scan.tiff", "image/tiff", -5L)
+        )
+
+        assertEquals("scan.jpg", normalized.fileName)
+        assertEquals("image/jpeg", normalized.mimeType)
+        assertEquals(0L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `else branch keeps sanitized name and valid declared mime`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.TEXT,
+            LocalFileMetadata("dir/file.txt", "text/plain", 7L)
+        )
+
+        assertEquals("dir_file.txt", normalized.fileName)
+        assertEquals("text/plain", normalized.mimeType)
+        assertEquals(7L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `dots only name falls back to file`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("...", "application/pdf", 5L)
+        )
+
+        assertEquals("file", normalized.fileName)
+        assertEquals("application/pdf", normalized.mimeType)
+    }
+
+    @Test
+    fun `long name is truncated to 120 chars`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("a".repeat(200) + ".pdf", "application/pdf", 9L)
+        )
+
+        assertEquals(120, normalized.fileName.length)
+    }
+
     private fun assertMetadata(
         type: MessageType,
         name: String,
