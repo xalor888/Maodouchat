@@ -91,6 +91,67 @@ class AttachmentPreparationModelTest {
         assertEquals(120, normalized.fileName.length)
     }
 
+    @Test
+    fun `video falls back to existing extension when declared mime is unknown`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.mkv", "application/octet-stream", 12L)
+        )
+
+        assertEquals("clip.mkv", normalized.fileName)
+        assertEquals("video/x-matroska", normalized.mimeType)
+        assertEquals(12L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `video with unknown extension and mime falls back to mp4`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.xyz", "application/octet-stream", 12L)
+        )
+
+        assertEquals("clip.mp4", normalized.fileName)
+        assertEquals("video/mp4", normalized.mimeType)
+    }
+
+    @Test
+    fun `declared video mime is lowercased before lookup`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.mov", "VIDEO/QUICKTIME", 12L)
+        )
+
+        assertEquals("clip.mov", normalized.fileName)
+        assertEquals("video/quicktime", normalized.mimeType)
+    }
+
+    @Test
+    fun `gif forces canonical extension and mime`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.GIF,
+            LocalFileMetadata("dance.png", "image/png", 12L)
+        )
+
+        assertEquals("dance.gif", normalized.fileName)
+        assertEquals("image/gif", normalized.mimeType)
+    }
+
+    @Test
+    fun `blank filename falls back to file with canonical extension`() {
+        val image = normalizeAttachmentMetadata(
+            MessageType.IMAGE,
+            LocalFileMetadata("", "image/png", 3L)
+        )
+        assertEquals("file.jpg", image.fileName)
+        assertEquals("image/jpeg", image.mimeType)
+
+        val file = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("   ", "application/pdf", 3L)
+        )
+        assertEquals("file", file.fileName)
+    }
+
     private fun assertMetadata(
         type: MessageType,
         name: String,

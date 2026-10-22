@@ -73,5 +73,47 @@ class AttachmentContentInspectorTest {
         assertFalse(isAttachmentContentCompatible(MessageType.LOCATION, ByteArray(0)))
     }
 
+    @Test
+    fun `png and webp are rejected as image and video`() {
+        val png = bytes(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, png))
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, png))
+
+        val webp = "RIFF".encodeToByteArray() + bytes(0x24, 0x00, 0x00, 0x00) + "WEBP".encodeToByteArray()
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, webp))
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, webp))
+    }
+
+    @Test
+    fun `iso brand needs eight bytes at fixed offsets`() {
+        val short = bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79)
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, short))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, short))
+
+        val shifted = bytes(0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69)
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, shifted))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, shifted))
+    }
+
+    @Test
+    fun `voice rejects mp3 and riff headers`() {
+        val id3 = "ID3".encodeToByteArray() + bytes(0x04, 0x00)
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, id3))
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, id3))
+    }
+
+    @Test
+    fun `exact boundary prefix still matches`() {
+        assertTrue(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0xFF, 0xD8, 0xFF)))
+        assertTrue(isAttachmentContentCompatible(MessageType.VIDEO, bytes(0x1A, 0x45, 0xDF, 0xA3)))
+        assertTrue(isAttachmentContentCompatible(MessageType.GIF, "GIF89a".encodeToByteArray()))
+    }
+
+    @Test
+    fun `gif prefix is case sensitive`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, "gif89a".encodeToByteArray()))
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, "GIF89A".encodeToByteArray()))
+    }
+
     private fun bytes(vararg values: Int): ByteArray = values.map(Int::toByte).toByteArray()
 }
