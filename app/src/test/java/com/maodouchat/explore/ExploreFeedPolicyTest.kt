@@ -154,4 +154,46 @@ class ExploreFeedPolicyTest {
         assertEquals("1万", ExploreFeedPolicy.formatCount(10_000))
         assertEquals("1.3万", ExploreFeedPolicy.formatCount(13_000))
     }
+
+    @Test
+    fun `applyServerPost replaces matching id and preserves order`() {
+        val posts = listOf(post("p1"), post("p2"), post("p3"))
+        val server = post("p2", likes = 99, comments = 7)
+        val merged = ExploreFeedPolicy.applyServerPost(posts, server)
+        assertEquals(listOf("p1", "p2", "p3"), merged.map { it.id })
+        assertEquals(99, merged[1].likeCount)
+        assertEquals(7, merged[1].commentCount)
+        assertEquals(post("p1"), merged[0])
+    }
+
+    @Test
+    fun `applyServerPost with unknown id keeps list unchanged`() {
+        val posts = listOf(post("p1"), post("p2"))
+        assertEquals(posts, ExploreFeedPolicy.applyServerPost(posts, post("nope")))
+    }
+
+    @Test
+    fun `decrementCommentCount floors at zero`() {
+        val posts = listOf(post("p1", comments = 0), post("p2", comments = 2))
+        val dec = ExploreFeedPolicy.decrementCommentCount(posts, "p2")
+        assertEquals(1, dec.first { it.id == "p2" }.commentCount)
+        assertEquals(posts, ExploreFeedPolicy.decrementCommentCount(posts, "nope"))
+        val floor = ExploreFeedPolicy.decrementCommentCount(posts, "p1")
+        assertEquals(0, floor.first { it.id == "p1" }.commentCount)
+    }
+
+    @Test
+    fun `oldestCursor returns null for empty list`() {
+        assertEquals(null, ExploreFeedPolicy.oldestCursor(emptyList()))
+    }
+
+    @Test
+    fun `double toggle restores original like state`() {
+        val original = post(liked = false, likes = 3)
+        val once = ExploreFeedPolicy.toggleLike(original)
+        val twice = ExploreFeedPolicy.toggleLike(once.optimistic)
+        assertEquals(original.likedByMe, twice.optimistic.likedByMe)
+        assertEquals(original.likeCount, twice.optimistic.likeCount)
+        assertFalse(twice.willLike)
+    }
 }
