@@ -42,4 +42,64 @@ class MediaCenterModelTest {
         val message = Message("m", "chat", "u", "javascript:bad https://safe.example https://safe.example", MessageType.TEXT)
         assertEquals(listOf("https://safe.example"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
     }
+
+    @Test
+    fun classifiesGifAndVideoAsMediaToo() {
+        val messages = listOf(
+            Message("g", "chat", "u", "content://cached/a.gif", MessageType.GIF, 30),
+            Message("v", "chat", "u", "content://cached/b.mp4", MessageType.VIDEO, 40)
+        )
+        assertEquals(
+            listOf(MediaCenterCategory.MEDIA, MediaCenterCategory.MEDIA),
+            buildMediaCenterItems(messages).map { it.category }
+        )
+    }
+
+    @Test
+    fun sortsItemsByTimestampDescendingRegardlessOfInputOrder() {
+        val messages = listOf(
+            Message("img", "chat", "u", "content://cached/img", MessageType.IMAGE, 10),
+            Message("file", "chat", "u", "content://cached/file", MessageType.FILE, 50),
+            Message("voice", "chat", "u", "content://cached/voice", MessageType.VOICE, 30)
+        )
+        val items = buildMediaCenterItems(messages)
+        assertEquals(listOf(50L, 30L, 10L), items.map { it.message.timestamp })
+        assertEquals(
+            listOf(MediaCenterCategory.FILES, MediaCenterCategory.VOICE, MediaCenterCategory.MEDIA),
+            items.map { it.category }
+        )
+    }
+
+    @Test
+    fun trimsTrailingUrlPunctuationIncludingFullWidth() {
+        val message = Message(
+            "m", "chat", "u",
+            "见 https://example.com， 尾 (https://a.com/foo)",
+            MessageType.TEXT
+        )
+        assertEquals(
+            listOf("https://example.com", "https://a.com/foo"),
+            buildMediaCenterItems(listOf(message)).map { it.linkUrl }
+        )
+    }
+
+    @Test
+    fun keepsMaxLengthUrlButRejectsOverlongUrl() {
+        val okUrl = "https://" + "a".repeat(2040) // 2048 chars
+        val tooLong = "https://" + "a".repeat(2041) // 2049 chars
+        val items = buildMediaCenterItems(
+            listOf(
+                Message("ok", "chat", "u", "x $okUrl", MessageType.TEXT),
+                Message("long", "chat", "u", "x $tooLong", MessageType.TEXT)
+            )
+        )
+        assertEquals(listOf(okUrl), items.map { it.linkUrl })
+    }
+
+    @Test
+    fun textMessageWithoutUrlsYieldsNoItems() {
+        val message = Message("m", "chat", "u", "纯文本，无链接", MessageType.TEXT)
+        assertEquals(emptyList(), buildMediaCenterItems(listOf(message)))
+        assertEquals(emptyList(), buildMediaCenterItems(emptyList()))
+    }
 }

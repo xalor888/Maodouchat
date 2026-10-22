@@ -10,6 +10,7 @@ import com.maodouchat.ui.screen.chatdetail.MediaExportUseCase
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -110,5 +111,58 @@ class MediaExportUseCaseTest {
         val failure = MediaExportResult.Failure(ex)
         assertFalse(failure.isSuccess)
         assertEquals("Disk full", failure.cause?.message)
+    }
+
+    @Test
+    fun saveMessageMedia_blocksSecretChatThroughDefaultMethod() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(id = "m-sec", chatId = "c", senderId = "u", content = "file:///x.jpg", type = MessageType.IMAGE)
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = true)
+
+        assertEquals(MediaExportResult.SecretBlocked, result)
+        assertFalse(result.isSuccess)
+        assertEquals(true, recorder.lastSaveRequest?.isSecretChat)
+    }
+
+    @Test
+    fun shareMessageMedia_propagatesChooserTitleAndEmptyDisplayNameWithoutMeta() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(id = "m1", chatId = "c", senderId = "u", content = "file:///cache/photo.jpg", type = MessageType.IMAGE)
+
+        val result = recorder.shareMessageMedia(message, isSecretChat = false, chooserTitle = "分享")
+
+        assertEquals(MediaExportResult.Success, result)
+        val req = recorder.lastShareRequest
+        assertEquals("file:///cache/photo.jpg", req?.rawUri)
+        assertEquals("image/jpeg", req?.mimeType)
+        assertEquals("", req?.displayName)
+        assertEquals("分享", req?.chooserTitle)
+    }
+
+    @Test
+    fun saveMessageMedia_derivesFileNameFromPolicyWithoutExplicitName() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(id = "m2", chatId = "c", senderId = "u", content = "file:///cache/clip.mp4", type = MessageType.VIDEO)
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        val name = recorder.lastSaveRequest?.displayName.orEmpty()
+        assertTrue(name.startsWith("video_") && name.endsWith(".mp4"))
+    }
+
+    @Test
+    fun failureResult_withoutCauseHasNullCause() {
+        val failure = MediaExportResult.Failure()
+        assertFalse(failure.isSuccess)
+        assertNull(failure.cause)
+    }
+
+    @Test
+    fun resultSuccessStates_truthTable() {
+        assertTrue(MediaExportResult.Success.isSuccess)
+        assertFalse(MediaExportResult.SecretBlocked.isSuccess)
+        assertFalse(MediaExportResult.Failure(null).isSuccess)
     }
 }
