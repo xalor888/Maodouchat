@@ -123,6 +123,89 @@ class SemanticSearchCandidateFilterTest {
         assertEquals("m1", candidates.first().id)
     }
 
+    @Test
+    fun `candidates are capped at one hundred`() {
+        val messages = (0 until 120).map { i ->
+            message("m$i", "text $i", senderId = "userA", timestamp = i.toLong())
+        }
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(100, candidates.size)
+        // 单发送者场景下多样性上限按输入顺序先截断，保留的是最早的 100 条
+        assertEquals("m0", candidates.first().id)
+    }
+
+    @Test
+    fun `seven-day window drops older messages`() {
+        val now = 10_000_000L
+        val messages = listOf(
+            message("fresh", "new text", timestamp = now - 1_000L),
+            message("stale", "old text", timestamp = now - 8L * 24 * 3600 * 1000)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.SEVEN_DAYS,
+            query = "",
+            now = now
+        )
+        assertEquals(listOf("fresh"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `single-char query tokens are ignored in keyword prefilter`() {
+        val messages = listOf(
+            message("m1", "x marks the spot", senderId = "userA"),
+            message("m2", "plain message", senderId = "userA")
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "x",
+            now = 10_000L
+        )
+        assertEquals(2, candidates.size)
+    }
+
+    @Test
+    fun `starred scope keeps only starred candidates`() {
+        val messages = listOf(
+            message("m1", "hello world", senderId = "userA"),
+            message("m2", "hello there", senderId = "userA", starred = true)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.STARRED,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+        assertEquals(listOf("m2"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `candidates come back in ascending timestamp order`() {
+        val messages = listOf(
+            message("new", "newer", timestamp = 30L),
+            message("old", "older", timestamp = 10L),
+            message("mid", "middle", timestamp = 20L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("old", "mid", "new"), candidates.map { it.id })
+    }
+
     private fun message(
         id: String,
         content: String,

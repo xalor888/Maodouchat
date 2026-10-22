@@ -64,6 +64,61 @@ class ChatAiContextBuilderTest {
         assertFalse(context.last().text.contains("model file result"))
     }
 
+    @Test
+    fun `plain context keeps markdown but drops image messages`() {
+        val messages = listOf(
+            message("md", "alice", "# 标题", 10L, type = MessageType.MARKDOWN),
+            message("img", "alice", "photo", 20L, type = MessageType.IMAGE),
+            message("txt", "alice", "hello", 30L)
+        )
+
+        val context = buildPlainAiContextMessages(messages, senders, limit = 10)
+
+        assertEquals(listOf("# 标题", "hello"), context.map { it.text })
+    }
+
+    @Test
+    fun `plain context limit is clamped into the 1 to 60 range`() {
+        val few = (1..5).map { message("m$it", "alice", "text $it", it.toLong()) }
+        val many = (1..70).map { message("m$it", "alice", "text $it", it.toLong()) }
+
+        assertEquals(1, buildPlainAiContextMessages(few, senders, limit = 0).size)
+        assertEquals(60, buildPlainAiContextMessages(many, senders, limit = 500).size)
+    }
+
+    @Test
+    fun `sender labels longer than 80 chars are cut down`() {
+        val longNames = AiContextSenders(
+            currentUserId = "me",
+            currentUserLabel = "我",
+            fallbackLabel = "对方",
+            namesByUserId = mapOf("alice" to "A".repeat(200))
+        )
+
+        val context = buildPlainAiContextMessages(
+            listOf(message("m1", "alice", "hi", 1L)),
+            longNames,
+            limit = 10
+        )
+
+        assertEquals(80, context.single().sender.length)
+    }
+
+    @Test
+    fun `summary honors limit and keeps chronological order`() {
+        val messages = (1..6).map { message("m$it", "alice", "text $it", it.toLong()) }
+
+        val context = buildSummaryAiContextMessages(messages, senders, limit = 3)
+
+        assertEquals(listOf("text 4", "text 5", "text 6"), context.map { it.text })
+    }
+
+    @Test
+    fun `empty message lists produce empty contexts`() {
+        assertTrue(buildPlainAiContextMessages(emptyList(), senders, limit = 10).isEmpty())
+        assertTrue(buildSummaryAiContextMessages(emptyList(), senders).isEmpty())
+    }
+
     private fun message(
         id: String,
         senderId: String,
