@@ -116,4 +116,62 @@ class ExplorePublishErrorPolicyTest {
         )
         assertEquals(Kind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
     }
+
+    @Test
+    fun messageRestrictionWinsOverSuspendedCopy() {
+        // 文案同时命中禁言和封禁：消息限制分支先检查
+        val err = ApiException(
+            kind = ApiFailureKind.HTTP,
+            statusCode = 403,
+            serverMessage = "限制发消息，账号有临时封禁记录"
+        )
+        assertEquals(Kind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+    }
+
+    @Test
+    fun classifiesBanKeyword() {
+        val err = ApiException(
+            kind = ApiFailureKind.HTTP,
+            statusCode = 403,
+            serverMessage = "你已被禁言"
+        )
+        assertEquals(Kind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+    }
+
+    @Test
+    fun classifiesEnglishPostRestrictionCopy() {
+        val err = ApiException(
+            kind = ApiFailureKind.HTTP,
+            statusCode = 403,
+            serverMessage = "You are restricted from posting for 7 days"
+        )
+        assertEquals(Kind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+    }
+
+    @Test
+    fun displayMessageUsesServerCopyForAuthAndFallsBackWhenEmpty() {
+        val auth = ApiException(
+            kind = ApiFailureKind.HTTP,
+            statusCode = 401,
+            serverMessage = "Session expired, please sign in again"
+        )
+        assertEquals(
+            "Session expired, please sign in again",
+            ExplorePublishErrorPolicy.displayMessage(auth, "发布失败")
+        )
+        val empty = ApiException(
+            kind = ApiFailureKind.NETWORK,
+            statusCode = 500,
+            serverMessage = null
+        )
+        assertEquals("发布失败", ExplorePublishErrorPolicy.displayMessage(empty, "发布失败"))
+    }
+
+    @Test
+    fun nonApiExceptionLoginCopyIsFallbackButKeepsMessage() {
+        // 纯本地异常不算 AUTH，但展示时保留原始文案
+        val err = RuntimeException("请先登录")
+        assertEquals(Kind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
+        assertEquals("请先登录", ExplorePublishErrorPolicy.displayMessage(err, "发布失败"))
+    }
 }

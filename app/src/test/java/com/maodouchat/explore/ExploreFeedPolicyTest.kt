@@ -196,4 +196,48 @@ class ExploreFeedPolicyTest {
         assertEquals(original.likeCount, twice.optimistic.likeCount)
         assertFalse(twice.willLike)
     }
+
+    @Test
+    fun `formatCount rounds up and drops trailing point zero`() {
+        assertEquals("2K", ExploreFeedPolicy.formatCount(2000))
+        assertEquals("2K", ExploreFeedPolicy.formatCount(1950))
+        assertEquals("10.5万", ExploreFeedPolicy.formatCount(105_000))
+        assertEquals("2万", ExploreFeedPolicy.formatCount(20_000))
+        assertEquals("1000万", ExploreFeedPolicy.formatCount(10_000_000))
+    }
+
+    @Test
+    fun `restorePost clamps out of range original index`() {
+        val current = listOf(post("p1"))
+        val gone = post("gone")
+        assertEquals(
+            listOf(post("p1"), gone),
+            ExploreFeedPolicy.restorePost(current, gone, originalIndex = 99)
+        )
+        assertEquals(
+            listOf(gone, post("p1")),
+            ExploreFeedPolicy.restorePost(current, gone, originalIndex = -5)
+        )
+    }
+
+    @Test
+    fun `removePost and incrementCommentCount ignore unknown ids`() {
+        val posts = listOf(post("p1", comments = 2), post("p2"))
+        assertEquals(posts, ExploreFeedPolicy.removePost(posts, "nope"))
+        assertEquals(posts, ExploreFeedPolicy.incrementCommentCount(posts, "nope"))
+    }
+
+    @Test
+    fun `clampImageIndex keeps in range index and floors bad size`() {
+        assertEquals(1, ExploreFeedPolicy.clampImageIndex(1, 3))
+        assertEquals(2, ExploreFeedPolicy.clampImageIndex(2, 3))
+        assertEquals(0, ExploreFeedPolicy.clampImageIndex(0, -1))
+    }
+
+    @Test
+    fun `toggleLike from negative count never leaks below zero`() {
+        val toggle = ExploreFeedPolicy.toggleLike(post(liked = false, likes = -2))
+        assertTrue(toggle.willLike)
+        assertEquals(0, toggle.optimistic.likeCount)
+    }
 }
