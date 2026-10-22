@@ -101,4 +101,46 @@ class ExplorePublicProfilePolicyTest {
         )
         assertEquals("load-failed", blank)
     }
+
+    @Test
+    fun decodesPercentEncodingOnlyOnce() {
+        // 只解一层：%2540 -> %40 就停，不继续解成 @
+        assertEquals("%40ada", ExplorePublicProfilePolicy.normalizeUsername("%2540ada"))
+    }
+
+    @Test
+    fun decodesEncodedSlashBeforeTakingLastSegment() {
+        assertEquals("ada", ExplorePublicProfilePolicy.normalizeUsername("%2Fada"))
+    }
+
+    @Test
+    fun isValidUsernameOnlyChecksNonBlank() {
+        assertFalse(ExplorePublicProfilePolicy.isValidUsername("   "))
+        // 合法性 != 可归一化：@ 前缀由 normalizeUsername 处理，isValid 只看非空
+        assertTrue(ExplorePublicProfilePolicy.isValidUsername("@ada"))
+        assertTrue(ExplorePublicProfilePolicy.isValidUsername("a b"))
+    }
+
+    @Test
+    fun networkKindWinsOverServerMessage() {
+        val result = ExplorePublicProfilePolicy.displayLoadError(
+            failure = ApiException(kind = ApiFailureKind.NETWORK, serverMessage = "boom"),
+            notFound = "not-found",
+            loadFailed = "load-failed",
+            networkError = "network"
+        )
+        assertEquals("load-failed: network", result)
+    }
+
+    @Test
+    fun httpErrorWithoutAnyMessageFallsBackToLoadFailed() {
+        // 403 不是 404/410：不走 notFound，且没有任何可展示的文案
+        val result = ExplorePublicProfilePolicy.displayLoadError(
+            failure = ApiException(kind = ApiFailureKind.HTTP, statusCode = 403),
+            notFound = "not-found",
+            loadFailed = "load-failed",
+            networkError = "network"
+        )
+        assertEquals("load-failed", result)
+    }
 }
