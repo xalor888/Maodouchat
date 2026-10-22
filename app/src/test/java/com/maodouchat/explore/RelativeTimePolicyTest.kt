@@ -66,4 +66,42 @@ class RelativeTimePolicyTest {
             )
         )
     }
+
+    @Test
+    fun defaultWindowConstantsAreStable() {
+        assertTrue(RelativeTimePolicy.PAST_JUST_NOW_MS == 60_000L)
+        assertTrue(RelativeTimePolicy.FUTURE_GRACE_MS == 120_000L)
+    }
+
+    @Test
+    fun pastWindowUpperBoundaryIsExclusive() {
+        val now = 1_000_000L
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now - 60_000L, now))
+        assertTrue(RelativeTimePolicy.shouldUseJustNow(now - 59_999L, now))
+    }
+
+    @Test
+    fun futureGraceUpperBoundaryIsExclusive() {
+        val now = 1_000_000L
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now + 120_000L, now))
+        assertTrue(RelativeTimePolicy.shouldUseJustNow(now + 119_999L, now))
+    }
+
+    @Test
+    fun farFutureTimestampBeyondDefaultGraceIsNotJustNow() {
+        val now = 1_000_000L
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now + 10_000_000L, now))
+        assertTrue(
+            RelativeTimePolicy.shouldUseJustNow(now + 10_000_000L, now, futureGraceMs = Long.MAX_VALUE)
+        )
+    }
+
+    @Test
+    fun distantPastBeyondDefaultWindowIsNotJustNow() {
+        val now = 10_000_000L
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now - 3_600_000L, now))
+        assertTrue(
+            RelativeTimePolicy.shouldUseJustNow(now - 3_600_000L, now, pastWindowMs = Long.MAX_VALUE)
+        )
+    }
 }
