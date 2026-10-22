@@ -107,4 +107,63 @@ class ComposerStateTest {
         assertFalse(state.dismissTopPanel())
         assertTrue(state.snapshot().contactCardPickerVisible)
     }
+
+    @Test
+    fun `dismiss transient panels clears the four primary panels`() {
+        val state = ComposerState()
+        state.attachMenu.value = true
+        state.expressionPanel.value = true
+        state.aiMenu.value = true
+        state.quickPhrases.value = true
+
+        state.dismissTransientPanels()
+        val snapshot = state.snapshot()
+
+        assertFalse(snapshot.attachMenuVisible)
+        assertFalse(snapshot.expressionPanelVisible)
+        assertFalse(snapshot.aiMenuVisible)
+        assertFalse(snapshot.quickPhrasesVisible)
+    }
+
+    @Test
+    fun `translation languages survive transient panel switches`() {
+        val state = ComposerState()
+        state.translationLanguages.value = true
+
+        state.toggleAttachMenu()
+        assertTrue(state.snapshot().translationLanguagesVisible)
+
+        state.dismissTransientPanels()
+        assertTrue(state.snapshot().translationLanguagesVisible)
+    }
+
+    @Test
+    fun `contact card picker survives dismiss transient panels`() {
+        val state = ComposerState()
+        state.openContactCardPicker()
+
+        state.dismissTransientPanels()
+        val snapshot = state.snapshot()
+
+        assertTrue(snapshot.contactCardPickerVisible)
+        assertFalse(snapshot.attachMenuVisible)
+    }
+
+    @Test
+    fun `fresh state defaults expression mode to emoji`() {
+        assertEquals(ComposerState.EXPRESSION_MODE_EMOJI, ComposerState().snapshot().expressionMode)
+    }
+
+    @Test
+    fun `opening quick phrases dismisses the ai menu`() {
+        val state = ComposerState()
+        state.showAiMenu()
+        assertTrue(state.snapshot().aiMenuVisible)
+
+        state.openQuickPhrases()
+        val snapshot = state.snapshot()
+
+        assertFalse(snapshot.aiMenuVisible)
+        assertTrue(snapshot.quickPhrasesVisible)
+    }
 }

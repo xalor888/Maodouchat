@@ -125,6 +125,81 @@ class ChatTimelineModelTest {
         assertEquals(2, items.filterIsInstance<ChatItem.Msg>().count { it.message.id.isBlank() })
     }
 
+    @Test
+    fun `unread separator falls back before oldest message when id not in window`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "missing"
+        )
+
+        assertTrue(items[0] is ChatItem.DateSeparator)
+        val separator = items[1] as ChatItem.UnreadSeparator
+        assertEquals("unread_m1", separator.listKey)
+    }
+
+    @Test
+    fun `unread separator is inserted right before its message`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "m2"
+        )
+
+        assertEquals(2, items.indexOfFirst { it is ChatItem.UnreadSeparator })
+        assertEquals("unread_m2", (items[2] as ChatItem.UnreadSeparator).listKey)
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `equal timestamps fall back to id ordering`() {
+        val items = buildChatItems(
+            listOf(
+                message("b", "u1", 5L),
+                message("a", "u1", 5L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+
+        assertEquals(listOf("a", "b"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `all sk dist messages yield an empty timeline`() {
+        val items = buildChatItems(
+            listOf(
+                message("s1", "u1", 1L, MessageType.SK_DIST),
+                message("s2", "u2", 2L, MessageType.SK_DIST)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+
+        assertTrue(items.isEmpty())
+    }
+
+    @Test
+    fun `group edge is true only on the last message of each sender group`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L),
+                message("m3", "u2", 3L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertFalse(rows[0].isGroupEdge)
+        assertTrue(rows[1].isGroupEdge)
+        assertTrue(rows[2].isGroupEdge)
+    }
+
     private fun message(
         id: String,
         senderId: String,
