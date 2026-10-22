@@ -1,17 +1,20 @@
 package com.maodouchat.chatdetail
 
 import android.content.Context
+import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.session.Snapshot
 import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.ChatExportController
 import com.maodouchat.util.ChatExport
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -45,7 +48,7 @@ class ChatExportControllerTest {
 
         every { tokenManager.getUserId() } returns "user_me"
 
-        com.maodouchat.session.CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         every { tokenManager.getToken() } returns "valid_token"
 
         controller = ChatExportController(
@@ -127,5 +130,59 @@ class ChatExportControllerTest {
         advanceUntilIdle()
 
         assertTrue(uiState.value.infoMessage.orEmpty().contains("text_"))
+    }
+
+    @Test
+    fun exportChatHistory_reportsDisabledAndTouchesNoRepoWhenFlagHardOff() = testScope.runTest {
+        controller.exportChatHistory()
+        advanceUntilIdle()
+
+        assertEquals("text_${R.string.chat_export_disabled}", uiState.value.infoMessage)
+        verify(exactly = 0) { messageRepo.getRecentMessages(any(), any()) }
+    }
+
+    @Test
+    fun exportChatAsJson_reportsEmptyWhenChatMissing() {
+        uiState.value = ChatDetailUiState(chat = null, messages = emptyList())
+
+        assertEquals("{}", controller.exportChatAsJson())
+    }
+
+    @Test
+    fun exportChatAsJson_blocksWhenTokenBlank() {
+        CurrentSession.override = { Snapshot(null, "user_me") }
+        try {
+            uiState.value = ChatDetailUiState(
+                chat = Chat(id = "c1", isGroup = false),
+                messages = emptyList(),
+            )
+
+            assertEquals("{}", controller.exportChatAsJson())
+        } finally {
+            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        }
+    }
+
+    @Test
+    fun exportChatAsJson_marksPartialWhenOlderMessagesRemain() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = emptyList(),
+            hasMoreOlderMessages = true,
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"partial\":true"))
+    }
+
+    @Test
+    fun exportChatAsJson_includesGroupNameForGroups() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "g1", isGroup = true, groupName = "Fam"),
+            messages = emptyList(),
+        )
+        val json = controller.exportChatAsJson()
+
+        assertTrue(json.contains("\"isGroup\":true"))
+        assertTrue(json.contains("\"groupName\":\"Fam\""))
     }
 }
