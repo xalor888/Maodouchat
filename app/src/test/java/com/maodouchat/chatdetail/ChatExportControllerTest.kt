@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -184,5 +185,65 @@ class ChatExportControllerTest {
 
         assertTrue(json.contains("\"isGroup\":true"))
         assertTrue(json.contains("\"groupName\":\"Fam\""))
+    }
+
+    @Test
+    fun exportChatAsJson_reportsEmptyWhenUserIdBlank() {
+        CurrentSession.override = { Snapshot("valid_token", "") }
+        try {
+            uiState.value = ChatDetailUiState(
+                chat = Chat(id = "c1", isGroup = false),
+                messages = emptyList(),
+            )
+
+            assertEquals("{}", controller.exportChatAsJson())
+        } finally {
+            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        }
+    }
+
+    @Test
+    fun exportChatAsJson_reportsEmptyWhenUserIdMissing() {
+        CurrentSession.override = { Snapshot("valid_token", null) }
+        try {
+            uiState.value = ChatDetailUiState(
+                chat = Chat(id = "c1", isGroup = false),
+                messages = emptyList(),
+            )
+
+            assertEquals("{}", controller.exportChatAsJson())
+        } finally {
+            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        }
+    }
+
+    @Test
+    fun exportChatAsJson_blocksSecretChatByModelFlag() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c_secret", isGroup = false, chatType = "SECRET"),
+            messages = emptyList(),
+            isSecretChat = false,
+        )
+
+        assertEquals("{}", controller.exportChatAsJson())
+    }
+
+    @Test
+    fun exportChatAsJson_marksNotPartialByDefault() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = emptyList(),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"partial\":false"))
+    }
+
+    @Test
+    fun clearExportInfo_clearsExportInfoMessage() {
+        uiState.value = ChatDetailUiState(exportInfoMessage = "done")
+
+        controller.clearExportInfo()
+
+        assertNull(uiState.value.exportInfoMessage)
     }
 }
