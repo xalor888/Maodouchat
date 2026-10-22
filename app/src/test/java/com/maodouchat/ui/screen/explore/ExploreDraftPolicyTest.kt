@@ -94,4 +94,40 @@ class ExploreDraftPolicyTest {
         assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("Public"))
         assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("private"))
     }
+
+    @Test
+    fun scopedKeyKeepsEmptyBaseVerbatim() {
+        // 空 base 不特殊处理：分隔符照样拼
+        assertEquals(":user-a", ExploreDraftPolicy.scopedKey("", "user-a"))
+    }
+
+    @Test
+    fun scopedKeyKeepsColonInOwnerVerbatim() {
+        // owner 里的冒号不转义不拆分
+        assertEquals(
+            "composer_text:a:b",
+            ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "a:b")
+        )
+    }
+
+    @Test
+    fun scopedKeyTreatsNonBreakingSpaceAsBlank() {
+        // Kotlin 的 isBlank 把 U+00A0 判空白：不断言合理，只钉住当前行为
+        assertNull(ExploreDraftPolicy.scopedKey(ExploreDraftPolicy.KEY_COMPOSER_TEXT, "\u00A0"))
+    }
+
+    @Test
+    fun scopedKeyKeepsBaseVerbatim() {
+        // base 也不裁边，与 owner 对称
+        assertEquals(
+            " composer_text :u",
+            ExploreDraftPolicy.scopedKey(" composer_text ", "u")
+        )
+    }
+
+    @Test
+    fun normalizeVisibilityRejectsFullwidthVariant() {
+        // 全角变体不是集合成员，直接回落
+        assertEquals("PRIVATE", ExploreDraftPolicy.normalizeVisibility("ＰＵＢＬＩＣ"))
+    }
 }
