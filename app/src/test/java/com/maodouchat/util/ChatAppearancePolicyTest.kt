@@ -2,7 +2,9 @@ package com.maodouchat.util
 
 import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChatAppearancePolicyTest {
@@ -26,5 +28,45 @@ class ChatAppearancePolicyTest {
         assertEquals(true, ChatFontScale.SMALL.multiplier < ChatFontScale.NORMAL.multiplier)
         assertEquals(true, ChatFontScale.NORMAL.multiplier < ChatFontScale.LARGE.multiplier)
         assertEquals(true, ChatFontScale.LARGE.multiplier < ChatFontScale.XLARGE.multiplier)
+    }
+
+    @Test
+    fun `every preset has distinct light and dark colors`() {
+        // 16 个预设浅色/深色都有显式色值——resolveBackground 的 fallback 只是保险
+        ChatWallpaperPreset.entries.forEach {
+            val light = ChatAppearancePolicy.wallpaperColorLight(it)
+            val dark = ChatAppearancePolicy.wallpaperColorDark(it)
+            assertNotNull("$it light", light)
+            assertNotNull("$it dark", dark)
+            assertFalse("$it light == dark", light == dark)
+        }
+    }
+
+    @Test
+    fun `resolveBackground honors theme over fallback`() {
+        val fallback = Color(0xFFFFFFFF)
+        assertEquals(Color(0xFFDBE7F3), ChatAppearancePolicy.resolveBackground(ChatWallpaperPreset.DEFAULT, false, fallback))
+        assertEquals(Color(0xFF0E1621), ChatAppearancePolicy.resolveBackground(ChatWallpaperPreset.DEFAULT, true, fallback))
+    }
+
+    @Test
+    fun `normalize trims and lowercases`() {
+        assertEquals(ChatWallpaperPreset.MINT, ChatAppearancePolicy.normalizeWallpaper("  Mint "))
+        assertEquals(ChatWallpaperPreset.DEFAULT, ChatAppearancePolicy.normalizeWallpaper("  "))
+        assertEquals(ChatFontScale.LARGE, ChatAppearancePolicy.normalizeFontScale("Large"))
+        assertEquals(ChatFontScale.NORMAL, ChatAppearancePolicy.normalizeFontScale(null))
+    }
+
+    @Test
+    fun `font multipliers stay ordered through xxlarge`() {
+        val ordered = listOf(ChatFontScale.SMALL, ChatFontScale.NORMAL, ChatFontScale.LARGE, ChatFontScale.XLARGE, ChatFontScale.XXLARGE)
+        ordered.zipWithNext { a, b -> assertTrue("${a.id} < ${b.id}", a.multiplier < b.multiplier) }
+    }
+
+    @Test
+    fun `preset ids are unique lowercase`() {
+        val ids = ChatWallpaperPreset.entries.map { it.id }
+        assertEquals(ids.size, ids.toSet().size)
+        ids.forEach { assertEquals(it, it.lowercase()) }
     }
 }
