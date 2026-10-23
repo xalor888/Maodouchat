@@ -6,6 +6,7 @@ import com.maodouchat.ui.screen.chatdetail.MediaCenterCategory
 import com.maodouchat.ui.screen.chatdetail.buildMediaCenterItems
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 
 class MediaCenterModelTest {
     @Test
@@ -101,5 +102,51 @@ class MediaCenterModelTest {
         val message = Message("m", "chat", "u", "纯文本，无链接", MessageType.TEXT)
         assertEquals(emptyList(), buildMediaCenterItems(listOf(message)))
         assertEquals(emptyList(), buildMediaCenterItems(emptyList()))
+    }
+
+    @Test
+    fun httpLinksAreCollectedAlongsideHttps() {
+        val message = Message("m", "chat", "u", "打开 http://example.com/a 看看", MessageType.TEXT)
+
+        val items = buildMediaCenterItems(listOf(message))
+
+        assertEquals(listOf("http://example.com/a"), items.map { it.linkUrl })
+        assertEquals(listOf(MediaCenterCategory.LINKS), items.map { it.category })
+    }
+
+    @Test
+    fun markdownTypeNeverYieldsLinkItems() {
+        val message = Message("m", "chat", "u", "# 标题 https://example.com/x", MessageType.MARKDOWN)
+
+        assertEquals(emptyList(), buildMediaCenterItems(listOf(message)))
+    }
+
+    @Test
+    fun sameUrlInTwoMessagesYieldsOneItemPerMessage() {
+        val messages = listOf(
+            Message("m1", "chat", "u", "见 https://a.com/foo", MessageType.TEXT, 10),
+            Message("m2", "chat", "u", "再发一次 https://a.com/foo", MessageType.TEXT, 20)
+        )
+
+        val items = buildMediaCenterItems(messages)
+
+        assertEquals(2, items.size)
+        assertEquals(listOf("m2", "m1"), items.map { it.message.id })
+    }
+
+    @Test
+    fun uppercaseSchemeMatchesCaseInsensitively() {
+        val message = Message("m", "chat", "u", "访问 HTTPS://Example.com/Path", MessageType.TEXT)
+
+        assertEquals(listOf("HTTPS://Example.com/Path"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun itemHoldsTheOriginalMessageReference() {
+        val message = Message("m", "chat", "u", "content://cached/img", MessageType.IMAGE, 10)
+
+        val item = buildMediaCenterItems(listOf(message)).single()
+
+        assertSame(message, item.message)
     }
 }
