@@ -151,6 +151,71 @@ class AiWritingStylePolicyTest {
     }
 
     @Test
+    fun `every preset pins its exact hint wording`() {
+        val cases = mapOf(
+            Preset.CONCISE to "Prefer concise wording.",
+            Preset.FORMAL to "Prefer formal, polite tone.",
+            Preset.WARM to "Prefer warm, friendly tone.",
+            Preset.PROFESSIONAL to "Prefer clear professional business tone.",
+            Preset.CASUAL to "Prefer casual, relaxed everyday tone.",
+            Preset.WITTY to "Prefer light witty wording without being rude.",
+            Preset.EMPATHETIC to "Prefer empathetic, supportive wording.",
+            Preset.DIRECT to "Prefer direct, plain wording without fluff.",
+            Preset.ENTHUSIASTIC to "Prefer upbeat, enthusiastic wording without exaggeration.",
+            Preset.DIPLOMATIC to "Prefer tactful, diplomatic wording that softens conflict without vagueness."
+        )
+        for ((preset, wording) in cases) {
+            val snap = Snapshot(enabled = true, preset = preset, customNote = "")
+            assertEquals(wording, AiWritingStylePolicy.rewriteStyleHint(snap))
+        }
+        // NONE + blank note stays hintless.
+        assertNull(
+            AiWritingStylePolicy.rewriteStyleHint(
+                Snapshot(enabled = true, preset = Preset.NONE, customNote = "")
+            )
+        )
+    }
+
+    @Test
+    fun `note truncation keeps the first 320 chars`() {
+        val kept = AiWritingStylePolicy.normalizeCustomNote("ab".repeat(200))
+        assertEquals(320, kept.length)
+        assertEquals("ab".repeat(160), kept)
+        assertEquals(
+            "x".repeat(320),
+            AiWritingStylePolicy.normalizeCustomNote("x".repeat(320))
+        )
+    }
+
+    @Test
+    fun `preset id trims tabs and newlines`() {
+        assertEquals(
+            Preset.WARM,
+            AiWritingStylePolicy.normalize(true, "\twarm\n", "").preset
+        )
+        assertEquals(
+            Preset.FORMAL,
+            AiWritingStylePolicy.normalize(true, "\r\nFORMAL\r\n", "").preset
+        )
+    }
+
+    @Test
+    fun `normalize is deterministic and builds plain value snapshots`() {
+        val a = AiWritingStylePolicy.normalize(true, "warm", " hi ")
+        val b = AiWritingStylePolicy.normalize(true, "warm", " hi ")
+        assertEquals(a, b)
+        assertEquals(Snapshot(enabled = true, preset = Preset.WARM, customNote = "hi"), a)
+    }
+
+    @Test
+    fun `nbsp is trimmed and does not count as content`() {
+        // Kotlin 的 trim()/isBlank() 按 Char.isWhitespace 判定，U+00A0 算空白会被剥掉。
+        assertEquals("", AiWritingStylePolicy.normalizeCustomNote("\u00A0"))
+        val snap = AiWritingStylePolicy.normalize(true, "none", "\u00A0")
+        assertFalse(snap.hasMemorableContent)
+    }
+
+    @Test
     fun `disabled snapshot never emits hint even with memorable fields`() {
         val snap = Snapshot(enabled = false, preset = Preset.WARM, customNote = "hi")
         assertFalse(snap.hasMemorableContent)
