@@ -18,6 +18,7 @@ import com.maodouchat.ui.screen.chatdetail.AiImageAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.invocationCategory
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -246,5 +247,90 @@ class ChatAiOperationModelTest {
 
         assertEquals(AiOperationError.SERVER, detailed.code)
         assertEquals(null, detailed.retryAfterSeconds)
+    }
+
+    @Test
+    fun `analyze image persists wire mode and target`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeImage("m1", AiImageAnalysisMode.SAFETY),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.ANALYZE_IMAGE, preparation.operation.type)
+        assertEquals("m1", preparation.operation.targetMessageId)
+        assertEquals("safety", parameters.analysisMode)
+    }
+
+    @Test
+    fun `analyze file trims question and keeps null`() {
+        val withQuestion = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.QUESTION, "  how  "),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val withParams = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            withQuestion.operation.parametersJson
+        )
+        assertEquals("how", withParams.question)
+
+        val withoutQuestion = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.SUMMARIZE, null),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val withoutParams = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            withoutQuestion.operation.parametersJson
+        )
+        assertNull(withoutParams.question)
+    }
+
+    @Test
+    fun `summarize scope persists as enum name`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.TODAY, emptyList()),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals("TODAY", parameters.summaryScope)
+        assertTrue(parameters.messageIds.isEmpty())
+    }
+
+    @Test
+    fun `heavy image action fails closed without context`() {
+        assertEquals(
+            AiOperationPreparation.InvalidContext,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.AnalyzeImage("m1", AiImageAnalysisMode.OCR), "", "chat-1"
+            )
+        )
+        assertEquals(
+            AiOperationPreparation.InvalidContext,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.AnalyzeImage("m1", AiImageAnalysisMode.OCR), "user-1", ""
+            )
+        )
+    }
+
+    @Test
+    fun `detailed quota failure without retry hint falls back to default wait`() {
+        val detailed = classifyAiOperationErrorDetailed(
+            ApiException(ApiFailureKind.HTTP, statusCode = 403, serverCode = "QUOTA_EXCEEDED")
+        )
+
+        assertEquals(AiOperationError.QUOTA_EXCEEDED, detailed.code)
+        assertEquals(300L, detailed.retryAfterSeconds)
+        assertEquals("QUOTA_EXCEEDED:300", detailed.persistedCode)
     }
 }

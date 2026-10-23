@@ -35,4 +35,35 @@ class AiTaskDndPolicyTest {
         assertFalse(AiTaskDndPolicy.remindersAllowed(true, false))
         assertFalse(AiTaskDndPolicy.remindersAllowed(false, true))
     }
+
+    @Test
+    fun `runtime switch off means never quiet`() {
+        // dndRuntimeEnabled=false：窗口再大也不抑制。
+        assertFalse(AiTaskDndPolicy.isInQuietHours(23, 22, 7, dndRuntimeEnabled = false))
+    }
+
+    @Test
+    fun `minute of day and bounds are clamped before window math`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(-5, 0, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1500, 0, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(30, -100, 60))
+    }
+
+    @Test
+    fun `expired window end means allowed now`() {
+        // 在勿扰窗口内但 endOfWindowMs 已过：直接允许投递。
+        assertNull(AiTaskDndPolicy.nextAllowedTime(5_000L, 23, 22, 7, 4_000L))
+    }
+
+    @Test
+    fun `overnight window is start inclusive end exclusive`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1350, 1350, 420))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(419, 1350, 420))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(420, 1350, 420))
+    }
+
+    @Test
+    fun `both switches off still denies reminders`() {
+        assertFalse(AiTaskDndPolicy.remindersAllowed(false, false))
+    }
 }
