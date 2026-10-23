@@ -74,4 +74,63 @@ class AiRetryPolicyTest {
         assertFalse(unknown.shouldRetry)
         assertEquals("TIMEOUT", unknown.visibleErrorCode)
     }
+
+    @Test
+    fun decideNullAndBlankCodesResolveToUnknownWithoutRetry() {
+        val nullCode = AiRetryPolicy.decide(null, attempts = 1)
+        val blankCode = AiRetryPolicy.decide("   ", attempts = 1)
+
+        listOf(nullCode, blankCode).forEach { decision ->
+            assertFalse(decision.shouldRetry)
+            assertEquals(0L, decision.delayMs)
+            assertEquals("UNKNOWN", decision.visibleErrorCode)
+        }
+    }
+
+    @Test
+    fun decideAuthFlavorNamesAreRejectedBeforeRetry() {
+        val invalidToken = AiRetryPolicy.decide("INVALID_AUTH_TOKEN", attempts = 1)
+        assertFalse(invalidToken.shouldRetry)
+        assertEquals(0L, invalidToken.delayMs)
+        assertEquals("INVALID_AUTH_TOKEN", invalidToken.visibleErrorCode)
+
+        val unauthorized = AiRetryPolicy.decide("UNAUTHORIZED", attempts = 1)
+        assertFalse(unauthorized.shouldRetry)
+        assertEquals(0L, unauthorized.delayMs)
+    }
+
+    @Test
+    fun decideBillingAndInsufficientFlavorsMapToQuotaSignal() {
+        val billing = AiRetryPolicy.decide("BILLING_ERROR", attempts = 1)
+        assertFalse(billing.shouldRetry)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, billing.visibleErrorCode)
+        assertEquals(0L, billing.delayMs)
+
+        val insufficient = AiRetryPolicy.decide("INSUFFICIENT_FUNDS", attempts = 1)
+        assertFalse(insufficient.shouldRetry)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, insufficient.visibleErrorCode)
+    }
+
+    @Test
+    fun decideRetryAfterSuffixFlowsIntoRateLimitDelay() {
+        val limited = AiRetryPolicy.decide("RATE_LIMITED:120", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(120_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val tooMany = AiRetryPolicy.decide("TOO_MANY_REQUESTS:30", attempts = 1)
+        assertFalse(tooMany.shouldRetry)
+        assertEquals(30_000L, tooMany.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, tooMany.visibleErrorCode)
+    }
+
+    @Test
+    fun decideConnectionRetryBeyondMaxAttemptsStopsRetrying() {
+        // attempts≥3 已达最大自动重试次数：不再重试，delay 归零。
+        listOf(7, 10).forEach { attempts ->
+            val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = attempts)
+            assertFalse(decision.shouldRetry)
+            assertEquals(0L, decision.delayMs)
+        }
+    }
 }

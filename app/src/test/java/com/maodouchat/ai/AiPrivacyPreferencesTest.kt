@@ -75,4 +75,48 @@ class AiPrivacyPreferencesTest {
             AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "")
         )
     }
+
+    @Test
+    fun `scoped key never equals the legacy device-level key`() {
+        // 迁移后账号键和老设备级键必须分开，否则新旧两套偏好互相踩。
+        assertNotEquals(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "u-1")
+        )
+    }
+
+    @Test
+    fun `migration marker key name is frozen`() {
+        assertEquals("account_scope_migrated", AiPrivacyKeys.MIGRATED)
+    }
+
+    @Test
+    fun `prefs file name is frozen`() {
+        assertEquals("ai_settings", AiPrivacyKeys.PREFS_NAME)
+    }
+
+    @Test
+    fun `all six raw keys including the migration marker stay distinct`() {
+        val keys = setOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE,
+            AiPrivacyKeys.MIGRATED
+        )
+        assertEquals(6, keys.size)
+    }
+
+    @Test
+    fun `migration marker scoped key keeps colon shape`() {
+        assertEquals(
+            "account_scope_migrated:u-1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "u-1")
+        )
+    }
 }
