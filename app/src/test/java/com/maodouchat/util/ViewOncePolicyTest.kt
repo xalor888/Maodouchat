@@ -107,4 +107,68 @@ class ViewOncePolicyTest {
         assertEquals(textViewOnce, ViewOncePolicy.markOpened(textViewOnce),
             "类型不支持时 markOpened 不该改动")
     }
+
+    @Test
+    fun markOpenedKeepsEveryOtherMetaFieldIntact() {
+        // markOpened 只翻 viewOnceOpened 一位，其余 meta 字段（回复/转文字/附件名）原样不动
+        val meta = MessageMeta(
+            viewOnce = true, viewOnceOpened = false,
+            replyToId = "r1", voiceTranscript = "hello", fileName = "photo.jpg",
+            fileMimeType = "image/jpeg"
+        )
+        val m = msg(type = MessageType.IMAGE).copy(
+            content = com.maodouchat.util.JsonFormat.composeContentWithMeta("x", meta)
+        )
+        val marked = ViewOncePolicy.markOpened(m)
+        val after = marked.parsedMeta()
+        assertTrue(after.viewOnceOpened)
+        assertEquals("r1", after.replyToId)
+        assertEquals("hello", after.voiceTranscript)
+        assertEquals("photo.jpg", after.fileName)
+        assertEquals("image/jpeg", after.fileMimeType)
+        assertEquals("x", marked.parsedContent(), "正文也不应被改动")
+    }
+
+    @Test
+    fun messagesWithoutAMetaBlockAreInert() {
+        // content 里没有 <meta> 块：机制整体不生效，markOpened 是严格 no-op
+        val m = Message(
+            id = "m9", chatId = "c1", senderId = "peer",
+            content = "plain photo text", type = MessageType.IMAGE, timestamp = 1L
+        )
+        assertFalse(ViewOncePolicy.isViewOnce(m))
+        assertFalse(ViewOncePolicy.isLockedForViewer(m, isOwnMessage = false))
+        assertEquals(m, ViewOncePolicy.markOpened(m))
+    }
+
+    @Test
+    fun openedFlagWithoutTheViewOnceFlagIsInert() {
+        // 只有 opened、没有 viewOnce 标记：异常组合，不锁也不翻转
+        val m = msg(type = MessageType.IMAGE, viewOnce = false, opened = true)
+        assertFalse(ViewOncePolicy.isViewOnce(m))
+        assertFalse(ViewOncePolicy.isLockedForViewer(m, isOwnMessage = false))
+        assertEquals(m, ViewOncePolicy.markOpened(m))
+    }
+
+    @Test
+    fun repeatedViewerChecksAreDeterministic() {
+        // 重复判定不得改变消息对象，也不得出现抖动
+        val m = msg(type = MessageType.IMAGE, viewOnce = true, opened = true)
+        val snapshot = m
+        repeat(3) {
+            assertTrue(ViewOncePolicy.isLockedForViewer(m, isOwnMessage = false))
+        }
+        assertEquals(snapshot, m)
+    }
+
+    @Test
+    fun senderSeesViewOnceMessageBeforeAndAfterOpening() {
+        // 发送者：未打开时能看；对方打开后（markOpened）自己依然能看——own 视角永不锁
+        val fresh = msg(type = MessageType.IMAGE, viewOnce = true, opened = false, own = true)
+        assertTrue(ViewOncePolicy.isViewOnce(fresh))
+        assertFalse(ViewOncePolicy.isLockedForViewer(fresh, isOwnMessage = true))
+        val opened = ViewOncePolicy.markOpened(fresh)
+        assertFalse(ViewOncePolicy.isLockedForViewer(opened, isOwnMessage = true),
+            "发送者视角永不锁，即使元数据已记打开")
+    }
 }
