@@ -118,4 +118,64 @@ class AiConversationProfileSourceTest {
         assertEquals(0, built.local.messageCount)
         assertTrue(built.narrative.isNullOrBlank())
     }
+
+    @Test
+    fun `blank chat id is passed through without validation`() = runTest {
+        // 端口不做校验：空 chatId 也原样透传，实现层自己决定。
+        val source = FakeSource(result = profile("", 0))
+
+        val built = source.build("")
+
+        assertEquals(listOf(""), source.seenChatIds)
+        assertEquals("", built.chatId)
+    }
+
+    @Test
+    fun `a security exception propagates with its type intact`() = runTest {
+        // 非取消异常一律原样上抛：Route 靠类型区分展示。
+        val source = FakeSource(error = SecurityException("not your chat"))
+
+        val thrown = assertFailsWith<SecurityException> { source.build("c1") }
+
+        assertEquals("not your chat", thrown.message)
+    }
+
+    @Test
+    fun `narrative and local stats pass through untouched`() = runTest {
+        val expected = ConversationProfile(
+            chatId = "c1",
+            local = LocalStats(messageCount = 5, activeDays = 2, topTerms = listOf("会议", "deadline")),
+            narrative = "工作向画像",
+        )
+        val source = FakeSource(result = expected)
+
+        val built = source.build("c1")
+
+        assertSame(expected, built)
+        assertEquals("工作向画像", built.narrative)
+        assertEquals(2, built.local.activeDays)
+        assertEquals(listOf("会议", "deadline"), built.local.topTerms)
+    }
+
+    @Test
+    fun `build is the only abstract member and has no default`() {
+        // 端口方法必须抽象无默认实现：实现类不能"顺手"继承一个。
+        val build = AiConversationProfileSource::class.java.declaredMethods
+            .single { it.name == "build" }
+        assertTrue(
+            java.lang.reflect.Modifier.isAbstract(build.modifiers),
+            "build 必须保持抽象"
+        )
+    }
+
+    @Test
+    fun `consecutive builds record every call`() = runTest {
+        val source = FakeSource(result = profile("x", 1))
+
+        source.build("a")
+        source.build("b")
+        source.build("a")
+
+        assertEquals(listOf("a", "b", "a"), source.seenChatIds, "每次调用都要留下痕迹，不得合并或去重")
+    }
 }
