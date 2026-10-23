@@ -66,4 +66,40 @@ class AiTaskDndPolicyTest {
     fun `both switches off still denies reminders`() {
         assertFalse(AiTaskDndPolicy.remindersAllowed(false, false))
     }
+
+    @Test
+    fun `nextAllowedTime requires endOfWindowMs strictly after nowMs`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 23, 22, 7, 1_000L))
+        assertEquals(1_001L, AiTaskDndPolicy.nextAllowedTime(1_000L, 23, 22, 7, 1_001L))
+    }
+
+    @Test
+    fun `same-day window is start inclusive end exclusive`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 0, 1439))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, 0, 1439))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(12, 12, 14))
+    }
+
+    @Test
+    fun `clamped bounds can empty a window or pull a minute into it`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(30, 1500, 1600))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, -100, 1500))
+        assertEquals(2_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, -5, 0, 60, 2_000L))
+    }
+
+    @Test
+    fun `overnight window boundaries hug midnight`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1379, 1380, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1380, 1380, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1380, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 1380, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(59, 1380, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(60, 1380, 60))
+    }
+
+    @Test
+    fun `nextAllowedTime honors the start edge`() {
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 12, 12, 14, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 14, 12, 14, 5_000L))
+    }
 }
