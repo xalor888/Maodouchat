@@ -207,4 +207,71 @@ class ChatSendIntentFactoryTest {
         )
         assertTrue(intent.content.isNotBlank(), "调用方负责把空名换成占位文案")
     }
+
+    // ─── 守卫序与 Allow 携带 ───
+
+    @Test
+    fun `secret chat wins when every guard would trip`() {
+        val result = ChatSendIntentFactory.checkNudge(
+            state = state(isSecretChat = true),
+            activeChatId = "   ",
+            ownerUserId = "",
+            token = "",
+            nudgeEnabled = false,
+        )
+        assertIs<NudgeDecision.Reject>(result)
+        assertEquals(NudgeRejectReason.SECRET_CHAT, result.reason, "守卫按固定顺序判定，密聊永远最先")
+    }
+
+    @Test
+    fun `disabled wins over a missing chat`() {
+        val result = ChatSendIntentFactory.checkNudge(
+            state = state(),
+            activeChatId = "   ",
+            ownerUserId = "u1",
+            token = "tok",
+            nudgeEnabled = false,
+        )
+        assertIs<NudgeDecision.Reject>(result)
+        assertEquals(NudgeRejectReason.DISABLED, result.reason)
+    }
+
+    @Test
+    fun `allow carries the resolved active chat id`() {
+        val result = ChatSendIntentFactory.checkNudge(
+            state = state(),
+            activeChatId = "active",
+            ownerUserId = "u1",
+            token = "tok",
+            nudgeEnabled = true,
+        )
+        assertIs<NudgeDecision.Allow>(result)
+        assertEquals("active", result.chatId, "Allow 必须带解析后的 chatId，调用方不再自己回落")
+    }
+
+    // ─── build 的字段保真 ───
+
+    @Test
+    fun `build keeps an explicit empty meta verbatim`() {
+        val intent = ChatSendIntentFactory.build(
+            chatId = "c1",
+            senderId = "u1",
+            messageId = "m_e",
+            timestamp = 9L,
+            content = "hi",
+            type = MessageType.TEXT,
+            meta = MessageMeta(),
+        )
+        assertTrue(intent.meta.mentions.isEmpty())
+        assertNull(intent.meta.replyToId)
+        assertNull(intent.meta.forwardedFrom)
+        assertEquals(MessageStatus.SENDING, intent.status)
+    }
+
+    @Test
+    fun `generated ids are unique across a burst`() {
+        val ids = List(100) { ChatSendIntentFactory.newMessageId() }
+        assertTrue(ids.all { it.startsWith("m_") }, "每个 id 都必须带 m_ 前缀")
+        assertEquals(100, ids.toSet().size, "突发 100 次生成不得有重复")
+    }
 }

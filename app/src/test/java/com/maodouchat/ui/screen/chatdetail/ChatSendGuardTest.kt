@@ -373,4 +373,66 @@ class ChatSendGuardTest {
         assertEquals("u1", optimistic.senderId)
         assertNull(optimistic.meta.forwardedFrom, "普通发送不得带转发来源")
     }
+
+    // ─── 发送准入的边界 ───
+
+    @Test
+    fun `text exactly at the limit is allowed unclipped`() {
+        val exact = "x".repeat(ChatSendGuard.MAX_TEXT_LENGTH)
+        val result = ChatSendGuard.checkSend(
+            state = state(inputText = exact),
+            ownerUserId = "me",
+            token = "tok",
+            silent = null,
+            forceText = null,
+            mentionsEnabled = true,
+        )
+        assertIs<SendDecision.Allow>(result)
+        assertEquals(ChatSendGuard.MAX_TEXT_LENGTH, result.text.length, "恰在上限的文本不得被截")
+    }
+
+    @Test
+    fun `surrounding whitespace is trimmed before blank and length checks`() {
+        val result = ChatSendGuard.checkSend(
+            state = state(inputText = "   hi  \n"),
+            ownerUserId = "me",
+            token = "tok",
+            silent = null,
+            forceText = null,
+            mentionsEnabled = true,
+        )
+        assertIs<SendDecision.Allow>(result)
+        assertEquals("hi", result.text, "首尾空白只做裁边，内部留白不受影响")
+    }
+
+    @Test
+    fun `a lowercase admin role can still mention everyone`() {
+        val result = ChatSendGuard.checkSend(
+            state = state(inputText = "@所有人 看这里", chatIsGroup = true, myMemberRole = "admin"),
+            ownerUserId = "me",
+            token = "tok",
+            silent = null,
+            forceText = null,
+            mentionsEnabled = true,
+        )
+        assertIs<SendDecision.Allow>(result, "角色比对大小写不敏感")
+    }
+
+    // ─── 重试准入的守卫序 ───
+
+    @Test
+    fun `retry checks ownership before session`() {
+        val theirs = msg("m7", senderId = "u2", status = MessageStatus.FAILED)
+        val result = ChatSendGuard.checkRetry(state(messages = listOf(theirs)), messageId = "m7", ownerUserId = "me", token = "")
+        assertIs<RetryDecision.Reject>(result)
+        assertEquals(RetryRejectReason.NOT_MY_MESSAGE, result.reason, "归属判定排在会话判定之前")
+    }
+
+    @Test
+    fun `a message that is still sending cannot be retried`() {
+        val sending = msg("m8", senderId = "me", status = MessageStatus.SENDING)
+        val result = ChatSendGuard.checkRetry(state(messages = listOf(sending)), messageId = "m8", ownerUserId = "me", token = "tok")
+        assertIs<RetryDecision.Reject>(result)
+        assertEquals(RetryRejectReason.NOT_FAILED, result.reason, "只有 FAILED 才允许重试")
+    }
 }
