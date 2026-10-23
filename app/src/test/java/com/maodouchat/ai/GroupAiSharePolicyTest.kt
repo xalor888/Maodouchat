@@ -203,6 +203,52 @@ class GroupAiSharePolicyTest {
     }
 
     @Test
+    fun `share meta has exactly the identity contract keys`() {
+        val meta = GroupAiSharePolicy.shareAsCurrentUserMeta("tasks")
+        assertEquals(setOf("aiAssisted", "aiAssistantMode", "systemIdentity"), meta.keys)
+    }
+
+    @Test
+    fun `sanitizeTasks drops invalid titles before applying the cap`() {
+        val drafts = List(35) { i ->
+            TaskDraft(title = if (i < 10) "   " else " t$i ")
+        }
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(drafts)
+        assertEquals(25, cleaned.size)
+        assertEquals("t10", cleaned.first().title)
+    }
+
+    @Test
+    fun `title trim runs before the char cap`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "  " + "x".repeat(360)))
+        )
+        assertEquals("x".repeat(360), cleaned.single().title)
+    }
+
+    @Test
+    fun `decideShare trims before truncating to max`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "  " + "x".repeat(4000) + "  ")
+        assertTrue(decision.allowed)
+        assertEquals("x".repeat(4000), decision.body)
+    }
+
+    @Test
+    fun `share decisions and meta are stable across calls`() {
+        assertEquals(
+            GroupAiSharePolicy.decideShare(true, " answer "),
+            GroupAiSharePolicy.decideShare(true, "  answer  ")
+        )
+        assertEquals(
+            GroupAiSharePolicy.shareAsCurrentUserMeta("tasks"),
+            GroupAiSharePolicy.shareAsCurrentUserMeta("  tasks  ")
+        )
+        val blocked = GroupAiSharePolicy.decideShare(false, "x")
+        assertEquals(blocked, GroupAiSharePolicy.decideShare(false, "x"))
+        assertEquals(BlockReason.NOT_GROUP, blocked.reason)
+    }
+
+    @Test
     fun `canPersistTasks rejects empty list and sanitize keeps order`() {
         assertFalse(GroupAiSharePolicy.canPersistTasks(emptyList()))
         assertTrue(

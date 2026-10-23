@@ -219,6 +219,76 @@ class AiEntryPolicyTest {
     }
 
     @Test
+    fun `whitespace variants fold before type matching`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\ttext\n")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("  GIF\r\n")
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor("\n\t ").isEmpty())
+    }
+
+    @Test
+    fun `surface constants are distinct and non-blank`() {
+        val surfaces = setOf(
+            AiEntryPolicy.PRIMARY_SURFACE,
+            AiEntryPolicy.CONTEXT_SURFACE,
+            AiEntryPolicy.SETTINGS_SURFACE
+        )
+        assertEquals(3, surfaces.size)
+        assertTrue(surfaces.all { it.isNotBlank() })
+    }
+
+    @Test
+    fun `composer section order covers exactly the enum entries`() {
+        assertEquals(
+            ComposerSection.entries.toSet(),
+            AiEntryPolicy.COMPOSER_SECTION_ORDER.toSet()
+        )
+        assertEquals(
+            ComposerSection.entries.size,
+            AiEntryPolicy.COMPOSER_SECTION_ORDER.size
+        )
+    }
+
+    @Test
+    fun `two-arg run gate delegates to the master-enabled form`() {
+        for (enabled in listOf(true, false)) {
+            for (busy in listOf(true, false)) {
+                assertEquals(
+                    AiEntryPolicy.canRunContextAction(
+                        masterEnabled = true,
+                        chatAiEnabled = enabled,
+                        isBusy = busy
+                    ),
+                    AiEntryPolicy.canRunContextAction(
+                        chatAiEnabled = enabled,
+                        isBusy = busy
+                    )
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `hasContextAiActions mirrors contextActionsFor across types`() {
+        val types = listOf("TEXT", " voice ", "IMAGE", "file", "MARKDOWN", "SYSTEM", "POLL", null, "  ")
+        for (type in types) {
+            assertEquals(
+                AiEntryPolicy.contextActionsFor(type).isNotEmpty(),
+                AiEntryPolicy.hasContextAiActions(type)
+            )
+            assertEquals(
+                AiEntryPolicy.contextActionsFor(type, hasTranscript = true).isNotEmpty(),
+                AiEntryPolicy.hasContextAiActions(type, hasTranscript = true)
+            )
+        }
+    }
+
+    @Test
     fun `three-arg run gate completes the denial directions`() {
         assertFalse(
             AiEntryPolicy.canRunContextAction(
