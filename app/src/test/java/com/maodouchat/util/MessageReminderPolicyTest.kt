@@ -34,4 +34,35 @@ class MessageReminderPolicyTest {
     fun `last preset is seven days`() {
         assertEquals(7L * 24L * 60L * 60L * 1_000L, MessageReminderPolicy.QUICK_DELAYS_MS.last())
     }
+
+    @Test
+    fun `preset list has fourteen entries with twelve hours at index nine`() {
+        assertEquals(14, MessageReminderPolicy.QUICK_DELAYS_MS.size)
+        assertEquals(12L * 60L * 60L * 1_000L, MessageReminderPolicy.QUICK_DELAYS_MS[9])
+    }
+
+    @Test
+    fun `day presets are exact multiples of twenty four hours`() {
+        val day = 24L * 60L * 60L * 1_000L
+        assertEquals(listOf(2L * day, 3L * day, 7L * day), MessageReminderPolicy.QUICK_DELAYS_MS.takeLast(3))
+    }
+
+    @Test
+    fun `presets are pairwise distinct`() {
+        val delays = MessageReminderPolicy.QUICK_DELAYS_MS
+        assertEquals(delays.size, delays.toSet().size)
+    }
+
+    @Test
+    fun `one minute floor matches scheduled message policy`() {
+        // 两个策略的下界同为 1 分钟：最小延迟的产品约定统一
+        assertEquals(ScheduledMessagePolicy.MIN_DELAY_MS, MessageReminderPolicy.MIN_DELAY_MS)
+    }
+
+    @Test
+    fun `thirty day ceiling is deliberately above the seven day last preset`() {
+        // 上限 30 天而档位只给到 7 天：更长的延迟只能手工输入
+        assertTrue(MessageReminderPolicy.MAX_DELAY_MS > MessageReminderPolicy.QUICK_DELAYS_MS.last())
+        assertEquals(30L * 24L * 60L * 60L * 1_000L, MessageReminderPolicy.MAX_DELAY_MS)
+    }
 }
