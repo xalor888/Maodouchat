@@ -35,4 +35,38 @@ class AttachmentProgressPolicyTest {
         val done = AttachmentProgressPolicy.mapSegmentProgress(100, 100, 0f, 1f, prev)
         assertEquals(1f, done!!, 0.0001f)
     }
+
+    @Test
+    fun `clamps segment bounds into range`() {
+        val p = AttachmentProgressPolicy.mapSegmentProgress(50, 100, -0.5f, 1.5f, -1f)
+        assertEquals(0.5f, p!!, 0.0001f)
+    }
+
+    @Test
+    fun `reversed segment pins to start`() {
+        val mid = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 0.8f, 0.2f, -1f)
+        assertEquals(0.8f, mid!!, 0.0001f)
+        val done = AttachmentProgressPolicy.mapSegmentProgress(100, 100, 0.8f, 0.2f, -1f)
+        assertEquals(0.8f, done!!, 0.0001f)
+    }
+
+    @Test
+    fun `byte ratio clamped at bounds`() {
+        val over = AttachmentProgressPolicy.mapSegmentProgress(150, 100, 0f, 1f, -1f)
+        assertEquals(1f, over!!, 0.0001f)
+        val under = AttachmentProgressPolicy.mapSegmentProgress(-10, 100, 0f, 1f, -1f)
+        assertEquals(0f, under!!, 0.0001f)
+    }
+
+    @Test
+    fun `deeply negative previous counts as unset`() {
+        val p = AttachmentProgressPolicy.mapSegmentProgress(10, 100, 0f, 1f, -5f)
+        assertEquals(0.1f, p!!, 0.0001f)
+    }
+
+    @Test
+    fun `zero length segment pins to start`() {
+        val p = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 0.3f, 0.3f, -1f)
+        assertEquals(0.3f, p!!, 0.0001f)
+    }
 }
