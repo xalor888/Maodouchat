@@ -238,4 +238,76 @@ class ChatExportTest {
         assertNotNull(long)
         assertEquals(84, long!!.name.length)
     }
+
+    @Test
+    fun buildText_senderBlankNameFallsBackToId() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { "" },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "friend", content = "hi", type = MessageType.TEXT, timestamp = 1600000000000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("friend: hi"))
+    }
+
+    @Test
+    fun buildText_countIncludesSkippedMessages() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = listOf(
+                Message(id = "s", chatId = "c", senderId = "sys", content = "system alert", type = MessageType.SYSTEM, timestamp = 1600000000000L),
+                Message(id = "m1", chatId = "c", senderId = "me", content = "hi", type = MessageType.TEXT, timestamp = 1600000001000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("count=2"))
+        assertFalse(text.contains("system alert"))
+    }
+
+    @Test
+    fun writeStream_skipsSystemMessages() {
+        val messages = listOf(
+            Message(id = "s", chatId = "c", senderId = "sys", content = "system alert", type = MessageType.SYSTEM, timestamp = 1600000000000L),
+            Message(id = "m1", chatId = "c", senderId = "me", content = "kept", type = MessageType.TEXT, timestamp = 1600000001000L)
+        )
+        val file = ChatExport.writeStream(
+            context = dummyContext,
+            fileName = "skip_system",
+            chatName = "C",
+            ownerId = "me",
+            messages = messages.asSequence(),
+            resolveSenderName = { it },
+            exportedAt = 1600000100000L
+        )
+        assertNotNull(file)
+        val content = file!!.readText()
+        assertTrue(content.contains("kept"))
+        assertFalse(content.contains("system alert"))
+    }
+
+    @Test
+    fun writeStream_usesDashForBlankChatName() {
+        val file = ChatExport.writeStream(
+            context = dummyContext,
+            fileName = "blank_name",
+            chatName = "",
+            ownerId = "me",
+            messages = emptySequence(),
+            resolveSenderName = { it },
+            exportedAt = 1600000100000L
+        )
+        assertNotNull(file)
+        assertTrue(file!!.readText().contains("=== - ==="))
+    }
+
+    @Test
+    fun renderBody_fileWithoutNameRendersBareTag() {
+        val fileMsg = Message(id = "1", chatId = "c", senderId = "u", content = "", type = MessageType.FILE)
+        assertEquals("[文件]", ChatExport.renderBody(fileMsg))
+    }
 }
