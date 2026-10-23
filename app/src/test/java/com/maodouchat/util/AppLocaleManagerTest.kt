@@ -1,6 +1,8 @@
 package com.maodouchat.util
 
+import android.app.LocaleManager
 import android.content.Context
+import android.os.LocaleList
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Before
@@ -9,6 +11,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import java.util.Locale
 
 /**
  * G209b：`AppLocaleManager` 的语言模式归一化。
@@ -110,5 +113,68 @@ class AppLocaleManagerTest {
         AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_SYSTEM)
         val wrapped = AppLocaleManager.wrap(ctx)
         assertEquals(ctx, wrapped, "跟随系统时 wrap 应返回原 context")
+    }
+
+    @Test
+    fun systemServiceLocalesTakePrecedenceOverPrefs() {
+        // SDK 33+ 读数优先走系统服务：prefs 被手工改掉也撼不动。
+        AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_CHINESE)
+        prefs.edit().putString("language_mode", AppLocaleManager.MODE_ENGLISH).apply()
+        assertEquals(
+            AppLocaleManager.MODE_CHINESE, AppLocaleManager.getMode(ctx),
+            "系统服务里是 zh-CN，prefs 被改成 en 也不应影响读数",
+        )
+        AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_SYSTEM)
+    }
+
+    @Test
+    fun unsupportedSystemLocaleFallsBackToSystem() {
+        val localeManager = ctx.getSystemService(LocaleManager::class.java)
+        localeManager.applicationLocales = LocaleList(Locale.FRENCH)
+        assertEquals(
+            AppLocaleManager.MODE_SYSTEM, AppLocaleManager.getMode(ctx),
+            "系统首选是 fr（不在白名单）时应回落到跟随系统",
+        )
+        AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_SYSTEM)
+    }
+
+    @Test
+    fun getModeOnlyReadsTheFirstSystemLocale() {
+        // 系统语言列表可能有多个：判据只看首个。
+        val localeManager = ctx.getSystemService(LocaleManager::class.java)
+        localeManager.applicationLocales = LocaleList(Locale.ENGLISH, Locale.CHINESE)
+        assertEquals(
+            AppLocaleManager.MODE_ENGLISH, AppLocaleManager.getMode(ctx),
+            "首选是 en 时应返回英文，不管后面还有什么",
+        )
+        AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_SYSTEM)
+    }
+
+    @Test
+    fun setModeIsIdempotent() {
+        val localeManager = ctx.getSystemService(LocaleManager::class.java)
+        repeat(2) { AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_CHINESE) }
+        assertEquals(
+            AppLocaleManager.MODE_CHINESE, prefs.getString("language_mode", null),
+            "重复设置同一模式，存储值不应漂移",
+        )
+        assertEquals(
+            "zh-CN", localeManager.applicationLocales[0]?.toLanguageTag(),
+            "重复设置同一模式，系统服务值应稳定",
+        )
+        AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_SYSTEM)
+    }
+
+    @Test
+    fun wrapAppliesConfiguredLocale() {
+        // 非 system 模式下 wrap 必须真的换 locale（与上一轮的跟随系统对照）。
+        AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_ENGLISH)
+        val wrapped = AppLocaleManager.wrap(ctx)
+        assertTrue(wrapped !== ctx, "英文模式 wrap 应返回新 context")
+        assertEquals(
+            "en", wrapped.resources.configuration.locales[0]?.language,
+            "英文模式 wrap 后的 locale 应为 en",
+        )
+        AppLocaleManager.setMode(ctx, AppLocaleManager.MODE_SYSTEM)
     }
 }
