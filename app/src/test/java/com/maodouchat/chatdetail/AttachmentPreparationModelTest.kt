@@ -5,6 +5,7 @@ import com.maodouchat.attachment.normalizeAttachmentMetadata
 import com.maodouchat.util.LocalFileMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AttachmentPreparationModelTest {
@@ -150,6 +151,66 @@ class AttachmentPreparationModelTest {
             LocalFileMetadata("   ", "application/pdf", 3L)
         )
         assertEquals("file", file.fileName)
+    }
+
+    @Test
+    fun `video with no extension gains the declared extension`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip", "video/webm", 4L)
+        )
+
+        assertEquals("clip.webm", normalized.fileName)
+        assertEquals("video/webm", normalized.mimeType)
+        assertEquals(4L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `video extension lookup is case insensitive`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("CLIP.MKV", "application/octet-stream", 4L)
+        )
+
+        assertEquals("CLIP.mkv", normalized.fileName)
+        assertEquals("video/x-matroska", normalized.mimeType)
+        assertEquals(4L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `gif long name keeps 120 char cap with canonical extension`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.GIF,
+            LocalFileMetadata("a".repeat(200) + ".png", "image/png", 1L)
+        )
+
+        assertEquals(120, normalized.fileName.length)
+        assertTrue(normalized.fileName.endsWith(".gif"))
+        assertEquals("image/gif", normalized.mimeType)
+    }
+
+    @Test
+    fun `voice zeroes negative size`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VOICE,
+            LocalFileMetadata("clip.wav", "audio/wav", -3L)
+        )
+
+        assertEquals("voice.m4a", normalized.fileName)
+        assertEquals("audio/mp4", normalized.mimeType)
+        assertEquals(0L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `dots and spaces only name falls back to file`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("  ..  ", "application/pdf", 2L)
+        )
+
+        assertEquals("file", normalized.fileName)
+        assertEquals("application/pdf", normalized.mimeType)
+        assertEquals(2L, normalized.sizeBytes)
     }
 
     private fun assertMetadata(
