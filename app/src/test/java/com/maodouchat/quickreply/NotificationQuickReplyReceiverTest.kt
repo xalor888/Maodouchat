@@ -164,4 +164,88 @@ class NotificationQuickReplyReceiverTest {
             )
         }
     }
+
+    @Test
+    fun `null action is ignored`() {
+        val intent = createMockIntent(null, chatId = "chat-1", ownerUserId = "user-1")
+        receiver.onReceive(context, intent)
+
+        coVerify(exactly = 0) { coordinator.markRead(any(), any()) }
+        coVerify(exactly = 0) { quickReplyUseCase.reply(any()) }
+    }
+
+    @Test
+    fun `null remote input text is rejected`() {
+        mockkStatic(RemoteInput::class)
+        every { RemoteInput.getResultsFromIntent(any()) } returns null
+        every {
+            QuickReplyPolicy.canAttemptReply(context, "chat-1", null)
+        } returns SyncVerdict.Rejected("empty_text")
+
+        val intent = createMockIntent(
+            actionName = NotificationQuickReplyReceiver.ACTION_REPLY,
+            chatId = "chat-1",
+            ownerUserId = "user-1",
+        )
+
+        receiver.onReceive(context, intent)
+
+        coVerify(exactly = 0) { quickReplyUseCase.reply(any()) }
+    }
+
+    @Test
+    fun `reply failure is swallowed and does not throw`() {
+        mockkStatic(RemoteInput::class)
+        val bundle = mockk<Bundle>()
+        every { bundle.getCharSequence(NotificationQuickReplyReceiver.KEY_TEXT_REPLY) } returns "hello"
+        every { RemoteInput.getResultsFromIntent(any()) } returns bundle
+        every {
+            QuickReplyPolicy.canAttemptReply(context, "chat-1", "hello")
+        } returns SyncVerdict.Allowed(text = "hello", ownerUserId = "user-1")
+        every { QuickReplyPolicy.dedupeKey("user-1", "chat-1", "hello") } returns "k-123"
+        coEvery {
+            quickReplyUseCase.reply(any())
+        } returns Result.failure(RuntimeException("boom"))
+
+        val intent = createMockIntent(
+            actionName = NotificationQuickReplyReceiver.ACTION_REPLY,
+            chatId = "chat-1",
+            ownerUserId = "user-1",
+        )
+
+        receiver.onReceive(context, intent)
+
+        coVerify(exactly = 1) { quickReplyUseCase.reply(any()) }
+    }
+
+    @Test
+    fun `mark read with blank owner delegates with null owner`() {
+        val intent = createMockIntent(
+            actionName = NotificationQuickReplyReceiver.ACTION_MARK_READ,
+            chatId = "chat-1",
+            ownerUserId = "",
+        )
+
+        receiver.onReceive(context, intent)
+
+        coVerify(exactly = 1) { coordinator.markRead("chat-1", null) }
+    }
+
+    @Test
+    fun `purge in progress blocks reply`() {
+        every { SecureSessionManager.isPurgeInProgress() } returns true
+        every {
+            NotificationIntentPolicy.belongsToCurrentAccount("user-1", "user-1", true)
+        } returns false
+
+        val intent = createMockIntent(
+            actionName = NotificationQuickReplyReceiver.ACTION_REPLY,
+            chatId = "chat-1",
+            ownerUserId = "user-1",
+        )
+
+        receiver.onReceive(context, intent)
+
+        coVerify(exactly = 0) { quickReplyUseCase.reply(any()) }
+    }
 }

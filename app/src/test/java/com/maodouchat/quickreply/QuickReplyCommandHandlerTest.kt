@@ -54,4 +54,89 @@ class QuickReplyCommandHandlerTest {
         assertEquals(QuickReplyCommandResult.Rejected("chat_locked"), handler.execute(command))
         assertEquals(0, sends)
     }
+
+    @Test
+    fun blankFieldsAreRejectedWithoutGateCheck() = runTest {
+        var gateCalls = 0
+        val handler = QuickReplyCommandHandler(
+            gate = QuickReplyGatePort { gateCalls++; ChatGateVerdict.Allowed },
+            dedupe = object : QuickReplyDedupePort {
+                override fun isDuplicate(command: QuickReplyCommand) = false
+                override fun remember(command: QuickReplyCommand) = Unit
+            },
+            sender = QuickReplySendPort { true },
+        )
+
+        assertEquals(
+            QuickReplyCommandResult.Rejected("invalid_command"),
+            handler.execute(QuickReplyCommand("owner", "chat", "   ")),
+        )
+        assertEquals(
+            QuickReplyCommandResult.Rejected("invalid_command"),
+            handler.execute(QuickReplyCommand("owner", "  ", "hello")),
+        )
+        assertEquals(
+            QuickReplyCommandResult.Rejected("invalid_command"),
+            handler.execute(QuickReplyCommand("", "chat", "hello")),
+        )
+        assertEquals(0, gateCalls)
+    }
+
+    @Test
+    fun duplicateCommandIsNotSentOrRemembered() = runTest {
+        var sends = 0
+        var remembered = false
+        val handler = QuickReplyCommandHandler(
+            gate = QuickReplyGatePort { ChatGateVerdict.Allowed },
+            dedupe = object : QuickReplyDedupePort {
+                override fun isDuplicate(command: QuickReplyCommand) = true
+                override fun remember(command: QuickReplyCommand) { remembered = true }
+            },
+            sender = QuickReplySendPort { sends++; true },
+        )
+
+        assertEquals(QuickReplyCommandResult.Duplicate, handler.execute(command))
+        assertEquals(0, sends)
+        assertEquals(false, remembered)
+    }
+
+    @Test
+    fun gateRejectedDoesNotTouchDedupe() = runTest {
+        var dedupeChecks = 0
+        var remembered = false
+        val handler = QuickReplyCommandHandler(
+            gate = QuickReplyGatePort { ChatGateVerdict.Rejected("session_changed") },
+            dedupe = object : QuickReplyDedupePort {
+                override fun isDuplicate(command: QuickReplyCommand): Boolean {
+                    dedupeChecks++; return false
+                }
+                override fun remember(command: QuickReplyCommand) { remembered = true }
+            },
+            sender = QuickReplySendPort { true },
+        )
+
+        assertEquals(
+            QuickReplyCommandResult.Rejected("session_changed"),
+            handler.execute(command),
+        )
+        assertEquals(0, dedupeChecks)
+        assertEquals(false, remembered)
+    }
+
+    @Test
+    fun successfulSendRemembersOnlyOnSuccess() = runTest {
+        var remembers = 0
+        val handler = QuickReplyCommandHandler(
+            gate = QuickReplyGatePort { ChatGateVerdict.Allowed },
+            dedupe = object : QuickReplyDedupePort {
+                override fun isDuplicate(command: QuickReplyCommand) = false
+                override fun remember(command: QuickReplyCommand) { remembers++ }
+            },
+            sender = QuickReplySendPort { true },
+        )
+
+        assertEquals(QuickReplyCommandResult.Sent, handler.execute(command))
+        assertEquals(QuickReplyCommandResult.Sent, handler.execute(command))
+        assertEquals(2, remembers)
+    }
 }
