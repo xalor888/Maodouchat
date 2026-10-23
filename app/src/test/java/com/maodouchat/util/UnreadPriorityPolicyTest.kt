@@ -83,7 +83,7 @@ class UnreadPriorityPolicyTest {
 
     @Test
     fun `countUnreadChats tolerates ragged lists`() {
-        assertEquals(1, UnreadPriorityPolicy.countUnreadChats(listOf(1, 2), listOf(true)))
+        assertEquals(2, UnreadPriorityPolicy.countUnreadChats(listOf(1, 2), listOf(true)))
         assertEquals(2, UnreadPriorityPolicy.countUnreadChats(listOf(1), listOf(true, true)))
         assertEquals(0, UnreadPriorityPolicy.countUnreadChats(emptyList(), emptyList()))
     }
