@@ -146,4 +146,98 @@ class AiCostVisibilityPolicyTest {
         assertEquals(BillingHint.QUOTA_EXCEEDED, display.hint)
         assertTrue(display.warnRetryBills)
     }
+
+    @Test
+    fun `non positive retry after is dropped and server value clamped`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = null,
+            serverRetryAfterSeconds = 0
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(
+            86_400L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                serverRetryAfterSeconds = 100_000
+            )
+        )
+        assertEquals(
+            5L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                serverRetryAfterSeconds = -5,
+                localRemainingMs = 5000
+            )
+        )
+    }
+
+    @Test
+    fun `encode error code only suffixes rate limit family codes`() {
+        assertEquals(
+            "CANCELLED",
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_CANCELLED, 45)
+        )
+        assertEquals(
+            "QUOTA_EXCEEDED:45",
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_QUOTA, 45)
+        )
+        assertEquals(
+            "RATE_LIMITED:45",
+            AiCostVisibilityPolicy.encodeErrorCode("rate_limited", 45)
+        )
+        assertEquals(
+            "RATE_LIMITED",
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, 0)
+        )
+        assertTrue(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:0") == null)
+        assertEquals(
+            86_400L,
+            AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:999999")
+        )
+        assertTrue(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:") == null)
+    }
+
+    @Test
+    fun `base error code normalizes case and blank`() {
+        assertEquals(
+            "RATE_LIMITED",
+            AiCostVisibilityPolicy.baseErrorCode("  rate_limited:45 ")
+        )
+        assertEquals("", AiCostVisibilityPolicy.baseErrorCode(null))
+        assertEquals("", AiCostVisibilityPolicy.baseErrorCode("   "))
+    }
+
+    @Test
+    fun `billing hint priority streaming over cancel and timeout over failed`() {
+        assertEquals(
+            BillingHint.IN_FLIGHT_MAY_BILL,
+            AiCostVisibilityPolicy.billingHintFor(AiCostVisibilityPolicy.ERROR_CANCELLED, isStreaming = true)
+        )
+        assertEquals(
+            BillingHint.OUTCOME_UNKNOWN_MAY_BILL,
+            AiCostVisibilityPolicy.billingHintFor("TIMEOUT", isFailed = true)
+        )
+        assertEquals(
+            BillingHint.RETRY_MAY_BILL_AGAIN,
+            AiCostVisibilityPolicy.billingHintFor("SOME_ERROR", isFailed = true)
+        )
+        assertEquals(BillingHint.NONE, AiCostVisibilityPolicy.billingHintFor("SOME_ERROR"))
+    }
+
+    @Test
+    fun `display signal binds code wait hint and warn flag`() {
+        val signal = AiCostVisibilityPolicy.displaySignalFor("RATE_LIMITED:45", isFailed = true)
+        assertEquals("RATE_LIMITED", signal.errorCode)
+        assertEquals(45L, signal.waitSeconds)
+        assertEquals(BillingHint.RATE_LIMITED_WAIT, signal.hint)
+        assertTrue(signal.warnRetryBills)
+        val blank = AiCostVisibilityPolicy.displaySignalFor(null)
+        assertEquals("", blank.errorCode)
+        assertEquals(0L, blank.waitSeconds)
+        assertEquals(BillingHint.NONE, blank.hint)
+        assertFalse(blank.warnRetryBills)
+    }
 }
