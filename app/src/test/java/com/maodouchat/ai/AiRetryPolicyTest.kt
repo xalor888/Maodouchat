@@ -125,12 +125,12 @@ class AiRetryPolicyTest {
     }
 
     @Test
-    fun decideConnectionRetryShiftCapsAtTwentyFiveThousandSixHundredMs() {
-        // 800 << 5 = 25_600，退避上限钉死，避免窗口越滚越大。
+    fun decideConnectionRetryBeyondMaxAttemptsStopsRetrying() {
+        // attempts≥3 已达最大自动重试次数：不再重试，delay 归零。
         listOf(7, 10).forEach { attempts ->
             val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = attempts)
-            assertTrue(decision.shouldRetry)
-            assertEquals(25_600L, decision.delayMs)
+            assertFalse(decision.shouldRetry)
+            assertEquals(0L, decision.delayMs)
         }
     }
 }
