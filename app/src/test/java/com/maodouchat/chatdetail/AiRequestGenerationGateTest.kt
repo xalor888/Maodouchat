@@ -93,9 +93,10 @@ class AiRequestGenerationGateTest {
 
         gate.invalidate()
         val skipped = token + 1
-        assertFalse(gate.isCurrent(skipped))
-
         val fresh = gate.next()
+
+        assertFalse(gate.isCurrent(token))
+        assertFalse(gate.isCurrent(skipped))
         assertEquals(skipped + 1, fresh)
         assertTrue(gate.isCurrent(fresh))
     }
