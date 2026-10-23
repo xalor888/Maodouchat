@@ -8,6 +8,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -92,5 +93,63 @@ class UnreadPriorityPreferencesTest {
             UnreadPriorityPreferences.isEnabled(ctx),
             "无账号时应走 AccountFeatureSwitch 的 fail-open（true）",
         )
+    }
+
+    @Test
+    fun independentValuesSurviveDoubleAccountSwitch() {
+        val c = ctx
+        UnreadPriorityPreferences.setEnabled(c, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        UnreadPriorityPreferences.setEnabled(c, true)
+        AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        assertFalse(UnreadPriorityPreferences.isEnabled(c), "切回原账号仍是 false")
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        assertTrue(UnreadPriorityPreferences.isEnabled(c), "再切过去仍是 true")
+        AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+    }
+
+    @Test
+    fun blankUserIdDoesNotTouchRealUserKeys() {
+        val c = ctx
+        UnreadPriorityPreferences.setEnabled(c, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { "" }
+        UnreadPriorityPreferences.setEnabled(c, true)
+        AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        assertFalse(UnreadPriorityPreferences.isEnabled(c), "空白账号写的是 enabled: 空后缀键，不应污染真实账号")
+        val raw = c.getSharedPreferences("unread_priority", Context.MODE_PRIVATE)
+        assertTrue(raw.contains("enabled:"), "空白账号的写入应落在 enabled: 键")
+    }
+
+    @Test
+    fun repeatedReadsAreStable() {
+        val c = ctx
+        UnreadPriorityPreferences.setEnabled(c, false)
+        assertFalse(UnreadPriorityPreferences.isEnabled(c))
+        assertFalse(UnreadPriorityPreferences.isEnabled(c))
+    }
+
+    @Test
+    fun rawStoreHoldsOnlyEnabledAndUserSetPerUser() {
+        val c = ctx
+        UnreadPriorityPreferences.setEnabled(c, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        UnreadPriorityPreferences.setEnabled(c, true)
+        val keys = c.getSharedPreferences("unread_priority", Context.MODE_PRIVATE).all.keys
+        assertEquals(
+            setOf(
+                "enabled:user-under-test", "user_set:user-under-test",
+                "enabled:other-user", "user_set:other-user",
+            ),
+            keys,
+        )
+        AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+    }
+
+    @Test
+    fun missingEnabledKeyReadsDefaultEvenIfUserSetFlagPresent() {
+        val c = ctx
+        c.getSharedPreferences("unread_priority", Context.MODE_PRIVATE).edit()
+            .putBoolean("user_set:user-under-test", true).apply()
+        assertTrue(UnreadPriorityPreferences.isEnabled(c), "enabled 键缺失时应读回默认 true")
     }
 }

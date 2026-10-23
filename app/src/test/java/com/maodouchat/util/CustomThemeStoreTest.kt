@@ -7,8 +7,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * 9.253：自定义主题 .attheme 兼容解析契约测试（纯 JVM——项目未启用 Robolectric，
- * Context 相关的 set/get 存储路径由集成场景覆盖）。
+ * 自定义主题 .attheme 兼容解析契约（纯 JVM：存储路径走 Context 集成场景）。
  */
 class CustomThemeStoreTest {
 
@@ -77,5 +76,34 @@ class CustomThemeStoreTest {
             ),
             CustomThemeStore.SLOTS
         )
+    }
+
+    @Test
+    fun `parse rejects 5 and 7 digit hex`() {
+        assertTrue(CustomThemeStore.parseAtTheme("chat_inBubble=#12345").isEmpty())
+        assertTrue(CustomThemeStore.parseAtTheme("chat_inBubble=#1234567").isEmpty())
+    }
+
+    @Test
+    fun `parse accepts lowercase hex`() {
+        val parsed = CustomThemeStore.parseAtTheme("chat_inBubble=#ff112233")
+        assertEquals(Color(0xFF112233), parsed["chat_inBubble"])
+    }
+
+    @Test
+    fun `parse trims whitespace around key and value`() {
+        val parsed = CustomThemeStore.parseAtTheme("  chat_inBubble  =  #FF112233  ")
+        assertEquals(Color(0xFF112233), parsed["chat_inBubble"])
+    }
+
+    @Test
+    fun `parse skips empty value`() {
+        assertTrue(CustomThemeStore.parseAtTheme("chat_inBubble=").isEmpty())
+    }
+
+    @Test
+    fun `last write wins across hex and int forms`() {
+        val parsed = CustomThemeStore.parseAtTheme("chat_inBubble=#FF000000\nchat_inBubble=0")
+        assertEquals(Color(0), parsed["chat_inBubble"])
     }
 }

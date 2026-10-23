@@ -109,4 +109,42 @@ class UserScopedPrefsTest {
         // 若改成 MODE_WORLD_READABLE 之类的，这条会因参数不匹配而拿不到 stub 从而失败
         verify { app.getSharedPreferences("whatever", Context.MODE_PRIVATE) }
     }
+
+    @Test
+    fun `user id with leading underscore keeps double separator`() {
+        assertEquals("recent__u", userScopedKey("recent", "_u"))
+    }
+
+    @Test
+    fun `newline and tab in user id appended verbatim`() {
+        assertEquals("recent_a\nb\tc", userScopedKey("recent", "a\nb\tc"))
+    }
+
+    @Test
+    fun `non-breaking space in user id is not trimmed`() {
+        // 纯拼接：U+00A0 不是 isBlank 判空，也不被裁掉
+        assertEquals("recent_\u00A0u", userScopedKey("recent", "\u00A0u"))
+    }
+
+    @Test
+    fun `prefs name with colon passes through verbatim`() {
+        val app = mockk<Context>()
+        val prefs = mockk<SharedPreferences>()
+        every { app.getSharedPreferences("a:b", Context.MODE_PRIVATE) } returns prefs
+        val ctx = mockk<Context> { every { applicationContext } returns app }
+
+        assertSame(prefs, userScopedPrefs(ctx, "a:b"))
+    }
+
+    @Test
+    fun `repeated calls ask the app context each time`() {
+        val app = mockk<Context>()
+        val prefs = mockk<SharedPreferences>()
+        every { app.getSharedPreferences("x", Context.MODE_PRIVATE) } returns prefs
+        val ctx = mockk<Context> { every { applicationContext } returns app }
+
+        assertSame(prefs, userScopedPrefs(ctx, "x"))
+        assertSame(prefs, userScopedPrefs(ctx, "x"))
+        verify(exactly = 2) { app.getSharedPreferences("x", Context.MODE_PRIVATE) }
+    }
 }
