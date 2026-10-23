@@ -153,4 +153,97 @@ class MessageTerminalStoreTest {
         assertEquals(listOf("media:message-1", "search:message-1"), effects)
         assertEquals("upsert", failure?.message)
     }
+
+    @Test
+    fun `revoke keeps the first cleanup error when the upsert also fails`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { throw IllegalStateException("cache") },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { throw IllegalStateException("upsert") }
+        )
+
+        val failure = runCatching { store.persistRevoked("message-1", sampleMessage()) }.exceptionOrNull()
+
+        assertEquals(listOf("search:message-1"), effects)
+        assertEquals("cache", failure?.message)
+        assertEquals(listOf("upsert"), failure?.suppressed?.map { it.message })
+    }
+
+    @Test
+    fun `delete surfaces a late failure after earlier steps ran`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { throw IllegalStateException("delete") },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        val failure = runCatching { store.persistDeleted("message-1") }.exceptionOrNull()
+
+        assertEquals(listOf("media:message-1", "search:message-1"), effects)
+        assertEquals("delete", failure?.message)
+        assertTrue(failure?.suppressed.isNullOrEmpty())
+    }
+
+    @Test
+    fun `repeated delete runs the full cleanup each time`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = {}
+        )
+
+        store.persistDeleted("message-1")
+        store.persistDeleted("message-1")
+
+        assertEquals(
+            listOf(
+                "media:message-1", "search:message-1", "delete:message-1",
+                "media:message-1", "search:message-1", "delete:message-1"
+            ),
+            effects
+        )
+    }
+
+    @Test
+    fun `revoked placeholder keeps identity but wipes metadata`() = runTest {
+        val persisted = mutableListOf<Message>()
+        val store = MessageTerminalStore({}, {}, {}, persisted::add)
+        val original = sampleMessage().copy(
+            content = "secret",
+            type = MessageType.IMAGE,
+            meta = MessageMeta(translations = mapOf("a" to "b"))
+        )
+
+        store.persistRevoked(original.id, original.toRevokedPlaceholder("已撤回"))
+
+        val saved = persisted.single()
+        assertEquals("message-1", saved.id)
+        assertEquals("chat-1", saved.chatId)
+        assertEquals("user-1", saved.senderId)
+        assertEquals("已撤回", saved.content)
+        assertEquals(MessageType.REVOKED, saved.type)
+        assertTrue(saved.meta.translations.isEmpty())
+    }
+
+    @Test
+    fun `fatal errors bypass suppression and propagate immediately`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { throw AssertionError("fatal") },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = {}
+        )
+
+        val failure = runCatching { store.persistDeleted("message-1") }.exceptionOrNull()
+
+        assertTrue(failure is AssertionError)
+        assertTrue(effects.isEmpty())
+    }
 }
