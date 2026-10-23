@@ -208,11 +208,11 @@ class AiWritingStylePolicyTest {
     }
 
     @Test
-    fun `nbsp survives trim and counts as content`() {
-        // Kotlin trim() only strips chars <= U+0020; U+00A0 is not whitespace.
-        assertEquals("\u00A0", AiWritingStylePolicy.normalizeCustomNote("\u00A0"))
+    fun `nbsp is trimmed and does not count as content`() {
+        // Kotlin 的 trim()/isBlank() 按 Char.isWhitespace 判定，U+00A0 算空白会被剥掉。
+        assertEquals("", AiWritingStylePolicy.normalizeCustomNote("\u00A0"))
         val snap = AiWritingStylePolicy.normalize(true, "none", "\u00A0")
-        assertTrue(snap.hasMemorableContent)
+        assertFalse(snap.hasMemorableContent)
     }
 
     @Test
