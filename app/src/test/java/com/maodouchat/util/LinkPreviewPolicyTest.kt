@@ -169,7 +169,7 @@ class LinkPreviewPolicyTest {
         )
         assertEquals(
             "https://a.com/x",
-            LinkPreviewPolicy.firstHttpUrl("(see https://a.com/x)!"),
+            LinkPreviewPolicy.firstHttpUrl("(see https://a.com/x)."),
         )
         assertEquals(
             "https://a.com/x",
