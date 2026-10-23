@@ -5,19 +5,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * G211b：`ScheduledMessagePolicy` —— 定时发送。
- *
- * KDoc 写着「纯函数」，被 7 个文件引用，零测试。
- * 这里最值钱的一条不是「记住几个例子」，而是一个**往返不变式**：
- *
- * > `clampSendAt` 的输出对**任何**输入都必须让 `isValidSendAt` 成立。
- *
- * 为什么重要：`clampSendAt` 是写入前的最后一道关。它若漏放某种畸形输入
- * （负数、0、`Long.MAX_VALUE`、过去时间、正好在边界外 1ms），
- * 那条待发消息就成了一个 `isValidSendAt` 判否的脏行——
- * Worker 到点可能立刻发、或永远不发。
- */
 class ScheduledMessagePolicyTest {
 
     private val now = 1_700_000_000_000L
@@ -105,8 +92,7 @@ class ScheduledMessagePolicyTest {
     @Test
     fun validTextMeansNonBlankAfterNormalization() {
         assertTrue(ScheduledMessagePolicy.isValidText("hi"))
-        // 我第一版这里写的 assertTrue（还标注「见下方说明」），**错了**：
-        // "   " 归一化成 "" → isNotEmpty() 为 false → 判否。实现是对的。
+        // 纯空白归一化成空串 → 判否
         assertFalse(ScheduledMessagePolicy.isValidText("   "), "纯空白必须判否")
         assertFalse(ScheduledMessagePolicy.isValidText(""))
         assertFalse(ScheduledMessagePolicy.isValidText(null))
@@ -114,13 +100,6 @@ class ScheduledMessagePolicyTest {
         assertTrue(ScheduledMessagePolicy.isValidText("x".repeat(50_000)), "超长应被截断后判有效")
     }
 
-    /**
-     * 顺带记一个**观察**（不写断言，因为它恒真）：`isValidText` 里的
-     * `t.length <= MAX_TEXT_LENGTH` 永远不会为假——`t` 已经由 `normalizeText`
-     * 截到 `MAX_TEXT_LENGTH` 了。这是个死条件，不是 bug（语义正好等价于
-     * `normalizeText(raw).isNotEmpty()`），但它读起来像在防超长，实际不防。
-     * 已在测试里用「超长文本判有效」把真实语义钉住，免得后人误以为它会拒绝超长。
-     */
     @Test
     fun canAddMoreStopsAtTheCap() {
         assertTrue(ScheduledMessagePolicy.canAddMore(0))
@@ -134,5 +113,41 @@ class ScheduledMessagePolicyTest {
         assertEquals(0L, ScheduledMessagePolicy.delayFromNow(now - 5_000L, now), "过去的时间延迟应为 0 不是负数")
         assertEquals(0L, ScheduledMessagePolicy.delayFromNow(now, now))
         assertEquals(5_000L, ScheduledMessagePolicy.delayFromNow(now + 5_000L, now))
+    }
+
+    @Test
+    fun quickDelaysMatchReminderPresetsExactly() {
+        // 两个列表 14 档逐项相等：UI 上提醒与定时用的快捷档位应当一致
+        assertEquals(
+            MessageReminderPolicy.QUICK_DELAYS_MS,
+            ScheduledMessagePolicy.QUICK_DELAYS_MS,
+        )
+    }
+
+    @Test
+    fun normalizeTextPreservesInnerWhitespace() {
+        assertEquals("a  b", ScheduledMessagePolicy.normalizeText(" a  b "))
+        assertEquals("a\tb", ScheduledMessagePolicy.normalizeText("\ta\tb\t"))
+    }
+
+    @Test
+    fun exactly4000CharsKeptAnd4001Truncated() {
+        val keep = "x".repeat(ScheduledMessagePolicy.MAX_TEXT_LENGTH)
+        assertEquals(keep, ScheduledMessagePolicy.normalizeText(keep))
+        assertEquals(
+            ScheduledMessagePolicy.MAX_TEXT_LENGTH,
+            ScheduledMessagePolicy.normalizeText(keep + "x").length,
+        )
+    }
+
+    @Test
+    fun negativePendingCountCountsAsNotFull() {
+        // canAddMore 只看 < 56：负数也放行（调用方不应传负数，语义钉住）
+        assertTrue(ScheduledMessagePolicy.canAddMore(-1))
+    }
+
+    @Test
+    fun delayFromNowWithMaxTimestampDoesNotOverflow() {
+        assertEquals(Long.MAX_VALUE - now, ScheduledMessagePolicy.delayFromNow(Long.MAX_VALUE, now))
     }
 }
