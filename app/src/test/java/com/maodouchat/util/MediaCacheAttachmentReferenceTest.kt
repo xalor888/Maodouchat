@@ -208,4 +208,75 @@ class MediaCacheAttachmentReferenceTest {
         assertFalse(MediaCache.isRemoteAttachmentUri("https://example.com/a"), "https:// 不是远端附件")
         assertFalse(MediaCache.isRemoteAttachmentUri(""), "空串不是远端附件")
     }
+
+
+    // ---- attachmentId 长度边界（正则：att_ + 20..100 个字符）----
+
+    @Test
+    fun attachmentIdBoundaryLengths() {
+        // 恰下界放行
+        MediaCache.encodeEncryptedAttachmentReference(validRef(attachmentId = "att_" + "a".repeat(20)))
+        // 下界差一拒绝
+        assertFailsWith<Exception>("attachmentId 只有 19 个后缀字符必须被拒") {
+            MediaCache.encodeEncryptedAttachmentReference(validRef(attachmentId = "att_" + "a".repeat(19)))
+        }
+        // 恰上界放行
+        MediaCache.encodeEncryptedAttachmentReference(validRef(attachmentId = "att_" + "a".repeat(100)))
+    }
+
+    // ---- sanitizeFileName：首尾点裁掉、长度上限 120、全点回退 "file" ----
+
+    @Test
+    fun fileNameSanitizationTrimsDotsAndCapsLength() {
+        val dotted = MediaCache.decodeEncryptedAttachmentReference(
+            MediaCache.encodeEncryptedAttachmentReference(validRef(fileName = "...photo..."))
+        )
+        assertNotNull(dotted)
+        assertEquals("photo", dotted.fileName, "首尾的点必须被裁掉")
+        val long = MediaCache.decodeEncryptedAttachmentReference(
+            MediaCache.encodeEncryptedAttachmentReference(validRef(fileName = "x".repeat(200)))
+        )
+        assertNotNull(long)
+        assertEquals(120, long.fileName.length, "文件名必须截到 120")
+        val dots = MediaCache.decodeEncryptedAttachmentReference(
+            MediaCache.encodeEncryptedAttachmentReference(validRef(fileName = "..."))
+        )
+        assertNotNull(dots)
+        assertEquals("file", dots.fileName, "全是点的文件名应回退为 file")
+    }
+
+    // ---- iv 长度上界 ----
+
+    @Test
+    fun ivBase64UpperBoundary() {
+        MediaCache.encodeEncryptedAttachmentReference(validRef(ivBase64 = "i".repeat(24)))
+        assertFailsWith<Exception>("ivBase64 25 字符必须被拒") {
+            MediaCache.encodeEncryptedAttachmentReference(validRef(ivBase64 = "i".repeat(25)))
+        }
+    }
+
+    // ---- 解码失败维度：空串与空白串 ----
+
+    @Test
+    fun decodeRejectsEmptyAndBlankStrings() {
+        assertNull(MediaCache.decodeEncryptedAttachmentReference(""), "空串必须返回 null")
+        assertNull(MediaCache.decodeEncryptedAttachmentReference("   "), "空白串必须返回 null")
+    }
+
+    // ---- 解码兼容与严格：未知键忽略、kind 被篡改则拒 ----
+
+    @Test
+    fun decodeIgnoresUnknownKeysButRejectsTamperedKind() {
+        val encoded = MediaCache.encodeEncryptedAttachmentReference(validRef())
+        val withExtra = encoded.replaceFirst("{", "{\"zzz\":1,")
+        assertNotNull(
+            MediaCache.decodeEncryptedAttachmentReference(withExtra),
+            "未知 JSON 键应被忽略（ignoreUnknownKeys），仍能解回",
+        )
+        val tamperedKind = encoded.replace("maodouchat-attachment-v1", "other-kind")
+        assertNull(
+            MediaCache.decodeEncryptedAttachmentReference(tamperedKind),
+            "kind 被篡改必须被拒",
+        )
+    }
 }
