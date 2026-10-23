@@ -107,4 +107,61 @@ class AiEntryPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `hasContextAiActions mirrors contextActionsFor`() {
+        assertTrue(AiEntryPolicy.hasContextAiActions("MARKDOWN"))
+        assertTrue(AiEntryPolicy.hasContextAiActions("gif"))
+        assertFalse(AiEntryPolicy.hasContextAiActions(null))
+        assertFalse(AiEntryPolicy.hasContextAiActions("POLL"))
+    }
+
+    @Test
+    fun `masterEnabled false blocks every surface`() {
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = true,
+                userEnabled = true,
+                masterEnabled = false
+            )
+        )
+        // userEnabled defaults to false: surfaces stay hidden without opt-in.
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = true
+            )
+        )
+    }
+
+    @Test
+    fun `composer menu blocks on busy and on setting update`() {
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = true, isUpdatingSetting = true))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = true))
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = false))
+    }
+
+    @Test
+    fun `composer section order is frozen`() {
+        assertEquals(3, AiEntryPolicy.COMPOSER_SECTION_ORDER.size)
+        assertEquals(ComposerSection.DRAFT, AiEntryPolicy.COMPOSER_SECTION_ORDER.first())
+        assertEquals(ComposerSection.SETTINGS, AiEntryPolicy.COMPOSER_SECTION_ORDER.last())
+        assertEquals(3, AiEntryPolicy.COMPOSER_SECTION_ORDER.distinct().size)
+    }
+
+    @Test
+    fun `unknown and blank types get no actions`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("POLL").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor(null).isEmpty())
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("MARKDOWN")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor(" gif ")
+        )
+    }
 }

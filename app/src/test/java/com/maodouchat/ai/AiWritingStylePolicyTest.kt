@@ -49,4 +49,51 @@ class AiWritingStylePolicyTest {
         assertNull(AiWritingStylePolicy.rewriteStyleHint(snap))
         assertFalse(snap.hasMemorableContent)
     }
+
+    @Test
+    fun `normalizeCustomNote trims and collapses whitespace`() {
+        assertEquals("hello world", AiWritingStylePolicy.normalizeCustomNote("  hello\n\nworld  "))
+        assertEquals("", AiWritingStylePolicy.normalizeCustomNote(null))
+        assertEquals("", AiWritingStylePolicy.normalizeCustomNote("   "))
+    }
+
+    @Test
+    fun `preset id is case and whitespace insensitive`() {
+        assertEquals(
+            Preset.WARM,
+            AiWritingStylePolicy.normalize(true, "  WARM  ", "").preset
+        )
+        // over-long ids are cut before lookup, so they never match a preset.
+        assertEquals(
+            Preset.NONE,
+            AiWritingStylePolicy.normalize(true, "x".repeat(100), "").preset
+        )
+    }
+
+    @Test
+    fun `hint with preset only carries preset wording`() {
+        val snap = AiWritingStylePolicy.normalize(true, "concise", null)
+        val hint = AiWritingStylePolicy.rewriteStyleHint(snap)
+        assertEquals("Prefer concise wording.", hint)
+        assertFalse(hint!!.contains("User style note"))
+        assertTrue(snap.hasMemorableContent)
+    }
+
+    @Test
+    fun `hint with custom note only carries the note`() {
+        val snap = AiWritingStylePolicy.normalize(true, "none", "  short  ")
+        assertEquals("short", snap.customNote)
+        val hint = AiWritingStylePolicy.rewriteStyleHint(snap)
+        assertTrue(hint!!.startsWith("User style note"))
+        assertTrue(snap.hasMemorableContent)
+    }
+
+    @Test
+    fun `enabled empty preset and blank note yields no hint`() {
+        val snap = AiWritingStylePolicy.normalize(true, "none", "   ")
+        assertTrue(snap.enabled)
+        assertEquals("", snap.customNote)
+        assertNull(AiWritingStylePolicy.rewriteStyleHint(snap))
+        assertFalse(snap.hasMemorableContent)
+    }
 }
