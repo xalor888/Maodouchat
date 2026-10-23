@@ -98,4 +98,61 @@ class AttachmentSendAfterUploadPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun englishNotReadyTextIsConflict() {
+        val err = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "Attachment not ready, upload pending",
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
+    }
+
+    @Test
+    fun uploadKeywordVariantIsConflict() {
+        val err = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "attachment upload in progress",
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
+
+    @Test
+    fun attachmentAloneIsNotConflict() {
+        val err = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "attachment missing",
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
+
+    @Test
+    fun serverCodeMatchedCaseInsensitivelyButExactly() {
+        val lower = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverCode = "message_already_accepted",
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(lower))
+        val suffixed = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverCode = "MESSAGE_ALREADY_ACCEPTED_EXTRA",
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(suffixed))
+    }
+
+    @Test
+    fun timeoutKindIsRetryableButNeitherConflictNorDuplicate() {
+        val err = ApiException(ApiFailureKind.TIMEOUT, serverMessage = "slow")
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
+    }
 }

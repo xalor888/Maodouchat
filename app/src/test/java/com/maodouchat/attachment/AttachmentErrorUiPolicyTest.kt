@@ -4,6 +4,7 @@ import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.util.AttachmentCryptoException
 import com.maodouchat.util.AttachmentCryptoFailure
+import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -59,5 +60,84 @@ class AttachmentErrorUiPolicyTest {
             Kind.FALLBACK,
             AttachmentErrorUiPolicy.classify(IllegalStateException("x"))
         )
+    }
+
+    @Test
+    fun networkAndTimeoutKindsFallBack() {
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(kind = ApiFailureKind.NETWORK, serverMessage = "eof")
+            )
+        )
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(kind = ApiFailureKind.TIMEOUT, serverMessage = "slow")
+            )
+        )
+    }
+
+    @Test
+    fun httpStatusErrorsFallBack() {
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(kind = ApiFailureKind.HTTP, statusCode = 500, serverMessage = "boom")
+            )
+        )
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(kind = ApiFailureKind.HTTP, statusCode = 404, serverMessage = "nope")
+            )
+        )
+    }
+
+    @Test
+    fun invalidResponseAlwaysMapsToIntegrity() {
+        assertEquals(
+            Kind.INTEGRITY_FAILED,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(
+                    kind = ApiFailureKind.INVALID_RESPONSE,
+                    statusCode = 200,
+                    serverMessage = "ok"
+                )
+            )
+        )
+        assertEquals(
+            Kind.INTEGRITY_FAILED,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(kind = ApiFailureKind.INVALID_RESPONSE)
+            )
+        )
+    }
+
+    @Test
+    fun mapsEveryCryptoFailureDeterministically() {
+        val expected = mapOf(
+            AttachmentCryptoFailure.TOO_LARGE to Kind.TOO_LARGE,
+            AttachmentCryptoFailure.READ_FAILED to Kind.FALLBACK,
+            AttachmentCryptoFailure.SIZE_MISMATCH to Kind.FALLBACK,
+            AttachmentCryptoFailure.INTEGRITY_FAILED to Kind.INTEGRITY_FAILED,
+            AttachmentCryptoFailure.INVALID_REFERENCE to Kind.INVALID_REFERENCE,
+            AttachmentCryptoFailure.UNSUPPORTED_MEDIA_CONTENT to Kind.CONTENT_MISMATCH
+        )
+        for (failure in AttachmentCryptoFailure.entries) {
+            assertEquals(
+                expected.getValue(failure),
+                AttachmentErrorUiPolicy.classify(AttachmentCryptoException(failure))
+            )
+        }
+    }
+
+    @Test
+    fun cryptoCauseDoesNotChangeClassification() {
+        val wrapped = AttachmentCryptoException(
+            AttachmentCryptoFailure.TOO_LARGE,
+            IOException("disk")
+        )
+        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(wrapped))
     }
 }
