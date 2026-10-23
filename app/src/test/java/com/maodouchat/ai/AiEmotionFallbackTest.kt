@@ -59,5 +59,4 @@ class AiEmotionFallbackTest {
         assertTrue(texts.all { it.isNotBlank() })
     }
 }
-</atem:invoke>
 </atem:function_calls>
