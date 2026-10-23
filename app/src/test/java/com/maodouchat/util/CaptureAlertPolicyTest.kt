@@ -47,4 +47,47 @@ class CaptureAlertPolicyTest {
         assertFalse(CaptureAlertPolicy.isCaptureAlert("CAPTURE_ALERT without colon prefix"))
         assertTrue(CaptureAlertPolicy.isCaptureAlert(CaptureAlertPolicy.PREFIX + "x"))
     }
+
+    @Test
+    fun `kind is truncated to 24 chars on the wire`() {
+        val kind = "k".repeat(50)
+        val alert = CaptureAlertPolicy.format("Alice", kind)
+        val parsed = CaptureAlertPolicy.parse(alert)
+        assertEquals("k".repeat(24), parsed?.first)
+        assertFalse(alert.contains("k".repeat(50)))
+    }
+
+    @Test
+    fun `label is trimmed then truncated to 32 chars`() {
+        val alert = CaptureAlertPolicy.format("  " + "x".repeat(100) + "  ", "screenshot")
+        val parsed = CaptureAlertPolicy.parse(alert)
+        assertEquals("x".repeat(32) + " took a screenshot (privacy alert)", parsed?.second)
+    }
+
+    @Test
+    fun `unicode labels round trip`() {
+        val alert = CaptureAlertPolicy.format("张三 🚀", "screenrecord")
+        val parsed = CaptureAlertPolicy.parse(alert)
+        assertEquals("screenrecord", parsed?.first)
+        assertTrue(parsed?.second?.contains("张三 🚀") == true)
+    }
+
+    @Test
+    fun `bare prefix parses to default screenshot kind`() {
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.PREFIX)
+        assertEquals("screenshot", parsed?.first)
+        assertEquals("", parsed?.second)
+    }
+
+    @Test
+    fun `format is deterministic and kinds produce distinct wire`() {
+        assertEquals(
+            CaptureAlertPolicy.format("Alice", "screenshot"),
+            CaptureAlertPolicy.format("Alice", "screenshot"),
+        )
+        assertFalse(
+            CaptureAlertPolicy.format("Alice", "screenshot") ==
+                CaptureAlertPolicy.format("Alice", "screenrecord"),
+        )
+    }
 }

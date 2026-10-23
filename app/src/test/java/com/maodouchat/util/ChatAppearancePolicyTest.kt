@@ -69,4 +69,58 @@ class ChatAppearancePolicyTest {
         assertEquals(ids.size, ids.toSet().size)
         ids.forEach { assertEquals(it, it.lowercase()) }
     }
+
+    @Test
+    fun `font scale multipliers are pinned`() {
+        // 档位倍数是字号手感，改了就是改 UI 契约
+        assertEquals(0.92f, ChatFontScale.SMALL.multiplier, 0.0001f)
+        assertEquals(1.0f, ChatFontScale.NORMAL.multiplier, 0.0001f)
+        assertEquals(1.12f, ChatFontScale.LARGE.multiplier, 0.0001f)
+        assertEquals(1.24f, ChatFontScale.XLARGE.multiplier, 0.0001f)
+        assertEquals(1.36f, ChatFontScale.XXLARGE.multiplier, 0.0001f)
+    }
+
+    @Test
+    fun `every palette color is fully opaque`() {
+        // 漏写 alpha 会透出底色，整包断言防手滑
+        ChatWallpaperPreset.entries.forEach {
+            val light = ChatAppearancePolicy.wallpaperColorLight(it)
+            val dark = ChatAppearancePolicy.wallpaperColorDark(it)
+            assertNotNull("$it light", light)
+            assertNotNull("$it dark", dark)
+            assertEquals("$it light alpha", 1f, light!!.alpha, 0.0001f)
+            assertEquals("$it dark alpha", 1f, dark!!.alpha, 0.0001f)
+        }
+    }
+
+    @Test
+    fun `resolveBackground round trips the palette for every preset`() {
+        val fallback = Color(0xFF000000)
+        ChatWallpaperPreset.entries.forEach {
+            assertEquals(
+                ChatAppearancePolicy.wallpaperColorLight(it),
+                ChatAppearancePolicy.resolveBackground(it, false, fallback),
+            )
+            assertEquals(
+                ChatAppearancePolicy.wallpaperColorDark(it),
+                ChatAppearancePolicy.resolveBackground(it, true, fallback),
+            )
+        }
+    }
+
+    @Test
+    fun `normalize font scale unknown and blank ids fall back to normal`() {
+        assertEquals(ChatFontScale.NORMAL, ChatAppearancePolicy.normalizeFontScale(""))
+        assertEquals(ChatFontScale.NORMAL, ChatAppearancePolicy.normalizeFontScale("   "))
+        assertEquals(ChatFontScale.NORMAL, ChatAppearancePolicy.normalizeFontScale("x-large"))
+        assertEquals(ChatFontScale.SMALL, ChatAppearancePolicy.normalizeFontScale("SMALL"))
+        assertEquals(ChatFontScale.XXLARGE, ChatAppearancePolicy.normalizeFontScale("xxlarge"))
+    }
+
+    @Test
+    fun `preset and scale counts are pinned`() {
+        // 增删预设/档位会影响存量用户配置与上面几条，变动必须显式
+        assertEquals(16, ChatWallpaperPreset.entries.size)
+        assertEquals(5, ChatFontScale.entries.size)
+    }
 }

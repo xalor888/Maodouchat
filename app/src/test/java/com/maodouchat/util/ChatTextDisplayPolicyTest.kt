@@ -52,4 +52,38 @@ class ChatTextDisplayPolicyTest {
         assertEquals("\uDBFF\uDFFF", ChatTextDisplayPolicy.unescapeHtmlEntities("&#1114111;"))
         assertEquals("&#1114112;", ChatTextDisplayPolicy.unescapeHtmlEntities("&#1114112;"))
     }
+
+    @Test
+    fun `empty string returns empty`() {
+        assertEquals("", ChatTextDisplayPolicy.unescapeHtmlEntities(""))
+    }
+
+    @Test
+    fun `lone ampersands and incomplete entities stay literal`() {
+        // 没分号/没数字的都不是实体，不能动
+        assertEquals("&", ChatTextDisplayPolicy.unescapeHtmlEntities("&"))
+        assertEquals("a & b", ChatTextDisplayPolicy.unescapeHtmlEntities("a & b"))
+        assertEquals("&#;", ChatTextDisplayPolicy.unescapeHtmlEntities("&#;"))
+        assertEquals("&#x;", ChatTextDisplayPolicy.unescapeHtmlEntities("&#x;"))
+        assertEquals("&amp", ChatTextDisplayPolicy.unescapeHtmlEntities("&amp"))
+    }
+
+    @Test
+    fun `tab and emoji entities decode`() {
+        assertEquals("a\tb", ChatTextDisplayPolicy.unescapeHtmlEntities("a&#9;b"))
+        assertEquals("😀", ChatTextDisplayPolicy.unescapeHtmlEntities("&#128512;"))
+    }
+
+    @Test
+    fun `adjacent numeric entities all decode`() {
+        assertEquals("ABC", ChatTextDisplayPolicy.unescapeHtmlEntities("&#65;&#x42;&#67;"))
+    }
+
+    @Test
+    fun `mixed sentence decodes in one pass`() {
+        assertEquals(
+            "1 < 2 && 3 > 2",
+            ChatTextDisplayPolicy.unescapeHtmlEntities("1 &lt; 2 &amp;&amp; 3 &gt; 2"),
+        )
+    }
 }
