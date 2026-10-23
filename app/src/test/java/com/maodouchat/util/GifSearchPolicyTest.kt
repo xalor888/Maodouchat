@@ -62,4 +62,39 @@ class GifSearchPolicyTest {
         assertEquals(listOf("a"), GifSearchPolicy.pushRecent(listOf("a"), "  "))
         assertEquals(listOf("b", "a"), GifSearchPolicy.pushRecent(listOf("a"), "b"))
     }
+
+    @Test
+    fun `matches blank query matches everything`() {
+        val item = LocalGifItem("1", "content://1", "party_cat.gif")
+        assertTrue(GifSearchPolicy.matches(item, ""))
+        assertTrue(GifSearchPolicy.matches(item, "   "))
+    }
+
+    @Test
+    fun `filterAndSort unknown recent ids fall back to date order`() {
+        val ordered = GifSearchPolicy.filterAndSort(samples, "", recentIds = listOf("nope", "alsonot"))
+        assertEquals(listOf("1", "2", "3"), ordered.map { it.id })
+    }
+
+    @Test
+    fun `filterAndSort negative limit still returns one`() {
+        val one = GifSearchPolicy.filterAndSort(samples, "", limit = -5)
+        assertEquals(1, one.size)
+        assertEquals("1", one.first().id)
+    }
+
+    @Test
+    fun `pushRecent zero max still keeps one`() {
+        assertEquals(listOf("c"), GifSearchPolicy.pushRecent(listOf("a", "b"), "c", max = 0))
+    }
+
+    @Test
+    fun `filterAndSort same date breaks tie by lowercased name`() {
+        val items = listOf(
+            LocalGifItem("a", "content://a", "Zebra.gif", dateAddedSec = 5),
+            LocalGifItem("b", "content://b", "apple.gif", dateAddedSec = 5),
+        )
+        val ordered = GifSearchPolicy.filterAndSort(items, "")
+        assertEquals(listOf("b", "a"), ordered.map { it.id })
+    }
 }
