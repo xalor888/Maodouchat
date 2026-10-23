@@ -88,4 +88,49 @@ class AgentToolPolicyTest {
         assertEquals("true", args["starred"])
         assertEquals("20", args["limit"])
     }
+
+    @Test
+    fun `toolByName resolves and misses`() {
+        assertEquals("list_chats", AgentToolPolicy.toolByName("list_chats")?.name)
+        assertEquals(null, AgentToolPolicy.toolByName("dump_host_sql"))
+    }
+
+    @Test
+    fun `policy limits are frozen`() {
+        assertEquals(12, AgentToolPolicy.MAX_TOOL_ROUNDS)
+        assertEquals(24, AgentToolPolicy.MAX_HISTORY_MESSAGES)
+        assertEquals(40, AgentToolPolicy.MAX_CHAT_HISTORY)
+        assertEquals(20, AgentToolPolicy.MAX_SEARCH_HITS)
+        assertEquals(6_000, AgentToolPolicy.MAX_TOOL_RESULT_CHARS)
+        assertEquals(4_000, AgentToolPolicy.MAX_TEXT_SEND_CHARS)
+        assertEquals(80, AgentToolPolicy.MAX_LIST_CHATS)
+        assertEquals(4_000, AgentToolPolicy.MAX_DRAFT_CHARS)
+        assertEquals(40, AgentToolPolicy.MAX_NICKNAME_CHARS)
+    }
+
+    @Test
+    fun `preview falls back to raw name and json`() {
+        val preview = AgentToolHost.preview("no_such_tool", """{"a":"b"}""")
+        assertTrue(preview.startsWith("no_such_tool"))
+        assertTrue(preview.contains("""{"a":"b"}"""))
+    }
+
+    @Test
+    fun `parseArgs blank and malformed return empty`() {
+        assertTrue(AgentToolHost.parseArgs("").isEmpty())
+        assertTrue(AgentToolHost.parseArgs("{oops").isEmpty())
+    }
+
+    @Test
+    fun `parseBool accepts variants`() {
+        listOf("true", "TRUE", "1", "yes", " Yes ").forEach {
+            assertEquals(true, AgentToolHost.parseBool(it))
+        }
+        listOf("false", "FALSE", "0", "no", " No ").forEach {
+            assertEquals(false, AgentToolHost.parseBool(it))
+        }
+        assertEquals(null, AgentToolHost.parseBool("maybe"))
+        assertEquals(null, AgentToolHost.parseBool(""))
+        assertEquals(null, AgentToolHost.parseBool(null))
+    }
 }
