@@ -43,6 +43,49 @@ class UnreadPriorityPreferencesTest {
     }
 
     @Test
+    fun unreadPriorityIsAccountIsolated() {
+        val c = ctx
+        UnreadPriorityPreferences.setEnabled(c, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        assertTrue(UnreadPriorityPreferences.isEnabled(c), "另一账号应读回默认 true")
+        AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        assertFalse(UnreadPriorityPreferences.isEnabled(c), "切回原账号仍是 false")
+    }
+
+    @Test
+    fun repeatedSetIsIdempotent() {
+        val c = ctx
+        UnreadPriorityPreferences.setEnabled(c, false)
+        UnreadPriorityPreferences.setEnabled(c, false)
+        assertFalse(UnreadPriorityPreferences.isEnabled(c))
+        UnreadPriorityPreferences.setEnabled(c, true)
+        UnreadPriorityPreferences.setEnabled(c, true)
+        assertTrue(UnreadPriorityPreferences.isEnabled(c))
+    }
+
+    @Test
+    fun setEnabledWithNoUserIsNoOp() {
+        AccountFeatureSwitch.userIdOverrideForTest = { null }
+        UnreadPriorityPreferences.setEnabled(ctx, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        assertTrue(UnreadPriorityPreferences.isEnabled(ctx), "无账号时写入应被吞，恢复后读回默认 true")
+    }
+
+    @Test
+    fun rawKeyFormatIsEnabledColonUserId() {
+        val c = ctx
+        UnreadPriorityPreferences.setEnabled(c, false)
+        val raw = c.getSharedPreferences("unread_priority", Context.MODE_PRIVATE)
+        assertFalse(raw.getBoolean("enabled:user-under-test", true))
+    }
+
+    @Test
+    fun freshAccountSeesDefaultEnabled() {
+        AccountFeatureSwitch.userIdOverrideForTest = { "brand-new-user" }
+        assertTrue(UnreadPriorityPreferences.isEnabled(ctx), "从未设置过的账号应读回默认 true")
+    }
+
+    @Test
     fun unreadPriorityFailsOpenWithoutAUser() {
         AccountFeatureSwitch.userIdOverrideForTest = { null }
         assertTrue(

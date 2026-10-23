@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -40,6 +41,49 @@ class UserScopedPrefsTest {
         val k = userScopedKey("a_b", "c_d")
         assertEquals("a_b_c_d", k)
         assertEquals("a", k.substringBefore('_'))
+    }
+
+    @Test
+    fun `key is deterministic for same inputs`() {
+        assertEquals(userScopedKey("recent", "u1"), userScopedKey("recent", "u1"))
+    }
+
+    @Test
+    fun `different users get different keys`() {
+        // 按用户隔离：userId 不同，key 必不同
+        assertNotEquals(userScopedKey("recent", "u1"), userScopedKey("recent", "u2"))
+    }
+
+    @Test
+    fun `user id with underscore stays splittable on first underscore`() {
+        // userId 自带下划线时，split 取第一段仍是 prefix（调用方约定）
+        val k = userScopedKey("recent", "a_b")
+        assertEquals("recent", k.substringBefore('_'))
+        assertEquals("a_b", k.substringAfter('_'))
+    }
+
+    @Test
+    fun `different names fetch different stores`() {
+        val app = mockk<Context>()
+        val a = mockk<SharedPreferences>()
+        val b = mockk<SharedPreferences>()
+        every { app.getSharedPreferences("a", Context.MODE_PRIVATE) } returns a
+        every { app.getSharedPreferences("b", Context.MODE_PRIVATE) } returns b
+        val ctx = mockk<Context> { every { applicationContext } returns app }
+
+        assertSame(a, userScopedPrefs(ctx, "a"))
+        assertSame(b, userScopedPrefs(ctx, "b"))
+    }
+
+    @Test
+    fun `never asks the passed context directly for prefs`() {
+        val app = mockk<Context>()
+        every { app.getSharedPreferences(any(), any()) } returns mockk<SharedPreferences>()
+        val ctx = mockk<Context>(relaxed = true) { every { applicationContext } returns app }
+
+        userScopedPrefs(ctx, "x")
+        // 调用方可能是 Activity：直接问它要 prefs 会泄漏已死的 Context
+        verify(exactly = 0) { ctx.getSharedPreferences(any(), any()) }
     }
 
     // ─── userScopedPrefs ───
