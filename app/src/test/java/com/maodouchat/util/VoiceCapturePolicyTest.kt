@@ -81,4 +81,36 @@ class VoiceCapturePolicyTest {
         assertEquals("0:05", VoiceRecorder.formatDuration(5_000))
         assertEquals("1:01", VoiceRecorder.formatDuration(61_000))
     }
+
+    @Test
+    fun normalizeAmplitude_maxRawClampsToOne() {
+        // 满量程 32767 走 ceiling 钳制，恰好 1f
+        assertEquals(1f, VoiceRecorder.normalizeAmplitude(32767), 0.0001f)
+        assertEquals(1f, VoiceRecorder.normalizeAmplitude(Int.MAX_VALUE), 0.0001f)
+    }
+
+    @Test
+    fun normalizeAmplitude_minPositiveRawIsZero() {
+        // 最小正输入 dB=0，归一化后恰好 0f
+        assertEquals(0f, VoiceRecorder.normalizeAmplitude(1), 0.0001f)
+    }
+
+    @Test
+    fun previewPolicy_negativeDuration() {
+        assertFalse(VoiceCapturePolicy.canEnterPreview(-1L))
+        assertFalse(VoiceCapturePolicy.canSendPreview(-100L))
+    }
+
+    @Test
+    fun formatDuration_hourBoundary() {
+        // 无小时位：59 分与 60 分边界逐字钉住
+        assertEquals("59:59", VoiceRecorder.formatDuration(3_599_999))
+        assertEquals("60:00", VoiceRecorder.formatDuration(3_600_000))
+    }
+
+    @Test
+    fun formatDuration_truncatesSubSecond() {
+        assertEquals("0:00", VoiceRecorder.formatDuration(999))
+        assertEquals("0:01", VoiceRecorder.formatDuration(1_500))
+    }
 }

@@ -7,16 +7,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * G212b：语音波形环形缓冲 + 录制阈值判定。
- *
- * 类的 KDoc 自己写着「纯逻辑，无 Android 依赖，**便于 JVM 单测**」——
- * 却零测试。环形缓冲是 off-by-one 的经典产地，而它坏的方式很隐蔽：
- * 波形会「错位/抖动」但完全不崩，肉眼在 UI 上还可能看不出规律。
- *
- * 这里钉三件事：
- * 1. **`snapshot()` 永远是最旧→最新**（不管写指针绕到哪）；
- * 2. **未填满时前面补 0**（长度恒定 = capacity，否则 Compose 侧会越界或画出半截）；
- * 3. **`push` 把振幅夹到 [0,1]**（上游给的 dB 值可能越界）。
+ * 语音波形环形缓冲：snapshot 永远最旧→最新、未填满补 0、push 夹到 [0,1]。
  */
 class VoiceRecordingWaveformTest {
 
@@ -126,5 +117,49 @@ class VoiceRecordingWaveformTest {
             HoldHint.SLIDE_UP_CANCEL,
             VoiceCapturePolicy.holdHint(cancelArmed = true),
         )
+    }
+
+    @Test
+    fun longRunKeepsOnlyLastCapacityInOrder() {
+        // 长推流：只保留最近的 capacity 个，且最旧→最新
+        val w = VoiceRecordingWaveform(capacity = 3)
+        for (i in 1..10) w.push(i / 10f)
+        assertContentEquals(floatArrayOf(0.8f, 0.9f, 1.0f), w.snapshot())
+    }
+
+    @Test
+    fun capacityOneIsLastWriteWins() {
+        val w = VoiceRecordingWaveform(capacity = 1)
+        w.push(0.2f)
+        w.push(0.9f)
+        assertContentEquals(floatArrayOf(0.9f), w.snapshot())
+    }
+
+    @Test
+    fun snapshotIsACopy() {
+        // 快照是独立拷贝：后续推入不能改动已取出的数组
+        val w = VoiceRecordingWaveform(capacity = 3)
+        w.push(0.1f); w.push(0.2f)
+        val first = w.snapshot()
+        w.push(0.9f)
+        assertContentEquals(floatArrayOf(0f, 0.1f, 0.2f), first)
+        assertContentEquals(floatArrayOf(0.1f, 0.2f, 0.9f), w.snapshot())
+    }
+
+    @Test
+    fun negativeCapacityCoercedToOne() {
+        val w = VoiceRecordingWaveform(capacity = -5)
+        w.push(0.4f)
+        assertContentEquals(floatArrayOf(0.4f), w.snapshot())
+    }
+
+    @Test
+    fun clearThenPartialFillPadsAgain() {
+        val w = VoiceRecordingWaveform(capacity = 3)
+        w.push(0.1f); w.push(0.2f); w.push(0.3f); w.push(0.4f)
+        w.clear()
+        w.push(0.9f)
+        assertContentEquals(floatArrayOf(0f, 0f, 0.9f), w.snapshot(),
+            "clear 后部分填充仍应左补 0")
     }
 }
