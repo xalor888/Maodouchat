@@ -5,17 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * G208b：`VoicePlayer` 倍速策略。
- *
- * `nextSpeed` 的 KDoc 自己写着「纯函数，供 UI/单测」，却**一条测试都没有**。
- * 这里的判据不是「记住几个例子」，而是三条**会在将来被破坏的性质**：
- *
- * 1. **档位环完整**：`SPEED_STEPS = [1, 1.5, 2, 0.5]`——注意顺序是
- *    「快三档，然后突然回到最慢」。这不是笔误：往上加到底后用 0.5x 收尾。
- *    所以 `1 → 1.5 → 2 → 0.5 → 1` 转一圈必须回到起点；
- * 2. **未知值落到第一档**（而不是就近取整、也不是最后一档）；
- * 3. **`formatSpeedLabel` 与档位一致**——任何档位（含未知值回落）
- *    都必须有对应文案，不能出现「状态里是 3x、界面上显示 1x」。
+ * `VoicePlayer` 倍速档位环：`nextSpeed` / `formatSpeedLabel` 纯函数钉住。
  */
 class VoicePlayerSpeedPolicyTest {
 
@@ -47,12 +37,7 @@ class VoicePlayerSpeedPolicyTest {
 
     @Test
     fun unknownSpeedAdvancesFromTheImplicitFirstStep() {
-        // ⚠️ 我第一版断言「未知值回落到第一档（1f）」，**错了**：实际返回 1.5f。
-        // 读代码才看清：`indexOfFirst` 找不到时把 idx 设成 **0**，然后**照样 +1**，
-        // 所以取到 steps[1]=1.5f。语义是「就当你在第一档，然后按下一档」。
-        // 这不是 bug（从垃圾状态按一次「下一档」得到 1.5x 完全合理），
-        // 但顺带露出一个**真实的不对称**：`formatSpeedLabel(未知)` 给 "1x"，
-        // 而 `nextSpeed(未知)` 给 1.5x——两者各自的兜底不同，值不一样。
+        // 未知值按 idx=0 处理再 +1，所以落到 steps[1]=1.5f 而不是 1f
         listOf(0.75f, 3f, 0f, -1f, 1.25f, 100f).forEach { unknown ->
             assertEquals(1.5f, VoicePlayer.nextSpeed(unknown), "未知倍速 $unknown 应从隐含第一档往前一格")
         }
@@ -112,6 +97,46 @@ class VoicePlayerSpeedPolicyTest {
                 "走到 $cur 时文案为 $label，不在预期集合内",
             )
             assertTrue(cur in steps, "走到 $cur 不在档位表内")
+        }
+    }
+
+    @Test
+    fun twoStepsAdvanceTwoSlots() {
+        // nextSpeed 可叠加：走两步恰好跳两档
+        assertEquals(2f, VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(1f)))
+        assertEquals(1.5f, VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(0.5f)))
+        assertEquals(1f, VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(2f)))
+    }
+
+    @Test
+    fun nanIsTreatedAsUnknown() {
+        // NaN 不等于任何档位，按未知值走「隐含第一档再 +1」
+        assertEquals(1.5f, VoicePlayer.nextSpeed(Float.NaN), "NaN 应按未知值落到 1.5x")
+        assertTrue(VoicePlayer.nextSpeed(Float.NaN) in steps)
+    }
+
+    @Test
+    fun formatSpeedLabelTreatsOutOfRangeAsOneX() {
+        // 非档位值统一兜底 "1x"
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(-0.5f))
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(3f))
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(100f))
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(Float.MAX_VALUE))
+    }
+
+    @Test
+    fun labelOfNextFromUnknownMatchesTheLabelOfItsStep() {
+        // 未知值 nextSpeed 落到 1.5f，对应文案必须一致，不能漂移
+        assertEquals("1.5x", VoicePlayer.formatSpeedLabel(VoicePlayer.nextSpeed(7f)))
+    }
+
+    @Test
+    fun twoFullRingsReturnToStart() {
+        // 转两圈（8 步）也闭合，环不随圈数漂移
+        steps.forEach { start ->
+            var cur = start
+            repeat(steps.size * 2) { cur = VoicePlayer.nextSpeed(cur) }
+            assertEquals(start, cur, "从 $start 出发转两圈应回到起点，实际 $cur")
         }
     }
 }
