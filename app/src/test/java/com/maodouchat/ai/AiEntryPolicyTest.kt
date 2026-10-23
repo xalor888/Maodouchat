@@ -164,4 +164,89 @@ class AiEntryPolicyTest {
             AiEntryPolicy.contextActionsFor(" gif ")
         )
     }
+
+    @Test
+    fun `context action type casing and whitespace fold to canonical lists`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("  vOiCe  ")
+        )
+        assertTrue(
+            AiEntryPolicy.contextActionsFor("  vOiCe  ", hasTranscript = true).isEmpty()
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("image")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("File ")
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor("VIDEO").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor(" audio ").isEmpty())
+    }
+
+    @Test
+    fun `transcript flag only affects voice`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("TEXT", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("IMAGE", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("FILE", hasTranscript = true)
+        )
+        assertTrue(AiEntryPolicy.hasContextAiActions("TEXT", hasTranscript = true))
+    }
+
+    @Test
+    fun `composer menu default leaves setting update unset`() {
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(false))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(true))
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false))
+    }
+
+    @Test
+    fun `hasContextAiActions follows the voice transcript flag`() {
+        assertTrue(AiEntryPolicy.hasContextAiActions("VOICE", hasTranscript = false))
+        assertFalse(AiEntryPolicy.hasContextAiActions("VOICE", hasTranscript = true))
+        assertTrue(AiEntryPolicy.hasContextAiActions("FILE"))
+        assertTrue(AiEntryPolicy.hasContextAiActions("IMAGE"))
+    }
+
+    @Test
+    fun `three-arg run gate completes the denial directions`() {
+        assertFalse(
+            AiEntryPolicy.canRunContextAction(
+                masterEnabled = false,
+                chatAiEnabled = false,
+                isBusy = false
+            )
+        )
+        assertFalse(
+            AiEntryPolicy.canRunContextAction(
+                masterEnabled = true,
+                chatAiEnabled = false,
+                isBusy = true
+            )
+        )
+        assertFalse(
+            AiEntryPolicy.canRunContextAction(
+                masterEnabled = false,
+                chatAiEnabled = true,
+                isBusy = true
+            )
+        )
+        assertFalse(
+            AiEntryPolicy.canRunContextAction(
+                masterEnabled = true,
+                chatAiEnabled = true,
+                isBusy = true
+            )
+        )
+    }
 }

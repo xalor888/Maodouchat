@@ -146,4 +146,73 @@ class GroupAiSharePolicyTest {
             )
         )
     }
+
+    @Test
+    fun `decideShare check order is group first then already-shared`() {
+        assertEquals(
+            BlockReason.NOT_GROUP,
+            GroupAiSharePolicy.decideShare(false, "x", alreadyShared = true).reason
+        )
+        assertEquals(
+            BlockReason.ALREADY_SHARED,
+            GroupAiSharePolicy.decideShare(true, "  ", alreadyShared = true).reason
+        )
+        assertEquals(
+            BlockReason.ALREADY_SHARED,
+            GroupAiSharePolicy.decideShare(true, null, alreadyShared = true).reason
+        )
+        val answer = "x".repeat(4_000)
+        val decision = GroupAiSharePolicy.decideShare(true, answer)
+        assertTrue(decision.allowed)
+        assertEquals(answer, decision.body)
+    }
+
+    @Test
+    fun `shareAssistantMode passes short values through and nulls empties`() {
+        assertNull(GroupAiSharePolicy.shareAssistantMode(""))
+        assertNull(GroupAiSharePolicy.shareAssistantMode("   "))
+        assertEquals("x".repeat(39), GroupAiSharePolicy.shareAssistantMode("x".repeat(39)))
+        assertEquals("a b", GroupAiSharePolicy.shareAssistantMode("  a b  "))
+    }
+
+    @Test
+    fun `share meta with null mode keeps identity contract`() {
+        val meta = GroupAiSharePolicy.shareAsCurrentUserMeta(null)
+        assertEquals(true, meta["aiAssisted"])
+        assertNull(meta["aiAssistantMode"])
+        assertEquals(false, meta["systemIdentity"])
+    }
+
+    @Test
+    fun `sanitizeTasks normalizes owner and dueText fields`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(
+                TaskDraft(title = " t ", owner = "   ", dueText = "  soon  "),
+                TaskDraft(title = "t2", owner = "x".repeat(150), dueText = "y".repeat(200)),
+                TaskDraft(title = " t3 ", dueText = "")
+            )
+        )
+        assertEquals(3, cleaned.size)
+        assertNull(cleaned[0].owner)
+        assertEquals("soon", cleaned[0].dueText)
+        assertEquals(100, cleaned[1].owner!!.length)
+        assertEquals(120, cleaned[1].dueText!!.length)
+        assertNull(cleaned[2].dueText)
+        assertNull(cleaned[2].owner)
+        assertNull(cleaned[2].dueAt)
+    }
+
+    @Test
+    fun `canPersistTasks rejects empty list and sanitize keeps order`() {
+        assertFalse(GroupAiSharePolicy.canPersistTasks(emptyList()))
+        assertTrue(
+            GroupAiSharePolicy.canPersistTasks(
+                listOf(TaskDraft(""), TaskDraft("ok"))
+            )
+        )
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft("b"), TaskDraft(""), TaskDraft("a"))
+        )
+        assertEquals(listOf("b", "a"), cleaned.map { it.title })
+    }
 }
