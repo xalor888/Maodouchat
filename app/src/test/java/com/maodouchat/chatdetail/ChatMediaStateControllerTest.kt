@@ -187,6 +187,81 @@ class ChatMediaStateControllerTest {
         assertFalse(done.mediaDownloadErrorMessageIds.contains("m"))
     }
 
+    @Test
+    fun `applyTransfers maps paused and ready to sending with their progress`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u1", content = "a", type = MessageType.FILE),
+            Message(id = "m2", chatId = "c1", senderId = "u1", content = "b", type = MessageType.FILE),
+        )
+        val transfers = listOf(
+            transfer("m1", AttachmentTransferState.PAUSED).copy(uploadedBytes = 100L),
+            transfer("m2", AttachmentTransferState.READY),
+        )
+        val updated = controller.applyTransfers(ChatDetailUiState(messages = messages), transfers)
+
+        val byId = updated.messages.associateBy { it.id }
+        assertEquals(MessageStatus.SENDING, byId.getValue("m1").status)
+        assertEquals(MessageStatus.SENDING, byId.getValue("m2").status)
+        assertEquals(0.9f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+        assertEquals(0.92f, updated.fileTransferProgress.getValue("m2"), 0.0001f)
+    }
+
+    @Test
+    fun `applyTransfers leaves preparing transfers out of message statuses`() {
+        val messages = listOf(
+            Message(
+                id = "m1", chatId = "c1", senderId = "u1", content = "a",
+                type = MessageType.FILE, status = MessageStatus.SENT,
+            ),
+        )
+        val updated = controller.applyTransfers(
+            ChatDetailUiState(messages = messages),
+            listOf(transfer("m1", AttachmentTransferState.PREPARING)),
+        )
+
+        assertEquals(MessageStatus.SENT, updated.messages.single().status)
+        assertEquals(AttachmentTransferState.PREPARING, updated.fileTransferStates["m1"])
+    }
+
+    @Test
+    fun `applyTransfers records progress for transfers without matching messages`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u1", content = "a", type = MessageType.FILE),
+        )
+        val updated = controller.applyTransfers(
+            ChatDetailUiState(messages = messages),
+            listOf(transfer("ghost", AttachmentTransferState.UPLOADING).copy(uploadedBytes = 100L)),
+        )
+
+        assertEquals(1, updated.messages.size)
+        assertEquals(MessageStatus.SENT, updated.messages.single().status)
+        assertEquals(0.9f, updated.fileTransferProgress.getValue("ghost"), 0.0001f)
+    }
+
+    @Test
+    fun `finishDownload keeps warning without error marker when not marked as media failure`() {
+        val state = controller.beginDownload(ChatDetailUiState(), "m")
+        val done = controller.finishDownload(state, "m", failureMessage = "boom")
+
+        assertEquals("boom", done.groupEncryptionWarning)
+        assertFalse(done.mediaDownloadErrorMessageIds.contains("m"))
+        assertFalse(done.downloadingFileMessageIds.contains("m"))
+    }
+
+    @Test
+    fun `updateSegmentProgress maps bytes into the given window`() {
+        val updated = controller.updateSegmentProgress(
+            ChatDetailUiState(),
+            messageId = "seg",
+            completed = 50L,
+            total = 100L,
+            start = 0.5f,
+            end = 1f,
+        )
+
+        assertEquals(0.75f, updated.fileTransferProgress.getValue("seg"), 0.0001f)
+    }
+
     private fun transfer(
         messageId: String,
         state: String,
