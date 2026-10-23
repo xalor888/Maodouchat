@@ -151,4 +151,52 @@ class MentionPolicyTest {
         )
         assertEquals("u9", nameless.single().displayName)
     }
+
+    @Test
+    fun displayTokenForUser_usesName_or_fallsBackToId() {
+        assertEquals("@Alice", MentionPolicy.displayTokenForUser(alice))
+        assertEquals("@u9", MentionPolicy.displayTokenForUser(User(id = "u9", name = "")))
+    }
+
+    @Test
+    fun shouldShowPicker_lowercaseAiCommandSuppressed_laterMentionStillShows() {
+        assertFalse(MentionPolicy.shouldShowPicker("@ai summarize", isGroupChat = true))
+        assertTrue(MentionPolicy.shouldShowPicker("@AI summarize @Al", isGroupChat = true))
+    }
+
+    @Test
+    fun filterCandidates_everyoneAliases_match_and_resultsSorted() {
+        val people = listOf(me, User(id = "u5", name = "Zoe"), User(id = "u6", name = "amy"))
+
+        assertTrue(MentionPolicy.filterCandidates(people, "me", "eve").any { it.isEveryone })
+        assertTrue(MentionPolicy.filterCandidates(people, "me", "所有人").any { it.isEveryone })
+        assertTrue(MentionPolicy.filterCandidates(people, "me", "all").any { it.isEveryone })
+        assertFalse(MentionPolicy.filterCandidates(people, "me", "xyz").any { it.isEveryone })
+
+        val all = MentionPolicy.filterCandidates(people, "me", "", includeEveryone = false)
+        assertEquals(listOf("amy", "Zoe"), all.map { it.displayName })
+    }
+
+    @Test
+    fun extractMentionIds_legacyUserId_and_chineseEveryone() {
+        assertEquals(listOf("u2"), MentionPolicy.extractMentionIds("@u2 ok", members, "me"))
+        assertEquals(
+            listOf(MentionPolicy.EVERYONE_ID),
+            MentionPolicy.extractMentionIds("hi @所有人", members, "me"),
+        )
+        assertEquals(listOf("u1"), MentionPolicy.extractMentionIds("@AI what @Alice", members, "me"))
+    }
+
+    @Test
+    fun shouldHighlightMention_blankCurrentUser_and_emptyMentions_neverHighlight() {
+        assertFalse(MentionPolicy.shouldHighlightMention(listOf("me"), "", false))
+        assertFalse(MentionPolicy.shouldHighlightMention(emptyList(), "me", false))
+        assertFalse(
+            MentionPolicy.shouldHighlightMention(
+                listOf(MentionPolicy.EVERYONE_ID),
+                "me",
+                notificationsMuted = true,
+            )
+        )
+    }
 }

@@ -103,4 +103,63 @@ class SecretScreenshotBurnPrefsTest {
         SecretScreenshotBurnPrefs.setEnabled(ctx, false)
         assertTrue(SecretScreenshotBurnPrefs.isEnabled(ctx), "无账号时 setEnabled 不应留下任何状态")
     }
+
+    @Test
+    fun purgeMediaIndependentOfSwitch() {
+        val c = ctx
+        SecretScreenshotBurnPrefs.setEnabled(c, false)
+        assertTrue(
+            SecretScreenshotBurnPrefs.shouldPurgeMedia(c),
+            "开关关闭不应改变截屏媒体清除选项",
+        )
+        SecretScreenshotBurnPrefs.setPurgeMedia(c, false)
+        SecretScreenshotBurnPrefs.setEnabled(c, true)
+        assertEquals(
+            false, SecretScreenshotBurnPrefs.shouldPurgeMedia(c),
+            "开关打开也不应重置用户已选的清除选项",
+        )
+    }
+
+    @Test
+    fun isEnabledIsolatedPerAccount() {
+        val c = ctx
+        SecretScreenshotBurnPrefs.setEnabled(c, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        assertTrue(SecretScreenshotBurnPrefs.isEnabled(c), "换账号后应读到另一个账号的默认开")
+        AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        assertEquals(false, SecretScreenshotBurnPrefs.isEnabled(c), "切回原账号应仍是它自己的关")
+    }
+
+    @Test
+    fun setPurgeMediaNoOpWithoutAUser() {
+        val c = ctx
+        SecretScreenshotBurnPrefs.setPurgeMedia(c, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { null }
+        SecretScreenshotBurnPrefs.setPurgeMedia(c, true)
+        AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        assertEquals(
+            false, SecretScreenshotBurnPrefs.shouldPurgeMedia(c),
+            "无账号时的写入应静默丢弃，不应覆盖原账号的选择",
+        )
+    }
+
+    @Test
+    fun purgeMediaChoiceIsStableAcrossReads() {
+        val c = ctx
+        repeat(5) {
+            assertTrue(SecretScreenshotBurnPrefs.shouldPurgeMedia(c), "默认 true 读多少次都应稳定")
+        }
+        SecretScreenshotBurnPrefs.setPurgeMedia(c, false)
+        repeat(5) {
+            assertEquals(false, SecretScreenshotBurnPrefs.shouldPurgeMedia(c), "用户关掉后重复读应稳定")
+        }
+    }
+
+    @Test
+    fun failOpenKeepsBothDecisionsPinned() {
+        AccountFeatureSwitch.userIdOverrideForTest = { null }
+        assertTrue(SecretScreenshotBurnPrefs.isEnabled(ctx), "取不到账号时开关 fail-open 返回 true")
+        assertTrue(SecretScreenshotBurnPrefs.shouldPurgeMedia(ctx), "取不到账号时清除选项也 fail-open 返回 true")
+        assertEquals(false, SecretScreenshotBurnPrefs.isUserSet(ctx), "取不到账号时 isUserSet 应为 false")
+    }
 }
