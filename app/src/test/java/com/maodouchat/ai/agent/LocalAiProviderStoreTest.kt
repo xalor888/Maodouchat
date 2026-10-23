@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -46,5 +47,55 @@ class LocalAiProviderStoreTest {
         assertEquals(1, decoded.size)
         assertTrue(decoded.single().messages.none { it.role == "tool" && it.content.isBlank() })
         assertEquals("hi", decoded.single().messages.single().content)
+    }
+
+    @Test
+    fun `non-array provider json parses to empty list`() {
+        assertTrue(LocalAiProviderStore.parseProviders("not json").isEmpty())
+        assertTrue(LocalAiProviderStore.parseProviders("{}").isEmpty())
+    }
+
+    @Test
+    fun `provider baseUrl trailing slash is trimmed on parse`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x.example/"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("https://x.example", decoded.single().baseUrl)
+    }
+
+    @Test
+    fun `provider protocol aliases resolve on parse`() {
+        val raw = """[
+          {"id":"a","model":"m","baseUrl":"https://x","protocol":"anthropic"},
+          {"id":"b","model":"m","baseUrl":"https://x","protocol":"responses"},
+          {"id":"c","model":"m","baseUrl":"https://x","protocol":"weird"}
+        ]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, decoded[0].protocol)
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, decoded[1].protocol)
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, decoded[2].protocol)
+    }
+
+    @Test
+    fun `null temperature survives provider round trip`() {
+        val provider = LocalAiProvider(
+            id = "p1",
+            name = "n",
+            baseUrl = "https://x",
+            apiKey = "sk-test",
+            model = "m",
+            temperature = null
+        )
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(listOf(provider)))
+        assertEquals(1, decoded.size)
+        assertNull(decoded.single().temperature)
+    }
+
+    @Test
+    fun `session with blank title defaults and blank id rows are dropped`() {
+        val raw = """[{"id":"","title":"x"},{"id":"s1","title":"  "}]"""
+        val decoded = LocalAiProviderStore.parseSessions(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("新对话", decoded.single().title)
     }
 }
