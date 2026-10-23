@@ -44,9 +44,14 @@ class LinkPreviewPreferencesVersionTest {
 
     @Test
     fun `version setter is private`() {
-        // 只有 setEnabled 能递增：setter 私有是封装的静态证据
-        val setter = LinkPreviewPreferences::class.java.getDeclaredMethod("setVersion", Int::class.javaPrimitiveType)
-        assertTrue(Modifier.isPrivate(setter.modifiers))
+        // 只有 setEnabled 能递增：backing field 私有，且没有对外暴露的 setter。
+        // （Kotlin 对 private set 生成的 JVM 方法名不可靠，不直接按名取。）
+        val field = LinkPreviewPreferences::class.java.getDeclaredField("version")
+        assertTrue(Modifier.isPrivate(field.modifiers))
+        val publicSetters = LinkPreviewPreferences::class.java.methods.filter {
+            it.name.startsWith("setVersion") && it.parameterCount == 1 && Modifier.isPublic(it.modifiers)
+        }
+        assertTrue("no public setter for version", publicSetters.isEmpty())
     }
 
     @Test
