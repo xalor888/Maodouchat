@@ -3,6 +3,7 @@ package com.maodouchat.chatdetail
 import com.maodouchat.ui.screen.chatdetail.AiRequestGenerationGate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -76,5 +77,60 @@ class AiRequestGenerationGateTest {
         val tokens = (1..16).toList().parallelStream().map { gate.next() }.toList()
 
         assertEquals(16, tokens.distinct().size)
+    }
+
+    @Test
+    fun `first tokens are consecutive starting at one`() {
+        val gate = AiRequestGenerationGate()
+
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), List(5) { gate.next() })
+    }
+
+    @Test
+    fun `invalidate skips exactly one generation that can never become current`() {
+        val gate = AiRequestGenerationGate()
+        val token = gate.next()
+
+        gate.invalidate()
+        val skipped = token + 1
+        assertFalse(gate.isCurrent(skipped))
+
+        val fresh = gate.next()
+        assertEquals(skipped + 1, fresh)
+        assertTrue(gate.isCurrent(fresh))
+    }
+
+    @Test
+    fun `invalidate after parallel next drops every handed-out token`() {
+        val gate = AiRequestGenerationGate()
+        val tokens = (1..16).toList().parallelStream().map { gate.next() }.toList()
+
+        gate.invalidate()
+
+        assertTrue(tokens.none { gate.isCurrent(it) })
+        assertTrue(gate.isCurrent(gate.next()))
+    }
+
+    @Test
+    fun `isCurrent is stable across repeated checks`() {
+        val gate = AiRequestGenerationGate()
+        val token = gate.next()
+        repeat(100) { assertTrue(gate.isCurrent(token)) }
+
+        val stale = token
+        gate.next()
+        repeat(50) { assertFalse(gate.isCurrent(stale)) }
+    }
+
+    @Test
+    fun `fresh token never equals a pre-invalidate token`() {
+        val gate = AiRequestGenerationGate()
+        val token = gate.next()
+
+        gate.invalidate()
+        val fresh = gate.next()
+
+        assertNotEquals(token, fresh)
+        assertEquals(token + 2, fresh)
     }
 }

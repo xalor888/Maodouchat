@@ -4,6 +4,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.AiContextSenders
+import com.maodouchat.ui.screen.chatdetail.MAX_AI_SUMMARY_MESSAGES
 import com.maodouchat.ui.screen.chatdetail.buildPlainAiContextMessages
 import com.maodouchat.ui.screen.chatdetail.buildSummaryAiContextMessages
 import org.junit.Assert.assertEquals
@@ -117,6 +118,78 @@ class ChatAiContextBuilderTest {
     fun `empty message lists produce empty contexts`() {
         assertTrue(buildPlainAiContextMessages(emptyList(), senders, limit = 10).isEmpty())
         assertTrue(buildSummaryAiContextMessages(emptyList(), senders).isEmpty())
+    }
+
+    @Test
+    fun `plain context orders same-timestamp messages by id`() {
+        val messages = listOf(
+            message("m-b", "alice", "b text", 10L),
+            message("m-a", "alice", "a text", 10L)
+        )
+
+        val context = buildPlainAiContextMessages(messages, senders, limit = 10)
+
+        assertEquals(listOf("a text", "b text"), context.map { it.text })
+    }
+
+    @Test
+    fun `plain context honors a custom maxTextLength`() {
+        val messages = listOf(message("m1", "alice", "x".repeat(500), 1L))
+
+        val context = buildPlainAiContextMessages(messages, senders, limit = 10, maxTextLength = 50)
+
+        assertEquals(50, context.single().text.length)
+    }
+
+    @Test
+    fun `summary dedupes identical transcript and translation lines`() {
+        val voice = message(
+            "voice",
+            "alice",
+            "encrypted-reference",
+            20L,
+            MessageMeta(
+                voiceTranscript = "语音内容",
+                translations = mapOf("中文" to "语音内容")
+            ),
+            MessageType.VOICE
+        )
+
+        val context = buildSummaryAiContextMessages(listOf(voice), senders)
+
+        assertEquals("语音内容", context.single().text)
+    }
+
+    @Test
+    fun `blank-only messages produce empty contexts`() {
+        val messages = listOf(message("m1", "alice", "   ", 1L))
+
+        assertTrue(buildPlainAiContextMessages(messages, senders, limit = 10).isEmpty())
+        assertTrue(buildSummaryAiContextMessages(messages, senders).isEmpty())
+    }
+
+    @Test
+    fun `summary default limit caps at MAX_AI_SUMMARY_MESSAGES`() {
+        val messages = (1..60).map { message("m$it", "alice", "text $it", it.toLong()) }
+
+        val context = buildSummaryAiContextMessages(messages, senders)
+
+        assertEquals(MAX_AI_SUMMARY_MESSAGES, context.size)
+        assertEquals("text ${60 - MAX_AI_SUMMARY_MESSAGES + 1}", context.first().text)
+        assertEquals("text 60", context.last().text)
+    }
+
+    @Test
+    fun `blank mapped sender name falls back to the fallback label`() {
+        val blankNames = senders.copy(namesByUserId = mapOf("alice" to "   "))
+
+        val context = buildPlainAiContextMessages(
+            listOf(message("m1", "alice", "hi", 1L)),
+            blankNames,
+            limit = 10
+        )
+
+        assertEquals("对方", context.single().sender)
     }
 
     private fun message(
