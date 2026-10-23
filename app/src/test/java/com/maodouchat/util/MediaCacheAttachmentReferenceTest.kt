@@ -224,7 +224,7 @@ class MediaCacheAttachmentReferenceTest {
         MediaCache.encodeEncryptedAttachmentReference(validRef(attachmentId = "att_" + "a".repeat(100)))
     }
 
-    // ---- sanitizeFileName：首尾点裁掉、长度上限 120、全点回退 "file" ----
+    // ---- sanitizeFileName：首尾点裁掉、全点回退 "file"；超长（>120）在 encode 侧直接拒绝 ----
 
     @Test
     fun fileNameSanitizationTrimsDotsAndCapsLength() {
@@ -233,11 +233,14 @@ class MediaCacheAttachmentReferenceTest {
         )
         assertNotNull(dotted)
         assertEquals("photo", dotted.fileName, "首尾的点必须被裁掉")
-        val long = MediaCache.decodeEncryptedAttachmentReference(
-            MediaCache.encodeEncryptedAttachmentReference(validRef(fileName = "x".repeat(200)))
+        val atLimit = MediaCache.decodeEncryptedAttachmentReference(
+            MediaCache.encodeEncryptedAttachmentReference(validRef(fileName = "x".repeat(120)))
         )
-        assertNotNull(long)
-        assertEquals(120, long.fileName.length, "文件名必须截到 120")
+        assertNotNull(atLimit)
+        assertEquals(120, atLimit.fileName.length, "120 字符文件名原样通过")
+        assertFailsWith<Exception>("121 字符文件名 encode 必须拒绝") {
+            MediaCache.encodeEncryptedAttachmentReference(validRef(fileName = "x".repeat(121)))
+        }
         val dots = MediaCache.decodeEncryptedAttachmentReference(
             MediaCache.encodeEncryptedAttachmentReference(validRef(fileName = "..."))
         )
