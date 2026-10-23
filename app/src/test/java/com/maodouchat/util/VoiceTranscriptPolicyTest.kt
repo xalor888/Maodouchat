@@ -100,8 +100,11 @@ class VoiceTranscriptPolicyTest {
 
     @Test
     fun `displayText trims trailing spaces before the ellipsis`() {
-        val transcript = "a".repeat(355) + " ".repeat(10)
-        assertEquals("a".repeat(355) + "…", VoiceTranscriptPolicy.displayText(transcript, expanded = false))
+        // take(360) 恰好切在空格上时，省略号直接贴着正文、不留空格
+        val transcript = "a".repeat(359) + " " + "b".repeat(100)
+        assertEquals("a".repeat(359) + "…", VoiceTranscriptPolicy.displayText(transcript, expanded = false))
+        // 输入尾部空格先被 normalize 裁掉：355 有效字符 ≤360，不截断也不加省略号
+        assertEquals("a".repeat(355), VoiceTranscriptPolicy.displayText("a".repeat(355) + " ".repeat(10), expanded = false))
     }
 
     @Test
