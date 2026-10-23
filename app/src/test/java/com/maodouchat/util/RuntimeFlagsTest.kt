@@ -97,4 +97,49 @@ class RuntimeFlagsTest {
         val dup = keys.groupBy { it }.filter { it.value.size > 1 }.keys
         check(dup.isEmpty()) { "Flag key 重复：$dup" }
     }
+
+    @Test
+    fun settingOneFlagDoesNotDisturbOthers() {
+        RuntimeFlags.setEnabled(ctx, RuntimeFlags.CHAT_MUTE, false)
+        check(RuntimeFlags.isEnabled(ctx, RuntimeFlags.MARKDOWN)) { "改 CHAT_MUTE 不应影响 MARKDOWN" }
+        check(RuntimeFlags.isEnabled(ctx, RuntimeFlags.AI_MASTER)) { "改 CHAT_MUTE 不应影响 AI_MASTER" }
+        RuntimeFlags.setEnabled(ctx, RuntimeFlags.CHAT_MUTE, true)
+    }
+
+    @Test
+    fun clearingPrefsFallsBackToDefaults() {
+        // 存储被清空（卸载残留/手工删除）后，读数应回到声明的 default。
+        RuntimeFlags.setEnabled(ctx, RuntimeFlags.CHAT_MUTE, false)
+        ctx.getSharedPreferences("maodou_runtime_flags", Context.MODE_PRIVATE)
+            .edit().clear().apply()
+        check(RuntimeFlags.isEnabled(ctx, RuntimeFlags.CHAT_MUTE)) { "清空后 CHAT_MUTE 应回到默认 true" }
+        check(!RuntimeFlags.isEnabled(ctx, RuntimeFlags.FAKE_CHAT)) { "清空后 FAKE_CHAT 应回到默认 false" }
+    }
+
+    @Test
+    fun setEnabledIsIdempotent() {
+        repeat(3) { RuntimeFlags.setEnabled(ctx, RuntimeFlags.CHAT_ARCHIVE, false) }
+        check(!RuntimeFlags.isEnabled(ctx, RuntimeFlags.CHAT_ARCHIVE)) { "重复关闭应稳定读回 false" }
+        repeat(3) { RuntimeFlags.setEnabled(ctx, RuntimeFlags.CHAT_ARCHIVE, true) }
+        check(RuntimeFlags.isEnabled(ctx, RuntimeFlags.CHAT_ARCHIVE)) { "重复开启应稳定读回 true" }
+    }
+
+    @Test
+    fun ordinaryDefaultFalseFlagCanBeEnabled() {
+        // FAKE_CHAT 默认 false 但不是 kill switch：必须能被打开（与 CHAT_EXPORT 对照）。
+        RuntimeFlags.setEnabled(ctx, RuntimeFlags.FAKE_CHAT, true)
+        check(RuntimeFlags.isEnabled(ctx, RuntimeFlags.FAKE_CHAT)) { "FAKE_CHAT 不是下线开关，打开后应读回 true" }
+        RuntimeFlags.setEnabled(ctx, RuntimeFlags.CHAT_EXPORT, true)
+        check(!RuntimeFlags.isEnabled(ctx, RuntimeFlags.CHAT_EXPORT)) { "CHAT_EXPORT 是 kill switch，打开也必须读回 false" }
+    }
+
+    @Test
+    fun everyFlagKeyEndsWithEnabledSuffix() {
+        // key 命名约定钉住：合并来的 98 个文件里漏改一个后缀，读写的就是另一个键。
+        val bad = RuntimeFlags::class.java.declaredFields
+            .filter { it.type == Flag::class.java }
+            .map { it.isAccessible = true; (it.get(null) as Flag).key }
+            .filter { !it.endsWith("_enabled") }
+        check(bad.isEmpty()) { "Flag key 必须以 _enabled 结尾：$bad" }
+    }
 }
