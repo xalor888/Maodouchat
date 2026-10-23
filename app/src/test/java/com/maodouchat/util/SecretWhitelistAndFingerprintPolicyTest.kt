@@ -10,19 +10,8 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 /**
- * G186b：最后两个 `Secret*Prefs` 安全决策的覆盖。
- *
- * 之所以单独立项：这两个函数和已经覆盖的 `SecretNewDeviceRiskPrefs.isDeviceTrusted`
- * **fail 方向不一样**，而这个差异正是容易被「统一重构」抹掉的东西：
- *
- * | 函数 | 开关关闭时 | 状态集合为空时 |
- * |---|---|---|
- * | `isDeviceTrusted` / `isFingerprintVerified` | **放行**（不做风控） | 不可信 |
- * | `isForwardAllowed` | **放行**（不做限制） | **一律禁止**（空白名单 = deny all） |
- *
- * 第三个格子是重点：转发白名单是**允许列表**语义，空集合必须解释为
- * 「谁都不许转发」，而不是「谁都可以转发」。写反的后果是密聊内容可以转发到
- * 未授信目标——这是安全性质。
+ * G186b：最后两个 `Secret*Prefs` 安全决策的覆盖。核心差异钉住：转发白名单是**允许列表**
+ * 语义——空集合 = 谁都不许转发（fail-closed），而不是谁都可以；这点最容易在重构中被抹掉。
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
@@ -149,5 +138,69 @@ class SecretWhitelistAndFingerprintPolicyTest {
         SecretForwardWhitelistPrefs.setEnabled(c, false)
         check(SecretDeviceVerifyPrefs.isFingerprintVerified(c, "fp")) { "开关关闭 → 设备核验放行" }
         check(SecretForwardWhitelistPrefs.isForwardAllowed(c, "user")) { "开关关闭 → 转发放行" }
+    }
+
+    // ---- oct22bf 续批：五态 ----
+
+    @Test
+    fun fingerprintMatchingIsCaseSensitive() {
+        val c = ctx
+        SecretDeviceVerifyPrefs.setEnabled(c, true)
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, "FP-A")
+        check(!SecretDeviceVerifyPrefs.isFingerprintVerified(c, "fp-a")) {
+            "指纹匹配必须大小写敏感"
+        }
+        check(SecretDeviceVerifyPrefs.isFingerprintVerified(c, "FP-A")) { "原样应命中" }
+    }
+
+    @Test
+    fun markFingerprintVerifiedIgnoresBlank() {
+        val c = ctx
+        SecretDeviceVerifyPrefs.setEnabled(c, true)
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, "   ")
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, "")
+        check(SecretDeviceVerifyPrefs.verifiedFingerprints(c).isEmpty()) {
+            "空白指纹写入应被忽略"
+        }
+    }
+
+    @Test
+    fun fingerprintSetIsIsolatedPerAccount() {
+        val c = ctx
+        SecretDeviceVerifyPrefs.setEnabled(c, true)
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, "fp-a")
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        try {
+            check(!SecretDeviceVerifyPrefs.isFingerprintVerified(c, "fp-a")) {
+                "换账号后他账号读不到本账号指纹"
+            }
+            check(SecretDeviceVerifyPrefs.verifiedFingerprints(c).isEmpty()) { "他账号集合应为空" }
+        } finally {
+            AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        }
+        check(SecretDeviceVerifyPrefs.isFingerprintVerified(c, "fp-a")) { "切回原账号仍可信" }
+    }
+
+    @Test
+    fun whitelistReadTrimsRawStoredValues() {
+        val c = ctx
+        SecretForwardWhitelistPrefs.setEnabled(c, true)
+        // 绕过 setter 写裸集合：getter 读回同样裁边剔空白
+        val prefs = c.getSharedPreferences("secret_forward_whitelist", Context.MODE_PRIVATE)
+        prefs.edit().putStringSet("whitelist:user-under-test", setOf(" user-a ", "  ", "")).apply()
+        check(SecretForwardWhitelistPrefs.whitelist(c) == setOf("user-a")) {
+            "getter 必须裁边并剔空白，实际 ${SecretForwardWhitelistPrefs.whitelist(c)}"
+        }
+    }
+
+    @Test
+    fun forwardDecisionRepeatsDeterministically() {
+        val c = ctx
+        SecretForwardWhitelistPrefs.setEnabled(c, true)
+        SecretForwardWhitelistPrefs.setWhitelist(c, setOf("user-a"))
+        repeat(3) {
+            check(SecretForwardWhitelistPrefs.isForwardAllowed(c, "user-a")) { "命中判定应稳定放行" }
+            check(!SecretForwardWhitelistPrefs.isForwardAllowed(c, "user-b")) { "未命中判定应稳定禁止" }
+        }
     }
 }

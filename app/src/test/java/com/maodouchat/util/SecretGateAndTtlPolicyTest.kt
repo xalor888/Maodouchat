@@ -10,15 +10,9 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 /**
- * G185b：三个 `Secret*Prefs` 的**判定与边界**覆盖。
- *
- * 这三个类的开关四件套（isEnabled/setEnabled/…）一直是委托给 `AccountFeatureSwitch`，
- * 但**它们自己的状态逻辑**此前没有任何一条直接断言：
- * 2FA 门的时间窗、自动销毁 TTL 的钳制、对端徽标的「三重与」。
- * 这些逻辑写错的后果都很实在：门永不关 / 消息永不过期 / 徽标在对方没开密聊时也亮。
- *
- * 之所以现在能测：G185b 给 `AccountFeatureSwitch` 加了全局 `userIdOverrideForTest`，
- * 一个改动解锁整个 `Secret*Prefs` 家族（不必给 10 个文件逐个加测试缝）。
+ * G185b：三个 `Secret*Prefs` 的判定与边界覆盖——2FA 门的时间窗、自动销毁 TTL 的钳制、
+ * 对端徽标的「三重与」。之所以现在能测：G185b 给 `AccountFeatureSwitch` 加了
+ * `userIdOverrideForTest`，一个改动解锁整个 `Secret*Prefs` 家族。
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
@@ -171,6 +165,86 @@ class SecretGateAndTtlPolicyTest {
         SecretSessionNoticePrefs.setShowPeerNotice(ctx, true)
         check(!SecretSessionNoticePrefs.shouldShowPeerNotice(ctx, peerSecretEnabled = true)) {
             "本端开关关掉后必须不显示"
+        }
+    }
+
+    // ---- oct22bf 续批：五态 ----
+
+    @Test
+    fun gateTimeoutDefaultIsFiveMinutesAndBoundsAreExact() {
+        check(Secret2faGatePrefs.gateTimeoutMs(ctx) == Secret2faGatePrefs.DEFAULT_TIMEOUT_MS) {
+            "从未设置过时窗口应为默认值"
+        }
+        check(Secret2faGatePrefs.DEFAULT_TIMEOUT_MS == 5L * 60 * 1000) { "默认窗口逐字钉住 5 分钟" }
+        Secret2faGatePrefs.setGateTimeoutMs(ctx, 10_000L)
+        check(Secret2faGatePrefs.gateTimeoutMs(ctx) == 10_000L) { "下限值应原样保留" }
+        Secret2faGatePrefs.setGateTimeoutMs(ctx, 9_999L)
+        check(Secret2faGatePrefs.gateTimeoutMs(ctx) == 10_000L) { "低于下限 1ms 应收钳" }
+        val dayMs = 24L * 60 * 60 * 1000
+        Secret2faGatePrefs.setGateTimeoutMs(ctx, dayMs)
+        check(Secret2faGatePrefs.gateTimeoutMs(ctx) == dayMs) { "上限值应原样保留" }
+        Secret2faGatePrefs.setGateTimeoutMs(ctx, dayMs + 1)
+        check(Secret2faGatePrefs.gateTimeoutMs(ctx) == dayMs) { "高于上限 1ms 应收钳" }
+    }
+
+    @Test
+    fun gateTimeoutReadAlsoClampsOutOfBandWrites() {
+        // 绕过 setter 直接写裸值：getter 读回时同样要钳（双层保险钉住）
+        val prefs = ctx.getSharedPreferences("secret_2fa_gate", Context.MODE_PRIVATE)
+        prefs.edit().putLong("timeout_ms:user-under-test", 5_000L).apply()
+        check(Secret2faGatePrefs.gateTimeoutMs(ctx) == 10_000L) { "getter 必须把过小裸值钳回下限" }
+        prefs.edit().putLong("timeout_ms:user-under-test", 99L * 24 * 60 * 60 * 1000).apply()
+        check(Secret2faGatePrefs.gateTimeoutMs(ctx) == 24L * 60 * 60 * 1000) { "getter 必须把过大裸值钳回上限" }
+    }
+
+    @Test
+    fun gateTimeoutIsIsolatedPerAccount() {
+        Secret2faGatePrefs.setEnabled(ctx, true)
+        Secret2faGatePrefs.setGateTimeoutMs(ctx, 60_000L)
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        try {
+            check(Secret2faGatePrefs.gateTimeoutMs(ctx) == Secret2faGatePrefs.DEFAULT_TIMEOUT_MS) {
+                "换账号后读不到原账号的配置，应回默认"
+            }
+            Secret2faGatePrefs.setGateTimeoutMs(ctx, 120_000L)
+        } finally {
+            AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        }
+        check(Secret2faGatePrefs.gateTimeoutMs(ctx) == 60_000L) { "切回原账号值应保留" }
+    }
+
+    @Test
+    fun autoDestroyTtlDefaultAndReadClamp() {
+        check(SecretAutoDestroyPrefs.ttlSeconds(ctx) == SecretAutoDestroyPrefs.DEFAULT_TTL_SECONDS) {
+            "默认 TTL 应为 86400 秒"
+        }
+        // 绕过 setter 的裸值：getter 读回同样钳制
+        val prefs = ctx.getSharedPreferences("secret_auto_destroy", Context.MODE_PRIVATE)
+        prefs.edit().putLong("ttl_seconds:user-under-test", 10L).apply()
+        check(SecretAutoDestroyPrefs.ttlSeconds(ctx) == SecretAutoDestroyPrefs.MIN_TTL_SECONDS) {
+            "getter 必须把过小裸值钳到 MIN"
+        }
+        prefs.edit().putLong("ttl_seconds:user-under-test", -5L).apply()
+        check(SecretAutoDestroyPrefs.ttlSeconds(ctx) == SecretAutoDestroyPrefs.MIN_TTL_SECONDS) {
+            "负数裸值同样钳到 MIN"
+        }
+    }
+
+    @Test
+    fun peerNoticeToggleRoundTripsAndRepeatsDeterministically() {
+        SecretSessionNoticePrefs.setShowPeerNotice(ctx, false)
+        repeat(3) {
+            check(!SecretSessionNoticePrefs.shouldShowPeerNotice(ctx, peerSecretEnabled = true)) {
+                "关闭徽标后重复判定应稳定为 false"
+            }
+        }
+        SecretSessionNoticePrefs.setShowPeerNotice(ctx, true)
+        check(SecretSessionNoticePrefs.showPeerNotice(ctx)) { "徽标开关应往返" }
+        // 总开关关开一次，徽标偏好不丢失
+        SecretSessionNoticePrefs.setEnabled(ctx, false)
+        SecretSessionNoticePrefs.setEnabled(ctx, true)
+        check(SecretSessionNoticePrefs.shouldShowPeerNotice(ctx, peerSecretEnabled = true)) {
+            "总开关开关一次不应清掉徽标偏好"
         }
     }
 }
