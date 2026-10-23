@@ -27,4 +27,37 @@ class CustomStatusPolicyTest {
         assertEquals("忙碌", CustomStatusPolicy.visibleStatus(" 忙碌 ", showStatus = true))
         assertEquals("", CustomStatusPolicy.visibleStatus("   ", showStatus = true))
     }
+
+    @Test
+    fun `presets are distinct non-blank wire values`() {
+        val presets = CustomStatusPolicy.PRESETS
+        assertEquals(24, presets.size)
+        assertEquals(presets.size, presets.distinct().size)
+        assertTrue(presets.all { it.isNotBlank() && it.length <= CustomStatusPolicy.MAX_LENGTH })
+    }
+
+    @Test
+    fun `normalize handles null`() {
+        assertEquals("", CustomStatusPolicy.normalize(null))
+    }
+
+    @Test
+    fun `isValid boundary at exactly max`() {
+        assertTrue(CustomStatusPolicy.isValid("z".repeat(80)))
+        assertFalse(CustomStatusPolicy.isValid("z".repeat(81)))
+        assertFalse(CustomStatusPolicy.isValid(" ".repeat(81)))
+    }
+
+    @Test
+    fun `visibleStatus null status`() {
+        assertEquals("", CustomStatusPolicy.visibleStatus(null, showStatus = true))
+        assertEquals("", CustomStatusPolicy.visibleStatus(null, showStatus = false))
+    }
+
+    @Test
+    fun `normalize caps exactly at max`() {
+        val exact = "a".repeat(80)
+        assertEquals(exact, CustomStatusPolicy.normalize(exact))
+        assertEquals(80, CustomStatusPolicy.normalize("a".repeat(81)).length)
+    }
 }
