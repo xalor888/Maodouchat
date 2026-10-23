@@ -4,9 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * AI 本地规则组件纯函数测试（9.231）：分类器与情绪检测的词典规则锁定。
- */
 class AiLocalRulesTest {
 
     @Test
@@ -67,5 +64,41 @@ class AiLocalRulesTest {
     fun `detect emotion mixed signals take majority`() {
         val result = AiEmotionReply.detectEmotion(listOf("难过 伤心", "难过"))
         assertEquals(Emotion.SAD, result.emotion)
+    }
+
+    @Test
+    fun `classify tie breaks to first max category`() {
+        val result = AiMessageClassifier.classifyText("转账 部署")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify english lexicon is case insensitive`() {
+        val result = AiMessageClassifier.classifyText("Please DEPLOY the new API version")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion ignores hits beyond scan window`() {
+        val far = AiEmotionReply.detectEmotion(listOf("垫".repeat(250) + "开心"))
+        assertEquals(Emotion.NEUTRAL, far.emotion)
+        val near = AiEmotionReply.detectEmotion(listOf("垫".repeat(190) + "开心"))
+        assertEquals(Emotion.HAPPY, near.emotion)
+    }
+
+    @Test
+    fun `detect emotion tie across texts picks first max`() {
+        val result = AiEmotionReply.detectEmotion(listOf("哈哈", "难过"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify blank text falls back to other`() {
+        val result = AiMessageClassifier.classifyText("   ")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
     }
 }
