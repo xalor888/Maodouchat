@@ -9,6 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -80,5 +81,61 @@ class SecretSimChangePrefsTest {
         val c = ctx
         SecretSimChangePrefs.setLastSimId(c, "  sim-1  ")
         assertEquals("sim-1", SecretSimChangePrefs.lastSimId(c), "读出来应该已经 trim 过")
+    }
+
+    @Test
+    fun switchDefaultsOnAndRoundTrips() {
+        val c = ctx
+        assertTrue(SecretSimChangePrefs.isEnabled(c), "开关默认应开")
+        SecretSimChangePrefs.setEnabled(c, false)
+        assertEquals(false, SecretSimChangePrefs.isEnabled(c), "关掉后应读到关")
+        SecretSimChangePrefs.setEnabled(c, true)
+        assertTrue(SecretSimChangePrefs.isEnabled(c), "应能再打开")
+    }
+
+    @Test
+    fun serverDefaultAppliesOnlyBeforeUserSets() {
+        val c = ctx
+        SecretSimChangePrefs.applyServerDefault(c, false)
+        assertEquals(false, SecretSimChangePrefs.isEnabled(c), "用户没碰过时服务端默认值应生效")
+        assertEquals(false, SecretSimChangePrefs.isUserSet(c), "服务端默认值不算用户设置")
+        SecretSimChangePrefs.setEnabled(c, true)
+        SecretSimChangePrefs.applyServerDefault(c, false)
+        assertTrue(SecretSimChangePrefs.isEnabled(c), "用户显式设置后服务端默认值不应覆盖")
+        assertTrue(SecretSimChangePrefs.isUserSet(c), "setEnabled 后应标记为用户已设置")
+    }
+
+    @Test
+    fun whitespaceVariantOfSameIdDoesNotStamp() {
+        val c = ctx
+        SecretSimChangePrefs.setLastSimId(c, "sim-1")
+        SecretSimChangePrefs.setLastSimId(c, "  sim-1  ")
+        assertEquals(0L, SecretSimChangePrefs.lastChangeAt(c), "只是多了空白的同一张卡不是换卡")
+        assertEquals("sim-1", SecretSimChangePrefs.lastSimId(c))
+    }
+
+    @Test
+    fun simStateIsIsolatedPerAccount() {
+        val c = ctx
+        SecretSimChangePrefs.setLastSimId(c, "sim-a")
+        SecretSimChangePrefs.setLastSimId(c, "sim-b")
+        val stamp = SecretSimChangePrefs.lastChangeAt(c)
+        assertTrue(stamp > 0L, "真换卡应有时间戳")
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        assertNull(SecretSimChangePrefs.lastSimId(c), "换账号后应读不到原账号的 sim")
+        assertEquals(0L, SecretSimChangePrefs.lastChangeAt(c), "换账号后时间戳也应是 0")
+        AccountFeatureSwitch.userIdOverrideForTest = { userId }
+        assertEquals("sim-b", SecretSimChangePrefs.lastSimId(c), "切回原账号状态应完整")
+        assertEquals(stamp, SecretSimChangePrefs.lastChangeAt(c), "切回原账号时间戳应不变")
+    }
+
+    @Test
+    fun allApisNoOpWithoutAUser() {
+        AccountFeatureSwitch.userIdOverrideForTest = { null }
+        val c = ctx
+        SecretSimChangePrefs.setLastSimId(c, "sim-1")
+        assertNull(SecretSimChangePrefs.lastSimId(c), "无账号时写入应静默丢弃")
+        assertEquals(0L, SecretSimChangePrefs.lastChangeAt(c), "无账号时时间戳恒为 0")
+        assertTrue(SecretSimChangePrefs.isEnabled(c), "无账号时开关 fail-open 返回 true")
     }
 }

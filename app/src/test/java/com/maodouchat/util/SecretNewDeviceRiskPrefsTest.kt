@@ -96,4 +96,63 @@ class SecretNewDeviceRiskPrefsTest {
             "未登记设备必须判为不可信——否则密聊会在新设备上直接展示内容"
         }
     }
+
+    @Test
+    fun switchDefaultsOnAndRoundTrips() {
+        val c = ctx
+        check(SecretNewDeviceRiskPrefs.isEnabled(c)) { "开关默认应开" }
+        SecretNewDeviceRiskPrefs.setEnabled(c, false)
+        check(!SecretNewDeviceRiskPrefs.isEnabled(c)) { "关掉后应读到关" }
+        SecretNewDeviceRiskPrefs.setEnabled(c, true)
+        check(SecretNewDeviceRiskPrefs.isEnabled(c)) { "应能再打开" }
+    }
+
+    @Test
+    fun serverDefaultAppliesOnlyBeforeUserSets() {
+        val c = ctx
+        SecretNewDeviceRiskPrefs.applyServerDefault(c, false)
+        check(!SecretNewDeviceRiskPrefs.isEnabled(c)) { "用户没碰过时服务端默认值应生效" }
+        check(!SecretNewDeviceRiskPrefs.isUserSet(c)) { "服务端默认值不算用户设置" }
+        SecretNewDeviceRiskPrefs.setEnabled(c, true)
+        SecretNewDeviceRiskPrefs.applyServerDefault(c, false)
+        check(SecretNewDeviceRiskPrefs.isEnabled(c)) { "用户显式设置后服务端默认值不应覆盖" }
+        check(SecretNewDeviceRiskPrefs.isUserSet(c)) { "setEnabled 后应标记为用户已设置" }
+    }
+
+    @Test
+    fun registerDeviceAddsToTrustedSet() {
+        val c = ctx
+        SecretNewDeviceRiskPrefs.setEnabled(c, true)
+        check(!SecretNewDeviceRiskPrefs.isDeviceTrusted(c, "device-x")) { "未登记前不可信" }
+        SecretNewDeviceRiskPrefs.registerDevice(c, "device-x")
+        check(SecretNewDeviceRiskPrefs.isDeviceTrusted(c, "device-x")) { "登记后应可信" }
+        SecretNewDeviceRiskPrefs.registerDevice(c, "   ")
+        check(SecretNewDeviceRiskPrefs.knownDevices(c) == setOf("device-x")) {
+            "空白指纹不应被登记，实际 ${SecretNewDeviceRiskPrefs.knownDevices(c)}"
+        }
+    }
+
+    @Test
+    fun knownDevicesAreTrimmedAndIsolatedPerAccount() {
+        val c = ctx
+        SecretNewDeviceRiskPrefs.setKnownDevices(c, setOf("  device-a  ", " ", "device-b"))
+        check(SecretNewDeviceRiskPrefs.knownDevices(c) == setOf("device-a", "device-b")) {
+            "写入时应 trim 并丢弃空白，实际 ${SecretNewDeviceRiskPrefs.knownDevices(c)}"
+        }
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        check(SecretNewDeviceRiskPrefs.knownDevices(c).isEmpty()) { "换账号后应读不到原账号的设备" }
+        check(!SecretNewDeviceRiskPrefs.isDeviceTrusted(c, "device-a")) { "换账号后原账号设备不可信" }
+        AccountFeatureSwitch.userIdOverrideForTest = { userId }
+        check(SecretNewDeviceRiskPrefs.isDeviceTrusted(c, "device-a")) { "切回原账号信任关系应完整" }
+    }
+
+    @Test
+    fun noUserTrustsNoDevice() {
+        AccountFeatureSwitch.userIdOverrideForTest = { null }
+        val c = ctx
+        SecretNewDeviceRiskPrefs.registerDevice(c, "device-a")
+        // 无账号时登记静默丢弃；fail-open 的开关也不会让任何设备通过
+        check(!SecretNewDeviceRiskPrefs.isDeviceTrusted(c, "device-a")) { "无账号时任何设备都不可信" }
+        check(SecretNewDeviceRiskPrefs.knownDevices(c).isEmpty()) { "无账号时设备集合恒为空" }
+    }
 }
