@@ -40,6 +40,19 @@ class BotCommandPolicyTest {
     }
 
     @Test
+    fun slashMenuFiltersAndInserts() {
+        val items = listOf(
+            BotCommandItem("bot_1", "helper_bot", "Helper", "help", "帮助"),
+            BotCommandItem("bot_1", "helper_bot", "Helper", "ping", "探活"),
+        )
+        assertEquals(1, BotCommandPolicy.filterCommands(items, "/he").size)
+        assertEquals("/help@helper_bot ", BotCommandPolicy.insertCommand(items[0], multiBot = true))
+        assertEquals("/help ", BotCommandPolicy.insertCommand(items[0], multiBot = false))
+        assertTrue(BotCommandPolicy.isBotUserId("bot_abc"))
+        assertFalse(BotCommandPolicy.isBotUserId("u1"))
+    }
+
+    @Test
     fun parseSlashExtractsCommandTargetAndArguments() {
         val bare = BotCommandPolicy.parseSlash("/help")
         assertEquals("help", bare?.command)
