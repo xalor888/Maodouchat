@@ -7,15 +7,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/**
- * G335：`ChatDetailSearchState` 的 **Saver 往返**——搜索状态族从 `rememberSaveable`
- * 搬进持有类时，我在 KDoc 里承诺「保存语义不变」。这条测试就是那句话的证据：
- * 只把字段塞进类里、忘了写 Saver，旋转屏/进程重建后搜索词就会**静默**丢失，
- * 而这种丢失在真机上要手动转屏才看得见，在 CI 里永远看不见。
- *
- * 三件事：六个字段一个不落地往返；还原出来的是**独立实例**（改新的不影响旧的）；
- * `close()`（返回聊天时调用）把这一次搜索清干净。
- */
+/** `ChatDetailSearchState` 的 Saver 往返与 close() 语义。 */
 internal class ChatDetailSearchStateSaverTest {
 
     private val scope = SaverScope { true }
@@ -72,5 +64,82 @@ internal class ChatDetailSearchStateSaverTest {
         state.searchQuery = "x"
         assertTrue(state.showSearchBar)
         assertEquals("x", state.searchQuery)
+    }
+
+    @Test
+    fun `close keeps mode scope and window`() {
+        val state = ChatDetailSearchState(
+            showSearchBar = true,
+            searchQuery = "abc",
+            searchIndex = 2,
+            searchMode = ChatSearchMode.SEMANTIC,
+            searchScope = ChatSearchScope.MEDIA,
+            searchWindow = ChatSearchWindow.SEVEN_DAYS,
+        )
+
+        state.close()
+
+        assertEquals(ChatSearchMode.SEMANTIC, state.searchMode)
+        assertEquals(ChatSearchScope.MEDIA, state.searchScope)
+        assertEquals(ChatSearchWindow.SEVEN_DAYS, state.searchWindow)
+    }
+
+    @Test
+    fun `defaults survive a round trip`() {
+        val original = ChatDetailSearchState()
+        val saved = with(ChatDetailSearchState.Saver) { scope.save(original) }
+        val restored = assertNotNull(ChatDetailSearchState.Saver.restore(assertNotNull(saved)))
+
+        assertFalse(restored.showSearchBar)
+        assertEquals("", restored.searchQuery)
+        assertEquals(0, restored.searchIndex)
+        assertEquals(ChatSearchMode.KEYWORD, restored.searchMode)
+        assertEquals(ChatSearchScope.ALL, restored.searchScope)
+        assertEquals(ChatSearchWindow.ALL, restored.searchWindow)
+    }
+
+    @Test
+    fun `enums are stored by name`() {
+        val original = ChatDetailSearchState(
+            searchMode = ChatSearchMode.SEMANTIC,
+            searchScope = ChatSearchScope.MENTIONS,
+            searchWindow = ChatSearchWindow.THIRTY_DAYS,
+        )
+        val saved = with(ChatDetailSearchState.Saver) { scope.save(original) }
+        assertNotNull(saved)
+        @Suppress("UNCHECKED_CAST")
+        val list = saved as List<Any?>
+
+        assertEquals(6, list.size)
+        assertEquals("SEMANTIC", list[3])
+        assertEquals("MENTIONS", list[4])
+        assertEquals("THIRTY_DAYS", list[5])
+    }
+
+    @Test
+    fun `save reflects later mutations`() {
+        val state = ChatDetailSearchState(searchQuery = "first")
+        state.searchQuery = "second"
+        state.searchIndex = 5
+
+        val saved = with(ChatDetailSearchState.Saver) { scope.save(state) }
+        val restored = assertNotNull(ChatDetailSearchState.Saver.restore(assertNotNull(saved)))
+
+        assertEquals("second", restored.searchQuery)
+        assertEquals(5, restored.searchIndex)
+    }
+
+    @Test
+    fun `close is idempotent`() {
+        val state = ChatDetailSearchState(showSearchBar = true, searchQuery = "abc", searchIndex = 3)
+
+        state.close()
+        state.close()
+
+        assertFalse(state.showSearchBar)
+        assertEquals("", state.searchQuery)
+        assertEquals(0, state.searchIndex)
+        state.searchQuery = "again"
+        assertEquals("again", state.searchQuery)
     }
 }
