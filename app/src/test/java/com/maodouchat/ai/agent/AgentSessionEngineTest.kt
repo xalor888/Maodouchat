@@ -1,5 +1,6 @@
 package com.maodouchat.ai.agent
 
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
