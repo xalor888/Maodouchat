@@ -5,6 +5,7 @@ import com.maodouchat.ui.screen.chatlist.SettingsSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class ChatListSettingsMergePolicyTest {
@@ -60,5 +61,58 @@ class ChatListSettingsMergePolicyTest {
     fun nullLocalUsesServer() {
         val server = SettingsSnapshot(1, true, true, true, 5)
         assertEquals(server, ChatListSettingsMergePolicy.merge(server, null))
+    }
+
+    @Test
+    fun serverWinsWhenLocalIsStale() {
+        val server = SettingsSnapshot(
+            pinnedAt = 10,
+            notificationsMuted = true,
+            archived = false,
+            markedUnread = false,
+            settingsUpdatedAt = 100
+        )
+        val local = SettingsSnapshot(
+            pinnedAt = 50,
+            notificationsMuted = false,
+            archived = true,
+            markedUnread = true,
+            settingsUpdatedAt = 50
+        )
+        val merged = ChatListSettingsMergePolicy.merge(server, local)
+        assertSame(server, merged)
+        assertEquals(100, merged.settingsUpdatedAt)
+        assertEquals(10, merged.pinnedAt)
+    }
+
+    @Test
+    fun winnerIsReturnedByReference() {
+        val server = SettingsSnapshot(1, true, true, true, 5)
+        val local = SettingsSnapshot(2, false, false, false, 9)
+        assertSame(local, ChatListSettingsMergePolicy.merge(server, local))
+        assertSame(server, ChatListSettingsMergePolicy.merge(server, null))
+    }
+
+    @Test
+    fun localWinsAtOneMillisecondBoundary() {
+        val server = SettingsSnapshot(0, false, false, false, 100)
+        val local = SettingsSnapshot(0, true, true, true, 101)
+        val merged = ChatListSettingsMergePolicy.merge(server, local)
+        assertSame(local, merged)
+        assertTrue(merged.notificationsMuted)
+    }
+
+    @Test
+    fun zeroTimestampsPreferServer() {
+        val server = SettingsSnapshot(7, true, false, true, 0)
+        val local = SettingsSnapshot(8, false, true, false, 0)
+        assertSame(server, ChatListSettingsMergePolicy.merge(server, local))
+    }
+
+    @Test
+    fun negativeTimestampsStillCompareNumerically() {
+        val server = SettingsSnapshot(0, false, false, false, -5)
+        val local = SettingsSnapshot(0, true, true, true, -3)
+        assertSame(local, ChatListSettingsMergePolicy.merge(server, local))
     }
 }
