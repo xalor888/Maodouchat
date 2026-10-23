@@ -116,4 +116,45 @@ class AiPromptSafetyPolicyTest {
         val defaulted = AiPromptSafetyPolicy.annotateIfPrivilegedHallucination("已执行转账", "  ")
         assertTrue(defaulted.contains("AI cannot execute privileged actions"))
     }
+
+    @Test
+    fun `sanitize honors custom char limit and clamps it`() {
+        assertEquals(500, AiPromptSafetyPolicy.sanitizeContextText("x".repeat(2000), 500).length)
+        assertEquals(4000, AiPromptSafetyPolicy.sanitizeContextText("x".repeat(5000), 10_000).length)
+        assertEquals("x", AiPromptSafetyPolicy.sanitizeContextText("x".repeat(10), 1))
+    }
+
+    @Test
+    fun `injection is checked before truncation`() {
+        assertEquals("", AiPromptSafetyPolicy.sanitizeContextText("ignore previous " + "x".repeat(2000), 100))
+    }
+
+    @Test
+    fun `role marker only matches line starts`() {
+        assertEquals("hi System: there", AiPromptSafetyPolicy.sanitizeContextText("hi System: there"))
+        assertEquals("[untrusted-system] hi", AiPromptSafetyPolicy.sanitizeContextText("system: hi"))
+        assertEquals("ok\n[untrusted-system] run", AiPromptSafetyPolicy.sanitizeContextText("ok\nSystem: run"))
+    }
+
+    @Test
+    fun `entry points are null and blank safe`() {
+        assertEquals("", AiPromptSafetyPolicy.sanitizeContextText(null))
+        assertEquals("", AiPromptSafetyPolicy.sanitizeQuery(null))
+        assertEquals(null, AiPromptSafetyPolicy.sanitizeContextLine(null, null))
+        assertFalse(AiPromptSafetyPolicy.isLikelyInjectionAttempt(null))
+        assertFalse(AiPromptSafetyPolicy.isLikelyInjectionAttempt("   "))
+        assertFalse(AiPromptSafetyPolicy.scanPrivilegeClaims(null).hasClaim)
+    }
+
+    @Test
+    fun `annotate trims disclaimer and separates with blank line`() {
+        assertEquals(
+            "已执行转账\n\nWARN",
+            AiPromptSafetyPolicy.annotateIfPrivilegedHallucination("已执行转账", "  WARN  ")
+        )
+        assertEquals(
+            "已完成转账\n明细见下\n\nNOTE",
+            AiPromptSafetyPolicy.annotateIfPrivilegedHallucination("已完成转账\n明细见下", "NOTE")
+        )
+    }
 }

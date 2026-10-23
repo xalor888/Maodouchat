@@ -133,4 +133,53 @@ class AiRetryPolicyTest {
             assertEquals(0L, decision.delayMs)
         }
     }
+
+    @Test
+    fun categoriesHaveIndependentPerChatWindows() {
+        AiRetryPolicy.clearSession()
+        AiRetryPolicy.recordCall("chat-x", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("chat-x", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.canCallNow("chat-x", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-y", AiRetryPolicyCategory.HEAVY))
+        AiRetryPolicy.clearSession()
+    }
+
+    @Test
+    fun perChatWindowsAreIndependentAcrossChats() {
+        AiRetryPolicy.clearSession()
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-b", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-b", AiRetryPolicyCategory.LIGHT))
+        AiRetryPolicy.clearSession()
+    }
+
+    @Test
+    fun nonTransientFailuresNeverRetryAtAnyAttempt() {
+        listOf("TIMEOUT", "OUTCOME_UNKNOWN", "INVALID_RESPONSE").forEach { errorCode ->
+            val decision = AiRetryPolicy.decide(errorCode, attempts = 2)
+            assertFalse(errorCode, decision.shouldRetry)
+            assertEquals(0L, decision.delayMs)
+        }
+    }
+
+    @Test
+    fun rateLimitSurfacesServerWaitAndVisibleCode() {
+        val withServerWait = AiRetryPolicy.decide("RATE_LIMITED:45", attempts = 1)
+        assertFalse(withServerWait.shouldRetry)
+        assertEquals(45_000L, withServerWait.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, withServerWait.visibleErrorCode)
+
+        val defaultWait = AiRetryPolicy.decide("RATE_LIMITED", attempts = 1)
+        assertFalse(defaultWait.shouldRetry)
+        assertEquals(30_000L, defaultWait.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, defaultWait.visibleErrorCode)
+    }
+
+    @Test
+    fun zeroAttemptsStartFromBaseBackoff() {
+        val first = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = 0)
+        assertTrue(first.shouldRetry)
+        assertEquals(800L, first.delayMs)
+    }
 }
