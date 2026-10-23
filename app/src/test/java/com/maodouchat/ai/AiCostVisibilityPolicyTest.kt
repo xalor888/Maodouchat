@@ -240,4 +240,100 @@ class AiCostVisibilityPolicyTest {
         assertEquals(BillingHint.NONE, blank.hint)
         assertFalse(blank.warnRetryBills)
     }
+
+    @Test
+    fun `classify english too many phrase without status and clamps retry after`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "too_many_requests",
+            serverMessage = "Too many requests",
+            serverRetryAfterSeconds = 200_000
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertEquals(86_400L, signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify insufficient funds message is quota not generic rate limit`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 200,
+            serverCode = "PAYMENT_FAILED",
+            serverMessage = "insufficient funds"
+        )
+        assertTrue(signal.isQuota)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(signal))
+        assertEquals(
+            BillingHint.QUOTA_EXCEEDED,
+            AiCostVisibilityPolicy.billingHintFor(AiCostVisibilityPolicy.ERROR_QUOTA)
+        )
+    }
+
+    @Test
+    fun `classify generic server error maps to null code`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 500,
+            serverCode = "SERVER_ERROR",
+            serverMessage = "boom"
+        )
+        assertFalse(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertTrue(AiCostVisibilityPolicy.mapToErrorCode(signal) == null)
+    }
+
+    @Test
+    fun `billing hint and warn cover rate limit family spellings`() {
+        assertEquals(
+            BillingHint.RATE_LIMITED_WAIT,
+            AiCostVisibilityPolicy.billingHintFor("RATE_LIMIT_SOFT")
+        )
+        assertEquals(
+            BillingHint.RATE_LIMITED_WAIT,
+            AiCostVisibilityPolicy.billingHintFor("TOO_MANY_REQUESTS")
+        )
+        assertEquals(
+            BillingHint.QUOTA_EXCEEDED,
+            AiCostVisibilityPolicy.billingHintFor("MONTHLY_BUDGET")
+        )
+        assertEquals(
+            BillingHint.OUTCOME_UNKNOWN_MAY_BILL,
+            AiCostVisibilityPolicy.billingHintFor("UNKNOWN")
+        )
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("rate_limit_soft"))
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("MONTHLY_BUDGET"))
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("SERVER"))
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("EMPTY_RESULT"))
+        assertFalse(AiCostVisibilityPolicy.shouldWarnRetryBills("SOME_ERROR"))
+    }
+
+    @Test
+    fun `wait seconds local remaining rounds up and clamps`() {
+        assertEquals(
+            1L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                localRemainingMs = 1
+            )
+        )
+        assertEquals(
+            86_400L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                localRemainingMs = 90_000_000
+            )
+        )
+        assertEquals(45L, AiCostVisibilityPolicy.waitSecondsFor("QUOTA_EXCEEDED:45"))
+        assertEquals(
+            86_400L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                serverRetryAfterSeconds = 86_400
+            )
+        )
+    }
 }
