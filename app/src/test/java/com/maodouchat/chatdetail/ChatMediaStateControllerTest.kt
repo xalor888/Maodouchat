@@ -137,6 +137,56 @@ class ChatMediaStateControllerTest {
         assertEquals(0.2f, ignored.fileTransferProgress["bad"])
     }
 
+    @Test
+    fun `beginDownload twice keeps the id in the downloading set once`() {
+        val once = controller.beginDownload(ChatDetailUiState(), "file-1")
+        val twice = controller.beginDownload(once, "file-1")
+
+        assertEquals(setOf("file-1"), twice.downloadingFileMessageIds)
+        assertEquals(0f, twice.fileTransferProgress["file-1"])
+    }
+
+    @Test
+    fun `finishDownload clears only its own download`() {
+        var state = controller.beginDownload(ChatDetailUiState(), "a")
+        state = controller.beginDownload(state, "b")
+        val done = controller.finishDownload(state, "a", localUri = "content://a")
+
+        assertFalse(done.downloadingFileMessageIds.contains("a"))
+        assertTrue(done.downloadingFileMessageIds.contains("b"))
+        assertEquals("content://a", done.fileReadyToOpenUri)
+    }
+
+    @Test
+    fun `applyTransfers drops stale progress of finished transfers`() {
+        val state = ChatDetailUiState(
+            fileTransferProgress = mapOf("stale" to 0.8f),
+            fileTransferStates = mapOf("stale" to AttachmentTransferState.SENDING),
+        )
+        val updated = controller.applyTransfers(state, listOf(transfer("fresh", AttachmentTransferState.QUEUED)))
+
+        assertFalse(updated.fileTransferProgress.containsKey("stale"))
+        assertEquals(0.35f, updated.fileTransferProgress["fresh"])
+    }
+
+    @Test
+    fun `applyTransfers maps uploading progress from uploaded bytes`() {
+        val entity = transfer("m1", AttachmentTransferState.UPLOADING).copy(uploadedBytes = 50L, cipherSize = 100L)
+        val updated = controller.applyTransfers(ChatDetailUiState(), listOf(entity))
+
+        assertEquals(0.625f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+    }
+
+    @Test
+    fun `finishDownload with failure and new uri replaces ready uri and warning`() {
+        val state = ChatDetailUiState(fileReadyToOpenUri = "content://prev")
+        val done = controller.finishDownload(state, "m", localUri = "content://new", failureMessage = "boom")
+
+        assertEquals("content://new", done.fileReadyToOpenUri)
+        assertEquals("boom", done.groupEncryptionWarning)
+        assertFalse(done.mediaDownloadErrorMessageIds.contains("m"))
+    }
+
     private fun transfer(
         messageId: String,
         state: String,
