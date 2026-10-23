@@ -85,4 +85,43 @@ class StickerPolicyTest {
         val packs = StickerPolicy.enabledPacks(listOf(StickerCatalog.PACK_PARTY, StickerCatalog.PACK_MOOD))
         assertEquals(listOf(StickerCatalog.PACK_PARTY, StickerCatalog.PACK_MOOD), packs.map { it.id })
     }
+
+    @Test
+    fun `searchStickers is case insensitive`() {
+        val lower = StickerPolicy.searchStickers("happy")
+        val upper = StickerPolicy.searchStickers("HAPPY")
+        assertEquals(lower, upper)
+        assertTrue("🥳" in upper)
+    }
+
+    @Test
+    fun `searchStickers matches chinese tags`() {
+        assertTrue("🥳" in StickerPolicy.searchStickers("开心"))
+    }
+
+    @Test
+    fun `normalizeEnabledPackIds null falls back to all three packs`() {
+        val ids = StickerPolicy.normalizeEnabledPackIds(null)
+        assertEquals(3, ids.size)
+        assertEquals(
+            listOf(StickerCatalog.PACK_MOOD, StickerCatalog.PACK_GESTURE, StickerCatalog.PACK_PARTY),
+            ids
+        )
+    }
+
+    @Test
+    fun `togglePackEnabled enable twice keeps single entry`() {
+        val once = StickerPolicy.togglePackEnabled(
+            listOf(StickerCatalog.PACK_MOOD), StickerCatalog.PACK_PARTY, enable = true
+        )
+        val twice = StickerPolicy.togglePackEnabled(once, StickerCatalog.PACK_PARTY, enable = true)
+        assertEquals(once, twice)
+        assertEquals(2, twice.size)
+    }
+
+    @Test
+    fun `enabledPacks drops unknown ids`() {
+        val packs = StickerPolicy.enabledPacks(listOf(StickerCatalog.PACK_MOOD, "nope"))
+        assertEquals(listOf(StickerCatalog.PACK_MOOD), packs.map { it.id })
+    }
 }

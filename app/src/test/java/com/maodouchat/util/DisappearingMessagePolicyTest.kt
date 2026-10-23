@@ -7,14 +7,6 @@ import kotlin.test.assertTrue
 
 /**
  * G194b：阅后即焚策略的覆盖。纯 Kotlin，不需要 Robolectric。
- *
- * 为什么值得单独立项：这个对象决定**消息到底会不会消失**。
- * 被 11 个文件引用，KDoc 自己写着「纯函数，可单测」，却一条测试都没有。
- *
- * 其中最关键的一条是 [DisappearingMessagePolicy.resolveExpiresAt] 的
- * **不重写**不变式：已有 `expiresAt` 的消息不得因再次 mark-read 而被改写。
- * 写反的后果不是「多等几秒」，而是**对方反复读同一条消息就能让它永不过期**——
- * 阅后即焚彻底失效。这属于安全性质，必须有一条会失败的测试守着。
  */
 class DisappearingMessagePolicyTest {
 
@@ -167,5 +159,52 @@ class DisappearingMessagePolicyTest {
 
         assertTrue(DisappearingMessagePolicy.shouldSkipReadReceipts(isSecretChat = true))
         assertFalse(DisappearingMessagePolicy.shouldSkipReadReceipts(isSecretChat = false))
+    }
+
+    @Test
+    fun secretTimerIgnoresNullAndZeroRequests() {
+        // 密聊固定 30 秒：null/0 请求也不退化为关闭
+        assertEquals(
+            DisappearingMessagePolicy.SECRET_DEFAULT_SECONDS,
+            DisappearingMessagePolicy.effectiveSeconds(isGroup = false, requestedSeconds = null, isSecret = true),
+        )
+        assertEquals(
+            DisappearingMessagePolicy.SECRET_DEFAULT_SECONDS,
+            DisappearingMessagePolicy.effectiveSeconds(isGroup = false, requestedSeconds = 0, isSecret = true),
+        )
+    }
+
+    @Test
+    fun negativeExistingExpiryIsTreatedAsAbsent() {
+        // 负数既有值不是合法 deadline，重新起算
+        assertEquals(
+            1_030_000L,
+            DisappearingMessagePolicy.resolveExpiresAt(
+                existingExpiresAt = -5L, timerSeconds = 30, readAtMs = 1_000_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun degenerateTimersKeepOrStartCorrectly() {
+        assertEquals(30_001L, DisappearingMessagePolicy.resolveExpiresAt(null, timerSeconds = 30, readAtMs = 1L))
+        // 负定时器等同于关闭：保留既有值
+        assertEquals(
+            2_000L,
+            DisappearingMessagePolicy.resolveExpiresAt(2_000L, timerSeconds = -10, readAtMs = 5_000L),
+        )
+    }
+
+    @Test
+    fun skipReadReceiptsIgnoresBlockFlag() {
+        // 第二个参数今天不用——只看 isSecretChat
+        assertTrue(DisappearingMessagePolicy.shouldSkipReadReceipts(isSecretChat = true, blockReadReceipts = false))
+        assertFalse(DisappearingMessagePolicy.shouldSkipReadReceipts(isSecretChat = false, blockReadReceipts = false))
+    }
+
+    @Test
+    fun allowedListHasFourteenEntriesToppedByThirtyDays() {
+        assertEquals(14, DisappearingMessagePolicy.ALLOWED_SECONDS.size)
+        assertEquals(30 * 24 * 60 * 60, DisappearingMessagePolicy.ALLOWED_SECONDS.last())
     }
 }

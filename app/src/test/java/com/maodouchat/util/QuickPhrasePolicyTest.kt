@@ -46,4 +46,36 @@ class QuickPhrasePolicyTest {
         assertEquals(listOf("a", "c"), QuickPhrasePolicy.remove(listOf("a", "b", "c"), "b"))
         assertEquals(listOf("a", "b"), QuickPhrasePolicy.remove(listOf("a", "b"), "z"))
     }
+
+    @Test
+    fun `max length boundary is inclusive`() {
+        val exact = "a".repeat(QuickPhrasePolicy.MAX_PHRASE_LENGTH)
+        assertTrue(QuickPhrasePolicy.isAddable(emptyList(), exact))
+        assertEquals(listOf(exact), QuickPhrasePolicy.add(emptyList(), exact))
+        assertFalse(QuickPhrasePolicy.isAddable(emptyList(), exact + "a"))
+    }
+
+    @Test
+    fun `duplicate check trims but is case sensitive`() {
+        assertEquals(listOf("好的"), QuickPhrasePolicy.add(listOf("好的"), "好的 "))
+        assertEquals(listOf("OK", "ok"), QuickPhrasePolicy.add(listOf("OK"), "ok"))
+    }
+
+    @Test
+    fun `remove does not trim`() {
+        assertEquals(listOf("a", "b"), QuickPhrasePolicy.remove(listOf("a", "b"), " b "))
+    }
+
+    @Test
+    fun `default phrases are all distinct`() {
+        assertEquals(8, QuickPhrasePolicy.DEFAULT_PHRASES.toSet().size)
+    }
+
+    @Test
+    fun `add appends at the end without touching the input`() {
+        val base = listOf("a")
+        val result = QuickPhrasePolicy.add(base, "b")
+        assertEquals(listOf("a", "b"), result)
+        assertEquals(listOf("a"), base)
+    }
 }
