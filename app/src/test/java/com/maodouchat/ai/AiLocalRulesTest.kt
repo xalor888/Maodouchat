@@ -101,4 +101,56 @@ class AiLocalRulesTest {
         assertEquals(AiMessageClassifierCategory.OTHER, result.category)
         assertEquals(0.2, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `classify notice study and social lexicons`() {
+        assertEquals(
+            AiMessageClassifierCategory.NOTICE,
+            AiMessageClassifier.classifyText("系统维护通知").category
+        )
+        assertEquals(
+            AiMessageClassifierCategory.STUDY,
+            AiMessageClassifier.classifyText("复习考试笔记").category
+        )
+        assertEquals(
+            AiMessageClassifierCategory.SOCIAL,
+            AiMessageClassifier.classifyText("周末一起吃饭看电影").category
+        )
+    }
+
+    @Test
+    fun `classify cross category hits share confidence`() {
+        // NOTICE 命中 2（notice/maintenance），TECH 命中 1（server）：2/3
+        val result = AiMessageClassifier.classifyText("NOTICE: server maintenance")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(2.0 / 3.0, result.confidence, 0.001)
+    }
+
+    @Test
+    fun `detect emotion angry and anxious lexicons`() {
+        val angry = AiEmotionReply.detectEmotion(listOf("气死了烦死了"))
+        assertEquals(Emotion.ANGRY, angry.emotion)
+        assertEquals(1.0, angry.confidence, 0.0001)
+        val anxious = AiEmotionReply.detectEmotion(listOf("焦虑失眠怎么办"))
+        assertEquals(Emotion.ANXIOUS, anxious.emotion)
+        assertEquals(1.0, anxious.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion confidence is share of hits across texts`() {
+        // 哈哈(1) + 哈哈哈(2) = 3 happy，难过 = 1 sad：3/4
+        val result = AiEmotionReply.detectEmotion(listOf("哈哈", "难过", "哈哈哈"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.75, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify single keyword yields full confidence and wire model frozen`() {
+        val result = AiMessageClassifier.classifyText("通知")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+        assertEquals("notice", AiMessageClassifierCategory.NOTICE.wire)
+        assertEquals("ai_enhance_classify_notice", AiMessageClassifierCategory.NOTICE.labelKey)
+        assertEquals("happy", Emotion.HAPPY.wire)
+    }
 }

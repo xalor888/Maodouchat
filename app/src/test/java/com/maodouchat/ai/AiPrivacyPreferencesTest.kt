@@ -2,6 +2,7 @@ package com.maodouchat.ai
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AiPrivacyPreferencesTest {
@@ -118,5 +119,75 @@ class AiPrivacyPreferencesTest {
             "account_scope_migrated:u-1",
             AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "u-1")
         )
+    }
+
+    @Test
+    fun `all scoped keys for one account stay distinct`() {
+        val keys = setOf(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-9"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "u-9"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_LOCAL_SAFETY, "u-9"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS, "u-9"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_AUTO_TRANSLATE, "u-9"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "u-9")
+        )
+        assertEquals(6, keys.size)
+    }
+
+    @Test
+    fun `scoped key is verbatim base plus colon plus user id`() {
+        assertEquals("base:u", AiPrivacyPreferences.scopedKey("base", "u"))
+        // base 与 userId 都不做 trim/转义，原样拼接
+        assertEquals(
+            "ai_consent_accepted:a:b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a:b")
+        )
+    }
+
+    @Test
+    fun `facade key constants pass through the cluster raw names`() {
+        assertEquals(AiPrivacyKeys.CONSENT, AiPrivacyPreferences.KEY_CONSENT)
+        assertEquals(AiPrivacyKeys.USER_ENABLED, AiPrivacyPreferences.KEY_USER_ENABLED)
+        assertEquals(AiPrivacyKeys.LOCAL_SAFETY, AiPrivacyPreferences.KEY_LOCAL_SAFETY)
+        assertEquals(AiPrivacyKeys.DISMISSED_SAFETY_IDS, AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS)
+        assertEquals(AiPrivacyKeys.AUTO_TRANSLATE, AiPrivacyPreferences.KEY_AUTO_TRANSLATE)
+    }
+
+    @Test
+    fun `no scoped key equals any legacy device-level key`() {
+        // 迁移把账号键与老设备级键分开：任一 scoped 键都不能撞上任一裸键
+        val rawKeys = listOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE
+        )
+        for (base in rawKeys) {
+            val scoped = AiPrivacyPreferences.scopedKey(base, "u-1")
+            assertTrue(scoped.startsWith("$base:"))
+            for (raw in rawKeys) {
+                assertNotEquals(raw, scoped)
+            }
+        }
+    }
+
+    @Test
+    fun `scoped consent differs across all five bases for two accounts`() {
+        // 账号隔离：同名键跨账号必不同，跨 base 也不能串
+        val bases = listOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE
+        )
+        val all = bases.flatMap { base ->
+            listOf(
+                AiPrivacyPreferences.scopedKey(base, "user-a"),
+                AiPrivacyPreferences.scopedKey(base, "user-b")
+            )
+        }
+        assertEquals(10, all.toSet().size)
     }
 }
