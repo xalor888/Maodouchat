@@ -10,20 +10,8 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 /**
- * G183b：`SecretNewDeviceRiskPrefs.isDeviceTrusted` 的**四条分支全覆盖**。
- *
- * 这是 B2 新设备风控的核心安全决策：未登记设备必须判为不可信，
- * 否则密聊会在新设备上直接展示内容。
- *
- * 为什么现在才能测：`AccountFeatureSwitch` 原来硬编码走
- * `TokenManager.getUserId()`，而 TokenManager 用 `EncryptedSharedPreferences`
- * （Android Keystore），Robolectric 下不可用（G182b 实测 `getUserId()=null`），
- * 于是 userId 永远为 null、`setEnabled`/`setKnownDevices` 静默失效。
- * G183b 给 `AccountFeatureSwitch` 加了可注入的 `userIdProvider`，
- * 这里用假来源造出「已登录 user-under-test」。
- *
- * 注意：这里**不需要** mock `SecretNewDeviceRiskPrefs`——SharedPreferences 在
- * Robolectric 下是真的，`setEnabled`/`setKnownDevices` 真实落盘。
+ * G183b：`SecretNewDeviceRiskPrefs.isDeviceTrusted` 的分支全覆盖。
+ * 账号走 `AccountFeatureSwitch` 的可注入 userId 测试覆盖（G185b），prefs 在 Robolectric 下真实落盘。
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
@@ -154,5 +142,62 @@ class SecretNewDeviceRiskPrefsTest {
         // 无账号时登记静默丢弃；fail-open 的开关也不会让任何设备通过
         check(!SecretNewDeviceRiskPrefs.isDeviceTrusted(c, "device-a")) { "无账号时任何设备都不可信" }
         check(SecretNewDeviceRiskPrefs.knownDevices(c).isEmpty()) { "无账号时设备集合恒为空" }
+    }
+
+    @Test
+    fun setKnownDevicesReplacesRatherThanAppends() {
+        val c = ctx
+        SecretNewDeviceRiskPrefs.setEnabled(c, true)
+        SecretNewDeviceRiskPrefs.setKnownDevices(c, setOf("device-a", "device-b"))
+        SecretNewDeviceRiskPrefs.setKnownDevices(c, setOf("device-c"))
+        check(SecretNewDeviceRiskPrefs.knownDevices(c) == setOf("device-c")) {
+            "setKnownDevices 应整体替换而不是追加，实际 ${SecretNewDeviceRiskPrefs.knownDevices(c)}"
+        }
+    }
+
+    @Test
+    fun registerDeviceTrimsOnWrite() {
+        val c = ctx
+        SecretNewDeviceRiskPrefs.setEnabled(c, true)
+        SecretNewDeviceRiskPrefs.registerDevice(c, "  device-z  ")
+        check(SecretNewDeviceRiskPrefs.knownDevices(c) == setOf("device-z")) {
+            "登记时应 trim 指纹，实际 ${SecretNewDeviceRiskPrefs.knownDevices(c)}"
+        }
+        check(SecretNewDeviceRiskPrefs.isDeviceTrusted(c, "device-z")) { "trim 后登记的设备应被信任" }
+    }
+
+    @Test
+    fun deviceSetReadableWhileSwitchOff() {
+        val c = ctx
+        SecretNewDeviceRiskPrefs.setEnabled(c, false)
+        SecretNewDeviceRiskPrefs.setKnownDevices(c, setOf("device-a"))
+        check(SecretNewDeviceRiskPrefs.knownDevices(c) == setOf("device-a")) {
+            "开关关闭只影响判定，不应影响设备集合的读写"
+        }
+    }
+
+    @Test
+    fun setKnownDevicesNoOpWithoutAUser() {
+        val c = ctx
+        SecretNewDeviceRiskPrefs.setEnabled(c, true)
+        SecretNewDeviceRiskPrefs.setKnownDevices(c, setOf("device-a"))
+        AccountFeatureSwitch.userIdOverrideForTest = { null }
+        SecretNewDeviceRiskPrefs.setKnownDevices(c, setOf("device-b"))
+        AccountFeatureSwitch.userIdOverrideForTest = { userId }
+        check(SecretNewDeviceRiskPrefs.knownDevices(c) == setOf("device-a")) {
+            "无账号时的 setKnownDevices 应静默丢弃，不应污染原账号数据"
+        }
+    }
+
+    @Test
+    fun registerDeviceIsIdempotent() {
+        val c = ctx
+        SecretNewDeviceRiskPrefs.setEnabled(c, true)
+        SecretNewDeviceRiskPrefs.registerDevice(c, "device-q")
+        SecretNewDeviceRiskPrefs.registerDevice(c, "device-q")
+        SecretNewDeviceRiskPrefs.registerDevice(c, "  device-q  ")
+        check(SecretNewDeviceRiskPrefs.knownDevices(c) == setOf("device-q")) {
+            "重复登记同一设备不应产生副本，实际 ${SecretNewDeviceRiskPrefs.knownDevices(c)}"
+        }
     }
 }

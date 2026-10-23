@@ -14,10 +14,7 @@ import kotlin.test.assertTrue
 
 /**
  * G182c：`SecretSimChangePrefs` —— SIM 变更检测的「时间戳只在真变更时刷新」。
- *
- * 这个类此前的引用数是 0（G182c 扫描实测），而它守的是一条安全语义：
- * `lastChangeAt` 只在 SIM **真的变了**时刷新。写反的后果是
- * 「同一张卡被重复上报」被当成「换了卡」，触发不必要的安全告警/风控。
+ * 写反的后果是「同一张卡被重复上报」被当成「换了卡」，触发不必要的安全告警。
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [34])
@@ -137,5 +134,59 @@ class SecretSimChangePrefsTest {
         assertNull(SecretSimChangePrefs.lastSimId(c), "无账号时写入应静默丢弃")
         assertEquals(0L, SecretSimChangePrefs.lastChangeAt(c), "无账号时时间戳恒为 0")
         assertTrue(SecretSimChangePrefs.isEnabled(c), "无账号时开关 fail-open 返回 true")
+    }
+
+    @Test
+    fun changeBackAndForthStampsEachRealChange() {
+        val c = ctx
+        SecretSimChangePrefs.setLastSimId(c, "sim-1")
+        SecretSimChangePrefs.setLastSimId(c, "sim-2")
+        val stamp1 = SecretSimChangePrefs.lastChangeAt(c)
+        assertTrue(stamp1 > 0L, "真换卡应有时间戳")
+        SecretSimChangePrefs.setLastSimId(c, "sim-1")
+        assertEquals("sim-1", SecretSimChangePrefs.lastSimId(c), "回切后应读到旧卡")
+        assertTrue(
+            SecretSimChangePrefs.lastChangeAt(c) >= stamp1,
+            "回切也是真变更，时间戳不应退回",
+        )
+    }
+
+    @Test
+    fun repeatedReadsHaveNoSideEffects() {
+        val c = ctx
+        SecretSimChangePrefs.setLastSimId(c, "sim-1")
+        repeat(3) { assertEquals("sim-1", SecretSimChangePrefs.lastSimId(c)) }
+        repeat(3) { assertEquals(0L, SecretSimChangePrefs.lastChangeAt(c), "读操作不应凭空产生时间戳") }
+    }
+
+    @Test
+    fun isEnabledIsolatedPerAccount() {
+        val c = ctx
+        SecretSimChangePrefs.setEnabled(c, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        assertTrue(SecretSimChangePrefs.isEnabled(c), "换账号后应读到另一个账号的默认开")
+        AccountFeatureSwitch.userIdOverrideForTest = { userId }
+        assertEquals(false, SecretSimChangePrefs.isEnabled(c), "切回原账号应仍是它自己的关")
+    }
+
+    @Test
+    fun setEnabledNoOpWithoutAUser() {
+        AccountFeatureSwitch.userIdOverrideForTest = { null }
+        val c = ctx
+        SecretSimChangePrefs.setEnabled(c, false)
+        AccountFeatureSwitch.userIdOverrideForTest = { userId }
+        assertTrue(SecretSimChangePrefs.isEnabled(c), "无账号时的 setEnabled 不应留下任何状态")
+    }
+
+    @Test
+    fun applyServerDefaultRepeatedIsStable() {
+        val c = ctx
+        SecretSimChangePrefs.applyServerDefault(c, false)
+        SecretSimChangePrefs.applyServerDefault(c, false)
+        assertEquals(false, SecretSimChangePrefs.isEnabled(c), "重复下发服务端默认值应稳定")
+        assertEquals(false, SecretSimChangePrefs.isUserSet(c), "重复下发仍不算用户设置")
+        SecretSimChangePrefs.setEnabled(c, true)
+        SecretSimChangePrefs.applyServerDefault(c, false)
+        assertTrue(SecretSimChangePrefs.isEnabled(c), "用户设置后重复下发仍不应覆盖")
     }
 }
