@@ -171,4 +171,135 @@ class LinkPreviewRepositoryTest {
         assertNull(preview)
         assertEquals(1, requestCount.get())
     }
+
+    @Test
+    fun downloadAndParse_rejectsNonHtmlContentType() {
+        val requestCount = AtomicInteger(0)
+        val testClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                requestCount.incrementAndGet()
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body("{}".toResponseBody("application/json".toMediaType()))
+                    .build()
+            }
+            .build()
+
+        LinkPreviewRepository.clientOverride = testClient
+
+        assertNull(LinkPreviewRepository.downloadAndParse("https://example.com/data"))
+        assertEquals(1, requestCount.get())
+    }
+
+    @Test
+    fun downloadAndParse_followsRelativeRedirectLocation() {
+        val requestedUrls = mutableListOf<String>()
+        val testClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val url = chain.request().url.toString()
+                requestedUrls.add(url)
+                if (url == "https://example.com/start") {
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(302)
+                        .message("Found")
+                        .header("Location", "/next")
+                        .body("".toResponseBody("text/html".toMediaType()))
+                        .build()
+                } else {
+                    val html = "<html><head><meta property=\"og:title\" content=\"Relocated\"/></head></html>"
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK")
+                        .body(html.toResponseBody("text/html".toMediaType()))
+                        .build()
+                }
+            }
+            .build()
+
+        LinkPreviewRepository.clientOverride = testClient
+
+        val preview = LinkPreviewRepository.downloadAndParse("https://example.com/start")
+
+        assertNotNull(preview)
+        assertEquals("Relocated", preview?.title)
+        assertEquals(
+            listOf("https://example.com/start", "https://example.com/next"),
+            requestedUrls,
+        )
+    }
+
+    @Test
+    fun downloadAndParse_stopsAfterMaxRedirects() {
+        val requestCount = AtomicInteger(0)
+        val testClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                requestCount.incrementAndGet()
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(302)
+                    .message("Found")
+                    .header("Location", "https://example.com/loop")
+                    .body("".toResponseBody("text/html".toMediaType()))
+                    .build()
+            }
+            .build()
+
+        LinkPreviewRepository.clientOverride = testClient
+
+        // 3 次重定向上限：初始请求 + 3 跳 = 4 次请求后判空，不再跟
+        assertNull(LinkPreviewRepository.downloadAndParse("https://example.com/start"))
+        assertEquals(4, requestCount.get())
+    }
+
+    @Test
+    fun downloadAndParse_returnsNullWhenRedirectLacksLocation() {
+        val requestCount = AtomicInteger(0)
+        val testClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                requestCount.incrementAndGet()
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(302)
+                    .message("Found")
+                    .body("".toResponseBody("text/html".toMediaType()))
+                    .build()
+            }
+            .build()
+
+        LinkPreviewRepository.clientOverride = testClient
+
+        assertNull(LinkPreviewRepository.downloadAndParse("https://example.com/nowhere"))
+        assertEquals(1, requestCount.get())
+    }
+
+    @Test
+    fun downloadAndParse_returnsNullForBlankBody() {
+        val requestCount = AtomicInteger(0)
+        val testClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                requestCount.incrementAndGet()
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body("   ".toResponseBody("text/html".toMediaType()))
+                    .build()
+            }
+            .build()
+
+        LinkPreviewRepository.clientOverride = testClient
+
+        assertNull(LinkPreviewRepository.downloadAndParse("https://example.com/empty"))
+        assertEquals(1, requestCount.get())
+    }
 }
