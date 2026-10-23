@@ -138,4 +138,68 @@ class LinkPreviewPolicyTest {
         val p = LinkPreviewPolicy.parseHtmlPreview("https://example.com", html)
         assertEquals("Only Title", p.title)
     }
+
+    @Test
+    fun sanitizeUrl_rejectsReservedAndDocumentationRanges() {
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://192.0.0.1/a")) // IETF 协议分配
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://192.0.2.1/a")) // TEST-NET-1
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://198.51.100.1/a")) // TEST-NET-2
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://203.0.113.1/a")) // TEST-NET-3
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://198.18.0.1/a")) // 基准测试网段
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://224.0.0.1/a")) // 组播
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://240.0.0.1/a")) // 保留段
+    }
+
+    @Test
+    fun sanitizeUrl_allowsPublicIpsAtPrivateRangeBoundaries() {
+        // 私有网段边界外的相邻地址仍是公网，必须放行
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://1.0.0.1/a"))
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://9.9.9.9/a"))
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://172.15.255.255/a"))
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://172.32.0.1/a"))
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://100.63.255.255/a"))
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://100.128.0.1/a"))
+    }
+
+    @Test
+    fun firstHttpUrl_usesFirstMatchAndTrimsTrailingPunctuation() {
+        assertEquals(
+            "https://a.com/x",
+            LinkPreviewPolicy.firstHttpUrl("see https://a.com/x and https://b.com/y"),
+        )
+        assertEquals(
+            "https://a.com/x",
+            LinkPreviewPolicy.firstHttpUrl("(see https://a.com/x)."),
+        )
+        assertEquals(
+            "https://a.com/x",
+            LinkPreviewPolicy.firstHttpUrl("see https://a.com/x, then more"),
+        )
+    }
+
+    @Test
+    fun firstHttpUrl_stopsBeforeLiteralMetaTag() {
+        // 正文里出现字面 <meta> 即截断：后面的 URL 不取
+        assertEquals(
+            "https://good.com/a",
+            LinkPreviewPolicy.firstHttpUrl("https://good.com/a <meta> https://evil.com/b"),
+        )
+    }
+
+    @Test
+    fun parseHtmlPreview_twitterTitleFallbackWithLengthCaps() {
+        val html = "<html><head><meta name=\"twitter:title\" content=\"Tw Title\"/></head></html>"
+        val p = LinkPreviewPolicy.parseHtmlPreview("https://example.com", html)
+        assertEquals("Tw Title", p.title)
+
+        val capped = "<html><head>" +
+            "<meta property=\"og:title\" content=\"" + "t".repeat(300) + "\"/>" +
+            "<meta property=\"og:description\" content=\"" + "d".repeat(500) + "\"/>" +
+            "<meta property=\"og:site_name\" content=\"" + "s".repeat(200) + "\"/>" +
+            "</head></html>"
+        val q = LinkPreviewPolicy.parseHtmlPreview("https://example.com", capped)
+        assertEquals(220, q.title?.length)
+        assertEquals(400, q.description?.length)
+        assertEquals(120, q.siteName?.length)
+    }
 }
