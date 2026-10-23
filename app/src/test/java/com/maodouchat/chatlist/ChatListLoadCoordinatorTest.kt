@@ -242,6 +242,7 @@ class ChatListLoadCoordinatorTest {
         cacheChats: suspend (List<Chat>) -> Unit = {},
         fetchRemoteChats: suspend () -> Result<List<ChatDto>> = { Result.success(emptyList()) },
         observeMissedCalls: () -> Flow<List<MissedCall>> = { flowOf(emptyList()) },
+        cleanupLocalChat: suspend (String, ConversationLocalCleanupSession) -> Unit = { _, _ -> },
     ): ChatListLoadCoordinator = ChatListLoadCoordinator(
         scope = CoroutineScope(dispatcher),
         uiState = uiState,
@@ -252,7 +253,7 @@ class ChatListLoadCoordinatorTest {
         cacheChats = cacheChats,
         fetchRemoteChats = fetchRemoteChats,
         enrichServerChatPreview = { chat, _ -> chat },
-        cleanupLocalChat = { _, _ -> },
+        cleanupLocalChat = cleanupLocalChat,
         cleanupSessionFor = { ConversationLocalCleanupSession(it, 0L) },
         activeChatId = { null },
         observeMissedCalls = observeMissedCalls,
