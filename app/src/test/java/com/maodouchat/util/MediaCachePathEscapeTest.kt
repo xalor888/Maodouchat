@@ -14,6 +14,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import androidx.core.net.toUri
 
 /**
  * G203b：`MediaCache` 缓存路径构造的**路径穿越防御**覆盖。
@@ -164,4 +165,67 @@ class MediaCachePathEscapeTest {
             "消毒后名字应只剩 [A-Za-z0-9_-]，实际 ${target.name}",
         )
     }
+
+
+    // ---- 重复/幂等：相同输入始终落到同一文件 ----
+
+    @Test
+    fun createAttachmentCacheFileIsStableAcrossRepeatedCalls() {
+        val first = MediaCache.createAttachmentCacheFile(ctx, messageId = "m-stable", fileName = "a.jpg")
+        val second = MediaCache.createAttachmentCacheFile(ctx, messageId = "m-stable", fileName = "a.jpg")
+        assertEquals(first.canonicalPath, second.canonicalPath, "相同输入必须落到同一文件")
+    }
+
+    // ---- 删除整族：同 messageId 的各种扩展名一次清干净 ----
+
+    @Test
+    fun deleteCachedMediaForMessageRemovesEveryExtension() {
+        val dir = File(ctx.cacheDir, "maodouchat_media").apply { mkdirs() }
+        listOf("m-del.jpg", "m-del.mp4", "m-del").forEach {
+            File(dir, it).apply { writeText("x") }
+        }
+        assertTrue(MediaCache.deleteCachedMediaForMessage(ctx, "m-del"), "删除应成功")
+        assertTrue(
+            dir.listFiles().orEmpty().none { it.name.startsWith("m-del") },
+            "同 messageId 的所有扩展名都应被清掉",
+        )
+    }
+
+    @Test
+    fun deleteCachedMediaForMessageKeepsOtherMessages() {
+        val dir = File(ctx.cacheDir, "maodouchat_media").apply { mkdirs() }
+        val keep = File(dir, "m-other.jpg").apply { writeText("x") }
+        File(dir, "m-del.jpg").apply { writeText("x") }
+        MediaCache.deleteCachedMediaForMessage(ctx, "m-del")
+        assertTrue(keep.exists(), "别的 messageId 的文件必须保留")
+    }
+
+    // ---- copyFileToCache 成功路径与短路复用 ----
+
+    @Test
+    fun copyFileToCacheHappyPathPersistsIdenticalBytes() {
+        val bytes = ByteArray(256) { it.toByte() }
+        val src = File(ctx.cacheDir, "src-happy.bin").apply { writeBytes(bytes) }
+        val uri = MediaCache.copyFileToCache(
+            ctx, android.net.Uri.fromFile(src), "m-happy",
+            LocalFileMetadata("src.bin", "application/octet-stream", bytes.size.toLong()),
+        )
+        assertNotNull(uri, "小文件 + 声明一致必须成功")
+        val target = java.io.File(android.net.Uri.parse(uri).path!!)
+        assertEquals(bytes.toList(), target.readBytes().toList(), "落盘字节必须与源一致")
+    }
+
+    @Test
+    fun copyFileToCacheShortCircuitsWhenSourceIsAlreadyTheTarget() {
+        // 源文件本身就是目标文件（canonical 相同、长度与声明一致）
+        // 时直接返回目标 uri，不再重写——重复调用零副作用。
+        val target = MediaCache.createAttachmentCacheFile(ctx, messageId = "m-same", fileName = "src.bin")
+        target.writeBytes(ByteArray(8))
+        val out = MediaCache.copyFileToCache(
+            ctx, android.net.Uri.fromFile(target), "m-same",
+            LocalFileMetadata("src.bin", "application/octet-stream", 8L),
+        )
+        assertEquals(target.toUri().toString(), out, "源即目标时应短路返回同一 uri")
+    }
+
 }

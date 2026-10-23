@@ -237,4 +237,91 @@ class MediaCacheAttachmentSizeLimitTest {
             EncryptedAttachmentCrypto.encrypt(context, android.net.Uri.fromFile(src), over)
         }.let { assertEquals(AttachmentCryptoFailure.TOO_LARGE, it.failure) }
     }
+
+
+    // ---- 元数据声明下界：0 与负数 ----
+
+    @Test
+    fun `copyFileToCache rejects zero and negative declared sizes`() {
+        val src = temporaryFolder.newFile("zero.bin").apply { writeBytes(ByteArray(4)) }
+        listOf(0L, -1L).forEach { declared ->
+            assertNull(
+                MediaCache.copyFileToCache(
+                    context, android.net.Uri.fromFile(src), "m-zero$declared",
+                    LocalFileMetadata("zero.bin", "application/octet-stream", declared),
+                ),
+                "声明 $declared 字节必须被上界下限拦住",
+            )
+        }
+    }
+
+    // ---- 声明与真实不一致：integrity 兜底 ----
+
+    @Test
+    fun `copyFileToCache rejects a declared size that does not match reality`() {
+        // 真实 8 字节、声明 16 字节：上界没意见，但 `copied == sizeBytes`
+        // 这道完整性校验必须拦下——否则声明可以随意谎报。
+        val src = temporaryFolder.newFile("lie.bin").apply { writeBytes(ByteArray(8)) }
+        assertNull(
+            MediaCache.copyFileToCache(
+                context, android.net.Uri.fromFile(src), "m-lie",
+                LocalFileMetadata("lie.bin", "application/octet-stream", 16L),
+            ),
+            "声明与真实大小不一致必须被拒",
+        )
+    }
+
+    // ---- 常量自洽：密文上界 = 明文上界 + 64 ----
+
+    @Test
+    fun `the cipher byte cap is the plain cap plus sixty four`() {
+        assertEquals(
+            max + 64L, MediaCache.MAX_ATTACHMENT_CIPHER_BYTES,
+            "密文上界应恰为明文上界 + 64（GCM tag 长度），不得手写死数字",
+        )
+    }
+
+    // ---- 加密前置校验在小声明下不误伤 ----
+
+    @Test
+    fun `encryption front check does not fire for small declared sizes`() {
+        val e = assertFailsWith<AttachmentCryptoException> {
+            EncryptedAttachmentCrypto.encrypt(
+                context = context,
+                uri = android.net.Uri.EMPTY,
+                expectedPlainSize = 8L,
+            )
+        }
+        assertTrue(
+            e.failure != AttachmentCryptoFailure.TOO_LARGE,
+            "8 字节声明远小于上界，失败也不能是 TOO_LARGE（实际因读不到流失败）",
+        )
+    }
+
+    // ---- 解码侧密文上界边界 ----
+
+    private fun validRefJson(cipherSize: Long): String =
+        "{\"kind\":\"maodouchat-attachment-v1\"," +
+            "\"attachmentId\":\"att_${"a".repeat(30)}\"," +
+            "\"keyBase64\":\"${"k".repeat(44)}\"," +
+            "\"ivBase64\":\"${"i".repeat(24)}\"," +
+            "\"cipherSha256\":\"${"c".repeat(64)}\"," +
+            "\"plainSha256\":\"${"e".repeat(64)}\"," +
+            "\"cipherSize\":$cipherSize," +
+            "\"fileName\":\"photo.jpg\"," +
+            "\"mimeType\":\"image/jpeg\"," +
+            "\"plainSize\":1000}"
+
+    @Test
+    fun `decode rejects a cipher size just over the cipher cap`() {
+        val cipherCap = MediaCache.MAX_ATTACHMENT_CIPHER_BYTES
+        assertNull(
+            MediaCache.decodeEncryptedAttachmentReference(validRefJson(cipherCap + 1)),
+            "cipherSize 恰超密文上界 1 字节必须被拒",
+        )
+        assertNotNull(
+            MediaCache.decodeEncryptedAttachmentReference(validRefJson(cipherCap)),
+            "cipherSize 恰等于密文上界必须放行",
+        )
+    }
 }
