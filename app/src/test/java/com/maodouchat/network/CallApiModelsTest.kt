@@ -379,4 +379,46 @@ class CallApiModelsTest {
         val config = IceConfigDto(iceServers = emptyList(), expiresAt = 0L, turnEnabled = true)
         assertEquals(config, json.decodeFromString<IceConfigDto>(json.encodeToString(config)))
     }
+
+    @Test
+    fun signalingSendRequestCandidateTypeRoundTrips() {
+        val request = SignalingSendRequest(toUserId = "u2", type = "CANDIDATE", payload = "{}")
+        assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun iceServerDtoEmptyUsernameAndCredentialRoundTrips() {
+        val server = IceServerDto(urls = listOf("stun:stun.example"), username = "", credential = "")
+        assertEquals(server, json.decodeFromString<IceServerDto>(json.encodeToString(server)))
+    }
+
+    @Test
+    fun iceConfigDtoTurnEnabledTrueWithStunOnlyRoundTrips() {
+        val config = IceConfigDto(
+            iceServers = listOf(IceServerDto(urls = listOf("stun:stun.example"), username = "", credential = "")),
+            expiresAt = 10L,
+            turnEnabled = true
+        )
+        assertEquals(config, json.decodeFromString<IceConfigDto>(json.encodeToString(config)))
+        assertTrue(config.turnEnabled)
+    }
+
+    @Test
+    fun signalingSendRequestMinEpochAndSequenceRoundTrip() {
+        val request = SignalingSendRequest(
+            toUserId = "u2", type = "OFFER", payload = "{}",
+            callId = "call-5", epoch = Long.MIN_VALUE, sequence = Long.MIN_VALUE, idempotencyKey = "k"
+        )
+        assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun signalMessageDtoMinTimestampRoundTrips() {
+        val dto = SignalMessageDto(
+            id = "s22", fromUserId = "u1", type = "OFFER", payload = "{}",
+            timestamp = Long.MIN_VALUE
+        )
+        assertEquals(dto, json.decodeFromString<SignalMessageDto>(json.encodeToString(dto)))
+    }
+
 }
