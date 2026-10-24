@@ -246,4 +246,31 @@ class TokenExpiredEventPolicyTest {
         assertFalse(TokenExpiredEventPolicy.shouldHandle("u\n1", 7L, "u1", 7L))
     }
 
+
+    @Test
+    fun nonBreakingSpaceOwnerRejectedEvenWhenEqual() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("\u00A0", 7L, "\u00A0", 7L))
+    }
+
+    @Test
+    fun nonBreakingSpacePaddedOwnerMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("\u00A0u1\u00A0", 7L, "\u00A0u1\u00A0", 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("\u00A0u1\u00A0", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun emSpaceOwnerRejectedEvenWhenEqual() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("\u2003", 7L, "\u2003", 7L))
+    }
+
+    @Test
+    fun internalCarriageReturnOwnerMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u\r1", 7L, "u\r1", 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u\r1", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun trailingZeroWidthSpaceCurrentOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1\u200B", 7L))
+    }
 }
