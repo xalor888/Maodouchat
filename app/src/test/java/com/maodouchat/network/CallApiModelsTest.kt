@@ -339,4 +339,44 @@ class CallApiModelsTest {
         )
         assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
     }
+
+    @Test
+    fun signalingSendRequestIceTypeRoundTrips() {
+        val request = SignalingSendRequest(toUserId = "u2", type = "ICE", payload = "{}")
+        assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun signalMessageDtoAnswerTypeRoundTrips() {
+        val dto = SignalMessageDto(
+            id = "s20", fromUserId = "u1", type = "ANSWER", payload = "{}",
+            timestamp = 9L, epoch = 2, sequence = 3, idempotencyKey = "k"
+        )
+        assertEquals(dto, json.decodeFromString<SignalMessageDto>(json.encodeToString(dto)))
+    }
+
+    @Test
+    fun signalingSendRequestDuplicateMemberIdsPreserveOrder() {
+        val request = SignalingSendRequest(
+            toUserId = "u2", type = "OFFER", payload = "{}",
+            groupId = "g1", groupMemberIds = listOf("u2", "u2", "u3"), groupInvite = true
+        )
+        val decoded = json.decodeFromString<SignalingSendRequest>(json.encodeToString(request))
+        assertEquals(request, decoded)
+        assertEquals(listOf("u2", "u2", "u3"), decoded.groupMemberIds)
+    }
+
+    @Test
+    fun signalMessageDtoMaxTimestampRoundTrips() {
+        val dto = SignalMessageDto(
+            id = "s21", fromUserId = "u1", type = "OFFER", payload = "{}", timestamp = Long.MAX_VALUE
+        )
+        assertEquals(dto, json.decodeFromString<SignalMessageDto>(json.encodeToString(dto)))
+    }
+
+    @Test
+    fun iceConfigDtoTurnEnabledTrueWithEmptyServersRoundTrips() {
+        val config = IceConfigDto(iceServers = emptyList(), expiresAt = 0L, turnEnabled = true)
+        assertEquals(config, json.decodeFromString<IceConfigDto>(json.encodeToString(config)))
+    }
 }

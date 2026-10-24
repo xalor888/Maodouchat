@@ -252,4 +252,44 @@ class AiApiModelsTest {
         assertEquals("hi", decoded.text)
         assertEquals(3L, decoded.timestamp)
     }
+
+    @Test
+    fun contextMessageWhitespaceSenderRoundTrips() {
+        val message = AiContextMessage(sender = " ", text = "hi")
+        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
+    }
+
+    @Test
+    fun groupTaskMaxDueAtRoundTrips() {
+        val task = AiGroupTask(title = "t", dueAt = Long.MAX_VALUE)
+        assertEquals(task, json.decodeFromString<AiGroupTask>(json.encodeToString(task)))
+    }
+
+    @Test
+    fun semanticCandidateMinTimestampRoundTrips() {
+        val candidate = AiSemanticSearchCandidate(
+            messageId = "m1", sender = "u1", text = "x", timestamp = Long.MIN_VALUE
+        )
+        assertEquals(
+            candidate,
+            json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate))
+        )
+    }
+
+    @Test
+    fun auditLogResponseNegativeCountersDecodeAsIs() {
+        val decoded = json.decodeFromString<AiAuditLogResponse>(
+            """{"id":"a","feature":"f","status":"ok","inputChars":-3,"contextMessages":-1,"createdAt":1}"""
+        )
+        assertEquals(-3, decoded.inputChars)
+        assertEquals(-1, decoded.contextMessages)
+    }
+
+    @Test
+    fun auditLogResponseEmptyErrorRoundTrips() {
+        val response = AiAuditLogResponse(
+            id = "a", feature = "f", status = "error", error = "", createdAt = 1L
+        )
+        assertEquals(response, json.decodeFromString<AiAuditLogResponse>(json.encodeToString(response)))
+    }
 }
