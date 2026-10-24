@@ -136,4 +136,59 @@ class IncomingServerErrorTest {
 
         assertEquals("  spaced  ", parsed.error)
     }
+
+    @Test
+    fun `error only payload yields null code and delay`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied"}"""
+        )
+
+        assertEquals("denied", parsed.error)
+        assertNull(parsed.code)
+        assertNull(parsed.retryAfterSeconds)
+    }
+
+    @Test
+    fun `empty code string is preserved not null`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","code":""}"""
+        )
+
+        assertEquals("", parsed.code)
+    }
+
+    @Test
+    fun `defaults round trip preserves nulls`() {
+        val original = IncomingServerError()
+        val roundTripped = json.decodeFromString(
+            IncomingServerError.serializer(),
+            json.encodeToString(IncomingServerError.serializer(), original)
+        )
+
+        assertEquals(original, roundTripped)
+        assertNull(roundTripped.code)
+        assertNull(roundTripped.retryAfterSeconds)
+    }
+
+    @Test
+    fun `escaped quote in error text survives parsing`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"a\"b"}"""
+        )
+
+        assertEquals("a\"b", parsed.error)
+    }
+
+    @Test
+    fun `max long retry delay survives`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"slow","retryAfterSeconds":9223372036854775807}"""
+        )
+
+        assertEquals(9223372036854775807L, parsed.retryAfterSeconds)
+    }
 }
