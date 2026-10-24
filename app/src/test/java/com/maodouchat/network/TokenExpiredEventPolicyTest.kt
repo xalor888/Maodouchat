@@ -216,4 +216,34 @@ class TokenExpiredEventPolicyTest {
         assertTrue(TokenExpiredEventPolicy.shouldHandle("aB", 7L, "aB", 7L))
     }
 
+    @Test
+    fun veryLongOwnerMatchesExactly() {
+        val longOwner = "u" + "1".repeat(200)
+        assertTrue(TokenExpiredEventPolicy.shouldHandle(longOwner, 7L, longOwner, 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle(longOwner, 7L, "u1", 7L))
+    }
+
+    @Test
+    fun maxMinusOneGenerationMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u1", Long.MAX_VALUE - 1L, "u1", Long.MAX_VALUE - 1L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", Long.MAX_VALUE - 1L, "u1", Long.MAX_VALUE))
+    }
+
+    @Test
+    fun zeroWidthSpaceOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1\u200B", 7L, "u1", 7L))
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u1\u200B", 7L, "u1\u200B", 7L))
+    }
+
+    @Test
+    fun bothOwnersBlankSpacesRejected() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("   ", 7L, "   ", 7L))
+    }
+
+    @Test
+    fun internalNewlineOwnerMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u\n1", 7L, "u\n1", 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u\n1", 7L, "u1", 7L))
+    }
+
 }
