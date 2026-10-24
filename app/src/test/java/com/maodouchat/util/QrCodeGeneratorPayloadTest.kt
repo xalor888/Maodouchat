@@ -1,24 +1,15 @@
 package com.maodouchat.util
 
-import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.Test
 
 /**
- * G213b：`QrCodeGenerator` 的载荷编解码，重点是**安全码二维码**。
- *
- * 为什么值得测：safety QR 是「当面扫码核对身份」的安全功能，载荷形如
- * `maodouchat:safety:<b64>:<deviceId>:<b64>:<deviceId>:<b64>`——**用 `:` 连起来**。
- * 而 userId / safetyCode / fingerprint 都是不可信字符串，**里面完全可能含 `:`**。
- * 若不转义，载荷就会歧义：接收方可能把 `a:b` 解析成两段，
- * 「核对指纹」就变成了拿一个被篡改的指纹通过校验。
- *
- * 这里的转义机制是 `encodePart` 用 **Base64 URL 安全字母表**（`A-Za-z0-9-_`，无 padding）——
- * 该字母表里根本没有 `:`，所以任何输入编码后都不会制造分隔符。
+ * safety QR 是「当面扫码核对身份」：载荷用 `:` 分段，但 userId/safetyCode/指纹都可能含 `:`。
+ * 转义靠 `encodePart` 的 Base64 URL 安全字母表——它里面根本没有 `:`，所以任何输入都造不出分隔符。
  */
 class QrCodeGeneratorPayloadTest {
 
@@ -30,16 +21,14 @@ class QrCodeGeneratorPayloadTest {
 
     @Test
     fun chatInviteTokenIsTrimmed() {
-        // 手工敲/复制的 token 常带首尾空白，不带进去
+        // 手工敲/复制的 token 常带首尾空白，编码侧只 trim、不校验长度（解析侧才要求 ≥32 位）
         assertEquals("maodouchat:chat-invite:v1:tok", QrCodeGenerator.encodeChatInviteQrPayload("  tok  "))
-        // ⚠️ 注意：编码侧只 trim，**不校验长度**；解析侧要求 ≥32 字符
-        //（AppLinkRouter.MIN_CHAT_INVITE_TOKEN_LENGTH）。所以往返只用长 token 测。
         assertEquals("maodouchat:chat-invite:v1:t", QrCodeGenerator.encodeChatInviteQrPayload("t"))
     }
 
     @Test
     fun encodedPartsNeverContainTheDelimiter() {
-        // 这是整套转义的地基：编码结果里不得出现 ':'（也不得出现 '=' padding）
+        // 地基断言：编码结果里不得出现 ':'（也不得出现 '=' padding）
         listOf("u1", "a:b", ":::", "lead:trail:", "", " ", "中文:冒号", "a\nb", "*".repeat(200))
             .forEach { raw ->
                 val payload = QrCodeGenerator.encodeSafetyQrPayload(
@@ -47,8 +36,7 @@ class QrCodeGeneratorPayloadTest {
                     peerUserId = raw, peerDeviceId = 2,
                     safetyCode = raw,
                 )
-                // 除了 5 个结构冒号（前缀1 + 段间4）之外不该有多余的
-                // "maodouchat:safety:" 占 2 个，5 段之间 4 个 → 共 6 个结构冒号
+                // "maodouchat:safety:" 占 2 个、5 段之间 4 个 → 共 6 个结构冒号
                 val colons = payload.count { it == ':' }
                 assertEquals(6, colons, "载荷 [$raw] 的冒号数应为 6（结构位），实际 $colons：$payload")
                 assertFalse(payload.contains("="), "Base64 无 padding，不该有 '='：$payload")
@@ -89,17 +77,9 @@ class QrCodeGeneratorPayloadTest {
         assertEquals("11:22:33", target.safetyCode, "带冒号的 safetyCode 必须原样往返")
     }
 
-    /**
-     * **一个真实的不对称，本轮如实记下（不假装它是bug也不修）**：
-     * 编码侧 `encodePart` 会把 userId 里的 `:` 转义掉（Base64），
-     * 但解析侧随后又用 `ID_REGEX = ^[a-zA-Z0-9_-]{1,64}$` 拒绝含 `:` 的 userId。
-     * 于是「userId 含冒号」的安全码**编得出来、解不动**（parsePayload 返回 null）。
-     *
-     * 实践上无害：userId 由本机生成、必在该字符集内，走不到这条路。
-     * 但这说明 `encodePart` 的转义对 userId 字段其实是**冗余**的，
-     * 真正靠它保护的是 safetyCode / fingerprint（那两个字段原样返回、无 ID_REGEX）。
-     * 这条测试把「解码侧会拒绝」钉住，避免后人误以为它能往返。
-     */
+    // 已知不对称：编码侧 `encodePart` 把 userId 里的 `:` 转义了，但解析侧 ID_REGEX 仍会拒绝含冒号的 userId
+    //（实践上无害：userId 本机生成必在该字符集内；真正靠转义保护的是 safetyCode/fingerprint）。
+    // 这条测试把「解码侧会拒绝」钉住，避免后人误以为它能往返。
     @Test
     fun aUserIdWithColonsIsRejectedByTheParserNotSilentlyMisparsed() {
         val payload = QrCodeGenerator.encodeSafetyQrPayload(
@@ -163,5 +143,54 @@ class QrCodeGeneratorPayloadTest {
                 assertTrue(target == null || target is QrTarget,
                     "'$bad' 解析结果异常：$target")
             }
+    }
+
+    @Test
+    fun `safety v2 fingerprints with colons round trip`() {
+        val payload = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "u1", ownerDeviceId = 1,
+            peerUserId = "u2", peerDeviceId = 2,
+            ownerIdentityFingerprint = "fp:1:2", peerIdentityFingerprint = "fp::x",
+        )
+        val target = QrCodeGenerator.parsePayload(payload)
+        assertIs<QrTarget.Safety>(target)
+        assertEquals("fp:1:2", target.ownerIdentityFingerprint)
+        assertEquals("fp::x", target.peerIdentityFingerprint)
+    }
+
+    @Test
+    fun `safety payload device id out of range is rejected`() {
+        val valid = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "u1", ownerDeviceId = 1,
+            peerUserId = "u2", peerDeviceId = 2,
+            safetyCode = "123456",
+        )
+        assertNull(QrCodeGenerator.parsePayload(valid.replaceFirst(":1:", ":0:")), "deviceId 0 不合法")
+        assertNull(QrCodeGenerator.parsePayload(valid.replaceFirst(":2:", ":256:")), "deviceId 256 不合法")
+    }
+
+    @Test
+    fun `overlong payload is rejected`() {
+        assertNull(
+            QrCodeGenerator.parsePayload("maodouchat:user:" + "x".repeat(2100)),
+            "超 2048 字节的载荷不得解析",
+        )
+    }
+
+    @Test
+    fun `dangerous schemes are rejected`() {
+        assertNull(QrCodeGenerator.parsePayload("javascript:alert(1)"), "危险 scheme 不得解析")
+        assertNull(QrCodeGenerator.parsePayload("https://example.com"), "非 maodouchat scheme 不得解析")
+    }
+
+    @Test
+    fun `chat invite token length boundary`() {
+        assertNull(
+            QrCodeGenerator.parsePayload(QrCodeGenerator.encodeChatInviteQrPayload("t".repeat(31))),
+            "31 字符 token 不足 32 位下限",
+        )
+        val ok = QrCodeGenerator.parsePayload(QrCodeGenerator.encodeChatInviteQrPayload("t".repeat(32)))
+        assertIs<QrTarget.ChatInvite>(ok)
+        assertEquals("t".repeat(32), ok.token)
     }
 }

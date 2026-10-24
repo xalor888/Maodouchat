@@ -110,4 +110,45 @@ class NearbyPolicyTest {
             assertEquals(it, NearbyPolicy.nearestOptionKm(it), 0.0)
         }
     }
+
+    @Test
+    fun normalizeRadiusKm_exactBoundariesStick() {
+        assertEquals(0.5, NearbyPolicy.normalizeRadiusKm(0.5), 0.0)
+        assertEquals(30.0, NearbyPolicy.normalizeRadiusKm(30.0), 0.0)
+        assertEquals(0.5, NearbyPolicy.normalizeRadiusKm(-3.0), 0.0)
+        assertEquals(0.5, NearbyPolicy.normalizeRadiusKm(0.49), 0.001)
+    }
+
+    @Test
+    fun nearestOptionKm_clampsToServerRangeBeforeSnapping() {
+        assertEquals(30.0, NearbyPolicy.nearestOptionKm(99.0), 0.0)
+        assertEquals(0.5, NearbyPolicy.nearestOptionKm(-3.0), 0.0)
+    }
+
+    @Test
+    fun nearestOptionKm_midpointTiesPreferTheLowerChip() {
+        assertEquals(1.0, NearbyPolicy.nearestOptionKm(1.5), 0.0)
+        assertEquals(5.0, NearbyPolicy.nearestOptionKm(7.5), 0.0)
+    }
+
+    @Test
+    fun remainingVisibleMs_nowAtZeroIsAlwaysExpired() {
+        assertEquals(0L, NearbyPolicy.remainingVisibleMs(9_999_999L, 0L))
+        assertEquals(Long.MAX_VALUE - 1L, NearbyPolicy.remainingVisibleMs(Long.MAX_VALUE, 1L))
+    }
+
+    @Test
+    fun compareNearby_sortsDirectoryIntoExpectedOrder() {
+        data class Person(val id: String, val online: Boolean, val distance: Int, val updatedAt: Long)
+        val people = listOf(
+            Person("p1", online = true, distance = 500, updatedAt = 1L),
+            Person("p2", online = false, distance = 100, updatedAt = 9L),
+            Person("p3", online = true, distance = 100, updatedAt = 5L),
+            Person("p4", online = false, distance = 50, updatedAt = 3L),
+        )
+        val sorted = people.sortedWith { a, b ->
+            NearbyPolicy.compareNearby(a.online, a.distance, a.updatedAt, b.online, b.distance, b.updatedAt)
+        }
+        assertEquals(listOf("p3", "p1", "p4", "p2"), sorted.map { it.id })
+    }
 }
