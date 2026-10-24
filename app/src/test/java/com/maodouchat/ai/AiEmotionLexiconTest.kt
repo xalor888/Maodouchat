@@ -41,4 +41,40 @@ class AiEmotionLexiconTest {
         assertEquals(Emotion.NEUTRAL, AiEmotionLexicon.detectEmotion(listOf("LOL GREAT")).emotion)
         assertEquals(Emotion.HAPPY, AiEmotionLexicon.detectEmotion(listOf("lol great")).emotion)
     }
+
+    @Test
+    fun `empty input yields neutral`() {
+        val result = AiEmotionLexicon.detectEmotion(emptyList())
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `blank text yields neutral`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("   "))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `keyword fully inside scan window still counts`() {
+        // 198 个垫字 + "哈哈" 恰好 200 字符，关键词完整落在窗口内
+        val result = AiEmotionLexicon.detectEmotion(listOf("垫".repeat(198) + "哈哈"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `anxious words are detected`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("我很焦虑，压力好大"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `cross valence tie breaks toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "气死我了"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
 }
