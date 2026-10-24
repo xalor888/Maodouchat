@@ -1,9 +1,13 @@
 package com.maodouchat.network
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 class ApiUserFacingMessageTest {
     @Test
@@ -102,6 +106,45 @@ class ApiUserFacingMessageTest {
         assertEquals(
             "操作失败",
             RuntimeException("  ").toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun timeoutKindPrefersNonBlankServerMessage() {
+        val error = ApiException(kind = ApiFailureKind.TIMEOUT, serverMessage = "网关超时")
+        assertEquals(
+            "网关超时",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun connectExceptionMarksConnectionNeverEstablished() {
+        val error = apiExceptionForIOException(IOException(ConnectException("refused")))
+        assertEquals(ApiFailureKind.NETWORK, error.kind)
+        assertFalse(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun nestedUnknownHostCauseMarksConnectionNeverEstablished() {
+        val error = apiExceptionForIOException(IOException("wrap", UnknownHostException()))
+        assertEquals(ApiFailureKind.NETWORK, error.kind)
+        assertFalse(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun socketTimeoutMayHaveReachedServer() {
+        val error = apiExceptionForIOException(SocketTimeoutException())
+        assertEquals(ApiFailureKind.TIMEOUT, error.kind)
+        assertTrue(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun httpKindBlankServerMessageUsesFallback() {
+        val error = ApiException(kind = ApiFailureKind.HTTP, statusCode = 403, serverMessage = "   ")
+        assertEquals(
+            "操作失败",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
         )
     }
 }

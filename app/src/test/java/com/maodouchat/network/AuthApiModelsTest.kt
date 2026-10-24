@@ -134,4 +134,44 @@ class AuthApiModelsTest {
         assertFalse(decoded.ok)
         assertNull(decoded.username)
     }
+
+    @Test
+    fun resetPasswordRequestRoundTrips() {
+        val request = ResetPasswordRequest(email = "alex@example.com", code = "654321", newPassword = "newpass123")
+        assertEquals(request, json.decodeFromString<ResetPasswordRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun groupInvitationDtoDefaultsStatusPending() {
+        val decoded = json.decodeFromString<GroupInvitationDto>("""{"id":"g1","chatId":"c1","userId":"u1"}""")
+        assertEquals("PENDING", decoded.status)
+        assertEquals("GROUP", decoded.chatType)
+        assertEquals(0, decoded.memberCount)
+        assertNull(decoded.chatAvatar)
+    }
+
+    @Test
+    fun chatFolderDtoDefaultsEmptyChatIds() {
+        val decoded = json.decodeFromString<ChatFolderDto>("""{"id":"f1","name":"工作"}""")
+        assertEquals(0, decoded.sortOrder)
+        assertTrue(decoded.chatIds.isEmpty())
+        assertEquals(0L, decoded.updatedAt)
+    }
+
+    @Test
+    fun updatePrivacyRequestAllNullByDefault() {
+        val request = UpdatePrivacyRequest()
+        assertNull(request.showOnline)
+        assertNull(request.searchable)
+        assertNull(request.onlineVisibility)
+    }
+
+    @Test
+    fun clientPrefsDtoDefaults() {
+        val decoded = json.decodeFromString<ClientPrefsDto>("""{}""")
+        assertEquals("system", decoded.themeMode)
+        assertTrue(decoded.linkPreviewEnabled)
+        assertFalse(decoded.writingStyleEnabled)
+        assertEquals(5L, decoded.appLockTimeoutMinutes)
+    }
 }

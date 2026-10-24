@@ -27,4 +27,29 @@ class RealtimeDisconnectPolicyTest {
         val second = RealtimeDisconnectPolicy.BANNER_DELAY_MS
         assertEquals(first, second)
     }
+
+    @Test
+    fun bannerDelayIsMultipleOf100() {
+        assertEquals(0L, RealtimeDisconnectPolicy.BANNER_DELAY_MS % 100L)
+    }
+
+    @Test
+    fun bannerDelayConvertsToIntExactly() {
+        assertEquals(2_500, RealtimeDisconnectPolicy.BANNER_DELAY_MS.toInt())
+    }
+
+    @Test
+    fun bannerDelayWellUnderOneMinute() {
+        assertTrue(RealtimeDisconnectPolicy.BANNER_DELAY_MS < 60_000L)
+    }
+
+    @Test
+    fun bannerDelayDividesToTwoPointFiveSeconds() {
+        assertEquals(2.5, RealtimeDisconnectPolicy.BANNER_DELAY_MS / 1000.0, 0.0)
+    }
+
+    @Test
+    fun bannerDelayIsNotZero() {
+        assertTrue(RealtimeDisconnectPolicy.BANNER_DELAY_MS != 0L)
+    }
 }
