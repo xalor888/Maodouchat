@@ -74,4 +74,35 @@ class TokenExpiredEventPolicyTest {
     fun tabOnlyEventOwnerIsRejected() {
         assertFalse(TokenExpiredEventPolicy.shouldHandle("\t", 7L, "u1", 7L))
     }
+
+    @Test
+    fun minLongGenerationMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u1", Long.MIN_VALUE, "u1", Long.MIN_VALUE))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", Long.MIN_VALUE, "u1", Long.MAX_VALUE))
+    }
+
+    @Test
+    fun sameInputHandledStablyAcrossCalls() {
+        repeat(3) {
+            assertTrue(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1", 7L))
+            assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1", 8L))
+        }
+    }
+
+    @Test
+    fun trailingWhitespaceOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1 ", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun unicodeOwnerMatchedExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("用户1", 7L, "用户1", 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("用户1", 7L, "用户2", 7L))
+    }
+
+    @Test
+    fun nullCurrentOwnerNeverHandledForAnyGeneration() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 0L, null, 0L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", -5L, null, -5L))
+    }
 }

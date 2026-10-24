@@ -97,4 +97,56 @@ class SocialApiModelsTest {
             """{"content":"y","imageUrls":["a.jpg"]}"""
         ).imageUrls)
     }
+
+    @Test
+    fun postDtoEditedAtDefaultsNullAndEmptyImages() {
+        val decoded = json.decodeFromString<PostDto>(
+            """{"id":"p3","author":{"id":"u1","name":"A"},"content":"hi","createdAt":2}"""
+        )
+        assertNull(decoded.editedAt)
+        assertEquals(emptyList<String>(), decoded.imageUrls)
+    }
+
+    @Test
+    fun postCommentDtoReplyParentIdRoundTrips() {
+        val comment = PostCommentDto(
+            id = "c2",
+            postId = "p1",
+            author = UserDto(id = "u1", name = "A"),
+            content = "reply",
+            createdAt = 4L,
+            parentId = "c1",
+            likeCount = 1,
+            likedByMe = true
+        )
+        assertEquals(comment, json.decodeFromString<PostCommentDto>(json.encodeToString(comment)))
+    }
+
+    @Test
+    fun postLikersResponseRoundTripsMultipleLikers() {
+        val response = PostLikersResponse(
+            postId = "p1",
+            likers = listOf(UserDto(id = "u2", name = "B"), UserDto(id = "u3", name = "C"))
+        )
+        val decoded = json.decodeFromString<PostLikersResponse>(json.encodeToString(response))
+        assertEquals(2, decoded.likers.size)
+        assertEquals("C", decoded.likers[1].name)
+    }
+
+    @Test
+    fun createPostRequestEmptyContentRoundTrips() {
+        val decoded = json.decodeFromString<CreatePostRequest>("{}")
+        assertEquals("", decoded.content)
+        assertTrue(decoded.useDefaultVisibility)
+        assertNull(decoded.visibility)
+    }
+
+    @Test
+    fun postDtoIgnoresUnknownKeys() {
+        val decoded = json.decodeFromString<PostDto>(
+            """{"id":"p4","author":{"id":"u1","name":"A"},"content":"hi","createdAt":2,"views":9}"""
+        )
+        assertEquals("p4", decoded.id)
+        assertEquals(0, decoded.likeCount)
+    }
 }
