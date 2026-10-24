@@ -254,4 +254,74 @@ class SessionPresencePolicyTest {
             )
         )
     }
+
+    @Test
+    fun nullTokenIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = null,
+                userId = "u1",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun nullUserIdBeatsLiveRefresh() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = null,
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun freshAccessIgnoresExpiredRefreshRecord() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now - 1L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun maxLongAccessExpiryIsLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = Long.MAX_VALUE,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun expiredAccessWithBlankTokenIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
 }

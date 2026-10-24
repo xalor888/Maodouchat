@@ -182,4 +182,50 @@ class GroupPlayUpdatePayloadTest {
         val parsed = parseGroupPlayUpdate(payload)
         assertEquals(payload, parsed.payloadJson)
     }
+
+    @Test
+    fun upperCaseEventStillRefreshesOnChatIdMatch() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"PK_UPDATED","data":{"chatId":"g1"}}"""
+        )
+        assertEquals("PK_UPDATED", parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun unicodeChatIdMatchesSameScreen() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":"群组1"}}"""
+        )
+        assertTrue(shouldRefreshScreen(parsed.chatId, "群组1"))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "群组2"))
+    }
+
+    @Test
+    fun explicitBlankEventStillRefreshesOnChatId() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"","data":{"chatId":"g1"}}"""
+        )
+        assertEquals("", parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun numericStringChatIdMatchesSameScreen() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":42}}"""
+        )
+        assertEquals("42", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "42"))
+    }
+
+    @Test
+    fun whitespaceOnlyChatIdNeverRefreshes() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":"   "}}"""
+        )
+        assertEquals("   ", parsed.chatId)
+        assertFalse(shouldRefreshScreen(parsed.chatId, "   "))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
 }

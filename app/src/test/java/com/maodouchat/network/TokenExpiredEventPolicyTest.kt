@@ -105,4 +105,30 @@ class TokenExpiredEventPolicyTest {
         assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 0L, null, 0L))
         assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", -5L, null, -5L))
     }
+
+    @Test
+    fun leadingWhitespaceEventOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle(" u1", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun currentOwnerTrailingSpaceMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1 ", 7L))
+    }
+
+    @Test
+    fun newlineSuffixedEventOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1\n", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun zeroVsNegativeGenerationMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 0L, "u1", -1L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", -1L, "u1", 0L))
+    }
+
+    @Test
+    fun maxGenerationOffByOneMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", Long.MAX_VALUE, "u1", Long.MAX_VALUE - 1L))
+    }
 }
