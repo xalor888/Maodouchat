@@ -102,16 +102,25 @@ class GroupPlayUpdatePayloadTest {
         assertTrue(shouldRefreshScreen(parsed.chatId, "g7"))
     }
 
+    // contentOrNull 只在 JSON null 时给 null，数字/布尔会按字面转成字符串（"42"）——与生产分支同行为。
     @Test
-    fun nonStringEventFallsBackToEmpty() {
+    fun nonStringEventIsStringified() {
         val parsed = parseGroupPlayUpdate("""{"event":42,"data":{"chatId":"g1"}}""")
-        assertEquals("", parsed.event)
+        assertEquals("42", parsed.event)
         assertEquals("g1", parsed.chatId)
     }
 
     @Test
-    fun nonStringChatIdFallsBackToEmpty() {
+    fun nonStringChatIdIsStringified() {
         val parsed = parseGroupPlayUpdate("""{"event":"pk_updated","data":{"chatId":42}}""")
+        assertEquals("42", parsed.chatId)
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun explicitNullEventAndChatIdYieldEmpty() {
+        val parsed = parseGroupPlayUpdate("""{"event":null,"data":{"chatId":null}}""")
+        assertEquals("", parsed.event)
         assertEquals("", parsed.chatId)
         assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
     }
