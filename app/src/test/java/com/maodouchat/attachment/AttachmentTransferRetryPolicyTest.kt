@@ -4,6 +4,7 @@ import com.maodouchat.crypto.NoRecipientDevicesException
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import java.io.IOException
+import java.net.SocketTimeoutException
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -124,6 +125,65 @@ class AttachmentTransferRetryPolicyTest {
         )
         assertFalse(
             AttachmentSendAfterUploadPolicy.isRetryable(nested(6, NoRecipientDevicesException()))
+        )
+    }
+
+    @Test
+    fun http400And404AreDefinitive() {
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 400, serverMessage = "bad request")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 404, serverMessage = "not found")
+            )
+        )
+    }
+
+    @Test
+    fun timeoutKindIgnoresStatusCode() {
+        val err = ApiException(
+            ApiFailureKind.TIMEOUT,
+            statusCode = 403,
+            serverMessage = "slow",
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+    }
+
+    @Test
+    fun ioExceptionSubclassIsRetryable() {
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                SocketTimeoutException("read timed out")
+            )
+        )
+    }
+
+    @Test
+    fun wrappedIOExceptionIsNotRetryable() {
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                RuntimeException("wrap", IOException("eof"))
+            )
+        )
+    }
+
+    @Test
+    fun messageChainAtDepthFiveIsTransientButSixIsNot() {
+        fun nested(depth: Int, leaf: Throwable): Throwable =
+            if (depth == 0) leaf else RuntimeException("level$depth", nested(depth - 1, leaf))
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                nested(5, RuntimeException("protocol initialization"))
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                nested(6, RuntimeException("protocol initialization"))
+            )
         )
     }
 }

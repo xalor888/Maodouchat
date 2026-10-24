@@ -69,4 +69,35 @@ class AttachmentProgressPolicyTest {
         val p = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 0.3f, 0.3f, -1f)
         assertEquals(0.3f, p!!, 0.0001f)
     }
+
+    @Test
+    fun `above threshold delta publishes`() {
+        val first = AttachmentProgressPolicy.mapSegmentProgress(10, 100, 0f, 1f, -1f)!!
+        val next = AttachmentProgressPolicy.mapSegmentProgress(12, 100, 0f, 1f, first)
+        assertEquals(0.12f, next!!, 0.0001f)
+    }
+
+    @Test
+    fun `sub threshold delta inside segment suppressed`() {
+        val first = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 0f, 1f, -1f)!!
+        assertNull(AttachmentProgressPolicy.mapSegmentProgress(505, 1000, 0f, 1f, first))
+    }
+
+    @Test
+    fun `completion publishes from zero previous`() {
+        val done = AttachmentProgressPolicy.mapSegmentProgress(100, 100, 0f, 1f, 0f)
+        assertEquals(1f, done!!, 0.0001f)
+    }
+
+    @Test
+    fun `segment fully above one collapses to one`() {
+        val p = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 1.5f, 2f, -1f)
+        assertEquals(1f, p!!, 0.0001f)
+    }
+
+    @Test
+    fun `zero completed maps to segment start`() {
+        val p = AttachmentProgressPolicy.mapSegmentProgress(0, 100, 0.2f, 0.8f, -1f)
+        assertEquals(0.2f, p!!, 0.0001f)
+    }
 }
