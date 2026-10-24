@@ -184,4 +184,74 @@ class SessionPresencePolicyTest {
             )
         )
     }
+
+    @Test
+    fun emptyTokenIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "",
+                userId = "u1",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun tabNewlineTokenIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "\t\n",
+                userId = "u1",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun expiredAccessWithNullRefreshIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun blankUserIdBeatsPresentRefresh() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = " ",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun paddedTokenAndUserIdStillLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = " access ",
+                userId = " u1 ",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
 }
