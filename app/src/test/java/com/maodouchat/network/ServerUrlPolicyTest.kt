@@ -102,4 +102,35 @@ class ServerUrlPolicyTest {
         assertNull(ServerUrlPolicy.validate("https://chat.example.com."))
         assertNull(ServerUrlPolicy.validate("https://chat.example.com./"))
     }
+
+    @Test
+    fun uppercaseHost_isAccepted() {
+        assertNull(ServerUrlPolicy.validate("https://CHAT.EXAMPLE.COM"))
+        assertNull(ServerUrlPolicy.validate("Https://Chat.Example.COM:8443/"))
+    }
+
+    @Test
+    fun ipv6NonLoopbackLiteral_isAccepted() {
+        assertNull(ServerUrlPolicy.validate("https://[2001:db8::1]"))
+        assertNull(ServerUrlPolicy.validate("https://[2001:db8::1]:8443"))
+    }
+
+    @Test
+    fun hostLengthBoundary() {
+        // 255 字符恰好放行，256 字符判无效。
+        assertNull(ServerUrlPolicy.validate("https://" + "a".repeat(251) + ".com"))
+        assertEquals(Problem.INVALID, ServerUrlPolicy.validate("https://" + "a".repeat(252) + ".com"))
+    }
+
+    @Test
+    fun portJustAboveMaxAndLeadingZero() {
+        assertEquals(Problem.PORT, ServerUrlPolicy.validate("https://chat.example.com:65536"))
+        assertNull(ServerUrlPolicy.validate("https://chat.example.com:080"))
+    }
+
+    @Test
+    fun schemeMissing_mapsToScheme() {
+        assertEquals(Problem.SCHEME, ServerUrlPolicy.validate("//chat.example.com"))
+        assertEquals(Problem.SCHEME, ServerUrlPolicy.validate("chat.example.com"))
+    }
 }

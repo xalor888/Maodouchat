@@ -271,4 +271,74 @@ class RealtimeEventPolicyTest {
             actual.containsAll(setOf("PinnedMessagesUpdated", "DisappearingMessagesUpdated", "AdminBroadcast"))
         )
     }
+
+    @Test
+    fun `fresh gate starts at zero generation`() {
+        val gate = WebSocketSessionGate()
+        assertEquals(0L, gate.current())
+        assertTrue(gate.isCurrent(0L))
+        assertFalse(gate.isCurrent(1L))
+    }
+
+    @Test
+    fun `bus coerces negative capacity to one`() = runTest {
+        // capacity 为负同样钳到 1：第二个 post 把第一个挤掉。
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = -1, scope = busScope)
+            val got = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.first() }
+            bus.post("first")
+            bus.post("second")
+            advanceUntilIdle()
+            assertEquals("second", got.await())
+        } finally {
+            busScope.cancel()
+        }
+    }
+
+    @Test
+    fun `bus delivers events in order without overflow`() = runTest {
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = 4, scope = busScope)
+            val got = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.take(3).toList() }
+            bus.post("a")
+            bus.post("b")
+            bus.post("c")
+            advanceUntilIdle()
+            assertEquals(listOf("a", "b", "c"), got.await())
+        } finally {
+            busScope.cancel()
+        }
+    }
+
+    @Test
+    fun `status revocation preserves current offline state`() {
+        val result = resolveUserVisibility(
+            currentIsOnline = false,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = true,
+            eventLastSeen = 99L,
+            onlineRevoked = false,
+            statusRevoked = true
+        )
+
+        assertFalse(result.isOnline)
+        assertEquals("", result.status)
+        assertEquals(10L, result.lastSeen)
+    }
+
+    @Test
+    fun `double invalidate advances generation twice`() {
+        val gate = WebSocketSessionGate()
+        val first = gate.nextSession()
+        gate.invalidate()
+        gate.invalidate()
+
+        assertEquals(first + 2, gate.current())
+        assertFalse(gate.isCurrent(first))
+        assertFalse(gate.isCurrent(first + 1))
+        assertTrue(gate.isCurrent(first + 2))
+    }
 }
