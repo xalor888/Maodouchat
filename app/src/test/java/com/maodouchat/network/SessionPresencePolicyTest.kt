@@ -536,4 +536,75 @@ class SessionPresencePolicyTest {
         )
     }
 
+
+    @Test
+    fun expiredAccessWithAncientRefreshTimestampStillLoggedIn() {
+        // refresh 过期时间戳本身从不参与判定，只看 refresh 是否非空。
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = Long.MIN_VALUE,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun nonBreakingSpaceUserIdIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "\u00A0",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun nonBreakingSpacePaddedTokenStillLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "\u00A0access\u00A0",
+                userId = "u1",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun positiveAccessExpiryAfterEpochZeroIsLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = 1L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = 0L,
+            )
+        )
+    }
+
+    @Test
+    fun emSpaceRefreshWithExpiredAccessIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "\u2003",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
 }

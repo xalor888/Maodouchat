@@ -535,4 +535,71 @@ class RealtimeEventPolicyTest {
             busScope.cancel()
         }
     }
+
+    @Test
+    fun typingEventMatchIsCaseSensitive() {
+        assertFalse(shouldApplyTypingEvent("Chat-A", "chat-a"))
+        assertFalse(shouldApplyTypingEvent("chat-a", "Chat-A"))
+    }
+
+    @Test
+    fun busKeepsAllFourPostsAtExactCapacity() = runTest {
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = 4, scope = busScope)
+            val got = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.take(4).toList() }
+            bus.post("a")
+            bus.post("b")
+            bus.post("c")
+            bus.post("d")
+            advanceUntilIdle()
+            assertEquals(listOf("a", "b", "c", "d"), got.await())
+        } finally {
+            busScope.cancel()
+        }
+    }
+
+    @Test
+    fun onlineRevocationOnOfflineEventStillZeroesLastSeen() {
+        val result = resolveUserVisibility(
+            currentIsOnline = true,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = false,
+            eventLastSeen = 20L,
+            onlineRevoked = true,
+            statusRevoked = false
+        )
+        assertFalse(result.isOnline)
+        assertEquals("Busy", result.status)
+        assertEquals(0L, result.lastSeen)
+    }
+
+    @Test
+    fun onlineEventWithNegativeLastSeenPassesThrough() {
+        val result = resolveUserVisibility(
+            currentIsOnline = false,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = true,
+            eventLastSeen = -5L,
+            onlineRevoked = false,
+            statusRevoked = false
+        )
+        assertTrue(result.isOnline)
+        assertEquals("Busy", result.status)
+        assertEquals(-5L, result.lastSeen)
+    }
+
+    @Test
+    fun nextSessionAfterDoubleInvalidateContinuesFromAdvancedGeneration() {
+        val gate = WebSocketSessionGate()
+        assertEquals(1L, gate.nextSession())
+        gate.invalidate()
+        gate.invalidate()
+        assertEquals(4L, gate.nextSession())
+        assertEquals(4L, gate.current())
+        assertTrue(gate.isCurrent(4L))
+        assertFalse(gate.isCurrent(3L))
+    }
 }
