@@ -93,4 +93,43 @@ class GroupPlayUpdatePayloadTest {
         assertEquals("", noChatId.chatId)
         assertFalse(shouldRefreshScreen(noChatId.chatId, "g1"))
     }
+
+    @Test
+    fun missingEventYieldsEmptyEventButKeepsChatId() {
+        val parsed = parseGroupPlayUpdate("""{"data":{"chatId":"g7"}}""")
+        assertEquals("", parsed.event)
+        assertEquals("g7", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g7"))
+    }
+
+    @Test
+    fun nonStringEventFallsBackToEmpty() {
+        val parsed = parseGroupPlayUpdate("""{"event":42,"data":{"chatId":"g1"}}""")
+        assertEquals("", parsed.event)
+        assertEquals("g1", parsed.chatId)
+    }
+
+    @Test
+    fun nonStringChatIdFallsBackToEmpty() {
+        val parsed = parseGroupPlayUpdate("""{"event":"pk_updated","data":{"chatId":42}}""")
+        assertEquals("", parsed.chatId)
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun emptyDataObjectYieldsBlankChatId() {
+        val parsed = parseGroupPlayUpdate("""{"event":"chain_updated","data":{}}""")
+        assertEquals("", parsed.chatId)
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun extraTopLevelKeysAreIgnored() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"checkin_updated","data":{"chatId":"g2"},"traceId":"t1","serverTs":99}"""
+        )
+        assertEquals("g2", parsed.chatId)
+        assertEquals("checkin_updated", parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g2"))
+    }
 }

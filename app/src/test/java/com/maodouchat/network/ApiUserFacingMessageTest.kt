@@ -50,6 +50,50 @@ class ApiUserFacingMessageTest {
     }
 
     @Test
+    fun httpKindWithoutServerMessageUsesFallback() {
+        val error = ApiException(kind = ApiFailureKind.HTTP, statusCode = 500)
+        assertEquals(
+            "操作失败",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun unexpectedKindWithoutServerMessageUsesFallback() {
+        val error = ApiException(kind = ApiFailureKind.UNEXPECTED)
+        assertEquals(
+            "操作失败",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun nonHttpKindPrefersNonBlankServerMessage() {
+        val error = ApiException(kind = ApiFailureKind.NETWORK, serverMessage = "DNS 解析失败")
+        assertEquals(
+            "DNS 解析失败",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun serverMessageWithSurroundingWhitespaceIsTrimmed() {
+        val error = ApiException(kind = ApiFailureKind.HTTP, serverMessage = "  余额不足  ")
+        assertEquals(
+            "余额不足",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun nullMessageThrowableUsesFallback() {
+        assertEquals(
+            "操作失败",
+            RuntimeException().toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
     fun genericThrowableUsesMessageThenFallback() {
         assertEquals(
             "boom",
