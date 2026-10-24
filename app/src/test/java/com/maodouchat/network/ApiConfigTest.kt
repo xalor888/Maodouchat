@@ -140,4 +140,30 @@ class ApiConfigTest {
         assertEquals("wss://example.com#frag/ws", ApiConfig.wsUrlFor("https://example.com#frag"))
     }
 
+
+    @Test
+    fun wsUrlForHttpsPortWithoutPathAppendsWs() {
+        assertEquals("wss://chat.example.com:8443/ws", ApiConfig.wsUrlFor("https://chat.example.com:8443"))
+    }
+
+    @Test
+    fun wsUrlForHttpTrailingSlashMapsToWs() {
+        assertEquals("ws://example.com/ws", ApiConfig.wsUrlFor("http://example.com/"))
+    }
+
+    @Test
+    fun wsUrlForBareFtpHostAppendsWs() {
+        assertEquals("ftp://files.example.com/ws", ApiConfig.wsUrlFor("ftp://files.example.com"))
+    }
+
+    @Test
+    fun wsUrlForSchemeSeparatorAtStartAppendsPathDirectly() {
+        assertEquals("://chat.example.com/ws", ApiConfig.wsUrlFor("://chat.example.com"))
+    }
+
+    @Test
+    fun wsUrlForWsSchemeWithPortAndPathAppendsAgain() {
+        assertEquals("ws://chat.example.com:8080/ws/ws", ApiConfig.wsUrlFor("ws://chat.example.com:8080/ws"))
+    }
+
 }

@@ -196,4 +196,33 @@ class ServerUrlPolicyTest {
         assertNull(ServerUrlPolicy.validate("https://chat.example.com:8443/"))
     }
 
+
+    @Test
+    fun portAndPathCombined_mapsToExtra() {
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com:8443/api"))
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com:8443/api/"))
+    }
+
+    @Test
+    fun doubleSlashPath_mapsToExtra() {
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com//"))
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com//api"))
+    }
+
+    @Test
+    fun trailingDotHostWithPath_mapsToExtra() {
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com./api"))
+    }
+
+    @Test
+    fun maxPortWithRootSlash_isAccepted() {
+        assertNull(ServerUrlPolicy.validate("https://chat.example.com:65535/"))
+    }
+
+    @Test
+    fun emptyQueryAndFragment_mapToExtra() {
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com?"))
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com#"))
+    }
+
 }
