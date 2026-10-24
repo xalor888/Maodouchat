@@ -88,4 +88,30 @@ class ApiConfigTest {
     fun wsUrlForHttpsMultiSegmentPathStripsTrailingSlashes() {
         assertEquals("wss://example.com/a/b/ws", ApiConfig.wsUrlFor("https://example.com/a/b///"))
     }
+
+    @Test
+    fun wsUrlForWhitespaceOnlyInputAppendsPathOnly() {
+        assertEquals("/ws", ApiConfig.wsUrlFor("   "))
+    }
+
+    @Test
+    fun wsUrlForOnlySlashesAppendsPathOnly() {
+        assertEquals("/ws", ApiConfig.wsUrlFor("///"))
+    }
+
+    @Test
+    fun wsUrlForMixedCaseHttpsSchemeMapsToWss() {
+        assertEquals("wss://chat.example.com/ws", ApiConfig.wsUrlFor("HtTpS://chat.example.com"))
+    }
+
+    @Test
+    fun wsUrlForHttpIpv6LiteralKeepsBrackets() {
+        assertEquals("ws://[::1]:8080/ws", ApiConfig.wsUrlFor("http://[::1]:8080"))
+    }
+
+    @Test
+    fun wsUrlForColonWithoutSlashesAppendsPathDirectly() {
+        // 没有 "://" 就不认 scheme，原样拼路径
+        assertEquals("https:chat.example.com/ws", ApiConfig.wsUrlFor("https:chat.example.com"))
+    }
 }

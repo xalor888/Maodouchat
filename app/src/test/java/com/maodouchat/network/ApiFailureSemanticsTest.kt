@@ -6,6 +6,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
@@ -137,6 +138,44 @@ class ApiFailureSemanticsTest {
         val io = IOException("w", ConnectException())
         val mapped = apiExceptionForIOException(io)
         assertSame(io, mapped.cause)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun connectFailureNestedThreeLevelsIsSafeToRetry() {
+        val wrapped = IOException("l1", IOException("l2", IOException("l3", ConnectException())))
+        val mapped = apiExceptionForIOException(wrapped)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun unknownHostNestedThreeLevelsIsSafeToRetry() {
+        val wrapped = IOException("l1", IOException("l2", IOException("l3", UnknownHostException())))
+        assertFalse(apiExceptionForIOException(wrapped).requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun timeoutCausedByTimeoutHasUnknownOutcome() {
+        val timeout = SocketTimeoutException("t").apply { initCause(SocketTimeoutException("inner")) }
+        val mapped = apiExceptionForIOException(timeout)
+        assertEquals(ApiFailureKind.TIMEOUT, mapped.kind)
+        assertTrue(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun interruptedIoMapsToNetworkWithUnknownOutcome() {
+        val mapped = apiExceptionForIOException(InterruptedIOException("interrupted"))
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertTrue(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun causePreservedForTwoLevelNesting() {
+        val outer = IOException("w", IOException("inner", ConnectException()))
+        val mapped = apiExceptionForIOException(outer)
+        assertSame(outer, mapped.cause)
         assertEquals(ApiFailureKind.NETWORK, mapped.kind)
         assertFalse(mapped.requestMayHaveReachedServer)
     }

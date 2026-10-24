@@ -133,4 +133,38 @@ class ServerUrlPolicyTest {
         assertEquals(Problem.SCHEME, ServerUrlPolicy.validate("//chat.example.com"))
         assertEquals(Problem.SCHEME, ServerUrlPolicy.validate("chat.example.com"))
     }
+
+    @Test
+    fun userinfoWithoutPassword_mapsToExtra() {
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://user@chat.example.com"))
+    }
+
+    @Test
+    fun privateRangeBoundaries() {
+        // 实现只认 127.0.0.1 本身，127.0.0.2 不算本地
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("127.0.0.2"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("0.0.0.0"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("10.255.255.255"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("172.16.0.0"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("192.168.0.0"))
+    }
+
+    @Test
+    fun localSuffixIsCaseInsensitiveButNotSpoofable() {
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("Printer.LOCAL"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("example.local.evil.com"))
+    }
+
+    @Test
+    fun whitespaceOnlyPath_isNotUnsupported() {
+        assertFalse(ServerUrlPolicy.hasUnsupportedPath("   "))
+        assertFalse(ServerUrlPolicy.hasUnsupportedPath("/ "))
+        assertTrue(ServerUrlPolicy.hasUnsupportedPath(" /api "))
+    }
+
+    @Test
+    fun queryOnRootPath_mapsToExtra() {
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com/?x=1"))
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com:8443/?x=1"))
+    }
 }
