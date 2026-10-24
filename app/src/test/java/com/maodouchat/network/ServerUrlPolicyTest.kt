@@ -167,4 +167,33 @@ class ServerUrlPolicyTest {
         assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com/?x=1"))
         assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com:8443/?x=1"))
     }
+
+    @Test
+    fun userinfoAndQueryCombined_mapsToExtra() {
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://user@chat.example.com?x=1"))
+    }
+
+    @Test
+    fun uppercaseSchemeWithMaxPort_isAccepted() {
+        assertNull(ServerUrlPolicy.validate("HTTPS://chat.example.com:65535"))
+    }
+
+    @Test
+    fun malformedPrivateLikeIps_areNotLocal() {
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("10.0.0.256"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("999.0.0.1"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("10.0.0"))
+    }
+
+    @Test
+    fun multiSegmentAndQueryLikePaths_areUnsupported() {
+        assertTrue(ServerUrlPolicy.hasUnsupportedPath("/a/b"))
+        assertTrue(ServerUrlPolicy.hasUnsupportedPath("/?"))
+    }
+
+    @Test
+    fun portWithRootSlash_isAccepted() {
+        assertNull(ServerUrlPolicy.validate("https://chat.example.com:8443/"))
+    }
+
 }
