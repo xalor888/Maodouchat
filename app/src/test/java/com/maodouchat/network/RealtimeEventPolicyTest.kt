@@ -409,4 +409,64 @@ class RealtimeEventPolicyTest {
             busScope.cancel()
         }
     }
+
+    @Test
+    fun `offline event on already-offline user takes event lastSeen`() {
+        val result = resolveUserVisibility(
+            currentIsOnline = false,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = false,
+            eventLastSeen = 30L,
+            onlineRevoked = false,
+            statusRevoked = false
+        )
+
+        assertFalse(result.isOnline)
+        assertEquals("Busy", result.status)
+        assertEquals(30L, result.lastSeen)
+    }
+
+    @Test
+    fun `typing event with trailing space does not match`() {
+        assertFalse(shouldApplyTypingEvent("chat-a", "chat-a "))
+        assertFalse(shouldApplyTypingEvent("chat-a ", "chat-a"))
+    }
+
+    @Test
+    fun `gate rejects negative generation`() {
+        val gate = WebSocketSessionGate()
+        assertEquals(0L, gate.current())
+        assertFalse(gate.isCurrent(-1L))
+    }
+
+    @Test
+    fun `two sessions then invalidate leaves only post-invalidate generation current`() {
+        val gate = WebSocketSessionGate()
+        val first = gate.nextSession()
+        val second = gate.nextSession()
+        gate.invalidate()
+
+        assertEquals(3L, gate.current())
+        assertFalse(gate.isCurrent(first))
+        assertFalse(gate.isCurrent(second))
+        assertTrue(gate.isCurrent(3L))
+    }
+
+    @Test
+    fun `bus capacity three drops only oldest of four posts`() = runTest {
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = 3, scope = busScope)
+            val got = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.take(3).toList() }
+            bus.post("a")
+            bus.post("b")
+            bus.post("c")
+            bus.post("d")
+            advanceUntilIdle()
+            assertEquals(listOf("b", "c", "d"), got.await())
+        } finally {
+            busScope.cancel()
+        }
+    }
 }

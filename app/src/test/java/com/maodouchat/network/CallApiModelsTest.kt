@@ -291,4 +291,52 @@ class CallApiModelsTest {
         assertFalse(decoded.groupInvite)
         assertEquals(listOf("u2", "u3"), decoded.groupMemberIds)
     }
+
+    @Test
+    fun signalMessageDtoMaxEpochAndSequenceRoundTrip() {
+        val dto = SignalMessageDto(
+            id = "s12",
+            fromUserId = "u1",
+            type = "OFFER",
+            payload = "{}",
+            timestamp = 1L,
+            epoch = Long.MAX_VALUE,
+            sequence = Long.MAX_VALUE
+        )
+        assertEquals(dto, json.decodeFromString<SignalMessageDto>(json.encodeToString(dto)))
+    }
+
+    @Test
+    fun iceConfigDtoMaxExpiresAtRoundTrips() {
+        val config = IceConfigDto(
+            iceServers = listOf(IceServerDto(urls = listOf("turn:turn.example"), username = "u", credential = "p")),
+            expiresAt = Long.MAX_VALUE,
+            turnEnabled = true
+        )
+        assertEquals(config, json.decodeFromString<IceConfigDto>(json.encodeToString(config)))
+    }
+
+    @Test
+    fun signalingSendRequestEmptyPayloadRoundTrips() {
+        val request = SignalingSendRequest(toUserId = "u2", type = "OFFER", payload = "")
+        assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun signalMessageDtoIgnoresUnknownKeysKeepsGroupFields() {
+        val decoded = json.decodeFromString<SignalMessageDto>(
+            """{"id":"s13","fromUserId":"u1","type":"OFFER","payload":"{}","timestamp":2,"groupId":"g9","groupMemberIds":["u2"],"groupInvite":true,"future":true}"""
+        )
+        assertEquals("g9", decoded.groupId)
+        assertEquals(listOf("u2"), decoded.groupMemberIds)
+        assertTrue(decoded.groupInvite)
+    }
+
+    @Test
+    fun signalingSendRequestUnicodePayloadRoundTrips() {
+        val request = SignalingSendRequest(
+            toUserId = "u2", type = "OFFER", payload = "你好 🌍 sdp"
+        )
+        assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
+    }
 }
