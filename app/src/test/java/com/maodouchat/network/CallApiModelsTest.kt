@@ -138,4 +138,59 @@ class CallApiModelsTest {
         assertEquals(5L, decoded.expiresAt)
         assertFalse(decoded.turnEnabled)
     }
+
+    @Test
+    fun iceServerDtoMultipleUrlsPreserveOrder() {
+        val server = IceServerDto(
+            urls = listOf("turn:turn.example:3478", "turns:turn.example:5349"),
+            username = "u",
+            credential = "p"
+        )
+        val decoded = json.decodeFromString<IceServerDto>(json.encodeToString(server))
+        assertEquals(listOf("turn:turn.example:3478", "turns:turn.example:5349"), decoded.urls)
+    }
+
+    @Test
+    fun signalingSendRequestAnswerTypeRoundTrips() {
+        val request = SignalingSendRequest(
+            toUserId = "u5",
+            type = "ANSWER",
+            payload = "{\"sdp\":\"y\"}",
+            callId = "call-3",
+            epoch = Long.MAX_VALUE,
+            sequence = Long.MAX_VALUE
+        )
+        assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun signalMessageDtoGroupKeysDefaultWhenAbsent() {
+        val decoded = json.decodeFromString<SignalMessageDto>(
+            """{"id":"s4","fromUserId":"u1","type":"OFFER","payload":"{}","timestamp":5}"""
+        )
+        assertEquals("", decoded.callId)
+        assertEquals("", decoded.groupId)
+        assertEquals(emptyList<String>(), decoded.groupMemberIds)
+        assertFalse(decoded.groupInvite)
+        assertEquals("", decoded.idempotencyKey)
+    }
+
+    @Test
+    fun iceConfigDtoTurnEnabledFalseKeepsTurnServers() {
+        val decoded = json.decodeFromString<IceConfigDto>(
+            """{"iceServers":[{"urls":["turn:turn.example"],"username":"u","credential":"p"}],"expiresAt":8}"""
+        )
+        assertEquals(1, decoded.iceServers.size)
+        assertEquals("u", decoded.iceServers[0].username)
+        assertFalse(decoded.turnEnabled)
+    }
+
+    @Test
+    fun signalingSendRequestIgnoresUnknownKeys() {
+        val decoded = json.decodeFromString<SignalingSendRequest>(
+            """{"toUserId":"u2","type":"OFFER","payload":"{}","retransmit":true}"""
+        )
+        assertEquals("u2", decoded.toUserId)
+        assertEquals("OFFER", decoded.type)
+    }
 }
