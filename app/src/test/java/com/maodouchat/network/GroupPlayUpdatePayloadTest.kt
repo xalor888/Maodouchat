@@ -228,4 +228,50 @@ class GroupPlayUpdatePayloadTest {
         assertFalse(shouldRefreshScreen(parsed.chatId, "   "))
         assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
     }
+
+    @Test
+    fun booleanChatIdIsStringified() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":true}}"""
+        )
+        assertEquals("true", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "true"))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun escapedEventNamePreserved() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_\"updated\"","data":{"chatId":"g1"}}"""
+        )
+        assertEquals("pk_\"updated\"", parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun newlineAndTabChatIdPreservedVerbatim() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":"g\n1\t"}}"""
+        )
+        assertEquals("g\n1\t", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g\n1\t"))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun topLevelChatIdDecoyIgnored() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","chatId":"g9","data":{}}"""
+        )
+        assertEquals("", parsed.chatId)
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g9"))
+    }
+
+    @Test
+    fun emptyObjectYieldsEmptyEventAndChatId() {
+        val parsed = parseGroupPlayUpdate("""{}""")
+        assertEquals("", parsed.event)
+        assertEquals("", parsed.chatId)
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
 }

@@ -131,4 +131,31 @@ class TokenExpiredEventPolicyTest {
     fun maxGenerationOffByOneMismatch() {
         assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", Long.MAX_VALUE, "u1", Long.MAX_VALUE - 1L))
     }
+
+    @Test
+    fun newlineOnlyEventOwnerRejected() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("\n", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun blankEventOwnerWithNullCurrentRejected() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("", 7L, null, 7L))
+    }
+
+    @Test
+    fun internalSpaceOwnerMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u 1", 7L, "u 1", 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u 1", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun emojiOwnerMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u👍", 7L, "u👍", 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u👍", 7L, "u👎", 7L))
+    }
+
+    @Test
+    fun currentOwnerTrailingTabMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1\t", 7L))
+    }
 }

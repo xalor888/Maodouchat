@@ -324,4 +324,75 @@ class SessionPresencePolicyTest {
             )
         )
     }
+
+    @Test
+    fun expiredAccessWithRefreshExpiringExactlyNowIsLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun tabPaddedTokenStillLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "\taccess\n",
+                userId = "u1",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun minLongAccessExpiryTreatedAsUnrecorded() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = Long.MIN_VALUE,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun expiredAccessWithPaddedRefreshIsLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = " r ",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    // Kotlin 的 isBlank 把不换行空格也算空白，纯 NBSP token 按空白计、不放行。
+    @Test
+    fun nonBreakingSpaceTokenCountsAsBlank() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = " ",
+                userId = "u1",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
 }
