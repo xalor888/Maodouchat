@@ -369,4 +369,52 @@ class GroupPlayUpdatePayloadTest {
         assertTrue(shouldRefreshScreen(parsed.chatId, "G1"))
         assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
     }
+
+    @Test
+    fun chatIdWithLeadingZerosMatchesExactly() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":"007"}}"""
+        )
+        assertEquals("007", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "007"))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "7"))
+    }
+
+    @Test
+    fun chatIdWithSpaceInsideMatchesExactly() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":"g 1"}}"""
+        )
+        assertEquals("g 1", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g 1"))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun nestedMetaChatIdDecoyIgnored() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"meta":{"chatId":"g9"}}}"""
+        )
+        assertEquals("", parsed.chatId)
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g9"))
+    }
+
+    @Test
+    fun veryLongEventNamePreservedVerbatim() {
+        val longEvent = "e".repeat(200)
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"$longEvent","data":{"chatId":"g1"}}"""
+        )
+        assertEquals(longEvent, parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun nullEventWithoutDataYieldsNoRefresh() {
+        val parsed = parseGroupPlayUpdate("""{"event":null}""")
+        assertEquals("", parsed.event)
+        assertEquals("", parsed.chatId)
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
 }

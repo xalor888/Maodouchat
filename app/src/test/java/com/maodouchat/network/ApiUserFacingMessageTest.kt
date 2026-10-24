@@ -316,4 +316,55 @@ class ApiUserFacingMessageTest {
             error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
         )
     }
+
+    @Test
+    fun invalidResponseKindEmptyServerMessageUsesInvalidCopy() {
+        val error = ApiException(kind = ApiFailureKind.INVALID_RESPONSE, serverMessage = "")
+        assertEquals(
+            "无效",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun httpKindEmptyServerMessageUsesFallback() {
+        val error = ApiException(kind = ApiFailureKind.HTTP, statusCode = 400, serverMessage = "")
+        assertEquals(
+            "操作失败",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun networkKindEmptyServerMessageUsesNetworkCopy() {
+        val error = ApiException(kind = ApiFailureKind.NETWORK, serverMessage = "")
+        assertEquals(
+            "网络",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun unexpectedKindEmptyServerMessageUsesFallback() {
+        val error = ApiException(kind = ApiFailureKind.UNEXPECTED, serverMessage = "")
+        assertEquals(
+            "操作失败",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun httpKindWithServerCodeStillPrefersServerMessage() {
+        val error = ApiException(
+            kind = ApiFailureKind.HTTP,
+            statusCode = 400,
+            serverMessage = "配额不足",
+            serverCode = "QUOTA_EXCEEDED",
+        )
+        assertEquals(
+            "配额不足",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
 }
