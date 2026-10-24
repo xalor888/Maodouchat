@@ -3,11 +3,13 @@ package com.maodouchat.network
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLKeyException
 import javax.net.ssl.SSLPeerUnverifiedException
+import javax.net.ssl.SSLProtocolException
 import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -132,5 +134,44 @@ class WebSocketNetworkErrorPolicyTest {
     @Test
     fun sslMentionedOnlyInMessageRemainsRecoverable() {
         assertFalse(isNonRecoverableWebSocketNetworkError(IOException("SSLException during handshake")))
+    }
+
+    @Test
+    fun sslProtocolExceptionSubclassStopsReconnect() {
+        assertTrue(isNonRecoverableWebSocketNetworkError(SSLProtocolException("protocol error")))
+    }
+
+    @Test
+    fun socketTimeoutRemainsRecoverable() {
+        assertFalse(isNonRecoverableWebSocketNetworkError(SocketTimeoutException("read timed out")))
+    }
+
+    @Test
+    fun sslCauseUnderRuntimeExceptionStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                RuntimeException("wrap", SSLException("generic ssl failure"))
+            )
+        )
+    }
+
+    @Test
+    fun unknownHostWrappingConnectFailureRemainsRecoverable() {
+        assertFalse(
+            isNonRecoverableWebSocketNetworkError(
+                UnknownHostException("dns").apply { initCause(ConnectException("refused")) }
+            )
+        )
+    }
+
+    @Test
+    fun interruptedIoWithSslCauseStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                InterruptedIOException("interrupted").apply {
+                    initCause(SSLHandshakeException("certificate"))
+                }
+            )
+        )
     }
 }
