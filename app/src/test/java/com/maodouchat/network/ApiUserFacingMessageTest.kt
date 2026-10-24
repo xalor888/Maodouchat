@@ -228,4 +228,47 @@ class ApiUserFacingMessageTest {
             error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
         )
     }
+
+    @Test
+    fun serverMessageInternalWhitespaceIsPreserved() {
+        val error = ApiException(kind = ApiFailureKind.HTTP, serverMessage = " 余额 不足 ")
+        assertEquals(
+            "余额 不足",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun serverMessageWithCarriageReturnsIsTrimmed() {
+        val error = ApiException(kind = ApiFailureKind.HTTP, serverMessage = "\r余额不足\r")
+        assertEquals(
+            "余额不足",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun topLevelTimeoutWithUnknownHostCauseIsTimeoutButNeverEstablished() {
+        val error = apiExceptionForIOException(
+            SocketTimeoutException().apply { initCause(UnknownHostException()) }
+        )
+        assertEquals(ApiFailureKind.TIMEOUT, error.kind)
+        assertFalse(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun directNoRouteToHostIsNetworkAndNeverEstablished() {
+        val error = apiExceptionForIOException(NoRouteToHostException("no route"))
+        assertEquals(ApiFailureKind.NETWORK, error.kind)
+        assertFalse(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun httpSuccessStatusCodeStillPrefersServerMessage() {
+        val error = ApiException(kind = ApiFailureKind.HTTP, statusCode = 200, serverMessage = "ok")
+        assertEquals(
+            "ok",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
 }

@@ -381,6 +381,76 @@ class SessionPresencePolicyTest {
         )
     }
 
+    @Test
+    fun tabNewlineUserIdIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "\t\n",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun expiryEqualToMaxNowCountsAsExpired() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = Long.MAX_VALUE,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = Long.MAX_VALUE,
+            )
+        )
+    }
+
+    @Test
+    fun negativeNowWithPositiveExpiryIsLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = 1L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = -1_000L,
+            )
+        )
+    }
+
+    @Test
+    fun tabPaddedUserIdStillLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "\tu1\t",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun tabOnlyRefreshWithExpiredAccessIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "\t",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
     // Kotlin 的 isBlank 把不换行空格也算空白，纯 NBSP token 按空白计、不放行。
     @Test
     fun nonBreakingSpaceTokenCountsAsBlank() {
