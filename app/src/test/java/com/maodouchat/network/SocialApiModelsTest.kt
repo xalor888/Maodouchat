@@ -370,4 +370,50 @@ class SocialApiModelsTest {
         assertEquals("", request.replyToId)
     }
 
+
+    @Test
+    fun postDtoEmptyContentRoundTrips() {
+        val post = PostDto(
+            id = "p7",
+            author = UserDto(id = "u1", name = "A"),
+            content = "",
+            createdAt = 2L
+        )
+        assertEquals(post, json.decodeFromString<PostDto>(json.encodeToString(post)))
+    }
+
+    @Test
+    fun postCommentDtoEmptyContentRoundTrips() {
+        val comment = PostCommentDto(
+            id = "c5",
+            postId = "p1",
+            author = UserDto(id = "u1", name = "A"),
+            content = "",
+            createdAt = 5L
+        )
+        assertEquals(comment, json.decodeFromString<PostCommentDto>(json.encodeToString(comment)))
+    }
+
+    @Test
+    fun nearbyUserResponseMaxDistanceRoundTrips() {
+        val response = NearbyUserResponse(
+            user = UserDto(id = "u1", name = "A"),
+            distanceMeters = Int.MAX_VALUE,
+            locationUpdatedAt = 42L
+        )
+        assertEquals(response, json.decodeFromString<NearbyUserResponse>(json.encodeToString(response)))
+    }
+
+    @Test
+    fun postLikersResponseEmptyPostIdRoundTrips() {
+        val response = PostLikersResponse(postId = "", likers = emptyList())
+        assertEquals(response, json.decodeFromString<PostLikersResponse>(json.encodeToString(response)))
+    }
+
+    @Test
+    fun commentLikeResponseEmptyStatusWithCountRoundTrips() {
+        val response = CommentLikeResponse(status = "", likeCount = 5)
+        assertEquals(response, json.decodeFromString<CommentLikeResponse>(json.encodeToString(response)))
+    }
+
 }
