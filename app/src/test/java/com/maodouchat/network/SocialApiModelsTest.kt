@@ -149,4 +149,53 @@ class SocialApiModelsTest {
         assertEquals("p4", decoded.id)
         assertEquals(0, decoded.likeCount)
     }
+
+    @Test
+    fun nearbyUserResponseRoundTrips() {
+        val response = NearbyUserResponse(
+            user = UserDto(id = "u1", name = "A"),
+            distanceMeters = 150,
+            locationUpdatedAt = 42L
+        )
+        assertEquals(response, json.decodeFromString<NearbyUserResponse>(json.encodeToString(response)))
+    }
+
+    @Test
+    fun commentLikeResponseDefaultsAndExplicitDecode() {
+        val bare = json.decodeFromString<CommentLikeResponse>("{}")
+        assertEquals("", bare.status)
+        assertEquals(0, bare.likeCount)
+        val liked = json.decodeFromString<CommentLikeResponse>("""{"status":"liked","likeCount":3}""")
+        assertEquals("liked", liked.status)
+        assertEquals(3, liked.likeCount)
+    }
+
+    @Test
+    fun uploadPostImageResponseRoundTrips() {
+        val response = UploadPostImageResponse(status = "ok", imageUrl = "https://x.example/y.jpg")
+        assertEquals(response, json.decodeFromString<UploadPostImageResponse>(json.encodeToString(response)))
+    }
+
+    @Test
+    fun editPostRequestDefaultsAndRoundTrip() {
+        val bare = json.decodeFromString<EditPostRequest>("{}")
+        assertEquals("", bare.content)
+        assertNull(bare.visibility)
+        val edited = EditPostRequest(content = "new", visibility = "CONTACTS")
+        assertEquals(edited, json.decodeFromString<EditPostRequest>(json.encodeToString(edited)))
+    }
+
+    @Test
+    fun postDtoEditedAtWithImagesRoundTrips() {
+        val post = PostDto(
+            id = "p9",
+            author = UserDto(id = "u1", name = "A"),
+            content = "hi",
+            imageUrls = listOf("a.jpg", "b.jpg"),
+            createdAt = 2L,
+            editedAt = 99L,
+            likeCount = 1
+        )
+        assertEquals(post, json.decodeFromString<PostDto>(json.encodeToString(post)))
+    }
 }

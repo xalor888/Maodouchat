@@ -114,4 +114,54 @@ class AiApiModelsTest {
         assertNull(decoded.chatId)
         assertEquals(0, decoded.inputChars)
     }
+
+    @Test
+    fun contextMessageEmptyTextRoundTrips() {
+        val message = AiContextMessage(sender = "u1", text = "")
+        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
+    }
+
+    @Test
+    fun groupTaskDueAtZeroDecodesAsZeroNotNull() {
+        val decoded = json.decodeFromString<AiGroupTask>("""{"title":"t","dueAt":0}""")
+        assertEquals(0L, decoded.dueAt)
+    }
+
+    @Test
+    fun semanticSearchCandidateEmptyTextZeroTimestampRoundTrips() {
+        val candidate = AiSemanticSearchCandidate(messageId = "m0", sender = "", text = "", timestamp = 0L)
+        assertEquals(
+            candidate,
+            json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate))
+        )
+    }
+
+    @Test
+    fun auditLogResponseFullFieldsRoundTrip() {
+        val response = AiAuditLogResponse(
+            id = "a9",
+            chatId = "c1",
+            feature = "chat",
+            model = "gpt",
+            status = "ok",
+            inputChars = 10,
+            contextMessages = 4,
+            durationMs = 250L,
+            error = null,
+            createdAt = 55L
+        )
+        assertEquals(response, json.decodeFromString<AiAuditLogResponse>(json.encodeToString(response)))
+    }
+
+    @Test
+    fun auditLogResponseChatIdAndDurationDecode() {
+        val decoded = json.decodeFromString<AiAuditLogResponse>(
+            """{"id":"a8","chatId":"c2","feature":"chat","status":"ok","inputChars":7,"contextMessages":2,"durationMs":90,"createdAt":6}"""
+        )
+        assertEquals("c2", decoded.chatId)
+        assertEquals(90L, decoded.durationMs)
+        assertEquals(7, decoded.inputChars)
+        assertEquals(2, decoded.contextMessages)
+        assertNull(decoded.error)
+    }
 }
