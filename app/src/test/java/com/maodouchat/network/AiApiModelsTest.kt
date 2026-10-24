@@ -72,4 +72,46 @@ class AiApiModelsTest {
         )
         assertEquals("boom", withError.error)
     }
+
+    @Test
+    fun contextMessageIgnoresUnknownKeys() {
+        val decoded = json.decodeFromString<AiContextMessage>(
+            """{"sender":"u1","text":"hi","traceId":"t1","serverTs":99}"""
+        )
+        assertEquals("u1", decoded.sender)
+        assertEquals("hi", decoded.text)
+    }
+
+    @Test
+    fun contextMessageUnicodeRoundTrips() {
+        val message = AiContextMessage(sender = "用户1", text = "你好，世界 🌍")
+        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
+    }
+
+    @Test
+    fun groupTaskFullFieldsRoundTrip() {
+        val task = AiGroupTask(title = "复查", owner = "u2", dueText = "周五前", dueAt = 12345L)
+        assertEquals(task, json.decodeFromString<AiGroupTask>(json.encodeToString(task)))
+    }
+
+    @Test
+    fun semanticSearchCandidateRoundTrips() {
+        val candidate = AiSemanticSearchCandidate(
+            messageId = "m9", sender = "u3", text = "关键词", timestamp = 777L
+        )
+        assertEquals(
+            candidate,
+            json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate))
+        )
+    }
+
+    @Test
+    fun auditLogResponseModelDefaultsNullWhenOmitted() {
+        val decoded = json.decodeFromString<AiAuditLogResponse>(
+            """{"id":"a3","feature":"chat","status":"ok","createdAt":9}"""
+        )
+        assertNull(decoded.model)
+        assertNull(decoded.chatId)
+        assertEquals(0, decoded.inputChars)
+    }
 }
