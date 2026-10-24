@@ -320,4 +320,53 @@ class GroupPlayUpdatePayloadTest {
         assertEquals("", parsed.event)
         assertTrue(shouldRefreshScreen(parsed.chatId, "g1"))
     }
+
+    @Test
+    fun emojiChatIdMatchesSameScreen() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":"群组🎉"}}"""
+        )
+        assertEquals("群组🎉", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "群组🎉"))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "群组"))
+    }
+
+    @Test
+    fun eventWithColonAndSlashIsPreservedVerbatim() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk:updated/v2","data":{"chatId":"g1"}}"""
+        )
+        assertEquals("pk:updated/v2", parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun veryLongChatIdMatchesOnlyExactly() {
+        val longId = "g" + "1".repeat(200)
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":"$longId"}}"""
+        )
+        assertEquals(longId, parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, longId))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g111"))
+    }
+
+    @Test
+    fun reversedKeyOrderStillParses() {
+        val parsed = parseGroupPlayUpdate(
+            """{"traceId":"t1","data":{"chatId":"g8"},"event":"pk_updated"}"""
+        )
+        assertEquals("g8", parsed.chatId)
+        assertEquals("pk_updated", parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g8"))
+    }
+
+    @Test
+    fun chatIdMatchIsCaseSensitive() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":"G1"}}"""
+        )
+        assertTrue(shouldRefreshScreen(parsed.chatId, "G1"))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
 }
