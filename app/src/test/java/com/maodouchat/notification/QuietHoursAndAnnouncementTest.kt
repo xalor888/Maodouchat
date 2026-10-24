@@ -134,4 +134,46 @@ class QuietHoursAndAnnouncementTest {
             AnnouncementPolicy.LEVEL_PRIORITY
         )
     }
+
+    @Test
+    fun `full day window suppresses every minute except end`() {
+        val w = window(start = 0, end = 1439)
+        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 0))
+        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 1438))
+        assertFalse(ChatQuietHoursPolicy.shouldSuppress(w, 1439))
+    }
+
+    @Test
+    fun `clamped equal minutes never suppress`() {
+        assertFalse(ChatQuietHoursPolicy.shouldSuppress(window(start = 1500, end = 1500), 1439))
+        assertFalse(ChatQuietHoursPolicy.shouldSuppress(window(start = -5, end = -5), 0))
+    }
+
+    @Test
+    fun `parse payload filters and sorts`() {
+        val raw = """{"announcements":[
+            {"id":"info","title":"t","content":"c","level":"INFO","startsAt":5,"expiresAt":9999,"status":"ACTIVE","acked":false},
+            {"id":"emer","title":"t","content":"c","level":"EMERGENCY","startsAt":10,"expiresAt":9999,"status":"ACTIVE","acked":false},
+            {"id":"bad","title":"t","content":"c","level":"WEIRD","startsAt":0,"expiresAt":9999,"status":"ACTIVE","acked":false},
+            {"id":"","title":"t"}
+        ]}"""
+        val kept = AnnouncementPolicy.parseAndFilterActivePayload(raw, 100L)
+        assertEquals(listOf("emer", "info"), kept.map { it.id })
+    }
+
+    @Test
+    fun `parse payload tolerates malformed input`() {
+        assertEquals(emptyList<AnnouncementData>(), AnnouncementPolicy.parseAndFilterActivePayload("not json", 100L))
+        assertEquals(emptyList<AnnouncementData>(), AnnouncementPolicy.parseAndFilterActivePayload("", 100L))
+        assertEquals(emptyList<AnnouncementData>(), AnnouncementPolicy.parseAndFilterActivePayload("{}", 100L))
+    }
+
+    @Test
+    fun `acked emergency never notifies`() {
+        // 已读的高优先级公告不触发前台提示。
+        assertFalse(
+            "已读紧急公告不应触发通知",
+            AnnouncementPolicy.shouldNotifyNow(listOf(announcement("e", level = "EMERGENCY", acked = true)), 10)
+        )
+    }
 }

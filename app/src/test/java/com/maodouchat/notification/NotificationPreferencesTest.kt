@@ -74,4 +74,46 @@ class NotificationPreferencesTest {
             NotificationPreferences.scopedKey(NotificationPreferences.KEY_PREVIEW, "user-a"),
         )
     }
+
+    @Test
+    fun `scoped key keeps base before user`() {
+        assertEquals(
+            "preview:user-a",
+            NotificationPreferences.scopedKey(NotificationPreferences.KEY_PREVIEW, "user-a"),
+        )
+    }
+
+    @Test
+    fun `colon inside userId keeps accounts distinct`() {
+        val dotted = NotificationPreferences.scopedKey(NotificationPreferences.KEY_PREVIEW, "a:b")
+        val plain = NotificationPreferences.scopedKey(NotificationPreferences.KEY_PREVIEW, "a")
+        assertEquals("preview:a:b", dotted)
+        assertNotEquals(plain, dotted)
+    }
+
+    @Test
+    fun `blank userId still scopes away from the bare key`() {
+        // 空白 userId 不回退成全局 key：旧全局值不能污染它。
+        assertNotEquals(
+            NotificationPreferences.KEY_PREVIEW,
+            NotificationPreferences.scopedKey(NotificationPreferences.KEY_PREVIEW, " "),
+        )
+    }
+
+    @Test
+    fun `prefs file name is stable`() {
+        assertEquals("notification_settings", NotificationPreferences.PREFS_NAME)
+    }
+
+    @Test
+    fun `userId casing is preserved`() {
+        assertEquals(
+            "preview:User-A",
+            NotificationPreferences.scopedKey(NotificationPreferences.KEY_PREVIEW, "User-A"),
+        )
+        assertNotEquals(
+            NotificationPreferences.scopedKey(NotificationPreferences.KEY_PREVIEW, "user-a"),
+            NotificationPreferences.scopedKey(NotificationPreferences.KEY_PREVIEW, "User-A"),
+        )
+    }
 }

@@ -180,4 +180,67 @@ class DndPreferenceResolveTest {
         assertEquals(0, DndPreferenceResolve.endMinute(-1, 7))
         assertEquals(1439, DndPreferenceResolve.startMinute(2000, 22))
     }
+
+    @Test
+    fun explicitTrueBeatsZeroHourWindow() {
+        assertTrue(
+            DndPreferenceResolve.enabled(
+                enabledStored = true,
+                startHourPresent = true,
+                endHourPresent = true,
+                startHour = 0,
+                endHour = 0,
+            )
+        )
+    }
+
+    @Test
+    fun midnightZeroWindowInfersDisabled() {
+        // 午夜零窗口是"未配置"，不是"全天开"。
+        assertFalse(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = true,
+                endHourPresent = true,
+                startHour = 0,
+                endHour = 0,
+            )
+        )
+    }
+
+    @Test
+    fun singleHourClampedBeforeEqualityCheck() {
+        assertTrue(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = true,
+                endHourPresent = false,
+                startHour = 99,
+                endHour = 22,
+            )
+        )
+        assertFalse(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = true,
+                endHourPresent = false,
+                startHour = 99,
+                endHour = 23,
+            )
+        )
+    }
+
+    @Test
+    fun storedMinuteCoercedBothEnds() {
+        assertEquals(1439, DndPreferenceResolve.startMinute(1440, 22))
+        assertEquals(0, DndPreferenceResolve.startMinute(-1440, 22))
+        assertEquals(1439, DndPreferenceResolve.endMinute(1440, 7))
+        assertEquals(0, DndPreferenceResolve.endMinute(-1440, 7))
+    }
+
+    @Test
+    fun storedMinuteWinsOverDerived() {
+        assertEquals(0, DndPreferenceResolve.endMinute(0, 100))
+        assertEquals(1439, DndPreferenceResolve.startMinute(1439, -5))
+    }
 }
