@@ -271,4 +271,49 @@ class ApiUserFacingMessageTest {
             error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
         )
     }
+
+    @Test
+    fun timeoutFromMappingUsesTimeoutCopy() {
+        val error = apiExceptionForIOException(SocketTimeoutException())
+        assertEquals(
+            "超时",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun unknownHostFromMappingUsesNetworkCopy() {
+        val error = apiExceptionForIOException(UnknownHostException())
+        assertEquals(
+            "网络",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun sslFailureFromMappingUsesNetworkCopy() {
+        val error = apiExceptionForIOException(javax.net.ssl.SSLException("handshake"))
+        assertEquals(
+            "网络",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun unexpectedKindBlankServerMessageUsesFallback() {
+        val error = ApiException(kind = ApiFailureKind.UNEXPECTED, serverMessage = "   ")
+        assertEquals(
+            "操作失败",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun timeoutKindEmptyServerMessageUsesTimeoutCopy() {
+        val error = ApiException(kind = ApiFailureKind.TIMEOUT, serverMessage = "")
+        assertEquals(
+            "超时",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
 }

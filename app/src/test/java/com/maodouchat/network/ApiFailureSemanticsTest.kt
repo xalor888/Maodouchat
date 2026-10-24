@@ -221,4 +221,44 @@ class ApiFailureSemanticsTest {
         assertTrue(mapped.requestMayHaveReachedServer)
     }
 
+    @Test
+    fun sslExceptionNestedTwoLevelsHasUnknownOutcome() {
+        val wrapped = IOException("l1", IOException("l2", javax.net.ssl.SSLException("handshake")))
+        val mapped = apiExceptionForIOException(wrapped)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertTrue(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun timeoutCausedByTwoLevelUnknownHostIsTimeoutButSafe() {
+        val timeout = SocketTimeoutException("t").apply { initCause(IOException("l1", IOException("l2", UnknownHostException()))) }
+        val mapped = apiExceptionForIOException(timeout)
+        assertEquals(ApiFailureKind.TIMEOUT, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun interruptedIoCausedByNoRouteIsSafeToRetry() {
+        val interrupted = InterruptedIOException("interrupted").apply { initCause(NoRouteToHostException()) }
+        val mapped = apiExceptionForIOException(interrupted)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun sslExceptionCausedByUnknownHostIsStillSafe() {
+        val ssl = javax.net.ssl.SSLException("handshake").apply { initCause(UnknownHostException()) }
+        val mapped = apiExceptionForIOException(ssl)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun timeoutCausedByOneLevelConnectIsTimeoutButSafe() {
+        val timeout = SocketTimeoutException("t").apply { initCause(IOException("l1", ConnectException())) }
+        val mapped = apiExceptionForIOException(timeout)
+        assertEquals(ApiFailureKind.TIMEOUT, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
 }
