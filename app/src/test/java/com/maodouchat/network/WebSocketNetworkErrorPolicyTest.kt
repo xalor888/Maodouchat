@@ -221,4 +221,43 @@ class WebSocketNetworkErrorPolicyTest {
             )
         )
     }
+
+    @Test
+    fun sslProtocolExceptionNestedUnderRuntimeStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                RuntimeException("wrap", SSLProtocolException("protocol error"))
+            )
+        )
+    }
+
+    @Test
+    fun socketTimeoutWithSslCauseStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                SocketTimeoutException("read timed out").apply {
+                    initCause(SSLHandshakeException("certificate"))
+                }
+            )
+        )
+    }
+
+    @Test
+    fun unknownHostMentioningSslInMessageRemainsRecoverable() {
+        assertFalse(isNonRecoverableWebSocketNetworkError(UnknownHostException("SSL handshake failed")))
+    }
+
+    @Test
+    fun sslExceptionWithMessageStopsReconnect() {
+        assertTrue(isNonRecoverableWebSocketNetworkError(SSLException("generic ssl failure")))
+    }
+
+    @Test
+    fun ioChainEndingInUnknownHostRemainsRecoverable() {
+        assertFalse(
+            isNonRecoverableWebSocketNetworkError(
+                IOException("l1", IOException("l2", UnknownHostException("dns")))
+            )
+        )
+    }
 }
