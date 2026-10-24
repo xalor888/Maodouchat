@@ -366,4 +366,51 @@ class AuthApiModelsTest {
         assertEquals("busy", decoded.status)
     }
 
+    @Test
+    fun userPrivacyDtoNonDefaultsDecode() {
+        val decoded = json.decodeFromString<UserPrivacyDto>(
+            """{"showOnline":false,"showStatus":false,"searchable":false,"defaultPostVisibility":"CONTACTS","onlineVisibility":"contacts"}"""
+        )
+        assertFalse(decoded.showOnline)
+        assertFalse(decoded.showStatus)
+        assertFalse(decoded.searchable)
+        assertEquals("CONTACTS", decoded.defaultPostVisibility)
+        assertEquals("contacts", decoded.onlineVisibility)
+    }
+
+    @Test
+    fun updatePrivacyRequestAllFieldsRoundTrips() {
+        val request = UpdatePrivacyRequest(
+            showOnline = false, showStatus = true, searchable = false,
+            defaultPostVisibility = "CONTACTS", onlineVisibility = "nobody"
+        )
+        assertEquals(request, json.decodeFromString<UpdatePrivacyRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun clientPrefsUpdateRequestPartialRoundTrips() {
+        val request = ClientPrefsUpdateRequest(
+            themeMode = "dark", writingStyleEnabled = true, sensitiveGateEnabled = false
+        )
+        val decoded = json.decodeFromString<ClientPrefsUpdateRequest>(json.encodeToString(request))
+        assertEquals(request, decoded)
+        assertNull(decoded.themeStyle)
+        assertNull(decoded.appLockTimeoutMinutes)
+    }
+
+    @Test
+    fun updateProfileRequestBothFieldsRoundTrips() {
+        val request = UpdateProfileRequest(name = "New", status = "busy")
+        assertEquals(request, json.decodeFromString<UpdateProfileRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun deleteAccountResponseNonDefaultStatusDecodes() {
+        val decoded = json.decodeFromString<DeleteAccountResponse>("""{"status":"pending","deletedAt":5}""")
+        assertEquals("pending", decoded.status)
+        assertEquals(5L, decoded.deletedAt)
+        val max = DeleteAccountResponse(status = "ok", deletedAt = Long.MAX_VALUE)
+        assertEquals(max, json.decodeFromString<DeleteAccountResponse>(json.encodeToString(max)))
+    }
+
 }
