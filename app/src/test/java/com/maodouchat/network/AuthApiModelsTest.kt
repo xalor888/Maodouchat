@@ -318,4 +318,52 @@ class AuthApiModelsTest {
         assertTrue(decoded.writingStyleEnabled)
         assertEquals(10L, decoded.appLockTimeoutMinutes)
     }
+
+    @Test
+    fun userPrivacyDtoDefaults() {
+        val decoded = json.decodeFromString<UserPrivacyDto>("""{}""")
+        assertTrue(decoded.showOnline)
+        assertTrue(decoded.showStatus)
+        assertTrue(decoded.searchable)
+        assertEquals("PUBLIC", decoded.defaultPostVisibility)
+        assertEquals("everyone", decoded.onlineVisibility)
+    }
+
+    @Test
+    fun updatePrivacyRequestPartialRoundTrips() {
+        val request = UpdatePrivacyRequest(showOnline = false, onlineVisibility = "contacts")
+        assertEquals(request, json.decodeFromString<UpdatePrivacyRequest>(json.encodeToString(request)))
+        assertNull(request.showStatus)
+        assertNull(request.searchable)
+        assertNull(request.defaultPostVisibility)
+    }
+
+    @Test
+    fun clientPrefsUpdateRequestAllNullRoundTrips() {
+        val request = ClientPrefsUpdateRequest()
+        assertEquals(request, json.decodeFromString<ClientPrefsUpdateRequest>(json.encodeToString(request)))
+        assertNull(request.themeMode)
+        assertNull(request.linkPreviewEnabled)
+        assertNull(request.appLockTimeoutMinutes)
+    }
+
+    @Test
+    fun deleteAccountRequestAndResponseDecode() {
+        val request = DeleteAccountRequest(password = "pw123")
+        assertEquals(request, json.decodeFromString<DeleteAccountRequest>(json.encodeToString(request)))
+        val response = json.decodeFromString<DeleteAccountResponse>("""{"deletedAt":123}""")
+        assertEquals("ok", response.status)
+        assertEquals(123L, response.deletedAt)
+    }
+
+    @Test
+    fun updateProfileRequestPartialRoundTrips() {
+        val request = UpdateProfileRequest(name = "New")
+        assertEquals(request, json.decodeFromString<UpdateProfileRequest>(json.encodeToString(request)))
+        assertNull(request.status)
+        val decoded = json.decodeFromString<UpdateProfileRequest>("""{"status":"busy"}""")
+        assertNull(decoded.name)
+        assertEquals("busy", decoded.status)
+    }
+
 }

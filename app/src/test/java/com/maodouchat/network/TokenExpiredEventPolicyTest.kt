@@ -186,4 +186,34 @@ class TokenExpiredEventPolicyTest {
         assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1", 9L))
         assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1", 5L))
     }
+
+    @Test
+    fun emptyStringCurrentOwnerNeverMatchesNonBlankEvent() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "", 7L))
+    }
+
+    @Test
+    fun generationMinPlusOneMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", Long.MIN_VALUE, "u1", Long.MIN_VALUE + 1L))
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u1", Long.MIN_VALUE + 1L, "u1", Long.MIN_VALUE + 1L))
+    }
+
+    @Test
+    fun generationLargeNegativeValues() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u1", -1000000L, "u1", -1000000L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", -1000000L, "u1", -999999L))
+    }
+
+    @Test
+    fun leadingTabEventOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("\tu1", 7L, "u1", 7L))
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("\tu1", 7L, "\tu1", 7L))
+    }
+
+    @Test
+    fun mixedCaseOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("uA", 7L, "Ua", 7L))
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("aB", 7L, "aB", 7L))
+    }
+
 }
