@@ -260,4 +260,47 @@ class WebSocketNetworkErrorPolicyTest {
             )
         )
     }
+
+    @Test
+    fun sslCauseUnderConnectFailureStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                ConnectException("refused").apply { initCause(SSLException("generic ssl failure")) }
+            )
+        )
+    }
+
+    @Test
+    fun sslPeerUnverifiedUnderCancellationStopsReconnect() {
+        val cancelled = CancellationException("job cancelled")
+        cancelled.initCause(SSLPeerUnverifiedException("peer not authenticated"))
+        assertTrue(isNonRecoverableWebSocketNetworkError(cancelled))
+    }
+
+    @Test
+    fun sslKeyExceptionUnderThreeIoLayersStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                IOException("l1", IOException("l2", IOException("l3", SSLKeyException("bad key"))))
+            )
+        )
+    }
+
+    @Test
+    fun sslProtocolExceptionUnderTwoIoLayersStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                IOException("l1", IOException("l2", SSLProtocolException("protocol error")))
+            )
+        )
+    }
+
+    @Test
+    fun runtimeWrapperAroundSocketTimeoutRemainsRecoverable() {
+        assertFalse(
+            isNonRecoverableWebSocketNetworkError(
+                RuntimeException("wrap", SocketTimeoutException("read timed out"))
+            )
+        )
+    }
 }

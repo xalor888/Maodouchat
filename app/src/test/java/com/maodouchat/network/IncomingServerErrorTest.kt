@@ -346,4 +346,59 @@ class IncomingServerErrorTest {
 
         assertEquals("a\rb", parsed.error)
     }
+
+    @Test
+    fun `backslash escape in error text survives parsing`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"a\\b"}"""
+        )
+
+        assertEquals("a\\b", parsed.error)
+    }
+
+    @Test
+    fun `unicode escape in error text survives parsing`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"a\u0041b"}"""
+        )
+
+        assertEquals("aAb", parsed.error)
+    }
+
+    @Test
+    fun `all fields round trip with one hour delay`() {
+        val original = IncomingServerError(
+            error = "slow",
+            code = "RATE_LIMITED",
+            retryAfterSeconds = 3600
+        )
+        val roundTripped = json.decodeFromString(
+            IncomingServerError.serializer(),
+            json.encodeToString(IncomingServerError.serializer(), original)
+        )
+
+        assertEquals(original, roundTripped)
+    }
+
+    @Test
+    fun `dotted code is preserved`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","code":"ERR.429"}"""
+        )
+
+        assertEquals("ERR.429", parsed.code)
+    }
+
+    @Test
+    fun `unknown array of objects field is ignored`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","meta":[{"a":1}]}"""
+        )
+
+        assertEquals("denied", parsed.error)
+    }
 }
