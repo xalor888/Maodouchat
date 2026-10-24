@@ -198,4 +198,46 @@ class SocialApiModelsTest {
         )
         assertEquals(post, json.decodeFromString<PostDto>(json.encodeToString(post)))
     }
+
+    @Test
+    fun postDtoNegativeCountsDecodeAsIs() {
+        val decoded = json.decodeFromString<PostDto>(
+            """{"id":"p5","author":{"id":"u1","name":"A"},"content":"hi","createdAt":2,"likeCount":-1,"commentCount":-2}"""
+        )
+        assertEquals(-1, decoded.likeCount)
+        assertEquals(-2, decoded.commentCount)
+    }
+
+    @Test
+    fun postCommentDtoExplicitNullParentWithIsMine() {
+        val decoded = json.decodeFromString<PostCommentDto>(
+            """{"id":"c3","postId":"p1","author":{"id":"u1","name":"A"},"content":"hi","createdAt":5,"parentId":null,"isMine":true}"""
+        )
+        assertNull(decoded.parentId)
+        assertTrue(decoded.isMine)
+    }
+
+    @Test
+    fun nearbyLocationStatusNotSharingWithNegativeExpiry() {
+        val decoded = json.decodeFromString<NearbyLocationStatusResponse>("""{"sharing":false,"expiresAt":-1}""")
+        assertFalse(decoded.sharing)
+        assertEquals(-1L, decoded.expiresAt)
+    }
+
+    @Test
+    fun nearbyUserResponseZeroDistanceAndNegativeTimestampRoundTrips() {
+        val response = NearbyUserResponse(
+            user = UserDto(id = "u1", name = "A"),
+            distanceMeters = 0,
+            locationUpdatedAt = -5L
+        )
+        assertEquals(response, json.decodeFromString<NearbyUserResponse>(json.encodeToString(response)))
+    }
+
+    @Test
+    fun editPostRequestExplicitNullVisibilityDecodes() {
+        val decoded = json.decodeFromString<EditPostRequest>("""{"content":"hi","visibility":null}""")
+        assertEquals("hi", decoded.content)
+        assertNull(decoded.visibility)
+    }
 }

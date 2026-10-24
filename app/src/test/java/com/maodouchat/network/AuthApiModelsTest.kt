@@ -208,4 +208,51 @@ class AuthApiModelsTest {
         val request = ConfirmDeviceRequest(approverDeviceId = 7, signature = "sig_bytes")
         assertEquals(request, json.decodeFromString<ConfirmDeviceRequest>(json.encodeToString(request)))
     }
+
+    @Test
+    fun authResponseEmptyObjectDefaultsAll() {
+        val decoded = json.decodeFromString<AuthResponse>("""{}""")
+        assertEquals("", decoded.token)
+        assertEquals("", decoded.userId)
+        assertEquals("", decoded.name)
+        assertEquals("", decoded.refreshToken)
+        assertEquals(0L, decoded.expiresAt)
+        assertEquals(0L, decoded.refreshExpiresAt)
+        assertFalse(decoded.requiresTotp)
+        assertFalse(decoded.totpEnabled)
+    }
+
+    @Test
+    fun authResponseNegativeExpiryDecodes() {
+        val decoded = json.decodeFromString<AuthResponse>(
+            """{"token":"t","userId":"u1","name":"N","expiresAt":-1,"refreshExpiresAt":-5}"""
+        )
+        assertEquals(-1L, decoded.expiresAt)
+        assertEquals(-5L, decoded.refreshExpiresAt)
+    }
+
+    @Test
+    fun userDtoStatusModeratorAndUsernameDefaults() {
+        val decoded = json.decodeFromString<UserDto>("""{"id":"u1","name":"A"}""")
+        assertEquals("", decoded.status)
+        assertFalse(decoded.isModerator)
+        assertNull(decoded.username)
+    }
+
+    @Test
+    fun errorResponseWithCodeAndRetryAfterDecodes() {
+        val decoded = json.decodeFromString<ErrorResponse>(
+            """{"error":"slow","code":"RATE_LIMITED","retryAfterSeconds":30}"""
+        )
+        assertEquals("slow", decoded.error)
+        assertEquals("RATE_LIMITED", decoded.code)
+        assertEquals(30L, decoded.retryAfterSeconds)
+    }
+
+    @Test
+    fun setUsernameResponseOkTrueDecodes() {
+        val decoded = json.decodeFromString<SetUsernameResponse>("""{"ok":true,"username":"alex99"}""")
+        assertTrue(decoded.ok)
+        assertEquals("alex99", decoded.username)
+    }
 }
