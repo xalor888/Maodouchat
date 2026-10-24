@@ -63,4 +63,41 @@ class ApiFailureSemanticsTest {
         val io = IOException("boom")
         assertSame(io, apiExceptionForIOException(io).cause)
     }
+
+    @Test
+    fun timeoutNestedUnderDnsFailureIsStillTimeoutKind() {
+        val timeout = SocketTimeoutException("t").apply { initCause(UnknownHostException()) }
+        val mapped = apiExceptionForIOException(timeout)
+        assertEquals(ApiFailureKind.TIMEOUT, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun sslFailureHasUnknownOutcome() {
+        val ssl = IOException("s", javax.net.ssl.SSLException("handshake"))
+        val mapped = apiExceptionForIOException(ssl)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertTrue(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun noArgExceptionsMapByType() {
+        assertEquals(ApiFailureKind.NETWORK, apiExceptionForIOException(IOException()).kind)
+        assertEquals(ApiFailureKind.TIMEOUT, apiExceptionForIOException(SocketTimeoutException()).kind)
+        assertTrue(apiExceptionForIOException(IOException()).requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun wrappedTimeoutKeepsNetworkKindTopLevelDecides() {
+        val wrapped = IOException("w", SocketTimeoutException("t"))
+        val mapped = apiExceptionForIOException(wrapped)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertTrue(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun connectFailureWrappedTwiceIsSafeToRetry() {
+        val wrapped = IOException("l1", IOException("l2", ConnectException()))
+        assertFalse(apiExceptionForIOException(wrapped).requestMayHaveReachedServer)
+    }
 }
