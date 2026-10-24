@@ -189,4 +189,43 @@ class ApiUserFacingMessageTest {
         assertEquals(ApiFailureKind.NETWORK, error.kind)
         assertTrue(error.requestMayHaveReachedServer)
     }
+
+    @Test
+    fun plainIOExceptionIsNetworkAndMayHaveReachedServer() {
+        val error = apiExceptionForIOException(IOException("reset by peer"))
+        assertEquals(ApiFailureKind.NETWORK, error.kind)
+        assertTrue(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun directUnknownHostMarksConnectionNeverEstablished() {
+        val error = apiExceptionForIOException(UnknownHostException())
+        assertEquals(ApiFailureKind.NETWORK, error.kind)
+        assertFalse(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun deeplyNestedConnectExceptionMarksConnectionNeverEstablished() {
+        val error = apiExceptionForIOException(IOException("a", IOException("b", ConnectException("refused"))))
+        assertEquals(ApiFailureKind.NETWORK, error.kind)
+        assertFalse(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun invalidResponseKindPrefersNonBlankServerMessage() {
+        val error = ApiException(kind = ApiFailureKind.INVALID_RESPONSE, serverMessage = "响应格式异常")
+        assertEquals(
+            "响应格式异常",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun serverMessageWithTabsAndNewlinesIsTrimmed() {
+        val error = ApiException(kind = ApiFailureKind.HTTP, serverMessage = "\n\t余额不足\n")
+        assertEquals(
+            "余额不足",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
 }
