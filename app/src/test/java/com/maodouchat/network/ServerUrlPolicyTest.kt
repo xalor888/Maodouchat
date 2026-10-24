@@ -259,4 +259,32 @@ class ServerUrlPolicyTest {
         assertNull(ServerUrlPolicy.validate("http://printer.local"))
     }
 
+
+    @Test
+    fun shortFormLoopback_isNotLocal() {
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("127.1"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("2130706433"))
+    }
+
+    @Test
+    fun trailingSpaceIpv4_isNotLocal() {
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("10.0.0.1 "))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost(" 10.0.0.1"))
+    }
+
+    @Test
+    fun extraBeatsZeroPort() {
+        assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com:0/api"))
+    }
+
+    @Test
+    fun trailingDotHostWithPort_isAccepted() {
+        assertNull(ServerUrlPolicy.validate("https://chat.example.com.:8443"))
+    }
+
+    @Test
+    fun ipv6LoopbackWithRootSlash_isAccepted() {
+        assertNull(ServerUrlPolicy.validate("https://[::1]/"))
+    }
+
 }
