@@ -284,4 +284,46 @@ class SocialApiModelsTest {
         val response = UploadPostImageResponse(status = "ok", imageUrl = "https://x.example/图片.jpg")
         assertEquals(response, json.decodeFromString<UploadPostImageResponse>(json.encodeToString(response)))
     }
+
+    @Test
+    fun postDtoMaxCountsRoundTrips() {
+        val post = PostDto(
+            id = "pmax",
+            author = UserDto(id = "u1", name = "A"),
+            content = "hi",
+            createdAt = 2L,
+            likeCount = Int.MAX_VALUE,
+            commentCount = Int.MAX_VALUE
+        )
+        assertEquals(post, json.decodeFromString<PostDto>(json.encodeToString(post)))
+    }
+
+    @Test
+    fun updateCommentRequestRoundTrips() {
+        val request = UpdateCommentRequest(content = "edited")
+        assertEquals(request, json.decodeFromString<UpdateCommentRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun createCommentRequestUnicodeContentRoundTrips() {
+        val request = CreateCommentRequest(content = "你好👍")
+        assertEquals(request, json.decodeFromString<CreateCommentRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun nearbyUserResponseNegativeDistanceRoundTrips() {
+        val response = NearbyUserResponse(
+            user = UserDto(id = "u1", name = "A"),
+            distanceMeters = -1,
+            locationUpdatedAt = 42L
+        )
+        assertEquals(response, json.decodeFromString<NearbyUserResponse>(json.encodeToString(response)))
+    }
+
+    @Test
+    fun uploadPostImageRequestRoundTrips() {
+        val request = UploadPostImageRequest(base64Data = "aGVsbG8=")
+        assertEquals(request, json.decodeFromString<UploadPostImageRequest>(json.encodeToString(request)))
+    }
+
 }
