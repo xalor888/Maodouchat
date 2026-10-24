@@ -1,10 +1,13 @@
 package com.maodouchat.network
 
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -57,5 +60,38 @@ class WebSocketNetworkErrorPolicyTest {
     @Test
     fun plainRuntimeErrorWithoutCauseRemainsRecoverable() {
         assertFalse(isNonRecoverableWebSocketNetworkError(IllegalStateException("bug")))
+    }
+
+    @Test
+    fun sslExceptionBaseClassStopsReconnect() {
+        assertTrue(isNonRecoverableWebSocketNetworkError(SSLException("generic ssl failure")))
+    }
+
+    @Test
+    fun sslCauseNestedThreeLevelsDeepStillStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                IOException("l1", IOException("l2", SSLHandshakeException("certificate")))
+            )
+        )
+    }
+
+    @Test
+    fun cancellationExceptionRemainsRecoverable() {
+        assertFalse(isNonRecoverableWebSocketNetworkError(CancellationException("job cancelled")))
+    }
+
+    @Test
+    fun recoverableWrapperAroundSslCauseStillStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                UnknownHostException("dns").apply { initCause(SSLHandshakeException("certificate")) }
+            )
+        )
+    }
+
+    @Test
+    fun interruptedIoExceptionRemainsRecoverable() {
+        assertFalse(isNonRecoverableWebSocketNetworkError(InterruptedIOException("interrupted")))
     }
 }
