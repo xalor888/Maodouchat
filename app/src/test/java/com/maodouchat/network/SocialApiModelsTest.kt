@@ -49,4 +49,52 @@ class SocialApiModelsTest {
         )
         assertEquals(post, json.decodeFromString<PostDto>(json.encodeToString(post)))
     }
+
+    @Test
+    fun postCommentDefaultsNoParentAndNoLikes() {
+        val decoded = json.decodeFromString<PostCommentDto>(
+            """{"id":"c1","postId":"p1","author":{"id":"u1","name":"A"},"content":"nice","createdAt":3}"""
+        )
+        assertNull(decoded.parentId)
+        assertEquals(0, decoded.likeCount)
+        assertFalse(decoded.likedByMe)
+        assertFalse(decoded.isMine)
+    }
+
+    @Test
+    fun postLikersDefaultsEmptyList() {
+        val decoded = json.decodeFromString<PostLikersResponse>("""{"postId":"p1"}""")
+        assertEquals(emptyList<UserDto>(), decoded.likers)
+        val filled = json.decodeFromString<PostLikersResponse>(
+            """{"postId":"p1","likers":[{"id":"u2","name":"B"}]}"""
+        )
+        assertEquals(1, filled.likers.size)
+        assertEquals("B", filled.likers[0].name)
+    }
+
+    @Test
+    fun createCommentRequestReplyToIdRoundTrips() {
+        val request = CreateCommentRequest(content = "re", replyToId = "c9")
+        assertEquals(request, json.decodeFromString<CreateCommentRequest>(json.encodeToString(request)))
+        val topLevel = json.decodeFromString<CreateCommentRequest>("""{"content":"top"}""")
+        assertNull(topLevel.replyToId)
+    }
+
+    @Test
+    fun nearbyLocationStatusDefaultsNotExpired() {
+        val decoded = json.decodeFromString<NearbyLocationStatusResponse>("""{"sharing":true}""")
+        assertTrue(decoded.sharing)
+        assertEquals(0L, decoded.expiresAt)
+    }
+
+    @Test
+    fun createPostRequestExplicitVisibilityDisablesDefault() {
+        val request = CreatePostRequest(content = "x", visibility = "CONTACTS", useDefaultVisibility = false)
+        val decoded = json.decodeFromString<CreatePostRequest>(json.encodeToString(request))
+        assertEquals("CONTACTS", decoded.visibility)
+        assertFalse(decoded.useDefaultVisibility)
+        assertEquals(listOf("a.jpg"), json.decodeFromString<CreatePostRequest>(
+            """{"content":"y","imageUrls":["a.jpg"]}"""
+        ).imageUrls)
+    }
 }

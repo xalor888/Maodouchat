@@ -4,6 +4,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -51,5 +52,45 @@ class AuthApiModelsTest {
         val decoded = json.decodeFromString<RefreshTokenRequest>("""{"refreshToken":"rt_1"}""")
         assertEquals("rt_1", decoded.refreshToken)
         assertEquals("", decoded.deviceId)
+    }
+
+    @Test
+    fun registerRequestRoundTrips() {
+        val request = RegisterRequest(name = "Alex", email = "alex@example.com", password = "password123")
+        assertEquals(request, json.decodeFromString<RegisterRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun authResponseRefreshExpiryDecodes() {
+        val decoded = json.decodeFromString<AuthResponse>(
+            """{"token":"t","userId":"u1","name":"N","refreshToken":"rt","expiresAt":100,"refreshExpiresAt":200}"""
+        )
+        assertEquals("rt", decoded.refreshToken)
+        assertEquals(100L, decoded.expiresAt)
+        assertEquals(200L, decoded.refreshExpiresAt)
+    }
+
+    @Test
+    fun authResponseIgnoresUnknownKeys() {
+        val decoded = json.decodeFromString<AuthResponse>(
+            """{"token":"t","userId":"u1","name":"N","futureField":1}"""
+        )
+        assertEquals("t", decoded.token)
+        assertEquals("u1", decoded.userId)
+    }
+
+    @Test
+    fun refreshTokenRequestRoundTripsWithDeviceId() {
+        val request = RefreshTokenRequest(refreshToken = "rt_2", deviceId = "d7")
+        assertEquals(request, json.decodeFromString<RefreshTokenRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun userDtoDefaultsForFeedAuthor() {
+        val decoded = json.decodeFromString<UserDto>("""{"id":"u9","name":"Zed"}""")
+        assertEquals("", decoded.email)
+        assertNull(decoded.avatar)
+        assertFalse(decoded.isOnline)
+        assertEquals(0L, decoded.lastSeen)
     }
 }
