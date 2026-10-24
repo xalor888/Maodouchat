@@ -93,4 +93,45 @@ class AuthApiModelsTest {
         assertFalse(decoded.isOnline)
         assertEquals(0L, decoded.lastSeen)
     }
+
+    @Test
+    fun sendCodeRequestPurposeDefaultsRegister() {
+        val request = SendCodeRequest(email = "alex@example.com")
+        assertEquals("register", request.purpose)
+        assertEquals(request, json.decodeFromString<SendCodeRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun registerWithCodeRequestRoundTrips() {
+        val request = RegisterWithCodeRequest(
+            name = "Alex", email = "alex@example.com", password = "password123", code = "654321"
+        )
+        assertEquals(request, json.decodeFromString<RegisterWithCodeRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun deviceInfoDtoFallsBackToServerDefaultName() {
+        val decoded = json.decodeFromString<DeviceInfoDto>(
+            """{"userId":"u1","deviceId":7,"identityKey":"ik"}"""
+        )
+        assertEquals("我的设备", decoded.deviceName)
+        assertEquals("CONFIRMED", decoded.status)
+        assertNull(decoded.lastSeenAt)
+        assertFalse(decoded.isCurrent)
+    }
+
+    @Test
+    fun errorResponseOptionalFieldsDefaultNull() {
+        val decoded = json.decodeFromString<ErrorResponse>("""{"error":"boom"}""")
+        assertEquals("boom", decoded.error)
+        assertNull(decoded.code)
+        assertNull(decoded.retryAfterSeconds)
+    }
+
+    @Test
+    fun setUsernameResponseDefaultsToNotOk() {
+        val decoded = json.decodeFromString<SetUsernameResponse>("""{}""")
+        assertFalse(decoded.ok)
+        assertNull(decoded.username)
+    }
 }
