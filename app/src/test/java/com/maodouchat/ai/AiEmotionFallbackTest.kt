@@ -73,7 +73,7 @@ class AiEmotionFallbackTest {
         // 模板都是静态文本：含 % 占位符的 getString 在无参数时会抛错
         Emotion.entries.forEach { emotion ->
             val text = AiEmotionFallback.localFallback(context, emotion)
-            assertFalse(text.contains("%"), "$emotion 的模板不应含 % 占位符")
+            assertFalse("$emotion 的模板不应含 % 占位符", text.contains("%"))
         }
     }
 
