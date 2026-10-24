@@ -303,4 +303,51 @@ class WebSocketNetworkErrorPolicyTest {
             )
         )
     }
+
+    @Test
+    fun sslCauseMidChainStillStopsReconnect() {
+        val ssl = SSLHandshakeException("certificate")
+        ssl.initCause(IOException("deeper"))
+        assertTrue(isNonRecoverableWebSocketNetworkError(RuntimeException("wrap", ssl)))
+    }
+
+    @Test
+    fun sslCauseSixLevelsDeepStillStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                IOException(
+                    "l1",
+                    IOException(
+                        "l2",
+                        IOException("l3", IOException("l4", IOException("l5", SSLKeyException("bad key"))))
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun doubleSslCauseChainStopsReconnect() {
+        val mid = SSLHandshakeException("certificate")
+        mid.initCause(SSLPeerUnverifiedException("peer not authenticated"))
+        assertTrue(isNonRecoverableWebSocketNetworkError(IOException("wrap", mid)))
+    }
+
+    @Test
+    fun sslMentionedInMessageWithNonSslCauseRemainsRecoverable() {
+        assertFalse(
+            isNonRecoverableWebSocketNetworkError(
+                IOException("SSLException during handshake", IOException("inner"))
+            )
+        )
+    }
+
+    @Test
+    fun sslCauseDeepUnderUnknownHostStopsReconnect() {
+        val chain = UnknownHostException("dns").apply {
+            initCause(IOException("mid", IOException("deeper", SSLException("generic ssl failure"))))
+        }
+        assertTrue(isNonRecoverableWebSocketNetworkError(chain))
+    }
+
 }

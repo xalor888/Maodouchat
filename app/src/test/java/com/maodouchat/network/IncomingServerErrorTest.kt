@@ -401,4 +401,58 @@ class IncomingServerErrorTest {
 
         assertEquals("denied", parsed.error)
     }
+
+    @Test
+    fun `unknown string field is ignored`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","trace":"abc"}"""
+        )
+
+        assertEquals("denied", parsed.error)
+        assertNull(parsed.code)
+        assertNull(parsed.retryAfterSeconds)
+    }
+
+    @Test
+    fun `surrounding whitespace in code is preserved`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","code":" RATE "}"""
+        )
+
+        assertEquals(" RATE ", parsed.code)
+    }
+
+    @Test
+    fun `empty error with code and delay round trips`() {
+        val original = IncomingServerError(error = "", code = "RATE_LIMITED", retryAfterSeconds = 5)
+        val roundTripped = json.decodeFromString(
+            IncomingServerError.serializer(),
+            json.encodeToString(IncomingServerError.serializer(), original)
+        )
+
+        assertEquals(original, roundTripped)
+    }
+
+    @Test
+    fun `nbsp in error text is preserved`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            "{\"error\":\"slow\u00A0down\",\"code\":\"RATE_LIMITED\"}"
+        )
+
+        assertEquals("slow\u00A0down", parsed.error)
+    }
+
+    @Test
+    fun `slash code is preserved`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","code":"ERR/RATE"}"""
+        )
+
+        assertEquals("ERR/RATE", parsed.code)
+    }
+
 }
