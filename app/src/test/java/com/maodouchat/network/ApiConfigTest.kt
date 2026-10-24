@@ -166,4 +166,30 @@ class ApiConfigTest {
         assertEquals("ws://chat.example.com:8080/ws/ws", ApiConfig.wsUrlFor("ws://chat.example.com:8080/ws"))
     }
 
+
+    @Test
+    fun wsUrlForBareHttpsSchemeSeparatorKeepsPrefix() {
+        assertEquals("https:/ws", ApiConfig.wsUrlFor("https://"))
+    }
+
+    @Test
+    fun wsUrlForHttpQueryStaysBeforeWsPath() {
+        assertEquals("ws://example.com?x=1/ws", ApiConfig.wsUrlFor("http://example.com?x=1"))
+    }
+
+    @Test
+    fun wsUrlForHttpsUserinfoKeptInWsUrl() {
+        assertEquals("wss://user@example.com/ws", ApiConfig.wsUrlFor("https://user@example.com"))
+    }
+
+    @Test
+    fun wsUrlForHttpsIpv6LiteralWithoutPort() {
+        assertEquals("wss://[2001:db8::1]/ws", ApiConfig.wsUrlFor("https://[2001:db8::1]"))
+    }
+
+    @Test
+    fun wsUrlForHttpsPortPathQueryCombined() {
+        assertEquals("wss://example.com:8443/a?x=1/ws", ApiConfig.wsUrlFor("https://example.com:8443/a?x=1"))
+    }
+
 }

@@ -225,4 +225,38 @@ class ServerUrlPolicyTest {
         assertEquals(Problem.EXTRA, ServerUrlPolicy.validate("https://chat.example.com#"))
     }
 
+
+    @Test
+    fun hostMissingWithPort_mapsToInvalid() {
+        assertEquals(Problem.INVALID, ServerUrlPolicy.validate("https://:8443"))
+        assertEquals(Problem.HOST, ServerUrlPolicy.validate("https://user@"))
+    }
+
+    @Test
+    fun leadingZeroIpv4Octets_parseAsDecimal() {
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("010.0.0.1"))
+        assertTrue(ServerUrlPolicy.isLocalOrPrivateHost("192.168.001.010"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("00.0.0.0"))
+    }
+
+    @Test
+    fun localhostSpoofSuffixes_areNotLocal() {
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("localhost.evil.com"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("local"))
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("foo.localhost"))
+    }
+
+    @Test
+    fun bracketedIpv6Literal_isNotLocalWhenCalledDirectly() {
+        assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("[::1]"))
+    }
+
+    @Test
+    fun localHttp_isAcceptedRegardlessOfBuild() {
+        assertNull(ServerUrlPolicy.validate("http://localhost:8080"))
+        assertNull(ServerUrlPolicy.validate("http://127.0.0.1:8080"))
+        assertNull(ServerUrlPolicy.validate("http://10.0.0.5:8080"))
+        assertNull(ServerUrlPolicy.validate("http://printer.local"))
+    }
+
 }

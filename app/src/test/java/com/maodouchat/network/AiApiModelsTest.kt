@@ -292,4 +292,45 @@ class AiApiModelsTest {
         )
         assertEquals(response, json.decodeFromString<AiAuditLogResponse>(json.encodeToString(response)))
     }
+
+    @Test
+    fun groupTaskIgnoresUnknownKeys() {
+        val decoded = json.decodeFromString<AiGroupTask>("""{"title":"t","priority":1,"done":true}""")
+        assertEquals("t", decoded.title)
+        assertNull(decoded.owner)
+        assertNull(decoded.dueText)
+        assertNull(decoded.dueAt)
+    }
+
+    @Test
+    fun auditLogResponseIgnoresUnknownKeys() {
+        val decoded = json.decodeFromString<AiAuditLogResponse>(
+            """{"id":"a","feature":"f","status":"ok","createdAt":1,"traceId":"x","serverTs":9}"""
+        )
+        assertEquals("a", decoded.id)
+        assertEquals(0, decoded.inputChars)
+        assertEquals(0, decoded.contextMessages)
+        assertNull(decoded.error)
+    }
+
+    @Test
+    fun semanticCandidateEmptyMessageIdRoundTrips() {
+        val candidate = AiSemanticSearchCandidate(messageId = "", sender = "u1", text = "x", timestamp = 5L)
+        assertEquals(candidate, json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate)))
+    }
+
+    @Test
+    fun groupTaskEmptyOwnerRoundTripsAsEmptyNotNull() {
+        val task = AiGroupTask(title = "t", owner = "")
+        assertEquals(task, json.decodeFromString<AiGroupTask>(json.encodeToString(task)))
+    }
+
+    @Test
+    fun auditLogResponseZeroDurationDecodesAsZeroNotNull() {
+        val decoded = json.decodeFromString<AiAuditLogResponse>(
+            """{"id":"a","feature":"f","status":"ok","createdAt":1,"durationMs":0}"""
+        )
+        assertEquals(0L, decoded.durationMs)
+    }
+
 }
