@@ -115,5 +115,54 @@ class AttachmentContentInspectorTest {
         assertFalse(isAttachmentContentCompatible(MessageType.GIF, "GIF89A".encodeToByteArray()))
     }
 
+    @Test
+    fun `headers with trailing bytes still match`() {
+        val jpeg = bytes(0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46)
+        val ebml = bytes(0x1A, 0x45, 0xDF, 0xA3, 0x93, 0x42, 0x86, 0x81)
+
+        assertTrue(isAttachmentContentCompatible(MessageType.IMAGE, jpeg))
+        assertTrue(isAttachmentContentCompatible(MessageType.VIDEO, ebml))
+        assertTrue(isAttachmentContentCompatible(MessageType.GIF, "GIF89a".encodeToByteArray() + bytes(0x00)))
+    }
+
+    @Test
+    fun `gif signature needs all six bytes`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, "GIF89".encodeToByteArray()))
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, ByteArray(0)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, "GIF89".encodeToByteArray()))
+    }
+
+    @Test
+    fun `iso brand box tag is case sensitive`() {
+        val upper = bytes(0x00, 0x00, 0x00, 0x18, 0x46, 0x54, 0x59, 0x50)
+
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, upper))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, upper))
+    }
+
+    @Test
+    fun `bmp and tiff headers are rejected as image`() {
+        val bmp = bytes(0x42, 0x4D, 0x36, 0x00)
+        val tiffLe = bytes(0x49, 0x49, 0x2A, 0x00)
+        val tiffBe = bytes(0x4D, 0x4D, 0x00, 0x2A)
+
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, bmp))
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, tiffLe))
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, tiffBe))
+    }
+
+    @Test
+    fun `non media types reject every known header`() {
+        val jpeg = bytes(0xFF, 0xD8, 0xFF)
+        val gif = "GIF89a".encodeToByteArray()
+        val iso = bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70)
+
+        for (type in listOf(MessageType.MARKDOWN, MessageType.NUDGE, MessageType.SYSTEM, MessageType.REVOKED)) {
+            assertFalse(isAttachmentContentCompatible(type, jpeg))
+            assertFalse(isAttachmentContentCompatible(type, gif))
+            assertFalse(isAttachmentContentCompatible(type, iso))
+        }
+    }
+
     private fun bytes(vararg values: Int): ByteArray = values.map(Int::toByte).toByteArray()
 }
