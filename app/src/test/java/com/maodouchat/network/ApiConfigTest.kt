@@ -114,4 +114,30 @@ class ApiConfigTest {
         // 没有 "://" 就不认 scheme，原样拼路径
         assertEquals("https:chat.example.com/ws", ApiConfig.wsUrlFor("https:chat.example.com"))
     }
+
+    @Test
+    fun wsUrlForTrimsTabsAndNewlinesAroundInput() {
+        assertEquals("wss://chat.example.com/ws", ApiConfig.wsUrlFor("\thttps://chat.example.com/\n"))
+    }
+
+    @Test
+    fun wsUrlForHttpUppercaseHostPortAndPath() {
+        assertEquals("ws://Example.COM:8080/app/ws", ApiConfig.wsUrlFor("HTTP://Example.COM:8080/app/"))
+    }
+
+    @Test
+    fun wsUrlForWssSchemeWithPathAppendsAgain() {
+        assertEquals("wss://chat.example.com/app/ws", ApiConfig.wsUrlFor("wss://chat.example.com/app"))
+    }
+
+    @Test
+    fun wsUrlForBareHttpSchemeSeparatorKeepsPrefix() {
+        assertEquals("http:/ws", ApiConfig.wsUrlFor("http://"))
+    }
+
+    @Test
+    fun wsUrlForHttpsFragmentStaysBeforeWsPath() {
+        assertEquals("wss://example.com#frag/ws", ApiConfig.wsUrlFor("https://example.com#frag"))
+    }
+
 }

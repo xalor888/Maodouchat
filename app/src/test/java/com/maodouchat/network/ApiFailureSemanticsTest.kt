@@ -179,4 +179,46 @@ class ApiFailureSemanticsTest {
         assertEquals(ApiFailureKind.NETWORK, mapped.kind)
         assertFalse(mapped.requestMayHaveReachedServer)
     }
+
+    @Test
+    fun timeoutWithUnknownHostTwoLevelsDownIsTimeoutButSafe() {
+        val timeout = SocketTimeoutException("t").apply { initCause(IOException("l1", UnknownHostException())) }
+        val mapped = apiExceptionForIOException(timeout)
+        assertEquals(ApiFailureKind.TIMEOUT, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun noRouteNestedFourLevelsIsSafeToRetry() {
+        val wrapped = IOException("l1", IOException("l2", IOException("l3", NoRouteToHostException())))
+        val mapped = apiExceptionForIOException(wrapped)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun connectCausedByUnknownHostIsSafeAndPreservesCause() {
+        val connect = ConnectException().apply { initCause(UnknownHostException()) }
+        val mapped = apiExceptionForIOException(connect)
+        assertSame(connect, mapped.cause)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun interruptedIoCausedByConnectIsSafeToRetry() {
+        val interrupted = InterruptedIOException("interrupted").apply { initCause(ConnectException()) }
+        val mapped = apiExceptionForIOException(interrupted)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertFalse(mapped.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun timeoutTwoLevelsDownKeepsNetworkKindWithUnknownOutcome() {
+        val wrapped = IOException("l1", IOException("l2", SocketTimeoutException("t")))
+        val mapped = apiExceptionForIOException(wrapped)
+        assertEquals(ApiFailureKind.NETWORK, mapped.kind)
+        assertTrue(mapped.requestMayHaveReachedServer)
+    }
+
 }
