@@ -465,4 +465,75 @@ class SessionPresencePolicyTest {
             )
         )
     }
+
+    @Test
+    fun bothTokenAndUserIdMissingIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = null,
+                userId = null,
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun bothTokenAndUserIdBlankIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = " ",
+                userId = " ",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun unrecordedAccessExpiryWithBlankRefreshIsLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = 0L,
+                refreshToken = "",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun negativeAccessExpiryWithBlankRefreshIsLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = -5L,
+                refreshToken = " ",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun nonBreakingSpaceRefreshWithExpiredAccessIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "\u00A0",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
 }
