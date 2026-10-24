@@ -193,4 +193,57 @@ class CallApiModelsTest {
         assertEquals("u2", decoded.toUserId)
         assertEquals("OFFER", decoded.type)
     }
+
+    @Test
+    fun signalingSendRequestMinimalDecodesZeroEpochAndSequence() {
+        val decoded = json.decodeFromString<SignalingSendRequest>(
+            """{"toUserId":"u2","type":"OFFER","payload":"{}"}"""
+        )
+        assertEquals(0L, decoded.epoch)
+        assertEquals(0L, decoded.sequence)
+        assertEquals("", decoded.idempotencyKey)
+        assertEquals("", decoded.callId)
+        assertEquals(emptyList<String>(), decoded.groupMemberIds)
+        assertFalse(decoded.groupInvite)
+    }
+
+    @Test
+    fun signalMessageDtoEmptyPayloadRoundTrips() {
+        val dto = SignalMessageDto(
+            id = "s8",
+            fromUserId = "u1",
+            type = "OFFER",
+            payload = "",
+            timestamp = 3L
+        )
+        assertEquals(dto, json.decodeFromString<SignalMessageDto>(json.encodeToString(dto)))
+    }
+
+    @Test
+    fun iceConfigDtoExplicitEmptyServersRoundTrips() {
+        val config = IceConfigDto(iceServers = emptyList(), expiresAt = 0L, turnEnabled = false)
+        assertEquals(config, json.decodeFromString<IceConfigDto>(json.encodeToString(config)))
+    }
+
+    @Test
+    fun iceServerDtoUsernameWithEmptyCredentialRoundTrips() {
+        val server = IceServerDto(urls = listOf("turn:turn.example"), username = "u", credential = "")
+        assertEquals(server, json.decodeFromString<IceServerDto>(json.encodeToString(server)))
+    }
+
+    @Test
+    fun signalingSendRequestGroupMembersWithoutInviteRoundTrips() {
+        val request = SignalingSendRequest(
+            toUserId = "u2",
+            type = "OFFER",
+            payload = "{}",
+            groupId = "g1",
+            groupMemberIds = listOf("u2", "u3"),
+            groupInvite = false
+        )
+        val decoded = json.decodeFromString<SignalingSendRequest>(json.encodeToString(request))
+        assertEquals(request, decoded)
+        assertFalse(decoded.groupInvite)
+        assertEquals(listOf("u2", "u3"), decoded.groupMemberIds)
+    }
 }
