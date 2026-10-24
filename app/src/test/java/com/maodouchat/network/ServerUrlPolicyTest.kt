@@ -71,4 +71,35 @@ class ServerUrlPolicyTest {
         assertFalse(ServerUrlPolicy.isLocalOrPrivateHost(""))
         assertFalse(ServerUrlPolicy.isLocalOrPrivateHost("not-an-ip"))
     }
+
+    @Test
+    fun whitespacePaddedUrl_isTrimmedAndAccepted() {
+        assertNull(ServerUrlPolicy.validate("  https://chat.example.com  "))
+        assertNull(ServerUrlPolicy.validate("\thttps://chat.example.com/\n"))
+    }
+
+    @Test
+    fun blankishInput_mapsToEmpty() {
+        assertEquals(Problem.EMPTY, ServerUrlPolicy.validate("   "))
+        assertEquals(Problem.EMPTY, ServerUrlPolicy.validate("\t\n "))
+    }
+
+    @Test
+    fun portBoundaries() {
+        assertNull(ServerUrlPolicy.validate("https://chat.example.com:1"))
+        assertNull(ServerUrlPolicy.validate("https://chat.example.com:65535"))
+        assertEquals(Problem.PORT, ServerUrlPolicy.validate("https://chat.example.com:0"))
+    }
+
+    @Test
+    fun ipv6LoopbackLiteral_isAccepted() {
+        assertNull(ServerUrlPolicy.validate("https://[::1]"))
+        assertNull(ServerUrlPolicy.validate("https://[::1]:8443"))
+    }
+
+    @Test
+    fun trailingDotHost_isNormalized() {
+        assertNull(ServerUrlPolicy.validate("https://chat.example.com."))
+        assertNull(ServerUrlPolicy.validate("https://chat.example.com./"))
+    }
 }

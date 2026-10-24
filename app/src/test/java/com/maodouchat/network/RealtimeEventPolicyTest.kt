@@ -6,6 +6,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -47,6 +49,77 @@ class RealtimeEventPolicyTest {
 
         gate.invalidate()
         assertFalse(gate.isCurrent(second))
+    }
+
+    @Test
+    fun `session gate exposes current generation`() {
+        val gate = WebSocketSessionGate()
+        val first = gate.nextSession()
+        assertEquals(first, gate.current())
+        val second = gate.nextSession()
+        assertTrue(second > first)
+        assertEquals(second, gate.current())
+        gate.invalidate()
+        assertFalse(gate.isCurrent(second))
+        assertEquals(second + 1, gate.current())
+    }
+
+    @Test
+    fun `bus coerces zero capacity to one`() = runTest {
+        // capacity=0 会被钳到 1：第二个 post 把第一个挤掉。
+        // 订阅者必须先就位（UNDISPATCHED 立即订阅）：bus 的底层 flow replay=0，
+        // 消费协程若在订阅前就把事件桥接过去，事件会直接丢失，await 永远挂起。
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = 0, scope = busScope)
+            val got = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.first() }
+            bus.post("first")
+            bus.post("second")
+            advanceUntilIdle()
+            assertEquals("second", got.await())
+        } finally {
+            busScope.cancel()
+        }
+    }
+
+    @Test
+    fun `bus drops oldest event when over capacity`() = runTest {
+        // 先订阅再 post：消费协程尚未调度时队列积压（DROP_OLDEST 丢最旧），
+        // 订阅者已就位后 advance，消费协程把 b、c 桥接给订阅者。
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = 2, scope = busScope)
+            val got = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.take(2).toList() }
+            bus.post("a")
+            bus.post("b")
+            bus.post("c")
+            advanceUntilIdle()
+            assertEquals(listOf("b", "c"), got.await())
+        } finally {
+            busScope.cancel()
+        }
+    }
+
+    @Test
+    fun `typing event ignored when no active chat`() {
+        assertFalse(shouldApplyTypingEvent("", "chat-a"))
+    }
+
+    @Test
+    fun `offline event clears presence and takes event lastSeen`() {
+        val result = resolveUserVisibility(
+            currentIsOnline = true,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = false,
+            eventLastSeen = 20L,
+            onlineRevoked = false,
+            statusRevoked = false
+        )
+
+        assertFalse(result.isOnline)
+        assertEquals("Busy", result.status)
+        assertEquals(20L, result.lastSeen)
     }
 
     @Test

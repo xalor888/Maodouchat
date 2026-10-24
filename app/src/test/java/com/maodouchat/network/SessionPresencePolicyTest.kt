@@ -104,4 +104,84 @@ class SessionPresencePolicyTest {
             )
         )
     }
+
+    @Test
+    fun expiryExactlyAtNow_countsAsExpired() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now,
+                refreshToken = "",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now,
+                refreshToken = "r",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun blankUserIdStringIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = " ",
+                accessTokenExpiresAt = now + 60_000L,
+                refreshToken = "r",
+                refreshTokenExpiresAt = now + 86_400_000L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun negativeAccessExpiryTreatedAsUnrecorded() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = -1L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun whitespaceRefreshWithExpiredAccessIsLoggedOut() {
+        assertFalse(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now - 1L,
+                refreshToken = "  ",
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
+
+    @Test
+    fun expiryOneMsInFutureIsLoggedIn() {
+        assertTrue(
+            SessionPresencePolicy.isLoggedIn(
+                token = "access",
+                userId = "u1",
+                accessTokenExpiresAt = now + 1L,
+                refreshToken = null,
+                refreshTokenExpiresAt = 0L,
+                nowMs = now,
+            )
+        )
+    }
 }
