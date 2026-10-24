@@ -255,4 +255,67 @@ class AuthApiModelsTest {
         assertTrue(decoded.ok)
         assertEquals("alex99", decoded.username)
     }
+
+    @Test
+    fun userDtoOnlineWithLastSeenDecodes() {
+        val decoded = json.decodeFromString<UserDto>("""{"id":"u1","name":"A","isOnline":true,"lastSeen":123}""")
+        assertTrue(decoded.isOnline)
+        assertEquals(123L, decoded.lastSeen)
+        assertEquals("", decoded.email)
+        assertNull(decoded.username)
+    }
+
+    @Test
+    fun deviceInfoDtoCurrentWithTimestampsDecodes() {
+        val decoded = json.decodeFromString<DeviceInfoDto>(
+            """{"userId":"u1","deviceId":7,"identityKey":"ik","isCurrent":true,"lastSeenAt":999,"confirmedAt":100,"confirmedByDeviceId":3}"""
+        )
+        assertTrue(decoded.isCurrent)
+        assertEquals(999L, decoded.lastSeenAt)
+        assertEquals(100L, decoded.confirmedAt)
+        assertEquals(3, decoded.confirmedByDeviceId)
+        assertEquals("我的设备", decoded.deviceName)
+        assertEquals("CONFIRMED", decoded.status)
+    }
+
+    @Test
+    fun groupInvitationDtoFullDecode() {
+        val decoded = json.decodeFromString<GroupInvitationDto>(
+            """{"id":"g1","chatId":"c1","userId":"u1","inviterId":"u2","inviterName":"Bob","chatName":"群","chatAvatar":"http://x/a.png","chatType":"PRIVATE","memberCount":5,"status":"ACCEPTED","createdAt":10,"updatedAt":20}"""
+        )
+        assertEquals("u2", decoded.inviterId)
+        assertEquals("Bob", decoded.inviterName)
+        assertEquals("群", decoded.chatName)
+        assertEquals("http://x/a.png", decoded.chatAvatar)
+        assertEquals("PRIVATE", decoded.chatType)
+        assertEquals(5, decoded.memberCount)
+        assertEquals("ACCEPTED", decoded.status)
+        assertEquals(10L, decoded.createdAt)
+        assertEquals(20L, decoded.updatedAt)
+    }
+
+    @Test
+    fun chatFolderDtoFullDecode() {
+        val decoded = json.decodeFromString<ChatFolderDto>(
+            """{"id":"f2","name":"家人","sortOrder":3,"chatIds":["c1","c2"],"updatedAt":555}"""
+        )
+        assertEquals("f2", decoded.id)
+        assertEquals("家人", decoded.name)
+        assertEquals(3, decoded.sortOrder)
+        assertEquals(listOf("c1", "c2"), decoded.chatIds)
+        assertEquals(555L, decoded.updatedAt)
+    }
+
+    @Test
+    fun clientPrefsDtoNonDefaultsDecode() {
+        val decoded = json.decodeFromString<ClientPrefsDto>(
+            """{"themeMode":"dark","themeStyle":"custom","accentColor":"blue","linkPreviewEnabled":false,"writingStyleEnabled":true,"appLockTimeoutMinutes":10}"""
+        )
+        assertEquals("dark", decoded.themeMode)
+        assertEquals("custom", decoded.themeStyle)
+        assertEquals("blue", decoded.accentColor)
+        assertFalse(decoded.linkPreviewEnabled)
+        assertTrue(decoded.writingStyleEnabled)
+        assertEquals(10L, decoded.appLockTimeoutMinutes)
+    }
 }
