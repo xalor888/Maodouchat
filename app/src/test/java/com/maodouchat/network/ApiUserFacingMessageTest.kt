@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 import java.net.ConnectException
+import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
@@ -146,5 +147,46 @@ class ApiUserFacingMessageTest {
             "操作失败",
             error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
         )
+    }
+
+    @Test
+    fun networkKindBlankServerMessageUsesNetworkCopy() {
+        val error = ApiException(kind = ApiFailureKind.NETWORK, serverMessage = "   ")
+        assertEquals(
+            "网络",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun timeoutKindBlankServerMessageUsesTimeoutCopy() {
+        val error = ApiException(kind = ApiFailureKind.TIMEOUT, serverMessage = "  ")
+        assertEquals(
+            "超时",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun unexpectedKindWithServerMessagePrefersServerMessage() {
+        val error = ApiException(kind = ApiFailureKind.UNEXPECTED, serverMessage = "未知错误")
+        assertEquals(
+            "未知错误",
+            error.toUserFacingMessage("网络", "超时", "无效", "操作失败"),
+        )
+    }
+
+    @Test
+    fun noRouteToHostMarksConnectionNeverEstablished() {
+        val error = apiExceptionForIOException(IOException(NoRouteToHostException("no route")))
+        assertEquals(ApiFailureKind.NETWORK, error.kind)
+        assertFalse(error.requestMayHaveReachedServer)
+    }
+
+    @Test
+    fun nestedSocketTimeoutIsNetworkButMayHaveReachedServer() {
+        val error = apiExceptionForIOException(IOException("wrap", SocketTimeoutException()))
+        assertEquals(ApiFailureKind.NETWORK, error.kind)
+        assertTrue(error.requestMayHaveReachedServer)
     }
 }

@@ -174,4 +174,38 @@ class AuthApiModelsTest {
         assertFalse(decoded.writingStyleEnabled)
         assertEquals(5L, decoded.appLockTimeoutMinutes)
     }
+
+    @Test
+    fun changePasswordRequestRoundTrips() {
+        val request = ChangePasswordRequest(oldPassword = "old123", newPassword = "new456")
+        assertEquals(request, json.decodeFromString<ChangePasswordRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun sendCodeRequestResetPurposeRoundTrips() {
+        val request = SendCodeRequest(email = "alex@example.com", purpose = "reset")
+        assertEquals(request, json.decodeFromString<SendCodeRequest>(json.encodeToString(request)))
+        val decoded = json.decodeFromString<SendCodeRequest>(
+            """{"email":"alex@example.com","purpose":"reset"}"""
+        )
+        assertEquals("reset", decoded.purpose)
+    }
+
+    @Test
+    fun setUsernameRequestRoundTrips() {
+        val request = SetUsernameRequest(username = "alex99")
+        assertEquals(request, json.decodeFromString<SetUsernameRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun updateDeviceNameRequestRoundTrips() {
+        val request = UpdateDeviceNameRequest(deviceName = "Pixel 9")
+        assertEquals(request, json.decodeFromString<UpdateDeviceNameRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun confirmDeviceRequestRoundTrips() {
+        val request = ConfirmDeviceRequest(approverDeviceId = 7, signature = "sig_bytes")
+        assertEquals(request, json.decodeFromString<ConfirmDeviceRequest>(json.encodeToString(request)))
+    }
 }
