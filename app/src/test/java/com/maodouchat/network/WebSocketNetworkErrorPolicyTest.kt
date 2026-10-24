@@ -174,4 +174,51 @@ class WebSocketNetworkErrorPolicyTest {
             )
         )
     }
+
+    @Test
+    fun sslCauseFiveLevelsDeepStillStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                IOException(
+                    "l1",
+                    IOException(
+                        "l2",
+                        IOException("l3", IOException("l4", SSLHandshakeException("certificate")))
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun sslPeerUnverifiedNestedUnderTwoIoLayersStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                IOException("l1", IOException("l2", SSLPeerUnverifiedException("peer not authenticated")))
+            )
+        )
+    }
+
+    @Test
+    fun noArgIoFailureRemainsRecoverable() {
+        assertFalse(isNonRecoverableWebSocketNetworkError(IOException()))
+    }
+
+    @Test
+    fun sslKeyExceptionNestedUnderRuntimeStopsReconnect() {
+        assertTrue(
+            isNonRecoverableWebSocketNetworkError(
+                RuntimeException("wrap", SSLKeyException("bad key"))
+            )
+        )
+    }
+
+    @Test
+    fun ioChainEndingInSocketTimeoutRemainsRecoverable() {
+        assertFalse(
+            isNonRecoverableWebSocketNetworkError(
+                IOException("l1", SocketTimeoutException("read timed out"))
+            )
+        )
+    }
 }

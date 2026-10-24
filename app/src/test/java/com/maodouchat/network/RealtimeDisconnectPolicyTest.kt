@@ -102,4 +102,29 @@ class RealtimeDisconnectPolicyTest {
     fun bannerDelayTimesFourIsTenSeconds() {
         assertEquals(10_000L, RealtimeDisconnectPolicy.BANNER_DELAY_MS * 4L)
     }
+
+    @Test
+    fun bannerDelayMinus500IsTwoSeconds() {
+        assertEquals(2_000L, RealtimeDisconnectPolicy.BANNER_DELAY_MS - 500L)
+    }
+
+    @Test
+    fun bannerDelayDividedByFiveIsFiveHundred() {
+        assertEquals(500L, RealtimeDisconnectPolicy.BANNER_DELAY_MS / 5L)
+    }
+
+    @Test
+    fun bannerDelayModulo700Is400() {
+        assertEquals(400L, RealtimeDisconnectPolicy.BANNER_DELAY_MS % 700L)
+    }
+
+    @Test
+    fun bannerDelayTimesThreeIsSevenPointFiveSeconds() {
+        assertEquals(7_500L, RealtimeDisconnectPolicy.BANNER_DELAY_MS * 3L)
+    }
+
+    @Test
+    fun bannerDelayMinusItselfIsZero() {
+        assertEquals(0L, RealtimeDisconnectPolicy.BANNER_DELAY_MS - RealtimeDisconnectPolicy.BANNER_DELAY_MS)
+    }
 }
