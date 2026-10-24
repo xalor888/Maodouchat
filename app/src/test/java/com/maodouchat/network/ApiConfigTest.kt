@@ -63,4 +63,29 @@ class ApiConfigTest {
         // 非 http(s) scheme 走原样拼路径，对输出再调一次还是原样拼
         assertEquals("wss://chat.example.com/ws/ws", ApiConfig.wsUrlFor("wss://chat.example.com/ws"))
     }
+
+    @Test
+    fun wsUrlForHttpBaseWithoutPathAppendsWs() {
+        assertEquals("ws://example.com/ws", ApiConfig.wsUrlFor("http://example.com"))
+    }
+
+    @Test
+    fun wsUrlForHttpsWithPortStripsTrailingSlash() {
+        assertEquals("wss://example.com:8443/ws", ApiConfig.wsUrlFor("https://example.com:8443/"))
+    }
+
+    @Test
+    fun wsUrlForMixedCaseHttpSchemeMapsToWs() {
+        assertEquals("ws://example.com/ws", ApiConfig.wsUrlFor("HtTp://example.com"))
+    }
+
+    @Test
+    fun wsUrlForPlainWsSchemeAppendsPathAgain() {
+        assertEquals("ws://chat.example.com/ws", ApiConfig.wsUrlFor("ws://chat.example.com"))
+    }
+
+    @Test
+    fun wsUrlForHttpsMultiSegmentPathStripsTrailingSlashes() {
+        assertEquals("wss://example.com/a/b/ws", ApiConfig.wsUrlFor("https://example.com/a/b///"))
+    }
 }
