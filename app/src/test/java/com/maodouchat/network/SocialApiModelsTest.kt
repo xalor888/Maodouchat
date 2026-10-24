@@ -240,4 +240,48 @@ class SocialApiModelsTest {
         assertEquals("hi", decoded.content)
         assertNull(decoded.visibility)
     }
+
+    @Test
+    fun postCommentDtoFullDecode() {
+        val decoded = json.decodeFromString<PostCommentDto>(
+            """{"id":"c9","postId":"p1","author":{"id":"u1","name":"A"},"content":"hi","createdAt":7,"parentId":"c8","likeCount":4,"likedByMe":true,"isMine":true}"""
+        )
+        assertEquals("c8", decoded.parentId)
+        assertEquals(4, decoded.likeCount)
+        assertTrue(decoded.likedByMe)
+        assertTrue(decoded.isMine)
+    }
+
+    @Test
+    fun createPostRequestFullRoundTrips() {
+        val request = CreatePostRequest(
+            content = "hi",
+            imageUrls = listOf("a.jpg", "b.jpg"),
+            visibility = "PRIVATE",
+            useDefaultVisibility = false
+        )
+        assertEquals(request, json.decodeFromString<CreatePostRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun nearbyLocationStatusMaxExpiryDecodes() {
+        val decoded = json.decodeFromString<NearbyLocationStatusResponse>(
+            """{"sharing":true,"expiresAt":9223372036854775807}"""
+        )
+        assertTrue(decoded.sharing)
+        assertEquals(Long.MAX_VALUE, decoded.expiresAt)
+    }
+
+    @Test
+    fun commentLikeResponseNegativeCountDecodes() {
+        val decoded = json.decodeFromString<CommentLikeResponse>("""{"status":"unliked","likeCount":-1}""")
+        assertEquals("unliked", decoded.status)
+        assertEquals(-1, decoded.likeCount)
+    }
+
+    @Test
+    fun uploadPostImageResponseUnicodeUrlRoundTrips() {
+        val response = UploadPostImageResponse(status = "ok", imageUrl = "https://x.example/图片.jpg")
+        assertEquals(response, json.decodeFromString<UploadPostImageResponse>(json.encodeToString(response)))
+    }
 }

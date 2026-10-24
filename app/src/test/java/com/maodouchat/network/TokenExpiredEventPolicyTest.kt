@@ -158,4 +158,32 @@ class TokenExpiredEventPolicyTest {
     fun currentOwnerTrailingTabMismatch() {
         assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1\t", 7L))
     }
+
+    @Test
+    fun carriageReturnSuffixedEventOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1\r", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun carriageReturnSuffixedCurrentOwnerMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1\r", 7L))
+    }
+
+    @Test
+    fun internalTabOwnerMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("u\t1", 7L, "u\t1", 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u\t1", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun upperCaseOwnerMatchesExactly() {
+        assertTrue(TokenExpiredEventPolicy.shouldHandle("U1", 7L, "U1", 7L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("U1", 7L, "u1", 7L))
+    }
+
+    @Test
+    fun generationDiffersByTwoMismatch() {
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1", 9L))
+        assertFalse(TokenExpiredEventPolicy.shouldHandle("u1", 7L, "u1", 5L))
+    }
 }
