@@ -469,4 +469,70 @@ class RealtimeEventPolicyTest {
             busScope.cancel()
         }
     }
+
+    @Test
+    fun bothRevocationsOnOfflineUserClearStatusAndLastSeen() {
+        val result = resolveUserVisibility(
+            currentIsOnline = false,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = true,
+            eventLastSeen = 20L,
+            onlineRevoked = true,
+            statusRevoked = true
+        )
+
+        assertFalse(result.isOnline)
+        assertEquals("", result.status)
+        assertEquals(0L, result.lastSeen)
+    }
+
+    @Test
+    fun offlineEventWithNegativeLastSeenPassesThrough() {
+        val result = resolveUserVisibility(
+            currentIsOnline = true,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = false,
+            eventLastSeen = -5L,
+            onlineRevoked = false,
+            statusRevoked = false
+        )
+
+        assertFalse(result.isOnline)
+        assertEquals("Busy", result.status)
+        assertEquals(-5L, result.lastSeen)
+    }
+
+    @Test
+    fun typingEventWithTrailingNewlineDoesNotMatch() {
+        assertFalse(shouldApplyTypingEvent("chat-a", "chat-a\n"))
+    }
+
+    @Test
+    fun invalidateOnFreshGateAdvancesToOne() {
+        val gate = WebSocketSessionGate()
+        gate.invalidate()
+        assertEquals(1L, gate.current())
+        assertTrue(gate.isCurrent(1L))
+        assertFalse(gate.isCurrent(0L))
+        assertEquals(2L, gate.nextSession())
+    }
+
+    @Test
+    fun busCapacityTwoKeepsLastTwoOfFourPosts() = runTest {
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = 2, scope = busScope)
+            val got = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.take(2).toList() }
+            bus.post("a")
+            bus.post("b")
+            bus.post("c")
+            bus.post("d")
+            advanceUntilIdle()
+            assertEquals(listOf("c", "d"), got.await())
+        } finally {
+            busScope.cancel()
+        }
+    }
 }

@@ -326,4 +326,48 @@ class SocialApiModelsTest {
         assertEquals(request, json.decodeFromString<UploadPostImageRequest>(json.encodeToString(request)))
     }
 
+    @Test
+    fun createPostRequestDefaultVisibilityWithImagesRoundTrips() {
+        val request = CreatePostRequest(content = "hi", imageUrls = listOf("a.jpg", "b.jpg"))
+        assertEquals(request, json.decodeFromString<CreatePostRequest>(json.encodeToString(request)))
+        assertTrue(request.useDefaultVisibility)
+        assertNull(request.visibility)
+    }
+
+    @Test
+    fun postDtoExplicitNullEditedAtDecodes() {
+        val decoded = json.decodeFromString<PostDto>(
+            """{"id":"p6","author":{"id":"u1","name":"A"},"content":"hi","createdAt":2,"editedAt":null,"imageUrls":[],"likedByMe":true}"""
+        )
+        assertNull(decoded.editedAt)
+        assertEquals(emptyList<String>(), decoded.imageUrls)
+        assertTrue(decoded.likedByMe)
+    }
+
+    @Test
+    fun postCommentDtoNegativeLikeCountDecodes() {
+        val decoded = json.decodeFromString<PostCommentDto>(
+            """{"id":"c4","postId":"p1","author":{"id":"u1","name":"A"},"content":"hi","createdAt":5,"likeCount":-3}"""
+        )
+        assertEquals(-3, decoded.likeCount)
+        assertFalse(decoded.likedByMe)
+    }
+
+    @Test
+    fun nearbyUserResponseUnicodeUserRoundTrips() {
+        val response = NearbyUserResponse(
+            user = UserDto(id = "u1", name = "用户👍"),
+            distanceMeters = 10,
+            locationUpdatedAt = 42L
+        )
+        assertEquals(response, json.decodeFromString<NearbyUserResponse>(json.encodeToString(response)))
+    }
+
+    @Test
+    fun createCommentRequestEmptyReplyToIdRoundTrips() {
+        val request = CreateCommentRequest(content = "x", replyToId = "")
+        assertEquals(request, json.decodeFromString<CreateCommentRequest>(json.encodeToString(request)))
+        assertEquals("", request.replyToId)
+    }
+
 }
