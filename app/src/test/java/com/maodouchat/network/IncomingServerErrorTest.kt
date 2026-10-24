@@ -191,4 +191,56 @@ class IncomingServerErrorTest {
 
         assertEquals(9223372036854775807L, parsed.retryAfterSeconds)
     }
+
+    @Test
+    fun `explicit null code and delay decode as null`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"slow","code":null,"retryAfterSeconds":null}"""
+        )
+
+        assertNull(parsed.code)
+        assertNull(parsed.retryAfterSeconds)
+    }
+
+    @Test
+    fun `newline escape in error text survives parsing`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"a\nb"}"""
+        )
+
+        assertEquals("a\nb", parsed.error)
+    }
+
+    @Test
+    fun `one second retry delay round trips`() {
+        val original = IncomingServerError(error = "slow", retryAfterSeconds = 1)
+        val roundTripped = json.decodeFromString(
+            IncomingServerError.serializer(),
+            json.encodeToString(IncomingServerError.serializer(), original)
+        )
+
+        assertEquals(original, roundTripped)
+    }
+
+    @Test
+    fun `code with underscores and digits is preserved`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","code":"ERR_429_X"}"""
+        )
+
+        assertEquals("ERR_429_X", parsed.code)
+    }
+
+    @Test
+    fun `unknown boolean field is ignored`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","retried":true}"""
+        )
+
+        assertEquals("denied", parsed.error)
+    }
 }
