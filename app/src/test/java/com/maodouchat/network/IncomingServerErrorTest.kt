@@ -296,4 +296,54 @@ class IncomingServerErrorTest {
 
         assertEquals(original, roundTripped)
     }
+
+    @Test
+    fun `emoji error text survives parsing`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"⚠️ slow","code":"RATE_LIMITED"}"""
+        )
+
+        assertEquals("⚠️ slow", parsed.error)
+    }
+
+    @Test
+    fun `unknown numeric field is ignored`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","attempts":3}"""
+        )
+
+        assertEquals("denied", parsed.error)
+    }
+
+    @Test
+    fun `mid range retry delay survives`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"slow","retryAfterSeconds":1234567890123}"""
+        )
+
+        assertEquals(1234567890123L, parsed.retryAfterSeconds)
+    }
+
+    @Test
+    fun `hyphen code is preserved`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"denied","code":"ERR-429"}"""
+        )
+
+        assertEquals("ERR-429", parsed.code)
+    }
+
+    @Test
+    fun `carriage return escape in error text survives parsing`() {
+        val parsed = json.decodeFromString(
+            IncomingServerError.serializer(),
+            """{"error":"a\rb"}"""
+        )
+
+        assertEquals("a\rb", parsed.error)
+    }
 }
