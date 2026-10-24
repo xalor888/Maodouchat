@@ -43,4 +43,42 @@ class AiClassifyLexiconTest {
         assertEquals(first.category, second.category)
         assertEquals(first.confidence, second.confidence, 0.0001)
     }
+
+    @Test
+    fun `empty text falls back to other`() {
+        val result = AiClassifyLexicon.classifyText("")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `keyword fully inside scan window still counts`() {
+        // 298 个垫字 + "转账" 恰好 300 字符，关键词完整落在窗口内
+        val result = AiClassifyLexicon.classifyText("垫".repeat(298) + "转账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `confidence splits proportionally across categories`() {
+        val result = AiClassifyLexicon.classifyText("转账 发票 通知")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `keyword as substring of longer word still matches`() {
+        // contains 是子串匹配："debug" 里含 "bug"
+        val result = AiClassifyLexicon.classifyText("debug 模式")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `repeated keyword counts once per dictionary word`() {
+        // 按词典词计数，不按出现次数："转账转账" 只算 1 次命中
+        val result = AiClassifyLexicon.classifyText("转账转账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }
