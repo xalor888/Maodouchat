@@ -274,4 +274,50 @@ class GroupPlayUpdatePayloadTest {
         assertEquals("", parsed.chatId)
         assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
     }
+
+    @Test
+    fun negativeNumericChatIdIsStringified() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":-7}}"""
+        )
+        assertEquals("-7", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "-7"))
+        assertFalse(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun floatChatIdIsStringified() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"pk_updated","data":{"chatId":1.5}}"""
+        )
+        assertEquals("1.5", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "1.5"))
+    }
+
+    @Test
+    fun spacedEventNameIsPreservedVerbatim() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":" pk_updated ","data":{"chatId":"g1"}}"""
+        )
+        assertEquals(" pk_updated ", parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
+
+    @Test
+    fun nestedDataExtrasAreIgnored() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":"checkin_updated","data":{"chatId":"g5","meta":{"a":1},"tags":["x"]}}"""
+        )
+        assertEquals("g5", parsed.chatId)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g5"))
+    }
+
+    @Test
+    fun nullEventOnlyStillRefreshesOnChatId() {
+        val parsed = parseGroupPlayUpdate(
+            """{"event":null,"data":{"chatId":"g1"}}"""
+        )
+        assertEquals("", parsed.event)
+        assertTrue(shouldRefreshScreen(parsed.chatId, "g1"))
+    }
 }
