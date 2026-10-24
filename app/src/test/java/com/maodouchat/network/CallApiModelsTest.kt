@@ -232,6 +232,51 @@ class CallApiModelsTest {
     }
 
     @Test
+    fun signalingSendRequestNegativeEpochAndSequenceRoundTrip() {
+        val request = SignalingSendRequest(
+            toUserId = "u2", type = "OFFER", payload = "{}",
+            callId = "call-4", epoch = -1, sequence = -5, idempotencyKey = "k"
+        )
+        assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun signalMessageDtoNegativeTimestampRoundTrips() {
+        val dto = SignalMessageDto(
+            id = "s10", fromUserId = "u1", type = "OFFER", payload = "{}",
+            timestamp = -1L
+        )
+        assertEquals(dto, json.decodeFromString<SignalMessageDto>(json.encodeToString(dto)))
+    }
+
+    @Test
+    fun iceConfigDtoNegativeExpiresAtDecodesAsIs() {
+        val decoded = json.decodeFromString<IceConfigDto>("""{"expiresAt":-1}""")
+        assertEquals(-1L, decoded.expiresAt)
+        assertEquals(emptyList<IceServerDto>(), decoded.iceServers)
+        assertFalse(decoded.turnEnabled)
+    }
+
+    @Test
+    fun signalingSendRequestPayloadWithEscapesRoundTrips() {
+        val request = SignalingSendRequest(
+            toUserId = "u2", type = "OFFER", payload = "line1\nline2\"quoted\""
+        )
+        assertEquals(request, json.decodeFromString<SignalingSendRequest>(json.encodeToString(request)))
+    }
+
+    @Test
+    fun signalMessageDtoGroupInviteTrueWithoutMembersRoundTrips() {
+        val dto = SignalMessageDto(
+            id = "s11", fromUserId = "u1", type = "OFFER", payload = "{}",
+            timestamp = 4L, groupInvite = true
+        )
+        assertEquals(dto, json.decodeFromString<SignalMessageDto>(json.encodeToString(dto)))
+        assertTrue(dto.groupInvite)
+        assertEquals(emptyList<String>(), dto.groupMemberIds)
+    }
+
+    @Test
     fun signalingSendRequestGroupMembersWithoutInviteRoundTrips() {
         val request = SignalingSendRequest(
             toUserId = "u2",

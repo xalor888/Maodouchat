@@ -341,4 +341,72 @@ class RealtimeEventPolicyTest {
         assertFalse(gate.isCurrent(first + 1))
         assertTrue(gate.isCurrent(first + 2))
     }
+
+    @Test
+    fun `whitespace-only active chat ignores matching typing event`() {
+        assertFalse(shouldApplyTypingEvent("   ", "   "))
+        assertFalse(shouldApplyTypingEvent("chat-a", "   "))
+    }
+
+    @Test
+    fun `online revocation on already-offline user still zeroes lastSeen`() {
+        val result = resolveUserVisibility(
+            currentIsOnline = false,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = true,
+            eventLastSeen = 20L,
+            onlineRevoked = true,
+            statusRevoked = false
+        )
+
+        assertFalse(result.isOnline)
+        assertEquals("Busy", result.status)
+        assertEquals(0L, result.lastSeen)
+    }
+
+    @Test
+    fun `online event with zero lastSeen passes zero through`() {
+        val result = resolveUserVisibility(
+            currentIsOnline = false,
+            currentStatus = "Busy",
+            currentLastSeen = 10L,
+            eventIsOnline = true,
+            eventLastSeen = 0L,
+            onlineRevoked = false,
+            statusRevoked = false
+        )
+
+        assertTrue(result.isOnline)
+        assertEquals("Busy", result.status)
+        assertEquals(0L, result.lastSeen)
+    }
+
+    @Test
+    fun `gate session after invalidate keeps incrementing`() {
+        val gate = WebSocketSessionGate()
+        assertEquals(1L, gate.nextSession())
+        gate.invalidate()
+        assertEquals(2L, gate.current())
+        assertEquals(3L, gate.nextSession())
+        assertTrue(gate.isCurrent(3L))
+        assertFalse(gate.isCurrent(2L))
+        assertFalse(gate.isCurrent(1L))
+    }
+
+    @Test
+    fun `bus capacity one keeps only the last of three posts`() = runTest {
+        val busScope = CoroutineScope(coroutineContext + Job())
+        try {
+            val bus = NonReplayingEventBus<String>(capacity = 1, scope = busScope)
+            val got = async(start = CoroutineStart.UNDISPATCHED) { bus.flow.first() }
+            bus.post("a")
+            bus.post("b")
+            bus.post("c")
+            advanceUntilIdle()
+            assertEquals("c", got.await())
+        } finally {
+            busScope.cancel()
+        }
+    }
 }

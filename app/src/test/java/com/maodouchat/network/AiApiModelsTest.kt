@@ -154,6 +154,47 @@ class AiApiModelsTest {
     }
 
     @Test
+    fun groupTaskExplicitNullsDecodeAsNull() {
+        val decoded = json.decodeFromString<AiGroupTask>(
+            """{"title":"t","owner":null,"dueText":null,"dueAt":null}"""
+        )
+        assertNull(decoded.owner)
+        assertNull(decoded.dueText)
+        assertNull(decoded.dueAt)
+    }
+
+    @Test
+    fun auditLogResponseExplicitNullsDecodeAsNull() {
+        val decoded = json.decodeFromString<AiAuditLogResponse>(
+            """{"id":"a","feature":"f","status":"ok","createdAt":1,"chatId":null,"model":null,"durationMs":null,"error":null}"""
+        )
+        assertNull(decoded.chatId)
+        assertNull(decoded.model)
+        assertNull(decoded.durationMs)
+        assertNull(decoded.error)
+        assertEquals(0, decoded.inputChars)
+        assertEquals(0, decoded.contextMessages)
+    }
+
+    @Test
+    fun semanticSearchCandidateNegativeTimestampRoundTrips() {
+        val candidate = AiSemanticSearchCandidate(messageId = "m1", sender = "u1", text = "x", timestamp = -1L)
+        assertEquals(candidate, json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate)))
+    }
+
+    @Test
+    fun contextMessageEscapesRoundTrip() {
+        val message = AiContextMessage(sender = "u1", text = "line1\nline2\t\"quoted\"")
+        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
+    }
+
+    @Test
+    fun groupTaskNegativeDueAtDecodesAsIs() {
+        val decoded = json.decodeFromString<AiGroupTask>("""{"title":"t","dueAt":-100}""")
+        assertEquals(-100L, decoded.dueAt)
+    }
+
+    @Test
     fun auditLogResponseChatIdAndDurationDecode() {
         val decoded = json.decodeFromString<AiAuditLogResponse>(
             """{"id":"a8","chatId":"c2","feature":"chat","status":"ok","inputChars":7,"contextMessages":2,"durationMs":90,"createdAt":6}"""
