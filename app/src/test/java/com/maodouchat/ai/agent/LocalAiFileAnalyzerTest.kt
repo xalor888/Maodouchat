@@ -106,4 +106,42 @@ class LocalAiFileAnalyzerTest {
         assertEquals(Kind.TEXT, prepared!!.kind)
         assertEquals("<a/>", prepared.text)
     }
+
+    @Test
+    fun `pdf suffix forces pdf path and rejects text bytes`() {
+        // 扩展名 .pdf 让 looksPdf 为真，文本字节走渲染路径失败，整体回 null。
+        val encoded = Base64.getEncoder().encodeToString("hello".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("notes.pdf", "text/plain", encoded))
+    }
+
+    @Test
+    fun `pdf magic bytes are sniffed regardless of mime`() {
+        val encoded = Base64.getEncoder().encodeToString("%PDF-1.4 junk".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("x.bin", "application/octet-stream", encoded))
+    }
+
+    @Test
+    fun `replacement character text is rejected`() {
+        val encoded = Base64.getEncoder().encodeToString("ab\uFFFDcd".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("bad.txt", "text/plain", encoded))
+    }
+
+    @Test
+    fun `markdown mime is accepted as text`() {
+        val encoded = Base64.getEncoder().encodeToString("# hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.md", "text/markdown", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("# hi", prepared.text)
+    }
+
+    @Test
+    fun `exactly max chars text is kept whole`() {
+        val body = "x".repeat(LocalAiFileAnalyzer.MAX_TEXT_CHARS)
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("exact.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(LocalAiFileAnalyzer.MAX_TEXT_CHARS, prepared!!.text.length)
+        assertEquals(body, prepared.text)
+    }
 }

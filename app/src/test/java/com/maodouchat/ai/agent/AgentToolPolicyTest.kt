@@ -192,4 +192,72 @@ class AgentToolPolicyTest {
         assertEquals(false, AgentToolHost.parseBool("NO"))
     }
 
+    @Test
+    fun `approval follows risk for every catalog tool`() {
+        AgentToolPolicy.tools.forEach { spec ->
+            val expected = when (spec.risk) {
+                Risk.READ -> Approval.ALLOW
+                Risk.WRITE, Risk.SEND -> Approval.NEED_USER
+            }
+            assertEquals(spec.name, expected, AgentToolPolicy.approvalFor(spec.name, emptyMap()))
+        }
+    }
+
+    @Test
+    fun `empty and padded tool names are denied`() {
+        assertEquals(Approval.DENY, AgentToolPolicy.approvalFor("", emptyMap()))
+        assertEquals(Approval.DENY, AgentToolPolicy.approvalFor(" list_chats", emptyMap()))
+        assertEquals(Approval.DENY, AgentToolPolicy.approvalFor("list_chats ", emptyMap()))
+    }
+
+    @Test
+    fun `openai tools json mirrors spec descriptions`() {
+        val json = AgentToolPolicy.openaiToolsJson()
+        assertEquals(AgentToolPolicy.tools.size, json.size)
+        AgentToolPolicy.tools.forEachIndexed { index, spec ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = json[index]["function"] as Map<String, Any?>
+            assertEquals(spec.name, fn["name"])
+            assertEquals(spec.description, fn["description"])
+            assertEquals("object", (fn["parameters"] as Map<String, Any?>)["type"])
+        }
+    }
+
+    @Test
+    fun `openai tools json required lists mirror specs`() {
+        val json = AgentToolPolicy.openaiToolsJson()
+        AgentToolPolicy.tools.forEachIndexed { index, spec ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = json[index]["function"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val params = fn["parameters"] as Map<String, Any?>
+            assertEquals(spec.name, fn["name"])
+            assertEquals(spec.required, params["required"])
+        }
+    }
+
+    @Test
+    fun `openai tools json enums appear only for enum parameters`() {
+        AgentToolPolicy.tools.forEachIndexed { index, spec ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = AgentToolPolicy.openaiToolsJson()[index]["function"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val params = fn["parameters"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val props = params["properties"] as Map<String, Map<String, Any?>>
+            spec.parameters.forEach { (name, param) ->
+                val prop = props[name]
+                assertTrue(spec.name + ":" + name, prop != null)
+                assertEquals(
+                    spec.name + ":" + name,
+                    param.enumValues != null,
+                    prop!!.containsKey("enum")
+                )
+                if (param.enumValues != null) {
+                    assertEquals(param.enumValues, prop["enum"])
+                }
+            }
+        }
+    }
+
 }

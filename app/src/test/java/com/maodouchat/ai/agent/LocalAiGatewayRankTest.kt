@@ -115,4 +115,48 @@ class LocalAiGatewayRankTest {
         )
         assertEquals(listOf("m2"), ranked)
     }
+
+    @Test
+    fun `empty candidates rank to empty`() = runBlocking {
+        assertEquals(emptyList<String>(), LocalAiGateway.rankSemantic("red", emptyList()))
+        assertEquals(emptyList<Pair<String, Double>>(), LocalAiGateway.rankSemanticScored("red", emptyList()))
+    }
+
+    @Test
+    fun `empty string query ranks to empty`() = runBlocking {
+        val candidates = listOf("m1" to "red car")
+        assertEquals(emptyList<String>(), LocalAiGateway.rankSemantic("", candidates))
+        assertEquals(emptyList<Pair<String, Double>>(), LocalAiGateway.rankSemanticScored("", candidates))
+    }
+
+    @Test
+    fun `zero score candidates are filtered between equal hits`() = runBlocking {
+        val candidates = listOf("c1" to "red one", "c2" to "nothing here", "c3" to "red two")
+        assertEquals(listOf("c1", "c3"), LocalAiGateway.rankSemantic("red", candidates))
+        assertEquals(
+            listOf("c1" to 1.0, "c3" to 1.0),
+            LocalAiGateway.rankSemanticScored("red", candidates)
+        )
+    }
+
+    @Test
+    fun `twelfth token counts and earlier tokens score`() = runBlocking {
+        // 子串匹配无词边界：用互不为子串的词，避免 w1 命中 w12 这类前缀干扰。
+        val query = "apple banana cherry dragon eagle falcon gorilla hotel india juliet kilo lima"
+        val scored = LocalAiGateway.rankSemanticScored(
+            query,
+            listOf("c1" to "lima only", "c2" to "apple banana cherry")
+        )
+        assertEquals(listOf("c2" to 3.0, "c1" to 1.0), scored)
+    }
+
+    @Test
+    fun `duplicate candidate ids are both kept`() = runBlocking {
+        val candidates = listOf("c1" to "red one", "c1" to "red two")
+        assertEquals(listOf("c1", "c1"), LocalAiGateway.rankSemantic("red", candidates))
+        assertEquals(
+            listOf("c1" to 1.0, "c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("red", candidates)
+        )
+    }
 }
