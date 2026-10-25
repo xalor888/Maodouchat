@@ -184,6 +184,38 @@ class AgentSecretGatePolicyTest {
     }
 
     @Test
+    fun denialMessagesAreSingleLineWithoutTrailingWhitespace() {
+        listOf(AgentSecretGatePolicy.SECRET_DENIED, AgentSecretGatePolicy.PIN_DENIED).forEach { message ->
+            assertFalse(message.contains("\n"))
+            assertEquals(message.trim(), message)
+        }
+    }
+
+    @Test
+    fun secretDenialMessageIsLongerThanPinDenialMessage() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.length > AgentSecretGatePolicy.PIN_DENIED.length)
+    }
+
+    @Test
+    fun denialMessagesNameTheirOwnSubject() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.contains("assistant"))
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.contains("chat"))
+    }
+
+    @Test
+    fun denialMessagesArePureAscii() {
+        listOf(AgentSecretGatePolicy.SECRET_DENIED, AgentSecretGatePolicy.PIN_DENIED).forEach { message ->
+            assertTrue(message.all { it.code < 128 })
+        }
+    }
+
+    @Test
+    fun denialMessagesStateTheirOwnReason() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.contains("not available"))
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.contains("locked"))
+    }
+
+    @Test
     fun denialResultDomainIsOnlyNullOrTheTwoConstants() {
         val allowed = setOf(
             null,
