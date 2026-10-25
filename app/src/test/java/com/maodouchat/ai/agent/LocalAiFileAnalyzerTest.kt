@@ -144,4 +144,44 @@ class LocalAiFileAnalyzerTest {
         assertEquals(LocalAiFileAnalyzer.MAX_TEXT_CHARS, prepared!!.text.length)
         assertEquals(body, prepared.text)
     }
+
+    @Test
+    fun `csv mime is accepted as text`() {
+        val encoded = Base64.getEncoder().encodeToString("a,b".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.csv", "text/csv", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("a,b", prepared.text)
+    }
+
+    @Test
+    fun `blank mime is rejected even for text bytes`() {
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.txt", "", encoded))
+    }
+
+    @Test
+    fun `uppercase pdf extension forces pdf path`() {
+        val encoded = Base64.getEncoder().encodeToString("hello".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("notes.PDF", "text/plain", encoded))
+    }
+
+    @Test
+    fun `url-safe dash is normalized before decode`() {
+        // ">>>" encodes to "Pj4+" in standard base64; url-safe form swaps '+' for '-'.
+        val prepared = LocalAiFileAnalyzer.prepare("q.txt", "text/plain", "Pj4-")
+        assertNotNull(prepared)
+        assertEquals(">>>", prepared!!.text)
+    }
+
+    @Test
+    fun `pdf magic boundary at five bytes`() {
+        val five = Base64.getEncoder().encodeToString("%PDF-".toByteArray(Charsets.US_ASCII))
+        assertNull(LocalAiFileAnalyzer.prepare("x.txt", "text/plain", five))
+        val four = Base64.getEncoder().encodeToString("%PDF".toByteArray(Charsets.US_ASCII))
+        val prepared = LocalAiFileAnalyzer.prepare("x.txt", "text/plain", four)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("%PDF", prepared.text)
+    }
 }
