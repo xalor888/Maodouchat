@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -203,4 +204,57 @@ class AiRetryPolicyWindowTest {
         val wait = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT)
         assertTrue("own window should stay ~30s, was $wait", wait in 1L..30_000L)
     }
+
+    @Test
+    fun chatIdKeysAreCaseSensitive() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        // 窗口 key 不做大小写归一："Chat-A" 是另一个会话。
+        assertTrue(AiRetryPolicy.canCallNow("Chat-A", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("Chat-A", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun mixedCategoryBoundaryAt240() {
+        repeat(239) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+
+        // 第 240 槽由 HEAVY 填满：全局上限跨类目生效，两类新会话都被挡。
+        AiRetryPolicy.recordCall("chat-239", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun clearSessionRestoresZeroDelayAfterGlobalBlock() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        assertTrue(AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT) > 0L)
+
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun awaitBackoffReturnsImmediatelyWhenNoDelay() = runBlocking {
+        // 无剩余等待时 awaitBackoff 不延迟：直接返回且不占窗口。
+        AiRetryPolicy.awaitBackoff("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun blankChatIdIsDistinctFromEmpty() {
+        AiRetryPolicy.recordCall(" ", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow(" ", AiRetryPolicyCategory.LIGHT))
+        // 空白键与空串键不同：空串会话不受影响。
+        assertTrue(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.recordCall("", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow(" ", AiRetryPolicyCategory.LIGHT))
+    }
+
 }
