@@ -119,4 +119,52 @@ class AiClassifyLexiconTest {
         assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
         assertEquals(0.5, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `social category from laughter and weekend words`() {
+        val laughed = AiClassifyLexicon.classifyText("哈哈哈太好笑了")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, laughed.category)
+        assertEquals(1.0, laughed.confidence, 0.0001)
+        val weekend = AiClassifyLexicon.classifyText("周末去吃饭")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, weekend.category)
+        assertEquals(1.0, weekend.confidence, 0.0001)
+    }
+
+    @Test
+    fun `three-way tie breaks toward earliest category`() {
+        val result = AiClassifyLexicon.classifyText("通知 任务 转账")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `all six categories tied breaks toward notice`() {
+        val result = AiClassifyLexicon.classifyText("通知 任务 转账 学习 代码 哈哈")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0 / 6.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `multi-word phrase needs both words adjacent`() {
+        val repeated = AiClassifyLexicon.classifyText("follow up follow up")
+        assertEquals(AiMessageClassifierCategory.TODO, repeated.category)
+        assertEquals(1.0, repeated.confidence, 0.0001)
+        val split = AiClassifyLexicon.classifyText("follow the plan")
+        assertEquals(AiMessageClassifierCategory.OTHER, split.category)
+        assertEquals(0.2, split.confidence, 0.0001)
+        val reversed = AiClassifyLexicon.classifyText("up follow")
+        assertEquals(AiMessageClassifierCategory.OTHER, reversed.category)
+        assertEquals(0.2, reversed.confidence, 0.0001)
+    }
+
+    @Test
+    fun `blank and beyond-window english fall back to other`() {
+        val blank = AiClassifyLexicon.classifyText("   ")
+        assertEquals(AiMessageClassifierCategory.OTHER, blank.category)
+        assertEquals(0.2, blank.confidence, 0.0001)
+        val pastWindow = AiClassifyLexicon.classifyText("a".repeat(301) + "invoice")
+        assertEquals(AiMessageClassifierCategory.OTHER, pastWindow.category)
+        assertEquals(0.2, pastWindow.confidence, 0.0001)
+    }
+
 }
