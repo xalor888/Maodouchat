@@ -187,6 +187,104 @@ class AgentSessionEngineTest {
     }
 
     @Test
+    fun `text completion is trimmed before final`() = runBlocking {
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("  你有 1 个会话  ") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals("你有 1 个会话", (events.single() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `two read calls in one round execute in order`() = runBlocking {
+        val order = mutableListOf<String>()
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(
+                            AgentToolCall("c1", "list_chats", "{}"),
+                            AgentToolCall("c2", "get_chat_history", """{"chatId":"chat-1"}""")
+                        ),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { name, _ ->
+                order += name
+                "result-$name"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "查两个", null).toList()
+        assertEquals(listOf("list_chats", "get_chat_history"), order)
+        val finished = events.filterIsInstance<AgentTurnEvent.ToolFinished>()
+        assertEquals(listOf("list_chats", "get_chat_history"), finished.map { it.name })
+        assertEquals("done", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `error after a tool round becomes Failed`() = runBlocking {
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Error("late boom")
+                }
+            },
+            executeTool = { _, _ -> "ok" }
+        )
+        val events = engine.runTurn(provider, emptyList(), "列出会话", null).toList()
+        assertTrue(events.any { it is AgentTurnEvent.ToolFinished })
+        assertTrue(events.none { it is AgentTurnEvent.AssistantFinal })
+        assertEquals("late boom", (events.last() as AgentTurnEvent.Failed).message)
+    }
+
+    @Test
+    fun `empty tool calls exhaust rounds without tool events`() = runBlocking {
+        var completions = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                completions++
+                OpenAiCompatClient.Completion.Tools(emptyList(), "")
+            },
+            executeTool = { _, _ -> error("no tool call expected") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals(AgentToolPolicy.MAX_TOOL_ROUNDS, completions)
+        assertTrue(events.none { it is AgentTurnEvent.ToolStarted || it is AgentTurnEvent.ToolFinished })
+        assertEquals("工具轮次过多，已停止", (events.last() as AgentTurnEvent.Failed).message)
+    }
+
+    @Test
+    fun `approved call prefill event comes before the model turn`() = runBlocking {
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("已排队") },
+            executeTool = { _, _ -> "Queued m_1" }
+        )
+        val events = engine.runTurn(
+            provider,
+            emptyList(),
+            "发一句",
+            null,
+            approvedCall = AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")
+        ).toList()
+        val first = events.first() as AgentTurnEvent.ToolFinished
+        assertEquals("send_text_message", first.name)
+        assertEquals("Queued m_1", first.result)
+        assertEquals("已排队", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
     fun `tool rounds exhaust to failed`() = runBlocking {
         var executions = 0
         val engine = AgentSessionEngine(

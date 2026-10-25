@@ -82,4 +82,50 @@ class AgentSecretGatePolicyTest {
         assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, false, true))
         assertTrue(AgentSecretGatePolicy.includeInChatList(false, false, true))
     }
+
+    @Test
+    fun denialConstantsAreExactLiterals() {
+        assertEquals(
+            "Error: secret chats are not available to the assistant",
+            AgentSecretGatePolicy.SECRET_DENIED
+        )
+        assertEquals("Error: chat is PIN-locked", AgentSecretGatePolicy.PIN_DENIED)
+    }
+
+    @Test
+    fun denialConstantsCarryErrorPrefix() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.startsWith("Error: "))
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.startsWith("Error: "))
+    }
+
+    @Test
+    fun secretDenialIgnoresUnlockedFlag() {
+        for (unlocked in listOf(false, true)) {
+            assertEquals(
+                AgentSecretGatePolicy.SECRET_DENIED,
+                AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret = true, isLocked = false, unlocked = unlocked)
+            )
+            assertFalse(AgentSecretGatePolicy.includeInChatList(true, false, unlocked))
+        }
+    }
+
+    @Test
+    fun pinDenialNeedsLockedAndNotUnlockedTogether() {
+        assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, false, false))
+        assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, false, true))
+        assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, true))
+        assertEquals(
+            AgentSecretGatePolicy.PIN_DENIED,
+            AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, false)
+        )
+    }
+
+    @Test
+    fun secretDenialBeatsPinDenialWhenBothApply() {
+        assertEquals(
+            AgentSecretGatePolicy.SECRET_DENIED,
+            AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret = true, isLocked = true, unlocked = false)
+        )
+        assertFalse(AgentSecretGatePolicy.includeInChatList(true, true, false))
+    }
 }

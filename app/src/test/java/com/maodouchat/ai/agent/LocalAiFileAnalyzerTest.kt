@@ -69,4 +69,41 @@ class LocalAiFileAnalyzerTest {
         assertNotNull(prepared)
         assertEquals("???", prepared!!.text)
     }
+
+    @Test
+    fun `uppercase mime is lowercased before the text check`() {
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "TEXT/PLAIN", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("hi", prepared.text)
+    }
+
+    @Test
+    fun `blank file name defaults to document txt`() {
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals("document.txt", prepared!!.fileName)
+        assertEquals("text/plain", prepared.mimeType)
+    }
+
+    @Test
+    fun `illegal base64 is rejected`() {
+        assertNull(LocalAiFileAnalyzer.prepare("a.txt", "text/plain", "!!!"))
+    }
+
+    @Test
+    fun `empty input is rejected`() {
+        assertNull(LocalAiFileAnalyzer.prepare("a.txt", "text/plain", ""))
+    }
+
+    @Test
+    fun `xml mime is accepted as text`() {
+        val encoded = Base64.getEncoder().encodeToString("<a/>".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.xml", "application/xml", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("<a/>", prepared.text)
+    }
 }
