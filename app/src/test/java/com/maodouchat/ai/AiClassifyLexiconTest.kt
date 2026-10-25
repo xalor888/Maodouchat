@@ -167,4 +167,39 @@ class AiClassifyLexiconTest {
         assertEquals(0.2, pastWindow.confidence, 0.0001)
     }
 
+@Test
+    fun `finance study tie breaks toward finance`() {
+        val result = AiClassifyLexicon.classifyText("转账 付款 学习 考试")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english keyword exactly filling the scan window still counts`() {
+        val result = AiClassifyLexicon.classifyText("a".repeat(293) + "invoice")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `the word other itself has no lexicon entry`() {
+        val result = AiClassifyLexicon.classifyText("other")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `multi-word phrase matches ignoring case`() {
+        val result = AiClassifyLexicon.classifyText("FOLLOW UP")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `dominant category confidence is its share of all hits`() {
+        val result = AiClassifyLexicon.classifyText("代码 服务器 bug 学习")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        // TECH 词典里 "bug" 列了两次，两次都计命中，所以是 4/5 而不是 3/4。
+        assertEquals(0.8, result.confidence, 0.0001)
+    }
 }

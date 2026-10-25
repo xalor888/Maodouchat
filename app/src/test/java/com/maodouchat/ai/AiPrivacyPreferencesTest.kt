@@ -232,4 +232,59 @@ class AiPrivacyPreferencesTest {
             AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "用户-1")
         )
     }
+
+@Test
+    fun `scoped key keeps newline and tab in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:u\n1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u\n1")
+        )
+        assertEquals(
+            "ai_consent_accepted:u\t1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u\t1")
+        )
+    }
+
+    @Test
+    fun `scoped key with empty user id keeps trailing colon for every base`() {
+        val bases = listOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE
+        )
+        for (base in bases) {
+            assertEquals("$base:", AiPrivacyPreferences.scopedKey(base, ""))
+        }
+    }
+
+    @Test
+    fun `scoped key length is base plus colon plus user id`() {
+        val scoped = AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-123")
+        assertEquals(
+            AiPrivacyPreferences.KEY_CONSENT.length + 1 + "u-123".length,
+            scoped.length
+        )
+    }
+
+    @Test
+    fun `scoped key keeps spaces in the base verbatim`() {
+        assertEquals(
+            " my base :u",
+            AiPrivacyPreferences.scopedKey(" my base ", "u")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps emoji user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:u-😀",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-😀")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-😀")
+        )
+    }
 }
