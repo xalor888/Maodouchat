@@ -182,4 +182,65 @@ class AiRetryPolicyTest {
         assertTrue(first.shouldRetry)
         assertEquals(800L, first.delayMs)
     }
+
+    @Test
+    fun lowercaseCodesNormalizeBeforeBranchMatching() {
+        // 基码归一化会大写：小写输入同样走限流/配额分支。
+        val limited = AiRetryPolicy.decide("rate_limited:45", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(45_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("quota_exceeded", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(300_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
+
+    @Test
+    fun tooManyWithoutSuffixReportsRateLimitSignalWithZeroWait() {
+        // TOO_MANY 命中限流分支，但等待秒数按基码查表：裸 TOO_MANY_REQUESTS 不在表里，等待为 0。
+        val tooMany = AiRetryPolicy.decide("TOO_MANY_REQUESTS", attempts = 1)
+        assertFalse(tooMany.shouldRetry)
+        assertEquals(0L, tooMany.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, tooMany.visibleErrorCode)
+    }
+
+    @Test
+    fun quotaSuffixFlowsIntoQuotaWait() {
+        val withSuffix = AiRetryPolicy.decide("QUOTA_EXCEEDED:90", attempts = 1)
+        assertFalse(withSuffix.shouldRetry)
+        assertEquals(90_000L, withSuffix.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, withSuffix.visibleErrorCode)
+
+        val bare = AiRetryPolicy.decide("QUOTA_EXCEEDED", attempts = 1)
+        assertFalse(bare.shouldRetry)
+        assertEquals(300_000L, bare.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, bare.visibleErrorCode)
+    }
+
+    @Test
+    fun attemptCapBeatsBranchMapping() {
+        // attempts≥3 先于分支判定返回：后缀秒数不再生效，等待归零。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED:45", attempts = 3)
+        assertFalse(limited.shouldRetry)
+        assertEquals(0L, limited.delayMs)
+        assertEquals("RATE_LIMITED", limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("QUOTA_EXCEEDED:90", attempts = 3)
+        assertFalse(quota.shouldRetry)
+        assertEquals(0L, quota.delayMs)
+        assertEquals("QUOTA_EXCEEDED", quota.visibleErrorCode)
+    }
+
+    @Test
+    fun authBranchWinsOverQuotaBranch() {
+        // 分支顺序：限流 → 认证 → 配额，同时含 AUTH 与 QUOTA 的码走认证分支。
+        listOf("AUTH_QUOTA", "QUOTA_AUTH").forEach { errorCode ->
+            val decision = AiRetryPolicy.decide(errorCode, attempts = 1)
+            assertFalse(errorCode, decision.shouldRetry)
+            assertEquals(0L, decision.delayMs)
+            assertEquals(errorCode, decision.visibleErrorCode)
+        }
+    }
 }
