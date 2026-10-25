@@ -304,4 +304,147 @@ class AgentSessionEngineTest {
         assertTrue(events.last() is AgentTurnEvent.Failed)
         assertEquals("工具轮次过多，已停止", (events.last() as AgentTurnEvent.Failed).message)
     }
+
+    @Test
+    fun `unknown tool in a round does not block the next read call`() = runBlocking {
+        var executed = 0
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(
+                            AgentToolCall("c0", "dump_host_sql", "{}"),
+                            AgentToolCall("c1", "list_chats", "{}")
+                        ),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("ok")
+                }
+            },
+            executeTool = { name, _ ->
+                executed++
+                assertEquals("list_chats", name)
+                "ok"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals(1, executed)
+        assertEquals(
+            listOf("list_chats"),
+            events.filterIsInstance<AgentTurnEvent.ToolFinished>().map { it.name }
+        )
+        assertTrue(events.none { it is AgentTurnEvent.ToolStarted && it.name == "dump_host_sql" })
+        assertEquals("ok", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `need-user call after an allowed call stops the round`() = runBlocking {
+        var executed = 0
+        var completions = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                completions++
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(
+                        AgentToolCall("c1", "list_chats", "{}"),
+                        AgentToolCall("c2", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")
+                    ),
+                    ""
+                )
+            },
+            executeTool = { _, _ ->
+                executed++
+                "ok"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "发一句", null).toList()
+        assertEquals(1, executed)
+        assertEquals(1, completions)
+        assertEquals(3, events.size)
+        assertEquals("list_chats", (events[0] as AgentTurnEvent.ToolStarted).name)
+        assertEquals("list_chats", (events[1] as AgentTurnEvent.ToolFinished).name)
+        assertEquals("send_text_message", (events[2] as AgentTurnEvent.NeedsApproval).pending.call.name)
+        assertTrue(events.none { it is AgentTurnEvent.AssistantFinal || it is AgentTurnEvent.Failed })
+    }
+
+    @Test
+    fun `blank rewrite text reports error without a model call`() = runBlocking {
+        var completions = 0
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                completions++
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "rewrite_text", """{"text":"   ","mode":"polish"}""")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { _, _ -> error("rewrite must not reach the host") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "润色这句", null).toList()
+        assertEquals(2, completions)
+        val finished = events.filterIsInstance<AgentTurnEvent.ToolFinished>().single()
+        assertEquals("rewrite_text", finished.name)
+        assertEquals("Error: text required", finished.result)
+        assertEquals("done", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `rewrite model error surfaces as the tool result`() = runBlocking {
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                when (round) {
+                    1 -> OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hi","mode":"polish"}""")),
+                        ""
+                    )
+                    2 -> OpenAiCompatClient.Completion.Error("model down")
+                    else -> OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { _, _ -> error("rewrite must not reach the host") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "润色这句", null).toList()
+        assertEquals(3, round)
+        val finished = events.filterIsInstance<AgentTurnEvent.ToolFinished>().single()
+        assertEquals("rewrite_text", finished.name)
+        assertEquals("model down", finished.result)
+        assertEquals("done", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `history system messages are filtered and user text is capped`() = runBlocking {
+        var captured: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                if (captured.isEmpty()) captured = messages.toList()
+                OpenAiCompatClient.Completion.Text("done")
+            },
+            executeTool = { _, _ -> error("no tool call expected") }
+        )
+        val history = listOf(
+            AgentChatMessage(role = "system", content = "sys-old"),
+            AgentChatMessage(role = "user", content = "old")
+        )
+        val events = engine.runTurn(provider, history, "x".repeat(5000), null).toList()
+        assertEquals("done", (events.single() as AgentTurnEvent.AssistantFinal).text)
+        assertEquals("system", captured.first().role)
+        assertTrue(captured.none { it.content == "sys-old" })
+        assertTrue(captured.any { it.role == "user" && it.content == "old" })
+        val last = captured.last()
+        assertEquals("user", last.role)
+        assertEquals(4000, last.content.length)
+        assertEquals("x".repeat(4000), last.content)
+    }
+
 }

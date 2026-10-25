@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -218,6 +219,164 @@ class LocalAiProtocolCodecTest {
         assertEquals("r", LocalAiProtocolCodec.sseVisibleText(mixed))
         val blank = org.json.JSONObject("""{"content":"","reasoning_content":123}""")
         assertEquals("", LocalAiProtocolCodec.sseVisibleText(blank))
+    }
+
+    @Test
+    fun `sampling and max tokens clamp at the bounds`() {
+        val hot = provider.copy(temperature = 5.0, topP = 2.0, maxTokens = 5)
+        val chat = LocalAiProtocolCodec.chatCompletionsBody(hot, emptyList(), null, stream = false)
+        assertEquals(2.0, chat.getDouble("temperature"), 0.0)
+        assertEquals(1.0, chat.getDouble("top_p"), 0.0)
+        assertEquals(16, chat.getInt("max_tokens"))
+        val huge = provider.copy(maxTokens = 999_999)
+        assertEquals(
+            128_000,
+            LocalAiProtocolCodec.chatCompletionsBody(huge, emptyList(), null, stream = false).getInt("max_tokens")
+        )
+        val anthropic = LocalAiProtocolCodec.anthropicBody(
+            provider.copy(protocol = LocalAiProtocol.ANTHROPIC_MESSAGES, temperature = 5.0),
+            emptyList(), null, stream = false
+        )
+        assertEquals(1.0, anthropic.getDouble("temperature"), 0.0)
+        val cold = provider.copy(temperature = -1.0)
+        assertEquals(
+            0.0,
+            LocalAiProtocolCodec.chatCompletionsBody(cold, emptyList(), null, stream = false).getDouble("temperature"),
+            0.0
+        )
+    }
+
+    @Test
+    fun `chat completions body encodes tool calls and results`() {
+        val messages = listOf(
+            AgentChatMessage(role = "user", content = "hi"),
+            AgentChatMessage(
+                role = "assistant",
+                content = "",
+                toolCalls = listOf(AgentToolCall("c1", "list_chats", "{}"))
+            ),
+            AgentChatMessage(role = "tool", content = "res", toolCallId = "c1", toolName = "list_chats")
+        )
+        val body = LocalAiProtocolCodec.chatCompletionsBody(provider, messages, null, stream = false)
+        val encoded = body.getJSONArray("messages")
+        assertEquals(3, encoded.length())
+        assertEquals("hi", encoded.getJSONObject(0).getString("content"))
+        val calls = encoded.getJSONObject(1).getJSONArray("tool_calls")
+        assertEquals("c1", calls.getJSONObject(0).getString("id"))
+        assertEquals("function", calls.getJSONObject(0).getString("type"))
+        assertEquals("list_chats", calls.getJSONObject(0).getJSONObject("function").getString("name"))
+        assertEquals("{}", calls.getJSONObject(0).getJSONObject("function").getString("arguments"))
+        assertEquals("res", encoded.getJSONObject(2).getString("content"))
+        assertEquals("c1", encoded.getJSONObject(2).getString("tool_call_id"))
+        assertEquals("list_chats", encoded.getJSONObject(2).getString("name"))
+        val unnamed = LocalAiProtocolCodec.chatCompletionsBody(
+            provider,
+            listOf(AgentChatMessage(role = "tool", content = "res", toolCallId = "c9")),
+            null, stream = false
+        )
+        assertFalse(unnamed.getJSONArray("messages").getJSONObject(0).has("name"))
+    }
+
+    @Test
+    fun `responses body flattens tools and encodes tool traffic`() {
+        val tools = AgentToolPolicy.openaiToolsJson().take(1)
+        val expectedName = (tools.single()["function"] as Map<*, *>)["name"] as String
+        val body = LocalAiProtocolCodec.responsesBody(provider, emptyList(), tools, stream = true)
+        assertEquals(false, body.getBoolean("stream"))
+        assertEquals("auto", body.getString("tool_choice"))
+        val encodedTools = body.getJSONArray("tools")
+        assertEquals(1, encodedTools.length())
+        assertEquals("function", encodedTools.getJSONObject(0).getString("type"))
+        assertEquals(expectedName, encodedTools.getJSONObject(0).getString("name"))
+        val traffic = LocalAiProtocolCodec.responsesBody(
+            provider, listOf(
+                AgentChatMessage(
+                    role = "assistant",
+                    content = "",
+                    toolCalls = listOf(AgentToolCall("c1", "list_chats", "{}"))
+                ),
+                AgentChatMessage(role = "tool", content = "res", toolCallId = "c1")
+            ), null, stream = false
+        )
+        val input = traffic.getJSONArray("input")
+        assertEquals(2, input.length())
+        assertEquals("function_call", input.getJSONObject(0).getString("type"))
+        assertEquals("c1", input.getJSONObject(0).getString("call_id"))
+        assertEquals("function_call_output", input.getJSONObject(1).getString("type"))
+        assertEquals("c1", input.getJSONObject(1).getString("call_id"))
+        assertEquals("res", input.getJSONObject(1).getString("output"))
+    }
+
+    @Test
+    fun `anthropic body joins system prompts and flushes tool results`() {
+        val joined = LocalAiProtocolCodec.anthropicBody(
+            provider.copy(protocol = LocalAiProtocol.ANTHROPIC_MESSAGES),
+            listOf(
+                AgentChatMessage(role = "system", content = "a"),
+                AgentChatMessage(role = "system", content = "b"),
+                AgentChatMessage(role = "user", content = "hi")
+            ),
+            null, stream = false
+        )
+        assertEquals("a\nb", joined.getString("system"))
+        assertEquals(1, joined.getJSONArray("messages").length())
+        assertEquals("hi", joined.getJSONArray("messages").getJSONObject(0).getString("content"))
+        val blankSystem = LocalAiProtocolCodec.anthropicBody(
+            provider.copy(protocol = LocalAiProtocol.ANTHROPIC_MESSAGES),
+            listOf(
+                AgentChatMessage(role = "system", content = "  "),
+                AgentChatMessage(role = "user", content = "hi")
+            ),
+            null, stream = false
+        )
+        assertFalse(blankSystem.has("system"))
+        val flushed = LocalAiProtocolCodec.anthropicBody(
+            provider.copy(protocol = LocalAiProtocol.ANTHROPIC_MESSAGES),
+            listOf(
+                AgentChatMessage(
+                    role = "assistant",
+                    content = "",
+                    toolCalls = listOf(AgentToolCall("c1", "list_chats", "{}"))
+                ),
+                AgentChatMessage(role = "tool", content = "res", toolCallId = "c1"),
+                AgentChatMessage(role = "user", content = "hi")
+            ),
+            null, stream = false
+        )
+        val messages = flushed.getJSONArray("messages")
+        assertEquals(3, messages.length())
+        assertEquals("assistant", messages.getJSONObject(0).getString("role"))
+        val toolUse = messages.getJSONObject(0).getJSONArray("content").getJSONObject(0)
+        assertEquals("tool_use", toolUse.getString("type"))
+        assertEquals("c1", toolUse.getString("id"))
+        assertEquals("user", messages.getJSONObject(1).getString("role"))
+        val toolResult = messages.getJSONObject(1).getJSONArray("content").getJSONObject(0)
+        assertEquals("tool_result", toolResult.getString("type"))
+        assertEquals("c1", toolResult.getString("tool_use_id"))
+        assertEquals("res", toolResult.getString("content"))
+        assertEquals("hi", messages.getJSONObject(2).getString("content"))
+    }
+
+    @Test
+    fun `response parsers and sse handle error and fallback edges`() {
+        val malformed = LocalAiProtocolCodec.parseResponses("{oops")
+        assertTrue(malformed is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型返回不是 JSON", (malformed as OpenAiCompatClient.Completion.Error).message)
+        val textOnly = LocalAiProtocolCodec.parseResponses(
+            """{"output":[{"type":"message","content":[{"type":"output_text","text":"he"},{"type":"text","text":"llo"}]}]}"""
+        )
+        assertTrue(textOnly is OpenAiCompatClient.Completion.Text)
+        assertEquals("hello", (textOnly as OpenAiCompatClient.Completion.Text).content)
+        val noInput = LocalAiProtocolCodec.parseAnthropic(
+            """{"content":[{"type":"tool_use","id":"tu1","name":"list_chats"}]}"""
+        )
+        assertTrue(noInput is OpenAiCompatClient.Completion.Tools)
+        val call = (noInput as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("tu1", call.id)
+        assertEquals("{}", call.argumentsJson)
+        val emptyStream = LocalAiProtocolCodec.parseSseChat("data: [DONE]\n") { error("no delta expected") }
+        assertTrue(emptyStream is OpenAiCompatClient.Completion.Error)
+        assertEquals("empty stream", (emptyStream as OpenAiCompatClient.Completion.Error).message)
     }
 
 }

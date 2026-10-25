@@ -421,4 +421,69 @@ class AiEntryPolicyTest {
         }
     }
 
+    @Test
+    fun `transcript flag leaves non-voice actions unchanged`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("SYSTEM", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("MARKDOWN", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("GIF", hasTranscript = true)
+        )
+        assertTrue(AiEntryPolicy.hasContextAiActions("SYSTEM", hasTranscript = true))
+        assertTrue(AiEntryPolicy.hasContextAiActions("MARKDOWN", hasTranscript = true))
+        assertTrue(AiEntryPolicy.hasContextAiActions("GIF", hasTranscript = true))
+    }
+
+    @Test
+    fun `internal whitespace never folds to a known type`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("T EXT").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("VO ICE").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("IM AGE").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("FI LE").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT TEXT").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT\tTEXT").isEmpty())
+    }
+
+    @Test
+    fun `prefix and suffix variants match nothing`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXTS").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT2").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("IMAGES").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("VOICES").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("FILEX").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT-FILE").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TEXTS"))
+    }
+
+    @Test
+    fun `non-breaking space folds before type matching`() {
+        // Kotlin trim 会剥离 U+00A0，所以 NBSP 前后缀不影响类型匹配。
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u00A0TEXT")
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("TEXT\u00A0")
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor("\u00A0").isEmpty())
+    }
+
+    @Test
+    fun `non-voice actions ignore the transcript flag`() {
+        val types = listOf("TEXT", "MARKDOWN", "SYSTEM", "IMAGE", "GIF", "FILE", "POLL", null, "  ")
+        for (type in types) {
+            assertEquals(
+                AiEntryPolicy.contextActionsFor(type, hasTranscript = false),
+                AiEntryPolicy.contextActionsFor(type, hasTranscript = true)
+            )
+        }
+    }
+
 }
