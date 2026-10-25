@@ -365,4 +365,49 @@ class AiLocalRulesTest {
         assertEquals(0.2, split.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `classify red packet and coupon hits stay finance`() {
+        val result = AiMessageClassifier.classifyText("红包 优惠")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify english social words hit social`() {
+        val result = AiMessageClassifier.classifyText("haha lol weekend")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion chinese praise words hit happy`() {
+        val one = AiEmotionReply.detectEmotion(listOf("太好了 棒"))
+        assertEquals(Emotion.HAPPY, one.emotion)
+        assertEquals(1.0, one.confidence, 0.0001)
+        val two = AiEmotionReply.detectEmotion(listOf("太好了", "棒"))
+        assertEquals(Emotion.HAPPY, two.emotion)
+        assertEquals(1.0, two.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion angry wins tie over anxious`() {
+        val result = AiEmotionReply.detectEmotion(listOf("生气 担心"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val reversed = AiEmotionReply.detectEmotion(listOf("担心 生气"))
+        assertEquals(Emotion.ANGRY, reversed.emotion)
+        assertEquals(0.5, reversed.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify exam keyword at scan window edge`() {
+        val whole = AiMessageClassifier.classifyText("垫".repeat(298) + "考试")
+        assertEquals(AiMessageClassifierCategory.STUDY, whole.category)
+        assertEquals(1.0, whole.confidence, 0.0001)
+        val split = AiMessageClassifier.classifyText("垫".repeat(299) + "考试")
+        assertEquals(AiMessageClassifierCategory.OTHER, split.category)
+        assertEquals(0.2, split.confidence, 0.0001)
+    }
+
 }
