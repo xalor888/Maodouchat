@@ -281,4 +281,41 @@ class AiLocalRulesTest {
         assertEquals(0.5, reversed.confidence, 0.0001)
     }
 
+    @Test
+    fun `classify all finance keywords stay at full confidence`() {
+        val result = AiMessageClassifier.classifyText("转账 账单 付款")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify repeated keyword still ties to first category`() {
+        // 重复词只计一次：转账与部署仍是 1 比 1 平局，取枚举在前的 FINANCE。
+        val result = AiMessageClassifier.classifyText("转账 转账 部署")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion share across texts favors sad majority`() {
+        val result = AiEmotionReply.detectEmotion(listOf("开心", "难过", "难过"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(2.0 / 3.0, result.confidence, 0.001)
+    }
+
+    @Test
+    fun `detect emotion per text window ignores far keyword in one text`() {
+        // 首条文本的关键词在 200 字窗口外，不影响第二条文本的 SAD 满置信度。
+        val result = AiEmotionReply.detectEmotion(listOf("垫".repeat(250) + "开心", "难过"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify keyword just inside scan window still counts`() {
+        val result = AiMessageClassifier.classifyText("垫".repeat(297) + "转账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
