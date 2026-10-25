@@ -290,8 +290,8 @@ class AiClassifyLexiconTest {
 
     @Test
     fun `multi-word phrase exactly filling the scan window still counts`() {
-        // 292 个垫字 + "follow up" 恰好 300 字符，短语完整落在窗口内
-        val result = AiClassifyLexicon.classifyText("a".repeat(292) + "follow up")
+        // 291 个垫字 + "follow up"（9 字符）恰好 300 字符，短语完整落在窗口内
+        val result = AiClassifyLexicon.classifyText("a".repeat(291) + "follow up")
         assertEquals(AiMessageClassifierCategory.TODO, result.category)
         assertEquals(1.0, result.confidence, 0.0001)
     }
