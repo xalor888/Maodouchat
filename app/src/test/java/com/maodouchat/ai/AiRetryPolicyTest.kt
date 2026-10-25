@@ -308,4 +308,63 @@ class AiRetryPolicyTest {
         assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
     }
 
+    @Test
+    fun decideRateLimitBranchWinsOverQuotaBranch() {
+        // 限流分支在前：同时含限流与配额特征的码走限流分支，等待按基码查表（无内嵌秒数、无默认码，等待为 0）。
+        listOf("RATE_LIMITED_QUOTA", "TOO_MANY_QUOTA").forEach { errorCode ->
+            val decision = AiRetryPolicy.decide(errorCode, attempts = 1)
+            assertFalse(errorCode, decision.shouldRetry)
+            assertEquals(errorCode, 0L, decision.delayMs)
+            assertEquals(errorCode, AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+        }
+    }
+
+    @Test
+    fun decidePaymentFlavorWithSuffixFlowsIntoQuotaWait() {
+        val withSuffix = AiRetryPolicy.decide("PAYMENT_REQUIRED:120", attempts = 1)
+        assertFalse(withSuffix.shouldRetry)
+        assertEquals(120_000L, withSuffix.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, withSuffix.visibleErrorCode)
+
+        val bare = AiRetryPolicy.decide("PAYMENT_REQUIRED", attempts = 1)
+        assertFalse(bare.shouldRetry)
+        assertEquals(0L, bare.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, bare.visibleErrorCode)
+    }
+
+    @Test
+    fun decideCapCaseKeepsNormalizedCodeAsVisibleError() {
+        val nullCode = AiRetryPolicy.decide(null, attempts = 3)
+        assertFalse(nullCode.shouldRetry)
+        assertEquals(0L, nullCode.delayMs)
+        assertEquals("UNKNOWN", nullCode.visibleErrorCode)
+        assertEquals("reached max auto retries; user must retry", nullCode.explanation)
+
+        val timeout = AiRetryPolicy.decide("TIMEOUT", attempts = 3)
+        assertFalse(timeout.shouldRetry)
+        assertEquals(0L, timeout.delayMs)
+        assertEquals("TIMEOUT", timeout.visibleErrorCode)
+    }
+
+    @Test
+    fun decideEmptyCodeResolvesToUnknown() {
+        val decision = AiRetryPolicy.decide("", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("UNKNOWN", decision.visibleErrorCode)
+        assertEquals("non-transient error", decision.explanation)
+    }
+
+    @Test
+    fun heavyPerChatWindowBlocksAndReportsWait() {
+        AiRetryPolicy.clearSession()
+        AiRetryPolicy.recordCall("chat-h", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("chat-h", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.remainingDelayMs("chat-h", AiRetryPolicyCategory.HEAVY) > 0L)
+        assertTrue(AiRetryPolicy.canCallNow("chat-h", AiRetryPolicyCategory.LIGHT))
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("chat-h", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-h", AiRetryPolicyCategory.HEAVY))
+    }
+
 }
