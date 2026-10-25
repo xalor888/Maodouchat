@@ -261,4 +261,47 @@ class GroupAiSharePolicyTest {
         )
         assertEquals(listOf("b", "a"), cleaned.map { it.title })
     }
+
+    @Test
+    fun `shareAssistantMode exact 40 boundary passes through`() {
+        assertEquals("x".repeat(40), GroupAiSharePolicy.shareAssistantMode("x".repeat(40)))
+    }
+
+    @Test
+    fun `sanitize caps keep exact lengths cut one over`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(
+                TaskDraft(title = "x".repeat(361), owner = "y".repeat(100)),
+                TaskDraft(title = "ok", owner = "y".repeat(101))
+            )
+        )
+        assertEquals(360, cleaned[0].title.length)
+        assertEquals(100, cleaned[0].owner!!.length)
+        assertEquals(100, cleaned[1].owner!!.length)
+    }
+
+    @Test
+    fun `sanitize dueText exact 120 passes through`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", dueText = "z".repeat(120)))
+        )
+        assertEquals(120, cleaned.single().dueText!!.length)
+    }
+
+    @Test
+    fun `decideShare keeps internal newlines trims only ends`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "  a\nb  ")
+        assertTrue(decision.allowed)
+        assertEquals("a\nb", decision.body)
+    }
+
+    @Test
+    fun `share meta blank mode nulls mode keeps keys`() {
+        val meta = GroupAiSharePolicy.shareAsCurrentUserMeta("   ")
+        assertEquals(true, meta["aiAssisted"])
+        assertNull(meta["aiAssistantMode"])
+        assertEquals(false, meta["systemIdentity"])
+        assertEquals(setOf("aiAssisted", "aiAssistantMode", "systemIdentity"), meta.keys)
+    }
+
 }

@@ -420,4 +420,67 @@ class AiCostVisibilityPolicyTest {
         assertEquals(BillingHint.QUOTA_EXCEEDED, embedded.hint)
         assertTrue(embedded.warnRetryBills)
     }
+
+    @Test
+    fun `classify bare 402 status is quota without code or message`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 402,
+            serverCode = null,
+            serverMessage = null
+        )
+        assertTrue(signal.isQuota)
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `classify message only too many requests is rate limited`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "Too many requests, try later"
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `classify billing code is quota`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "billing_issue",
+            serverMessage = null
+        )
+        assertTrue(signal.isQuota)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(signal))
+        assertEquals(BillingHint.QUOTA_EXCEEDED, AiCostVisibilityPolicy.billingHintFor("BILLING_ISSUE"))
+    }
+
+    @Test
+    fun `embedded retry after rejects non numeric and leading colon`() {
+        assertTrue(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:abc") == null)
+        assertTrue(AiCostVisibilityPolicy.embeddedRetryAfterSeconds(":45") == null)
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED: 45"))
+    }
+
+    @Test
+    fun `display signal binds auto retry and timeout outcome`() {
+        val auto = AiCostVisibilityPolicy.displaySignalFor(
+            "CONNECTION_NOT_ESTABLISHED",
+            hasScheduledAutoRetry = true
+        )
+        assertEquals("CONNECTION_NOT_ESTABLISHED", auto.errorCode)
+        assertEquals(0L, auto.waitSeconds)
+        assertEquals(BillingHint.SAFE_AUTO_RETRY, auto.hint)
+        assertFalse(auto.warnRetryBills)
+        val timeout = AiCostVisibilityPolicy.displaySignalFor("TIMEOUT", isFailed = true)
+        assertEquals("TIMEOUT", timeout.errorCode)
+        assertEquals(0L, timeout.waitSeconds)
+        assertEquals(BillingHint.OUTCOME_UNKNOWN_MAY_BILL, timeout.hint)
+        assertTrue(timeout.warnRetryBills)
+    }
+
 }
