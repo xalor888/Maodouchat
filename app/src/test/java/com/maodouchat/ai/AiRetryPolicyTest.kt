@@ -243,4 +243,69 @@ class AiRetryPolicyTest {
             assertEquals(errorCode, decision.visibleErrorCode)
         }
     }
+
+    @Test
+    fun decideNegativeAttemptsTreatedAsFirstRetry() {
+        // attempts 为负时 (attempts - 1).coerceAtLeast(0) 归零：按首次重试计 800ms。
+        val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = -1)
+        assertTrue(decision.shouldRetry)
+        assertEquals(800L, decision.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideRateLimitBranchWinsOverAuthBranch() {
+        // 分支顺序限流在前：同时含限流与认证特征的码走限流分支。
+        listOf("RATE_LIMITED_AUTH", "TOO_MANY_AUTH").forEach { errorCode ->
+            val decision = AiRetryPolicy.decide(errorCode, attempts = 1)
+            assertFalse(errorCode, decision.shouldRetry)
+            assertEquals(errorCode, 0L, decision.delayMs)
+            assertEquals(errorCode, AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+        }
+    }
+
+    @Test
+    fun decideBudgetFlavorWithSuffixFlowsIntoQuotaWait() {
+        // BUDGET 走配额分支：裸码等待为 0，内嵌秒数按后缀计费等待。
+        val bare = AiRetryPolicy.decide("BUDGET_EXCEEDED", attempts = 1)
+        assertFalse(bare.shouldRetry)
+        assertEquals(0L, bare.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, bare.visibleErrorCode)
+
+        val withSuffix = AiRetryPolicy.decide("BUDGET_EXCEEDED:60", attempts = 1)
+        assertFalse(withSuffix.shouldRetry)
+        assertEquals(60_000L, withSuffix.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, withSuffix.visibleErrorCode)
+    }
+
+    @Test
+    fun decideExplanationTextsAreStablePerBranch() {
+        assertEquals("rate-limited; ask user to wait",
+            AiRetryPolicy.decide("RATE_LIMITED", attempts = 1).explanation)
+        assertEquals("auth required; do not auto-retry",
+            AiRetryPolicy.decide("UNAUTHORIZED", attempts = 1).explanation)
+        assertEquals("quota exceeded; do not auto-retry",
+            AiRetryPolicy.decide("QUOTA_EXCEEDED", attempts = 1).explanation)
+        assertEquals("connection was not established; safe to retry",
+            AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = 1).explanation)
+        assertEquals("reached max auto retries; user must retry",
+            AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = 3).explanation)
+        assertEquals("non-transient error",
+            AiRetryPolicy.decide("TIMEOUT", attempts = 1).explanation)
+    }
+
+    @Test
+    fun decideWhitespaceAroundCodeIsTrimmedBeforeBranchMatching() {
+        // 基码解析先 trim：首尾空白 + 小写不影响分支与内嵌秒数。
+        val limited = AiRetryPolicy.decide("  RATE_LIMITED:45  ", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(45_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide(" quota_exceeded ", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(300_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
+
 }

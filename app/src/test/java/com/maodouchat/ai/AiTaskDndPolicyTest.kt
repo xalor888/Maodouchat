@@ -135,4 +135,39 @@ class AiTaskDndPolicyTest {
         assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1350, 1350, 420, 5_000L))
         assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 420, 1350, 420, 5_000L))
     }
+
+    @Test
+    fun `clamped negative bounds collapse to an empty window`() {
+        // 起止都被钳到 0：相等即空窗口，连钳制点本身也不抑制。
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, -100, -50))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(30, -100, -50))
+    }
+
+    @Test
+    fun `inverted bounds always mean overnight regardless of hour`() {
+        // 分支只看起止大小：100→60 不是空窗口，而是跨夜窗口（早晨段在内）。
+        assertTrue(AiTaskDndPolicy.isInQuietHours(30, 100, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(80, 100, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(100, 100, 60))
+    }
+
+    @Test
+    fun `nextAllowedTime inside inverted window returns its end`() {
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 30, 100, 60, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 80, 100, 60, 5_000L))
+    }
+
+    @Test
+    fun `same-day outside window returns null even with a future end`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 10, 12, 14, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 11, 12, 14, 5_000L))
+    }
+
+    @Test
+    fun `clamped day-end minute never falls inside an end-exclusive window`() {
+        // 1500 被钳到 1439，而窗口右端恒开：[1400, 1439) 与 [1438, 1439) 都不含它。
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1500, 1400, 1439))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1500, 1438, 1439))
+    }
+
 }
