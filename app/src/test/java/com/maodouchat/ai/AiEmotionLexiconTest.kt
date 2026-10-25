@@ -115,4 +115,41 @@ class AiEmotionLexiconTest {
         assertEquals(Emotion.SAD, result.emotion)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `three way tie breaks toward first listed emotion`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "难过", "生气"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad versus anxious tie breaks toward sad`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过", "焦虑"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `repeated occurrence of one word counts once`() {
+        // 按词典词条 presence 计数：同一词出现多次仍只计 1 次
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈 哈哈 哈哈"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `empty string element yields neutral`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf(""))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `anxious english words aggregate`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("so worried nervous"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }

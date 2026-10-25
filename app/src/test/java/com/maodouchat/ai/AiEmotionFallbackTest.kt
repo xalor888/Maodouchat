@@ -108,4 +108,43 @@ class AiEmotionFallbackTest {
             }
         }
     }
+
+    @Test
+    fun `two full sweeps return identical lists`() {
+        val first = Emotion.entries.map { AiEmotionFallback.localFallback(context, it) }
+        val second = Emotion.entries.map { AiEmotionFallback.localFallback(context, it) }
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun `reverse order pass matches reversed forward pass`() {
+        val forward = Emotion.entries.map { AiEmotionFallback.localFallback(context, it) }
+        val reversed = Emotion.entries.reversed().map { AiEmotionFallback.localFallback(context, it) }
+        assertEquals(forward.reversed(), reversed)
+    }
+
+    @Test
+    fun `no template leaks its resource name`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertFalse("$emotion 的模板不应含资源名", text.contains("ai_emotion_fallback"))
+        }
+    }
+
+    @Test
+    fun `no template has surrounding whitespace`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertEquals("$emotion 的模板不应有首尾空白", text.trim(), text)
+        }
+    }
+
+    @Test
+    fun `no template contains a newline`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertFalse("$emotion 的模板应为单行", text.contains("\n"))
+        }
+    }
+
 }
