@@ -270,4 +270,78 @@ class LocalAiProviderStoreTest {
         assertEquals("{}", decoded.single().extraHeadersJson)
     }
 
+    @Test
+    fun `provider explicit numeric fields survive round trip`() {
+        val provider = LocalAiProvider(
+            id = "p1",
+            name = "n",
+            baseUrl = "https://x",
+            apiKey = "",
+            model = "m",
+            maxTokens = 8000,
+            contextWindowTokens = 50000,
+            historyMessageLimit = 10,
+            timeoutSeconds = 60
+        )
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(listOf(provider)))
+        assertEquals(1, decoded.size)
+        val roundTripped = decoded.single()
+        assertEquals(8000, roundTripped.maxTokens)
+        assertEquals(50000, roundTripped.contextWindowTokens)
+        assertEquals(10, roundTripped.historyMessageLimit)
+        assertEquals(60, roundTripped.timeoutSeconds)
+    }
+
+    @Test
+    fun `provider organization and anthropic version survive round trip`() {
+        val provider = LocalAiProvider(
+            id = "p1",
+            name = "n",
+            baseUrl = "https://x",
+            apiKey = "",
+            model = "m",
+            organization = "org-x",
+            anthropicVersion = "2024-01-01"
+        )
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(listOf(provider)))
+        assertEquals(1, decoded.size)
+        assertEquals("org-x", decoded.single().organization)
+        assertEquals("2024-01-01", decoded.single().anthropicVersion)
+    }
+
+    @Test
+    fun `session encode keeps non-blank tool rows in order`() {
+        val session = AgentSession(
+            id = "s1",
+            title = "t",
+            createdAt = 3L,
+            messages = listOf(
+                AgentChatMessage(role = "user", content = "hi"),
+                AgentChatMessage(role = "tool", content = "found", toolCallId = "c1", toolName = "list_chats"),
+                AgentChatMessage(role = "assistant", content = "done")
+            )
+        )
+        val decoded = LocalAiProviderStore.parseSessions(LocalAiProviderStore.encodeSessions(listOf(session)))
+        assertEquals(1, decoded.size)
+        assertEquals(listOf("user", "tool", "assistant"), decoded.single().messages.map { it.role })
+        assertEquals(listOf("hi", "found", "done"), decoded.single().messages.map { it.content })
+    }
+
+    @Test
+    fun `parse sessions skips non-object message rows`() {
+        val raw = """[{"id":"s1","title":"t","createdAt":1,"messages":["junk",42,{"role":"user","content":"hi"}]}]"""
+        val decoded = LocalAiProviderStore.parseSessions(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("hi", decoded.single().messages.single().content)
+    }
+
+    @Test
+    fun `parse sessions trims id and defaults missing createdAt to zero`() {
+        val raw = """[{"id":"  s1  ","title":"t"}]"""
+        val decoded = LocalAiProviderStore.parseSessions(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("s1", decoded.single().id)
+        assertEquals(0L, decoded.single().createdAt)
+    }
+
 }

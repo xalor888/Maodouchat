@@ -450,4 +450,61 @@ class LocalAiProtocolCodecTest {
         assertEquals(listOf("hi"), deltas)
     }
 
+    @Test
+    fun `parse protocol accepts mixed case and padded aliases`() {
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, LocalAiProtocolCodec.parseProtocol("Responses"))
+        assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, LocalAiProtocolCodec.parseProtocol("AnThRoPiC"))
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, LocalAiProtocolCodec.parseProtocol("  responses  "))
+        assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, LocalAiProtocolCodec.parseProtocol("  CLAUDE "))
+    }
+
+    @Test
+    fun `chat completions body keeps requested stream only without tools`() {
+        val streamed = LocalAiProtocolCodec.chatCompletionsBody(provider, emptyList(), null, stream = true)
+        assertTrue(streamed.getBoolean("stream"))
+        val unstreamed = LocalAiProtocolCodec.chatCompletionsBody(provider, emptyList(), null, stream = false)
+        assertFalse(unstreamed.getBoolean("stream"))
+    }
+
+    @Test
+    fun `chat completions body omits null sampling keys but keeps max tokens`() {
+        val body = LocalAiProtocolCodec.chatCompletionsBody(
+            provider.copy(temperature = null, topP = null), emptyList(), null, stream = false
+        )
+        assertFalse(body.has("temperature"))
+        assertFalse(body.has("top_p"))
+        assertEquals(256, body.getInt("max_tokens"))
+    }
+
+    @Test
+    fun `parse responses reads tool call type and root output text fallback`() {
+        val tools = LocalAiProtocolCodec.parseResponses(
+            """{"output":[{"type":"tool_call","id":"x1","function":{"name":"list_chats","arguments":"{}"}}]}"""
+        )
+        assertTrue(tools is OpenAiCompatClient.Completion.Tools)
+        val call = (tools as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("x1", call.id)
+        assertEquals("list_chats", call.name)
+        assertEquals("{}", call.argumentsJson)
+        val fallback = LocalAiProtocolCodec.parseResponses("""{"output":[],"output_text":"hi"}""")
+        assertTrue(fallback is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (fallback as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parse anthropic concatenates text blocks and keeps scalar tool input`() {
+        val text = LocalAiProtocolCodec.parseAnthropic(
+            """{"content":[{"type":"text","text":"Hel"},{"type":"text","text":"lo"}]}"""
+        )
+        assertTrue(text is OpenAiCompatClient.Completion.Text)
+        assertEquals("Hello", (text as OpenAiCompatClient.Completion.Text).content)
+        val tools = LocalAiProtocolCodec.parseAnthropic(
+            """{"content":[{"type":"tool_use","id":"t1","name":"list_chats","input":"raw"}]}"""
+        )
+        assertTrue(tools is OpenAiCompatClient.Completion.Tools)
+        val call = (tools as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("t1", call.id)
+        assertEquals("raw", call.argumentsJson)
+    }
+
 }
