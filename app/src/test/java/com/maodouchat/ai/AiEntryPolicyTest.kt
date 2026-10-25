@@ -486,4 +486,47 @@ class AiEntryPolicyTest {
         }
     }
 
+    @Test
+    fun `hasContextAiActions voice default follows no transcript form`() {
+        assertTrue(AiEntryPolicy.hasContextAiActions("VOICE"))
+        assertEquals(
+            AiEntryPolicy.hasContextAiActions("VOICE", hasTranscript = false),
+            AiEntryPolicy.hasContextAiActions("VOICE")
+        )
+    }
+
+    @Test
+    fun `hasContextAiActions empty string has no actions`() {
+        assertFalse(AiEntryPolicy.hasContextAiActions(""))
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("").isNotEmpty(),
+            AiEntryPolicy.hasContextAiActions("")
+        )
+    }
+
+    @Test
+    fun `contextActionsFor tab wrapped voice folds to transcribe`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("\tvoice\n")
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor("\tvoice\n", hasTranscript = true).isEmpty())
+    }
+
+    @Test
+    fun `contextActionsFor lowercase system with transcript still translates`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("system", hasTranscript = true)
+        )
+    }
+
+    @Test
+    fun `voice default action list equals explicit no transcript list`() {
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("VOICE", hasTranscript = false),
+            AiEntryPolicy.contextActionsFor("VOICE")
+        )
+    }
+
 }

@@ -566,4 +566,62 @@ class AiCostVisibilityPolicyTest {
         )
     }
 
+    @Test
+    fun `encode error code clamps seconds at one day`() {
+        assertEquals(
+            "RATE_LIMITED:86400",
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, 100_000)
+        )
+        assertEquals(
+            "QUOTA_EXCEEDED:86400",
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_QUOTA, 200_000)
+        )
+    }
+
+    @Test
+    fun `classify rate limited code with surrounding whitespace still maps`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "  RATE_LIMITED  ",
+            serverMessage = null
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `display signal for cancelled binds partial hint and warn`() {
+        val signal = AiCostVisibilityPolicy.displaySignalFor(AiCostVisibilityPolicy.ERROR_CANCELLED)
+        assertEquals(AiCostVisibilityPolicy.ERROR_CANCELLED, signal.errorCode)
+        assertEquals(0L, signal.waitSeconds)
+        assertEquals(BillingHint.CANCELLED_PARTIAL_MAY_BILL, signal.hint)
+        assertTrue(signal.warnRetryBills)
+    }
+
+    @Test
+    fun `billing hint quota family beats scheduled auto retry`() {
+        assertEquals(
+            BillingHint.QUOTA_EXCEEDED,
+            AiCostVisibilityPolicy.billingHintFor(
+                AiCostVisibilityPolicy.ERROR_QUOTA,
+                hasScheduledAutoRetry = true
+            )
+        )
+    }
+
+    @Test
+    fun `retry warning covers invalid response and interrupted outcomes`() {
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("INVALID_RESPONSE"))
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("INTERRUPTED"))
+        assertEquals(
+            BillingHint.OUTCOME_UNKNOWN_MAY_BILL,
+            AiCostVisibilityPolicy.billingHintFor("INTERRUPTED")
+        )
+    }
+
 }

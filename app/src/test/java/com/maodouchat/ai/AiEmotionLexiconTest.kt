@@ -225,4 +225,40 @@ class AiEmotionLexiconTest {
         assertEquals(0.75, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `anxious english stress word counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("under stress"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad english cry and emo aggregate`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("cry emo"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `angry single char quarrel word counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("吵"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `four emotions tie breaks toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈 难过 生气 焦虑"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.25, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english love word exactly filling the scan window still counts`() {
+        // 196 个垫字 + "love"（4 字符）恰好 200 字符，关键词完整落在窗口内
+        val result = AiEmotionLexicon.detectEmotion(listOf("a".repeat(196) + "love"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
