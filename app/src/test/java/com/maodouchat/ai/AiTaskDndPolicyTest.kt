@@ -266,4 +266,44 @@ class AiTaskDndPolicyTest {
         assertTrue(AiTaskDndPolicy.isInQuietHours(1438, 0, 1439))
     }
 
+    @Test
+    fun `remindersAllowed is exactly the two-switch conjunction`() {
+        for (task in listOf(true, false)) {
+            for (notif in listOf(true, false)) {
+                assertEquals(
+                    task && notif,
+                    AiTaskDndPolicy.remindersAllowed(task, notif)
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `nextAllowedTime from the overnight early-hours segment returns end`() {
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 30, 1380, 60, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 60, 1380, 60, 5_000L))
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 0, 1380, 60, 5_000L))
+    }
+
+    @Test
+    fun `degenerate overnight window ending at minute one`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1439, 1))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 1439, 1))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1, 1439, 1))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(100, 1439, 1))
+    }
+
+    @Test
+    fun `full-day window excludes minute 1439 at its end edge`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, 0, 1439))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 1439, 0, 1439, 5_000L))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 0, 1439))
+    }
+
+    @Test
+    fun `nextAllowedTime midday in full-day window returns end`() {
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 720, 0, 1439, 5_000L))
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1438, 0, 1439, 5_000L))
+    }
+
 }

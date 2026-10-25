@@ -588,4 +588,67 @@ class AiEntryPolicyTest {
         assertFalse(AiEntryPolicy.hasContextAiActions(null, hasTranscript = true))
     }
 
+    @Test
+    fun `vertical tab and form feed padding folds to known types`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u000Btext\u000C")
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("\u000Bvoice\u000C")
+        )
+        assertTrue(
+            AiEntryPolicy.contextActionsFor("\u000Bvoice\u000C", hasTranscript = true).isEmpty()
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("\u000Bfile\u000C")
+        )
+    }
+
+    @Test
+    fun `zero-width space breaks type matching`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT\u200B").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("\u200BTEXT").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TEXT\u200B"))
+        assertFalse(AiEntryPolicy.hasContextAiActions("\u200BIMAGE"))
+    }
+
+    @Test
+    fun `full-width letters match nothing`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("ＴＥＸＴ").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("ＦＩＬＥ").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("ＶＯＩＣＥ"))
+    }
+
+    @Test
+    fun `hasContextAiActions mirrors contextActionsFor for gif transcript variants`() {
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("GIF", hasTranscript = false).isNotEmpty(),
+            AiEntryPolicy.hasContextAiActions("GIF", hasTranscript = false)
+        )
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("GIF", hasTranscript = true).isNotEmpty(),
+            AiEntryPolicy.hasContextAiActions("GIF", hasTranscript = true)
+        )
+        assertTrue(AiEntryPolicy.hasContextAiActions("GIF", hasTranscript = true))
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("GIF", hasTranscript = true)
+        )
+    }
+
+    @Test
+    fun `surface constants use lowercase snake case without spaces`() {
+        val surfaces = listOf(
+            AiEntryPolicy.PRIMARY_SURFACE,
+            AiEntryPolicy.CONTEXT_SURFACE,
+            AiEntryPolicy.SETTINGS_SURFACE
+        )
+        assertTrue(surfaces.all { it == it.lowercase() })
+        assertTrue(surfaces.none { ' ' in it })
+        assertTrue(surfaces.all { '_' in it })
+    }
+
 }
