@@ -152,4 +152,40 @@ class AiEmotionLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `angry versus anxious tie breaks toward angry`() {
+        // 词典顺序 happy、sad、angry、anxious：maxByOrNull 取首个最大值
+        val result = AiEmotionLexicon.detectEmotion(listOf("生气", "焦虑"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `single character angry word counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("滚"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `mixed valence confidence is the winner share`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "难过", "哭了", "伤心"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(3.0 / 4.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `empty element does not dilute confidence`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("", "哈哈"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english sad word miss counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("i miss you"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
