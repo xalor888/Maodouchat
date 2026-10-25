@@ -145,4 +145,79 @@ class LocalAiProtocolCodecTest {
         assertEquals(40, decoded.historyMessageLimit)
         assertTrue(decoded.extraHeadersJson.contains("X-Test"))
     }
+
+
+    @Test
+    fun `parse protocol covers remaining aliases and fallbacks`() {
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, LocalAiProtocolCodec.parseProtocol("RESPONSE"))
+        assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, LocalAiProtocolCodec.parseProtocol("CLAUDE"))
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, LocalAiProtocolCodec.parseProtocol("OPENAI_RESPONSES"))
+        assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, LocalAiProtocolCodec.parseProtocol("ANTHROPIC_MESSAGES"))
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, LocalAiProtocolCodec.parseProtocol(null))
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, LocalAiProtocolCodec.parseProtocol("   "))
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, LocalAiProtocolCodec.parseProtocol("gemini"))
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, LocalAiProtocolCodec.parseProtocol(" chat "))
+    }
+
+    @Test
+    fun `extra headers trims drops blank and tolerates malformed`() {
+        val headers = LocalAiProtocolCodec.extraHeaders(
+            provider.copy(extraHeadersJson = """{"X-A":"  v  ","X-B":"   ","":"z"}""")
+        )
+        assertEquals(mapOf("X-A" to "v"), headers)
+        assertTrue(LocalAiProtocolCodec.extraHeaders(provider.copy(extraHeadersJson = "")).isEmpty())
+        assertTrue(LocalAiProtocolCodec.extraHeaders(provider.copy(extraHeadersJson = "{oops")).isEmpty())
+    }
+
+    @Test
+    fun `toJson converts nested structures and passes scalars through`() {
+        assertEquals(org.json.JSONObject.NULL, LocalAiProtocolCodec.toJson(null))
+        val mapped = LocalAiProtocolCodec.toJson(mapOf("a" to 1, "b" to listOf("x", null))) as org.json.JSONObject
+        assertEquals(1, mapped.getInt("a"))
+        assertEquals("x", mapped.getJSONArray("b").getString(0))
+        assertTrue(mapped.getJSONArray("b").isNull(1))
+        val listed = LocalAiProtocolCodec.toJson(listOf(1, "s")) as org.json.JSONArray
+        assertEquals(2, listed.length())
+        assertEquals(1, listed.getInt(0))
+        assertEquals("s", listed.getString(1))
+        assertEquals(5, LocalAiProtocolCodec.toJson(5))
+        val obj = org.json.JSONObject("""{"k":"v"}""")
+        assertTrue(LocalAiProtocolCodec.toJson(obj) === obj)
+    }
+
+    @Test
+    fun `parse chat completions text tools and errors`() {
+        val text = LocalAiProtocolCodec.parseChatCompletions(
+            """{"choices":[{"message":{"role":"assistant","content":"hello"}}]}"""
+        )
+        assertTrue(text is OpenAiCompatClient.Completion.Text)
+        assertEquals("hello", (text as OpenAiCompatClient.Completion.Text).content)
+        val tools = LocalAiProtocolCodec.parseChatCompletions(
+            """{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{\"query\":\"a\"}"}}]}}]}"""
+        )
+        assertTrue(tools is OpenAiCompatClient.Completion.Tools)
+        val call = (tools as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("list_chats", call.name)
+        assertEquals("c1", call.id)
+        assertTrue(call.argumentsJson.contains("query"))
+        val malformed = LocalAiProtocolCodec.parseChatCompletions("{oops")
+        assertTrue(malformed is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型返回不是 JSON", (malformed as OpenAiCompatClient.Completion.Error).message)
+        val noChoices = LocalAiProtocolCodec.parseChatCompletions("{}")
+        assertTrue(noChoices is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型没有 choices", (noChoices as OpenAiCompatClient.Completion.Error).message)
+        val emptyChoices = LocalAiProtocolCodec.parseChatCompletions("""{"choices":[]}""")
+        assertTrue(emptyChoices is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型没有 choices", (emptyChoices as OpenAiCompatClient.Completion.Error).message)
+    }
+
+    @Test
+    fun `sse visible text handles null and non string fields`() {
+        assertEquals("", LocalAiProtocolCodec.sseVisibleText(null))
+        val mixed = org.json.JSONObject("""{"content":5,"reasoning_content":"r"}""")
+        assertEquals("r", LocalAiProtocolCodec.sseVisibleText(mixed))
+        val blank = org.json.JSONObject("""{"content":"","reasoning_content":123}""")
+        assertEquals("", LocalAiProtocolCodec.sseVisibleText(blank))
+    }
+
 }
