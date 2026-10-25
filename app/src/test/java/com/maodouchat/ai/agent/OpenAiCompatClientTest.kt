@@ -118,4 +118,48 @@ class OpenAiCompatClientTest {
         assertEquals(listOf("list_chats", "search_messages"), calls.map { it.name })
         assertEquals(listOf("c1", "c2"), calls.map { it.id })
     }
+
+    @Test
+    fun `parseNonStream reports exact message for non-JSON payload`() {
+        val result = OpenAiCompatClient.parseNonStream("not-json")
+        assertTrue(result is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型返回不是 JSON", (result as OpenAiCompatClient.Completion.Error).message)
+    }
+
+    @Test
+    fun `parseNonStream prefers content over reasoning_content`() {
+        val payload = """{"choices":[{"message":{"content":"answer","reasoning_content":"thinking"}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("answer", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream reads reasoning_content without content key`() {
+        val payload = """{"choices":[{"message":{"reasoning_content":"only reasoning"}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("only reasoning", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream keeps tool call with blank function name`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[{"id":"c1","function":{}}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val call = (result as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("c1", call.id)
+        assertEquals("", call.name)
+    }
+
+    @Test
+    fun `parseNonStream reads only the first choice`() {
+        val payload = """{"choices":[
+          {"message":{"content":"first"}},
+          {"message":{"content":"second"}}
+        ]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("first", (result as OpenAiCompatClient.Completion.Text).content)
+    }
 }

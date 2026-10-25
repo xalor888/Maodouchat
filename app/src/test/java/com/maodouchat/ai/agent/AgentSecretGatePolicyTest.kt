@@ -128,4 +128,78 @@ class AgentSecretGatePolicyTest {
         )
         assertFalse(AgentSecretGatePolicy.includeInChatList(true, true, false))
     }
+
+    @Test
+    fun denialTablePinsEveryCombinationExplicitly() {
+        val cases = listOf(
+            Triple(false, false, false) to null,
+            Triple(false, false, true) to null,
+            Triple(false, true, false) to AgentSecretGatePolicy.PIN_DENIED,
+            Triple(false, true, true) to null,
+            Triple(true, false, false) to AgentSecretGatePolicy.SECRET_DENIED,
+            Triple(true, false, true) to AgentSecretGatePolicy.SECRET_DENIED,
+            Triple(true, true, false) to AgentSecretGatePolicy.SECRET_DENIED,
+            Triple(true, true, true) to AgentSecretGatePolicy.SECRET_DENIED
+        )
+        for ((input, expected) in cases) {
+            assertEquals(
+                "$input",
+                expected,
+                AgentSecretGatePolicy.denyIfSecretOrLocked(input.first, input.second, input.third)
+            )
+        }
+    }
+
+    @Test
+    fun listingTablePinsEveryCombinationExplicitly() {
+        val cases = listOf(
+            Triple(false, false, false) to true,
+            Triple(false, false, true) to true,
+            Triple(false, true, false) to false,
+            Triple(false, true, true) to true,
+            Triple(true, false, false) to false,
+            Triple(true, false, true) to false,
+            Triple(true, true, false) to false,
+            Triple(true, true, true) to false
+        )
+        for ((input, expected) in cases) {
+            assertEquals(
+                "$input",
+                expected,
+                AgentSecretGatePolicy.includeInChatList(input.first, input.second, input.third)
+            )
+        }
+    }
+
+    @Test
+    fun denialMessagesNameTheirOwnGate() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.contains("secret"))
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.contains("PIN"))
+    }
+
+    @Test
+    fun denialMessagesNeverNameTheOtherGate() {
+        assertFalse(AgentSecretGatePolicy.SECRET_DENIED.contains("PIN"))
+        assertFalse(AgentSecretGatePolicy.PIN_DENIED.contains("secret"))
+    }
+
+    @Test
+    fun denialResultDomainIsOnlyNullOrTheTwoConstants() {
+        val allowed = setOf(
+            null,
+            AgentSecretGatePolicy.SECRET_DENIED,
+            AgentSecretGatePolicy.PIN_DENIED
+        )
+        for (isSecret in listOf(false, true)) {
+            for (isLocked in listOf(false, true)) {
+                for (unlocked in listOf(false, true)) {
+                    assertTrue(
+                        allowed.contains(
+                            AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret, isLocked, unlocked)
+                        )
+                    )
+                }
+            }
+        }
+    }
 }

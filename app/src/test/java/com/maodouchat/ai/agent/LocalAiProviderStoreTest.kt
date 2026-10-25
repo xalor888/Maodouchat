@@ -167,4 +167,62 @@ class LocalAiProviderStoreTest {
         assertEquals(0.7, decoded.single().temperature)
         assertEquals(0.9, decoded.single().topP)
     }
+
+    @Test
+    fun `new provider draft matches protocol defaults`() {
+        val chat = LocalAiProviderStore.newProviderDraft(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS)
+        assertEquals("OpenAI Chat Completions", chat.name)
+        assertEquals("https://api.openai.com/v1", chat.baseUrl)
+        assertEquals("gpt-4o-mini", chat.model)
+        assertEquals("", chat.apiKey)
+        assertTrue(chat.id.startsWith("p_"))
+        val responses = LocalAiProviderStore.newProviderDraft(LocalAiProtocol.OPENAI_RESPONSES)
+        assertEquals("OpenAI Responses", responses.name)
+        assertEquals("gpt-4.1-mini", responses.model)
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, responses.protocol)
+        val anthropic = LocalAiProviderStore.newProviderDraft(LocalAiProtocol.ANTHROPIC_MESSAGES)
+        assertEquals("Anthropic", anthropic.name)
+        assertEquals("https://api.anthropic.com", anthropic.baseUrl)
+        assertEquals("claude-sonnet-4-5", anthropic.model)
+    }
+
+    @Test
+    fun `provider protocol enum names survive round trip`() {
+        val providers = listOf(
+            LocalAiProvider(id = "a", name = "n", baseUrl = "https://x", apiKey = "", model = "m", protocol = LocalAiProtocol.ANTHROPIC_MESSAGES),
+            LocalAiProvider(id = "b", name = "n", baseUrl = "https://x", apiKey = "", model = "m", protocol = LocalAiProtocol.OPENAI_RESPONSES)
+        )
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(providers))
+        assertEquals(2, decoded.size)
+        assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, decoded[0].protocol)
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, decoded[1].protocol)
+    }
+
+    @Test
+    fun `session createdAt and empty messages survive parse`() {
+        val raw = """[{"id":"s9","title":"t","createdAt":12345}]"""
+        val decoded = LocalAiProviderStore.parseSessions(raw)
+        assertEquals(1, decoded.size)
+        assertEquals(12345L, decoded.single().createdAt)
+        assertTrue(decoded.single().messages.isEmpty())
+    }
+
+    @Test
+    fun `blank toolCallId and toolName parse to null`() {
+        val raw = """[{"id":"s1","title":"t","createdAt":1,"messages":[{"role":"tool","content":"out","toolCallId":"","toolName":""}]}]"""
+        val decoded = LocalAiProviderStore.parseSessions(raw)
+        assertEquals(1, decoded.size)
+        val message = decoded.single().messages.single()
+        assertEquals("out", message.content)
+        assertNull(message.toolCallId)
+        assertNull(message.toolName)
+    }
+
+    @Test
+    fun `blank base rows and non-object rows are dropped`() {
+        val raw = """[{"id":"a","model":"m","baseUrl":""}, "junk", 42, {"id":"ok","model":"m","baseUrl":"https://x"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("ok", decoded.single().id)
+    }
 }
