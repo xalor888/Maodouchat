@@ -190,4 +190,46 @@ class AiPrivacyPreferencesTest {
         }
         assertEquals(10, all.toSet().size)
     }
+
+    @Test
+    fun `scoped key with empty base keeps leading colon`() {
+        assertEquals(":u-1", AiPrivacyPreferences.scopedKey("", "u-1"))
+    }
+
+    @Test
+    fun `scoped key with empty base and empty user id is a lone colon`() {
+        assertEquals(":", AiPrivacyPreferences.scopedKey("", ""))
+    }
+
+    @Test
+    fun `scoped key user ids are case sensitive`() {
+        assertEquals(
+            "ai_consent_accepted:U-1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "U-1")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "U-1")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps trailing space in user id distinct`() {
+        assertEquals(
+            "ai_consent_accepted:u-1 ",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1 ")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1 ")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps non-ASCII user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:用户-1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "用户-1")
+        )
+    }
 }
