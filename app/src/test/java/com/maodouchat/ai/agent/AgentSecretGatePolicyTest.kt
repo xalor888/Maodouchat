@@ -234,4 +234,62 @@ class AgentSecretGatePolicyTest {
             }
         }
     }
+
+    @Test
+    fun denialConstantsShareTheSameErrorPrefix() {
+        assertEquals("Error: ", AgentSecretGatePolicy.SECRET_DENIED.take(7))
+        assertEquals("Error: ", AgentSecretGatePolicy.PIN_DENIED.take(7))
+        assertEquals(
+            AgentSecretGatePolicy.SECRET_DENIED.take(7),
+            AgentSecretGatePolicy.PIN_DENIED.take(7)
+        )
+    }
+
+    @Test
+    fun denialMessagesUppercaseShape() {
+        assertEquals(
+            "E",
+            AgentSecretGatePolicy.SECRET_DENIED.filter { it.isUpperCase() }
+        )
+        assertEquals(
+            "EPIN",
+            AgentSecretGatePolicy.PIN_DENIED.filter { it.isUpperCase() }
+        )
+    }
+
+    @Test
+    fun denialConstantsHaveExactLengths() {
+        assertEquals(54, AgentSecretGatePolicy.SECRET_DENIED.length)
+        assertEquals(25, AgentSecretGatePolicy.PIN_DENIED.length)
+    }
+
+    @Test
+    fun namedArgumentsInAnyOrderGiveTheSameDecision() {
+        assertNull(
+            AgentSecretGatePolicy.denyIfSecretOrLocked(
+                unlocked = true,
+                isLocked = true,
+                isSecret = false
+            )
+        )
+        assertEquals(
+            AgentSecretGatePolicy.PIN_DENIED,
+            AgentSecretGatePolicy.denyIfSecretOrLocked(
+                unlocked = false,
+                isLocked = true,
+                isSecret = false
+            )
+        )
+    }
+
+    @Test
+    fun repeatedPinDenialIsStable() {
+        repeat(5) {
+            assertEquals(
+                AgentSecretGatePolicy.PIN_DENIED,
+                AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, false)
+            )
+            assertFalse(AgentSecretGatePolicy.includeInChatList(false, true, false))
+        }
+    }
 }

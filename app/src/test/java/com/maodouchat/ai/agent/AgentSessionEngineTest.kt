@@ -569,4 +569,138 @@ class AgentSessionEngineTest {
         assertEquals("now", captured[25].content)
     }
 
+    @Test
+    fun `approved call is followed by a read tool round before final`() = runBlocking {
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c2", "list_chats", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { name, args ->
+                when (name) {
+                    "send_text_message" -> {
+                        assertTrue(args.contains("chat-1"))
+                        "Queued m_1"
+                    }
+                    "list_chats" -> "ok"
+                    else -> error("unexpected tool $name")
+                }
+            }
+        )
+        val events = engine.runTurn(
+            provider,
+            emptyList(),
+            "发一句",
+            null,
+            approvedCall = AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")
+        ).toList()
+        assertEquals("send_text_message", (events[0] as AgentTurnEvent.ToolFinished).name)
+        assertEquals("Queued m_1", (events[0] as AgentTurnEvent.ToolFinished).result)
+        assertEquals("list_chats", (events[1] as AgentTurnEvent.ToolStarted).name)
+        assertEquals("list_chats", (events[2] as AgentTurnEvent.ToolFinished).name)
+        assertEquals("done", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `blank user text still reaches the model as an empty user message`() = runBlocking {
+        var captured: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                if (captured.isEmpty()) captured = messages.toList()
+                OpenAiCompatClient.Completion.Text("done")
+            },
+            executeTool = { _, _ -> error("no tool call expected") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "", null).toList()
+        assertEquals("done", (events.single() as AgentTurnEvent.AssistantFinal).text)
+        val last = captured.last()
+        assertEquals("user", last.role)
+        assertEquals("", last.content)
+    }
+
+    @Test
+    fun `rewrite text without mode defaults to polish and finishes`() = runBlocking {
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                when (round) {
+                    1 -> OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hi"}""")),
+                        ""
+                    )
+                    2 -> OpenAiCompatClient.Completion.Text(" polished ")
+                    else -> OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { _, _ -> error("rewrite must not reach the host") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "润色这句", null).toList()
+        val finished = events.filterIsInstance<AgentTurnEvent.ToolFinished>().single()
+        assertEquals("rewrite_text", finished.name)
+        assertEquals("polished", finished.result)
+        assertEquals("done", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `two unknown tools in one round both feed errors back`() = runBlocking {
+        var round = 0
+        var roundTwoMessages: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                round++
+                if (round == 2) roundTwoMessages = messages.toList()
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(
+                            AgentToolCall("c0", "dump_host_sql", "{}"),
+                            AgentToolCall("c1", "drop_tables", "{}")
+                        ),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("ok")
+                }
+            },
+            executeTool = { _, _ -> error("unknown tool must not execute") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals("ok", (events.last() as AgentTurnEvent.AssistantFinal).text)
+        assertTrue(events.none { it is AgentTurnEvent.ToolStarted || it is AgentTurnEvent.ToolFinished })
+        val toolMessages = roundTwoMessages.filter { it.role == "tool" }
+        assertEquals(2, toolMessages.size)
+        assertEquals("Error: unknown tool dump_host_sql", toolMessages[0].content)
+        assertEquals("Error: unknown tool drop_tables", toolMessages[1].content)
+        assertEquals("c0", toolMessages[0].toolCallId)
+        assertEquals("c1", toolMessages[1].toolCallId)
+    }
+
+    @Test
+    fun `send approval pending carries the original call id and arguments`() = runBlocking {
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(AgentToolCall("c9", "send_text_message", """{"chatId":"chat-9","text":"hello"}""")),
+                    ""
+                )
+            },
+            executeTool = { _, _ -> error("must not execute send without approval") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "发一句", null).toList()
+        assertEquals(1, events.size)
+        val pending = (events.single() as AgentTurnEvent.NeedsApproval).pending
+        assertEquals("c9", pending.call.id)
+        assertEquals("send_text_message", pending.call.name)
+        assertTrue(pending.call.argumentsJson.contains("chat-9"))
+        assertTrue(pending.call.argumentsJson.contains("hello"))
+    }
+
 }

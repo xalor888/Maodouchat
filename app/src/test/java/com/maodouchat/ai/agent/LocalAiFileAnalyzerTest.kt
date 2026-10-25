@@ -233,4 +233,45 @@ class LocalAiFileAnalyzerTest {
         assertEquals(Kind.TEXT, trailing!!.kind)
         assertEquals("text/plain ", trailing.mimeType)
     }
+
+    @Test
+    fun `yaml mime is rejected`() {
+        val encoded = Base64.getEncoder().encodeToString("a: 1".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.yaml", "application/yaml", encoded))
+    }
+
+    @Test
+    fun `html mime is accepted as text`() {
+        val encoded = Base64.getEncoder().encodeToString("<p>hi</p>".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.html", "text/html", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("<p>hi</p>", prepared.text)
+    }
+
+    @Test
+    fun `json text is kept verbatim with surrounding spaces`() {
+        val body = "  {\"a\": 1}  "
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.json", "application/json", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(body, prepared.text)
+    }
+
+    @Test
+    fun `uppercase json mime is lowercased and accepted`() {
+        val encoded = Base64.getEncoder().encodeToString("{\"a\":1}".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.json", "APPLICATION/JSON", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("application/json", prepared.mimeType)
+        assertEquals("{\"a\":1}", prepared.text)
+    }
+
+    @Test
+    fun `svg image mime is rejected`() {
+        val encoded = Base64.getEncoder().encodeToString("<svg/>".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.svg", "image/svg+xml", encoded))
+    }
 }
