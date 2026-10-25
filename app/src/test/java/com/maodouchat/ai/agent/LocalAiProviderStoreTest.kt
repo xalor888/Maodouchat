@@ -225,4 +225,49 @@ class LocalAiProviderStoreTest {
         assertEquals(1, decoded.size)
         assertEquals("ok", decoded.single().id)
     }
+
+    @Test
+    fun `provider baseUrl with multiple trailing slashes is fully trimmed on parse`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x.example///"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("https://x.example", decoded.single().baseUrl)
+    }
+
+    @Test
+    fun `provider rows with whitespace-only id model or base are dropped`() {
+        val raw = """[
+          {"id":"   ","model":"m","baseUrl":"https://x"},
+          {"id":"ok","model":"  ","baseUrl":"https://x"},
+          {"id":"ok2","model":"m","baseUrl":"   "}
+        ]"""
+        assertTrue(LocalAiProviderStore.parseProviders(raw).isEmpty())
+    }
+
+    @Test
+    fun `provider apiKey whitespace is preserved on parse`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x","apiKey":"  sk-test  "}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("  sk-test  ", decoded.single().apiKey)
+    }
+
+    @Test
+    fun `provider explicit boolean flags survive parse`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x","stream":false,"supportsVision":true}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals(false, decoded.single().stream)
+        assertEquals(true, decoded.single().supportsVision)
+    }
+
+    @Test
+    fun `provider explicit blank optionals fall back to defaults`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x","anthropicVersion":"","extraHeadersJson":""}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("2023-06-01", decoded.single().anthropicVersion)
+        assertEquals("{}", decoded.single().extraHeadersJson)
+    }
+
 }
