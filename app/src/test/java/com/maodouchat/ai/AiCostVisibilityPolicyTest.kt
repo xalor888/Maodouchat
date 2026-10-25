@@ -483,4 +483,87 @@ class AiCostVisibilityPolicyTest {
         assertTrue(timeout.warnRetryBills)
     }
 
+
+    @Test
+    fun `classify negative retry after drops and budget message is quota`() {
+        val negative = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = null,
+            serverRetryAfterSeconds = -10
+        )
+        assertTrue(negative.isRateLimited)
+        assertFalse(negative.isQuota)
+        assertTrue(negative.retryAfterSeconds == null)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(negative)
+        )
+        val budget = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "budget exhausted"
+        )
+        assertTrue(budget.isQuota)
+        assertTrue(budget.isRateLimited)
+        assertTrue(budget.retryAfterSeconds == null)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(budget))
+    }
+
+    @Test
+    fun `embedded retry after rejects multi colon suffix`() {
+        assertTrue(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:45:60") == null)
+        assertEquals(90L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("QUOTA_EXCEEDED:90"))
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:45 "))
+    }
+
+    @Test
+    fun `encode error code handles blank base and rate limit prefix family`() {
+        assertEquals("", AiCostVisibilityPolicy.encodeErrorCode("", 45))
+        assertEquals(
+            "RATE_LIMIT_SOFT:30",
+            AiCostVisibilityPolicy.encodeErrorCode("rate_limit_soft", 30)
+        )
+        assertEquals(
+            "RATE_LIMITED",
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, null)
+        )
+    }
+
+    @Test
+    fun `base error code multi colon and colon only edges`() {
+        assertEquals(
+            "RATE_LIMITED",
+            AiCostVisibilityPolicy.baseErrorCode("RATE_LIMITED:45:60")
+        )
+        assertEquals(":", AiCostVisibilityPolicy.baseErrorCode(":"))
+        assertEquals(":45", AiCostVisibilityPolicy.baseErrorCode(" :45"))
+    }
+
+    @Test
+    fun `wait seconds negative local remaining falls through to default`() {
+        assertEquals(
+            AiCostVisibilityPolicy.DEFAULT_RATE_LIMIT_WAIT_SECONDS,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                localRemainingMs = -5000
+            )
+        )
+        assertEquals(
+            AiCostVisibilityPolicy.DEFAULT_QUOTA_WAIT_SECONDS,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_QUOTA,
+                localRemainingMs = -1
+            )
+        )
+        assertEquals(
+            0L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                null,
+                serverRetryAfterSeconds = -3,
+                localRemainingMs = -1
+            )
+        )
+    }
+
 }
