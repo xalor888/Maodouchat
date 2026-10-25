@@ -360,4 +360,50 @@ class AiRetryPolicyWindowTest {
         assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
     }
 
+    @Test
+    fun heavyOnlyGlobalFillBlocksBothCategories() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.HEAVY) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT) > 0L)
+        assertTrue(AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.HEAVY) > 0L)
+    }
+
+    @Test
+    fun secondLightRecordRefreshesPerChatWindow() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        val wait = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertTrue("re-recorded LIGHT window should be ~30s, was $wait", wait in 1L..30_000L)
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun partialFillClearedRestoresFreshAccess() {
+        repeat(100) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun globalBlockDelayNeverExceedsOneHour() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        val wait = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue("global window is 60 minutes, was $wait", wait in 1L..3_600_000L)
+    }
+
+    @Test
+    fun blankAndEmptyKeysLeaveNamedChatUntouched() {
+        AiRetryPolicy.recordCall("", AiRetryPolicyCategory.LIGHT)
+        AiRetryPolicy.recordCall(" ", AiRetryPolicyCategory.LIGHT)
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow(" ", AiRetryPolicyCategory.LIGHT))
+    }
+
 }
