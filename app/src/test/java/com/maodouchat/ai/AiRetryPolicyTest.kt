@@ -502,4 +502,65 @@ class AiRetryPolicyTest {
         assertEquals(0L, folded.delayMs)
     }
 
+    @Test
+    fun decideAuthExpiredFlavorMapsToAuthBranch() {
+        // AUTH 子串即走认证分支：可见码为归一化后的基码，等待为 0。
+        val expired = AiRetryPolicy.decide("AUTH_EXPIRED", attempts = 1)
+        assertFalse(expired.shouldRetry)
+        assertEquals(0L, expired.delayMs)
+        assertEquals("auth required; do not auto-retry", expired.explanation)
+        assertEquals("AUTH_EXPIRED", expired.visibleErrorCode)
+
+        val folded = AiRetryPolicy.decide("auth_expired", attempts = 1)
+        assertFalse(folded.shouldRetry)
+        assertEquals("AUTH_EXPIRED", folded.visibleErrorCode)
+    }
+
+    @Test
+    fun decideTooManySubstringTriggersRateBranchWithZeroWait() {
+        // 限流分支是 contains：基码含 TOO_MANY 即走限流分支；该基码不在等待表里，等待为 0。
+        val decision = AiRetryPolicy.decide("ERROR_TOO_MANY_REQUESTS", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideQuotaZeroSuffixFallsBackToQuotaDefault() {
+        // 内嵌秒数只取正数：0 与负数后缀都落回配额默认等待 300 秒。
+        val zero = AiRetryPolicy.decide("QUOTA_EXCEEDED:0", attempts = 1)
+        assertFalse(zero.shouldRetry)
+        assertEquals(300_000L, zero.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, zero.visibleErrorCode)
+
+        val negative = AiRetryPolicy.decide("QUOTA_EXCEEDED:-10", attempts = 1)
+        assertEquals(300_000L, negative.delayMs)
+    }
+
+    @Test
+    fun decidePaymentOversizedSuffixIsCappedAtOneDay() {
+        // PAYMENT 走配额分支：内嵌秒数上限 86400 秒，超大后缀按一天计等待。
+        val payment = AiRetryPolicy.decide("PAYMENT_REQUIRED:999999", attempts = 1)
+        assertFalse(payment.shouldRetry)
+        assertEquals(86_400_000L, payment.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, payment.visibleErrorCode)
+    }
+
+    @Test
+    fun decideRateAndQuotaBranchesIgnoreAttemptCountBelowCap() {
+        // attempts 只在连接重试退避与 ≥3 封顶时有意义：限流/配额/认证分支在 1 次与 2 次下结果相同。
+        val limitedFirst = AiRetryPolicy.decide("RATE_LIMITED:45", attempts = 1)
+        val limitedSecond = AiRetryPolicy.decide("RATE_LIMITED:45", attempts = 2)
+        assertEquals(limitedFirst, limitedSecond)
+
+        val quotaFirst = AiRetryPolicy.decide("QUOTA_EXCEEDED", attempts = 1)
+        val quotaSecond = AiRetryPolicy.decide("QUOTA_EXCEEDED", attempts = 2)
+        assertEquals(quotaFirst, quotaSecond)
+
+        val authFirst = AiRetryPolicy.decide("UNAUTHORIZED", attempts = 1)
+        val authSecond = AiRetryPolicy.decide("UNAUTHORIZED", attempts = 2)
+        assertEquals(authFirst, authSecond)
+    }
+
 }

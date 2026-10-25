@@ -406,4 +406,57 @@ class AiRetryPolicyWindowTest {
         assertFalse(AiRetryPolicy.canCallNow(" ", AiRetryPolicyCategory.LIGHT))
     }
 
+    @Test
+    fun subCapGlobalFillLeavesPerChatWaitAtPerChatScale() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        repeat(238) { index -> AiRetryPolicy.recordCall("other-$index", AiRetryPolicyCategory.LIGHT) }
+        // 全局 239/240 未满：单会话等待仍是自身 30 秒量级，新会话等待为 0。
+        val wait = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertTrue("own window should stay ~30s, was $wait", wait in 1L..30_000L)
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun sameChatTwoCategoriesConsumeTwoGlobalSlots() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.HEAVY)
+        repeat(237) { index -> AiRetryPolicy.recordCall("other-$index", AiRetryPolicyCategory.LIGHT) }
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.recordCall("other-237", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun freshChatConsumes240thSlotAndBlocksItself() {
+        repeat(239) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.recordCall("fresh", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("another-fresh", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun heavy240thSlotReportsGlobalScaleWaitForRecordedChat() {
+        repeat(239) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        AiRetryPolicy.recordCall("chat-239", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+        // 第 240 槽由该 HEAVY 记录填满：它自己的剩余等待也是全局量级，而非 60 秒。
+        val wait = AiRetryPolicy.remainingDelayMs("chat-239", AiRetryPolicyCategory.HEAVY)
+        assertTrue("recorded HEAVY chat should report global-scale delay, was $wait", wait > 3_000_000L)
+    }
+
+    @Test
+    fun secondHeavyRecordRefreshesPerChatWindow() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.HEAVY)
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+        val wait = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.HEAVY)
+        assertTrue("re-recorded HEAVY window should be ~60s, was $wait", wait in 1L..60_000L)
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
 }
