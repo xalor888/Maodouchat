@@ -379,4 +379,75 @@ class LocalAiProtocolCodecTest {
         assertEquals("empty stream", (emptyStream as OpenAiCompatClient.Completion.Error).message)
     }
 
+
+    @Test
+    fun `parse sse chat ignores non-data lines`() {
+        val payload = """
+            : ping
+            event: message
+            data: {"choices":[{"delta":{"content":"hi"}}]}
+            data: [DONE]
+        """.trimIndent()
+        val deltas = mutableListOf<String>()
+        val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+        assertEquals(listOf("hi"), deltas)
+    }
+
+    @Test
+    fun `parse sse chat skips malformed data lines`() {
+        val payload = """
+            data: {oops
+            data: {"choices":[{"delta":{"content":"ok"}}]}
+            data: [DONE]
+        """.trimIndent()
+        val deltas = mutableListOf<String>()
+        val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("ok", (result as OpenAiCompatClient.Completion.Text).content)
+        assertEquals(listOf("ok"), deltas)
+    }
+
+    @Test
+    fun `parse sse chat drops reasoning once content has started`() {
+        val payload = """
+            data: {"choices":[{"delta":{"content":"A"}}]}
+            data: {"choices":[{"delta":{"reasoning_content":"R"}}]}
+            data: [DONE]
+        """.trimIndent()
+        val deltas = mutableListOf<String>()
+        val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("A", (result as OpenAiCompatClient.Completion.Text).content)
+        assertEquals(listOf("A"), deltas)
+    }
+
+    @Test
+    fun `parse sse chat concatenates split content chunks`() {
+        val payload = """
+            data: {"choices":[{"delta":{"content":"Hel"}}]}
+            data: {"choices":[{"delta":{"content":"lo"}}]}
+            data: [DONE]
+        """.trimIndent()
+        val deltas = mutableListOf<String>()
+        val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("Hello", (result as OpenAiCompatClient.Completion.Text).content)
+        assertEquals(listOf("Hel", "lo"), deltas)
+    }
+
+    @Test
+    fun `parse sse chat reads delta object fallback shape`() {
+        val payload = """
+            data: {"delta":{"text":[{"text":"hi"}]}}
+            data: [DONE]
+        """.trimIndent()
+        val deltas = mutableListOf<String>()
+        val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+        assertEquals(listOf("hi"), deltas)
+    }
+
 }
