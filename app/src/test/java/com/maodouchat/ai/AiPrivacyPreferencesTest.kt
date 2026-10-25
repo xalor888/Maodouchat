@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -286,5 +287,64 @@ class AiPrivacyPreferencesTest {
             AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1"),
             AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-😀")
         )
+    }
+
+    @Test
+    fun `migration marker scoped keys stay distinct across accounts`() {
+        val first = AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "u-a")
+        val second = AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "u-b")
+        assertEquals("account_scope_migrated:u-a", first)
+        assertNotEquals(first, second)
+        assertNotEquals(AiPrivacyKeys.MIGRATED, first)
+        assertNotEquals(AiPrivacyKeys.MIGRATED, second)
+    }
+
+    @Test
+    fun `five preference keys share ai prefix while migration marker does not`() {
+        val bases = listOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE
+        )
+        for (base in bases) {
+            assertTrue(base.startsWith("ai_"))
+        }
+        assertFalse(AiPrivacyKeys.MIGRATED.startsWith("ai_"))
+    }
+
+    @Test
+    fun `scoped key with trailing colon base keeps double colon`() {
+        assertEquals("base::u", AiPrivacyPreferences.scopedKey("base:", "u"))
+    }
+
+    @Test
+    fun `user id that looks like a key cannot alias another key`() {
+        val scoped = AiPrivacyPreferences.scopedKey(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED
+        )
+        assertEquals("ai_consent_accepted:ai_user_enabled", scoped)
+        assertNotEquals(AiPrivacyPreferences.KEY_USER_ENABLED, scoped)
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "u-1"),
+            scoped
+        )
+    }
+
+    @Test
+    fun `raw keys contain no whitespace`() {
+        val keys = listOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE,
+            AiPrivacyKeys.MIGRATED
+        )
+        for (key in keys) {
+            assertTrue(key.none { it.isWhitespace() })
+        }
     }
 }
