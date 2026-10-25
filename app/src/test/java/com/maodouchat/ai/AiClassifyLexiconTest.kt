@@ -81,4 +81,42 @@ class AiClassifyLexiconTest {
         assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `todo category from chinese task words`() {
+        val result = AiClassifyLexicon.classifyText("待办事项记得提交")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study category from exam words`() {
+        val result = AiClassifyLexicon.classifyText("考试复习笔记都准备好了")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `multi-word english phrase matches as one hit`() {
+        // "follow up" 是词典里带空格的一整个词，只算 1 次命中
+        val result = AiClassifyLexicon.classifyText("please follow up soon")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `keyword split by scan window edge does not count`() {
+        // 299 个垫字 + "转账"：窗口只含 "转" 一个字，凑不成关键词
+        val result = AiClassifyLexicon.classifyText("垫".repeat(299) + "转账")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `shared keyword tie breaks toward earlier category`() {
+        // "上线" 同时在 NOTICE 与 TECH 词典里，并列时 entries 顺序在前的 NOTICE 胜
+        val result = AiClassifyLexicon.classifyText("上线")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
 }

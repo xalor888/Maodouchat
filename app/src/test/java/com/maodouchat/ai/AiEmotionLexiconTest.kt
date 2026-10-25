@@ -77,4 +77,42 @@ class AiEmotionLexiconTest {
         assertEquals(Emotion.HAPPY, result.emotion)
         assertEquals(0.5, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `angry words aggregate across overlapping entries`() {
+        // 「烦死了」同时命中「烦死了」与「烦」，按词计数 3 次
+        val result = AiEmotionLexicon.detectEmotion(listOf("气死我了，烦死了"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english happy words aggregate`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("so happy love it"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad aggregates across separate texts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过", "哭了"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `keyword split by scan window edge does not count`() {
+        // 199 个垫字 + "哈哈"：窗口只含 "哈" 一个字，凑不成关键词
+        val result = AiEmotionLexicon.detectEmotion(listOf("垫".repeat(199) + "哈哈"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `scan window applies per text not across the list`() {
+        // 首条文本的关键词在窗口外不命中，但不影响第二条文本的命中
+        val result = AiEmotionLexicon.detectEmotion(listOf("垫".repeat(300) + "哈哈", "难过"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }
