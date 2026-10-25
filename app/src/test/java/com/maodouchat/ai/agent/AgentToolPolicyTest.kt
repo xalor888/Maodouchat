@@ -426,4 +426,92 @@ class AgentToolPolicyTest {
         assertEquals("改会话 c1 pinned=true muted=false archived=true unread=false", preview)
     }
 
+    @Test
+    fun `message action previews stay human readable`() {
+        assertEquals(
+            "星标 m1 → true",
+            AgentToolHost.preview("star_message", """{"messageId":"m1","starred":true}""")
+        )
+        assertEquals(
+            "撤回 m1",
+            AgentToolHost.preview("revoke_message", """{"messageId":"m1"}""")
+        )
+        assertEquals(
+            "本机删除消息 m1",
+            AgentToolHost.preview("delete_local_message", """{"messageId":"m1"}""")
+        )
+        assertEquals(
+            "通知已读 n1",
+            AgentToolHost.preview("mark_notification_read", """{"itemId":"n1"}""")
+        )
+        assertEquals(
+            "置顶消息 m1",
+            AgentToolHost.preview("pin_message", """{"messageId":"m1"}""")
+        )
+        assertEquals(
+            "反应 👍 → m1",
+            AgentToolHost.preview("react_to_message", """{"messageId":"m1","emoji":"👍"}""")
+        )
+        assertEquals(
+            "开聊 u1",
+            AgentToolHost.preview("create_direct_chat", """{"userId":"u1"}""")
+        )
+        assertEquals(
+            "禁言 u2",
+            AgentToolHost.preview("mute_group_member", """{"chatId":"c1","memberId":"u2"}""")
+        )
+    }
+
+    @Test
+    fun `update chat preview shows null for missing flags`() {
+        assertEquals(
+            "改会话 c1 pinned=null muted=null archived=null unread=null",
+            AgentToolHost.preview("update_chat", """{"chatId":"c1"}""")
+        )
+    }
+
+    @Test
+    fun `social friend decision previews stay human readable`() {
+        assertEquals(
+            "同意好友 r1",
+            AgentToolHost.preview("accept_friend_request", """{"requestId":"r1"}""")
+        )
+        assertEquals(
+            "拒绝好友 r1",
+            AgentToolHost.preview("reject_friend_request", """{"requestId":"r1"}""")
+        )
+        assertEquals(
+            "评论动态 p1",
+            AgentToolHost.preview("comment_on_post", """{"postId":"p1"}""")
+        )
+        assertEquals(
+            "删除动态 p1",
+            AgentToolHost.preview("delete_post", """{"postId":"p1"}""")
+        )
+        assertEquals(
+            "取消拉黑 u1",
+            AgentToolHost.preview("unblock_user", """{"userId":"u1"}""")
+        )
+    }
+
+    @Test
+    fun `draft and post previews truncate text to eighty chars`() {
+        assertEquals(
+            "草稿 c1：" + "x".repeat(80),
+            AgentToolHost.preview("set_draft", """{"chatId":"c1","text":"""" + "x".repeat(100) + """"}""")
+        )
+        assertEquals(
+            "发动态：" + "y".repeat(80),
+            AgentToolHost.preview("create_text_post", """{"text":"""" + "y".repeat(100) + """","visibility":"PUBLIC"}""")
+        )
+    }
+
+    @Test
+    fun `parseArgs keeps unicode negative and empty string values`() {
+        val args = AgentToolHost.parseArgs("""{"text":"你好世界","n":-3,"e":""}""")
+        assertEquals("你好世界", args["text"])
+        assertEquals("-3", args["n"])
+        assertEquals("", args["e"])
+    }
+
 }

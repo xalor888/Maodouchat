@@ -306,4 +306,49 @@ class LocalAiGatewayRankTest {
         assertEquals(listOf("m2"), ranked)
     }
 
+    @Test
+    fun `query token repeated counts per query occurrence`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red red",
+            listOf("c1" to "red red red car")
+        )
+        assertEquals(listOf("c1" to 2.0), scored)
+        assertEquals(
+            listOf("c1"),
+            LocalAiGateway.rankSemantic("red red", listOf("c1" to "red red red car"))
+        )
+    }
+
+    @Test
+    fun `descending sort orders mixed scores across candidates`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red blue green",
+            listOf("c1" to "red", "c2" to "red blue green", "c3" to "red blue")
+        )
+        assertEquals(listOf("c2" to 3.0, "c3" to 2.0, "c1" to 1.0), scored)
+    }
+
+    @Test
+    fun `multiple internal spaces collapse like single spaces`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("red   blue", listOf("c1" to "red blue"))
+        )
+    }
+
+    @Test
+    fun `mixed case substring token matches`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("ReD", listOf("c1" to "REDDISH car"))
+        )
+    }
+
+    @Test
+    fun `hyphenated query token stays one token`() = runBlocking {
+        val candidates = listOf("c1" to "red-blue sky", "c2" to "red blue sky")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("red-blue", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("red-blue", candidates))
+    }
+
 }
