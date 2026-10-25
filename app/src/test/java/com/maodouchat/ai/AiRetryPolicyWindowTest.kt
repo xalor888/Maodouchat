@@ -309,4 +309,55 @@ class AiRetryPolicyWindowTest {
         assertTrue(AiRetryPolicy.remainingDelayMs("another-fresh", AiRetryPolicyCategory.LIGHT) > 0L)
     }
 
+    @Test
+    fun colonInsideChatIdDoesNotCollideWithCategoryPrefix() {
+        AiRetryPolicy.recordCall("a:b", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("a:b", AiRetryPolicyCategory.LIGHT))
+        // 窗口 key 是 "LIGHT:a:b"，不是 "LIGHT:a"：冒号只是键的一部分。
+        assertTrue(AiRetryPolicy.canCallNow("a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("a:b", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun heavyRemainingExceedsLightRemainingWhenBothRecordedTogether() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.HEAVY)
+        val light = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT)
+        val heavy = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.HEAVY)
+        assertTrue("LIGHT remaining should be ~30s, was $light", light in 1L..30_000L)
+        assertTrue("HEAVY remaining should be ~60s, was $heavy", heavy in 1L..60_000L)
+        assertTrue("HEAVY window should outlast LIGHT, light=$light heavy=$heavy", heavy > light)
+    }
+
+    @Test
+    fun nonAsciiChatIdsAreDistinctKeys() {
+        AiRetryPolicy.recordCall("聊天-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("聊天-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("聊天-b", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("聊天-b", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun veryLongChatIdWorksAsAKey() {
+        val longId = "x".repeat(10_000)
+        AiRetryPolicy.recordCall(longId, AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow(longId, AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun globalWindowRefillsToFullAfterClearSession() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.clearSession()
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
+    }
+
 }

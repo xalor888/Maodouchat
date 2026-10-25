@@ -346,4 +346,43 @@ class GroupAiSharePolicyTest {
         assertEquals("a\tb", decision.body)
     }
 
+    @Test
+    fun `decideShare truncates one char over max to exactly max`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "x".repeat(4001))
+        assertTrue(decision.allowed)
+        assertEquals("x".repeat(4000), decision.body)
+        assertEquals(4000, decision.body.length)
+    }
+
+    @Test
+    fun `decideShare rejects whitespace only answer even at max length`() {
+        val decision = GroupAiSharePolicy.decideShare(true, " ".repeat(4000))
+        assertFalse(decision.allowed)
+        assertEquals(BlockReason.EMPTY_ANSWER, decision.reason)
+    }
+
+    @Test
+    fun `sanitize dueText one over cap truncates to 120`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", dueText = "z".repeat(121)))
+        )
+        assertEquals(120, cleaned.single().dueText!!.length)
+    }
+
+    @Test
+    fun `sanitize keeps max long dueAt`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", dueAt = Long.MAX_VALUE))
+        )
+        assertEquals(Long.MAX_VALUE, cleaned.single().dueAt)
+    }
+
+    @Test
+    fun `share meta caps long mode to 40 chars`() {
+        val meta = GroupAiSharePolicy.shareAsCurrentUserMeta("m".repeat(100))
+        assertEquals("m".repeat(40), meta["aiAssistantMode"])
+        assertEquals(true, meta["aiAssisted"])
+        assertEquals(false, meta["systemIdentity"])
+    }
+
 }
