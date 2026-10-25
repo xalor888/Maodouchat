@@ -202,4 +202,39 @@ class AiClassifyLexiconTest {
         // TECH 词典里 "bug" 列了两次，两次都计命中，所以是 4/5 而不是 3/4。
         assertEquals(0.8, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `tech category from deployment words`() {
+        val result = AiClassifyLexicon.classifyText("部署服务器接口")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance category from english pay words`() {
+        val result = AiClassifyLexicon.classifyText("pay the bill and refund")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `social category from english leisure words`() {
+        val result = AiClassifyLexicon.classifyText("weekend movie trip")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study category from english course words`() {
+        val result = AiClassifyLexicon.classifyText("study course notes")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `notice category from maintenance words`() {
+        val result = AiClassifyLexicon.classifyText("系统维护公告")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }

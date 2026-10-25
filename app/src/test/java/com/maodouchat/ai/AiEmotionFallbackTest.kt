@@ -189,4 +189,40 @@ class AiEmotionFallbackTest {
         }
     }
 
+    @Test
+    fun `every template is shorter than eighty characters`() {
+        val texts = Emotion.entries.map { AiEmotionFallback.localFallback(context, it) }
+        assertTrue(texts.all { it.length < 80 })
+    }
+
+    @Test
+    fun `no sentence-final mark appears before the last character`() {
+        val marks = setOf('。', '！', '？', '.', '!', '?')
+        val texts = Emotion.entries.map { AiEmotionFallback.localFallback(context, it) }
+        assertTrue(texts.all { text -> text.dropLast(1).none { it in marks } })
+    }
+
+    @Test
+    fun `happy template is shorter than sad and anxious templates`() {
+        val happy = AiEmotionFallback.localFallback(context, Emotion.HAPPY)
+        val sad = AiEmotionFallback.localFallback(context, Emotion.SAD)
+        val anxious = AiEmotionFallback.localFallback(context, Emotion.ANXIOUS)
+        assertTrue(happy.length < sad.length)
+        assertTrue(happy.length < anxious.length)
+    }
+
+    @Test
+    fun `no template contains a tab or carriage return`() {
+        val texts = Emotion.entries.map { AiEmotionFallback.localFallback(context, it) }
+        assertTrue(texts.none { it.contains('\t') || it.contains('\r') })
+    }
+
+    @Test
+    fun `only the happy template ends with an exclamation mark`() {
+        val texts = Emotion.entries.map { it to AiEmotionFallback.localFallback(context, it) }
+        for ((emotion, text) in texts) {
+            val endsWithBang = text.endsWith('!') || text.endsWith('！')
+            assertEquals(emotion == Emotion.HAPPY, endsWithBang)
+        }
+    }
 }
