@@ -234,4 +234,36 @@ class AiTaskDndPolicyTest {
         assertTrue(AiTaskDndPolicy.isInQuietHours(59, 100, 60))
     }
 
+
+    @Test
+    fun `runtime switch off means never quiet in same-day window`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(13, 12, 14, dndRuntimeEnabled = false))
+    }
+
+    @Test
+    fun `equal bounds at midnight mean an empty window`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 0, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, 0, 0))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 0, 0, 0, 2_000L))
+    }
+
+    @Test
+    fun `nextAllowedTime same-day end edge one millisecond after now`() {
+        assertEquals(1_001L, AiTaskDndPolicy.nextAllowedTime(1_000L, 12, 12, 14, 1_001L))
+    }
+
+    @Test
+    fun `clamped end to midnight leaves only the evening segment`() {
+        // 终边 -50 被钳到 0：跨夜窗口只剩晚间段，凌晨段为空。
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 100, -50))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(30, 100, -50))
+        assertEquals(2_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1439, 100, -50, 2_000L))
+    }
+
+    @Test
+    fun `full-day window covers midday and late minutes`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(720, 0, 1439))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1438, 0, 1439))
+    }
+
 }
