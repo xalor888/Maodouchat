@@ -155,4 +155,54 @@ class AttachmentSendAfterUploadPolicyTest {
         assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
         assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
     }
+
+    @Test
+    fun nullErrorIsNeitherConflictNorDuplicate() {
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(null))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(null))
+    }
+
+    @Test
+    fun nonApiErrorIsNeitherConflictNorDuplicate() {
+        val err = IOException("eof")
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
+    }
+
+    @Test
+    fun non409NotReadyTextIsNotConflictButStillRetryableVia5xx() {
+        val err = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 500,
+            serverMessage = "附件尚未上传完成",
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
+
+    @Test
+    fun mixedCaseWhitespaceAcceptedCodeIsAcceptedNotRetryable() {
+        val err = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverCode = "  Message_Already_Accepted ",
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
+
+    @Test
+    fun deepChainInitializationMessageIsTransient() {
+        val err = RuntimeException(
+            "l1",
+            RuntimeException(
+                "l2",
+                RuntimeException(
+                    "l3",
+                    RuntimeException("l4", RuntimeException("protocol initialization")),
+                ),
+            ),
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
 }
