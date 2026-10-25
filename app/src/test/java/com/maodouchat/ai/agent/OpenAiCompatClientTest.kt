@@ -162,4 +162,44 @@ class OpenAiCompatClientTest {
         assertTrue(result is OpenAiCompatClient.Completion.Text)
         assertEquals("first", (result as OpenAiCompatClient.Completion.Text).content)
     }
+
+    @Test
+    fun `parseNonStream rejects JSON array payload`() {
+        val result = OpenAiCompatClient.parseNonStream("""[{"choices":[]}]""")
+        assertTrue(result is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型返回不是 JSON", (result as OpenAiCompatClient.Completion.Error).message)
+    }
+
+    @Test
+    fun `parseNonStream rejects non-array choices`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":{"message":{"content":"hi"}}}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型没有 choices", (result as OpenAiCompatClient.Completion.Error).message)
+    }
+
+    @Test
+    fun `parseNonStream rejects non-object first choice`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":["hello"]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型没有 choices", (result as OpenAiCompatClient.Completion.Error).message)
+    }
+
+    @Test
+    fun `parseNonStream reads empty text for null message`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[{"message":null}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream keeps empty arguments for tool call without arguments`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[{"id":"c9","function":{"name":"list_chats"}}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val call = (result as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("c9", call.id)
+        assertEquals("list_chats", call.name)
+        assertEquals("", call.argumentsJson)
+    }
+
 }
