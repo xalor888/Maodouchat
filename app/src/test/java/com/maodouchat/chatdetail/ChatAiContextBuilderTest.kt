@@ -200,4 +200,55 @@ class ChatAiContextBuilderTest {
         meta: MessageMeta = MessageMeta(),
         type: MessageType = MessageType.TEXT
     ) = Message(id, "chat-1", senderId, content, type, timestamp, meta = meta)
+
+    @Test
+    fun `summary drops ai-assisted messages too`() {
+        val assisted = message("ai", "alice", "generated", 10L, MessageMeta(aiAssisted = true))
+        assertTrue(buildSummaryAiContextMessages(listOf(assisted), senders).isEmpty())
+    }
+
+    @Test
+    fun `plain context takeLast keeps only the latest messages`() {
+        val messages = (1..3).map { message("m$it", "alice", "text $it", it.toLong()) }
+        val context = buildPlainAiContextMessages(messages, senders, limit = 2)
+        assertEquals(listOf("text 2", "text 3"), context.map { it.text })
+    }
+
+    @Test
+    fun `summary limit is clamped into range`() {
+        val few = (1..3).map { message("m$it", "alice", "text $it", it.toLong()) }
+        assertEquals(1, buildSummaryAiContextMessages(few, senders, limit = 0).size)
+        assertEquals("text 3", buildSummaryAiContextMessages(few, senders, limit = 0).single().text)
+        val many = (1..70).map { message("m$it", "alice", "text $it", it.toLong()) }
+        val clamped = buildSummaryAiContextMessages(many, senders, limit = 500)
+        assertEquals(MAX_AI_SUMMARY_MESSAGES, clamped.size)
+        assertEquals("text ${70 - MAX_AI_SUMMARY_MESSAGES + 1}", clamped.first().text)
+        assertEquals("text 70", clamped.last().text)
+    }
+
+    @Test
+    fun `summary keeps image messages only through translations`() {
+        val bare = message("img", "alice", "photo", 10L, type = MessageType.IMAGE)
+        assertTrue(buildSummaryAiContextMessages(listOf(bare), senders).isEmpty())
+        val translated = message(
+            "img2", "alice", "photo", 20L,
+            MessageMeta(translations = mapOf("en" to "photo translation")),
+            MessageType.IMAGE
+        )
+        assertEquals(
+            "photo translation",
+            buildSummaryAiContextMessages(listOf(translated), senders).single().text
+        )
+    }
+
+    @Test
+    fun `summary orders same-timestamp messages by id`() {
+        val messages = listOf(
+            message("m-b", "alice", "b text", 10L),
+            message("m-a", "alice", "a text", 10L)
+        )
+        val context = buildSummaryAiContextMessages(messages, senders)
+        assertEquals(listOf("a text", "b text"), context.map { it.text })
+    }
+
 }
