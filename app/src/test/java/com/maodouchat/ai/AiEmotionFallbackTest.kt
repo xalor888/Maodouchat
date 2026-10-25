@@ -225,4 +225,49 @@ class AiEmotionFallbackTest {
             assertEquals(emotion == Emotion.HAPPY, endsWithBang)
         }
     }
+
+    @Test
+    fun `only sad and angry templates express understanding`() {
+        // 中英文文案里表达理解的只有 sad 与 angry 两条
+        val expressing = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("理解") || text.contains("understand", ignoreCase = true)
+        }
+        assertEquals(setOf(Emotion.SAD, Emotion.ANGRY), expressing.toSet())
+    }
+
+    @Test
+    fun `anxious template is the longest of the five`() {
+        val anxious = AiEmotionFallback.localFallback(context, Emotion.ANXIOUS)
+        Emotion.entries.filter { it != Emotion.ANXIOUS }.forEach { emotion ->
+            assertTrue("$emotion 的模板应短于 anxious 模板",
+                AiEmotionFallback.localFallback(context, emotion).length < anxious.length)
+        }
+    }
+
+    @Test
+    fun `only the happy template names happiness`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("开心") || text.contains("happy", ignoreCase = true)
+        }
+        assertEquals(listOf(Emotion.HAPPY), naming)
+    }
+
+    @Test
+    fun `no template asks a question`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertFalse("$emotion 的模板不应含问号", text.contains('？') || text.contains('?'))
+        }
+    }
+
+    @Test
+    fun `neutral template is shorter than sad angry and anxious templates`() {
+        val neutral = AiEmotionFallback.localFallback(context, Emotion.NEUTRAL)
+        listOf(Emotion.SAD, Emotion.ANGRY, Emotion.ANXIOUS).forEach { emotion ->
+            assertTrue("$emotion 的模板应长于 neutral 模板",
+                AiEmotionFallback.localFallback(context, emotion).length > neutral.length)
+        }
+    }
 }

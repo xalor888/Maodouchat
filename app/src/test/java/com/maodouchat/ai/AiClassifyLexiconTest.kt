@@ -237,4 +237,40 @@ class AiClassifyLexiconTest {
         assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `duplicate dictionary word counts per listing`() {
+        // "bug" 在 TECH 词典里列了两次，两次都计命中：TECH 2 票、STUDY 1 票
+        val result = AiClassifyLexicon.classifyText("bug 学习")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `uppercase substring run matches two tech words`() {
+        val result = AiClassifyLexicon.classifyText("BUGFIX")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `social category from english lol`() {
+        val result = AiClassifyLexicon.classifyText("lol")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance category from chinese hongbao word`() {
+        val result = AiClassifyLexicon.classifyText("收到红包")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `punctuation only falls back to other`() {
+        val result = AiClassifyLexicon.classifyText("!!! ???")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
+    }
 }
