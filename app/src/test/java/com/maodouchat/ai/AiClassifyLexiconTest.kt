@@ -310,4 +310,39 @@ class AiClassifyLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `todo category from english assign word`() {
+        val result = AiClassifyLexicon.classifyText("assign")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `notice category from english announcement word`() {
+        val result = AiClassifyLexicon.classifyText("announcement")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance category from chinese salary word`() {
+        val result = AiClassifyLexicon.classifyText("收到工资")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `tech category from english release word`() {
+        val result = AiClassifyLexicon.classifyText("release")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study category from english lecture word`() {
+        val result = AiClassifyLexicon.classifyText("lecture")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }

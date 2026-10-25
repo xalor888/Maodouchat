@@ -323,4 +323,45 @@ class AiEmotionFallbackTest {
         }
         assertEquals(listOf(Emotion.ANGRY), naming)
     }
+
+    @Test
+    fun `sad template is longer than happy template`() {
+        val happy = AiEmotionFallback.localFallback(context, Emotion.HAPPY)
+        val sad = AiEmotionFallback.localFallback(context, Emotion.SAD)
+        assertTrue(sad.length > happy.length)
+    }
+
+    @Test
+    fun `angry template is longer than neutral template`() {
+        val angry = AiEmotionFallback.localFallback(context, Emotion.ANGRY)
+        val neutral = AiEmotionFallback.localFallback(context, Emotion.NEUTRAL)
+        assertTrue(angry.length > neutral.length)
+    }
+
+    @Test
+    fun `only anxious template mentions companionship`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("陪") || text.contains("together", ignoreCase = true)
+        }
+        assertEquals(listOf(Emotion.ANXIOUS), naming)
+    }
+
+    @Test
+    fun `only angry template says take it easy`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("别急") || text.contains("Take it easy")
+        }
+        assertEquals(listOf(Emotion.ANGRY), naming)
+    }
+
+    @Test
+    fun `only neutral template invites speaking`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("你说") || text.contains("go ahead", ignoreCase = true)
+        }
+        assertEquals(listOf(Emotion.NEUTRAL), naming)
+    }
 }
