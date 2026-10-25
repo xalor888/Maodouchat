@@ -273,4 +273,41 @@ class AiClassifyLexiconTest {
         assertEquals(AiMessageClassifierCategory.OTHER, result.category)
         assertEquals(0.2, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `finance category from transfer and price words`() {
+        val result = AiClassifyLexicon.classifyText("transfer price")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study category from book word`() {
+        val result = AiClassifyLexicon.classifyText("看书")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `multi-word phrase exactly filling the scan window still counts`() {
+        // 291 个垫字 + "follow up"（9 字符）恰好 300 字符，短语完整落在窗口内
+        val result = AiClassifyLexicon.classifyText("a".repeat(291) + "follow up")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `majority category confidence is its share with four hits`() {
+        val result = AiClassifyLexicon.classifyText("转账 发票 报销 通知")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(0.75, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `social category from good night phrase`() {
+        val result = AiClassifyLexicon.classifyText("say good night")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
