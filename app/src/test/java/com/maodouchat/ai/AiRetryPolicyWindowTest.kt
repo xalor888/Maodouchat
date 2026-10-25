@@ -257,4 +257,56 @@ class AiRetryPolicyWindowTest {
         assertFalse(AiRetryPolicy.canCallNow(" ", AiRetryPolicyCategory.LIGHT))
     }
 
+    @Test
+    fun repeatedSameChatRecordsFillTheGlobalWindow() {
+        // 全局窗口按记录次数计槽，不按会话去重：同一会话记满 240 次同样封顶。
+        repeat(240) { AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+        val wait = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue("global window should dominate, was $wait", wait > 3_000_000L)
+    }
+
+    @Test
+    fun heavyWindowsAreIsolatedBetweenChats() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.canCallNow("chat-b", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-b", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun clearSessionMidFillRestoresFullGlobalCapacity() {
+        repeat(239) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun whitespaceChatIdsOfDifferentLengthsAreDistinctKeys() {
+        AiRetryPolicy.recordCall(" ", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow(" ", AiRetryPolicyCategory.LIGHT))
+        // 键不裁边也不归一：两个空格是另一个会话。
+        assertTrue(AiRetryPolicy.canCallNow("  ", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("  ", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.recordCall("  ", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("  ", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow(" ", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun recordsUnderAGlobalBlockKeepItBlocked() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        AiRetryPolicy.recordCall("late", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("another-fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("another-fresh", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.remainingDelayMs("another-fresh", AiRetryPolicyCategory.LIGHT) > 0L)
+    }
+
 }

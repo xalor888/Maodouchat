@@ -76,4 +76,46 @@ class OpenAiCompatClientTest {
         assertTrue(result is OpenAiCompatClient.Completion.Tools)
         assertEquals("working on it", (result as OpenAiCompatClient.Completion.Tools).content)
     }
+
+    @Test
+    fun `parseNonStream rejects empty choices array`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型没有 choices", (result as OpenAiCompatClient.Completion.Error).message)
+    }
+
+    @Test
+    fun `parseNonStream reads empty text for choice without message`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[{}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream treats null content as empty text`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[{"message":{"content":null}}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream ignores empty tool_calls array`() {
+        val payload = """{"choices":[{"message":{"content":"hi","tool_calls":[]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream keeps multiple tool calls in order`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[
+          {"id":"c1","function":{"name":"list_chats","arguments":"{}"}},
+          {"id":"c2","function":{"name":"search_messages","arguments":"{}"}}
+        ]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val calls = (result as OpenAiCompatClient.Completion.Tools).calls
+        assertEquals(listOf("list_chats", "search_messages"), calls.map { it.name })
+        assertEquals(listOf("c1", "c2"), calls.map { it.id })
+    }
 }
