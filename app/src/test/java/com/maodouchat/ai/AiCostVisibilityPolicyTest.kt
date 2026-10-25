@@ -722,4 +722,93 @@ class AiCostVisibilityPolicyTest {
         assertEquals(2L, mixed.waitSeconds)
     }
 
+
+    @Test
+    fun `classify insufficient balance message is quota`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "insufficient balance"
+        )
+        assertTrue(signal.isQuota)
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify spaced payment required message alone is generic`() {
+        // 下划线形 payment_required 算配额，空格形 payment required 不算：blob 只认下划线拼写。
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "payment required"
+        )
+        assertFalse(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertTrue(AiCostVisibilityPolicy.mapToErrorCode(signal) == null)
+    }
+
+    @Test
+    fun `billing hint and warn cover payment failed code`() {
+        assertEquals(
+            BillingHint.QUOTA_EXCEEDED,
+            AiCostVisibilityPolicy.billingHintFor("PAYMENT_FAILED")
+        )
+        assertEquals(
+            BillingHint.QUOTA_EXCEEDED,
+            AiCostVisibilityPolicy.billingHintFor("payment_failed", isFailed = true)
+        )
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("PAYMENT_FAILED"))
+    }
+
+    @Test
+    fun `encode drops suffix for too many code but embedded still reads it`() {
+        assertEquals(
+            "TOO_MANY_REQUESTS",
+            AiCostVisibilityPolicy.encodeErrorCode("TOO_MANY_REQUESTS", 45)
+        )
+        assertEquals(
+            "TOO_MANY_REQUESTS",
+            AiCostVisibilityPolicy.encodeErrorCode("too_many_requests", 45)
+        )
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("TOO_MANY_REQUESTS:45"))
+        assertEquals(45L, AiCostVisibilityPolicy.waitSecondsFor("TOO_MANY_REQUESTS:45"))
+    }
+
+    @Test
+    fun `classify 402 with retry after keeps retry and maps quota`() {
+        val first = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 402,
+            serverCode = null,
+            serverMessage = null,
+            serverRetryAfterSeconds = 30
+        )
+        val second = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 402,
+            serverCode = null,
+            serverMessage = null,
+            serverRetryAfterSeconds = 30
+        )
+        assertEquals(first, second)
+        assertTrue(first.isQuota)
+        assertTrue(first.isRateLimited)
+        assertEquals(30L, first.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(first)
+        )
+        assertEquals(
+            30L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_QUOTA,
+                serverRetryAfterSeconds = 30
+            )
+        )
+    }
+
 }

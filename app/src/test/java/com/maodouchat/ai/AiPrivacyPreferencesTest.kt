@@ -458,4 +458,54 @@ class AiPrivacyPreferencesTest {
             AiPrivacyPreferences.scopedKey(inner, "u-2")
         )
     }
+
+    @Test
+    fun `scoped key keeps thousand char user id intact`() {
+        val longId = "x".repeat(1000)
+        val scoped = AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, longId)
+        assertEquals(AiPrivacyPreferences.KEY_CONSENT.length + 1 + 1000, scoped.length)
+        assertTrue(scoped.startsWith("ai_consent_accepted:"))
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "x".repeat(999)),
+            scoped
+        )
+    }
+
+    @Test
+    fun `scoped key with prefs name user id never aliases prefs name`() {
+        val scoped = AiPrivacyPreferences.scopedKey(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyKeys.PREFS_NAME
+        )
+        assertEquals("ai_consent_accepted:ai_settings", scoped)
+        assertNotEquals(AiPrivacyKeys.PREFS_NAME, scoped)
+    }
+
+    @Test
+    fun `scoped key double scope with same user keeps both suffixes`() {
+        val inner = AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1")
+        assertEquals(
+            "ai_consent_accepted:u-1:u-1",
+            AiPrivacyPreferences.scopedKey(inner, "u-1")
+        )
+    }
+
+    @Test
+    fun `scoped key with colon only base keeps double colon shape`() {
+        assertEquals("::u", AiPrivacyPreferences.scopedKey(":", "u"))
+        assertEquals(":::", AiPrivacyPreferences.scopedKey(":", ":"))
+    }
+
+    @Test
+    fun `scoped key keeps carriage return and combined spaces verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:u\r1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u\r1")
+        )
+        assertEquals(
+            " base : u ",
+            AiPrivacyPreferences.scopedKey(" base ", " u ")
+        )
+    }
+
 }
