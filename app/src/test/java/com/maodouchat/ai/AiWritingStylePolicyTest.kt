@@ -426,4 +426,42 @@ class AiWritingStylePolicyTest {
         assertEquals(note, AiWritingStylePolicy.normalizeCustomNote(note))
     }
 
+
+    @Test
+    fun `fromId trims and lowercases before lookup`() {
+        assertEquals(Preset.WARM, Preset.fromId("  WARM  "))
+        assertEquals(Preset.WARM, Preset.fromId("warm" + " ".repeat(50)))
+    }
+
+    @Test
+    fun `fromId exactly forty chars never matches`() {
+        assertEquals(Preset.NONE, Preset.fromId("warm" + "x".repeat(36)))
+    }
+
+    @Test
+    fun `trailing space note trims before the cap`() {
+        val note = AiWritingStylePolicy.normalizeCustomNote("a ".repeat(160))
+        assertEquals(319, note.length)
+        assertEquals("a ".repeat(159) + "a", note)
+    }
+
+    @Test
+    fun `long whitespace run collapses to one space`() {
+        assertEquals("a b", AiWritingStylePolicy.normalizeCustomNote("a" + " ".repeat(500) + "b"))
+    }
+
+    @Test
+    fun `disabled normalize equals clear for every preset id`() {
+        val ids = listOf(
+            "concise", "formal", "warm", "professional", "casual",
+            "witty", "empathetic", "direct", "enthusiastic", "diplomatic", "nope", null
+        )
+        for (id in ids) {
+            assertEquals(
+                AiWritingStylePolicy.clear(),
+                AiWritingStylePolicy.normalize(false, id, "hi")
+            )
+        }
+    }
+
 }

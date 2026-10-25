@@ -529,4 +529,63 @@ class AiEntryPolicyTest {
         )
     }
 
+
+    @Test
+    fun `mixed case gif file and system fold to their actions`() {
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("gIf")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("fIlE")
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("sYsTeM")
+        )
+    }
+
+    @Test
+    fun `tab wrapped file transcribes nothing and padded voice with transcript is empty`() {
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("\tfile\n")
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor(" voice ", hasTranscript = true).isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions(" voice ", hasTranscript = true))
+    }
+
+    @Test
+    fun `every known type maps to exactly one action`() {
+        val cases = mapOf(
+            "TEXT" to MessageAiAction.TRANSLATE,
+            "MARKDOWN" to MessageAiAction.TRANSLATE,
+            "SYSTEM" to MessageAiAction.TRANSLATE,
+            "VOICE" to MessageAiAction.TRANSCRIBE,
+            "IMAGE" to MessageAiAction.ANALYZE_IMAGE,
+            "GIF" to MessageAiAction.ANALYZE_IMAGE,
+            "FILE" to MessageAiAction.ANALYZE_FILE
+        )
+        for ((type, action) in cases) {
+            assertEquals(listOf(action), AiEntryPolicy.contextActionsFor(type))
+        }
+    }
+
+    @Test
+    fun `unknown types stay empty even with a transcript`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("VIDEO", hasTranscript = true).isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("AUDIO", hasTranscript = true).isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("STICKER", hasTranscript = true).isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("VIDEO", hasTranscript = true))
+    }
+
+    @Test
+    fun `null and blank types stay empty even with a transcript`() {
+        assertTrue(AiEntryPolicy.contextActionsFor(null, hasTranscript = true).isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("", hasTranscript = true).isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("   ", hasTranscript = true).isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions(null, hasTranscript = true))
+    }
+
 }
