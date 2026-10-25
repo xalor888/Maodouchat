@@ -203,4 +203,35 @@ class AiTaskDndPolicyTest {
         assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1500, 60))
     }
 
+
+    @Test
+    fun `clamped minute above day end falls into overnight window`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1500, 1380, 60))
+    }
+
+    @Test
+    fun `negative nowMs still returns end in overnight window`() {
+        assertEquals(3_000L, AiTaskDndPolicy.nextAllowedTime(-5_000L, 1439, 1380, 60, 3_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(-5_000L, 100, 1380, 60, 3_000L))
+    }
+
+    @Test
+    fun `overnight window ending at 1438 excludes only that minute`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1438, 1439, 1438))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1439, 1438))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 1439, 1438))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1437, 1439, 1438))
+    }
+
+    @Test
+    fun `outside overnight morning segment returns null despite future end`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 100, 1380, 60, 5_000L))
+    }
+
+    @Test
+    fun `inverted window end minute is exclusive`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(60, 100, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(59, 100, 60))
+    }
+
 }

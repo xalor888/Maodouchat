@@ -260,4 +260,36 @@ class AgentToolPolicyTest {
         }
     }
 
+
+    @Test
+    fun `catalog tool names are unique`() {
+        val names = AgentToolPolicy.tools.map { it.name }
+        assertEquals(names.size, names.toSet().size)
+    }
+
+    @Test
+    fun `catalog tool names are non-blank`() {
+        assertTrue(AgentToolPolicy.tools.all { it.name.isNotBlank() })
+    }
+
+    @Test
+    fun `parseArgs keeps false and zero as strings`() {
+        val args = AgentToolHost.parseArgs("""{"starred":false,"limit":0}""")
+        assertEquals("false", args["starred"])
+        assertEquals("0", args["limit"])
+    }
+
+    @Test
+    fun `whitespace-only json input parses empty`() {
+        assertTrue(AgentToolHost.parseArgs("   ").isEmpty())
+        assertTrue(AgentToolHost.parseArgs("{}").isEmpty())
+    }
+
+    @Test
+    fun `preview fallback truncates long json to 160 chars`() {
+        val json = "{\"a\":\"" + "x".repeat(300) + "\"}"
+        val preview = AgentToolHost.preview("no_such_tool", json)
+        assertEquals("no_such_tool " + json.take(160), preview)
+    }
+
 }
