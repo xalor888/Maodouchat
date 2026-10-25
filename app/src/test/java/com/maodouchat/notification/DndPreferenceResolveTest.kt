@@ -239,6 +239,88 @@ class DndPreferenceResolveTest {
     }
 
     @Test
+    fun endOnlyEqualWindowInfersDisabled() {
+        assertFalse(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = false,
+                endHourPresent = true,
+                startHour = 22,
+                endHour = 22,
+            )
+        )
+        assertFalse(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = false,
+                endHourPresent = true,
+                startHour = 99,
+                endHour = 23,
+            )
+        )
+    }
+
+    @Test
+    fun negativeHoursClampedBeforeEquality() {
+        assertFalse(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = true,
+                endHourPresent = true,
+                startHour = -5,
+                endHour = 0,
+            )
+        )
+        assertTrue(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = true,
+                endHourPresent = true,
+                startHour = -1,
+                endHour = 7,
+            )
+        )
+    }
+
+    @Test
+    fun hourFallbackZeroAndNegativeEnd() {
+        assertEquals(0, DndPreferenceResolve.startMinute(null, 0))
+        assertEquals(0, DndPreferenceResolve.endMinute(null, 0))
+        assertEquals(0, DndPreferenceResolve.endMinute(null, -3))
+        assertEquals(1380, DndPreferenceResolve.startMinute(null, 23))
+    }
+
+    @Test
+    fun storedMinuteBoundaryExtremes() {
+        assertEquals(0, DndPreferenceResolve.startMinute(0, -99))
+        assertEquals(1439, DndPreferenceResolve.endMinute(1439, 99))
+        assertEquals(0, DndPreferenceResolve.endMinute(0, 23))
+        assertEquals(1439, DndPreferenceResolve.startMinute(1439, 0))
+    }
+
+    @Test
+    fun clampedUnequalWindowWithPartialKeys() {
+        assertTrue(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = true,
+                endHourPresent = true,
+                startHour = 24,
+                endHour = 7,
+            )
+        )
+        assertFalse(
+            DndPreferenceResolve.enabled(
+                enabledStored = null,
+                startHourPresent = true,
+                endHourPresent = false,
+                startHour = 24,
+                endHour = 24,
+            )
+        )
+    }
+
+    @Test
     fun storedMinuteWinsOverDerived() {
         assertEquals(0, DndPreferenceResolve.endMinute(0, 100))
         assertEquals(1439, DndPreferenceResolve.startMinute(1439, -5))

@@ -196,6 +196,53 @@ class NotificationSlotPolicyTest {
     }
 
     @Test
+    fun aiTaskRequestCodeSharesNotifyIdHash() {
+        assertEquals("t1".hashCode(), NotificationSlotPolicy.aiTaskRequestCode("t1"))
+        assertEquals(
+            NotificationSlotPolicy.aiTaskNotifyId("t1"),
+            NotificationSlotPolicy.aiTaskRequestCode("t1")
+        )
+    }
+
+    @Test
+    fun friendRequestNotifyIdUsesBareHash() {
+        assertEquals("r1".hashCode(), NotificationSlotPolicy.friendRequestNotifyId("r1"))
+        assertNotEquals(
+            NotificationSlotPolicy.friendRequestNotifyId("r1"),
+            NotificationSlotPolicy.friendRequestRequestCode("r1")
+        )
+    }
+
+    @Test
+    fun groupInviteNotifyIdUsesBareHash() {
+        assertEquals("i1".hashCode(), NotificationSlotPolicy.groupInviteNotifyId("i1"))
+        assertNotEquals(
+            NotificationSlotPolicy.groupInviteNotifyId("i1"),
+            NotificationSlotPolicy.groupInviteRequestCode("i1")
+        )
+    }
+
+    @Test
+    fun announcementNotifyIdUsesBareHash() {
+        assertEquals("a1".hashCode(), NotificationSlotPolicy.announcementNotifyId("a1"))
+        assertNotEquals(
+            NotificationSlotPolicy.announcementNotifyId("a1"),
+            NotificationSlotPolicy.announcementRequestCode("a1")
+        )
+    }
+
+    @Test
+    fun frozenTagPrefixAndMissSaltLiterals() {
+        assertEquals("maodouchat_", NotificationSlotPolicy.MESSAGE_TAG_PREFIX)
+        assertEquals("maodouchat_test", NotificationSlotPolicy.TEST_TAG)
+        assertEquals(1296651091, NotificationSlotPolicy.MISSED_CALL_ID_SALT)
+        assertNotEquals(
+            NotificationSlotPolicy.reminderNotifyId("m1"),
+            NotificationSlotPolicy.reminderNotifyId("m2")
+        )
+    }
+
+    @Test
     fun emptyInputsProduceStableDegenerateSlots() {
         // 空 id 不抛异常，槽位字符串仍按前缀规则拼出且互不相同。
         assertEquals("maodouchat_", NotificationSlotPolicy.messageTag(""))
