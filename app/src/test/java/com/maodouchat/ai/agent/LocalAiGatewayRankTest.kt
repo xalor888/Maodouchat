@@ -159,4 +159,52 @@ class LocalAiGatewayRankTest {
             LocalAiGateway.rankSemanticScored("red", candidates)
         )
     }
+
+    @Test
+    fun `surrounding whitespace in query does not change ranking`() = runBlocking {
+        val ranked = LocalAiGateway.rankSemantic(
+            "  alpha beta  ",
+            listOf("c1" to "alpha only here", "c2" to "alpha and beta both here")
+        )
+        assertEquals(listOf("c2", "c1"), ranked)
+    }
+
+    @Test
+    fun `token repeated in candidate text counts once`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red",
+            listOf("c1" to "red red red car")
+        )
+        assertEquals(listOf("c1" to 1.0), scored)
+    }
+
+    @Test
+    fun `uppercase query and candidate text score the same`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("BLUE", listOf("c1" to "BLUE SKY"))
+        )
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("blue", listOf("c1" to "blue sky"))
+        )
+    }
+
+    @Test
+    fun `scored ranking preserves input order across three equal hits`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red",
+            listOf("c1" to "red one", "c2" to "red two", "c3" to "red three")
+        )
+        assertEquals(listOf("c1" to 1.0, "c2" to 1.0, "c3" to 1.0), scored)
+    }
+
+    @Test
+    fun `missing token contributes zero without penalty`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red blue green",
+            listOf("c1" to "red blue")
+        )
+        assertEquals(listOf("c1" to 2.0), scored)
+    }
 }
