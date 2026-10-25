@@ -147,4 +147,46 @@ class AiEmotionFallbackTest {
         }
     }
 
+    @Test
+    fun `every template ends with sentence-final punctuation`() {
+        // 中英文两套文案都满足这些形态约束（已核对 values 与 values-en）。
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertTrue("$emotion 的模板应以句末标点结尾", text.last() in setOf('。', '！', '.', '!'))
+        }
+    }
+
+    @Test
+    fun `no template contains an ASCII digit`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertFalse("$emotion 的模板不应含数字", text.any { it.isDigit() })
+        }
+    }
+
+    @Test
+    fun `every template contains a comma pause`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertTrue("$emotion 的模板应含逗号停顿", text.contains('，') || text.contains(','))
+        }
+    }
+
+    @Test
+    fun `happy template is the shortest of the five`() {
+        val happy = AiEmotionFallback.localFallback(context, Emotion.HAPPY)
+        Emotion.entries.filter { it != Emotion.HAPPY }.forEach { emotion ->
+            assertTrue("$emotion 的模板应长于 happy 模板",
+                AiEmotionFallback.localFallback(context, emotion).length > happy.length)
+        }
+    }
+
+    @Test
+    fun `no template contains a double space`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertFalse("$emotion 的模板不应含双空格", text.contains("  "))
+        }
+    }
+
 }

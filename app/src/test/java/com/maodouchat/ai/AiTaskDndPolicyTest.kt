@@ -170,4 +170,37 @@ class AiTaskDndPolicyTest {
         assertFalse(AiTaskDndPolicy.isInQuietHours(1500, 1438, 1439))
     }
 
+    @Test
+    fun `negative nowMs still honors a future window end`() {
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(-1_000L, 23, 22, 7, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(-1_000L, 10, 22, 7, 5_000L))
+    }
+
+    @Test
+    fun `negative minute clamps to midnight before window math`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(-5, 30, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(-5, 0, 1))
+    }
+
+    @Test
+    fun `same-day window starting at minute one excludes midnight`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 1, 1439))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1, 1, 1439))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1438, 1, 1439))
+    }
+
+    @Test
+    fun `nextAllowedTime inside inverted window returns end from its start edge`() {
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 100, 100, 60, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 60, 100, 60, 5_000L))
+    }
+
+    @Test
+    fun `clamped start can turn a range into an overnight window`() {
+        // 起边 1500 被钳到 1439，大于终边 60：走跨夜分支，30 与 1439 在内、100 在外。
+        assertTrue(AiTaskDndPolicy.isInQuietHours(30, 1500, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(100, 1500, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1500, 60))
+    }
+
 }
