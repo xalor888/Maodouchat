@@ -447,4 +447,126 @@ class AgentSessionEngineTest {
         assertEquals("x".repeat(4000), last.content)
     }
 
+
+    @Test
+    fun `unknown tool error text is fed back to the next model round`() = runBlocking {
+        var round = 0
+        var roundTwoMessages: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                round++
+                if (round == 2) roundTwoMessages = messages.toList()
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "dump_host_sql", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("ok")
+                }
+            },
+            executeTool = { _, _ -> error("unknown tool must not execute") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals("ok", (events.last() as AgentTurnEvent.AssistantFinal).text)
+        val toolMessage = roundTwoMessages.single { it.role == "tool" }
+        assertEquals("c1", toolMessage.toolCallId)
+        assertEquals("dump_host_sql", toolMessage.toolName)
+        assertEquals("Error: unknown tool dump_host_sql", toolMessage.content)
+    }
+
+    @Test
+    fun `rewrite text emits finished without started`() = runBlocking {
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                when (round) {
+                    1 -> OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hi","mode":"polish"}""")),
+                        ""
+                    )
+                    2 -> OpenAiCompatClient.Completion.Text(" polished ")
+                    else -> OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { _, _ -> error("rewrite must not reach the host") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "润色这句", null).toList()
+        assertTrue(events.none { it is AgentTurnEvent.ToolStarted })
+        assertEquals("polished", events.filterIsInstance<AgentTurnEvent.ToolFinished>().single().result)
+        assertEquals("done", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `tool result is fed back as a tool message to the next round`() = runBlocking {
+        var round = 0
+        var roundTwoMessages: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                round++
+                if (round == 2) roundTwoMessages = messages.toList()
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { _, _ -> "c1\tAlice\thi\t" }
+        )
+        engine.runTurn(provider, emptyList(), "列出会话", null).toList()
+        val toolMessage = roundTwoMessages.single { it.role == "tool" }
+        assertEquals("c1", toolMessage.toolCallId)
+        assertEquals("list_chats", toolMessage.toolName)
+        assertEquals("c1\tAlice\thi\t", toolMessage.content)
+        val assistantMessage = roundTwoMessages.single { it.role == "assistant" }
+        assertEquals(listOf("c1"), assistantMessage.toolCalls.map { it.id })
+    }
+
+    @Test
+    fun `approved call prefill appends assistant and tool messages before the model turn`() = runBlocking {
+        var captured: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                if (captured.isEmpty()) captured = messages.toList()
+                OpenAiCompatClient.Completion.Text("已排队")
+            },
+            executeTool = { _, _ -> "Queued m_1" }
+        )
+        engine.runTurn(
+            provider,
+            emptyList(),
+            "发一句",
+            null,
+            approvedCall = AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")
+        ).toList()
+        val assistantMessage = captured.single { it.role == "assistant" }
+        assertEquals("c1", assistantMessage.toolCalls.single().id)
+        assertEquals("send_text_message", assistantMessage.toolCalls.single().name)
+        val toolMessage = captured.single { it.role == "tool" }
+        assertEquals("c1", toolMessage.toolCallId)
+        assertEquals("Queued m_1", toolMessage.content)
+    }
+
+    @Test
+    fun `history window keeps only the last twenty four messages`() = runBlocking {
+        var captured: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                if (captured.isEmpty()) captured = messages.toList()
+                OpenAiCompatClient.Completion.Text("done")
+            },
+            executeTool = { _, _ -> error("no tool call expected") }
+        )
+        val history = (0 until 30).map { AgentChatMessage(role = "user", content = "h$it") }
+        engine.runTurn(provider, history, "now", null).toList()
+        assertEquals(26, captured.size)
+        assertEquals("h6", captured[1].content)
+        assertEquals("h29", captured[24].content)
+        assertEquals("now", captured[25].content)
+    }
+
 }
