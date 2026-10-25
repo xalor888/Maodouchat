@@ -188,4 +188,41 @@ class AiEmotionLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `anxious versus happy tie breaks toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("开心", "焦虑"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `two hit tie between happy and sad breaks toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈 开心", "难过 伤心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `same word in two texts counts twice`() {
+        // 词典词按文本逐条计数：同一词出现在两条文本里计 2 次
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "哈哈"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `uppercase sad word stays neutral`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("I am SAD"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `anxious beats sad with more hits`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("焦虑 担心 害怕", "难过"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(0.75, result.confidence, 0.0001)
+    }
+
 }
