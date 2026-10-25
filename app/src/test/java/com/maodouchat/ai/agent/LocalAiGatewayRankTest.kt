@@ -59,4 +59,60 @@ class LocalAiGatewayRankTest {
         )
         assertEquals(listOf("c2" to 2.0, "c1" to 1.0), scored)
     }
+
+    @Test
+    fun `query tokens beyond twelve are ignored`() = runBlocking {
+        val query = "apple banana cherry dragon eagle falcon gorilla hotel india juliet kilo lima mike"
+        val ranked = LocalAiGateway.rankSemantic(
+            query,
+            listOf(
+                "c1" to "apple banana cherry dragon eagle falcon gorilla hotel india juliet kilo lima",
+                "c2" to "mike only"
+            )
+        )
+        assertEquals(listOf("c1"), ranked)
+        val scored = LocalAiGateway.rankSemanticScored(query, listOf("c1" to "apple banana cherry dragon eagle falcon gorilla hotel india juliet kilo lima"))
+        assertEquals(listOf("c1" to 12.0), scored)
+    }
+
+    @Test
+    fun `repeated query tokens count once per occurrence`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red red blue",
+            listOf("c1" to "red car", "c2" to "blue bike")
+        )
+        assertEquals(listOf("c1" to 2.0, "c2" to 1.0), scored)
+    }
+
+    @Test
+    fun `equal scores keep candidate order`() = runBlocking {
+        val ranked = LocalAiGateway.rankSemantic(
+            "red",
+            listOf("c1" to "red one", "c2" to "red two")
+        )
+        assertEquals(listOf("c1", "c2"), ranked)
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red",
+            listOf("c1" to "red one", "c2" to "red two")
+        )
+        assertEquals(listOf("c1" to 1.0, "c2" to 1.0), scored)
+    }
+
+    @Test
+    fun `substring token matches count without word boundaries`() = runBlocking {
+        val ranked = LocalAiGateway.rankSemantic(
+            "meet",
+            listOf("m1" to "random photo", "m2" to "meeting notes")
+        )
+        assertEquals(listOf("m2"), ranked)
+    }
+
+    @Test
+    fun `tabs and newlines split query tokens like spaces`() = runBlocking {
+        val ranked = LocalAiGateway.rankSemantic(
+            "meeting\tnotes",
+            listOf("m1" to "random photo", "m2" to "the meeting notes are here")
+        )
+        assertEquals(listOf("m2"), ranked)
+    }
 }

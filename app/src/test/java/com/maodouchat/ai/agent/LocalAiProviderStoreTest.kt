@@ -98,4 +98,73 @@ class LocalAiProviderStoreTest {
         assertEquals(1, decoded.size)
         assertEquals("新对话", decoded.single().title)
     }
+
+    @Test
+    fun `provider name defaults to model when blank`() {
+        val raw = """[{"id":"p1","model":"deepseek-ai/DeepSeek-V3","baseUrl":"https://x.example"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("deepseek-ai/DeepSeek-V3", decoded.single().name)
+    }
+
+    @Test
+    fun `provider numeric and boolean defaults freeze on parse`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x.example"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        val provider = decoded.single()
+        assertEquals(4_096, provider.maxTokens)
+        assertEquals(128_000, provider.contextWindowTokens)
+        assertEquals(24, provider.historyMessageLimit)
+        assertEquals(120, provider.timeoutSeconds)
+        assertEquals(true, provider.stream)
+        assertEquals(false, provider.supportsVision)
+        assertEquals("2023-06-01", provider.anthropicVersion)
+        assertEquals("{}", provider.extraHeadersJson)
+        assertEquals("", provider.organization)
+    }
+
+    @Test
+    fun `provider id and model are trimmed on parse`() {
+        val raw = """[{"id":"  p1  ","model":"  m  ","baseUrl":"https://x.example"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("p1", decoded.single().id)
+        assertEquals("m", decoded.single().model)
+    }
+
+    @Test
+    fun `tool message with content keeps call id and name on round trip`() {
+        val session = AgentSession(
+            id = "s1",
+            title = "t",
+            createdAt = 7L,
+            messages = listOf(
+                AgentChatMessage(role = "tool", content = "found 3 chats", toolCallId = "call-1", toolName = "list_chats")
+            )
+        )
+        val decoded = LocalAiProviderStore.parseSessions(LocalAiProviderStore.encodeSessions(listOf(session)))
+        assertEquals(1, decoded.size)
+        val message = decoded.single().messages.single()
+        assertEquals("tool", message.role)
+        assertEquals("found 3 chats", message.content)
+        assertEquals("call-1", message.toolCallId)
+        assertEquals("list_chats", message.toolName)
+    }
+
+    @Test
+    fun `non-null temperature and topP survive provider round trip`() {
+        val provider = LocalAiProvider(
+            id = "p1",
+            name = "n",
+            baseUrl = "https://x",
+            apiKey = "sk-test",
+            model = "m",
+            temperature = 0.7,
+            topP = 0.9
+        )
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(listOf(provider)))
+        assertEquals(1, decoded.size)
+        assertEquals(0.7, decoded.single().temperature)
+        assertEquals(0.9, decoded.single().topP)
+    }
 }
