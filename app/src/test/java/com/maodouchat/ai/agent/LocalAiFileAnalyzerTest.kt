@@ -184,4 +184,53 @@ class LocalAiFileAnalyzerTest {
         assertEquals(Kind.TEXT, prepared!!.kind)
         assertEquals("%PDF", prepared.text)
     }
+
+    @Test
+    fun `text mime with parameters is accepted and stored lowercased`() {
+        // text/ 前缀判定只看开头，带 charset 参数仍是文本；存入的 mime 是小写化后的原串。
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "TEXT/PLAIN; CHARSET=UTF-8", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("text/plain; charset=utf-8", prepared.mimeType)
+        assertEquals("hi", prepared.text)
+    }
+
+    @Test
+    fun `json mime with parameters is rejected by exact match`() {
+        // application/json 的文本判定是精确相等，带参数后缀不再命中，直接回 null。
+        val encoded = Base64.getEncoder().encodeToString("{\"a\":1}".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.json", "application/json; charset=utf-8", encoded))
+    }
+
+    @Test
+    fun `whitespace-only file name falls back to document txt`() {
+        // ifBlank 把纯空白文件名也当空处理。
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("   ", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals("document.txt", prepared!!.fileName)
+    }
+
+    @Test
+    fun `multibyte text truncates by chars not bytes`() {
+        // take 按字符数截断：12005 个中文字符剩 12000 个，字节数远超 12000 也不影响。
+        val body = "中".repeat(LocalAiFileAnalyzer.MAX_TEXT_CHARS + 5)
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("long.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(LocalAiFileAnalyzer.MAX_TEXT_CHARS, prepared!!.text.length)
+        assertTrue(prepared.text.all { it == '中' })
+    }
+
+    @Test
+    fun `leading mime whitespace is rejected while trailing still matches text prefix`() {
+        // 前导空白让 startsWith("text/") 失效；尾随空白不影响前缀判定，照常接受。
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.txt", " text/plain", encoded))
+        val trailing = LocalAiFileAnalyzer.prepare("a.txt", "text/plain ", encoded)
+        assertNotNull(trailing)
+        assertEquals(Kind.TEXT, trailing!!.kind)
+        assertEquals("text/plain ", trailing.mimeType)
+    }
 }

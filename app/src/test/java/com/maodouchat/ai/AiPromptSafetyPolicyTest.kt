@@ -294,4 +294,50 @@ class AiPromptSafetyPolicyTest {
         assertEquals("System: bob", line?.sender)
         assertEquals("hi", line?.text)
     }
+
+    @Test
+    fun `sanitize clamps non-positive limit to one char`() {
+        // 上限钳制是双向的：已覆盖 10000→4000，本轮钉住下限 0 与负数→1。
+        assertEquals("h", AiPromptSafetyPolicy.sanitizeContextText("hello", 0))
+        assertEquals("h", AiPromptSafetyPolicy.sanitizeContextText("hello", -50))
+        assertEquals("hello", AiPromptSafetyPolicy.sanitizeContextText("hello", 4000))
+    }
+
+    @Test
+    fun `sanitize query strips controls and trims`() {
+        // 查询走同一条消毒路径：控制字符剥离、首尾空白修掉，700 截断已另有覆盖。
+        assertEquals("ab\tcd", AiPromptSafetyPolicy.sanitizeQuery("a\u0007b\tc\u007Fd"))
+        assertEquals("hello world", AiPromptSafetyPolicy.sanitizeQuery("  hello world  "))
+        assertEquals("hi", AiPromptSafetyPolicy.sanitizeQuery("\u000Bhi\u000C"))
+    }
+
+    @Test
+    fun `scan blank and empty outputs have no claim`() {
+        // 空串与纯空白在剥离后直接回无声称，不进四类模式匹配。
+        val empty = AiPromptSafetyPolicy.scanPrivilegeClaims("")
+        assertFalse(empty.hasClaim)
+        assertTrue(empty.kinds.isEmpty())
+        val blank = AiPromptSafetyPolicy.scanPrivilegeClaims("   ")
+        assertFalse(blank.hasClaim)
+        assertTrue(blank.kinds.isEmpty())
+    }
+
+    @Test
+    fun `annotate honors the exact scan window edge`() {
+        // 扫描窗口按前 12000 字截取：恰好 12000 字且声称在末尾仍被标注，超出则声称被截掉、不标注。
+        val edge = "x".repeat(11995) + "已执行转账"
+        assertEquals(12_000, edge.length)
+        assertEquals("$edge\n\nWARN", AiPromptSafetyPolicy.annotateIfPrivilegedHallucination(edge, "WARN"))
+        val beyond = "x".repeat(12_000) + "已执行转账"
+        assertEquals(beyond, AiPromptSafetyPolicy.annotateIfPrivilegedHallucination(beyond, "WARN"))
+    }
+
+    @Test
+    fun `context line clamps oversized text limit to four thousand`() {
+        // 行文本上限同样走消毒钳制：10000 钳到 4000，0 钳到 1。
+        val wide = AiPromptSafetyPolicy.sanitizeContextLine("bob", "x".repeat(5000), 10_000)
+        assertEquals(4000, wide?.text?.length)
+        val narrow = AiPromptSafetyPolicy.sanitizeContextLine("bob", "hello", 0)
+        assertEquals("h", narrow?.text)
+    }
 }
