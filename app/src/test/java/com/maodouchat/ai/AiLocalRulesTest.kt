@@ -153,4 +153,49 @@ class AiLocalRulesTest {
         assertEquals("ai_enhance_classify_notice", AiMessageClassifierCategory.NOTICE.labelKey)
         assertEquals("happy", Emotion.HAPPY.wire)
     }
+
+    @Test
+    fun `classify shared keyword ties to first max category`() {
+        // 上线同时在 NOTICE 与 TECH 词典里：平局取枚举在前的 NOTICE。
+        val result = AiMessageClassifier.classifyText("上线")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify three way share takes first max with third confidence`() {
+        val result = AiMessageClassifier.classifyText("通知 任务 转账")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0 / 3.0, result.confidence, 0.001)
+    }
+
+    @Test
+    fun `detect emotion overlapping happy hits count twice in one text`() {
+        // 哈哈哈同时含 哈哈与哈哈哈两个词条：单条文本计 2 次命中，置信度仍为 1.0。
+        val result = AiEmotionReply.detectEmotion(listOf("哈哈哈"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion window boundary splits the keyword`() {
+        // 200 字符窗口切在 开心中间时不命中；恰好容纳时命中。
+        val split = AiEmotionReply.detectEmotion(listOf("垫".repeat(199) + "开心"))
+        assertEquals(Emotion.NEUTRAL, split.emotion)
+        assertEquals(0.0, split.confidence, 0.0001)
+        val whole = AiEmotionReply.detectEmotion(listOf("垫".repeat(198) + "开心"))
+        assertEquals(Emotion.HAPPY, whole.emotion)
+        assertEquals(1.0, whole.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify window boundary splits the keyword`() {
+        // 300 字符窗口切在 转账中间时不命中；恰好容纳时命中。
+        val split = AiMessageClassifier.classifyText("垫".repeat(299) + "转账")
+        assertEquals(AiMessageClassifierCategory.OTHER, split.category)
+        assertEquals(0.2, split.confidence, 0.0001)
+        val whole = AiMessageClassifier.classifyText("垫".repeat(298) + "转账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, whole.category)
+        assertEquals(1.0, whole.confidence, 0.0001)
+    }
 }

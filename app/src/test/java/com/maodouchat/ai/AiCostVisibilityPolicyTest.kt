@@ -336,4 +336,88 @@ class AiCostVisibilityPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `classify quota wins over rate limit when both signals present`() {
+        // QUOTA 分支先于限流分支返回：两者都命中时信号按配额算。
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "RATE_LIMITED",
+            serverMessage = "quota exceeded"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify chinese too frequent message alone is rate limited`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "AI 请求过于频繁，请稍后再试"
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify insufficient without fund credit or balance is generic`() {
+        // INSUFFICIENT 只有配 FUND/CREDIT/BALANCE 任一词才算配额：纯权限不足是通用失败。
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 403,
+            serverCode = "PERMISSION_DENIED",
+            serverMessage = "insufficient permissions"
+        )
+        assertFalse(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertTrue(AiCostVisibilityPolicy.mapToErrorCode(signal) == null)
+    }
+
+    @Test
+    fun `wait seconds priority server over embedded over local over default`() {
+        assertEquals(
+            10L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                "RATE_LIMITED:45",
+                serverRetryAfterSeconds = 10,
+                localRemainingMs = 90_000
+            )
+        )
+        assertEquals(
+            45L,
+            AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED:45", localRemainingMs = 90_000)
+        )
+        assertEquals(5L, AiCostVisibilityPolicy.waitSecondsFor("CANCELLED", localRemainingMs = 5000))
+        assertEquals(0L, AiCostVisibilityPolicy.waitSecondsFor("SOME_UNKNOWN"))
+        assertEquals(0L, AiCostVisibilityPolicy.waitSecondsFor(null))
+    }
+
+    @Test
+    fun `display signal streaming quota binds server wait and flight hint`() {
+        val streaming = AiCostVisibilityPolicy.displaySignalFor(
+            "QUOTA_EXCEEDED",
+            isStreaming = true,
+            serverRetryAfterSeconds = 120
+        )
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, streaming.errorCode)
+        assertEquals(120L, streaming.waitSeconds)
+        assertEquals(BillingHint.IN_FLIGHT_MAY_BILL, streaming.hint)
+        assertTrue(streaming.warnRetryBills)
+        val embedded = AiCostVisibilityPolicy.displaySignalFor("QUOTA_EXCEEDED:90")
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, embedded.errorCode)
+        assertEquals(90L, embedded.waitSeconds)
+        assertEquals(BillingHint.QUOTA_EXCEEDED, embedded.hint)
+        assertTrue(embedded.warnRetryBills)
+    }
 }
