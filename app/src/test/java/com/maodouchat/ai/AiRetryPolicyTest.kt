@@ -367,4 +367,82 @@ class AiRetryPolicyTest {
         assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-h", AiRetryPolicyCategory.HEAVY))
     }
 
+    @Test
+    fun decideNonPositiveSuffixFallsBackToBranchDefault() {
+        // 内嵌秒数只取正数：非数字、0 与负数后缀都落回分支默认等待。
+        val badNumber = AiRetryPolicy.decide("RATE_LIMITED:abc", attempts = 1)
+        assertFalse(badNumber.shouldRetry)
+        assertEquals(30_000L, badNumber.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, badNumber.visibleErrorCode)
+
+        val zero = AiRetryPolicy.decide("RATE_LIMITED:0", attempts = 1)
+        assertEquals(30_000L, zero.delayMs)
+
+        val negative = AiRetryPolicy.decide("RATE_LIMITED:-5", attempts = 1)
+        assertEquals(30_000L, negative.delayMs)
+
+        val quotaBad = AiRetryPolicy.decide("QUOTA_EXCEEDED:abc", attempts = 1)
+        assertFalse(quotaBad.shouldRetry)
+        assertEquals(300_000L, quotaBad.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quotaBad.visibleErrorCode)
+    }
+
+    @Test
+    fun decideOversizedSuffixIsCappedAtOneDay() {
+        // 内嵌秒数上限 86400 秒：超大后缀按一天计等待。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED:999999", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(86_400_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("QUOTA_EXCEEDED:100000", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(86_400_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
+
+    @Test
+    fun decideConnectionFailureWithSuffixStillRetries() {
+        // 基码解析先截掉冒号后缀：带后缀的连接失败仍是可重试分支，后缀秒数不生效。
+        val suffixed = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED:30", attempts = 1)
+        assertTrue(suffixed.shouldRetry)
+        assertEquals(800L, suffixed.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", suffixed.visibleErrorCode)
+
+        val lower = AiRetryPolicy.decide("connection_not_established:30", attempts = 2)
+        assertTrue(lower.shouldRetry)
+        assertEquals(1_600L, lower.delayMs)
+    }
+
+    @Test
+    fun decideUnknownFamilyPinsFullDecision() {
+        // 非瞬态分支此前只断言不重试：把等待、说明与可见码一并钉住。
+        listOf("UNKNOWN", "INTERRUPTED", "INVALID_RESPONSE").forEach { errorCode ->
+            val decision = AiRetryPolicy.decide(errorCode, attempts = 1)
+            assertFalse(errorCode, decision.shouldRetry)
+            assertEquals(errorCode, 0L, decision.delayMs)
+            assertEquals(errorCode, "non-transient error", decision.explanation)
+            assertEquals(errorCode, errorCode, decision.visibleErrorCode)
+        }
+    }
+
+    @Test
+    fun decideAuthBranchKeepsNormalizedCodeAndIgnoresSuffix() {
+        // 认证分支不查等待秒数：后缀与空白/小写都不影响，可见码恒为归一化后的基码。
+        val required = AiRetryPolicy.decide("AUTH_REQUIRED", attempts = 1)
+        assertFalse(required.shouldRetry)
+        assertEquals(0L, required.delayMs)
+        assertEquals("auth required; do not auto-retry", required.explanation)
+        assertEquals("AUTH_REQUIRED", required.visibleErrorCode)
+
+        val suffixed = AiRetryPolicy.decide("UNAUTHORIZED:60", attempts = 1)
+        assertFalse(suffixed.shouldRetry)
+        assertEquals(0L, suffixed.delayMs)
+        assertEquals("UNAUTHORIZED", suffixed.visibleErrorCode)
+
+        val folded = AiRetryPolicy.decide("  auth_required ", attempts = 1)
+        assertEquals("AUTH_REQUIRED", folded.visibleErrorCode)
+        assertEquals(0L, folded.delayMs)
+    }
+
 }
