@@ -198,4 +198,40 @@ class AiLocalRulesTest {
         assertEquals(AiMessageClassifierCategory.FINANCE, whole.category)
         assertEquals(1.0, whole.confidence, 0.0001)
     }
+
+    @Test
+    fun `classify repeated keyword counts once`() {
+        val result = AiMessageClassifier.classifyText("转账 转账 转账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify english substrings hit finance lexicon`() {
+        val result = AiMessageClassifier.classifyText("the refunded payment failed")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify single char study keyword`() {
+        val result = AiMessageClassifier.classifyText("看书去")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion blank only list is neutral`() {
+        val result = AiEmotionReply.detectEmotion(listOf("   ", ""))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion english share across texts`() {
+        val result = AiEmotionReply.detectEmotion(listOf("love", "sad", "cry"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(2.0 / 3.0, result.confidence, 0.001)
+    }
+
 }
