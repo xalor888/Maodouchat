@@ -427,6 +427,63 @@ class AiRetryPolicyTest {
     }
 
     @Test
+    fun decideRateLimitPrefixRequiredForRateBranch() {
+        // 限流分支只认前缀：RATE_LIMITED 出现在中间不触发，落回非瞬态分支，后缀秒数也不生效。
+        val decision = AiRetryPolicy.decide("PRE_RATE_LIMITED:45", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("non-transient error", decision.explanation)
+        assertEquals("PRE_RATE_LIMITED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideQuotaSubstringTriggersQuotaBranch() {
+        // 配额分支是 contains：基码含 QUOTA 即走配额分支，可见码统一为 QUOTA_EXCEEDED。
+        val bare = AiRetryPolicy.decide("OVER_QUOTA", attempts = 1)
+        assertFalse(bare.shouldRetry)
+        assertEquals(0L, bare.delayMs)
+        assertEquals("quota exceeded; do not auto-retry", bare.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, bare.visibleErrorCode)
+
+        val withSuffix = AiRetryPolicy.decide("OVER_QUOTA:120", attempts = 1)
+        assertFalse(withSuffix.shouldRetry)
+        assertEquals(120_000L, withSuffix.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, withSuffix.visibleErrorCode)
+    }
+
+    @Test
+    fun decideInsufficientFlavorWithSuffixFlowsIntoQuotaWait() {
+        val withSuffix = AiRetryPolicy.decide("INSUFFICIENT_FUNDS:90", attempts = 1)
+        assertFalse(withSuffix.shouldRetry)
+        assertEquals(90_000L, withSuffix.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, withSuffix.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBillingFlavorWithSuffixFlowsIntoQuotaWait() {
+        val withSuffix = AiRetryPolicy.decide("BILLING_ERROR:75", attempts = 1)
+        assertFalse(withSuffix.shouldRetry)
+        assertEquals(75_000L, withSuffix.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, withSuffix.visibleErrorCode)
+    }
+
+    @Test
+    fun globalWindowBoundaryAt240Calls() {
+        // 全局窗口上限恰好 240：239 次后仍可调用，第 240 次后新会话被拦，清空后恢复。
+        AiRetryPolicy.clearSession()
+        repeat(239) { index ->
+            AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT)
+        }
+        assertTrue(AiRetryPolicy.canCallNow("fresh-chat", AiRetryPolicyCategory.LIGHT))
+        AiRetryPolicy.recordCall("chat-239", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("fresh-chat", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.remainingDelayMs("fresh-chat", AiRetryPolicyCategory.LIGHT) > 0L)
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("fresh-chat", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh-chat", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
     fun decideAuthBranchKeepsNormalizedCodeAndIgnoresSuffix() {
         // 认证分支不查等待秒数：后缀与空白/小写都不影响，可见码恒为归一化后的基码。
         val required = AiRetryPolicy.decide("AUTH_REQUIRED", attempts = 1)

@@ -244,6 +244,60 @@ class LocalAiGatewayRankTest {
     }
 
     @Test
+    fun `token order in query does not affect score`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "beta alpha",
+            listOf("c1" to "alpha and beta both here")
+        )
+        assertEquals(listOf("c1" to 2.0), scored)
+    }
+
+    @Test
+    fun `thirteenth distinct token is ignored even when it matches`() = runBlocking {
+        // 只取前 12 个分词：仅含第 13 个词的候选得 0 分被滤掉，含首词的候选只按首词计分。
+        val query = "apple banana cherry dragon eagle falcon gorilla hotel india juliet kilo lima mango"
+        assertEquals(
+            emptyList<String>(),
+            LocalAiGateway.rankSemantic(query, listOf("c1" to "mango only"))
+        )
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored(query, listOf("c1" to "apple mango"))
+        )
+    }
+
+    @Test
+    fun `whitespace-only candidate text is filtered`() = runBlocking {
+        val ranked = LocalAiGateway.rankSemantic(
+            "red",
+            listOf("c1" to "red one", "c2" to "   ", "c3" to "red two")
+        )
+        assertEquals(listOf("c1", "c3"), ranked)
+    }
+
+    @Test
+    fun `duplicate text under different ids keeps both in order`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red",
+            listOf("c1" to "red one", "c2" to "red one")
+        )
+        assertEquals(listOf("c1" to 1.0, "c2" to 1.0), scored)
+        assertEquals(
+            listOf("c1", "c2"),
+            LocalAiGateway.rankSemantic("red", listOf("c1" to "red one", "c2" to "red one"))
+        )
+    }
+
+    @Test
+    fun `mixed case multi-token query scores all tokens`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "Red BLUE green",
+            listOf("c1" to "red blue green sky")
+        )
+        assertEquals(listOf("c1" to 3.0), scored)
+    }
+
+    @Test
     fun `uppercase substring token matches case-insensitively`() = runBlocking {
         val ranked = LocalAiGateway.rankSemantic(
             "MEET",

@@ -331,6 +331,93 @@ class AgentToolPolicyTest {
     }
 
     @Test
+    fun `social previews stay human readable`() {
+        assertEquals(
+            "好友申请 u1",
+            AgentToolHost.preview("send_friend_request", """{"userId":"u1"}""")
+        )
+        assertEquals(
+            "发动态：hello",
+            AgentToolHost.preview("create_text_post", """{"text":"hello","visibility":"PUBLIC"}""")
+        )
+        assertEquals(
+            "拉黑 u9",
+            AgentToolHost.preview("block_user", """{"userId":"u9"}""")
+        )
+        assertEquals(
+            "赞动态 p1 liked=true",
+            AgentToolHost.preview("like_post", """{"postId":"p1","liked":true}""")
+        )
+    }
+
+    @Test
+    fun `task previews stay human readable`() {
+        assertEquals(
+            "任务「买牛奶」→ c1",
+            AgentToolHost.preview("create_local_task", """{"chatId":"c1","title":"买牛奶"}""")
+        )
+        assertEquals(
+            "待办 t1 completed=true",
+            AgentToolHost.preview("complete_local_task", """{"taskId":"t1","completed":true}""")
+        )
+        assertEquals(
+            "删除待办 t1",
+            AgentToolHost.preview("delete_local_task", """{"taskId":"t1"}""")
+        )
+    }
+
+    @Test
+    fun `group write previews stay human readable`() {
+        assertEquals(
+            "建群 " + "g".repeat(40),
+            AgentToolHost.preview("create_group", """{"name":"""" + "g".repeat(50) + """","memberIds":"u1"}""")
+        )
+        assertEquals(
+            "拉人进群 " + "u".repeat(80),
+            AgentToolHost.preview("add_group_members", """{"chatId":"c1","memberIds":"""" + "u".repeat(90) + """"}""")
+        )
+        assertEquals(
+            "移出群 u2",
+            AgentToolHost.preview("remove_group_member", """{"chatId":"c1","memberId":"u2"}""")
+        )
+        assertEquals(
+            "改群名 新群",
+            AgentToolHost.preview("rename_group", """{"chatId":"c1","name":"新群"}""")
+        )
+        assertEquals(
+            "删除会话 c1",
+            AgentToolHost.preview("delete_chat", """{"chatId":"c1"}""")
+        )
+    }
+
+    @Test
+    fun `unpreviewed tools fall back to raw name and json`() {
+        // 有执行分支但无预览分支的工具（读工具与 update_group_announcement）走统一回退。
+        val chats = """{"query":"hi"}"""
+        assertEquals("list_chats $chats", AgentToolHost.preview("list_chats", chats))
+        val announcement = """{"chatId":"c1","announcement":"hello"}"""
+        assertEquals(
+            "update_group_announcement $announcement",
+            AgentToolHost.preview("update_group_announcement", announcement)
+        )
+    }
+
+    @Test
+    fun `openai tools json parameter types mirror specs`() {
+        AgentToolPolicy.tools.forEachIndexed { index, spec ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = AgentToolPolicy.openaiToolsJson()[index]["function"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val params = fn["parameters"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val props = params["properties"] as Map<String, Map<String, Any?>>
+            spec.parameters.forEach { (name, param) ->
+                assertEquals(spec.name + ":" + name, param.type, props[name]?.get("type"))
+            }
+        }
+    }
+
+    @Test
     fun `update chat preview lists all flags`() {
         val preview = AgentToolHost.preview(
             "update_chat",
