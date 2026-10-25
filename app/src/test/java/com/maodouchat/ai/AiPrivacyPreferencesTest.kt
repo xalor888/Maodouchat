@@ -347,4 +347,55 @@ class AiPrivacyPreferencesTest {
             assertTrue(key.none { it.isWhitespace() })
         }
     }
+
+    @Test
+    fun `scoped key keeps colon inside user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:u:1:2",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u:1:2")
+        )
+    }
+
+    @Test
+    fun `all twelve scoped keys across two accounts stay distinct`() {
+        val bases = listOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE,
+            AiPrivacyKeys.MIGRATED
+        )
+        val all = bases.flatMap { base ->
+            listOf(
+                AiPrivacyPreferences.scopedKey(base, "user-a"),
+                AiPrivacyPreferences.scopedKey(base, "user-b")
+            )
+        }
+        assertEquals(12, all.toSet().size)
+    }
+
+    @Test
+    fun `scoped key for auto translate base is exact`() {
+        assertEquals(
+            "ai_auto_translate_incoming:u-1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_AUTO_TRANSLATE, "u-1")
+        )
+    }
+
+    @Test
+    fun `scoped key with colon user id ends with double colon`() {
+        assertEquals(
+            "ai_consent_accepted::",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, ":")
+        )
+    }
+
+    @Test
+    fun `migration marker scoped key with empty user id keeps trailing colon`() {
+        assertEquals(
+            "account_scope_migrated:",
+            AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "")
+        )
+    }
 }
