@@ -318,4 +318,51 @@ class AiLocalRulesTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `classify deploy and course keywords at full confidence`() {
+        val tech = AiMessageClassifier.classifyText("部署")
+        assertEquals(AiMessageClassifierCategory.TECH, tech.category)
+        assertEquals(1.0, tech.confidence, 0.0001)
+        val study = AiMessageClassifier.classifyText("课程")
+        assertEquals(AiMessageClassifierCategory.STUDY, study.category)
+        assertEquals(1.0, study.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion great and sad hits are case sensitive`() {
+        val upper = AiEmotionReply.detectEmotion(listOf("GREAT", "SAD"))
+        assertEquals(Emotion.NEUTRAL, upper.emotion)
+        assertEquals(0.0, upper.confidence, 0.0001)
+        val great = AiEmotionReply.detectEmotion(listOf("great"))
+        assertEquals(Emotion.HAPPY, great.emotion)
+        assertEquals(1.0, great.confidence, 0.0001)
+        val sad = AiEmotionReply.detectEmotion(listOf("sad"))
+        assertEquals(Emotion.SAD, sad.emotion)
+        assertEquals(1.0, sad.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify follow up phrase plus deadline combine`() {
+        val result = AiMessageClassifier.classifyText("please follow up before deadline")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion sad wins tie over anxious`() {
+        val result = AiEmotionReply.detectEmotion(listOf("担心 难过"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify single char keyword at exact scan boundary`() {
+        val whole = AiMessageClassifier.classifyText("垫".repeat(299) + "书")
+        assertEquals(AiMessageClassifierCategory.STUDY, whole.category)
+        assertEquals(1.0, whole.confidence, 0.0001)
+        val split = AiMessageClassifier.classifyText("垫".repeat(300) + "书")
+        assertEquals(AiMessageClassifierCategory.OTHER, split.category)
+        assertEquals(0.2, split.confidence, 0.0001)
+    }
+
 }
