@@ -155,4 +155,52 @@ class AiRetryPolicyWindowTest {
         AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
         assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
     }
+
+    @Test
+    fun globalDelayDominatesPerChatDelay() {
+        // remainingDelayMs 取两者最大值：全局窗口约 60 分钟，压过单会话 30 秒。
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        repeat(239) { index -> AiRetryPolicy.recordCall("other-$index", AiRetryPolicyCategory.LIGHT) }
+        val wait = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertTrue("global window should dominate per-chat delay, was $wait", wait > 3_000_000L)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun freshChatUnderGlobalBlockReportsGlobalScaleDelayForBothCategories() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        val light = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        val heavy = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.HEAVY)
+        assertTrue("fresh LIGHT should report global-scale delay, was $light", light > 3_000_000L)
+        assertTrue("fresh HEAVY should report global-scale delay, was $heavy", heavy > 3_000_000L)
+    }
+
+    @Test
+    fun readOnlyProbesDoNotConsumeGlobalSlots() {
+        // canCallNow / remainingDelayMs 只读不记：反复探查不占全局槽位。
+        repeat(300) {
+            AiRetryPolicy.canCallNow("probe", AiRetryPolicyCategory.LIGHT)
+            AiRetryPolicy.remainingDelayMs("probe", AiRetryPolicyCategory.LIGHT)
+        }
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun emptyChatIdKeepsCategoriesIsolated() {
+        AiRetryPolicy.recordCall("", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun subCapTrafficFromOtherChatsLeavesOwnWindowIntact() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        repeat(100) { index -> AiRetryPolicy.recordCall("other-$index", AiRetryPolicyCategory.LIGHT) }
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        val wait = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertTrue("own window should stay ~30s, was $wait", wait in 1L..30_000L)
+    }
 }

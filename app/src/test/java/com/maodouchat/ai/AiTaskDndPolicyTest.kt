@@ -102,4 +102,37 @@ class AiTaskDndPolicyTest {
         assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 12, 12, 14, 5_000L))
         assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 14, 12, 14, 5_000L))
     }
+
+    @Test
+    fun `single-minute same-day window`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 0, 1))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1, 0, 1))
+    }
+
+    @Test
+    fun `single-minute window at day end`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1438, 1438, 1439))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, 1438, 1439))
+    }
+
+    @Test
+    fun `degenerate overnight window covers only its start minute`() {
+        // 1439→0：start > end 走跨夜分支，但 end=0 使窗口只剩 1439 这一分钟。
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1439, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 1439, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1438, 1439, 0))
+    }
+
+    @Test
+    fun `clamped bounds collapsing to equal empties the window`() {
+        // 越界起止都被钳到 1439：相等即空窗口，连钳制点本身也不抑制。
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, 1500, 1440))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 1500, 1440))
+    }
+
+    @Test
+    fun `nextAllowedTime respects overnight start and end edges`() {
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1350, 1350, 420, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 420, 1350, 420, 5_000L))
+    }
 }
