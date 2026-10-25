@@ -234,4 +234,51 @@ class AiLocalRulesTest {
         assertEquals(2.0 / 3.0, result.confidence, 0.001)
     }
 
+    @Test
+    fun `classify multiword phrase entry counts once`() {
+        // "follow up" 是 TODO 词典里的一条词条：出现两次仍只计 1 次命中。
+        val result = AiMessageClassifier.classifyText("please follow up, follow up")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify two way tie takes enum first category`() {
+        val result = AiMessageClassifier.classifyText("任务 转账")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify long english keyword at scan window edge`() {
+        // 300 字符窗口恰好容纳 maintenance 时命中，多垫一字切掉末尾时不命中。
+        val whole = AiMessageClassifier.classifyText("垫".repeat(289) + "maintenance")
+        assertEquals(AiMessageClassifierCategory.NOTICE, whole.category)
+        assertEquals(1.0, whole.confidence, 0.0001)
+        val split = AiMessageClassifier.classifyText("垫".repeat(290) + "maintenance")
+        assertEquals(AiMessageClassifierCategory.OTHER, split.category)
+        assertEquals(0.2, split.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion english hits are case sensitive`() {
+        // 情绪词典用不忽略大小写的 contains，与分类器的 ignoreCase 不同。
+        val upper = AiEmotionReply.detectEmotion(listOf("LOVE", "HAPPY"))
+        assertEquals(Emotion.NEUTRAL, upper.emotion)
+        assertEquals(0.0, upper.confidence, 0.0001)
+        val lower = AiEmotionReply.detectEmotion(listOf("love"))
+        assertEquals(Emotion.HAPPY, lower.emotion)
+        assertEquals(1.0, lower.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion single text tie picks first max`() {
+        val result = AiEmotionReply.detectEmotion(listOf("开心 难过"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val reversed = AiEmotionReply.detectEmotion(listOf("难过 开心"))
+        assertEquals(Emotion.HAPPY, reversed.emotion)
+        assertEquals(0.5, reversed.confidence, 0.0001)
+    }
+
 }
