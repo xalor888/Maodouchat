@@ -270,4 +270,57 @@ class AiEmotionFallbackTest {
                 AiEmotionFallback.localFallback(context, emotion).length > neutral.length)
         }
     }
+
+    @Test
+    fun `only happy and sad templates have exactly one comma`() {
+        val counts = Emotion.entries.associateWith { emotion ->
+            AiEmotionFallback.localFallback(context, emotion).count { it == '，' || it == ',' }
+        }
+        assertEquals(
+            mapOf(
+                Emotion.HAPPY to 1,
+                Emotion.SAD to 1,
+                Emotion.ANGRY to 2,
+                Emotion.ANXIOUS to 2,
+                Emotion.NEUTRAL to 2
+            ),
+            counts
+        )
+    }
+
+    @Test
+    fun `only neutral template mentions listening`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("听") || text.contains("listening", ignoreCase = true)
+        }
+        assertEquals(listOf(Emotion.NEUTRAL), naming)
+    }
+
+    @Test
+    fun `only anxious template mentions step by step`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("一步一步") || text.contains("step by step", ignoreCase = true)
+        }
+        assertEquals(listOf(Emotion.ANXIOUS), naming)
+    }
+
+    @Test
+    fun `only sad template offers anytime talk`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("随时") || text.contains("whenever", ignoreCase = true)
+        }
+        assertEquals(listOf(Emotion.SAD), naming)
+    }
+
+    @Test
+    fun `only angry template asks to go slowly`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("慢慢") || text.contains("slowly", ignoreCase = true)
+        }
+        assertEquals(listOf(Emotion.ANGRY), naming)
+    }
 }

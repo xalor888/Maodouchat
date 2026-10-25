@@ -385,4 +385,53 @@ class GroupAiSharePolicyTest {
         assertEquals(false, meta["systemIdentity"])
     }
 
+    @Test
+    fun `decideShare group check beats empty answer`() {
+        val blank = GroupAiSharePolicy.decideShare(false, "  ")
+        assertFalse(blank.allowed)
+        assertEquals("", blank.body)
+        assertEquals(BlockReason.NOT_GROUP, blank.reason)
+        val nullAnswer = GroupAiSharePolicy.decideShare(false, null)
+        assertFalse(nullAnswer.allowed)
+        assertEquals(BlockReason.NOT_GROUP, nullAnswer.reason)
+    }
+
+    @Test
+    fun `closed loop with already shared answer is not ready even with valid tasks`() {
+        assertFalse(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = listOf(TaskDraft("a")),
+                alreadyShared = true
+            )
+        )
+    }
+
+    @Test
+    fun `closed loop with mixed blank and valid tasks is ready`() {
+        assertTrue(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = listOf(TaskDraft("  "), TaskDraft("a"))
+            )
+        )
+    }
+
+    @Test
+    fun `decideShare one under max keeps full body`() {
+        val answer = "x".repeat(3999)
+        val decision = GroupAiSharePolicy.decideShare(true, answer)
+        assertTrue(decision.allowed)
+        assertEquals(answer, decision.body)
+        assertEquals(3999, decision.body.length)
+    }
+
+    @Test
+    fun `canPersistTasks rejects all blank titles`() {
+        assertFalse(GroupAiSharePolicy.canPersistTasks(listOf(TaskDraft("  "), TaskDraft("\n"))))
+        assertFalse(GroupAiSharePolicy.canPersistTasks(listOf(TaskDraft(""))))
+    }
+
 }
