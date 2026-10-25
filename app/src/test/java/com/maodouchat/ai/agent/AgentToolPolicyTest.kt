@@ -292,4 +292,51 @@ class AgentToolPolicyTest {
         assertEquals("no_such_tool " + json.take(160), preview)
     }
 
+
+    @Test
+    fun `parseBool trims and lowercases mixed case`() {
+        assertEquals(true, AgentToolHost.parseBool("  YeS  "))
+        assertEquals(false, AgentToolHost.parseBool("  nO "))
+        assertEquals(true, AgentToolHost.parseBool("  TrUe"))
+    }
+
+    @Test
+    fun `send preview truncates chat id and text`() {
+        val preview = AgentToolHost.preview(
+            "send_text_message",
+            """{"chatId":"""" + "c".repeat(30) + """","text":"""" + "t".repeat(200) + """"}"""
+        )
+        assertEquals("发到 " + "c".repeat(24) + "：" + "t".repeat(160), preview)
+    }
+
+    @Test
+    fun `blank draft and nickname previews show clear markers`() {
+        assertEquals(
+            "草稿 c1：(清空)",
+            AgentToolHost.preview("set_draft", """{"chatId":"c1","text":"   "}""")
+        )
+        assertEquals(
+            "备注 u1 → (清除)",
+            AgentToolHost.preview("set_contact_nickname", """{"userId":"u1","nickname":""}""")
+        )
+    }
+
+    @Test
+    fun `system prompt includes style hint only when non-blank`() {
+        val withHint = agentSystemPrompt("2026-01-01 00:00:00", "简洁有力")
+        assertTrue(withHint.contains("写作偏好"))
+        assertTrue(withHint.contains("简洁有力"))
+        val blankHint = agentSystemPrompt("2026-01-01 00:00:00", "   ")
+        assertFalse(blankHint.contains("写作偏好"))
+    }
+
+    @Test
+    fun `update chat preview lists all flags`() {
+        val preview = AgentToolHost.preview(
+            "update_chat",
+            """{"chatId":"c1","pinned":true,"muted":false,"archived":true,"markedUnread":false}"""
+        )
+        assertEquals("改会话 c1 pinned=true muted=false archived=true unread=false", preview)
+    }
+
 }

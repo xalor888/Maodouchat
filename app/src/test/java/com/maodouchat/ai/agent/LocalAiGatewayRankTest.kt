@@ -207,4 +207,49 @@ class LocalAiGatewayRankTest {
         )
         assertEquals(listOf("c1" to 2.0), scored)
     }
+
+    @Test
+    fun `query token matching a longer candidate word scores per token`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red reddish",
+            listOf("c1" to "reddish car")
+        )
+        assertEquals(listOf("c1" to 2.0), scored)
+    }
+
+    @Test
+    fun `punctuation attached to a query token breaks the match`() = runBlocking {
+        val ranked = LocalAiGateway.rankSemantic(
+            "red,",
+            listOf("m1" to "red car")
+        )
+        assertEquals(emptyList<String>(), ranked)
+    }
+
+    @Test
+    fun `empty candidate text never scores`() = runBlocking {
+        assertEquals(emptyList<String>(), LocalAiGateway.rankSemantic("red", listOf("c1" to "")))
+        assertEquals(
+            emptyList<Pair<String, Double>>(),
+            LocalAiGateway.rankSemanticScored("red", listOf("c1" to ""))
+        )
+    }
+
+    @Test
+    fun `thirteenth duplicate of an earlier token is ignored`() = runBlocking {
+        val query = "apple banana cherry dragon eagle falcon gorilla hotel india juliet kilo lima apple"
+        val scored = LocalAiGateway.rankSemanticScored(query, listOf("c1" to "apple only"))
+        assertEquals(listOf("c1" to 1.0), scored)
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic(query, listOf("c1" to "apple only")))
+    }
+
+    @Test
+    fun `uppercase substring token matches case-insensitively`() = runBlocking {
+        val ranked = LocalAiGateway.rankSemantic(
+            "MEET",
+            listOf("m1" to "random photo", "m2" to "MEETING notes")
+        )
+        assertEquals(listOf("m2"), ranked)
+    }
+
 }
