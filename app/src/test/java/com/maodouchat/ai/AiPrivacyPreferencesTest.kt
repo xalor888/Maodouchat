@@ -398,4 +398,64 @@ class AiPrivacyPreferencesTest {
             AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "")
         )
     }
+
+    @Test
+    fun `scoped key keeps newline and tab in the base verbatim`() {
+        assertEquals("a\nb:u", AiPrivacyPreferences.scopedKey("a\nb", "u"))
+        assertEquals("a\tb:u", AiPrivacyPreferences.scopedKey("a\tb", "u"))
+    }
+
+    @Test
+    fun `scoped key round-trips by stripping the user suffix`() {
+        val bases = listOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE,
+            AiPrivacyKeys.MIGRATED
+        )
+        for (base in bases) {
+            val scoped = AiPrivacyPreferences.scopedKey(base, "u-1")
+            assertTrue(scoped.endsWith(":u-1"))
+            assertEquals(base, scoped.removeSuffix(":u-1"))
+        }
+    }
+
+    @Test
+    fun `scoped key argument order matters and repeats are stable`() {
+        assertEquals("a:b", AiPrivacyPreferences.scopedKey("a", "b"))
+        assertEquals("b:a", AiPrivacyPreferences.scopedKey("b", "a"))
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey("a", "b"),
+            AiPrivacyPreferences.scopedKey("b", "a")
+        )
+        assertEquals(
+            AiPrivacyPreferences.scopedKey("a", "b"),
+            AiPrivacyPreferences.scopedKey("a", "b")
+        )
+    }
+
+    @Test
+    fun `prefs name joins the distinct constants set`() {
+        val keys = setOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE,
+            AiPrivacyKeys.MIGRATED,
+            AiPrivacyKeys.PREFS_NAME
+        )
+        assertEquals(7, keys.size)
+    }
+
+    @Test
+    fun `scoped keys compose by nesting`() {
+        val inner = AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1")
+        assertEquals(
+            "ai_consent_accepted:u-1:u-2",
+            AiPrivacyPreferences.scopedKey(inner, "u-2")
+        )
+    }
 }

@@ -624,4 +624,102 @@ class AiCostVisibilityPolicyTest {
         )
     }
 
+    @Test
+    fun `classify 429 with quota message maps to quota`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = "quota exceeded"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify spaced rate limited message is rate limited`() {
+        val message = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "Rate limited for now"
+        )
+        assertTrue(message.isRateLimited)
+        assertFalse(message.isQuota)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(message)
+        )
+        val code = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "rate limited",
+            serverMessage = null
+        )
+        assertTrue(code.isRateLimited)
+        assertFalse(code.isQuota)
+    }
+
+    @Test
+    fun `encode drops negative seconds and trims quota base`() {
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_QUOTA, -5)
+        )
+        assertEquals(
+            "QUOTA_EXCEEDED:30",
+            AiCostVisibilityPolicy.encodeErrorCode("  quota_exceeded  ", 30)
+        )
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, -1)
+        )
+    }
+
+    @Test
+    fun `wait seconds skips non-positive server and zero local values`() {
+        assertEquals(
+            45L,
+            AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED:45", serverRetryAfterSeconds = -5)
+        )
+        assertEquals(
+            90L,
+            AiCostVisibilityPolicy.waitSecondsFor("QUOTA_EXCEEDED:90", serverRetryAfterSeconds = 0)
+        )
+        assertEquals(
+            AiCostVisibilityPolicy.DEFAULT_RATE_LIMIT_WAIT_SECONDS,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                localRemainingMs = 0
+            )
+        )
+        assertEquals(
+            AiCostVisibilityPolicy.DEFAULT_QUOTA_WAIT_SECONDS,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_QUOTA,
+                localRemainingMs = 0
+            )
+        )
+    }
+
+    @Test
+    fun `display signal binds server and local waits for unknown codes`() {
+        val server = AiCostVisibilityPolicy.displaySignalFor("SOME_ERROR", serverRetryAfterSeconds = 20)
+        assertEquals("SOME_ERROR", server.errorCode)
+        assertEquals(20L, server.waitSeconds)
+        assertEquals(BillingHint.NONE, server.hint)
+        assertFalse(server.warnRetryBills)
+        val local = AiCostVisibilityPolicy.displaySignalFor("SOME_ERROR", localRemainingMs = 2500)
+        assertEquals(3L, local.waitSeconds)
+        assertEquals(BillingHint.NONE, local.hint)
+        val mixed = AiCostVisibilityPolicy.displaySignalFor(
+            "SOME_ERROR",
+            serverRetryAfterSeconds = -5,
+            localRemainingMs = 1500
+        )
+        assertEquals(2L, mixed.waitSeconds)
+    }
+
 }
