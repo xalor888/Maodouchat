@@ -304,4 +304,46 @@ class GroupAiSharePolicyTest {
         assertEquals(setOf("aiAssisted", "aiAssistantMode", "systemIdentity"), meta.keys)
     }
 
+    @Test
+    fun `decideShare newline only answer is empty`() {
+        assertEquals(
+            BlockReason.EMPTY_ANSWER,
+            GroupAiSharePolicy.decideShare(true, "\n\t").reason
+        )
+        val ok = GroupAiSharePolicy.decideShare(true, "\nhello\n")
+        assertTrue(ok.allowed)
+        assertEquals("hello", ok.body)
+    }
+
+    @Test
+    fun `shareAssistantMode trims before capping and keeps inner spaces`() {
+        assertEquals("x".repeat(40), GroupAiSharePolicy.shareAssistantMode("  " + "x".repeat(50)))
+        assertEquals("a  b", GroupAiSharePolicy.shareAssistantMode("  a  b  "))
+    }
+
+    @Test
+    fun `sanitize cap applies after dropping blanks`() {
+        // 31 条里首条空白：先过滤再取 30，恰好留满 30 条；先取 30 再过滤只剩 29 条。
+        val drafts = List(31) { i ->
+            TaskDraft(title = if (i == 0) "   " else " t$i ")
+        }
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(drafts)
+        assertEquals(30, cleaned.size)
+        assertEquals("t1", cleaned.first().title)
+        assertEquals("t30", cleaned.last().title)
+    }
+
+    @Test
+    fun `closed loop stays ready at and beyond max share chars`() {
+        assertTrue(GroupAiSharePolicy.isClosedLoopReady(isGroup = true, answer = "x".repeat(4000)))
+        assertTrue(GroupAiSharePolicy.isClosedLoopReady(isGroup = true, answer = "x".repeat(4001)))
+    }
+
+    @Test
+    fun `decideShare keeps internal tabs trims only ends`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "  a\tb  ")
+        assertTrue(decision.allowed)
+        assertEquals("a\tb", decision.body)
+    }
+
 }
