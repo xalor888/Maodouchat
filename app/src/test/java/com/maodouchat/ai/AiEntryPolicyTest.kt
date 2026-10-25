@@ -319,4 +319,106 @@ class AiEntryPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `shouldShowAiSurfaces is exactly the four-way conjunction`() {
+        for (master in listOf(true, false)) {
+            for (user in listOf(true, false)) {
+                for (consent in listOf(true, false)) {
+                    for (chat in listOf(true, false)) {
+                        assertEquals(
+                            master && user && consent && chat,
+                            AiEntryPolicy.shouldShowAiSurfaces(
+                                chatAiEnabled = chat,
+                                consentAccepted = consent,
+                                userEnabled = user,
+                                masterEnabled = master
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `three-arg run gate is exactly master and chat and not busy`() {
+        for (master in listOf(true, false)) {
+            for (chat in listOf(true, false)) {
+                for (busy in listOf(true, false)) {
+                    assertEquals(
+                        master && chat && !busy,
+                        AiEntryPolicy.canRunContextAction(
+                            masterEnabled = master,
+                            chatAiEnabled = chat,
+                            isBusy = busy
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `mapped type families collapse to one action each`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("TEXT")
+        )
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("TEXT"),
+            AiEntryPolicy.contextActionsFor("MARKDOWN")
+        )
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("TEXT"),
+            AiEntryPolicy.contextActionsFor("SYSTEM")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("IMAGE")
+        )
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("IMAGE"),
+            AiEntryPolicy.contextActionsFor("GIF")
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("VOICE")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("FILE")
+        )
+    }
+
+    @Test
+    fun `two-arg run gate is exactly chat and not busy`() {
+        for (chat in listOf(true, false)) {
+            for (busy in listOf(true, false)) {
+                assertEquals(
+                    chat && !busy,
+                    AiEntryPolicy.canRunContextAction(
+                        chatAiEnabled = chat,
+                        isBusy = busy
+                    )
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `canOpenComposerMenu is exactly neither blocker`() {
+        for (busy in listOf(true, false)) {
+            for (updating in listOf(true, false)) {
+                assertEquals(
+                    !busy && !updating,
+                    AiEntryPolicy.canOpenComposerMenu(
+                        isBusy = busy,
+                        isUpdatingSetting = updating
+                    )
+                )
+            }
+        }
+    }
+
 }
