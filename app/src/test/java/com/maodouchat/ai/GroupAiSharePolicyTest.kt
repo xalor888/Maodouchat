@@ -434,4 +434,53 @@ class GroupAiSharePolicyTest {
         assertFalse(GroupAiSharePolicy.canPersistTasks(listOf(TaskDraft(""))))
     }
 
+    @Test
+    fun `decideShare plain answer carries null reason and exact body`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "hello")
+        assertTrue(decision.allowed)
+        assertNull(decision.reason)
+        assertEquals("hello", decision.body)
+        val padded = GroupAiSharePolicy.decideShare(true, "  hello  ")
+        assertEquals(decision, padded)
+    }
+
+    @Test
+    fun `sanitizeTasks normalizes a full task object`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = " t ", owner = " o ", dueText = " d ", dueAt = 5L))
+        )
+        assertEquals(
+            listOf(TaskDraft(title = "t", owner = "o", dueText = "d", dueAt = 5L)),
+            cleaned
+        )
+        val blanked = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", owner = "  ", dueText = "", dueAt = 0L))
+        )
+        assertEquals(listOf(TaskDraft(title = "t")), blanked)
+    }
+
+    @Test
+    fun `shareAssistantMode keeps inner newline and trims ends`() {
+        assertEquals("a\nb", GroupAiSharePolicy.shareAssistantMode("  a\nb  "))
+        assertEquals("a\tb", GroupAiSharePolicy.shareAssistantMode("\ta\tb\n"))
+    }
+
+    @Test
+    fun `closed loop not ready for whitespace-only answer`() {
+        assertFalse(GroupAiSharePolicy.isClosedLoopReady(isGroup = true, answer = "   "))
+        assertFalse(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "\n\t",
+                tasks = listOf(TaskDraft("a"))
+            )
+        )
+    }
+
+    @Test
+    fun `sanitizeTasks empty input stays empty`() {
+        assertEquals(emptyList<TaskDraft>(), GroupAiSharePolicy.sanitizeTasks(emptyList()))
+        assertTrue(GroupAiSharePolicy.sanitizeTasks(listOf(TaskDraft("  "))).isEmpty())
+    }
+
 }
