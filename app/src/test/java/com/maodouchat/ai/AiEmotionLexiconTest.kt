@@ -261,4 +261,40 @@ class AiEmotionLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `happy english haha word counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("haha"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad regret word counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("后悔"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `angry hate word counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("hate"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `anxious insomnia word counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("失眠"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `uppercase english happy word stays neutral`() {
+        // 英文匹配大小写敏感：大写 HAPPY 不命中词典
+        val result = AiEmotionLexicon.detectEmotion(listOf("HAPPY"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
 }
