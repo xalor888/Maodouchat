@@ -344,4 +344,70 @@ class LocalAiProviderStoreTest {
         assertEquals(0L, decoded.single().createdAt)
     }
 
+    @Test
+    fun `provider protocol aliases are case-insensitive and trimmed on parse`() {
+        val raw = """[
+          {"id":"a","model":"m","baseUrl":"https://x","protocol":"  Responses "},
+          {"id":"b","model":"m","baseUrl":"https://x","protocol":"CLAUDE"},
+          {"id":"c","model":"m","baseUrl":"https://x","protocol":"response"},
+          {"id":"d","model":"m","baseUrl":"https://x","protocol":"openai_chat_completions"},
+          {"id":"e","model":"m","baseUrl":"https://x","protocol":"OPENAI_RESPONSES"}
+        ]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(5, decoded.size)
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, decoded[0].protocol)
+        assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, decoded[1].protocol)
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, decoded[2].protocol)
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, decoded[3].protocol)
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, decoded[4].protocol)
+    }
+
+    @Test
+    fun `provider name with surrounding spaces survives parse verbatim`() {
+        val raw = """[
+          {"id":"a","model":"m","baseUrl":"https://x","name":"  n  "},
+          {"id":"b","model":"m","baseUrl":"https://x","name":"   "}
+        ]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(2, decoded.size)
+        assertEquals("  n  ", decoded[0].name)
+        assertEquals("m", decoded[1].name)
+    }
+
+    @Test
+    fun `provider slash-only baseUrl row is dropped`() {
+        val raw = """[{"id":"a","model":"m","baseUrl":"/"},{"id":"ok","model":"m","baseUrl":"https://x"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("ok", decoded.single().id)
+    }
+
+    @Test
+    fun `provider duplicate ids are both kept on parse`() {
+        val raw = """[
+          {"id":"dup","model":"m","baseUrl":"https://x"},
+          {"id":"dup","model":"n","baseUrl":"https://y"}
+        ]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(2, decoded.size)
+        assertEquals(listOf("dup", "dup"), decoded.map { it.id })
+    }
+
+    @Test
+    fun `session blank non-tool rows survive encode round trip`() {
+        val session = AgentSession(
+            id = "s1",
+            title = "t",
+            createdAt = 1L,
+            messages = listOf(
+                AgentChatMessage(role = "user", content = ""),
+                AgentChatMessage(role = "assistant", content = ""),
+                AgentChatMessage(role = "tool", content = "", toolName = "list_chats")
+            )
+        )
+        val decoded = LocalAiProviderStore.parseSessions(LocalAiProviderStore.encodeSessions(listOf(session)))
+        assertEquals(1, decoded.size)
+        assertEquals(listOf("user", "assistant"), decoded.single().messages.map { it.role })
+        assertEquals(listOf("", ""), decoded.single().messages.map { it.content })
+    }
 }

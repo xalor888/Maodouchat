@@ -369,4 +369,38 @@ class AiTaskDndPolicyTest {
         val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 0, 1439) }
         assertEquals(1439, inside)
     }
+
+    @Test
+    fun `overnight window sweep counts a narrow evening plus morning span`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1200, 120) }
+        assertEquals(360, inside)
+    }
+
+    @Test
+    fun `same-day window sweep counts a short midday span`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 300, 315) }
+        assertEquals(15, inside)
+    }
+
+    @Test
+    fun `nextAllowedTime outside an inverted window returns null at the end edge`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 500, 1000, 200, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 200, 1000, 200, 5_000L))
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 199, 1000, 200, 5_000L))
+    }
+
+    @Test
+    fun `clamped start at zero with end at midnight is an empty window`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, -100, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, -100, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(720, -100, 0))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 0, -100, 0, 2_000L))
+    }
+
+    @Test
+    fun `int extreme minutes clamp before nextAllowedTime window math`() {
+        assertEquals(2_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, Int.MAX_VALUE, 1380, 60, 2_000L))
+        assertEquals(2_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, Int.MIN_VALUE, 1380, 60, 2_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, Int.MIN_VALUE, 600, 660, 2_000L))
+    }
 }
