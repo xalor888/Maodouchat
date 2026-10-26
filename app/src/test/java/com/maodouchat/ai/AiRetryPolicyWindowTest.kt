@@ -546,4 +546,59 @@ class AiRetryPolicyWindowTest {
         assertTrue(AiRetryPolicy.canCallNow(":chat", AiRetryPolicyCategory.HEAVY))
     }
 
+
+    @Test
+    fun leadingSpaceChatIdIsDistinctFromPlainChatId() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        // 前导空格键是另一个键：窗口 key 不裁边，行首空格版不受影响。
+        assertTrue(AiRetryPolicy.canCallNow(" chat-a", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.recordCall(" chat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow(" chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun clearSessionFreesBothCategoriesAfterBothRecorded() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun heavyPrefixedChatIdDoesNotCollideWithCategoryKey() {
+        AiRetryPolicy.recordCall("HEAVY:chat-a", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("HEAVY:chat-a", AiRetryPolicyCategory.HEAVY))
+        // 窗口 key 是 "HEAVY:HEAVY:chat-a"，不是 "HEAVY:chat-a"：带类目前缀的会话是另一个键。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.canCallNow("HEAVY:chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun heavyOnlyFillReportsGlobalScaleDelayForFreshChats() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.HEAVY) }
+        // 填充类目不影响全局等待量级：新会话两类都报全局约 60 分钟等待，不是类目窗口量级。
+        val light = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        val heavy = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.HEAVY)
+        assertTrue("fresh LIGHT should report global-scale delay, was $light", light > 3_000_000L)
+        assertTrue("fresh HEAVY should report global-scale delay, was $heavy", heavy > 3_000_000L)
+    }
+
+    @Test
+    fun tabPrefixedChatIdIsDistinctFromPlainChatId() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        // 制表前缀键是另一个键：窗口 key 不做空白归一。
+        assertTrue(AiRetryPolicy.canCallNow("\tchat-a", AiRetryPolicyCategory.LIGHT))
+
+        AiRetryPolicy.recordCall("\tchat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("\tchat-a", AiRetryPolicyCategory.LIGHT))
+    }
 }
