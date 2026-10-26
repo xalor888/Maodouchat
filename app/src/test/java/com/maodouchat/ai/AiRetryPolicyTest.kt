@@ -691,4 +691,69 @@ class AiRetryPolicyTest {
         assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, bare.visibleErrorCode)
     }
 
+
+    @Test
+    fun decideConnectionCodeWithSuffixStillRetriesWithBackoff() {
+        // 基码取冒号前一段：连接码带后缀仍走连接重试分支，后缀秒数不生效。
+        val first = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED:45", attempts = 1)
+        assertTrue(first.shouldRetry)
+        assertEquals(800L, first.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", first.visibleErrorCode)
+
+        val second = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED:xyz", attempts = 2)
+        assertTrue(second.shouldRetry)
+        assertEquals(1_600L, second.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", second.visibleErrorCode)
+    }
+
+    @Test
+    fun decideNonNumericSuffixFallsBackToBranchDefault() {
+        // 内嵌秒数解析失败时落回各分支默认等待：非数字后缀不影响分支。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED:abc", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(30_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("QUOTA_EXCEEDED:abc", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(300_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
+
+    @Test
+    fun decideNegativeRateSuffixFallsBackToRateDefault() {
+        // 内嵌秒数只取正数：负数后缀落回限流默认等待 30 秒。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED:-10", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(30_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+    }
+
+    @Test
+    fun decideDoubleColonSuffixIsIgnoredForWait() {
+        // 内嵌秒数只认第一个冒号后整段：双冒号后缀解析失败，落回分支默认等待。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED:45:60", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(30_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("QUOTA_EXCEEDED:30:90", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(300_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
+
+    @Test
+    fun decideSpaceAfterColonStillParsesSuffix() {
+        // 冒号后空格先 trim 再解析：冒号后空格不影响内嵌秒数。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED: 45", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(45_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("QUOTA_EXCEEDED:  60", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(60_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
 }
