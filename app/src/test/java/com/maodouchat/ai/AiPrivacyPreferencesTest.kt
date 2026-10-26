@@ -615,4 +615,49 @@ class AiPrivacyPreferencesTest {
         )
     }
 
+    @Test
+    fun `scoped key keeps crlf pair in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a\r\nb",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a\r\nb")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps single emoji user id verbatim`() {
+        // 单个表情占两个 UTF-16 字符位，键长按字符位数算。
+        assertEquals(
+            "ai_consent_accepted:\uD83D\uDE00",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "\uD83D\uDE00")
+        )
+        assertEquals(
+            AiPrivacyPreferences.KEY_CONSENT.length + 1 + 2,
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "\uD83D\uDE00").length
+        )
+    }
+
+    @Test
+    fun `scoped key with double colon user id yields triple colon`() {
+        assertEquals(
+            "ai_consent_accepted:::",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "::")
+        )
+    }
+
+    @Test
+    fun `scoped key for dismissed ids base is exact`() {
+        assertEquals(
+            "ai_local_safety_dismissed_ids:msg-9",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS, "msg-9")
+        )
+    }
+
+    @Test
+    fun `scoped key for local safety base is exact`() {
+        assertEquals(
+            "ai_local_safety_enabled:u-7",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_LOCAL_SAFETY, "u-7")
+        )
+    }
+
 }
