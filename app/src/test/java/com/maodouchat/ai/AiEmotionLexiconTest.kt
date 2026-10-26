@@ -482,4 +482,43 @@ class AiEmotionLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `four way single hit tie breaks toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "难过", "生气", "担心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.25, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `same word repeated in one text counts once`() {
+        // 按词典词计数不按出现次数：同一文本里两个「哈哈」只算 1 次，与「难过」打平
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈 哈哈", "难过"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad overlapping nan guo nan shou counts twice`() {
+        // 「难过难受」同时含「难过」与「难受」，按词计数 2 次
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过难受"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `angry overlapping fan si le counts twice`() {
+        // 「烦死了」同时含「烦死了」与「烦」，按词计数 2 次
+        val result = AiEmotionLexicon.detectEmotion(listOf("烦死了"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `window cut splits keyword at boundary`() {
+        // 200 字窗口把「哈哈」拦腰截成单字「哈」，不成词，不命中
+        val result = AiEmotionLexicon.detectEmotion(listOf("垫".repeat(199) + "哈哈"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
 }
