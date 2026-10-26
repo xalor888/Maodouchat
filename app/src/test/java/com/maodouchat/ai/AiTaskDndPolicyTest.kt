@@ -571,4 +571,37 @@ class AiTaskDndPolicyTest {
         assertFalse(AiTaskDndPolicy.isInQuietHours(120, 1380, 120))
     }
 
+    @Test
+    fun `overnight window ending at midnight allows only minute 1439`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1439, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 1439, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1438, 1439, 0))
+    }
+
+    @Test
+    fun `nextAllowedTime inside midnight ending overnight window`() {
+        assertEquals(2_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1439, 1439, 0, 2_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 0, 1439, 0, 2_000L))
+    }
+
+    @Test
+    fun `single minute window at end of day`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1438, 1438, 1439))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, 1438, 1439))
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1438, 1438, 1439, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 1439, 1438, 1439, 5_000L))
+    }
+
+    @Test
+    fun `runtime switch off beats minute clamping`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(-5, 0, 60, dndRuntimeEnabled = false))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1500, 0, 60, dndRuntimeEnabled = false))
+    }
+
+    @Test
+    fun `clamped overnight start at 1439`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1500, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(60, 1500, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 1500, 60))
+    }
 }
