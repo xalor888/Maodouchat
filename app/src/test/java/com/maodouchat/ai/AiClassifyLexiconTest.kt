@@ -457,4 +457,41 @@ class AiClassifyLexiconTest {
         assertEquals(0.2, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `tech beats finance three to two with proportional confidence`() {
+        val result = AiClassifyLexicon.classifyText("代码 服务器 数据库 转账 发票")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(3.0 / 5.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance ties tech on duplicate bug votes and wins by order`() {
+        // "bug" 在 TECH 词典列两次得 2 票，财务 2 票打平，entries 顺序里财务在前。
+        val result = AiClassifyLexicon.classifyText("refund price bug")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `notice ties social and wins by order`() {
+        val result = AiClassifyLexicon.classifyText("公告 哈哈")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `double spaced phrase does not match todo`() {
+        // 词典短语是单空格 "follow up"，双空格凑不成该词，其余单字也不是词典词。
+        val result = AiClassifyLexicon.classifyText("follow  up")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `three categories finance study social tie breaks toward finance`() {
+        val result = AiClassifyLexicon.classifyText("考试 转账 哈哈")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
 }
