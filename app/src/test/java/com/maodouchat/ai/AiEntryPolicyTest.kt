@@ -815,4 +815,55 @@ class AiEntryPolicyTest {
         assertFalse(AiEntryPolicy.canRunContextAction(masterEnabled = true, chatAiEnabled = true, isBusy = true))
     }
 
+    @Test
+    fun `surfaces user flag defaults to off`() {
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(true, true))
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = false, masterEnabled = true))
+    }
+
+    @Test
+    fun `surfaces master flag defaults to on`() {
+        assertTrue(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = true))
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = true, masterEnabled = false))
+    }
+
+    @Test
+    fun `context actions newline wrapped voice folds before transcript gate`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("\nVOICE\n")
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor("\nVOICE\n", hasTranscript = true).isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("\nVOICE\n", hasTranscript = true))
+    }
+
+    @Test
+    fun `context actions padded markdown with transcript still translates`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor(" MARKDOWN ", hasTranscript = true)
+        )
+        assertTrue(AiEntryPolicy.hasContextAiActions(" MARKDOWN ", hasTranscript = true))
+    }
+
+    @Test
+    fun `surfaces named arguments reorder still conjoin`() {
+        assertTrue(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                userEnabled = true,
+                masterEnabled = true,
+                consentAccepted = true,
+                chatAiEnabled = true
+            )
+        )
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                userEnabled = true,
+                masterEnabled = true,
+                consentAccepted = false,
+                chatAiEnabled = true
+            )
+        )
+    }
+
 }

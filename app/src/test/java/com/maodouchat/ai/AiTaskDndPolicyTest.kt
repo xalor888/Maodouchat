@@ -403,4 +403,37 @@ class AiTaskDndPolicyTest {
         assertEquals(2_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, Int.MIN_VALUE, 1380, 60, 2_000L))
         assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, Int.MIN_VALUE, 600, 660, 2_000L))
     }
+
+    @Test
+    fun `midnight start morning window covers only before noon`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 0, 720))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(719, 0, 720))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(720, 0, 720))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, 0, 720))
+    }
+
+    @Test
+    fun `nextAllowedTime same-day end equal to now returns null`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 13, 12, 14, 1_000L))
+        assertEquals(1_001L, AiTaskDndPolicy.nextAllowedTime(1_000L, 13, 12, 14, 1_001L))
+    }
+
+    @Test
+    fun `dnd flag off empties even a full-day window`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(720, 0, 1439, dndRuntimeEnabled = false))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 0, 1439, dndRuntimeEnabled = false))
+    }
+
+    @Test
+    fun `nextAllowedTime same-day end edge minute returns null despite future end`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 14, 12, 14, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 15, 12, 14, 5_000L))
+    }
+
+    @Test
+    fun `morning window sweep counts exactly its minutes`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 0, 720) }
+        assertEquals(720, inside)
+    }
+
 }

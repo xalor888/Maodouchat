@@ -988,4 +988,68 @@ class AiCostVisibilityPolicyTest {
         assertEquals("RATE_LIMITED:90", AiCostVisibilityPolicy.encodeErrorCode(" rate_limited ", 90))
     }
 
+    @Test
+    fun `classify underscored payment required code is quota`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "payment_required",
+            serverMessage = null
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify mixed case too many code folds to rate limited`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "Too_Many_Requests",
+            serverMessage = null
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `wait seconds unknown code with zero server and zero local returns zero`() {
+        assertEquals(
+            0L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                "SOMETHING_ELSE",
+                serverRetryAfterSeconds = 0,
+                localRemainingMs = 0
+            )
+        )
+        assertEquals(
+            0L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                "SOMETHING_ELSE",
+                serverRetryAfterSeconds = -10,
+                localRemainingMs = -5
+            )
+        )
+    }
+
+    @Test
+    fun `encode error code re-suffixes a suffixed rate base`() {
+        assertEquals("RATE_LIMITED:90", AiCostVisibilityPolicy.encodeErrorCode("RATE_LIMITED:45", 90))
+        assertEquals("QUOTA_EXCEEDED", AiCostVisibilityPolicy.encodeErrorCode("QUOTA_EXCEEDED:30", 0))
+    }
+
+    @Test
+    fun `billing hint blank code with failed flag stays none`() {
+        assertEquals(BillingHint.NONE, AiCostVisibilityPolicy.billingHintFor("", isFailed = true))
+        assertEquals(BillingHint.NONE, AiCostVisibilityPolicy.billingHintFor(null, isFailed = true))
+    }
+
 }
