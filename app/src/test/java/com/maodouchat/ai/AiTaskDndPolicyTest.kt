@@ -306,4 +306,35 @@ class AiTaskDndPolicyTest {
         assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1438, 0, 1439, 5_000L))
     }
 
+    @Test
+    fun `same-day window sweep covers exactly its minute count`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 600, 660) }
+        assertEquals(60, inside)
+    }
+
+    @Test
+    fun `overnight window sweep covers evening plus morning segments`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1380, 60) }
+        assertEquals(120, inside)
+    }
+
+    @Test
+    fun `nextAllowedTime compares end against now even at long extremes`() {
+        assertEquals(Long.MAX_VALUE, AiTaskDndPolicy.nextAllowedTime(1_000L, 23, 22, 7, Long.MAX_VALUE))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(Long.MAX_VALUE, 23, 22, 7, Long.MAX_VALUE))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 23, 22, 7, -5_000L))
+    }
+
+    @Test
+    fun `runtime switch off short-circuits before clamping math`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(30, 1500, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(30, 1500, 60, dndRuntimeEnabled = false))
+    }
+
+    @Test
+    fun `negative timeline still returns an end after now`() {
+        assertEquals(-4_000L, AiTaskDndPolicy.nextAllowedTime(-5_000L, 23, 22, 7, -4_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(-5_000L, 23, 22, 7, -6_000L))
+    }
+
 }
