@@ -585,4 +585,54 @@ class AiEmotionFallbackTest {
         assertEquals(listOf(Emotion.SAD, Emotion.ANGRY), withFeel)
     }
 
+    @Test
+    fun `angry template opens with take it easy`() {
+        val angry = AiEmotionFallback.localFallback(context, Emotion.ANGRY)
+        assertTrue(angry.startsWith("Take it easy,"))
+        Emotion.entries.filter { it != Emotion.ANGRY }.forEach { emotion ->
+            assertFalse(AiEmotionFallback.localFallback(context, emotion).startsWith("Take"))
+        }
+    }
+
+    @Test
+    fun `anxious template holds both contractions`() {
+        val withDont = Emotion.entries.filter {
+            AiEmotionFallback.localFallback(context, it).contains("Don't")
+        }
+        val withLets = Emotion.entries.filter {
+            AiEmotionFallback.localFallback(context, it).contains("let's")
+        }
+        assertEquals(listOf(Emotion.ANXIOUS), withDont)
+        assertEquals(listOf(Emotion.ANXIOUS), withLets)
+    }
+
+    @Test
+    fun `every template first word is distinct and capitalized`() {
+        val firstWords = Emotion.entries.map {
+            AiEmotionFallback.localFallback(context, it).split(" ").first()
+        }
+        assertEquals(listOf("That's", "I", "Take", "Don't", "Got"), firstWords)
+        assertTrue(firstWords.all { it.first().isUpperCase() })
+    }
+
+    @Test
+    fun `only happy template ends with you exclamation`() {
+        Emotion.entries.forEach { emotion ->
+            assertEquals(
+                emotion == Emotion.HAPPY,
+                AiEmotionFallback.localFallback(context, emotion).endsWith("you!")
+            )
+        }
+    }
+
+    @Test
+    fun `neutral template opens with got it and ends with listening`() {
+        val neutral = AiEmotionFallback.localFallback(context, Emotion.NEUTRAL)
+        assertTrue(neutral.startsWith("Got it,"))
+        assertTrue(neutral.endsWith("listening."))
+        Emotion.entries.filter { it != Emotion.NEUTRAL }.forEach { emotion ->
+            assertFalse(AiEmotionFallback.localFallback(context, emotion).startsWith("Got it,"))
+        }
+    }
+
 }

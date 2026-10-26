@@ -745,4 +745,53 @@ class AiPrivacyPreferencesTest {
         )
     }
 
+    @Test
+    fun `scoped key keeps underscore and hyphen user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:user-name_1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "user-name_1")
+        )
+    }
+
+    @Test
+    fun `scoped key with digit only user id keeps exact`() {
+        assertEquals(
+            "ai_consent_accepted:12345",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "12345")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "12345"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "1234")
+        )
+    }
+
+    @Test
+    fun `scoped key for user enabled base with second user is exact`() {
+        assertEquals(
+            "ai_user_enabled:u-2",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "u-2")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps tilde and caret in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a~b^c",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a~b^c")
+        )
+    }
+
+    @Test
+    fun `scoped key length for dismissed base with long suffix`() {
+        val scoped = AiPrivacyPreferences.scopedKey(
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            "msg-1234"
+        )
+        assertEquals(
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS.length + 1 + "msg-1234".length,
+            scoped.length
+        )
+        assertEquals("ai_local_safety_dismissed_ids:msg-1234", scoped)
+    }
+
 }
