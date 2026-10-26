@@ -671,4 +671,55 @@ class AiLocalRulesTest {
         assertEquals(0.5, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `classify study and social tie takes study`() {
+        val result = AiMessageClassifier.classifyText("课程 电影")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val swapped = AiMessageClassifier.classifyText("电影 课程")
+        assertEquals(AiMessageClassifierCategory.STUDY, swapped.category)
+        assertEquals(0.5, swapped.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify finance and social tie takes finance`() {
+        val result = AiMessageClassifier.classifyText("周末 转账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val swapped = AiMessageClassifier.classifyText("转账 周末")
+        assertEquals(AiMessageClassifierCategory.FINANCE, swapped.category)
+        assertEquals(0.5, swapped.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify good night phrase alone hits social at full confidence`() {
+        val result = AiMessageClassifier.classifyText("good night")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+        val withMovie = AiMessageClassifier.classifyText("good night movie")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, withMovie.category)
+        assertEquals(1.0, withMovie.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion sad and angry tie takes sad`() {
+        val result = AiEmotionReply.detectEmotion(listOf("难过 生气"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val swapped = AiEmotionReply.detectEmotion(listOf("生气 难过"))
+        assertEquals(Emotion.SAD, swapped.emotion)
+        assertEquals(0.5, swapped.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion great and sad lowercase tie takes happy`() {
+        val result = AiEmotionReply.detectEmotion(listOf("great sad"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val swapped = AiEmotionReply.detectEmotion(listOf("sad great"))
+        assertEquals(Emotion.HAPPY, swapped.emotion)
+        assertEquals(0.5, swapped.confidence, 0.0001)
+    }
+
 }

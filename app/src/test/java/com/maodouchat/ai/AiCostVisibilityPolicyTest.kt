@@ -1296,4 +1296,79 @@ class AiCostVisibilityPolicyTest {
         assertEquals(45L, AiCostVisibilityPolicy.waitSecondsFor("BILLING_ISSUE:45"))
     }
 
+
+    @Test
+    fun `classify server retry after exactly at day cap is kept for rate limit`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = null,
+            serverRetryAfterSeconds = 86_400
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertEquals(86_400L, signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify 402 status with rate limit code still maps quota`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 402,
+            serverCode = "RATE_LIMITED",
+            serverMessage = null,
+            serverRetryAfterSeconds = 30
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(30L, signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify hyphenated payment required code is generic`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "PAYMENT-REQUIRED",
+            serverMessage = null
+        )
+        assertFalse(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertNull(AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `base error code trims space before colon and embedded still reads suffix`() {
+        assertEquals(
+            "RATE_LIMITED",
+            AiCostVisibilityPolicy.baseErrorCode(" rate_limited : 45 ")
+        )
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds(" rate_limited : 45 "))
+    }
+
+    @Test
+    fun `billing hint unknown outcome beats scheduled auto retry`() {
+        assertEquals(
+            BillingHint.OUTCOME_UNKNOWN_MAY_BILL,
+            AiCostVisibilityPolicy.billingHintFor(
+                "OUTCOME_UNKNOWN",
+                hasScheduledAutoRetry = true
+            )
+        )
+        assertEquals(
+            BillingHint.OUTCOME_UNKNOWN_MAY_BILL,
+            AiCostVisibilityPolicy.billingHintFor(
+                "TIMEOUT",
+                hasScheduledAutoRetry = true
+            )
+        )
+    }
+
 }
