@@ -702,4 +702,41 @@ class AiEntryPolicyTest {
         )
     }
 
+    @Test
+    fun `control char unit separator padding folds to known types`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u001Ftext\u001F")
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor("\u001Fvoice\u001F", hasTranscript = true).isEmpty())
+    }
+
+    @Test
+    fun `accented letters match nothing`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TÉXT").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("téxt").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("FÍLE").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TÉXT"))
+    }
+
+    @Test
+    fun `combining mark breaks type matching`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TE\u0301XT").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT\u0301").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TE\u0301XT"))
+    }
+
+    @Test
+    fun `setting update blocks only the composer menu`() {
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = true))
+        assertTrue(AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = false))
+        assertTrue(AiEntryPolicy.isComposerEntryActive(true))
+    }
+
+    @Test
+    fun `underscore joined types match nothing`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT_FILE").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("VOICE_NOTE").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TEXT_FILE"))
+    }
 }
