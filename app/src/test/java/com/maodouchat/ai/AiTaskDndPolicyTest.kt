@@ -337,4 +337,36 @@ class AiTaskDndPolicyTest {
         assertNull(AiTaskDndPolicy.nextAllowedTime(-5_000L, 23, 22, 7, -6_000L))
     }
 
+    @Test
+    fun `degenerate overnight window sweep counts two minutes`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1439, 1) }
+        assertEquals(2, inside)
+    }
+
+    @Test
+    fun `clamped bounds sweep counts the clamped range`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, -100, 61) }
+        assertEquals(61, inside)
+    }
+
+    @Test
+    fun `inverted window sweep counts evening plus morning`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1000, 200) }
+        assertEquals(640, inside)
+    }
+
+    @Test
+    fun `int extreme minutes clamp before window math`() {
+        // Int.MIN_VALUE 钳到 0，Int.MAX_VALUE 钳到 1439。
+        assertTrue(AiTaskDndPolicy.isInQuietHours(Int.MIN_VALUE, 0, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(Int.MIN_VALUE, 30, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(Int.MAX_VALUE, 0, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(Int.MAX_VALUE, 1380, 60))
+    }
+
+    @Test
+    fun `full-day window sweep counts all but the end minute`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 0, 1439) }
+        assertEquals(1439, inside)
+    }
 }
