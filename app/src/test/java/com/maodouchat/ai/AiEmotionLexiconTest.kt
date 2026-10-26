@@ -445,4 +445,41 @@ class AiEmotionLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `unlisted happy words giggle and cheer count`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("嘻嘻 耶"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `unlisted angry words detestable and disgusting count`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("可恶 恶心"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `unlisted anxious words running late and what to do count`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("来不及了怎么办"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `unlisted sad words regretful and let down count`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("遗憾 失落"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `negated happy word still counts by substring`() {
+        // contains 是子串匹配：否定词里的「开心」照样命中，不做语义否定
+        val result = AiEmotionLexicon.detectEmotion(listOf("我不开心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
