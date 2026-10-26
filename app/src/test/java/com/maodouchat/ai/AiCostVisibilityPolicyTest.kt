@@ -1371,4 +1371,66 @@ class AiCostVisibilityPolicyTest {
         )
     }
 
+    @Test
+    fun `billing hint rate code with scheduled auto retry still waits`() {
+        assertEquals(
+            BillingHint.RATE_LIMITED_WAIT,
+            AiCostVisibilityPolicy.billingHintFor("RATE_LIMITED", hasScheduledAutoRetry = true)
+        )
+        assertEquals(
+            BillingHint.RATE_LIMITED_WAIT,
+            AiCostVisibilityPolicy.billingHintFor("TOO_MANY_REQUESTS", hasScheduledAutoRetry = true)
+        )
+    }
+
+    @Test
+    fun `wait seconds negative local remaining falls back to quota default`() {
+        assertEquals(
+            300L,
+            AiCostVisibilityPolicy.waitSecondsFor("QUOTA_EXCEEDED", localRemainingMs = -100L)
+        )
+        assertEquals(
+            30L,
+            AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED", localRemainingMs = -1L)
+        )
+    }
+
+    @Test
+    fun `encode rate limit prefix base keeps suffix`() {
+        assertEquals(
+            "RATE_LIMIT_CUSTOM:20",
+            AiCostVisibilityPolicy.encodeErrorCode("RATE_LIMIT_CUSTOM", 20L)
+        )
+        assertEquals(
+            "RATE_LIMIT_CUSTOM:20",
+            AiCostVisibilityPolicy.encodeErrorCode("rate_limit_custom", 20L)
+        )
+    }
+
+    @Test
+    fun `classify negative server retry after drops seconds but keeps rate flag`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = "RATE_LIMITED",
+            serverMessage = null,
+            serverRetryAfterSeconds = -5L
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `display signal rate code with negative local binds default wait and warn`() {
+        val signal = AiCostVisibilityPolicy.displaySignalFor("RATE_LIMITED", localRemainingMs = -50L)
+        assertEquals("RATE_LIMITED", signal.errorCode)
+        assertEquals(30L, signal.waitSeconds)
+        assertEquals(BillingHint.RATE_LIMITED_WAIT, signal.hint)
+        assertTrue(signal.warnRetryBills)
+    }
+
 }
