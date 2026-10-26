@@ -394,4 +394,52 @@ class LocalAiGatewayRankTest {
         )
     }
 
+    @Test
+    fun `newline splits query tokens`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("red\nblue", listOf("c1" to "red blue"))
+        )
+    }
+
+    @Test
+    fun `tab padded query matches like spaces`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("\tred\t", listOf("c1" to "red car"))
+        )
+        assertEquals(
+            listOf("c1"),
+            LocalAiGateway.rankSemantic("\tred\t", listOf("c1" to "red car"))
+        )
+    }
+
+    @Test
+    fun `repeated token across both positions scores per occurrence`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 3.0),
+            LocalAiGateway.rankSemanticScored("red blue red", listOf("c1" to "red blue"))
+        )
+    }
+
+    @Test
+    fun `compound candidate word matches both substring tokens`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("red blue", listOf("c1" to "redblue"))
+        )
+        assertEquals(
+            listOf("c1"),
+            LocalAiGateway.rankSemantic("red blue", listOf("c1" to "redblue"))
+        )
+    }
+
+    @Test
+    fun `candidate text newline does not break substring matching`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("red blue", listOf("c1" to "red\nblue sky"))
+        )
+    }
+
 }

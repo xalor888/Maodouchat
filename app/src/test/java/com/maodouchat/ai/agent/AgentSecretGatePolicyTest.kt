@@ -328,4 +328,43 @@ class AgentSecretGatePolicyTest {
         assertEquals(4, AgentSecretGatePolicy.PIN_DENIED.split(" ").size)
     }
 
+    @Test
+    fun denialMessagesStartWithOwnSubjectPhrase() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.startsWith("Error: secret chats"))
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.startsWith("Error: chat is PIN"))
+    }
+
+    @Test
+    fun denialMessagesDifferOnPluralChatWord() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.contains("chats"))
+        assertFalse(AgentSecretGatePolicy.PIN_DENIED.contains("chats"))
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.contains("chat "))
+    }
+
+    @Test
+    fun denialMessagesLengthParityAndSum() {
+        assertEquals(0, AgentSecretGatePolicy.SECRET_DENIED.length % 2)
+        assertEquals(1, AgentSecretGatePolicy.PIN_DENIED.length % 2)
+        assertEquals(
+            79,
+            AgentSecretGatePolicy.SECRET_DENIED.length + AgentSecretGatePolicy.PIN_DENIED.length
+        )
+    }
+
+    @Test
+    fun denialMessagesEndWithLettersAndHyphenOnlyInPin() {
+        assertFalse(AgentSecretGatePolicy.SECRET_DENIED.contains("-"))
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.contains("-"))
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.last().isLetter())
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.last().isLetter())
+    }
+
+    @Test
+    fun denialMessagesFirstTokenIsErrorAndSecondNamesSubject() {
+        assertEquals("Error:", AgentSecretGatePolicy.SECRET_DENIED.split(" ")[0])
+        assertEquals("Error:", AgentSecretGatePolicy.PIN_DENIED.split(" ")[0])
+        assertEquals("secret", AgentSecretGatePolicy.SECRET_DENIED.split(" ")[1])
+        assertEquals("chat", AgentSecretGatePolicy.PIN_DENIED.split(" ")[1])
+    }
+
 }
