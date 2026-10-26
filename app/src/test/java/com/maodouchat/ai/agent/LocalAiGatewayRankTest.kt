@@ -442,4 +442,44 @@ class LocalAiGatewayRankTest {
         )
     }
 
+    @Test
+    fun `empty candidate text never matches`() = runBlocking {
+        val ranked = LocalAiGateway.rankSemantic(
+            "meeting",
+            listOf("e1" to "", "m1" to "meeting notes")
+        )
+        assertEquals(listOf("m1"), ranked)
+    }
+
+    @Test
+    fun `vertical tab splits query tokens`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("alpha\u000Bbeta", listOf("c1" to "alpha beta"))
+        )
+    }
+
+    @Test
+    fun `form feed splits query tokens`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("alpha\u000Cbeta", listOf("c1" to "alpha beta"))
+        )
+    }
+
+    @Test
+    fun `query token order does not change ranking`() = runBlocking {
+        val candidates = listOf("c1" to "alpha only", "c2" to "alpha beta")
+        assertEquals(listOf("c2", "c1"), LocalAiGateway.rankSemantic("beta alpha", candidates))
+        assertEquals(listOf("c2", "c1"), LocalAiGateway.rankSemantic("alpha beta", candidates))
+    }
+
+    @Test
+    fun `scored ranking for blank query returns empty`() = runBlocking {
+        assertEquals(
+            emptyList<Pair<String, Double>>(),
+            LocalAiGateway.rankSemanticScored("   ", listOf("m1" to "meeting notes"))
+        )
+    }
+
 }

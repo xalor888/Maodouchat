@@ -920,4 +920,42 @@ class AiEntryPolicyTest {
         assertTrue(AiEntryPolicy.hasContextAiActions("FILE", true))
     }
 
+    @Test
+    fun `vertical tab wrapped text folds to translate`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u000Btext\u000B")
+        )
+    }
+
+    @Test
+    fun `form feed wrapped voice folds before transcript gate`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("\u000Cvoice\u000C", hasTranscript = false)
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor("\u000Cvoice\u000C", hasTranscript = true).isEmpty())
+    }
+
+    @Test
+    fun `mixed vertical tab and form feed wrapped file analyzes`() {
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("\u000B\u000Cfile\u000C\u000B")
+        )
+    }
+
+    @Test
+    fun `nbsp only type has no actions`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("\u00A0").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("\u00A0"))
+    }
+
+    @Test
+    fun `composer entry flag is independent of surfaces gate`() {
+        assertTrue(AiEntryPolicy.isComposerEntryActive(true))
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(true, true))
+        assertTrue(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = true))
+    }
+
 }
