@@ -599,4 +599,60 @@ class AgentToolPolicyTest {
         assertEquals("[]", args["a"])
     }
 
+    @Test
+    fun `openai tools json parameter descriptions mirror specs`() {
+        AgentToolPolicy.tools.forEachIndexed { index, spec ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = AgentToolPolicy.openaiToolsJson()[index]["function"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val params = fn["parameters"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val props = params["properties"] as Map<String, Map<String, Any?>>
+            spec.parameters.forEach { (name, param) ->
+                assertEquals(spec.name + ":" + name, param.description, props[name]?.get("description"))
+            }
+        }
+    }
+
+    @Test
+    fun `openai tools json properties key sets mirror spec parameter names`() {
+        AgentToolPolicy.tools.forEachIndexed { index, spec ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = AgentToolPolicy.openaiToolsJson()[index]["function"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val params = fn["parameters"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val props = params["properties"] as Map<String, Map<String, Any?>>
+            assertEquals(spec.name, spec.parameters.keys, props.keys)
+        }
+    }
+
+    @Test
+    fun `openai tools json builds fresh maps on every call`() {
+        val json1 = AgentToolPolicy.openaiToolsJson()
+        val json2 = AgentToolPolicy.openaiToolsJson()
+        assertTrue(json1 !== json2)
+        assertTrue(json1[0] !== json2[0])
+        @Suppress("UNCHECKED_CAST")
+        val fn1 = json1[0]["function"] as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val fn2 = json2[0]["function"] as Map<String, Any?>
+        assertTrue(fn1 !== fn2)
+    }
+
+    @Test
+    fun `parseArgs rejects non-object top level json`() {
+        assertTrue(AgentToolHost.parseArgs("[1,2]").isEmpty())
+        assertTrue(AgentToolHost.parseArgs("\"hi\"").isEmpty())
+        assertTrue(AgentToolHost.parseArgs("123").isEmpty())
+        assertTrue(AgentToolHost.parseArgs("true").isEmpty())
+    }
+
+    @Test
+    fun `parseBool rejects leading zero numerics`() {
+        assertEquals(null, AgentToolHost.parseBool("01"))
+        assertEquals(null, AgentToolHost.parseBool("00"))
+        assertEquals(null, AgentToolHost.parseBool(" 01 "))
+    }
+
 }
