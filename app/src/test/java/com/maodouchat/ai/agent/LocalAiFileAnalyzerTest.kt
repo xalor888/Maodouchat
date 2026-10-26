@@ -274,4 +274,53 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("<svg/>".toByteArray(Charsets.UTF_8))
         assertNull(LocalAiFileAnalyzer.prepare("a.svg", "image/svg+xml", encoded))
     }
+
+    @Test
+    fun `uppercase xml mime is lowercased and accepted`() {
+        val encoded = Base64.getEncoder().encodeToString("<a/>".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.xml", "APPLICATION/XML", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("application/xml", prepared.mimeType)
+        assertEquals("<a/>", prepared.text)
+    }
+
+    @Test
+    fun `text csv mime with parameters is accepted by prefix match`() {
+        // text/ 前缀判定只看开头，带参数仍是文本；与 application/json 的精确相等判定不同。
+        val encoded = Base64.getEncoder().encodeToString("a,b".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.csv", "TEXT/CSV; CHARSET=UTF-8", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("text/csv; charset=utf-8", prepared.mimeType)
+        assertEquals("a,b", prepared.text)
+    }
+
+    @Test
+    fun `uppercase json mime with parameters is rejected by exact match`() {
+        val encoded = Base64.getEncoder().encodeToString("{\"a\":1}".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.json", "APPLICATION/JSON; CHARSET=UTF-8", encoded))
+    }
+
+    @Test
+    fun `bom prefix text is kept verbatim`() {
+        // BOM 不是空白字符，不触发 isBlank 拒绝，原样保留在文本开头。
+        val body = "\uFEFFhi"
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(body, prepared.text)
+    }
+
+    @Test
+    fun `del character text is accepted`() {
+        // 拒绝集只有空字节与替换字符，DEL 不在其中。
+        val body = "ab\u007Fc"
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(body, prepared.text)
+    }
 }
