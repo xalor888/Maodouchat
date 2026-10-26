@@ -783,4 +783,51 @@ class AiRetryPolicyWindowTest {
         assertTrue("global window should dominate, was $wait", wait > 3_000_000L)
     }
 
+    @Test
+    fun delCharChatIdIsDistinctKey() {
+        AiRetryPolicy.recordCall("chat\u007Fa", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u007Fa", AiRetryPolicyCategory.LIGHT))
+        // DEL 只是键的一部分：含 DEL 的会话与普通会话互不相同。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun sohCharChatIdIsDistinctKey() {
+        AiRetryPolicy.recordCall("chat\u0001a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u0001a", AiRetryPolicyCategory.LIGHT))
+        // SOH 控制字符不做归一：含 SOH 的会话与普通会话互不相同。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun nelCharChatIdIsDistinctFromPlainAndNewlineKeys() {
+        AiRetryPolicy.recordCall("chat\u0085a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u0085a", AiRetryPolicyCategory.LIGHT))
+        // NEL 与换行是不同字符：含 NEL 的键既不同于普通键，也不同于换行键。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat\na", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun lrmCharChatIdIsDistinctKey() {
+        AiRetryPolicy.recordCall("chat\u200Ea", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u200Ea", AiRetryPolicyCategory.LIGHT))
+        // LRM 是零宽方向控制符：含 LRM 的会话与普通会话互不相同。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun unitSeparatorChatIdIsDistinctFromPlainAndSpaceKeys() {
+        AiRetryPolicy.recordCall("chat\u001Fa", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u001Fa", AiRetryPolicyCategory.LIGHT))
+        // 单元分隔符与空格是不同字符：含 US 的键既不同于普通键，也不同于空格键。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
 }

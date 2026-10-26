@@ -521,4 +521,40 @@ class AiEmotionLexiconTest {
         assertEquals(0.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `single char bang word hits happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("棒"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `single angry word hits angry`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("愤怒"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `single nervous word hits anxious`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("紧张"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `single good news phrase hits happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("太好了"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `happy angry anxious three way tie breaks toward happy`() {
+        // happy/sad/angry/anxious 枚举序：三方平局取首列 happy
+        val result = AiEmotionLexicon.detectEmotion(listOf("棒", "愤怒", "紧张"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
 }

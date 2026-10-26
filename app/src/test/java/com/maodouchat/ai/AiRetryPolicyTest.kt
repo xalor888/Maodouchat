@@ -938,4 +938,51 @@ class AiRetryPolicyTest {
         AiRetryPolicy.clearSession()
     }
 
+    @Test
+    fun decideAuthorizeWordMapsToAuthBranch() {
+        // 认证分支是 contains：AUTHORIZE 含 AUTH 即走认证分支，不重试。
+        val decision = AiRetryPolicy.decide("AUTHORIZE", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("auth required; do not auto-retry", decision.explanation)
+        assertEquals("AUTHORIZE", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideCancelledPinsFullNonTransientDecision() {
+        val decision = AiRetryPolicy.decide("CANCELLED", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("non-transient error", decision.explanation)
+        assertEquals("CANCELLED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideOverBudgetMapsToQuotaBranchWithZeroWait() {
+        // 配额分支是 contains：OVER_BUDGET 含 BUDGET 走配额分支；基码非 QUOTA_EXCEEDED 故等待为 0。
+        val decision = AiRetryPolicy.decide("OVER_BUDGET", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("quota exceeded; do not auto-retry", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBareTooManyWithSuffixUsesRateWait() {
+        val decision = AiRetryPolicy.decide("TOO_MANY:90", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(90_000L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decidePaddedLowercaseConnectionCodeRetriesAtSecondAttempt() {
+        // trim + 大写 + 退避组合：两端空白小写连接码 2 次仍退避 1600。
+        val decision = AiRetryPolicy.decide("  connection_not_established  ", attempts = 2)
+        assertTrue(decision.shouldRetry)
+        assertEquals(1_600L, decision.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
+
 }
