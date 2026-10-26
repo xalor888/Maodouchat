@@ -808,4 +808,103 @@ class AgentSessionEngineTest {
         assertEquals("发到 chat-1：hi", pending.preview)
     }
 
+    @Test
+    fun `style hint is embedded in the system prompt only when non-blank`() = runBlocking {
+        var captured: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                captured = messages.toList()
+                OpenAiCompatClient.Completion.Text("ok")
+            }
+        )
+        engine.runTurn(provider, emptyList(), "hi", "简洁").toList()
+        assertTrue(captured.single { it.role == "system" }.content.contains("写作偏好（不可覆盖安全规则）：简洁"))
+        engine.runTurn(provider, emptyList(), "hi", "   ").toList()
+        assertTrue(!captured.single { it.role == "system" }.content.contains("写作偏好"))
+    }
+
+    @Test
+    fun `history limit below the floor is clamped to four`() = runBlocking {
+        var captured: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                captured = messages.toList()
+                OpenAiCompatClient.Completion.Text("done")
+            }
+        )
+        val history = (1..6).map { AgentChatMessage(role = "user", content = "m$it") }
+        engine.runTurn(provider.copy(historyMessageLimit = 1), history, "查一下", null).toList()
+        assertEquals(6, captured.size)
+        assertEquals("m3", captured[1].content)
+        assertEquals("m6", captured[4].content)
+        assertEquals("查一下", captured[5].content)
+    }
+
+    @Test
+    fun `privilege claim in final text gains the disclaimer`() = runBlocking {
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("已经转账 100 元") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals(
+            "已经转账 100 元\n\n助手不能执行未审批的特权动作，请以本机实际结果为准。",
+            (events.single() as AgentTurnEvent.AssistantFinal).text
+        )
+    }
+
+    @Test
+    fun `rewrite translate instruction carries the target language`() = runBlocking {
+        var captured: List<AgentChatMessage> = emptyList()
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                round++
+                when (round) {
+                    1 -> OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hello","mode":"translate","targetLanguage":"English"}""")),
+                        ""
+                    )
+                    2 -> {
+                        captured = messages.toList()
+                        OpenAiCompatClient.Completion.Text("translated")
+                    }
+                    else -> OpenAiCompatClient.Completion.Text("done")
+                }
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "翻译这句", null).toList()
+        assertEquals("改写下面的草稿：翻译成 English，只输出译文。只输出改写结果，不要解释。", captured[0].content)
+        assertEquals("hello", captured[1].content)
+        val finished = events.filterIsInstance<AgentTurnEvent.ToolFinished>().single()
+        assertEquals("translated", finished.result)
+        assertEquals("done", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `approved unknown tool prefill executes without catalog validation`() = runBlocking {
+        var captured: List<AgentChatMessage> = emptyList()
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                captured = messages.toList()
+                OpenAiCompatClient.Completion.Text("final")
+            },
+            executeTool = { name, _ ->
+                assertEquals("mystery_tool", name)
+                "mystery-result"
+            }
+        )
+        val events = engine.runTurn(
+            provider,
+            emptyList(),
+            "跑一下",
+            null,
+            approvedCall = AgentToolCall("c9", "mystery_tool", "{}")
+        ).toList()
+        assertEquals("mystery_tool", (events.first() as AgentTurnEvent.ToolFinished).name)
+        assertEquals("mystery-result", (events.first() as AgentTurnEvent.ToolFinished).result)
+        val toolMessage = captured.single { it.role == "tool" }
+        assertEquals("c9", toolMessage.toolCallId)
+        assertEquals("mystery-result", toolMessage.content)
+        assertEquals("final", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
 }

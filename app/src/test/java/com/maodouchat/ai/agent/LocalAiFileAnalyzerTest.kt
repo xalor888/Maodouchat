@@ -323,4 +323,46 @@ class LocalAiFileAnalyzerTest {
         assertEquals(Kind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
+    @Test
+    fun `malformed utf-8 bytes are rejected via replacement`() {
+        val loneHigh = Base64.getEncoder().encodeToString(byteArrayOf(-1))
+        assertNull(LocalAiFileAnalyzer.prepare("bad.txt", "text/plain", loneHigh))
+        val loneLead = Base64.getEncoder().encodeToString(byteArrayOf(-61))
+        assertNull(LocalAiFileAnalyzer.prepare("bad.txt", "text/plain", loneLead))
+    }
+
+    @Test
+    fun `bare text slash mime is accepted by prefix match`() {
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("text/", prepared.mimeType)
+    }
+
+    @Test
+    fun `nbsp-only text is rejected because nbsp counts as blank`() {
+        // Kotlin 的 isBlank 把 NBSP 算作空白，单 NBSP 文本走 isBlank 拒绝（CI 实测）。
+        val body = "\u00A0"
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded))
+    }
+
+    @Test
+    fun `mime decides text acceptance not the file extension`() {
+        val json = Base64.getEncoder().encodeToString("{\"a\":1}".toByteArray(Charsets.UTF_8))
+        val viaJsonMime = LocalAiFileAnalyzer.prepare("notes.txt", "application/json", json)
+        assertNotNull(viaJsonMime)
+        assertEquals(Kind.TEXT, viaJsonMime!!.kind)
+        val plain = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val viaPlainMime = LocalAiFileAnalyzer.prepare("data.json", "text/plain", plain)
+        assertNotNull(viaPlainMime)
+        assertEquals(Kind.TEXT, viaPlainMime!!.kind)
+    }
+
+    @Test
+    fun `base64 with an embedded newline is rejected`() {
+        val withNewline = "aGVs\nbG8="
+        assertNull(LocalAiFileAnalyzer.prepare("a.txt", "text/plain", withNewline))
+    }
 }
