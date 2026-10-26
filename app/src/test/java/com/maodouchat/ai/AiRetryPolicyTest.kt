@@ -627,4 +627,68 @@ class AiRetryPolicyTest {
         assertEquals("REAUTH_REQUIRED", reauth.visibleErrorCode)
     }
 
+    @Test
+    fun decideRateLimitAndQuotaExactDayCap() {
+        // 内嵌秒数恰为 86400：不触发封顶截断，按一天计等待。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED:86400", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(86_400_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("QUOTA_EXCEEDED:86400", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(86_400_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
+
+    @Test
+    fun decideTrailingColonFallsBackToBranchDefault() {
+        // 冒号后无秒数时内嵌解析为空：落回各分支默认等待。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED:", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(30_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("QUOTA_EXCEEDED:", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(300_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBareTooManyCodeMapsToRateBranch() {
+        // 裸 TOO_MANY 含限流子串即走限流分支；该基码不在等待表里，等待为 0。
+        val decision = AiRetryPolicy.decide("TOO_MANY", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideQuotaSubstringBeatsConnectionEquality() {
+        // 配额分支在连接相等判定之前：含 QUOTA 的连接码走配额分支，不重试。
+        listOf("CONNECTION_QUOTA", "QUOTA_CONNECTION_NOT_ESTABLISHED").forEach { errorCode ->
+            val decision = AiRetryPolicy.decide(errorCode, attempts = 1)
+            assertFalse(errorCode, decision.shouldRetry)
+            assertEquals(errorCode, 0L, decision.delayMs)
+            assertEquals(errorCode, "quota exceeded; do not auto-retry", decision.explanation)
+            assertEquals(errorCode, AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+        }
+    }
+
+    @Test
+    fun decideRateLimitExtraPrefixWithSuffix() {
+        // 限流分支只认前缀：RATE_LIMITED_EXTRA 同样走限流分支，等待按内嵌秒数计。
+        val withSuffix = AiRetryPolicy.decide("RATE_LIMITED_EXTRA:45", attempts = 1)
+        assertFalse(withSuffix.shouldRetry)
+        assertEquals(45_000L, withSuffix.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, withSuffix.visibleErrorCode)
+
+        val bare = AiRetryPolicy.decide("RATE_LIMITED_EXTRA", attempts = 1)
+        assertFalse(bare.shouldRetry)
+        assertEquals(0L, bare.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, bare.visibleErrorCode)
+    }
+
 }
