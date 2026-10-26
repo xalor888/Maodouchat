@@ -635,4 +635,40 @@ class AiLocalRulesTest {
         assertEquals(0.0, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `classify todo and finance tie takes todo`() {
+        val result = AiMessageClassifier.classifyText("任务 转账")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify study and tech tie takes study`() {
+        val result = AiMessageClassifier.classifyText("课程 部署")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify social and todo tie takes todo`() {
+        val result = AiMessageClassifier.classifyText("聚会 任务")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion happy anxious tie takes happy`() {
+        val result = AiEmotionReply.detectEmotion(listOf("哈哈 焦虑"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion love cry tie takes happy`() {
+        val result = AiEmotionReply.detectEmotion(listOf("love cry"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
 }

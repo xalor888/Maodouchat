@@ -708,4 +708,44 @@ class GroupAiSharePolicyTest {
         assertEquals(BlockReason.EMPTY_ANSWER, decision.reason)
     }
 
+
+    @Test
+    fun `decideShare non-group null answer is not group`() {
+        val decision = GroupAiSharePolicy.decideShare(false, null)
+        assertFalse(decision.allowed)
+        assertEquals("", decision.body)
+        assertEquals(BlockReason.NOT_GROUP, decision.reason)
+    }
+
+    @Test
+    fun `decideShare already shared beats null answer`() {
+        val decision = GroupAiSharePolicy.decideShare(true, null, alreadyShared = true)
+        assertFalse(decision.allowed)
+        assertEquals("", decision.body)
+        assertEquals(BlockReason.ALREADY_SHARED, decision.reason)
+    }
+
+    @Test
+    fun `closed loop with no tasks is ready when share is confirmable`() {
+        assertTrue(GroupAiSharePolicy.isClosedLoopReady(isGroup = true, answer = "summary"))
+    }
+
+    @Test
+    fun `sanitizeTasks trims tab-wrapped titles`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "\t spaced \t"))
+        )
+        assertEquals(1, cleaned.size)
+        assertEquals("spaced", cleaned.single().title)
+    }
+
+    @Test
+    fun `closed loop already shared with no tasks is not ready`() {
+        assertFalse(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true, answer = "summary", alreadyShared = true
+            )
+        )
+    }
+
 }
