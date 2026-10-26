@@ -701,4 +701,44 @@ class AgentToolPolicyTest {
         }
     }
 
+    @Test
+    fun `read tools are allowed without approval across the whole catalog`() {
+        AgentToolPolicy.tools
+            .filter { it.risk == Risk.READ }
+            .forEach { spec ->
+                assertEquals(spec.name, Approval.ALLOW, AgentToolPolicy.approvalFor(spec.name, emptyMap()))
+            }
+    }
+
+    @Test
+    fun `toolByName exposes write risk for group tools`() {
+        assertEquals(Risk.WRITE, AgentToolPolicy.toolByName("create_group")?.risk)
+        assertEquals(Risk.WRITE, AgentToolPolicy.toolByName("rename_group")?.risk)
+        assertEquals(listOf("name", "memberIds"), AgentToolPolicy.toolByName("create_group")?.required)
+    }
+
+    @Test
+    fun `toolByName exposes send tool required arguments`() {
+        assertEquals(listOf("chatId", "text"), AgentToolPolicy.toolByName("send_text_message")?.required)
+        assertEquals(Risk.SEND, AgentToolPolicy.toolByName("send_text_message")?.risk)
+    }
+
+    @Test
+    fun `openai tools json preserves catalog order`() {
+        val names = AgentToolPolicy.openaiToolsJson().map {
+            @Suppress("UNCHECKED_CAST")
+            ((it["function"] as Map<String, Any?>)["name"] as String)
+        }
+        assertEquals(AgentToolPolicy.tools.map { it.name }, names)
+    }
+
+    @Test
+    fun `openai tools json names are unique`() {
+        val names = AgentToolPolicy.openaiToolsJson().map {
+            @Suppress("UNCHECKED_CAST")
+            ((it["function"] as Map<String, Any?>)["name"] as String)
+        }
+        assertEquals(names.size, names.toSet().size)
+    }
+
 }

@@ -794,4 +794,44 @@ class GroupAiSharePolicyTest {
         )
     }
 
+    @Test
+    fun `decideShare padded answer at exactly max keeps full body`() {
+        val answer = "x".repeat(4_000)
+        val decision = GroupAiSharePolicy.decideShare(true, "\t\n" + answer + "\n\t")
+        assertTrue(decision.allowed)
+        assertEquals(answer, decision.body)
+        assertEquals(4_000, decision.body.length)
+    }
+
+    @Test
+    fun `canPersistTasks stays true for a single title over the char cap`() {
+        val tasks = listOf(TaskDraft("x".repeat(361)))
+        assertTrue(GroupAiSharePolicy.canPersistTasks(tasks))
+        assertEquals(360, GroupAiSharePolicy.sanitizeTasks(tasks).single().title.length)
+    }
+
+    @Test
+    fun `sanitizeTasks keeps the first thirty tasks in order`() {
+        val tasks = (0 until 35).map { TaskDraft("t$it") }
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(tasks)
+        assertEquals(30, cleaned.size)
+        assertEquals((0 until 30).map { "t$it" }, cleaned.map { it.title })
+    }
+
+    @Test
+    fun `closed loop is not ready when every task is invalid`() {
+        assertFalse(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = listOf(TaskDraft("   "), TaskDraft(""))
+            )
+        )
+    }
+
+    @Test
+    fun `canPersistTasks stays false for blanks beyond the task cap`() {
+        assertFalse(GroupAiSharePolicy.canPersistTasks((0 until 35).map { TaskDraft("   ") }))
+    }
+
 }
