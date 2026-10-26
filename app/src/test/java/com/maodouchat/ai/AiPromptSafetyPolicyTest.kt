@@ -653,10 +653,10 @@ class AiPromptSafetyPolicyTest {
     }
 
     @Test
-    fun `scan catches ownership transferred admin claim alone`() {
+    fun `scan catches ownership transferred admin and transfer claims`() {
         val result = AiPromptSafetyPolicy.scanPrivilegeClaims("ownership transferred")
         assertTrue(result.hasClaim)
-        assertEquals(setOf(PrivilegeClaimKind.ADMIN_OR_MODERATION), result.kinds)
+        assertEquals(setOf(PrivilegeClaimKind.ADMIN_OR_MODERATION, PrivilegeClaimKind.TRANSFER_OR_PAYMENT), result.kinds)
     }
 
     @Test
