@@ -587,4 +587,43 @@ class GroupAiSharePolicyTest {
         assertEquals("\uD83D\uDE00".repeat(2000), decision.body)
     }
 
+
+    @Test
+    fun `decideShare trims carriage returns at ends`() {
+        val decision = GroupAiSharePolicy.decideShare(true, " \r\nhello\r\n ")
+        assertTrue(decision.allowed)
+        assertEquals("hello", decision.body)
+    }
+
+    @Test
+    fun `decideShare keeps internal carriage return`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "a\rb")
+        assertTrue(decision.allowed)
+        assertEquals("a\rb", decision.body)
+    }
+
+    @Test
+    fun `sanitize owner trims before capping`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", owner = "  " + "y".repeat(150)))
+        )
+        assertEquals("y".repeat(100), cleaned.single().owner)
+    }
+
+    @Test
+    fun `sanitize dueText trims before capping`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", dueText = "  " + "z".repeat(130)))
+        )
+        assertEquals("z".repeat(120), cleaned.single().dueText)
+    }
+
+    @Test
+    fun `share meta mode trims before capping`() {
+        val meta = GroupAiSharePolicy.shareAsCurrentUserMeta("  " + "m".repeat(50))
+        assertEquals("m".repeat(40), meta["aiAssistantMode"])
+        assertEquals(true, meta["aiAssisted"])
+        assertEquals(false, meta["systemIdentity"])
+    }
+
 }

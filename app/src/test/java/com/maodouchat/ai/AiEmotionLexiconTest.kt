@@ -372,4 +372,41 @@ class AiEmotionLexiconTest {
         assertEquals(0.5, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `anxious beats angry with more hits`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("焦虑 担心", "生气"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `happy versus anxious single word tie breaks toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "失眠"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english substring hateful counts as angry`() {
+        // contains 是子串匹配：hateful 含 hate，照样命中
+        val result = AiEmotionLexicon.detectEmotion(listOf("hateful words"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `anxious english worried and anxious aggregate`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("worried anxious"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad majority over happy and angry shares`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过 伤心", "哈哈", "生气"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
 }
