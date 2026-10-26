@@ -1052,4 +1052,71 @@ class AiCostVisibilityPolicyTest {
         assertEquals(BillingHint.NONE, AiCostVisibilityPolicy.billingHintFor(null, isFailed = true))
     }
 
+    @Test
+    fun `classify insufficient credit message is quota`() {
+        // INSUFFICIENT 配 CREDIT 是第三个配额触发词：FUND 与 BALANCE 已有正例，CREDIT 此前只在反例出现。
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "insufficient credit"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+        val codeSignal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "INSUFFICIENT_CREDIT",
+            serverMessage = null
+        )
+        assertTrue(codeSignal.isQuota)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(codeSignal)
+        )
+    }
+
+    @Test
+    fun `embedded retry after above day cap clamps to one day`() {
+        assertEquals(86_400L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:86401"))
+        assertEquals(86_400L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:200000"))
+    }
+
+    @Test
+    fun `classify server retry after above day cap clamps`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = null,
+            serverRetryAfterSeconds = 86401
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertEquals(86_400L, signal.retryAfterSeconds)
+    }
+
+    @Test
+    fun `wait seconds local remaining exactly one second stays one`() {
+        assertEquals(
+            1L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                localRemainingMs = 1000
+            )
+        )
+    }
+
+    @Test
+    fun `display signal for server code binds none hint but warns retry bills`() {
+        // SERVER 不在任何提示分支里（无提示），却在重试警告集合里：展示信号同时体现两者。
+        val signal = AiCostVisibilityPolicy.displaySignalFor("SERVER")
+        assertEquals("SERVER", signal.errorCode)
+        assertEquals(0L, signal.waitSeconds)
+        assertEquals(BillingHint.NONE, signal.hint)
+        assertTrue(signal.warnRetryBills)
+    }
+
 }

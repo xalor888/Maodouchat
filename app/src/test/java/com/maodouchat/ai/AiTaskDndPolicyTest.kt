@@ -436,4 +436,40 @@ class AiTaskDndPolicyTest {
         assertEquals(720, inside)
     }
 
+    @Test
+    fun `overnight window 1320 to 360 boundary quartet`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1319, 1320, 360))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1320, 1320, 360))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(359, 1320, 360))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(360, 1320, 360))
+    }
+
+    @Test
+    fun `same-day window 480 to 540 boundary quartet`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(479, 480, 540))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(480, 480, 540))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(539, 480, 540))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(540, 480, 540))
+    }
+
+    @Test
+    fun `nextAllowedTime clamps out-of-range minutes into window`() {
+        // 1440 被钳到 1439，落入晚间段；-1 被钳到 0，落入凌晨段：钳制发生在窗口判定之前。
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1440, 1400, 100, 5_000L))
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, -1, 1400, 100, 5_000L))
+    }
+
+    @Test
+    fun `overnight window sweep counts 1320 to 360 span`() {
+        val inside = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1320, 360) }
+        assertEquals(480, inside)
+    }
+
+    @Test
+    fun `nextAllowedTime with clamped equal bounds returns null`() {
+        // 起止钳后相等即空窗口：钳制点本身也不抑制，未来 end 也返回空。
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 1439, 1500, 1440, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 0, -100, -50, 5_000L))
+    }
+
 }
