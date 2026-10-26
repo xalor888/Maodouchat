@@ -564,4 +564,39 @@ class AgentToolPolicyTest {
         assertTrue(AgentToolHost.parseArgs("""{"a":"1","a":"2"}""").isEmpty())
     }
 
+    @Test
+    fun `toolByName exposes risk for send and read tools`() {
+        assertEquals(Risk.SEND, AgentToolPolicy.toolByName("send_text_message")?.risk)
+        assertEquals(Risk.READ, AgentToolPolicy.toolByName("list_chats")?.risk)
+        assertEquals(Risk.READ, AgentToolPolicy.toolByName("get_chat_history")?.risk)
+    }
+
+    @Test
+    fun `system prompt embeds the given time label`() {
+        val prompt = agentSystemPrompt("2026-01-01 00:00:00", null)
+        assertTrue(prompt.contains("2026-01-01 00:00:00"))
+        assertTrue(prompt.contains("会话锚点"))
+    }
+
+    @Test
+    fun `read tool previews fall back to raw name and json`() {
+        assertEquals(
+            """get_chat_history {"chatId":"c1"}""",
+            AgentToolHost.preview("get_chat_history", """{"chatId":"c1"}""")
+        )
+    }
+
+    @Test
+    fun `list and search limits scale off chat history limit`() {
+        assertEquals(AgentToolPolicy.MAX_CHAT_HISTORY * 2, AgentToolPolicy.MAX_LIST_CHATS)
+        assertEquals(AgentToolPolicy.MAX_CHAT_HISTORY / 2, AgentToolPolicy.MAX_SEARCH_HITS)
+    }
+
+    @Test
+    fun `parseArgs keeps empty object and empty array as strings`() {
+        val args = AgentToolHost.parseArgs("""{"o":{},"a":[]}""")
+        assertEquals("{}", args["o"])
+        assertEquals("[]", args["a"])
+    }
+
 }
