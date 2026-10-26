@@ -1119,4 +1119,50 @@ class AiCostVisibilityPolicyTest {
         assertTrue(signal.warnRetryBills)
     }
 
+    @Test
+    fun `classify quota wins when blob carries both quota and rate words`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "QUOTA_EXCEEDED",
+            serverMessage = "too many requests"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify status 429 with quota word is quota not rate`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = "quota exceeded"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `wait seconds server retry above day cap clamps in wait policy`() {
+        assertEquals(86_400L, AiCostVisibilityPolicy.waitSecondsFor(null, 100_000L))
+    }
+
+    @Test
+    fun `base error code trims and uppercases suffixed code`() {
+        assertEquals("RATE_LIMITED", AiCostVisibilityPolicy.baseErrorCode(" rate_limited:60 "))
+        assertEquals(60L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds(" rate_limited:60 "))
+    }
+
+    @Test
+    fun `embedded retry after zero is ignored`() {
+        assertNull(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:0"))
+    }
+
 }

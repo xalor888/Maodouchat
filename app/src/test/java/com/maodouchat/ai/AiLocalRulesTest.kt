@@ -600,4 +600,39 @@ class AiLocalRulesTest {
         assertEquals("ai_enhance_classify_notice", AiMessageClassifierCategory.NOTICE.labelKey)
     }
 
+    @Test
+    fun `classify notice and todo tie takes notice`() {
+        val result = AiMessageClassifier.classifyText("通知 任务")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify repeated keyword still counts once`() {
+        val result = AiMessageClassifier.classifyText("转账转账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify substring inside longer word still hits`() {
+        val result = AiMessageClassifier.classifyText("billboard")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion happy sad tie takes happy`() {
+        val result = AiEmotionReply.detectEmotion(listOf("哈哈 难过"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion keyword beyond scan window is ignored`() {
+        val result = AiEmotionReply.detectEmotion(listOf("垫".repeat(250) + "哈哈"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
 }
