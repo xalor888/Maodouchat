@@ -483,4 +483,62 @@ class GroupAiSharePolicyTest {
         assertTrue(GroupAiSharePolicy.sanitizeTasks(listOf(TaskDraft("  "))).isEmpty())
     }
 
+    @Test
+    fun `decideShare trims nbsp at ends and nbsp-only answer is blocked`() {
+        // 实测 Kotlin trim 也去掉不换行空格：两端 NBSP 被裁掉，纯 NBSP 成空串被拦。
+        val padded = GroupAiSharePolicy.decideShare(true, "\u00a0hello\u00a0")
+        assertTrue(padded.allowed)
+        assertEquals("hello", padded.body)
+        val only = GroupAiSharePolicy.decideShare(true, "\u00a0")
+        assertFalse(only.allowed)
+        assertEquals(BlockReason.EMPTY_ANSWER, only.reason)
+    }
+    @Test
+    fun `sanitizeTasks drops nbsp-only title`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(listOf(TaskDraft("\u00a0")))
+        assertTrue(cleaned.isEmpty())
+        assertFalse(GroupAiSharePolicy.canPersistTasks(listOf(TaskDraft("\u00a0"))))
+    }
+    @Test
+    fun `shareAssistantMode trims nbsp-only mode to null`() {
+        assertNull(GroupAiSharePolicy.shareAssistantMode("\u00a0"))
+        assertEquals("tasks", GroupAiSharePolicy.shareAssistantMode("\u00a0tasks\u00a0"))
+    }
+    @Test
+    fun `closed loop ready keeps tasks with dropped dueAt`() {
+        // dueAt 非法只会被消毒成 null，不会丢任务：标题在，闭环就绪就不受影响。
+        assertTrue(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = listOf(TaskDraft("a", dueAt = 0L))
+            )
+        )
+        assertTrue(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = listOf(TaskDraft("a", dueAt = -5L))
+            )
+        )
+    }
+    @Test
+    fun `closed loop ready at and beyond max task save count`() {
+        assertTrue(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = List(30) { i -> TaskDraft("t$i") }
+            )
+        )
+        // 31 条消毒后截断为 30 条，仍非空：上限不破坏就绪判定。
+        assertTrue(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = List(31) { i -> TaskDraft("t$i") }
+            )
+        )
+    }
+
 }

@@ -459,4 +459,46 @@ class AiRetryPolicyWindowTest {
         assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
     }
 
+    @Test
+    fun categoryPrefixedChatIdDoesNotCollideWithCategoryKey() {
+        AiRetryPolicy.recordCall("LIGHT:chat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("LIGHT:chat-a", AiRetryPolicyCategory.LIGHT))
+        // 窗口 key 是 "LIGHT:LIGHT:chat-a"，不是 "LIGHT:chat-a"：带类目前缀的会话是另一个键。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("LIGHT:chat-a", AiRetryPolicyCategory.HEAVY))
+    }
+    @Test
+    fun tabChatIdIsDistinctFromSpaceAndEmptyKeys() {
+        AiRetryPolicy.recordCall("\t", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("\t", AiRetryPolicyCategory.LIGHT))
+        // 制表键与空格键、空串键互不相同：键不做空白归一。
+        assertTrue(AiRetryPolicy.canCallNow(" ", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.LIGHT))
+    }
+    @Test
+    fun newlineChatIdIsDistinctFromSpaceKey() {
+        AiRetryPolicy.recordCall("a\nb", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("a\nb", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("a b", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("a\tb", AiRetryPolicyCategory.LIGHT))
+    }
+    @Test
+    fun repeatedProbesKeepBlockedChatBlocked() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        repeat(100) {
+            assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        }
+        // 只读探查既不清除窗口也不占槽：被拦会话仍被拦，其他会话不受影响。
+        assertTrue(AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT) > 0L)
+        assertTrue(AiRetryPolicy.canCallNow("chat-b", AiRetryPolicyCategory.LIGHT))
+    }
+    @Test
+    fun unicodeNormalizationFormsAreDistinctKeys() {
+        AiRetryPolicy.recordCall("\u00e9", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("\u00e9", AiRetryPolicyCategory.LIGHT))
+        // 键按码点精确比较，不做 Unicode 归一：预组合 é 与 e + 组合重音是两个会话。
+        assertTrue(AiRetryPolicy.canCallNow("e\u0301", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("e\u0301", AiRetryPolicyCategory.LIGHT))
+    }
+
 }
