@@ -482,4 +482,51 @@ class LocalAiGatewayRankTest {
         )
     }
 
+
+    @Test
+    fun `empty candidate id is kept when its text matches`() = runBlocking {
+        val candidates = listOf("" to "red apple")
+        assertEquals(listOf(""), LocalAiGateway.rankSemantic("red", candidates))
+        assertEquals(listOf("" to 1.0), LocalAiGateway.rankSemanticScored("red", candidates))
+    }
+
+    @Test
+    fun `candidate ids are returned verbatim without trim or case folding`() = runBlocking {
+        val candidates = listOf("  ID  " to "red one", "MiXeD" to "red two")
+        assertEquals(listOf("  ID  ", "MiXeD"), LocalAiGateway.rankSemantic("red", candidates))
+        assertEquals(
+            listOf("  ID  " to 1.0, "MiXeD" to 1.0),
+            LocalAiGateway.rankSemanticScored("red", candidates)
+        )
+    }
+
+    @Test
+    fun `duplicate ids reorder by score`() = runBlocking {
+        val candidates = listOf("c1" to "red one", "c1" to "red blue two")
+        assertEquals(listOf("c1", "c1"), LocalAiGateway.rankSemantic("red blue", candidates))
+        assertEquals(
+            listOf("c1" to 2.0, "c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("red blue", candidates)
+        )
+    }
+
+    @Test
+    fun `query token longer than candidate text scores zero`() = runBlocking {
+        assertEquals(emptyList<String>(), LocalAiGateway.rankSemantic("redbluegreen", listOf("c1" to "red")))
+        assertEquals(
+            emptyList<Pair<String, Double>>(),
+            LocalAiGateway.rankSemanticScored("redbluegreen", listOf("c1" to "red"))
+        )
+    }
+
+    @Test
+    fun `exact duplicate candidates are both kept`() = runBlocking {
+        val candidates = listOf("c1" to "red one", "c1" to "red one")
+        assertEquals(listOf("c1", "c1"), LocalAiGateway.rankSemantic("red", candidates))
+        assertEquals(
+            listOf("c1" to 1.0, "c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("red", candidates)
+        )
+    }
+
 }

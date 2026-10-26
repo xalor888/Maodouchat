@@ -696,4 +696,45 @@ class AiRetryPolicyWindowTest {
         assertTrue("same global window, fresh=$freshWait recorded=$recordedWait", freshWait - recordedWait < 60_000L)
     }
 
+
+    @Test
+    fun zeroWidthSpaceChatIdIsDistinctFromPlainAndEmptyKeys() {
+        val zwsp = "\u200Bchat"
+        AiRetryPolicy.recordCall(zwsp, AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow(zwsp, AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun embeddedNewlineChatIdIsDistinctFromItsParts() {
+        AiRetryPolicy.recordCall("a\nb", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("a\nb", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("b", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun trailingColonChatIdIsDistinctFromPlainChatId() {
+        AiRetryPolicy.recordCall("chat:", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat:", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun categoryNameColonChatIdDoesNotCollide() {
+        AiRetryPolicy.recordCall("LIGHT:", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("LIGHT:", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("LIGHT", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun backslashChatIdIsDistinctFromSlashChatId() {
+        AiRetryPolicy.recordCall("a\\b", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("a\\b", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("a/b", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("ab", AiRetryPolicyCategory.LIGHT))
+    }
+
 }

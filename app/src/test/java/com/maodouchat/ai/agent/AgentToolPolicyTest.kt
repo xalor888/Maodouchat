@@ -655,4 +655,50 @@ class AgentToolPolicyTest {
         assertEquals(null, AgentToolHost.parseBool(" 01 "))
     }
 
+
+    @Test
+    fun `openai tools json type fields are function and object for every tool`() {
+        AgentToolPolicy.openaiToolsJson().forEach { entry ->
+            assertEquals("function", entry["type"])
+            @Suppress("UNCHECKED_CAST")
+            val fn = entry["function"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val params = fn["parameters"] as Map<String, Any?>
+            assertEquals("object", params["type"])
+        }
+    }
+
+    @Test
+    fun `every tool required list is a subset of its parameter names`() {
+        AgentToolPolicy.tools.forEach { spec ->
+            assertTrue(spec.required.all { it in spec.parameters.keys })
+        }
+    }
+
+    @Test
+    fun `send text message is the only send risk tool`() {
+        assertEquals(
+            listOf("send_text_message"),
+            AgentToolPolicy.tools.filter { it.risk == Risk.SEND }.map { it.name }
+        )
+        assertTrue(AgentToolPolicy.tools.any { it.risk == Risk.READ })
+        assertTrue(AgentToolPolicy.tools.any { it.risk == Risk.WRITE })
+    }
+
+    @Test
+    fun `every tool and parameter description is non-blank`() {
+        AgentToolPolicy.tools.forEach { spec ->
+            assertTrue(spec.description.isNotBlank())
+            spec.parameters.values.forEach { assertTrue(it.description.isNotBlank()) }
+        }
+    }
+
+    @Test
+    fun `every tool name is lowercase snake case`() {
+        AgentToolPolicy.tools.forEach { spec ->
+            assertTrue(spec.name.none { it.isUpperCase() })
+            assertFalse(spec.name.contains(" "))
+        }
+    }
+
 }
