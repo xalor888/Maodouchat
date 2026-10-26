@@ -292,4 +292,40 @@ class AgentSecretGatePolicyTest {
             assertFalse(AgentSecretGatePolicy.includeInChatList(false, true, false))
         }
     }
+    @Test
+    fun denialMessagesEndWithTheirSubject() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.endsWith("assistant"))
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.endsWith("locked"))
+    }
+
+    @Test
+    fun denialMessagesContainExactlyOneColon() {
+        assertEquals(1, AgentSecretGatePolicy.SECRET_DENIED.count { it == ':' })
+        assertEquals(1, AgentSecretGatePolicy.PIN_DENIED.count { it == ':' })
+    }
+
+    @Test
+    fun denialMessagesContainNoDigits() {
+        assertTrue(AgentSecretGatePolicy.SECRET_DENIED.none { it.isDigit() })
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.none { it.isDigit() })
+    }
+
+    @Test
+    fun positionalAndNamedCallsAgree() {
+        assertEquals(
+            AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret = true, isLocked = false, unlocked = true),
+            AgentSecretGatePolicy.denyIfSecretOrLocked(true, false, true)
+        )
+        assertEquals(
+            AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret = false, isLocked = true, unlocked = false),
+            AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, false)
+        )
+    }
+
+    @Test
+    fun denialMessagesHaveExactWordCounts() {
+        assertEquals(9, AgentSecretGatePolicy.SECRET_DENIED.split(" ").size)
+        assertEquals(4, AgentSecretGatePolicy.PIN_DENIED.split(" ").size)
+    }
+
 }
