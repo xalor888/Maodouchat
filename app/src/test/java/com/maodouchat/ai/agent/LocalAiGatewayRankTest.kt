@@ -529,4 +529,58 @@ class LocalAiGatewayRankTest {
         )
     }
 
+    @Test
+    fun `accented token matches case-insensitively`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("CAFÉ", listOf("c1" to "café au lait"))
+        )
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("café", listOf("c1" to "CAFÉ BAR"))
+        )
+    }
+
+    @Test
+    fun `em space does not split query tokens`() = runBlocking {
+        val candidates = listOf("e1" to "red\u2003blue sky", "e2" to "red blue sky")
+        assertEquals(listOf("e1"), LocalAiGateway.rankSemantic("red\u2003blue", candidates))
+        assertEquals(
+            listOf("e1" to 1.0),
+            LocalAiGateway.rankSemanticScored("red\u2003blue", candidates)
+        )
+    }
+
+    @Test
+    fun `candidate id text is not searched`() = runBlocking {
+        val candidates = listOf("red" to "blue sky", "c1" to "red apple")
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("red", candidates))
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("red", candidates)
+        )
+    }
+
+    @Test
+    fun `empty candidate id without a hit is filtered out`() = runBlocking {
+        val candidates = listOf("" to "blue", "c1" to "red")
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("red", candidates))
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("red", candidates)
+        )
+    }
+
+    @Test
+    fun `prefix-overlapping tokens both count on the same span`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("red redd", listOf("c1" to "reddish"))
+        )
+        assertEquals(
+            listOf("c1"),
+            LocalAiGateway.rankSemantic("red redd", listOf("c1" to "reddish"))
+        )
+    }
+
 }
