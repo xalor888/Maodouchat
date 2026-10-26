@@ -1090,4 +1090,59 @@ class AiEntryPolicyTest {
         assertTrue(AiEntryPolicy.contextActionsFor("123") === AiEntryPolicy.contextActionsFor("POLL"))
     }
 
+
+    @Test
+    fun `contextActionsFor vertical tab form feed wrapped image and gif still analyze`() {
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("\u000B\u000CIMAGE\u000C\u000B")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("\u000B\u000CGIF\u000C\u000B", hasTranscript = true)
+        )
+    }
+
+    @Test
+    fun `contextActionsFor unit separator wrapped image gif and file analyze`() {
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("\u001Fimage\u001F")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("\u001Fgif\u001F")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("\u001Ffile\u001F")
+        )
+    }
+
+    @Test
+    fun `contextActionsFor zero width joiner breaks type matching`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT\u200D").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("\u200DVOICE").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TEXT\u200D"))
+    }
+
+    @Test
+    fun `contextActionsFor byte order mark breaks type matching`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("\uFEFFTEXT").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("FILE\uFEFF").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("\uFEFFIMAGE"))
+    }
+
+    @Test
+    fun `contextActionsFor mixed carriage return vertical tab form feed padding folds`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\r\u000B\u000C TEXT \u000C\u000B\r")
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("\r\u000BFILE\u000B\r")
+        )
+    }
+
 }
