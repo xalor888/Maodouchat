@@ -602,4 +602,46 @@ class AiClassifyLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `notice category from chinese change word`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.NOTICE, 1.0),
+            AiClassifyLexicon.classifyText("变更")
+        )
+    }
+
+    @Test
+    fun `notice category from chinese reminder word`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.NOTICE, 1.0),
+            AiClassifyLexicon.classifyText("提醒")
+        )
+    }
+
+    @Test
+    fun `study category from chinese course word`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.STUDY, 1.0),
+            AiClassifyLexicon.classifyText("课程")
+        )
+    }
+
+    @Test
+    fun `social category from chinese movie and travel words`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.SOCIAL, 1.0),
+            AiClassifyLexicon.classifyText("电影旅行")
+        )
+    }
+
+    @Test
+    fun `notice ties study on change and course words and wins by order`() {
+        // 平局取 entries 顺序在前的类目：NOTICE 在 STUDY 之前
+        assertEquals(
+            Classification(AiMessageClassifierCategory.NOTICE, 0.5),
+            AiClassifyLexicon.classifyText("变更课程")
+        )
+    }
+
 }

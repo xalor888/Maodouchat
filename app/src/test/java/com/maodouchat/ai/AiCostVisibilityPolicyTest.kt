@@ -1165,4 +1165,67 @@ class AiCostVisibilityPolicyTest {
         assertNull(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:0"))
     }
 
+
+    @Test
+    fun `classify status 429 with quota limit code maps quota and keeps retry`() {
+        // 配额分支优先于限流分支，服务端 retry-after 原样保留
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = "QUOTA_LIMIT",
+            serverMessage = null,
+            serverRetryAfterSeconds = 120
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(120L, signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify underscored payment required message is quota`() {
+        // blob 只认下划线拼写：message 里的 payment_required 同样算配额
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "payment_required"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `wait seconds embedded wins over local when server retry is zero`() {
+        assertEquals(
+            45L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                "RATE_LIMITED:45",
+                serverRetryAfterSeconds = 0,
+                localRemainingMs = 99999
+            )
+        )
+    }
+
+    @Test
+    fun `embedded retry after trims spaces around suffix seconds`() {
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED: 45 "))
+        assertEquals(45L, AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED: 45 "))
+        assertEquals("RATE_LIMITED", AiCostVisibilityPolicy.baseErrorCode("RATE_LIMITED: 45 "))
+    }
+
+    @Test
+    fun `display signal for plain quota code binds default quota wait`() {
+        val signal = AiCostVisibilityPolicy.displaySignalFor("QUOTA_EXCEEDED")
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, signal.errorCode)
+        assertEquals(300L, signal.waitSeconds)
+        assertEquals(BillingHint.QUOTA_EXCEEDED, signal.hint)
+        assertTrue(signal.warnRetryBills)
+    }
+
 }

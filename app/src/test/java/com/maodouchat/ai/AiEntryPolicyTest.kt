@@ -1002,4 +1002,47 @@ class AiEntryPolicyTest {
         )
     }
 
+
+    @Test
+    fun `image and file actions keep their values with a transcript`() {
+        // transcript 只关 voice 的门，其余类型的动作值原样保留
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("IMAGE", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("FILE", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("TEXT", hasTranscript = true)
+        )
+    }
+
+    @Test
+    fun `hasContextAiActions for image and file stays true with a transcript`() {
+        assertTrue(AiEntryPolicy.hasContextAiActions("IMAGE", hasTranscript = true))
+        assertTrue(AiEntryPolicy.hasContextAiActions("FILE", hasTranscript = true))
+    }
+
+    @Test
+    fun `unknown location and contact share the single empty list`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("LOCATION") === AiEntryPolicy.contextActionsFor("CONTACT"))
+    }
+
+    @Test
+    fun `mixed case voice with transcript stays empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("Voice", hasTranscript = true).isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("Voice", hasTranscript = true))
+    }
+
+    @Test
+    fun `all entry gates closed together`() {
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(false, false, userEnabled = false, masterEnabled = false))
+        assertFalse(AiEntryPolicy.isComposerEntryActive(false))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = true, isUpdatingSetting = true))
+        assertFalse(AiEntryPolicy.canRunContextAction(masterEnabled = false, chatAiEnabled = false, isBusy = true))
+    }
+
 }
