@@ -541,4 +541,50 @@ class GroupAiSharePolicyTest {
         )
     }
 
+    @Test
+    fun `already shared long answer carries empty body`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "x".repeat(5000), alreadyShared = true)
+        assertFalse(decision.allowed)
+        assertEquals("", decision.body)
+        assertEquals(BlockReason.ALREADY_SHARED, decision.reason)
+    }
+
+    @Test
+    fun `shareAssistantMode truncates 41 chars to 40`() {
+        assertEquals("x".repeat(40), GroupAiSharePolicy.shareAssistantMode("x".repeat(41)))
+    }
+
+    @Test
+    fun `sanitize keeps smallest positive dueAt`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(
+                TaskDraft(title = "t", dueAt = 1L),
+                TaskDraft(title = "u", dueAt = Long.MIN_VALUE)
+            )
+        )
+        assertEquals(1L, cleaned[0].dueAt)
+        assertNull(cleaned[1].dueAt)
+    }
+
+    @Test
+    fun `closed loop not ready for nbsp-only task titles`() {
+        assertFalse(GroupAiSharePolicy.canPersistTasks(listOf(TaskDraft("\u00a0"))))
+        assertFalse(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = listOf(TaskDraft("\u00a0"))
+            )
+        )
+    }
+
+    @Test
+    fun `decideShare truncates emoji answer by code units`() {
+        // take 按 UTF-16 码元计：2500 个表情（5000 码元）截断为 4000 码元，即 2000 个完整表情。
+        val decision = GroupAiSharePolicy.decideShare(true, "\uD83D\uDE00".repeat(2500))
+        assertTrue(decision.allowed)
+        assertEquals(4000, decision.body.length)
+        assertEquals("\uD83D\uDE00".repeat(2000), decision.body)
+    }
+
 }

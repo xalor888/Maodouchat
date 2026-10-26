@@ -501,4 +501,49 @@ class AiRetryPolicyWindowTest {
         assertEquals(0L, AiRetryPolicy.remainingDelayMs("e\u0301", AiRetryPolicyCategory.LIGHT))
     }
 
+    @Test
+    fun emojiChatIdsAreDistinctKeys() {
+        AiRetryPolicy.recordCall("\uD83D\uDE00", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("\uD83D\uDE00", AiRetryPolicyCategory.LIGHT))
+        // 代理对按码元精确比较：另一个表情是另一个会话。
+        assertTrue(AiRetryPolicy.canCallNow("\uD83D\uDE03", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("\uD83D\uDE03", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun emptyHeavyRecordKeepsLightFree() {
+        AiRetryPolicy.recordCall("", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.canCallNow("", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("", AiRetryPolicyCategory.LIGHT))
+        val heavyWait = AiRetryPolicy.remainingDelayMs("", AiRetryPolicyCategory.HEAVY)
+        assertTrue("HEAVY remaining should be ~60s, was $heavyWait", heavyWait in 1L..60_000L)
+    }
+
+    @Test
+    fun categoryNameAsChatIdDoesNotCollide() {
+        AiRetryPolicy.recordCall("HEAVY", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("HEAVY", AiRetryPolicyCategory.LIGHT))
+        // 窗口 key 是 "LIGHT:HEAVY"，不是 "HEAVY:HEAVY"：同名类目会话是另一个键。
+        assertTrue(AiRetryPolicy.canCallNow("HEAVY", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("HEAVY", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun newlineSuffixedChatIdIsDistinctKey() {
+        AiRetryPolicy.recordCall("chat-a\n", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a\n", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun leadingColonChatIdIsDistinctKey() {
+        AiRetryPolicy.recordCall(":chat", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow(":chat", AiRetryPolicyCategory.LIGHT))
+        // 冒号只是键的一部分：前导冒号会话与无冒号会话、另一类目互不相同。
+        assertTrue(AiRetryPolicy.canCallNow("chat", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow(":chat", AiRetryPolicyCategory.HEAVY))
+    }
+
 }
