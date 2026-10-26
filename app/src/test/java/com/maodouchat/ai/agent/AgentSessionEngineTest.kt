@@ -703,4 +703,109 @@ class AgentSessionEngineTest {
         assertTrue(pending.call.argumentsJson.contains("hello"))
     }
 
+    @Test
+    fun `send approval costs exactly one model round`() = runBlocking {
+        var completions = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                completions++
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
+                    ""
+                )
+            },
+            executeTool = { _, _ -> error("must not execute send without approval") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "发一句你好", null).toList()
+        assertEquals(1, completions)
+        assertTrue(events.single() is AgentTurnEvent.NeedsApproval)
+    }
+
+    @Test
+    fun `unknown call before approval still pauses the round`() = runBlocking {
+        var executed = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(
+                        AgentToolCall("u1", "dump_host_sql", "{}"),
+                        AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")
+                    ),
+                    ""
+                )
+            },
+            executeTool = { _, _ ->
+                executed++
+                "ok"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "发一句", null).toList()
+        assertEquals(0, executed)
+        assertEquals(1, events.size)
+        assertEquals("send_text_message", (events.single() as AgentTurnEvent.NeedsApproval).pending.call.name)
+    }
+
+    @Test
+    fun `approved read call prefill executes before the model turn`() = runBlocking {
+        var executed = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("已排队") },
+            executeTool = { name, _ ->
+                executed++
+                assertEquals("list_chats", name)
+                "c1\tAlice\thi\t"
+            }
+        )
+        val events = engine.runTurn(
+            provider,
+            emptyList(),
+            "列出会话",
+            null,
+            approvedCall = AgentToolCall("c1", "list_chats", "{}")
+        ).toList()
+        assertEquals(1, executed)
+        assertEquals("list_chats", (events.first() as AgentTurnEvent.ToolFinished).name)
+        assertTrue(events.last() is AgentTurnEvent.AssistantFinal)
+    }
+
+    @Test
+    fun `read tool finished event carries the exact host result`() = runBlocking {
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("你有 1 个会话")
+                }
+            },
+            executeTool = { _, _ -> "c1\tAlice\thi\t" }
+        )
+        val events = engine.runTurn(provider, emptyList(), "列出会话", null).toList()
+        val finished = events.filterIsInstance<AgentTurnEvent.ToolFinished>().single()
+        assertEquals("list_chats", finished.name)
+        assertEquals("c1\tAlice\thi\t", finished.result)
+    }
+
+    @Test
+    fun `send approval pending preview matches the send preview`() = runBlocking {
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
+                    ""
+                )
+            },
+            executeTool = { _, _ -> error("must not execute send without approval") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "发一句", null).toList()
+        val pending = (events.single() as AgentTurnEvent.NeedsApproval).pending
+        assertEquals("c1", pending.call.id)
+        assertEquals("发到 chat-1：hi", pending.preview)
+    }
+
 }

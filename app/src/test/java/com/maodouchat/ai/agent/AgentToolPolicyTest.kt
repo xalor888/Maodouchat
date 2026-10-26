@@ -514,4 +514,54 @@ class AgentToolPolicyTest {
         assertEquals("", args["e"])
     }
 
+    @Test
+    fun `policy limits are positive and ordered`() {
+        listOf(
+            AgentToolPolicy.MAX_TOOL_ROUNDS,
+            AgentToolPolicy.MAX_HISTORY_MESSAGES,
+            AgentToolPolicy.MAX_CHAT_HISTORY,
+            AgentToolPolicy.MAX_SEARCH_HITS,
+            AgentToolPolicy.MAX_TOOL_RESULT_CHARS,
+            AgentToolPolicy.MAX_TEXT_SEND_CHARS,
+            AgentToolPolicy.MAX_LIST_CHATS,
+            AgentToolPolicy.MAX_DRAFT_CHARS,
+            AgentToolPolicy.MAX_NICKNAME_CHARS
+        ).forEach { assertTrue(it > 0) }
+        assertTrue(AgentToolPolicy.MAX_TOOL_RESULT_CHARS > AgentToolPolicy.MAX_TEXT_SEND_CHARS)
+        assertTrue(AgentToolPolicy.MAX_LIST_CHATS > AgentToolPolicy.MAX_CHAT_HISTORY)
+        assertTrue(AgentToolPolicy.MAX_CHAT_HISTORY > AgentToolPolicy.MAX_SEARCH_HITS)
+        assertTrue(AgentToolPolicy.MAX_HISTORY_MESSAGES > AgentToolPolicy.MAX_TOOL_ROUNDS)
+    }
+
+    @Test
+    fun `approval is case sensitive for tool names`() {
+        assertEquals(Approval.DENY, AgentToolPolicy.approvalFor("LIST_CHATS", emptyMap()))
+        assertEquals(Approval.DENY, AgentToolPolicy.approvalFor("Send_Text_Message", emptyMap()))
+    }
+
+    @Test
+    fun `openai tools json entry and function key sets are exact`() {
+        AgentToolPolicy.openaiToolsJson().forEach { entry ->
+            assertEquals(setOf("type", "function"), entry.keys)
+            @Suppress("UNCHECKED_CAST")
+            val fn = entry["function"] as Map<String, Any?>
+            assertEquals(setOf("name", "description", "parameters"), fn.keys)
+            @Suppress("UNCHECKED_CAST")
+            val params = fn["parameters"] as Map<String, Any?>
+            assertEquals(setOf("type", "properties", "required"), params.keys)
+        }
+    }
+
+    @Test
+    fun `preview fallback keeps empty json as trailing space`() {
+        assertEquals("no_such_tool ", AgentToolHost.preview("no_such_tool", ""))
+    }
+
+    @Test
+    fun `parseArgs keeps negative float and rejects duplicate keys`() {
+        assertEquals("-1.5", AgentToolHost.parseArgs("""{"f":-1.5}""")["f"])
+        // org.json 20240303 在重复键上抛错，parseArgs 兜底成空表。
+        assertTrue(AgentToolHost.parseArgs("""{"a":"1","a":"2"}""").isEmpty())
+    }
+
 }
