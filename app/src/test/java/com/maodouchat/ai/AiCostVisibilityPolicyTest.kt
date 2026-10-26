@@ -811,4 +811,72 @@ class AiCostVisibilityPolicyTest {
         )
     }
 
+    @Test
+    fun `classify generic failure drops server retry after and maps to null`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 500,
+            serverCode = null,
+            serverMessage = "boom",
+            serverRetryAfterSeconds = 30
+        )
+        assertFalse(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertEquals(null, signal.retryAfterSeconds)
+        assertEquals(null, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `billing hint failed server code retries with bill again warning`() {
+        assertEquals(
+            BillingHint.RETRY_MAY_BILL_AGAIN,
+            AiCostVisibilityPolicy.billingHintFor("SERVER", isFailed = true)
+        )
+        assertEquals(
+            BillingHint.NONE,
+            AiCostVisibilityPolicy.billingHintFor(null, isFailed = true)
+        )
+        assertEquals(
+            BillingHint.SAFE_AUTO_RETRY,
+            AiCostVisibilityPolicy.billingHintFor("SERVER", hasScheduledAutoRetry = true)
+        )
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("SERVER"))
+    }
+
+    @Test
+    fun `wait seconds embedded beats local remaining`() {
+        assertEquals(
+            60L,
+            AiCostVisibilityPolicy.waitSecondsFor("QUOTA_EXCEEDED:60", localRemainingMs = 5000)
+        )
+        assertEquals(
+            45L,
+            AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED:45", localRemainingMs = 99999)
+        )
+    }
+
+    @Test
+    fun `encode error code drops suffix for non rate quota family`() {
+        assertEquals(
+            "CANCELLED",
+            AiCostVisibilityPolicy.encodeErrorCode(AiCostVisibilityPolicy.ERROR_CANCELLED, 45)
+        )
+        assertEquals(
+            "OUTCOME_UNKNOWN",
+            AiCostVisibilityPolicy.encodeErrorCode("OUTCOME_UNKNOWN", 45)
+        )
+    }
+
+    @Test
+    fun `classify chinese too frequent in code field alone is not rate limited`() {
+        // 中文“过于频繁”只在文案字段里识别，code 字段里的不算。
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "过于频繁",
+            serverMessage = null
+        )
+        assertFalse(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertEquals(null, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
 }

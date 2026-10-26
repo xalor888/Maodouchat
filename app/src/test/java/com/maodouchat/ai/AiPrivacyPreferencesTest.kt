@@ -508,4 +508,54 @@ class AiPrivacyPreferencesTest {
         )
     }
 
+    @Test
+    fun `scoped key keeps form feed and vertical tab in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a\u000Cb\u000Bc",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a\u000Cb\u000Bc")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps backslash and quotes in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a\\b\"c'd",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a\\b\"c'd")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps decomposed unicode distinct from precomposed`() {
+        assertEquals(
+            "ai_consent_accepted:e\u0301",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "e\u0301")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "\u00e9"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "e\u0301")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps leading zeros user id distinct`() {
+        assertEquals(
+            "ai_consent_accepted:007",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "007")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "007"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "7")
+        )
+    }
+
+    @Test
+    fun `scoped key emoji user id length counts surrogate pair`() {
+        // 表情在 UTF-16 里占两个字符位，键长 = 基码 + 冒号 + 2。
+        assertEquals(2, "😀".length)
+        assertEquals(
+            AiPrivacyPreferences.KEY_CONSENT.length + 1 + 2,
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "😀").length
+        )
+    }
+
 }
