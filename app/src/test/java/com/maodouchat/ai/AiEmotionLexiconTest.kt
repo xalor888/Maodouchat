@@ -335,4 +335,41 @@ class AiEmotionLexiconTest {
         )
     }
 
+
+    @Test
+    fun `english substring inside longer word counts`() {
+        // contains 是子串匹配：lovely 含 love，照样命中
+        val result = AiEmotionLexicon.detectEmotion(listOf("lovely day"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `chinese substring inside longer phrase counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("我很喜欢这个"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad beats anxious with more hits`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过 哭了", "担心"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `angry majority wins across all four emotions`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("气死", "哈哈", "难过", "担心", "生气"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(2.0 / 5.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `blank element between opposing hits keeps tie toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "   ", "难过"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
 }

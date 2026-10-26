@@ -879,4 +879,57 @@ class AiCostVisibilityPolicyTest {
         assertEquals(null, AiCostVisibilityPolicy.mapToErrorCode(signal))
     }
 
+
+    @Test
+    fun `classify billing message alone is quota`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 500,
+            serverCode = null,
+            serverMessage = "billing failed"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `classify too many code field is rate limited`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 500,
+            serverCode = "TOO_MANY_REQUESTS",
+            serverMessage = null
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `embedded retry after exactly at day cap passes through`() {
+        assertEquals(86_400L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:86400"))
+    }
+
+    @Test
+    fun `wait seconds local remaining just over one second rounds up to two`() {
+        assertEquals(
+            2L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+                localRemainingMs = 1001
+            )
+        )
+    }
+
+    @Test
+    fun `classify quota code with surrounding whitespace still maps`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "  quota_exceeded  ",
+            serverMessage = null
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
 }
