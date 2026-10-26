@@ -410,4 +410,41 @@ class AiLocalRulesTest {
         assertEquals(0.2, split.confidence, 0.0001)
     }
 
+    @Test
+    fun `classify shared keyword tie picks notice over tech`() {
+        // “上线”同时在通知与技术词典里，并列时取枚举在前的通知。
+        val result = AiMessageClassifier.classifyText("上线了")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify english notice keywords combine at full confidence`() {
+        val result = AiMessageClassifier.classifyText("ANNOUNCEMENT: maintenance")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify finance and notice tie picks notice with half confidence`() {
+        val result = AiMessageClassifier.classifyText("转账通知")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion happy wins tie over angry across texts`() {
+        val result = AiEmotionReply.detectEmotion(listOf("开心", "气死"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion mixed case english hits are missed`() {
+        // 情绪词典 contains 不忽略大小写，首字母大写命中不了小写词条。
+        val result = AiEmotionReply.detectEmotion(listOf("Love", "Happy"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
 }
