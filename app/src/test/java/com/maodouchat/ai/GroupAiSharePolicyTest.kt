@@ -626,4 +626,49 @@ class GroupAiSharePolicyTest {
         assertEquals(false, meta["systemIdentity"])
     }
 
+    @Test
+    fun `sanitizeTasks nulls zero dueAt and keeps null dueAt task`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(
+                TaskDraft(title = "t", dueAt = 0L),
+                TaskDraft(title = "u", dueAt = null)
+            )
+        )
+        assertEquals(2, cleaned.size)
+        assertNull(cleaned[0].dueAt)
+        assertNull(cleaned[1].dueAt)
+    }
+
+    @Test
+    fun `sanitizeTasks nulls nbsp-only dueText`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", dueText = "\u00a0"))
+        )
+        assertEquals(1, cleaned.size)
+        assertNull(cleaned.single().dueText)
+    }
+
+    @Test
+    fun `decideShare keeps internal nbsp`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "a\u00a0b")
+        assertTrue(decision.allowed)
+        assertEquals("a\u00a0b", decision.body)
+    }
+
+    @Test
+    fun `canPersistTasks stays true beyond task cap`() {
+        val tasks = List(31) { i -> TaskDraft(title = "t$i") }
+        assertEquals(30, GroupAiSharePolicy.sanitizeTasks(tasks).size)
+        assertTrue(GroupAiSharePolicy.canPersistTasks(tasks))
+    }
+
+    @Test
+    fun `share meta nbsp mode nulls mode keeps keys`() {
+        val meta = GroupAiSharePolicy.shareAsCurrentUserMeta("\u00a0")
+        assertNull(meta["aiAssistantMode"])
+        assertEquals(true, meta["aiAssisted"])
+        assertEquals(false, meta["systemIdentity"])
+        assertEquals(setOf("aiAssisted", "aiAssistantMode", "systemIdentity"), meta.keys)
+    }
+
 }

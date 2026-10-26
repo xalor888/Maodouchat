@@ -409,4 +409,40 @@ class AiEmotionLexiconTest {
         assertEquals(0.5, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `sad three hits beat happy two hits`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过 伤心 哭了", "哈哈 开心"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(0.6, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad angry anxious three way tie breaks toward sad`() {
+        // maxByOrNull 取首个最大值：sad 排在 angry 与 anxious 之前
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过", "生气", "焦虑"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `uppercase english words across valences stay neutral`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("HAPPY SAD ANGRY"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `two different happy words across two texts keep full confidence`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "开心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `anxious english nervous and worried aggregate`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("nervous worried"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
