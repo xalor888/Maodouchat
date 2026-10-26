@@ -364,4 +364,50 @@ class AiEmotionFallbackTest {
         }
         assertEquals(listOf(Emotion.NEUTRAL), naming)
     }
+
+
+    @Test
+    fun `anxious template is longer than angry template`() {
+        val anxious = AiEmotionFallback.localFallback(context, Emotion.ANXIOUS)
+        val angry = AiEmotionFallback.localFallback(context, Emotion.ANGRY)
+        assertTrue(anxious.length > angry.length)
+    }
+
+    @Test
+    fun `happy and neutral templates are the two shortest`() {
+        val shortest = Emotion.entries
+            .map { it to AiEmotionFallback.localFallback(context, it) }
+            .sortedBy { it.second.length }
+            .take(2)
+            .map { it.first }
+            .toSet()
+        assertEquals(setOf(Emotion.HAPPY, Emotion.NEUTRAL), shortest)
+    }
+
+    @Test
+    fun `every template has distinct comma-separated clauses`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            val clauses = text.split('，', ',').map { it.trim() }
+            assertEquals("$emotion 的模板分句不应重复", clauses.size, clauses.distinct().size)
+        }
+    }
+
+    @Test
+    fun `no template contains a semicolon or colon`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertFalse("$emotion 的模板不应含分号或冒号",
+                text.any { it == ';' || it == '；' || it == ':' || it == '：' })
+        }
+    }
+
+    @Test
+    fun `non-happy templates end with a period`() {
+        Emotion.entries.filter { it != Emotion.HAPPY }.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertTrue("$emotion 的模板应以句号结尾", text.last() == '。' || text.last() == '.')
+        }
+    }
+
 }

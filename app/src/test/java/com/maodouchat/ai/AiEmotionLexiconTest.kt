@@ -297,4 +297,42 @@ class AiEmotionLexiconTest {
         assertEquals(0.0, result.confidence, 0.0001)
     }
 
+
+
+    @Test
+    fun `sad word embedded mid-sentence counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("今天真的很难过"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `angry english mad word counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("so mad right now"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `two happy words in one text keep full confidence`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈 开心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `three-char english word exactly filling the scan window still counts`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("a".repeat(197) + "mad"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `empty list and blank-only list give identical results`() {
+        assertEquals(
+            AiEmotionLexicon.detectEmotion(emptyList()),
+            AiEmotionLexicon.detectEmotion(listOf("   "))
+        )
+    }
+
 }

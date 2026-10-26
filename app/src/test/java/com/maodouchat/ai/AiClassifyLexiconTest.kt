@@ -345,4 +345,41 @@ class AiClassifyLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+
+
+    @Test
+    fun `social category from chinese dinner word`() {
+        val result = AiClassifyLexicon.classifyText("一起吃饭")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `tech category from chinese server word`() {
+        val result = AiClassifyLexicon.classifyText("服务器挂了")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `todo category from chinese deadline and submit words`() {
+        val result = AiClassifyLexicon.classifyText("截止前提交")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance category from chinese invoice word`() {
+        val result = AiClassifyLexicon.classifyText("发票抬头")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study category from chinese notes word`() {
+        val result = AiClassifyLexicon.classifyText("复习笔记")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
