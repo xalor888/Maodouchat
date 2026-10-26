@@ -382,4 +382,41 @@ class AiClassifyLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `todo category from chinese weekly meeting words`() {
+        val result = AiClassifyLexicon.classifyText("周会记得提交")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance share beats todo on reimbursement invoice and submit`() {
+        val result = AiClassifyLexicon.classifyText("报销发票已提交")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `tech category from chinese database and version words`() {
+        val result = AiClassifyLexicon.classifyText("数据库版本升级")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study category from chinese thesis and reading words`() {
+        val result = AiClassifyLexicon.classifyText("论文阅读做完")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `notice category from attention and shared launch words`() {
+        val result = AiClassifyLexicon.classifyText("请注意系统上线")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        // “上线”同时命中 NOTICE 与 TECH 词典，NOTICE 2 票对 TECH 1 票。
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
 }
