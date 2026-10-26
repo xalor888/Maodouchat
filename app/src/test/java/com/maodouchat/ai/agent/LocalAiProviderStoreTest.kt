@@ -410,4 +410,46 @@ class LocalAiProviderStoreTest {
         assertEquals(listOf("user", "assistant"), decoded.single().messages.map { it.role })
         assertEquals(listOf("", ""), decoded.single().messages.map { it.content })
     }
+
+    @Test
+    fun `chat completions url trims slash and keeps existing suffix`() {
+        val plain = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x.example/v1/", apiKey = "", model = "m")
+        assertEquals("https://x.example/v1/chat/completions", plain.resolvedChatCompletionsUrl())
+        val suffixed = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x.example/v1/chat/completions/", apiKey = "", model = "m")
+        assertEquals("https://x.example/v1/chat/completions", suffixed.resolvedChatCompletionsUrl())
+    }
+
+    @Test
+    fun `responses and anthropic urls append their suffixes`() {
+        val provider = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x.example/v1", apiKey = "", model = "m")
+        assertEquals("https://x.example/v1/responses", provider.resolvedResponsesUrl())
+        assertEquals("https://x.example/v1/v1/messages", provider.resolvedAnthropicUrl())
+        val anthropic = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://api.anthropic.com", apiKey = "", model = "m")
+        assertEquals("https://api.anthropic.com/v1/messages", anthropic.resolvedAnthropicUrl())
+    }
+
+    @Test
+    fun `history limit clamps to four and two hundred`() {
+        val low = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "", model = "m", historyMessageLimit = 1)
+        assertEquals(4, low.clampedHistoryLimit())
+        val high = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "", model = "m", historyMessageLimit = 500)
+        assertEquals(200, high.clampedHistoryLimit())
+    }
+
+    @Test
+    fun `max tokens clamps to sixteen and one hundred twenty eight thousand`() {
+        val low = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "", model = "m", maxTokens = 0)
+        assertEquals(16, low.clampedMaxTokens())
+        val high = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "", model = "m", maxTokens = 200_000)
+        assertEquals(128_000, high.clampedMaxTokens())
+    }
+
+    @Test
+    fun `timeout clamps to fifteen and three hundred`() {
+        val low = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "", model = "m", timeoutSeconds = 5)
+        assertEquals(15, low.clampedTimeoutSeconds())
+        val high = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "", model = "m", timeoutSeconds = 1000)
+        assertEquals(300, high.clampedTimeoutSeconds())
+    }
+
 }

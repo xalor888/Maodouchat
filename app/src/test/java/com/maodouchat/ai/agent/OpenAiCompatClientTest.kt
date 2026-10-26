@@ -244,4 +244,49 @@ class OpenAiCompatClientTest {
         assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
     }
 
+
+    @Test
+    fun `parseNonStream generates id for tool call with blank id`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[{"id":"","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val call = (result as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("list_chats", call.name)
+        assertTrue(call.id.startsWith("call_"))
+    }
+
+    @Test
+    fun `parseNonStream tools content falls back to reasoning_content`() {
+        val payload = """{"choices":[{"message":{"content":"","reasoning_content":"thinking","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        assertEquals("thinking", (result as OpenAiCompatClient.Completion.Tools).content)
+    }
+
+    @Test
+    fun `parseNonStream first choice tools win over second choice text`() {
+        val payload = """{"choices":[
+          {"message":{"content":"","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{}"}}]}},
+          {"message":{"content":"second"}}
+        ]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        assertEquals("list_chats", (result as OpenAiCompatClient.Completion.Tools).calls.single().name)
+    }
+
+    @Test
+    fun `parseNonStream non-string reasoning without content yields empty text`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[{"message":{"reasoning_content":123}}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream non-array tool calls fall back to text`() {
+        val payload = """{"choices":[{"message":{"content":"hi","tool_calls":"x"}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
 }
