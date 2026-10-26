@@ -1045,4 +1045,49 @@ class AiEntryPolicyTest {
         assertFalse(AiEntryPolicy.canRunContextAction(masterEnabled = false, chatAiEnabled = false, isBusy = true))
     }
 
+    @Test
+    fun `contextActionsFor tab crlf wrapped markdown and system with transcript still translate`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\tMARKDOWN\r\n", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor(" \nSYSTEM\t ", hasTranscript = true)
+        )
+        assertTrue(AiEntryPolicy.hasContextAiActions("\tMARKDOWN\r\n", hasTranscript = true))
+    }
+
+    @Test
+    fun `contextActionsFor emoji digit and mixed alphanumeric types stay empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("\uD83D\uDE00").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("123").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("T3XT").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("\uD83D\uDE00"))
+        assertFalse(AiEntryPolicy.hasContextAiActions("123"))
+    }
+
+    @Test
+    fun `contextActionsFor slash dot and hyphen joined types match nothing`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT/FILE").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT.FILE").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("IMAGE-GIF").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TEXT/FILE"))
+    }
+
+    @Test
+    fun `translate family lists are fresh objects on every call`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT") !== AiEntryPolicy.contextActionsFor("TEXT"))
+        assertTrue(AiEntryPolicy.contextActionsFor("MARKDOWN") !== AiEntryPolicy.contextActionsFor("MARKDOWN"))
+        assertTrue(AiEntryPolicy.contextActionsFor("SYSTEM") !== AiEntryPolicy.contextActionsFor("SYSTEM"))
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT") !== AiEntryPolicy.contextActionsFor("MARKDOWN"))
+    }
+
+    @Test
+    fun `unknown emoji and numeric types share the single empty list`() {
+        // emptyList() 是单例：未知类型都返回同一个空列表。
+        assertTrue(AiEntryPolicy.contextActionsFor("\uD83D\uDE00") === AiEntryPolicy.contextActionsFor("123"))
+        assertTrue(AiEntryPolicy.contextActionsFor("123") === AiEntryPolicy.contextActionsFor("POLL"))
+    }
+
 }
