@@ -447,4 +447,40 @@ class AiLocalRulesTest {
         assertEquals(0.0, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `classify tech and social tie picks tech with half confidence`() {
+        val result = AiMessageClassifier.classifyText("部署 周末")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify study beats finance with more hits`() {
+        val result = AiMessageClassifier.classifyText("学习 课程 转账")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify all social keywords stay at full confidence`() {
+        val result = AiMessageClassifier.classifyText("哈哈 周末 电影")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify notice beats todo with more hits`() {
+        val result = AiMessageClassifier.classifyText("通知 公告 任务")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify english study words combine at full confidence`() {
+        val result = AiMessageClassifier.classifyText("study homework exam")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
