@@ -658,4 +658,42 @@ class AiWritingStylePolicyTest {
         assertEquals(Preset.WARM, AiWritingStylePolicy.normalize(true, "\twarm\t", null).preset)
     }
 
+
+    @Test
+    fun `unknown preset with blank note has no hint or content`() {
+        val snap = AiWritingStylePolicy.normalize(true, "nope", "   ")
+        assertEquals(Preset.NONE, snap.preset)
+        assertEquals("", snap.customNote)
+        assertFalse(snap.hasMemorableContent)
+        assertNull(AiWritingStylePolicy.rewriteStyleHint(snap))
+    }
+
+    @Test
+    fun `direct preset hint is pinned`() {
+        val snap = AiWritingStylePolicy.normalize(true, "direct", null)
+        assertEquals("Prefer direct, plain wording without fluff.", AiWritingStylePolicy.rewriteStyleHint(snap))
+    }
+
+    @Test
+    fun `diplomatic preset hint is pinned`() {
+        val snap = AiWritingStylePolicy.normalize(true, "diplomatic", null)
+        assertEquals(
+            "Prefer tactful, diplomatic wording that softens conflict without vagueness.",
+            AiWritingStylePolicy.rewriteStyleHint(snap)
+        )
+    }
+
+    @Test
+    fun `hand built disabled snapshot has no hint`() {
+        val snap = Snapshot(enabled = false, preset = Preset.WARM, customNote = "hi")
+        assertNull(AiWritingStylePolicy.rewriteStyleHint(snap))
+        assertFalse(snap.hasMemorableContent)
+    }
+
+    @Test
+    fun `exact three hundred twenty note stays intact`() {
+        val note = "a".repeat(320)
+        assertEquals(note, AiWritingStylePolicy.normalizeCustomNote(note))
+    }
+
 }

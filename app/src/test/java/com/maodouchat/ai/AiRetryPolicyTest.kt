@@ -801,4 +801,48 @@ class AiRetryPolicyTest {
         assertEquals(800L, decision.delayMs)
         assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
     }
+
+    @Test
+    fun decideConnectionCodeAtCapKeepsCapExplanation() {
+        val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = 3)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("reached max auto retries; user must retry", decision.explanation)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideNullCodeBelowCapMapsToUnknownNonTransient() {
+        val decision = AiRetryPolicy.decide(null, attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("non-transient error", decision.explanation)
+        assertEquals("UNKNOWN", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBillingZeroSuffixHasNoDefaultWait() {
+        val decision = AiRetryPolicy.decide("BILLING:0", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("quota exceeded; do not auto-retry", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideInsufficientCodeWithSuffixUsesQuotaWait() {
+        val decision = AiRetryPolicy.decide("INSUFFICIENT_FUNDS:120", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(120_000L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideConnectionCodeWithNegativeAttemptsRetriesAtBase() {
+        val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = -1)
+        assertTrue(decision.shouldRetry)
+        assertEquals(800L, decision.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
+
 }
