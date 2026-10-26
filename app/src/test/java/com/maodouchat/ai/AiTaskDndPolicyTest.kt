@@ -472,4 +472,35 @@ class AiTaskDndPolicyTest {
         assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 0, -100, -50, 5_000L))
     }
 
+    @Test
+    fun `midnight minute is inside overnight window`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 1350, 420))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(419, 1350, 420))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(420, 1350, 420))
+    }
+
+    @Test
+    fun `single minute overnight window at day boundary`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1439, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 1439, 0))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1438, 1439, 0))
+    }
+
+    @Test
+    fun `clamped equal bounds are an empty window for isInQuietHours`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1439, 1500, 1440))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, -100, -50))
+    }
+
+    @Test
+    fun `remindersAllowed both switches off is false`() {
+        assertFalse(AiTaskDndPolicy.remindersAllowed(false, false))
+    }
+
+    @Test
+    fun `nextAllowedTime outside same-day window returns null despite future end`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 800, 720, 780, 5_000L))
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 750, 720, 780, 5_000L))
+    }
+
 }
