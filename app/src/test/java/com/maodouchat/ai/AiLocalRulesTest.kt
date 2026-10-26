@@ -518,4 +518,47 @@ class AiLocalRulesTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `remaining category wire and label keys are frozen`() {
+        assertEquals("todo", AiMessageClassifierCategory.TODO.wire)
+        assertEquals("ai_enhance_classify_todo", AiMessageClassifierCategory.TODO.labelKey)
+        assertEquals("finance", AiMessageClassifierCategory.FINANCE.wire)
+        assertEquals("ai_enhance_classify_finance", AiMessageClassifierCategory.FINANCE.labelKey)
+        assertEquals("study", AiMessageClassifierCategory.STUDY.wire)
+        assertEquals("ai_enhance_classify_study", AiMessageClassifierCategory.STUDY.labelKey)
+        assertEquals("tech", AiMessageClassifierCategory.TECH.wire)
+        assertEquals("ai_enhance_classify_tech", AiMessageClassifierCategory.TECH.labelKey)
+        assertEquals("social", AiMessageClassifierCategory.SOCIAL.wire)
+        assertEquals("ai_enhance_classify_social", AiMessageClassifierCategory.SOCIAL.labelKey)
+        assertEquals("other", AiMessageClassifierCategory.OTHER.wire)
+        assertEquals("ai_enhance_classify_other", AiMessageClassifierCategory.OTHER.labelKey)
+    }
+
+    @Test
+    fun `classify refund and price combine at full confidence`() {
+        val result = AiMessageClassifier.classifyText("refund price")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify assign task deadline combine at full confidence`() {
+        val result = AiMessageClassifier.classifyText("please assign this task before deadline")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion miss and regret hits are sad`() {
+        val result = AiEmotionReply.detectEmotion(listOf("miss you, 后悔"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion worried nervous stress hits are anxious`() {
+        val result = AiEmotionReply.detectEmotion(listOf("worried nervous stress"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }

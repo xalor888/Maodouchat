@@ -494,4 +494,39 @@ class AiClassifyLexiconTest {
         assertEquals(1.0 / 3.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `finance category from chinese balance word`() {
+        val result = AiClassifyLexicon.classifyText("余额不足")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `social category from chinese morning greeting`() {
+        val result = AiClassifyLexicon.classifyText("早安呀")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study category from chinese homework word`() {
+        val result = AiClassifyLexicon.classifyText("作业写完了")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `notice category from english reminder word`() {
+        val result = AiClassifyLexicon.classifyText("reminder")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `tech category from duplicate bug listing alone`() {
+        // "bug" 在 TECH 词典里列了两次，单字输入也计 2 次命中，置信度仍为 1.0。
+        val result = AiClassifyLexicon.classifyText("bug")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }
