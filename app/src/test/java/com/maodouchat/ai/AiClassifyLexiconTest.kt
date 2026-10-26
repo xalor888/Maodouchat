@@ -566,4 +566,40 @@ class AiClassifyLexiconTest {
         assertEquals(AiMessageClassifierCategory.OTHER, result.category)
         assertEquals(0.2, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `notice category from chinese system message phrase`() {
+        val result = AiClassifyLexicon.classifyText("系统消息")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `todo category from chinese follow up word`() {
+        val result = AiClassifyLexicon.classifyText("跟进")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `tech category from chinese fix word`() {
+        val result = AiClassifyLexicon.classifyText("修复")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study category from chinese review word`() {
+        val result = AiClassifyLexicon.classifyText("复习")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `social category from chinese party word`() {
+        val result = AiClassifyLexicon.classifyText("聚会")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }

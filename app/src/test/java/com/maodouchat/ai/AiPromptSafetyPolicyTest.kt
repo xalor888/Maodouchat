@@ -645,4 +645,38 @@ class AiPromptSafetyPolicyTest {
         assertFalse(AiPromptSafetyPolicy.scanPrivilegeClaims("为你" + "啊".repeat(13) + "付款").hasClaim)
     }
 
+    @Test
+    fun `scan catches sent payment claim alone`() {
+        val result = AiPromptSafetyPolicy.scanPrivilegeClaims("sent payment")
+        assertTrue(result.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.TRANSFER_OR_PAYMENT), result.kinds)
+    }
+
+    @Test
+    fun `scan catches ownership transferred admin claim alone`() {
+        val result = AiPromptSafetyPolicy.scanPrivilegeClaims("ownership transferred")
+        assertTrue(result.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.ADMIN_OR_MODERATION), result.kinds)
+    }
+
+    @Test
+    fun `scan catches singular key rotated auth claim alone`() {
+        val result = AiPromptSafetyPolicy.scanPrivilegeClaims("key rotated")
+        assertTrue(result.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.AUTH_OR_KEY), result.kinds)
+    }
+
+    @Test
+    fun `scan catches account closed claim alone`() {
+        val result = AiPromptSafetyPolicy.scanPrivilegeClaims("account closed")
+        assertTrue(result.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.ACCOUNT_DESTRUCTIVE), result.kinds)
+    }
+
+    @Test
+    fun `sender lone carriage return becomes one space`() {
+        assertEquals("a b", AiPromptSafetyPolicy.sanitizeSender("a\rb"))
+        assertEquals("user", AiPromptSafetyPolicy.sanitizeSender("\r"))
+    }
+
 }
