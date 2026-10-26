@@ -419,4 +419,42 @@ class AiClassifyLexiconTest {
         assertEquals(2.0 / 3.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `overlapping laughter entries inflate social share`() {
+        // "哈哈哈" 同时命中 "哈哈" 与 "哈哈哈" 两条词典，社交 2 票对财务 1 票。
+        val result = AiClassifyLexicon.classifyText("哈哈哈 转账")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study ties tech on duplicate bug votes and wins by order`() {
+        // "bug" 在 TECH 词典列两次得 2 票，学习 2 票打平，entries 顺序里学习在前。
+        val result = AiClassifyLexicon.classifyText("bug 考试 复习")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `notice ties tech on distinct words and wins by order`() {
+        val result = AiClassifyLexicon.classifyText("系统维护 服务器")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `todo ties finance on phrase and invoice and wins by order`() {
+        val result = AiClassifyLexicon.classifyText("follow up invoice")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english phrase split by scan window edge does not count`() {
+        // 297 个垫字 + "fol"：短语被 300 字符窗口拦腰切断，凑不成词典短语。
+        val result = AiClassifyLexicon.classifyText("a".repeat(297) + "follow up")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
+    }
+
 }

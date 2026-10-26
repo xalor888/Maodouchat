@@ -558,4 +558,61 @@ class AiPrivacyPreferencesTest {
         )
     }
 
+    @Test
+    fun `scoped key keeps nul and bell control chars in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a\u0000b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a\u0000b")
+        )
+        assertEquals(
+            "ai_consent_accepted:a\u0007b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a\u0007b")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps del char in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a\u007Fb",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a\u007Fb")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps all spaces user id verbatim and distinct from empty`() {
+        assertEquals(
+            "ai_consent_accepted:   ",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "   ")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, ""),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "   ")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps zero width space in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:\u200B",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "\u200B")
+        )
+        assertEquals(
+            AiPrivacyPreferences.KEY_CONSENT.length + 1 + 1,
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "\u200B").length
+        )
+    }
+
+    @Test
+    fun `scoped key flag emoji user id length counts two surrogate pairs`() {
+        // 旗帜表情由两个区域指示符组成，UTF-16 里占 4 个字符位。
+        assertEquals(4, "\uD83C\uDDE8\uD83C\uDDF3".length)
+        assertEquals(
+            AiPrivacyPreferences.KEY_CONSENT.length + 1 + 4,
+            AiPrivacyPreferences.scopedKey(
+                AiPrivacyPreferences.KEY_CONSENT,
+                "\uD83C\uDDE8\uD83C\uDDF3"
+            ).length
+        )
+    }
+
 }
