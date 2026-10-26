@@ -551,4 +551,53 @@ class LocalAiProtocolCodecTest {
         assertEquals(" ", LocalAiProtocolCodec.sseVisibleText(mixed))
     }
 
+    @Test
+    fun `parse protocol falls back for chat completions spellings`() {
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, LocalAiProtocolCodec.parseProtocol("OPENAI_CHAT_COMPLETIONS"))
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, LocalAiProtocolCodec.parseProtocol("chat_completions"))
+    }
+
+    @Test
+    fun `extra headers keep spaced keys and drop whitespace-only keys`() {
+        // 只有值做 trim，键原样保留；全空白键不算有效键。
+        val headers = LocalAiProtocolCodec.extraHeaders(
+            provider.copy(extraHeadersJson = """{" X ": "  v  ", "   ": "z", "k": " "}""")
+        )
+        assertEquals(mapOf(" X " to "v"), headers)
+    }
+
+    @Test
+    fun `toJson passes arrays through and handles empty and null-keyed maps`() {
+        val arr = org.json.JSONArray("[1,2]")
+        assertTrue(LocalAiProtocolCodec.toJson(arr) === arr)
+        assertEquals(0, (LocalAiProtocolCodec.toJson(emptyMap<String, Any>()) as org.json.JSONObject).length())
+        assertEquals(0, (LocalAiProtocolCodec.toJson(emptyList<Any>()) as org.json.JSONArray).length())
+        val nullKey = LocalAiProtocolCodec.toJson(mapOf(null to "x")) as org.json.JSONObject
+        assertEquals("x", nullKey.getString("null"))
+    }
+
+    @Test
+    fun `sse delta parts keep strings and blank non-strings`() {
+        val empty = LocalAiProtocolCodec.sseDeltaParts(null)
+        assertEquals("", empty.content)
+        assertEquals("", empty.reasoning)
+        val mixed = LocalAiProtocolCodec.sseDeltaParts(org.json.JSONObject("""{"content":5,"reasoning_content":"r"}"""))
+        assertEquals("", mixed.content)
+        assertEquals("r", mixed.reasoning)
+        val kept = LocalAiProtocolCodec.sseDeltaParts(org.json.JSONObject("""{"content":"c","reasoning_content":7}"""))
+        assertEquals("c", kept.content)
+        assertEquals("", kept.reasoning)
+    }
+
+    @Test
+    fun `parse anthropic empty content yields empty text`() {
+        val missing = LocalAiProtocolCodec.parseAnthropic("{}")
+        assertTrue(missing is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (missing as OpenAiCompatClient.Completion.Text).content)
+        val unknownOnly = LocalAiProtocolCodec.parseAnthropic(
+            """{"content":[{"type":"thinking","thinking":"hmm"}]}"""
+        )
+        assertTrue(unknownOnly is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (unknownOnly as OpenAiCompatClient.Completion.Text).content)
+    }
 }
