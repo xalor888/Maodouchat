@@ -483,4 +483,39 @@ class AiLocalRulesTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `classify haha triple counts both haha forms at full confidence`() {
+        val result = AiMessageClassifier.classifyText("哈哈哈")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify fix bug triple counts bug twice`() {
+        val result = AiMessageClassifier.classifyText("fix bug")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify tie notice before todo takes notice`() {
+        val result = AiMessageClassifier.classifyText("通知 任务")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify keyword exactly at window edge is cut`() {
+        val result = AiMessageClassifier.classifyText("垫".repeat(300) + "转账")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify mixed language finance words combine`() {
+        val result = AiMessageClassifier.classifyText("invoice 付款")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
