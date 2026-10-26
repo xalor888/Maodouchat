@@ -601,4 +601,44 @@ class AiRetryPolicyWindowTest {
         assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
         assertFalse(AiRetryPolicy.canCallNow("\tchat-a", AiRetryPolicyCategory.LIGHT))
     }
+
+
+    @Test
+    fun prefixChatIdIsDistinctFromExtendedChatId() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a-b", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a-b", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun trailingSpaceChatIdIsDistinctFromPlainChatId() {
+        AiRetryPolicy.recordCall("chat-a ", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-a ", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun carriageReturnChatIdIsDistinctFromPlainAndNewlineKeys() {
+        AiRetryPolicy.recordCall("chat\ra", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\ra", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat\na", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun heavyChatIdKeysAreCaseSensitive() {
+        AiRetryPolicy.recordCall("Chat-A", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("Chat-A", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.HEAVY))
+    }
+
+    @Test
+    fun awaitBackoffReturnsImmediatelyWhenNoDelayForHeavy() = runBlocking {
+        AiRetryPolicy.awaitBackoff("fresh", AiRetryPolicyCategory.HEAVY)
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.HEAVY))
+    }
 }

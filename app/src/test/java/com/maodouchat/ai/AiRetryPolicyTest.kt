@@ -756,4 +756,49 @@ class AiRetryPolicyTest {
         assertEquals(60_000L, quota.delayMs)
         assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
     }
+
+
+    @Test
+    fun decideEmptyCodeAtCapResolvesUnknownWithCapExplanation() {
+        val decision = AiRetryPolicy.decide("", attempts = 3)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("UNKNOWN", decision.visibleErrorCode)
+        assertEquals("reached max auto retries; user must retry", decision.explanation)
+    }
+
+    @Test
+    fun decideLowercaseConnectionCodeWithSuffixStillRetries() {
+        val decision = AiRetryPolicy.decide("connection_not_established:99", attempts = 2)
+        assertTrue(decision.shouldRetry)
+        assertEquals(1_600L, decision.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideRateLimitPrefixWithTooManySubstringUsesRateBranchWithZeroWait() {
+        val decision = AiRetryPolicy.decide("RATE_LIMITED_TOO_MANY", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideAuthCodeAtCapKeepsCapExplanation() {
+        // 封顶判定先于分支判定：认证码触顶时说明是封顶文案，不是认证文案。
+        val decision = AiRetryPolicy.decide("UNAUTHORIZED", attempts = 3)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("UNAUTHORIZED", decision.visibleErrorCode)
+        assertEquals("reached max auto retries; user must retry", decision.explanation)
+    }
+
+    @Test
+    fun decideConnectionCodeWithSuffixAtZeroAttemptsRetriesAtBase() {
+        val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED:45", attempts = 0)
+        assertTrue(decision.shouldRetry)
+        assertEquals(800L, decision.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
 }
