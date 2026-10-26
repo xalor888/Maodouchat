@@ -641,4 +641,59 @@ class AiRetryPolicyWindowTest {
         assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
         assertEquals(0L, AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.HEAVY))
     }
+
+    @Test
+    fun verticalTabChatIdIsDistinctFromPlainAndTabKeys() {
+        AiRetryPolicy.recordCall("chat\u000Ba", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u000Ba", AiRetryPolicyCategory.LIGHT))
+        // 纵向制表键与普通键、横向制表键互不相同：键不做控制字符归一。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat\ta", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun formFeedChatIdIsDistinctFromPlainAndSpaceKeys() {
+        AiRetryPolicy.recordCall("chat\u000Ca", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u000Ca", AiRetryPolicyCategory.LIGHT))
+        // 换页键与普通键、空格键互不相同：键不做空白归一。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun nullCharChatIdIsDistinctKey() {
+        AiRetryPolicy.recordCall("chat\u0000a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u0000a", AiRetryPolicyCategory.LIGHT))
+        // 空字符只是键的一部分：含 NUL 的会话与普通会话互不相同。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun extraRecordsUnderGlobalBlockKeepOldestTimestamp() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        val waitBefore = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue("global-blocked fresh chat should report a positive delay, was $waitBefore", waitBefore > 3_000_000L)
+        // 满槽后继续记录只追加队尾，不动队首最老时间戳：全局等待只随时间流逝缩短。
+        repeat(10) { index -> AiRetryPolicy.recordCall("late-$index", AiRetryPolicyCategory.LIGHT) }
+        val waitAfter = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue("extra records must not refresh the global window, before=$waitBefore after=$waitAfter", waitAfter <= waitBefore)
+        assertTrue("global window should still dominate, was $waitAfter", waitAfter > 3_000_000L)
+        assertFalse(AiRetryPolicy.canCallNow("another-fresh", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun globalBlockWaitIsSameForRecordedAndFreshChats() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        val freshWait = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        val recordedWait = AiRetryPolicy.remainingDelayMs("chat-0", AiRetryPolicyCategory.LIGHT)
+        // 满槽后两类等待都取全局量级：已记会话的 30 秒单窗被全局 60 分钟压过，与新会话同值。
+        assertTrue("fresh chat should report global-scale delay, was $freshWait", freshWait > 3_000_000L)
+        assertTrue("recorded chat should report global-scale delay, was $recordedWait", recordedWait > 3_000_000L)
+        assertTrue("same global window, fresh=$freshWait recorded=$recordedWait", recordedWait <= freshWait)
+        assertTrue("same global window, fresh=$freshWait recorded=$recordedWait", freshWait - recordedWait < 60_000L)
+    }
+
 }
