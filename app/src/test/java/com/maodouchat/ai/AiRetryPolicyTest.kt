@@ -563,4 +563,68 @@ class AiRetryPolicyTest {
         assertEquals(authFirst, authSecond)
     }
 
+    @Test
+    fun decideConnectionFailureTrimsWhitespaceAndCase() {
+        // 基码解析先 trim 再大写：空白与小写不影响连接重试分支。
+        val padded = AiRetryPolicy.decide("  connection_not_established  ", attempts = 1)
+        assertTrue(padded.shouldRetry)
+        assertEquals(800L, padded.delayMs)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", padded.visibleErrorCode)
+
+        val second = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED ", attempts = 2)
+        assertTrue(second.shouldRetry)
+        assertEquals(1_600L, second.delayMs)
+    }
+    @Test
+    fun decideSuffixOnlyCodeKeepsRawVisibleCode() {
+        // 冒号前无基码时 baseErrorCode 回落为原串大写：后缀-only 码走非瞬态分支，可见码即原串。
+        val suffixed = AiRetryPolicy.decide(":45", attempts = 1)
+        assertFalse(suffixed.shouldRetry)
+        assertEquals(0L, suffixed.delayMs)
+        assertEquals("non-transient error", suffixed.explanation)
+        assertEquals(":45", suffixed.visibleErrorCode)
+
+        val bare = AiRetryPolicy.decide(":", attempts = 1)
+        assertFalse(bare.shouldRetry)
+        assertEquals(":", bare.visibleErrorCode)
+    }
+    @Test
+    fun decideSpaceBeforeColonStillParsesSuffix() {
+        // 基码取冒号前一段并 trim：冒号前空格不影响分支与内嵌秒数。
+        val limited = AiRetryPolicy.decide("RATE_LIMITED :45", attempts = 1)
+        assertFalse(limited.shouldRetry)
+        assertEquals(45_000L, limited.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, limited.visibleErrorCode)
+
+        val quota = AiRetryPolicy.decide("QUOTA_EXCEEDED :60", attempts = 1)
+        assertFalse(quota.shouldRetry)
+        assertEquals(60_000L, quota.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, quota.visibleErrorCode)
+    }
+    @Test
+    fun lightPerChatRemainingStaysWithinThirtySeconds() {
+        AiRetryPolicy.clearSession()
+        AiRetryPolicy.recordCall("chat-l", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-l", AiRetryPolicyCategory.LIGHT))
+        val wait = AiRetryPolicy.remainingDelayMs("chat-l", AiRetryPolicyCategory.LIGHT)
+        assertTrue("LIGHT remaining should be ~30s, was $wait", wait in 1L..30_000L)
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-l", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.canCallNow("chat-l", AiRetryPolicyCategory.HEAVY))
+        AiRetryPolicy.clearSession()
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-l", AiRetryPolicyCategory.LIGHT))
+    }
+    @Test
+    fun decideAuthSubstringInCompoundCodeMapsToAuthBranch() {
+        // 认证分支是 contains：复合码含 AUTH 即走认证分支，可见码为归一化后的基码。
+        val session = AiRetryPolicy.decide("SESSION_AUTH_FAILED", attempts = 1)
+        assertFalse(session.shouldRetry)
+        assertEquals(0L, session.delayMs)
+        assertEquals("auth required; do not auto-retry", session.explanation)
+        assertEquals("SESSION_AUTH_FAILED", session.visibleErrorCode)
+
+        val reauth = AiRetryPolicy.decide("REAUTH_REQUIRED", attempts = 1)
+        assertFalse(reauth.shouldRetry)
+        assertEquals("REAUTH_REQUIRED", reauth.visibleErrorCode)
+    }
+
 }
