@@ -838,4 +838,42 @@ class AiPrivacyPreferencesTest {
         )
     }
 
+    @Test
+    fun `all six keys including migrated are mutually distinct`() {
+        val keys = setOf(
+            AiPrivacyPreferences.KEY_CONSENT,
+            AiPrivacyPreferences.KEY_USER_ENABLED,
+            AiPrivacyPreferences.KEY_LOCAL_SAFETY,
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_AUTO_TRANSLATE,
+            AiPrivacyKeys.MIGRATED
+        )
+        assertEquals(6, keys.size)
+    }
+
+    @Test
+    fun `migrated key constant matches raw name`() {
+        assertEquals("account_scope_migrated", AiPrivacyKeys.MIGRATED)
+    }
+
+    @Test
+    fun `scoped key keeps newline in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a\nb",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a\nb")
+        )
+    }
+
+    @Test
+    fun `scoped key for auto translate base with colon user is exact`() {
+        assertEquals(
+            "ai_auto_translate_incoming:a:b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_AUTO_TRANSLATE, "a:b")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps spaces in base verbatim`() {
+        assertEquals("a b:u", AiPrivacyPreferences.scopedKey("a b", "u"))
+    }
 }
