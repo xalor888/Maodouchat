@@ -660,4 +660,44 @@ class AiPrivacyPreferencesTest {
         )
     }
 
+    @Test
+    fun `scoped key keeps equals sign in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:u=1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u=1")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u1"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u=1")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps plus sign in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:u+1",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u+1")
+        )
+    }
+
+    @Test
+    fun `scoped key with identical base and user id keeps single colon`() {
+        assertEquals("x:x", AiPrivacyPreferences.scopedKey("x", "x"))
+    }
+
+    @Test
+    fun `scoped key keeps trailing newline in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:u-1\n",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1\n")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps leading tab in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:\tu",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "\tu")
+        )
+    }
 }
