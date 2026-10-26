@@ -794,4 +794,48 @@ class AiPrivacyPreferencesTest {
         assertEquals("ai_local_safety_dismissed_ids:msg-1234", scoped)
     }
 
+    @Test
+    fun `trailing colon base plus leading colon user yields triple colon`() {
+        assertEquals("a:::b", AiPrivacyPreferences.scopedKey("a:", ":b"))
+    }
+
+    @Test
+    fun `trailing colon base with empty user ends with double colon`() {
+        assertEquals("a::", AiPrivacyPreferences.scopedKey("a:", ""))
+    }
+
+    @Test
+    fun `dismissed base key-looking user id cannot alias another key`() {
+        val scoped = AiPrivacyPreferences.scopedKey(
+            AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS,
+            AiPrivacyPreferences.KEY_CONSENT
+        )
+        assertEquals("ai_local_safety_dismissed_ids:ai_consent_accepted", scoped)
+        assertNotEquals(AiPrivacyPreferences.KEY_CONSENT, scoped)
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1"),
+            scoped
+        )
+    }
+
+    @Test
+    fun `scoped key base is case sensitive`() {
+        assertEquals(
+            "AI_CONSENT_ACCEPTED:u",
+            AiPrivacyPreferences.scopedKey("AI_CONSENT_ACCEPTED", "u")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u"),
+            AiPrivacyPreferences.scopedKey("AI_CONSENT_ACCEPTED", "u")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps tabs on both ends of user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:\tu\t",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "\tu\t")
+        )
+    }
+
 }
