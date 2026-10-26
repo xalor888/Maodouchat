@@ -748,4 +748,50 @@ class GroupAiSharePolicyTest {
         )
     }
 
+    @Test
+    fun `decideShare tab newline padded just under max keeps full body`() {
+        val answer = "x".repeat(3999)
+        val decision = GroupAiSharePolicy.decideShare(true, "\t\n" + answer + "\n\t")
+        assertTrue(decision.allowed)
+        assertEquals(answer, decision.body)
+        assertEquals(3999, decision.body.length)
+    }
+
+    @Test
+    fun `sanitizeTasks keeps title-only task with all other fields null`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = " t ", owner = null, dueText = null, dueAt = null))
+        )
+        assertEquals(listOf(TaskDraft(title = "t")), cleaned)
+    }
+
+    @Test
+    fun `shareAssistantMode trims tab wrapped mode`() {
+        assertEquals("tasks", GroupAiSharePolicy.shareAssistantMode("\ttasks\n"))
+        assertEquals("tasks", GroupAiSharePolicy.shareAsCurrentUserMeta("\ttasks\n")["aiAssistantMode"])
+    }
+
+    @Test
+    fun `closed loop ready ignores dropped dueAt and blank tasks together`() {
+        assertTrue(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "ok",
+                tasks = listOf(TaskDraft("  ", dueAt = 0L), TaskDraft("a", dueAt = -5L))
+            )
+        )
+    }
+
+    @Test
+    fun `blocked share decisions are equal regardless of the rejected answer`() {
+        assertEquals(
+            GroupAiSharePolicy.decideShare(false, "a"),
+            GroupAiSharePolicy.decideShare(false, "b")
+        )
+        assertEquals(
+            GroupAiSharePolicy.decideShare(true, null),
+            GroupAiSharePolicy.decideShare(true, "   ")
+        )
+    }
+
 }

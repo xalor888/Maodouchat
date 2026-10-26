@@ -1228,4 +1228,72 @@ class AiCostVisibilityPolicyTest {
         assertTrue(signal.warnRetryBills)
     }
 
+    @Test
+    fun `classify 429 with budget word is quota and keeps clamped retry`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = "budget exceeded",
+            serverRetryAfterSeconds = 99_999
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(86_400L, signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `classify message only too many requests phrase is rate limited`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "Too Many Requests"
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertTrue(signal.retryAfterSeconds == null)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `wait seconds quota embedded beats server zero and local remaining`() {
+        assertEquals(
+            90L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                "QUOTA_EXCEEDED:90",
+                serverRetryAfterSeconds = 0,
+                localRemainingMs = 99_999
+            )
+        )
+    }
+
+    @Test
+    fun `billing hint insufficient family beats failed flag and auto retry`() {
+        assertEquals(
+            BillingHint.QUOTA_EXCEEDED,
+            AiCostVisibilityPolicy.billingHintFor(
+                "INSUFFICIENT_FUNDS",
+                isFailed = true,
+                hasScheduledAutoRetry = true
+            )
+        )
+        assertTrue(AiCostVisibilityPolicy.shouldWarnRetryBills("INSUFFICIENT_FUNDS"))
+    }
+
+    @Test
+    fun `encode error code drops suffix for billing family but embedded still reads it`() {
+        assertEquals(
+            "BILLING_ISSUE",
+            AiCostVisibilityPolicy.encodeErrorCode("BILLING_ISSUE", 45)
+        )
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("BILLING_ISSUE:45"))
+        assertEquals(45L, AiCostVisibilityPolicy.waitSecondsFor("BILLING_ISSUE:45"))
+    }
+
 }
