@@ -496,4 +496,50 @@ class AiEmotionFallbackTest {
         }
     }
 
+    @Test
+    fun `sad and angry templates share the full understanding phrase`() {
+        val sad = AiEmotionFallback.localFallback(context, Emotion.SAD)
+        val angry = AiEmotionFallback.localFallback(context, Emotion.ANGRY)
+        assertTrue(sad.contains("I understand how you feel"))
+        assertTrue(angry.contains("I understand how you feel"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.HAPPY).contains("I understand how you feel"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.ANXIOUS).contains("I understand how you feel"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.NEUTRAL).contains("I understand how you feel"))
+    }
+
+    @Test
+    fun `neutral template has three clauses`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.NEUTRAL)
+        assertEquals(3, text.split(',').size)
+    }
+
+    @Test
+    fun `anxious template has two apostrophes and others have at most one`() {
+        val counts = Emotion.entries.associateWith { emotion ->
+            AiEmotionFallback.localFallback(context, emotion).count { it == '\'' }
+        }
+        assertEquals(2, counts[Emotion.ANXIOUS])
+        assertTrue(counts.filterKeys { it != Emotion.ANXIOUS }.values.all { it <= 1 })
+    }
+
+    @Test
+    fun `sad and anxious templates tie for the most words`() {
+        val counts = Emotion.entries.associateWith { emotion ->
+            AiEmotionFallback.localFallback(context, emotion).split(" ").size
+        }
+        assertEquals(12, counts[Emotion.SAD])
+        assertEquals(12, counts[Emotion.ANXIOUS])
+        assertTrue(counts[Emotion.HAPPY]!! < 12 && counts[Emotion.NEUTRAL]!! < 12 && counts[Emotion.ANGRY]!! < 12)
+    }
+
+    @Test
+    fun `happy and neutral templates have the two smallest word counts`() {
+        val counts = Emotion.entries.associateWith { emotion ->
+            AiEmotionFallback.localFallback(context, emotion).split(" ").size
+        }
+        assertEquals(5, counts[Emotion.HAPPY])
+        assertEquals(6, counts[Emotion.NEUTRAL])
+        assertTrue(counts[Emotion.SAD]!! > 6 && counts[Emotion.ANGRY]!! > 6 && counts[Emotion.ANXIOUS]!! > 6)
+    }
+
 }
