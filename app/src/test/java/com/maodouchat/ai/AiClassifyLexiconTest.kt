@@ -529,4 +529,41 @@ class AiClassifyLexiconTest {
         assertEquals(AiMessageClassifierCategory.TECH, result.category)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `notice category from english maintenance word`() {
+        val result = AiClassifyLexicon.classifyText("maintenance")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `social category from english good night phrase`() {
+        val result = AiClassifyLexicon.classifyText("good night everyone")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study ties tech on lecture and database words and wins by order`() {
+        val result = AiClassifyLexicon.classifyText("lecture database")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance category from uppercase english invoice word`() {
+        // contains 忽略大小写，大写英文词同样命中。
+        val result = AiClassifyLexicon.classifyText("INVOICE")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `keyword beyond scan window is ignored`() {
+        // 300 字符窗口外才出现的完整关键词不计入，整条判 OTHER。
+        val result = AiClassifyLexicon.classifyText("x".repeat(300) + "invoice")
+        assertEquals(AiMessageClassifierCategory.OTHER, result.category)
+        assertEquals(0.2, result.confidence, 0.0001)
+    }
 }

@@ -671,4 +671,41 @@ class GroupAiSharePolicyTest {
         assertEquals(setOf("aiAssisted", "aiAssistantMode", "systemIdentity"), meta.keys)
     }
 
+    @Test
+    fun `shareAssistantMode keeps exact 40 chars`() {
+        // 恰好 40 字不截断，41 字才截断。
+        val meta = GroupAiSharePolicy.shareAsCurrentUserMeta("m".repeat(40))
+        assertEquals("m".repeat(40), meta["aiAssistantMode"])
+    }
+
+    @Test
+    fun `sanitizeTasks nulls negative dueAt`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", dueAt = -5L))
+        )
+        assertEquals(1, cleaned.size)
+        assertNull(cleaned.single().dueAt)
+    }
+
+    @Test
+    fun `sanitize owner keeps exact 100 chars`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", owner = "y".repeat(100)))
+        )
+        assertEquals("y".repeat(100), cleaned.single().owner)
+    }
+
+    @Test
+    fun `canPersistTasks false for empty list`() {
+        assertFalse(GroupAiSharePolicy.canPersistTasks(emptyList()))
+    }
+
+    @Test
+    fun `decideShare null answer in group is empty answer`() {
+        val decision = GroupAiSharePolicy.decideShare(true, null)
+        assertFalse(decision.allowed)
+        assertEquals("", decision.body)
+        assertEquals(BlockReason.EMPTY_ANSWER, decision.reason)
+    }
+
 }
