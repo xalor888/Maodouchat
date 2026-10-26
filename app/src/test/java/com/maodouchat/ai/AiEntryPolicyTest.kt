@@ -866,4 +866,58 @@ class AiEntryPolicyTest {
         )
     }
 
+
+    @Test
+    fun `nbsp wrapped voice and file fold before matching`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("\u00A0voice\u00A0")
+        )
+        assertTrue(AiEntryPolicy.contextActionsFor("\u00A0voice\u00A0", hasTranscript = true).isEmpty())
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("\u00A0file\u00A0")
+        )
+    }
+
+    @Test
+    fun `crlf wrapped text and markdown fold to translate`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\r\nTEXT\r\n")
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\r\nMARKDOWN\r\n")
+        )
+    }
+
+    @Test
+    fun `unknown call location contact live types stay empty`() {
+        for (type in listOf("CALL", "LOCATION", "CONTACT", "LIVE")) {
+            assertTrue(AiEntryPolicy.contextActionsFor(type).isEmpty())
+            assertFalse(AiEntryPolicy.hasContextAiActions(type))
+        }
+    }
+
+    @Test
+    fun `run gates accept named arguments in any order`() {
+        assertTrue(AiEntryPolicy.canRunContextAction(isBusy = false, chatAiEnabled = true))
+        assertFalse(AiEntryPolicy.canRunContextAction(isBusy = true, chatAiEnabled = true))
+        assertTrue(
+            AiEntryPolicy.canRunContextAction(isBusy = false, chatAiEnabled = true, masterEnabled = true)
+        )
+        assertFalse(
+            AiEntryPolicy.canRunContextAction(isBusy = false, chatAiEnabled = true, masterEnabled = false)
+        )
+    }
+
+    @Test
+    fun `positional transcript argument follows voice gate`() {
+        assertEquals(listOf(MessageAiAction.TRANSLATE), AiEntryPolicy.contextActionsFor("TEXT", true))
+        assertTrue(AiEntryPolicy.contextActionsFor("VOICE", true).isEmpty())
+        assertEquals(listOf(MessageAiAction.TRANSCRIBE), AiEntryPolicy.contextActionsFor("VOICE", false))
+        assertTrue(AiEntryPolicy.hasContextAiActions("FILE", true))
+    }
+
 }
