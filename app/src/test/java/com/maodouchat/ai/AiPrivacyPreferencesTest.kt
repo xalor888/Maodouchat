@@ -700,4 +700,49 @@ class AiPrivacyPreferencesTest {
             AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "\tu")
         )
     }
+
+    @Test
+    fun `scoped key keeps forward slashes in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a/b/c",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a/b/c")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps percent and format chars in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:%s %d",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "%s %d")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps dots in user id verbatim`() {
+        assertEquals(
+            "ai_user_enabled:user.name.v2",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "user.name.v2")
+        )
+    }
+
+    @Test
+    fun `scoped key with slash base keeps shape`() {
+        assertEquals(
+            "a/b:u",
+            AiPrivacyPreferences.scopedKey("a/b", "u")
+        )
+    }
+
+    @Test
+    fun `scoped key for numeric zero user id is distinct from empty`() {
+        assertEquals(
+            "ai_consent_accepted:0",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "0")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "0"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "")
+        )
+    }
+
 }

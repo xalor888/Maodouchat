@@ -542,4 +542,47 @@ class AiEmotionFallbackTest {
         assertTrue(counts[Emotion.SAD]!! > 6 && counts[Emotion.ANGRY]!! > 6 && counts[Emotion.ANXIOUS]!! > 6)
     }
 
+    @Test
+    fun `english templates have exact lengths in emotion order`() {
+        val lengths = Emotion.entries.map { AiEmotionFallback.localFallback(context, it).length }
+        assertEquals(listOf(28, 62, 56, 63, 32), lengths)
+    }
+
+    @Test
+    fun `angry anxious and neutral templates have exactly two commas`() {
+        val twoComma = Emotion.entries.filter {
+            AiEmotionFallback.localFallback(context, it).count { c -> c == ',' } == 2
+        }
+        assertEquals(listOf(Emotion.ANGRY, Emotion.ANXIOUS, Emotion.NEUTRAL), twoComma)
+    }
+
+    @Test
+    fun `word counts are five twelve eleven twelve six in emotion order`() {
+        val counts = Emotion.entries.map {
+            AiEmotionFallback.localFallback(context, it).split(" ").size
+        }
+        assertEquals(listOf(5, 12, 11, 12, 6), counts)
+    }
+
+    @Test
+    fun `only sad template addresses you twice`() {
+        val counts = Emotion.entries.associateWith { emotion ->
+            AiEmotionFallback.localFallback(context, emotion)
+                .split(" ").count { it.trim(',', '.', '!') == "you" }
+        }
+        assertEquals(2, counts[Emotion.SAD])
+        assertEquals(1, counts[Emotion.HAPPY])
+        assertEquals(1, counts[Emotion.ANGRY])
+        assertEquals(0, counts[Emotion.ANXIOUS])
+        assertEquals(0, counts[Emotion.NEUTRAL])
+    }
+
+    @Test
+    fun `only sad and angry templates mention feeling`() {
+        val withFeel = Emotion.entries.filter {
+            AiEmotionFallback.localFallback(context, it).contains("feel")
+        }
+        assertEquals(listOf(Emotion.SAD, Emotion.ANGRY), withFeel)
+    }
+
 }

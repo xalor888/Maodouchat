@@ -561,4 +561,43 @@ class AiLocalRulesTest {
         assertEquals(Emotion.ANXIOUS, result.emotion)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `classify uppercase english finance words match case insensitively`() {
+        val result = AiMessageClassifier.classifyText("PAY BILL")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify shared online word ties to notice before tech`() {
+        // 上线同时在通知与技术词典里：同分时取枚举在前的通知，置信度为 1/2。
+        val result = AiMessageClassifier.classifyText("上线")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify finance study tie takes finance`() {
+        val result = AiMessageClassifier.classifyText("转账 学习")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify keyword at scan edge is kept only when it fits`() {
+        val kept = AiMessageClassifier.classifyText("垫".repeat(298) + "转账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, kept.category)
+        assertEquals(1.0, kept.confidence, 0.0001)
+        val cut = AiMessageClassifier.classifyText("垫".repeat(299) + "转账")
+        assertEquals(AiMessageClassifierCategory.OTHER, cut.category)
+        assertEquals(0.2, cut.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify notice wire and label keys are frozen`() {
+        assertEquals("notice", AiMessageClassifierCategory.NOTICE.wire)
+        assertEquals("ai_enhance_classify_notice", AiMessageClassifierCategory.NOTICE.labelKey)
+    }
+
 }
