@@ -737,4 +737,50 @@ class AiRetryPolicyWindowTest {
         assertTrue(AiRetryPolicy.canCallNow("ab", AiRetryPolicyCategory.LIGHT))
     }
 
+    @Test
+    fun plusSignChatIdIsDistinctFromSpaceChatId() {
+        AiRetryPolicy.recordCall("a+b", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("a+b", AiRetryPolicyCategory.LIGHT))
+        // 键是原始字符串，不做 URL 解码：加号键与空格键互不相同。
+        assertTrue(AiRetryPolicy.canCallNow("a b", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("ab", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun secondRecordDoesNotAccumulatePerChatWait() {
+        // 单会话窗口只存一条时间戳：重复记录刷新起点，不把等待叠加成 60 秒。
+        AiRetryPolicy.recordCall("chat-acc", AiRetryPolicyCategory.LIGHT)
+        AiRetryPolicy.recordCall("chat-acc", AiRetryPolicyCategory.LIGHT)
+        val wait = AiRetryPolicy.remainingDelayMs("chat-acc", AiRetryPolicyCategory.LIGHT)
+        assertTrue("second record should refresh, not accumulate, was $wait", wait in 1L..30_000L)
+        assertFalse(AiRetryPolicy.canCallNow("chat-acc", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun awaitBackoffReturnsImmediatelyWhenNoDelayForLight() = runBlocking {
+        // 无等待时 awaitBackoff 不挂起：新会话直接返回。
+        AiRetryPolicy.awaitBackoff("fresh-light", AiRetryPolicyCategory.LIGHT)
+        assertTrue(AiRetryPolicy.canCallNow("fresh-light", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun sameChatRepeatedRecordsCountTowardGlobalWindow() {
+        // 全局窗口按调用次数计，不按互异会话计：同一会话记满 240 次同样封顶。
+        repeat(240) { AiRetryPolicy.recordCall("chat-same", AiRetryPolicyCategory.LIGHT) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        val wait = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue("global window should dominate, was $wait", wait > 3_000_000L)
+    }
+
+    @Test
+    fun mixedCategoriesFillGlobalWindowTogether() {
+        // 全局窗口两类目共用一个队列：LIGHT 与 HEAVY 各 120 次同样记满 240。
+        repeat(120) { index -> AiRetryPolicy.recordCall("light-$index", AiRetryPolicyCategory.LIGHT) }
+        repeat(120) { index -> AiRetryPolicy.recordCall("heavy-$index", AiRetryPolicyCategory.HEAVY) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+        val wait = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.HEAVY)
+        assertTrue("global window should dominate, was $wait", wait > 3_000_000L)
+    }
+
 }

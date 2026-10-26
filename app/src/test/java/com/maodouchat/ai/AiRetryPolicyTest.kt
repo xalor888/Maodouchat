@@ -888,4 +888,54 @@ class AiRetryPolicyTest {
         AiRetryPolicy.clearSession()
     }
 
+    @Test
+    fun decideTooManyQuotaCodeUsesRateBranch() {
+        // 分支顺序限流在前：含 TOO_MANY 的配额码走限流分支，不走配额分支。
+        val decision = AiRetryPolicy.decide("TOO_MANY_QUOTA", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBarePaymentFailedMapsToQuotaWithZeroWait() {
+        // 裸 PAYMENT 码走配额分支：基码不在等待表里，等待为 0。
+        val decision = AiRetryPolicy.decide("PAYMENT_FAILED", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideAuthSubstringBeatsConnectionEquality() {
+        // 认证分支在连接相等判定之前：含 AUTH 的连接码走认证分支，不重试。
+        val decision = AiRetryPolicy.decide("AUTH_CONNECTION_NOT_ESTABLISHED", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("auth required; do not auto-retry", decision.explanation)
+        assertEquals("AUTH_CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun lightCallDoesNotBlockHeavyCallForSameChat() {
+        // 限流键按类目区分：LIGHT 记录只挡同类目。
+        AiRetryPolicy.clearSession()
+        AiRetryPolicy.recordCall("chat-lh", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat-lh", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-lh", AiRetryPolicyCategory.HEAVY))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-lh", AiRetryPolicyCategory.HEAVY))
+        AiRetryPolicy.clearSession()
+    }
+
+    @Test
+    fun heavyPerChatRemainingStaysWithinSixtySeconds() {
+        AiRetryPolicy.clearSession()
+        AiRetryPolicy.recordCall("chat-h60", AiRetryPolicyCategory.HEAVY)
+        val wait = AiRetryPolicy.remainingDelayMs("chat-h60", AiRetryPolicyCategory.HEAVY)
+        assertTrue("HEAVY remaining should be within 60s, was $wait", wait in 1L..60_000L)
+        assertFalse(AiRetryPolicy.canCallNow("chat-h60", AiRetryPolicyCategory.HEAVY))
+        AiRetryPolicy.clearSession()
+    }
+
 }
