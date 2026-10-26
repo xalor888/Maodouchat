@@ -845,4 +845,47 @@ class AiRetryPolicyTest {
         assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
     }
 
+    @Test
+    fun decideTooManyRequestsSuffixUsesRateWait() {
+        val decision = AiRetryPolicy.decide("TOO_MANY_REQUESTS:30", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(30_000L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decidePaymentRequiredSuffixUsesQuotaWait() {
+        val decision = AiRetryPolicy.decide("PAYMENT_REQUIRED:180", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(180_000L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideLowercaseRateLimitSuffixUsesRateWait() {
+        // 基码归一化转大写，内嵌秒数仍按原串解析。
+        val decision = AiRetryPolicy.decide("rate_limited:60", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(60_000L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBudgetExceededSuffixUsesQuotaWait() {
+        val decision = AiRetryPolicy.decide("BUDGET_EXCEEDED:240", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(240_000L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun heavyCallDoesNotBlockLightCallForSameChat() {
+        // 限流键按类目区分：HEAVY 记录只挡同类目。
+        AiRetryPolicy.clearSession()
+        AiRetryPolicy.recordCall("chat-hl", AiRetryPolicyCategory.HEAVY)
+        assertFalse(AiRetryPolicy.canCallNow("chat-hl", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.canCallNow("chat-hl", AiRetryPolicyCategory.LIGHT))
+        AiRetryPolicy.clearSession()
+    }
+
 }
