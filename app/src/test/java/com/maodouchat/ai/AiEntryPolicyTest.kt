@@ -958,4 +958,48 @@ class AiEntryPolicyTest {
         assertTrue(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = true))
     }
 
+    @Test
+    fun `surface constants equal their literal snake case values`() {
+        assertEquals("composer_menu", AiEntryPolicy.PRIMARY_SURFACE)
+        assertEquals("message_actions", AiEntryPolicy.CONTEXT_SURFACE)
+        assertEquals("ai_privacy", AiEntryPolicy.SETTINGS_SURFACE)
+    }
+
+    @Test
+    fun `message ai action enum declares translate transcribe image file in order`() {
+        assertEquals(
+            listOf(
+                MessageAiAction.TRANSLATE,
+                MessageAiAction.TRANSCRIBE,
+                MessageAiAction.ANALYZE_IMAGE,
+                MessageAiAction.ANALYZE_FILE
+            ),
+            MessageAiAction.entries
+        )
+    }
+
+    @Test
+    fun `composer menu named arguments reorder still blocks on either latch`() {
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isUpdatingSetting = true, isBusy = false))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isUpdatingSetting = false, isBusy = true))
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isUpdatingSetting = false, isBusy = false))
+    }
+
+    @Test
+    fun `all entry gates agree when everything is on and idle`() {
+        assertTrue(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = true))
+        assertTrue(AiEntryPolicy.isComposerEntryActive(true))
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(false))
+        assertTrue(AiEntryPolicy.canRunContextAction(true, false))
+    }
+
+    @Test
+    fun `tab newline and space wrapped text folds to translate`() {
+        // trim 只剥首尾空白：制表、换行、空格都在剥离范围内
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\t\n TEXT \n\t")
+        )
+    }
+
 }
