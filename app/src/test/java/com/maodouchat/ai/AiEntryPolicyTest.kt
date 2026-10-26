@@ -739,4 +739,39 @@ class AiEntryPolicyTest {
         assertTrue(AiEntryPolicy.contextActionsFor("VOICE_NOTE").isEmpty())
         assertFalse(AiEntryPolicy.hasContextAiActions("TEXT_FILE"))
     }
+
+    @Test
+    fun `known type lists are fresh objects on every call`() {
+        val types = listOf("MARKDOWN", "SYSTEM", "VOICE", "IMAGE", "GIF", "FILE")
+        for (type in types) {
+            assertTrue(AiEntryPolicy.contextActionsFor(type) !== AiEntryPolicy.contextActionsFor(type))
+        }
+    }
+
+    @Test
+    fun `unknown type lists share the single empty list beyond poll and video`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("STICKER") === AiEntryPolicy.contextActionsFor("AUDIO"))
+        assertTrue(AiEntryPolicy.contextActionsFor(null) === AiEntryPolicy.contextActionsFor(""))
+        assertTrue(AiEntryPolicy.contextActionsFor("   ") === AiEntryPolicy.contextActionsFor("POLL"))
+    }
+
+    @Test
+    fun `entry constants and section order delegate to the visibility object`() {
+        assertEquals(AiEntryVisibility.PRIMARY_SURFACE, AiEntryPolicy.PRIMARY_SURFACE)
+        assertEquals(AiEntryVisibility.CONTEXT_SURFACE, AiEntryPolicy.CONTEXT_SURFACE)
+        assertEquals(AiEntryVisibility.SETTINGS_SURFACE, AiEntryPolicy.SETTINGS_SURFACE)
+        assertTrue(AiEntryPolicy.COMPOSER_SECTION_ORDER === AiEntryVisibility.COMPOSER_SECTION_ORDER)
+    }
+
+    @Test
+    fun `composer section order equals the enum declaration order`() {
+        assertEquals(ComposerSection.entries, AiEntryPolicy.COMPOSER_SECTION_ORDER)
+    }
+
+    @Test
+    fun `composer entry active flag is exactly its argument`() {
+        for (enabled in listOf(true, false)) {
+            assertEquals(enabled, AiEntryPolicy.isComposerEntryActive(enabled))
+        }
+    }
 }
