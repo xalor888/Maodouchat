@@ -651,4 +651,55 @@ class AiEntryPolicyTest {
         assertTrue(surfaces.all { '_' in it })
     }
 
+    @Test
+    fun `busy blocks menu and run gate but not composer entry`() {
+        assertTrue(AiEntryPolicy.isComposerEntryActive(true))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = true))
+        assertFalse(AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = true))
+    }
+
+    @Test
+    fun `menu opens even while composer entry is inactive`() {
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false))
+        assertFalse(AiEntryPolicy.isComposerEntryActive(false))
+    }
+
+    @Test
+    fun `message ai action enum has exactly the four mapped actions`() {
+        assertEquals(
+            setOf(
+                MessageAiAction.TRANSLATE,
+                MessageAiAction.TRANSCRIBE,
+                MessageAiAction.ANALYZE_IMAGE,
+                MessageAiAction.ANALYZE_FILE
+            ),
+            MessageAiAction.entries.toSet()
+        )
+    }
+
+    @Test
+    fun `known type lists are fresh while unknown types share the empty list`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT") !== AiEntryPolicy.contextActionsFor("TEXT"))
+        assertTrue(AiEntryPolicy.contextActionsFor("POLL") === AiEntryPolicy.contextActionsFor("VIDEO"))
+    }
+
+    @Test
+    fun `composer entry is a weaker gate than full surfaces`() {
+        assertTrue(AiEntryPolicy.isComposerEntryActive(true))
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = true,
+                userEnabled = false
+            )
+        )
+        assertTrue(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = true,
+                userEnabled = true
+            )
+        )
+    }
+
 }
