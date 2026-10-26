@@ -454,4 +454,46 @@ class AiEmotionFallbackTest {
         assertTrue(happy.length < neutral.length)
     }
 
+
+    @Test
+    fun `only happy template says great`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            text.contains("太好了") || text.contains("great")
+        }
+        assertEquals(listOf(Emotion.HAPPY), naming)
+    }
+
+    @Test
+    fun `only sad template pairs understanding with an open invitation`() {
+        val naming = Emotion.entries.filter {
+            val text = AiEmotionFallback.localFallback(context, it)
+            (text.contains("理解") || text.contains("understand")) &&
+                (text.contains("随时") || text.contains("whenever"))
+        }
+        assertEquals(listOf(Emotion.SAD), naming)
+    }
+
+    @Test
+    fun `happy template has two clauses`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.HAPPY)
+        assertEquals(2, text.split('，', ',').size)
+    }
+
+    @Test
+    fun `angry template has three clauses`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.ANGRY)
+        assertEquals(3, text.split('，', ',').size)
+    }
+
+    @Test
+    fun `no template starts with punctuation or whitespace`() {
+        val marks = setOf('，', ',', '。', '.', '！', '!', '？', '?')
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            val first = text.first()
+            assertFalse("$emotion 的模板不应以标点或空白开头", first.isWhitespace() || first in marks)
+        }
+    }
+
 }
