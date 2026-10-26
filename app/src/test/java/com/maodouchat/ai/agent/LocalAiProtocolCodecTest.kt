@@ -507,4 +507,48 @@ class LocalAiProtocolCodecTest {
         assertEquals("raw", call.argumentsJson)
     }
 
+    @Test
+    fun `parse anthropic malformed returns model not json error`() {
+        val malformed = LocalAiProtocolCodec.parseAnthropic("{oops")
+        assertTrue(malformed is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型返回不是 JSON", (malformed as OpenAiCompatClient.Completion.Error).message)
+    }
+
+    @Test
+    fun `parse anthropic ignores unknown block types`() {
+        val text = LocalAiProtocolCodec.parseAnthropic(
+            """{"content":[{"type":"thinking","thinking":"hmm"},{"type":"text","text":"hi"}]}"""
+        )
+        assertTrue(text is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (text as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parse anthropic tools carry preceding text`() {
+        val tools = LocalAiProtocolCodec.parseAnthropic(
+            """{"content":[{"type":"text","text":"pre"},{"type":"tool_use","id":"t1","name":"list_chats","input":{}}]}"""
+        )
+        assertTrue(tools is OpenAiCompatClient.Completion.Tools)
+        val result = tools as OpenAiCompatClient.Completion.Tools
+        assertEquals("list_chats", result.calls.single().name)
+        assertEquals("pre", result.content)
+    }
+
+    @Test
+    fun `parse responses skips nameless function call`() {
+        // 无 name 且无 function 兜底时该调用不计入，文本为空则回落为空串。
+        val result = LocalAiProtocolCodec.parseResponses(
+            """{"output":[{"type":"function_call","call_id":"c1","arguments":"{}"}]}"""
+        )
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `sse visible text keeps whitespace content`() {
+        // ifEmpty 只认空串，空白串不回落到 reasoning。
+        val mixed = org.json.JSONObject("""{"content":" ","reasoning_content":"r"}""")
+        assertEquals(" ", LocalAiProtocolCodec.sseVisibleText(mixed))
+    }
+
 }

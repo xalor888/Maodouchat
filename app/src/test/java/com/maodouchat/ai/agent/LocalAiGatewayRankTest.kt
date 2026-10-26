@@ -351,4 +351,47 @@ class LocalAiGatewayRankTest {
         assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("red-blue", candidates))
     }
 
+    @Test
+    fun `non-breaking space does not split query tokens`() = runBlocking {
+        // 分词正则 \s+ 只认 ASCII 空白，不间断空格不断词，整串当一个分词匹配不到。
+        val candidates = listOf("c1" to "red blue")
+        assertEquals(emptyList<String>(), LocalAiGateway.rankSemantic("red blue", candidates))
+        assertEquals(
+            emptyList<Pair<String, Double>>(),
+            LocalAiGateway.rankSemanticScored("red blue", candidates)
+        )
+    }
+
+    @Test
+    fun `single character tokens match across words`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("d b", listOf("c1" to "red blue"))
+        )
+    }
+
+    @Test
+    fun `regex metacharacters in query token match literally`() = runBlocking {
+        // 计分用 contains 子串匹配，分词里的 . 不当正则。
+        val candidates = listOf("c1" to "red car", "c2" to "r.d car")
+        assertEquals(listOf("c2"), LocalAiGateway.rankSemantic("r.d", candidates))
+    }
+
+    @Test
+    fun `tie order stays stable after a higher score`() = runBlocking {
+        val candidates = listOf("c1" to "red", "c2" to "red blue", "c3" to "blue")
+        assertEquals(
+            listOf("c2" to 2.0, "c1" to 1.0, "c3" to 1.0),
+            LocalAiGateway.rankSemanticScored("red blue", candidates)
+        )
+    }
+
+    @Test
+    fun `carriage return splits query tokens`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("red\rblue", listOf("c1" to "red blue"))
+        )
+    }
+
 }
