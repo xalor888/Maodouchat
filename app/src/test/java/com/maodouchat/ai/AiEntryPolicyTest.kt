@@ -774,4 +774,45 @@ class AiEntryPolicyTest {
             assertEquals(enabled, AiEntryPolicy.isComposerEntryActive(enabled))
         }
     }
+
+    @Test
+    fun `shouldShowAiSurfaces needs all four flags`() {
+        assertTrue(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = true, masterEnabled = true))
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(false, true, userEnabled = true, masterEnabled = true))
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(true, false, userEnabled = true, masterEnabled = true))
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = false, masterEnabled = true))
+        assertFalse(AiEntryPolicy.shouldShowAiSurfaces(true, true, userEnabled = true, masterEnabled = false))
+    }
+
+    @Test
+    fun `context actions trim and case fold message type`() {
+        assertEquals(listOf(MessageAiAction.TRANSLATE), AiEntryPolicy.contextActionsFor("  text  "))
+        assertEquals(listOf(MessageAiAction.TRANSLATE), AiEntryPolicy.contextActionsFor("Markdown"))
+        assertTrue(AiEntryPolicy.contextActionsFor("voice", hasTranscript = true).isEmpty())
+        assertEquals(listOf(MessageAiAction.TRANSCRIBE), AiEntryPolicy.contextActionsFor("VOICE"))
+    }
+
+    @Test
+    fun `context actions file image and unknown types map distinctly`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("STICKER") === AiEntryPolicy.contextActionsFor("POLL"))
+        assertEquals(listOf(MessageAiAction.ANALYZE_FILE), AiEntryPolicy.contextActionsFor("file"))
+        assertEquals(listOf(MessageAiAction.ANALYZE_IMAGE), AiEntryPolicy.contextActionsFor("GIF"))
+    }
+
+    @Test
+    fun `canOpenComposerMenu blocks on either latch`() {
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = false))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = true, isUpdatingSetting = false))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = true))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = true, isUpdatingSetting = true))
+    }
+
+    @Test
+    fun `canRunContextAction three arg form needs master chat and idle`() {
+        assertTrue(AiEntryPolicy.canRunContextAction(masterEnabled = true, chatAiEnabled = true, isBusy = false))
+        assertFalse(AiEntryPolicy.canRunContextAction(masterEnabled = false, chatAiEnabled = true, isBusy = false))
+        assertFalse(AiEntryPolicy.canRunContextAction(masterEnabled = true, chatAiEnabled = false, isBusy = false))
+        assertFalse(AiEntryPolicy.canRunContextAction(masterEnabled = true, chatAiEnabled = true, isBusy = true))
+    }
+
 }

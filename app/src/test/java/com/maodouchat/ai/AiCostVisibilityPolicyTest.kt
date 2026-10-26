@@ -2,6 +2,7 @@ package com.maodouchat.ai
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -930,6 +931,61 @@ class AiCostVisibilityPolicyTest {
         assertTrue(signal.isRateLimited)
         assertTrue(signal.isQuota)
         assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `classify 402 with plain message is quota even without quota words`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 402,
+            serverCode = null,
+            serverMessage = "plain"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `classify insufficient funds wording in message is quota`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "Insufficient funds"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `wait seconds server retry after zero falls through to embedded seconds`() {
+        assertEquals(
+            120L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                "RATE_LIMITED:120",
+                serverRetryAfterSeconds = 0
+            )
+        )
+    }
+
+    @Test
+    fun `billing hint streaming beats cancelled code`() {
+        assertEquals(
+            BillingHint.IN_FLIGHT_MAY_BILL,
+            AiCostVisibilityPolicy.billingHintFor("CANCELLED", isStreaming = true)
+        )
+        assertEquals(
+            BillingHint.CANCELLED_PARTIAL_MAY_BILL,
+            AiCostVisibilityPolicy.billingHintFor("CANCELLED")
+        )
+    }
+
+    @Test
+    fun `encode quota zero seconds drops suffix and unknown base keeps clean`() {
+        assertEquals("QUOTA_EXCEEDED", AiCostVisibilityPolicy.encodeErrorCode("QUOTA_EXCEEDED", 0))
+        assertEquals("TIMEOUT", AiCostVisibilityPolicy.encodeErrorCode("timeout", 45))
+        assertEquals("RATE_LIMITED:90", AiCostVisibilityPolicy.encodeErrorCode(" rate_limited ", 90))
     }
 
 }
