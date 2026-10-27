@@ -289,4 +289,44 @@ class OpenAiCompatClientTest {
         assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
     }
 
+    @Test
+    fun `parseNonStream null content falls back to reasoning`() {
+        val payload = """{"choices":[{"message":{"content":null,"reasoning_content":"thinking"}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("thinking", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream tools keep non-empty content`() {
+        val payload = """{"choices":[{"message":{"content":"hello","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val tools = result as OpenAiCompatClient.Completion.Tools
+        assertEquals("hello", tools.content)
+        assertEquals("list_chats", tools.calls.single().name)
+    }
+
+    @Test
+    fun `parseNonStream empty message object yields empty text`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[{"message":{}}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream empty string content alone yields empty text`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[{"message":{"content":""}}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream tools content prefers content over reasoning`() {
+        val payload = """{"choices":[{"message":{"content":"hi","reasoning_content":"thinking","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        assertEquals("hi", (result as OpenAiCompatClient.Completion.Tools).content)
+    }
+
 }
