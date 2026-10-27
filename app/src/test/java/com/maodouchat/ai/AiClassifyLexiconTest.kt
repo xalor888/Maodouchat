@@ -848,4 +848,39 @@ class AiClassifyLexiconTest {
         assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `discount word alone hits finance at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("优惠")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `do not forget phrase alone hits todo at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("别忘了")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `notice finance study three-way tie breaks toward notice with third confidence`() {
+        val result = AiClassifyLexicon.classifyText("通知 转账 学习")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance and notice two-two tie breaks toward notice with half confidence`() {
+        val result = AiClassifyLexicon.classifyText("转账 付款 通知 公告")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english dinner word alone hits social at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("dinner")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }
