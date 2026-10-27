@@ -86,6 +86,45 @@ class MessagePinPolicyTest {
     }
 
     @Test
+    fun group_owner_and_admin_still_blocked_by_non_pinnable_type() {
+        assertFalse(MessagePinPolicy.canPin(true, "OWNER", MessageType.SYSTEM))
+        assertFalse(MessagePinPolicy.canPin(true, "ADMIN", MessageType.REVOKED))
+        assertFalse(MessagePinPolicy.canPin(true, "OWNER", MessageType.NUDGE))
+    }
+
+    @Test
+    fun isPinnableType_accepts_gif_and_rejects_system_types() {
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.GIF))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.IMAGE))
+        assertFalse(MessagePinPolicy.isPinnableType(MessageType.SYSTEM))
+        assertFalse(MessagePinPolicy.isPinnableType(MessageType.SK_DIST))
+    }
+
+    @Test
+    fun preview_kind_maps_revoked_and_nudge_to_generic() {
+        assertEquals(PreviewKind.GENERIC, MessagePinPolicy.previewKind(MessageType.REVOKED))
+        assertEquals(PreviewKind.GENERIC, MessagePinPolicy.previewKind(MessageType.NUDGE))
+        assertEquals(PreviewKind.GENERIC, MessagePinPolicy.previewKind(MessageType.SK_DIST))
+    }
+
+    @Test
+    fun text_preview_exact_length_kept_and_one_over_truncated() {
+        val exact = "a".repeat(96)
+        assertEquals(exact, MessagePinPolicy.textPreview(exact, 96))
+        val over = "a".repeat(97)
+        val preview = MessagePinPolicy.textPreview(over, 96)
+        assertEquals("a".repeat(95) + "…", preview)
+        assertEquals(96, preview.length)
+    }
+
+    @Test
+    fun direct_chat_pin_ignores_role() {
+        assertTrue(MessagePinPolicy.canPin(false, "OWNER", MessageType.TEXT))
+        assertTrue(MessagePinPolicy.canPin(false, "", MessageType.TEXT))
+        assertTrue(MessagePinPolicy.canPin(false, "ADMIN", MessageType.TEXT))
+    }
+
+    @Test
     fun text_preview_folds_newlines_and_keeps_literal_meta_text() {
         assertEquals("a b", MessagePinPolicy.textPreview("a\nb<meta>x"))
         assertEquals("a <meta> b", MessagePinPolicy.textPreview("a <meta> b<meta>{\"a\":1}"))
