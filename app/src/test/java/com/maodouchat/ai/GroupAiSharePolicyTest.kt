@@ -873,4 +873,41 @@ class GroupAiSharePolicyTest {
         assertEquals("a\tb", cleaned.single().title)
     }
 
+    @Test
+    fun `decideShare keeps internal double spaces`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "  a  b  ")
+        assertTrue(decision.allowed)
+        assertEquals("a  b", decision.body)
+    }
+
+    @Test
+    fun `shareAssistantMode newline-only mode nulls`() {
+        assertNull(GroupAiSharePolicy.shareAssistantMode("\n"))
+    }
+
+    @Test
+    fun `sanitizeTasks keeps internal double spaces in dueText`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", dueText = "a  b"))
+        )
+        assertEquals("a  b", cleaned.single().dueText)
+    }
+
+    @Test
+    fun `canPersistTasks true with one valid among many blanks beyond cap`() {
+        val tasks = List(35) { TaskDraft("   ") } + TaskDraft("ok")
+        assertTrue(GroupAiSharePolicy.canPersistTasks(tasks))
+    }
+
+    @Test
+    fun `closed loop ready at max share chars and max task count`() {
+        assertTrue(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = true,
+                answer = "x".repeat(4000),
+                tasks = List(30) { i -> TaskDraft("t$i") }
+            )
+        )
+    }
+
 }
