@@ -739,4 +739,40 @@ class AiEmotionLexiconTest {
         assertEquals(Emotion.HAPPY, result.emotion)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `missing contains miss and hits sad`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("missing"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `hateful contains hate and hits angry`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("hateful"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `stressful contains stress and hits anxious`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("stressful"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `nervousness contains nervous and hits anxious`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("nervousness"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad anxious tie breaks toward sad`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过焦虑"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
 }

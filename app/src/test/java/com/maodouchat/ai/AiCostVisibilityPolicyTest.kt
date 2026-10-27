@@ -1630,4 +1630,42 @@ class AiCostVisibilityPolicyTest {
         assertTrue(signal.warnRetryBills)
     }
 
+    @Test
+    fun `embedded retry after accepts leading plus and leading zero seconds`() {
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:+45"))
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:045"))
+    }
+
+    @Test
+    fun `wait seconds server retry exactly at day cap passes through`() {
+        assertEquals(86_400L, AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED", 86_400L))
+        assertEquals(86_400L, AiCostVisibilityPolicy.waitSecondsFor(null, 86_400L))
+    }
+
+    @Test
+    fun `wait seconds local remaining exactly one day stays one day`() {
+        assertEquals(
+            86_400L,
+            AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED", localRemainingMs = 86_400_000)
+        )
+        assertEquals(86_400L, AiCostVisibilityPolicy.waitSecondsFor(null, localRemainingMs = 86_400_000))
+    }
+
+    @Test
+    fun `encode error code re-suffixes a suffixed quota base`() {
+        assertEquals(
+            "QUOTA_EXCEEDED:90",
+            AiCostVisibilityPolicy.encodeErrorCode("QUOTA_EXCEEDED:30", 90)
+        )
+    }
+
+    @Test
+    fun `display signal too many code waits zero but hints wait without warning`() {
+        val signal = AiCostVisibilityPolicy.displaySignalFor("TOO_MANY_REQUESTS")
+        assertEquals("TOO_MANY_REQUESTS", signal.errorCode)
+        assertEquals(0L, signal.waitSeconds)
+        assertEquals(BillingHint.RATE_LIMITED_WAIT, signal.hint)
+        assertFalse(signal.warnRetryBills)
+    }
+
 }
