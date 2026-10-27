@@ -259,4 +259,82 @@ class AttachMenuPolicyTest {
             assertEquals(AttachMenuKind.SILENT, items.last())
         }
     }
+
+    @Test
+    fun channelIgnoresGroupAndFeatureFlagsExceptAi() {
+        val nonGroup = AttachMenuPolicy.items(false, true, true, true, true)
+        val group = AttachMenuPolicy.items(true, true, true, true, true)
+        assertEquals(group, nonGroup)
+        val nonGroupAi = AttachMenuPolicy.items(false, true, true, true, true, aiEnabled = true)
+        val groupAi = AttachMenuPolicy.items(true, true, true, true, true, aiEnabled = true)
+        assertEquals(groupAi, nonGroupAi)
+        assertTrue(AttachMenuKind.AI in groupAi)
+    }
+
+    @Test
+    fun dmAllFlagsOffExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(false, false, false, false, false),
+        )
+    }
+
+    @Test
+    fun nudgeFlagNeverAddsNudgeTile() {
+        listOf(
+            AttachMenuPolicy.items(false, false, true, true, false) to
+                AttachMenuPolicy.items(false, false, true, true, true),
+            AttachMenuPolicy.items(true, false, true, true, false) to
+                AttachMenuPolicy.items(true, false, true, true, true),
+            AttachMenuPolicy.items(true, true, true, true, false) to
+                AttachMenuPolicy.items(true, true, true, true, true),
+        ).forEach { (off, on) ->
+            assertEquals(off, on)
+            assertFalse(AttachMenuKind.NUDGE in on)
+        }
+    }
+
+    @Test
+    fun channelWithAiExactListIgnoresContactAndViewOnce() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.AI,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(true, true, true, true, true, aiEnabled = true),
+        )
+    }
+
+    @Test
+    fun dmAiWithoutContactCardSitsBeforeSilent() {
+        val items = AttachMenuPolicy.items(
+            isGroup = false,
+            isChannel = false,
+            viewOnceEnabled = true,
+            contactCardEnabled = false,
+            nudgeEnabled = true,
+            aiEnabled = true,
+        )
+        assertFalse(AttachMenuKind.CONTACT_CARD in items)
+        assertEquals(AttachMenuKind.AI, items[items.size - 2])
+        assertEquals(AttachMenuKind.SILENT, items.last())
+    }
+
 }
