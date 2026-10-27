@@ -780,4 +780,41 @@ class AgentToolPolicyTest {
         )
     }
 
+    @Test
+    fun `parseBool accepts mixed case spellings`() {
+        assertEquals(true, AgentToolHost.parseBool("True"))
+        assertEquals(false, AgentToolHost.parseBool("FALSE"))
+        assertEquals(true, AgentToolHost.parseBool("YeS"))
+        assertEquals(false, AgentToolHost.parseBool("nO"))
+    }
+
+    @Test
+    fun `parseArgs stringifies scalars and null`() {
+        val args = AgentToolHost.parseArgs("""{"n":2,"b":true}""")
+        assertEquals("2", args["n"])
+        assertEquals("true", args["b"])
+        assertEquals("null", AgentToolHost.parseArgs("""{"a":null}""")["a"])
+    }
+
+    @Test
+    fun `parseArgs rejects malformed and blank json`() {
+        assertTrue(AgentToolHost.parseArgs("not json").isEmpty())
+        assertTrue(AgentToolHost.parseArgs("  ").isEmpty())
+    }
+
+    @Test
+    fun `toolByName matches names exactly`() {
+        assertTrue(AgentToolPolicy.toolByName("LIST_CHATS") == null)
+        assertTrue(AgentToolPolicy.toolByName(" list_chats ") == null)
+        assertTrue(AgentToolPolicy.toolByName("") == null)
+        assertTrue(AgentToolPolicy.toolByName("list_chats") != null)
+    }
+
+    @Test
+    fun `catalog spans all three risk kinds`() {
+        assertTrue(AgentToolPolicy.tools.any { it.risk == Risk.READ })
+        assertTrue(AgentToolPolicy.tools.any { it.risk == Risk.WRITE })
+        assertTrue(AgentToolPolicy.tools.any { it.risk == Risk.SEND })
+    }
+
 }
