@@ -703,4 +703,40 @@ class AiEmotionLexiconTest {
         assertEquals(4.0 / 5.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `sadness contains sad substring counts as sad`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("sadness"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `crying contains cry substring counts as sad`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("crying"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `madness contains mad substring counts as angry`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("madness"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `worry without ed suffix stays neutral`() {
+        // 词典里只有 worried，裸 worry 不命中
+        val result = AiEmotionLexicon.detectEmotion(listOf("worry"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `hahaha contains haha counts once as happy`() {
+        // 按词计次而非按出现次数：haha 只计 1 次
+        val result = AiEmotionLexicon.detectEmotion(listOf("hahaha"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }
