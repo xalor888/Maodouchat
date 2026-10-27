@@ -949,4 +949,40 @@ class GroupAiSharePolicyTest {
         assertEquals("a\tb", GroupAiSharePolicy.shareAssistantMode("a\tb"))
     }
 
+    @Test
+    fun `decideShare trims vertical tab and form feed at ends`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "\u000B\u000Chello\u000C\u000B")
+        assertTrue(decision.allowed)
+        assertEquals("hello", decision.body)
+    }
+
+    @Test
+    fun `decideShare keeps internal vertical tab`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "a\u000Bb")
+        assertTrue(decision.allowed)
+        assertEquals("a\u000Bb", decision.body)
+    }
+
+    @Test
+    fun `decideShare vertical tab only answer is blocked`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "\u000B")
+        assertFalse(decision.allowed)
+        assertEquals(BlockReason.EMPTY_ANSWER, decision.reason)
+    }
+
+    @Test
+    fun `shareAssistantMode trims vertical tab wrapped mode`() {
+        assertEquals("tasks", GroupAiSharePolicy.shareAssistantMode("\u000Btasks\u000B"))
+        assertNull(GroupAiSharePolicy.shareAssistantMode("\u000C"))
+    }
+
+    @Test
+    fun `sanitizeTasks trims vertical tab wrapped title and owner`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "\u000Bt\u000B", owner = "\u000Balice\u000B"))
+        )
+        assertEquals(1, cleaned.size)
+        assertEquals("t", cleaned.single().title)
+        assertEquals("alice", cleaned.single().owner)
+    }
 }
