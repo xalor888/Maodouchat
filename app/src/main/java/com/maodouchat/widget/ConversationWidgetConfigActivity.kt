@@ -6,7 +6,9 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
+import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.network.TokenManager
 
 /**
@@ -41,10 +43,14 @@ class ConversationWidgetConfigActivity : ComponentActivity() {
         }
 
         val initialConfig = ConversationWidgetData.widgetConfig(this, widgetId)
+        val chatRepository = (application as? MaodouchatApp)?.let { app ->
+            ChatRepository(app.database.chatDao(), app.database.userDao())
+        }
         setContent {
             ConversationWidgetConfigContent(
                 initial = initialConfig,
                 ownerUserId = tokenManager.getUserId().orEmpty(),
+                chatRepository = chatRepository,
                 onSave = { chatIds, badge, compact -> saveAndFinish(chatIds, badge, compact) },
             )
         }
