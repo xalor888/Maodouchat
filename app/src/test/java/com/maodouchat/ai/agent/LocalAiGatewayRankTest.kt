@@ -705,4 +705,45 @@ class LocalAiGatewayRankTest {
         assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("don't", candidates))
     }
 
+
+    @Test
+    fun `twelve identical query tokens score twelve`() = runBlocking {
+        val query = List(12) { "red" }.joinToString(" ")
+        val scored = LocalAiGateway.rankSemanticScored(query, listOf("c1" to "red car"))
+        assertEquals(listOf("c1" to 12.0), scored)
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic(query, listOf("c1" to "red car")))
+    }
+
+    @Test
+    fun `punctuation-only query token matches literally`() = runBlocking {
+        val candidates = listOf("c1" to "wow!!!", "c2" to "wow")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("!!!", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("!!!", candidates))
+    }
+
+    @Test
+    fun `scored ranking with no candidates returns empty`() = runBlocking {
+        assertEquals(emptyList<Pair<String, Double>>(), LocalAiGateway.rankSemanticScored("meeting", emptyList()))
+        assertEquals(emptyList<String>(), LocalAiGateway.rankSemantic("meeting", emptyList()))
+    }
+
+    @Test
+    fun `candidate case variants of one token still score once`() = runBlocking {
+        // 计分按查询词条数：候选里同一词条出现多次仍只计 1 次
+        val scored = LocalAiGateway.rankSemanticScored(
+            "meeting",
+            listOf("c1" to "Meeting MEETING meeting notes")
+        )
+        assertEquals(listOf("c1" to 1.0), scored)
+    }
+
+    @Test
+    fun `mixed tab newline space separators split tokens uniformly`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "red\tblue\n green",
+            listOf("c1" to "red car", "c2" to "red blue green car")
+        )
+        assertEquals(listOf("c2" to 3.0, "c1" to 1.0), scored)
+    }
+
 }

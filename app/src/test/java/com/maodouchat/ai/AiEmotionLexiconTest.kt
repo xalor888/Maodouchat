@@ -666,4 +666,41 @@ class AiEmotionLexiconTest {
         assertEquals(1.0 / 3.0, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `english love and hate tie breaks toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("love hate"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `happy three hits beat sad two hits at three fifths`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈 开心 喜欢", "难过 伤心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(3.0 / 5.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `angry three hits beat anxious two hits at three fifths`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("生气 愤怒 可恶", "担心 害怕"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(3.0 / 5.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `uppercase lol plus lowercase love counts only love`() {
+        // 词典匹配区分大小写：大写 LOL 不命中，只有小写 love 计 1 次
+        val result = AiEmotionLexicon.detectEmotion(listOf("LOL love"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `happy four hits beat sad one hit at four fifths`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过", "哈哈 开心 喜欢 太好了"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(4.0 / 5.0, result.confidence, 0.0001)
+    }
+
 }
