@@ -94,4 +94,34 @@ class SecretChatPolicyTest {
         assertFalse(SecretChatPolicy.allowInCustomOrLockedFolder(isSecret = true))
         assertTrue(SecretChatPolicy.allowInCustomOrLockedFolder(isSecret = false))
     }
+
+    @Test
+    fun chatTypeConstantPinsTheSecretMarker() {
+        assertEquals("SECRET", SecretChatPolicy.CHAT_TYPE)
+        assertTrue(SecretChatPolicy.isSecretChatType(SecretChatPolicy.CHAT_TYPE))
+    }
+
+    @Test
+    fun canStartFromWhitespaceOnlyTypeButNotFromGroupSecret() {
+        assertTrue(SecretChatPolicy.canStartFromDirect(isGroup = false, chatType = "   "))
+        assertFalse(SecretChatPolicy.canStartFromDirect(isGroup = true, chatType = "SECRET"))
+    }
+
+    @Test
+    fun canCreateSecretRejectsGroupOfOneAndHugeNonGroup() {
+        assertFalse(SecretChatPolicy.canCreateSecret(isGroup = true, participantCount = 1))
+        assertFalse(SecretChatPolicy.canCreateSecret(isGroup = false, participantCount = 100))
+    }
+
+    @Test
+    fun mosaicDisplayNameIgnoresEmptyAndVeryLongInput() {
+        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName(""))
+        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("x".repeat(500)))
+    }
+
+    @Test
+    fun typeMatchingRejectsInnerSpacesAndNearMissDirect() {
+        assertFalse(SecretChatPolicy.isSecretChatType("SEC RET"))
+        assertFalse(SecretChatPolicy.canStartFromDirect(isGroup = false, chatType = "DIRECTX"))
+    }
 }
