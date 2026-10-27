@@ -631,4 +631,39 @@ class AiEmotionLexiconTest {
         assertEquals(1.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `happy and anxious two-way tie with different words breaks toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("开心", "担心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad two hits beat anxious one hit in a single text`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过 伤心 担心"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `angry word in second text only decides when first text is neutral`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("今天天气不错", "生气"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `uppercase lol alone stays neutral`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("LOL"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `three texts with one hit each tie toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "难过", "担心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
 }
