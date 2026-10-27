@@ -132,4 +132,69 @@ class FakeChatPolicyTest {
         assertTrue(first)
         assertEquals(first, decide())
     }
+
+    @Test
+    fun `unlocked session stays open when relock disabled even after background`() {
+        assertFalse(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = true,
+                unlockedForCurrentUser = true,
+                relockOnBackground = false,
+                backgroundAtMillis = 10_000L
+            )
+        )
+    }
+
+    @Test
+    fun `missing pin never intercepts even for a backgrounded locked session`() {
+        assertFalse(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = false,
+                unlockedForCurrentUser = false,
+                relockOnBackground = true,
+                backgroundAtMillis = 10_000L
+            )
+        )
+    }
+
+    @Test
+    fun `disabled and pinless together never intercept`() {
+        assertFalse(
+            FakeChatPolicy.shouldShowFake(
+                enabled = false,
+                hasPin = false,
+                unlockedForCurrentUser = true,
+                relockOnBackground = true,
+                backgroundAtMillis = 10_000L
+            )
+        )
+    }
+
+    @Test
+    fun `huge background timestamp still intercepts an unlocked relocking session`() {
+        assertTrue(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = true,
+                unlockedForCurrentUser = true,
+                relockOnBackground = true,
+                backgroundAtMillis = Long.MAX_VALUE
+            )
+        )
+    }
+
+    @Test
+    fun `locked session intercepts even with relock disabled and zero background timestamp`() {
+        assertTrue(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = true,
+                unlockedForCurrentUser = false,
+                relockOnBackground = false,
+                backgroundAtMillis = 0L
+            )
+        )
+    }
 }

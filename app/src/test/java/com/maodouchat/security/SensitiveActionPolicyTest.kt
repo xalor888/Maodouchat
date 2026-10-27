@@ -175,4 +175,134 @@ class SensitiveActionPolicyTest {
             )
         }
     }
+
+    @Test
+    fun `disable totp follows the full gate truth table`() {
+        assertTrue(stepUp(SensitiveAction.DISABLE_TOTP))
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = true,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.DISABLE_TOTP
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = true,
+                action = SensitiveAction.DISABLE_TOTP
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.DISABLE_TOTP
+            )
+        )
+    }
+
+    @Test
+    fun `disable app lock follows the full gate truth table`() {
+        assertTrue(stepUp(SensitiveAction.DISABLE_APP_LOCK))
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = true,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.DISABLE_APP_LOCK
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = true,
+                action = SensitiveAction.DISABLE_APP_LOCK
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.DISABLE_APP_LOCK
+            )
+        )
+    }
+
+    @Test
+    fun `clear chat history follows the full gate truth table`() {
+        assertTrue(stepUp(SensitiveAction.CLEAR_CHAT_HISTORY))
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = true,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.CLEAR_CHAT_HISTORY
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = true,
+                action = SensitiveAction.CLEAR_CHAT_HISTORY
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.CLEAR_CHAT_HISTORY
+            )
+        )
+    }
+
+    @Test
+    fun `logout follows the full gate truth table`() {
+        assertTrue(stepUp(SensitiveAction.LOGOUT))
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = true,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.LOGOUT
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = true,
+                action = SensitiveAction.LOGOUT
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.LOGOUT
+            )
+        )
+    }
+
+    @Test
+    fun `delete account follows the full gate truth table`() {
+        assertTrue(stepUp(SensitiveAction.DELETE_ACCOUNT))
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = true,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.DELETE_ACCOUNT
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = true,
+                action = SensitiveAction.DELETE_ACCOUNT
+            )
+        )
+        assertFalse(
+            SensitiveActionPolicy.requiresStepUp(
+                appLockEnabled = false,
+                sensitiveGateEnabled = false,
+                action = SensitiveAction.DELETE_ACCOUNT
+            )
+        )
+    }
 }
