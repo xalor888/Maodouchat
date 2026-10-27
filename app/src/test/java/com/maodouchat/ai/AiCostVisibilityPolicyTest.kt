@@ -1496,4 +1496,54 @@ class AiCostVisibilityPolicyTest {
         )
     }
 
+    @Test
+    fun `classify retry after clamps above one day`() {
+        val clamped = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = null,
+            serverRetryAfterSeconds = 100_000
+        )
+        assertEquals(86_400L, clamped.retryAfterSeconds)
+        val exact = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 429,
+            serverCode = null,
+            serverMessage = null,
+            serverRetryAfterSeconds = 86_400
+        )
+        assertEquals(86_400L, exact.retryAfterSeconds)
+    }
+
+    @Test
+    fun `shouldWarn stays silent for blank codes`() {
+        assertFalse(AiCostVisibilityPolicy.shouldWarnRetryBills(""))
+        assertFalse(AiCostVisibilityPolicy.shouldWarnRetryBills("   "))
+    }
+
+    @Test
+    fun `display signal streaming keeps embedded wait`() {
+        val signal = AiCostVisibilityPolicy.displaySignalFor(
+            "RATE_LIMITED:45",
+            isStreaming = true
+        )
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, signal.errorCode)
+        assertEquals(45L, signal.waitSeconds)
+        assertEquals(BillingHint.IN_FLIGHT_MAY_BILL, signal.hint)
+        assertTrue(signal.warnRetryBills)
+    }
+
+    @Test
+    fun `encode bare rate limit base takes suffix`() {
+        assertEquals(
+            "RATE_LIMIT:30",
+            AiCostVisibilityPolicy.encodeErrorCode("rate_limit", 30)
+        )
+    }
+
+    @Test
+    fun `embedded retry after rejects negative seconds`() {
+        assertTrue(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED:-5") == null)
+        assertTrue(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("QUOTA_EXCEEDED:-1") == null)
+    }
+
 }

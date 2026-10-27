@@ -1251,4 +1251,60 @@ class AiEntryPolicyTest {
         assertFalse(AiEntryPolicy.hasContextAiActions("VOICE", hasTranscript = true))
     }
 
+    @Test
+    fun `gif joins the image family`() {
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("GIF")
+        )
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("IMAGE"),
+            AiEntryPolicy.contextActionsFor("GIF")
+        )
+    }
+
+    @Test
+    fun `transcript flag ignored for markdown system and gif`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("MARKDOWN", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("SYSTEM", hasTranscript = true)
+        )
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("GIF", hasTranscript = true)
+        )
+    }
+
+    @Test
+    fun `hasContext stays true for non-voice types with transcript`() {
+        assertTrue(AiEntryPolicy.hasContextAiActions("IMAGE", hasTranscript = true))
+        assertTrue(AiEntryPolicy.hasContextAiActions("FILE", hasTranscript = true))
+        assertTrue(AiEntryPolicy.hasContextAiActions("MARKDOWN", hasTranscript = true))
+    }
+
+    @Test
+    fun `null blank and poll stay empty with transcript`() {
+        assertTrue(AiEntryPolicy.contextActionsFor(null, hasTranscript = true).isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("  ", hasTranscript = true).isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("POLL", hasTranscript = true).isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions(null, hasTranscript = true))
+        assertFalse(AiEntryPolicy.hasContextAiActions("POLL", hasTranscript = true))
+    }
+
+    @Test
+    fun `tabbed voice still transcribes`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("\tVOICE\n")
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor(" \n VOICE \r ")
+        )
+    }
+
 }
