@@ -965,4 +965,51 @@ class AiRetryPolicyWindowTest {
         assertTrue(AiRetryPolicy.canCallNow("chat", AiRetryPolicyCategory.LIGHT))
         assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat", AiRetryPolicyCategory.LIGHT))
     }
+
+    @Test
+    fun overflowRecordBeyondGlobalCapKeepsOldestWait() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        AiRetryPolicy.recordCall("chat-240", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        val wait = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue("overflow must not evict the oldest slot, was $wait", wait > 3_000_000L)
+    }
+
+    @Test
+    fun light240thSlotReportsGlobalScaleWait() {
+        repeat(239) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        AiRetryPolicy.recordCall("chat-239", AiRetryPolicyCategory.LIGHT)
+        val wait = AiRetryPolicy.remainingDelayMs("chat-239", AiRetryPolicyCategory.LIGHT)
+        assertTrue("240th LIGHT slot should report global-scale delay, was $wait", wait > 3_000_000L)
+    }
+
+    @Test
+    fun sameChatHeavyRecordsFillGlobalWindow() {
+        repeat(240) { AiRetryPolicy.recordCall("chat-same", AiRetryPolicyCategory.HEAVY) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.HEAVY))
+        val wait = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue("global window should dominate, was $wait", wait > 3_000_000L)
+    }
+
+    @Test
+    fun lightRecordedFirstThenGlobalFillReportsGlobalScaleWait() {
+        AiRetryPolicy.recordCall("chat-a", AiRetryPolicyCategory.LIGHT)
+        repeat(239) { index -> AiRetryPolicy.recordCall("other-$index", AiRetryPolicyCategory.LIGHT) }
+        assertFalse(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        val wait = AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT)
+        assertTrue("first-recorded chat should report global-scale delay, was $wait", wait > 3_000_000L)
+    }
+
+    @Test
+    fun globalWindowRefillsAfterClearSession() {
+        repeat(240) { index -> AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        AiRetryPolicy.clearSession()
+        assertTrue(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        repeat(240) { index -> AiRetryPolicy.recordCall("again-$index", AiRetryPolicyCategory.LIGHT) }
+        assertFalse(AiRetryPolicy.canCallNow("fresh", AiRetryPolicyCategory.LIGHT))
+        val wait = AiRetryPolicy.remainingDelayMs("fresh", AiRetryPolicyCategory.LIGHT)
+        assertTrue("refilled window should dominate, was $wait", wait > 3_000_000L)
+    }
 }
