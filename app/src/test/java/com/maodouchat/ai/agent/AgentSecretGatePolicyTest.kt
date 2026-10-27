@@ -413,4 +413,50 @@ class AgentSecretGatePolicyTest {
         }
     }
 
+    @Test
+    fun secretDenialWordListIsExact() {
+        assertEquals(
+            listOf("Error:", "secret", "chats", "are", "not", "available", "to", "the", "assistant"),
+            AgentSecretGatePolicy.SECRET_DENIED.split(" ")
+        )
+    }
+
+    @Test
+    fun pinDenialWordListIsExact() {
+        assertEquals(
+            listOf("Error:", "chat", "is", "PIN-locked"),
+            AgentSecretGatePolicy.PIN_DENIED.split(" ")
+        )
+    }
+
+    @Test
+    fun deniedExactlyWhenSecretOrLockedAndNotUnlocked() {
+        for (isSecret in listOf(false, true)) {
+            for (isLocked in listOf(false, true)) {
+                for (unlocked in listOf(false, true)) {
+                    assertEquals(
+                        "($isSecret, $isLocked, $unlocked)",
+                        isSecret || (isLocked && !unlocked),
+                        AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret, isLocked, unlocked) != null
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun secretDenialSmallWordsAppearOnce() {
+        assertEquals(1, AgentSecretGatePolicy.SECRET_DENIED.split("the").size - 1)
+        assertEquals(1, AgentSecretGatePolicy.SECRET_DENIED.split("are").size - 1)
+        assertEquals(1, AgentSecretGatePolicy.SECRET_DENIED.split("not").size - 1)
+    }
+
+    @Test
+    fun secretChatsExcludedFromListingInEveryLockedState() {
+        for (isLocked in listOf(false, true)) {
+            for (unlocked in listOf(false, true)) {
+                assertFalse(AgentSecretGatePolicy.includeInChatList(true, isLocked, unlocked))
+            }
+        }
+    }
 }
