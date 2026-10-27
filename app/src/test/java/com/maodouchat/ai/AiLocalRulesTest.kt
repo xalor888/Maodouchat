@@ -770,4 +770,52 @@ class AiLocalRulesTest {
         assertEquals(0.5, swapped.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `detect emotion scan window resets for each text`() {
+        val afterLong = AiEmotionReply.detectEmotion(listOf("垫".repeat(250), "开心"))
+        assertEquals(Emotion.HAPPY, afterLong.emotion)
+        assertEquals(1.0, afterLong.confidence, 0.0001)
+        val beforeLong = AiEmotionReply.detectEmotion(listOf("开心", "垫".repeat(250)))
+        assertEquals(Emotion.HAPPY, beforeLong.emotion)
+        assertEquals(1.0, beforeLong.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion three way tie takes happy at third confidence`() {
+        val result = AiEmotionReply.detectEmotion(listOf("开心 难过 生气"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion substring inside longer english word still hits`() {
+        val lovely = AiEmotionReply.detectEmotion(listOf("lovely"))
+        assertEquals(Emotion.HAPPY, lovely.emotion)
+        assertEquals(1.0, lovely.confidence, 0.0001)
+        val missing = AiEmotionReply.detectEmotion(listOf("missing you"))
+        assertEquals(Emotion.SAD, missing.emotion)
+        assertEquals(1.0, missing.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion bare cry and laugh characters are not hits`() {
+        val bare = AiEmotionReply.detectEmotion(listOf("哭 笑"))
+        assertEquals(Emotion.NEUTRAL, bare.emotion)
+        assertEquals(0.0, bare.confidence, 0.0001)
+        val cried = AiEmotionReply.detectEmotion(listOf("哭了"))
+        assertEquals(Emotion.SAD, cried.emotion)
+        assertEquals(1.0, cried.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion single char angry hit counts once`() {
+        val single = AiEmotionReply.detectEmotion(listOf("烦"))
+        assertEquals(Emotion.ANGRY, single.emotion)
+        assertEquals(1.0, single.confidence, 0.0001)
+        val repeated = AiEmotionReply.detectEmotion(listOf("烦 烦"))
+        assertEquals(Emotion.ANGRY, repeated.emotion)
+        assertEquals(1.0, repeated.confidence, 0.0001)
+    }
+
 }
