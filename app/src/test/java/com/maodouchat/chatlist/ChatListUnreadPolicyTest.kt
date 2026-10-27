@@ -110,6 +110,104 @@ class ChatListUnreadPolicyTest {
     }
 
     @Test
+    fun negativeCountsCoercedToZero() {
+        assertEquals(
+            0,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = -3,
+                localUnread = -2,
+                isActiveChat = false
+            )
+        )
+        assertEquals(
+            0,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = -1,
+                localUnread = null,
+                isActiveChat = false
+            )
+        )
+    }
+
+    @Test
+    fun manualMarkedUnreadSurvivesStaleZero() {
+        assertEquals(
+            5,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = 5,
+                localUnread = 0,
+                isActiveChat = false,
+                localMarkedUnread = true,
+                serverLastMessageTime = 100,
+                localLastMessageTime = 100
+            )
+        )
+    }
+
+    @Test
+    fun activeChatMarkedUnreadAlsoCleared() {
+        assertFalse(
+            ChatListUnreadPolicy.mergeMarkedUnread(
+                serverMarked = true,
+                localMarked = true,
+                isActiveChat = true
+            )
+        )
+        assertFalse(
+            ChatListUnreadPolicy.mergeMarkedUnread(
+                serverMarked = false,
+                localMarked = true,
+                isActiveChat = true
+            )
+        )
+    }
+
+    @Test
+    fun markedMergeServerTrueWinsExceptActiveChat() {
+        assertTrue(
+            ChatListUnreadPolicy.mergeMarkedUnread(
+                serverMarked = true,
+                localMarked = true,
+                isActiveChat = false
+            )
+        )
+        assertTrue(
+            ChatListUnreadPolicy.mergeMarkedUnread(
+                serverMarked = true,
+                localMarked = false,
+                isActiveChat = false
+            )
+        )
+        assertFalse(
+            ChatListUnreadPolicy.mergeMarkedUnread(
+                serverMarked = false,
+                localMarked = null,
+                isActiveChat = false
+            )
+        )
+    }
+
+    @Test
+    fun serverZeroKeepsLocalPositive() {
+        assertEquals(
+            4,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = 0,
+                localUnread = 4,
+                isActiveChat = false
+            )
+        )
+        assertEquals(
+            0,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = 0,
+                localUnread = null,
+                isActiveChat = false
+            )
+        )
+    }
+
+    @Test
     fun markedUnreadMerge() {
         assertFalse(
             ChatListUnreadPolicy.mergeMarkedUnread(
