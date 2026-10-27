@@ -1546,4 +1546,88 @@ class AiCostVisibilityPolicyTest {
         assertTrue(AiCostVisibilityPolicy.embeddedRetryAfterSeconds("QUOTA_EXCEEDED:-1") == null)
     }
 
+
+    @Test
+    fun `billing hint scheduled auto retry alone is safe`() {
+        assertEquals(
+            BillingHint.SAFE_AUTO_RETRY,
+            AiCostVisibilityPolicy.billingHintFor(null, hasScheduledAutoRetry = true)
+        )
+        assertEquals(
+            BillingHint.NONE,
+            AiCostVisibilityPolicy.billingHintFor(null)
+        )
+    }
+
+    @Test
+    fun `classify unfamiliar status and blank fields stay generic`() {
+        val weird = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = 418,
+            serverCode = "SOME_CODE",
+            serverMessage = "weird"
+        )
+        assertFalse(weird.isRateLimited)
+        assertFalse(weird.isQuota)
+        assertNull(weird.retryAfterSeconds)
+        assertNull(AiCostVisibilityPolicy.mapToErrorCode(weird))
+        val blank = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "   ",
+            serverMessage = "   "
+        )
+        assertFalse(blank.isRateLimited)
+        assertFalse(blank.isQuota)
+        assertNull(AiCostVisibilityPolicy.mapToErrorCode(blank))
+    }
+
+    @Test
+    fun `wait seconds cancelled code still honors server retry`() {
+        assertEquals(
+            30L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_CANCELLED,
+                serverRetryAfterSeconds = 30
+            )
+        )
+        assertEquals(
+            30L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_CANCELLED,
+                serverRetryAfterSeconds = 30,
+                localRemainingMs = 5000
+            )
+        )
+    }
+
+    @Test
+    fun `wait seconds local remaining rounds up to exactly one day`() {
+        assertEquals(
+            86_400L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_QUOTA,
+                localRemainingMs = 86_399_999
+            )
+        )
+        assertEquals(
+            86_399L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                AiCostVisibilityPolicy.ERROR_QUOTA,
+                localRemainingMs = 86_399_000
+            )
+        )
+    }
+
+    @Test
+    fun `display signal rate code with zero server and local binds default wait and warn`() {
+        val signal = AiCostVisibilityPolicy.displaySignalFor(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            serverRetryAfterSeconds = 0,
+            localRemainingMs = 0
+        )
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, signal.errorCode)
+        assertEquals(30L, signal.waitSeconds)
+        assertEquals(BillingHint.RATE_LIMITED_WAIT, signal.hint)
+        assertTrue(signal.warnRetryBills)
+    }
+
 }
