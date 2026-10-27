@@ -679,4 +679,39 @@ class AiPromptSafetyPolicyTest {
         assertEquals("user", AiPromptSafetyPolicy.sanitizeSender("\r"))
     }
 
+
+    @Test
+    fun `scan catches wired funds transfer claim alone`() {
+        val result = AiPromptSafetyPolicy.scanPrivilegeClaims("wired funds")
+        assertTrue(result.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.TRANSFER_OR_PAYMENT), result.kinds)
+    }
+
+    @Test
+    fun `scan catches chinese transfer claim alone`() {
+        val result = AiPromptSafetyPolicy.scanPrivilegeClaims("已经转账")
+        assertTrue(result.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.TRANSFER_OR_PAYMENT), result.kinds)
+    }
+
+    @Test
+    fun `scan with no claim reports an empty kinds set`() {
+        val result = AiPromptSafetyPolicy.scanPrivilegeClaims("hello there")
+        assertFalse(result.hasClaim)
+        assertTrue(result.kinds.isEmpty())
+    }
+
+    @Test
+    fun `injection phrase split by newline stays negative`() {
+        // contains 是子串匹配：换行切断的短语拼不出模板
+        assertFalse(AiPromptSafetyPolicy.isLikelyInjectionAttempt("ignore\nprevious instructions"))
+    }
+
+    @Test
+    fun `context line with null sender falls back to user`() {
+        val line = AiPromptSafetyPolicy.sanitizeContextLine(null, "hello")
+        assertEquals("user", line?.sender)
+        assertEquals("hello", line?.text)
+    }
+
 }

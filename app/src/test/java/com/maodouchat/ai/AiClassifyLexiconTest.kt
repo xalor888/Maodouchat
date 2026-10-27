@@ -644,4 +644,45 @@ class AiClassifyLexiconTest {
         )
     }
 
+
+    @Test
+    fun `notice category from english notice word alone`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.NOTICE, 1.0),
+            AiClassifyLexicon.classifyText("notice")
+        )
+    }
+
+    @Test
+    fun `finance category from chinese payment word alone`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.FINANCE, 1.0),
+            AiClassifyLexicon.classifyText("请付款")
+        )
+    }
+
+    @Test
+    fun `todo category from chinese remember word alone`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.TODO, 1.0),
+            AiClassifyLexicon.classifyText("记得带伞")
+        )
+    }
+
+    @Test
+    fun `tech category from chinese code word alone`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.TECH, 1.0),
+            AiClassifyLexicon.classifyText("代码写完了")
+        )
+    }
+
+    @Test
+    fun `social category from english weekend word alone`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.SOCIAL, 1.0),
+            AiClassifyLexicon.classifyText("weekend plans")
+        )
+    }
+
 }
