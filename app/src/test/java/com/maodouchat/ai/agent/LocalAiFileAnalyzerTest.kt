@@ -407,4 +407,52 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("%PDF-1.4 junk".toByteArray(Charsets.US_ASCII))
         assertNull(LocalAiFileAnalyzer.prepare("a.png", "image/png", encoded))
     }
+
+    @Test
+    fun `uppercase text mime with parameters is accepted and stored lowercased`() {
+        val body = "hi"
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "TEXT/PLAIN; charset=utf-8", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("text/plain; charset=utf-8", prepared.mimeType)
+        assertEquals("hi", prepared.text)
+    }
+
+    @Test
+    fun `uppercase pdf mime forces pdf path and rejects text bytes`() {
+        val encoded = Base64.getEncoder().encodeToString("hello".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("notes.txt", "APPLICATION/PDF", encoded))
+    }
+
+    @Test
+    fun `soh control character text is accepted`() {
+        // 拒绝集只有空字节与替换字符，SOH 不在其中。
+        val body = "ab\u0001c"
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(body, prepared.text)
+    }
+
+    @Test
+    fun `vertical tab text is accepted verbatim`() {
+        val body = "a\u000Bb"
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(body, prepared.text)
+    }
+
+    @Test
+    fun `form feed text is accepted verbatim`() {
+        val body = "a\u000Cb"
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(body, prepared.text)
+    }
 }
