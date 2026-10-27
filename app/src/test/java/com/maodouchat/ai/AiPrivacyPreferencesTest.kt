@@ -957,4 +957,66 @@ class AiPrivacyPreferencesTest {
         )
     }
 
+    @Test
+    fun `all scoped keys for two accounts stay distinct`() {
+        val keys = setOf(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-a"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "u-a"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_LOCAL_SAFETY, "u-a"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS, "u-a"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_AUTO_TRANSLATE, "u-a"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "u-a"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-b"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "u-b"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_LOCAL_SAFETY, "u-b"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_DISMISSED_SAFETY_IDS, "u-b"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_AUTO_TRANSLATE, "u-b"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyKeys.MIGRATED, "u-b")
+        )
+        assertEquals(12, keys.size)
+    }
+
+    @Test
+    fun `prefs name scoped key is exact and distinct from preference keys`() {
+        val scoped = AiPrivacyPreferences.scopedKey(AiPrivacyKeys.PREFS_NAME, "u-1")
+        assertEquals("ai_settings:u-1", scoped)
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u-1"),
+            scoped
+        )
+    }
+
+    @Test
+    fun `scoped key with scoped-looking user id cannot alias another key`() {
+        val scoped = AiPrivacyPreferences.scopedKey(
+            AiPrivacyPreferences.KEY_CONSENT,
+            "ai_user_enabled:u-1"
+        )
+        assertEquals("ai_consent_accepted:ai_user_enabled:u-1", scoped)
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_USER_ENABLED, "u-1"),
+            scoped
+        )
+    }
+
+    @Test
+    fun `scoped key keeps trailing space only user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:u ",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u ")
+        )
+        assertNotEquals(
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u"),
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "u ")
+        )
+    }
+
+    @Test
+    fun `scoped key with single colon user id yields double colon`() {
+        assertEquals(
+            "ai_consent_accepted::",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, ":")
+        )
+    }
+
 }

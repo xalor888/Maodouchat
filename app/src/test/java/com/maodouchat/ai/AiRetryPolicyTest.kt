@@ -1165,4 +1165,49 @@ class AiRetryPolicyTest {
         assertEquals("quota exceeded; do not auto-retry", decision.explanation)
         assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
     }
+
+    @Test
+    fun decideAuthenticationFailedMapsToAuthBranch() {
+        val decision = AiRetryPolicy.decide("AUTHENTICATION_FAILED", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("auth required; do not auto-retry", decision.explanation)
+        assertEquals("AUTHENTICATION_FAILED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideSessionExpiredFallsThroughToNonTransient() {
+        val decision = AiRetryPolicy.decide("SESSION_EXPIRED", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("non-transient error", decision.explanation)
+        assertEquals("SESSION_EXPIRED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideConnectionFailureWithSuffixRetriesAtBaseDelay() {
+        val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED:10", attempts = 1)
+        assertTrue(decision.shouldRetry)
+        assertEquals(800L, decision.delayMs)
+        assertEquals("connection was not established; safe to retry", decision.explanation)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideConnectionFailureBeyondMaxAttemptsStaysCapped() {
+        val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = 4)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("reached max auto retries; user must retry", decision.explanation)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideQuotaSuffixAboveOneDayCapsWaitAtOneDay() {
+        val decision = AiRetryPolicy.decide("QUOTA_EXCEEDED:99999", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(86_400_000L, decision.delayMs)
+        assertEquals("quota exceeded; do not auto-retry", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
 }
