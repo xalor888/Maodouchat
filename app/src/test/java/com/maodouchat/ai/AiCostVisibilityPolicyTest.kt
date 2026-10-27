@@ -1433,4 +1433,67 @@ class AiCostVisibilityPolicyTest {
         assertTrue(signal.warnRetryBills)
     }
 
+
+    @Test
+    fun `classify hyphenated too many code is generic`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "TOO-MANY",
+            serverMessage = null
+        )
+        assertFalse(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertNull(AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `classify fund word alone without insufficient is generic`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = null,
+            serverMessage = "fund transfer failed"
+        )
+        assertFalse(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertNull(AiCostVisibilityPolicy.mapToErrorCode(signal))
+    }
+
+    @Test
+    fun `display signal failed unknown code warns nothing but hints retry may bill`() {
+        val signal = AiCostVisibilityPolicy.displaySignalFor("WHATEVER", isFailed = true)
+        assertEquals("WHATEVER", signal.errorCode)
+        assertEquals(0L, signal.waitSeconds)
+        assertEquals(BillingHint.RETRY_MAY_BILL_AGAIN, signal.hint)
+        assertFalse(signal.warnRetryBills)
+    }
+
+    @Test
+    fun `classify bare rate limit code is rate limited`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "RATE_LIMIT",
+            serverMessage = null
+        )
+        assertTrue(signal.isRateLimited)
+        assertFalse(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_RATE_LIMIT,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `wait seconds cancelled code with no signal returns zero`() {
+        assertEquals(0L, AiCostVisibilityPolicy.waitSecondsFor("CANCELLED"))
+        assertEquals(
+            0L,
+            AiCostVisibilityPolicy.waitSecondsFor(
+                "CANCELLED",
+                serverRetryAfterSeconds = 0
+            )
+        )
+    }
+
 }

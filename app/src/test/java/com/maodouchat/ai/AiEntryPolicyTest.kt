@@ -1194,4 +1194,61 @@ class AiEntryPolicyTest {
         )
     }
 
+
+    @Test
+    fun `run gate does not require consent or user setting`() {
+        assertTrue(AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = false))
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = false,
+                userEnabled = true
+            )
+        )
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = true,
+                userEnabled = false
+            )
+        )
+    }
+
+    @Test
+    fun `composer menu opens while run gate is closed by chat disabled`() {
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false))
+        assertFalse(AiEntryPolicy.canRunContextAction(chatAiEnabled = false, isBusy = false))
+    }
+
+    @Test
+    fun `composer menu opens while surfaces stay hidden`() {
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false, isUpdatingSetting = false))
+        assertFalse(
+            AiEntryPolicy.shouldShowAiSurfaces(
+                chatAiEnabled = true,
+                consentAccepted = false,
+                userEnabled = false
+            )
+        )
+    }
+
+    @Test
+    fun `unknown document reaction and attachment types stay empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("DOCUMENT").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("REACTION").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("ATTACHMENT").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("DOCUMENT"))
+        assertFalse(AiEntryPolicy.hasContextAiActions("REACTION"))
+        assertFalse(AiEntryPolicy.hasContextAiActions("ATTACHMENT"))
+    }
+
+    @Test
+    fun `voice with transcript shares the empty list with unknown types`() {
+        assertTrue(
+            AiEntryPolicy.contextActionsFor("VOICE", hasTranscript = true) ===
+                AiEntryPolicy.contextActionsFor("VIDEO")
+        )
+        assertFalse(AiEntryPolicy.hasContextAiActions("VOICE", hasTranscript = true))
+    }
+
 }
