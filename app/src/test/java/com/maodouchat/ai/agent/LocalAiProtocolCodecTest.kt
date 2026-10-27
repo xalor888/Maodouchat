@@ -600,4 +600,57 @@ class LocalAiProtocolCodecTest {
         assertTrue(unknownOnly is OpenAiCompatClient.Completion.Text)
         assertEquals("", (unknownOnly as OpenAiCompatClient.Completion.Text).content)
     }
+
+    @Test
+    fun `parse chat completions falls back to reasoning content for tools`() {
+        val payload = """{"choices":[{"message":{"role":"assistant","reasoning_content":"think","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
+        val result = LocalAiProtocolCodec.parseChatCompletions(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val tools = result as OpenAiCompatClient.Completion.Tools
+        assertEquals("list_chats", tools.calls.single().name)
+        assertEquals("think", tools.content)
+    }
+
+    @Test
+    fun `parse chat completions without message object yields empty text`() {
+        val result = LocalAiProtocolCodec.parseChatCompletions("""{"choices":[{}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parse chat completions skips tool calls without function object`() {
+        val payload = """{"choices":[{"message":{"role":"assistant","content":"hi","tool_calls":[{"id":"c1"},{"id":"c2","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
+        val result = LocalAiProtocolCodec.parseChatCompletions(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val tools = result as OpenAiCompatClient.Completion.Tools
+        assertEquals(1, tools.calls.size)
+        assertEquals("c2", tools.calls.single().id)
+        assertEquals("list_chats", tools.calls.single().name)
+    }
+
+    @Test
+    fun `responses body drops blank assistant content but keeps its tool calls`() {
+        val body = LocalAiProtocolCodec.responsesBody(
+            provider, listOf(
+                AgentChatMessage(
+                    role = "assistant",
+                    content = "",
+                    toolCalls = listOf(AgentToolCall("c1", "list_chats", "{}"))
+                )
+            ), null, stream = false
+        )
+        val input = body.getJSONArray("input")
+        assertEquals(1, input.length())
+        assertEquals("function_call", input.getJSONObject(0).getString("type"))
+        assertEquals("c1", input.getJSONObject(0).getString("call_id"))
+    }
+
+    @Test
+    fun `responses body clamps max output tokens at both bounds`() {
+        val low = LocalAiProtocolCodec.responsesBody(provider.copy(maxTokens = 5), emptyList(), null, stream = false)
+        assertEquals(16, low.getInt("max_output_tokens"))
+        val high = LocalAiProtocolCodec.responsesBody(provider.copy(maxTokens = 999_999), emptyList(), null, stream = false)
+        assertEquals(128_000, high.getInt("max_output_tokens"))
+    }
 }
