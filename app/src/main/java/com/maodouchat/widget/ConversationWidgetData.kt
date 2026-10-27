@@ -140,13 +140,14 @@ object ConversationWidgetData {
 
         val maxRows = if (config.compact) ConversationWidgetContract.MAX_ROWS_COMPACT else ConversationWidgetContract.MAX_ROWS
         val rows = snapshot.rows.take(maxRows)
+        // 行 intent 带快照的 owner：渲染不再现取 TokenManager。
         if (snapshot.signedOut) {
-            addRow(context, views, widgetId, rowIndex = 0, widgetRow = null, emptyLabel = context.getString(R.string.widget_signed_out))
+            addRow(context, views, widgetId, rowIndex = 0, widgetRow = null, emptyLabel = context.getString(R.string.widget_signed_out), ownerUserId = snapshot.ownerUserId)
         } else if (rows.isEmpty()) {
             views.setViewVisibility(R.id.widgetEmptyHint, android.view.View.VISIBLE)
         } else {
             views.setViewVisibility(R.id.widgetEmptyHint, android.view.View.GONE)
-            rows.forEachIndexed { index, row -> addRow(context, views, widgetId, index, row, null) }
+            rows.forEachIndexed { index, row -> addRow(context, views, widgetId, index, row, null, snapshot.ownerUserId) }
         }
         return views
     }
@@ -208,6 +209,7 @@ object ConversationWidgetData {
         rowIndex: Int,
         widgetRow: WidgetRow?,
         emptyLabel: String?,
+        ownerUserId: String,
     ) {
         val row = RemoteViews(context.packageName, R.layout.conversation_widget_row)
         if (widgetRow != null) {
@@ -224,7 +226,7 @@ object ConversationWidgetData {
                 .setData(ConversationWidgetContract.rowDataUri("open", widgetId, rowIndex).toUri())
                 .putExtra(ConversationWidgetContract.EXTRA_WIDGET_ID, widgetId)
                 .putExtra(ConversationWidgetContract.EXTRA_CHAT_ID, widgetRow.chatId)
-                .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, currentOwner(context))
+                .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, ownerUserId)
             row.setOnClickPendingIntent(
                 R.id.widgetRowRoot,
                 PendingIntent.getBroadcast(
@@ -243,7 +245,7 @@ object ConversationWidgetData {
                 .setData(ConversationWidgetContract.rowDataUri("reply", widgetId, rowIndex).toUri())
                 .putExtra(ConversationWidgetContract.EXTRA_WIDGET_ID, widgetId)
                 .putExtra(ConversationWidgetContract.EXTRA_CHAT_ID, widgetRow.chatId)
-                .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, currentOwner(context))
+                .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, ownerUserId)
             val replyPi = PendingIntent.getBroadcast(
                 context,
                 ConversationWidgetContract.rowRequestCode(widgetId, rowIndex, 1),
@@ -258,7 +260,7 @@ object ConversationWidgetData {
                 .setData(ConversationWidgetContract.rowDataUri("read", widgetId, rowIndex).toUri())
                 .putExtra(ConversationWidgetContract.EXTRA_WIDGET_ID, widgetId)
                 .putExtra(ConversationWidgetContract.EXTRA_CHAT_ID, widgetRow.chatId)
-                .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, currentOwner(context))
+                .putExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID, ownerUserId)
             row.setOnClickPendingIntent(
                 R.id.widgetRowMarkRead,
                 PendingIntent.getBroadcast(
@@ -299,8 +301,6 @@ object ConversationWidgetData {
         }.getOrDefault("")
     }
 
-    private fun currentOwner(context: Context): String =
-        TokenManager.getInstance(context).getUserId().orEmpty()
 
     // ---- JSON 编解码 ----
     private fun encodeConfig(config: WidgetConfig): String =
