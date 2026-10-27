@@ -162,4 +162,61 @@ class GroupMutationFeedbackPolicyTest {
         assertFalse(fb.shouldReload)
         assertNull(fb.detail)
     }
+
+    @Test
+    fun `401 without code is permission and reloads`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.MUTE,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 401, serverMessage = "unauthorized")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_PERMISSION, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertNull(fb.serverCode)
+        assertEquals("unauthorized", fb.detail)
+    }
+
+    @Test
+    fun `404 without code is conflict and reloads`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ADD_MEMBER,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 404, serverMessage = "gone")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+    }
+
+    @Test
+    fun `422 client error is fatal without reload`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.RENAME,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 422, serverMessage = "bad name")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_FATAL, fb.kind)
+        assertFalse(fb.canRetry)
+        assertFalse(fb.shouldReload)
+    }
+
+    @Test
+    fun `plain runtime exception is fatal with its message as detail`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(GroupMutationAction.LOAD, RuntimeException("boom"))
+        assertEquals(GroupMutationFeedbackKind.ERROR_FATAL, fb.kind)
+        assertFalse(fb.canRetry)
+        assertFalse(fb.shouldReload)
+        assertNull(fb.serverCode)
+        assertEquals("boom", fb.detail)
+    }
+
+    @Test
+    fun `network kind without status is retryable`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ANNOUNCEMENT,
+            ApiException(kind = ApiFailureKind.NETWORK, serverMessage = "offline")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_RETRYABLE, fb.kind)
+        assertTrue(fb.canRetry)
+        assertFalse(fb.shouldReload)
+        assertEquals("offline", fb.detail)
+    }
 }
