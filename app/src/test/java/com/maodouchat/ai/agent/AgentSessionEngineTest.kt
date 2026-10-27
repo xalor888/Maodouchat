@@ -907,4 +907,135 @@ class AgentSessionEngineTest {
         assertEquals("mystery-result", toolMessage.content)
         assertEquals("final", (events.last() as AgentTurnEvent.AssistantFinal).text)
     }
+
+    @Test
+    fun `two need-user calls in one round pause on the first`() = runBlocking {
+        var executed = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(
+                        AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}"""),
+                        AgentToolCall("c2", "update_chat", """{"chatId":"chat-1","muted":true}""")
+                    ),
+                    ""
+                )
+            },
+            executeTool = { _, _ ->
+                executed++
+                "ok"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "发一句", null).toList()
+        assertEquals(0, executed)
+        assertEquals(1, events.size)
+        assertEquals("send_text_message", (events.single() as AgentTurnEvent.NeedsApproval).pending.call.name)
+    }
+
+    @Test
+    fun `read call in second round pauses on need-user after first round`() = runBlocking {
+        var round = 0
+        var executed = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c2", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
+                        ""
+                    )
+                }
+            },
+            executeTool = { _, _ ->
+                executed++
+                "ok"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "列出会话再发一句", null).toList()
+        assertEquals(1, executed)
+        assertEquals(2, round)
+        assertEquals("list_chats", (events[0] as AgentTurnEvent.ToolStarted).name)
+        assertEquals("list_chats", (events[1] as AgentTurnEvent.ToolFinished).name)
+        assertEquals("send_text_message", (events[2] as AgentTurnEvent.NeedsApproval).pending.call.name)
+    }
+
+    @Test
+    fun `single empty tools round continues to text final`() = runBlocking {
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(emptyList(), "")
+                } else {
+                    OpenAiCompatClient.Completion.Text("done")
+                }
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals(1, events.size)
+        assertEquals("done", (events.single() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `two read rounds in order then final`() = runBlocking {
+        var round = 0
+        val executedNames = mutableListOf<String>()
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                when (round) {
+                    1 -> OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                    2 -> OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c2", "get_contacts", "{}")),
+                        ""
+                    )
+                    else -> OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { name, _ ->
+                executedNames += name
+                "ok"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "列出会话和联系人", null).toList()
+        assertEquals(listOf("list_chats", "get_contacts"), executedNames)
+        assertEquals(
+            listOf("list_chats", "get_contacts"),
+            events.filterIsInstance<AgentTurnEvent.ToolFinished>().map { it.name }
+        )
+        assertEquals("done", (events.last() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `update chat approval pending carries call id and preview`() = runBlocking {
+        var executed = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(AgentToolCall("c9", "update_chat", """{"chatId":"chat-9","muted":true}""")),
+                    ""
+                )
+            },
+            executeTool = { _, _ ->
+                executed++
+                "ok"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "免打扰这个会话", null).toList()
+        assertEquals(0, executed)
+        val pending = (events.single() as AgentTurnEvent.NeedsApproval).pending
+        assertEquals("c9", pending.call.id)
+        assertEquals("update_chat", pending.call.name)
+        assertEquals("改会话 chat-9 pinned=null muted=true archived=null unread=null", pending.preview)
+    }
+
 }
