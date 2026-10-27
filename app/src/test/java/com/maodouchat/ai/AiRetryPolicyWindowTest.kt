@@ -876,4 +876,50 @@ class AiRetryPolicyWindowTest {
         assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
     }
 
+
+    @Test
+    fun nbspChatIdIsDistinctFromSpaceAndJoinedKeys() {
+        AiRetryPolicy.recordCall("chat\u00A0a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u00A0a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chata", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun ideographicSpaceChatIdIsDistinctFromSpaceKey() {
+        AiRetryPolicy.recordCall("chat\u3000a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u3000a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chata", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun bidiEmbeddingChatIdsAreDistinctFromPlainAndEachOther() {
+        AiRetryPolicy.recordCall("chat\u202Aa", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u202Aa", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat\u202Ba", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun bidiPopDirectionalChatIdIsDistinctFromPlainKey() {
+        AiRetryPolicy.recordCall("chat\u202Ca", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u202Ca", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chata", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun variationSelectorChatIdIsDistinctFromPlainAndJoinedKeys() {
+        AiRetryPolicy.recordCall("chat\uFE0Fa", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\uFE0Fa", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chata", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chata", AiRetryPolicyCategory.LIGHT))
+    }
+
 }

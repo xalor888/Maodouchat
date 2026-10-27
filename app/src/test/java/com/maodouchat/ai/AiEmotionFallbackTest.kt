@@ -713,4 +713,35 @@ class AiEmotionFallbackTest {
         assertEquals("I understand how you feel", angryClauses[1].trim())
     }
 
+
+    @Test
+    fun `great comes before happy in the happy template`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.HAPPY)
+        assertTrue(text.indexOf("great") < text.indexOf("happy"))
+    }
+
+    @Test
+    fun `easy comes before understand in the angry template`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.ANGRY)
+        assertTrue(text.indexOf("easy") < text.indexOf("understand"))
+    }
+
+    @Test
+    fun `sort comes before together in the anxious template`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.ANXIOUS)
+        assertTrue(text.indexOf("sort") < text.indexOf("together"))
+    }
+
+    @Test
+    fun `feel comes before here in the sad template`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.SAD)
+        assertTrue(text.indexOf("feel") < text.indexOf("here"))
+    }
+
+    @Test
+    fun `slowly is the last word of the angry template`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.ANGRY)
+        assertEquals("slowly.", text.split(" ").last())
+    }
+
 }
