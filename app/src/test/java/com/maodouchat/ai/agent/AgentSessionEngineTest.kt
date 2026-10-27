@@ -1144,4 +1144,103 @@ class AgentSessionEngineTest {
         assertNull(seenDelta)
     }
 
+    @Test
+    fun `whitespace only text completion finalizes as empty`() = runBlocking {
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("   \n\t  ") }
+        )
+        val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals("", (events.single() as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `prefill then model error yields finished before failed`() = runBlocking {
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Error("model down") },
+            executeTool = { _, _ -> "chats" }
+        )
+        val events = engine.runTurn(
+            provider,
+            emptyList(),
+            "列出会话",
+            null,
+            approvedCall = AgentToolCall("c1", "list_chats", "{}")
+        ).toList()
+        assertEquals(2, events.size)
+        assertEquals("list_chats", (events[0] as AgentTurnEvent.ToolFinished).name)
+        assertEquals("model down", (events[1] as AgentTurnEvent.Failed).message)
+    }
+
+    @Test
+    fun `round exhaustion emits twenty four tool events then failed`() = runBlocking {
+        var executions = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(AgentToolCall("c1", "list_chats", "{}")),
+                    ""
+                )
+            },
+            executeTool = { _, _ ->
+                executions++
+                "ok"
+            }
+        )
+        val events = engine.runTurn(provider, emptyList(), "列出会话", null).toList()
+        assertEquals(AgentToolPolicy.MAX_TOOL_ROUNDS, executions)
+        assertEquals(2 * AgentToolPolicy.MAX_TOOL_ROUNDS + 1, events.size)
+        assertTrue(events[0] is AgentTurnEvent.ToolStarted)
+        assertEquals("ok", (events[1] as AgentTurnEvent.ToolFinished).result)
+        assertEquals("工具轮次过多，已停止", (events.last() as AgentTurnEvent.Failed).message)
+    }
+
+    @Test
+    fun `empty read result finishes the tool before final`() = runBlocking {
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { _, _ -> "" }
+        )
+        val events = engine.runTurn(provider, emptyList(), "列出会话", null).toList()
+        assertEquals(3, events.size)
+        assertEquals("list_chats", (events[0] as AgentTurnEvent.ToolStarted).name)
+        assertEquals("", (events[1] as AgentTurnEvent.ToolFinished).result)
+        assertEquals("done", (events[2] as AgentTurnEvent.AssistantFinal).text)
+    }
+
+    @Test
+    fun `prefill read call then model need-user pauses on approval`() = runBlocking {
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, _ ->
+                OpenAiCompatClient.Completion.Tools(
+                    listOf(AgentToolCall("c9", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
+                    ""
+                )
+            },
+            executeTool = { _, _ -> "chats" }
+        )
+        val events = engine.runTurn(
+            provider,
+            emptyList(),
+            "发一句",
+            null,
+            approvedCall = AgentToolCall("c1", "list_chats", "{}")
+        ).toList()
+        assertEquals(2, events.size)
+        assertEquals("list_chats", (events[0] as AgentTurnEvent.ToolFinished).name)
+        val pending = (events[1] as AgentTurnEvent.NeedsApproval).pending
+        assertEquals("send_text_message", pending.call.name)
+        assertEquals("c9", pending.call.id)
+    }
+
 }
