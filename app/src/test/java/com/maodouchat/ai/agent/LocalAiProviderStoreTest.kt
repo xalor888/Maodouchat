@@ -452,4 +452,54 @@ class LocalAiProviderStoreTest {
         assertEquals(300, high.clampedTimeoutSeconds())
     }
 
+    @Test
+    fun `session title with surrounding spaces survives parse verbatim`() {
+        val raw = """[{"id":"s1","title":"  t  ","createdAt":1}]"""
+        val decoded = LocalAiProviderStore.parseSessions(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("  t  ", decoded.single().title)
+    }
+
+    @Test
+    fun `session message role and content spaces survive parse verbatim`() {
+        val raw = """[{"id":"s1","title":"t","createdAt":1,"messages":[{"role":" user ","content":" hi "}]}]"""
+        val decoded = LocalAiProviderStore.parseSessions(raw)
+        assertEquals(1, decoded.size)
+        val message = decoded.single().messages.single()
+        assertEquals(" user ", message.role)
+        assertEquals(" hi ", message.content)
+    }
+
+    @Test
+    fun `provider out of range temperature parses verbatim and non-numeric topP parses to null`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x","temperature":5.0,"topP":"hot"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals(5.0, decoded.single().temperature)
+        assertNull(decoded.single().topP)
+    }
+
+    @Test
+    fun `provider extra headers json survives round trip verbatim`() {
+        val provider = LocalAiProvider(
+            id = "p1",
+            name = "n",
+            baseUrl = "https://x",
+            apiKey = "",
+            model = "m",
+            extraHeadersJson = """{"X-A":"1","X-B":"2"}"""
+        )
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(listOf(provider)))
+        assertEquals(1, decoded.size)
+        assertEquals("""{"X-A":"1","X-B":"2"}""", decoded.single().extraHeadersJson)
+    }
+
+    @Test
+    fun `empty lists encode to empty array and parse back empty`() {
+        assertEquals("[]", LocalAiProviderStore.encodeProviders(emptyList()))
+        assertTrue(LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(emptyList())).isEmpty())
+        assertEquals("[]", LocalAiProviderStore.encodeSessions(emptyList()))
+        assertTrue(LocalAiProviderStore.parseSessions(LocalAiProviderStore.encodeSessions(emptyList())).isEmpty())
+    }
+
 }

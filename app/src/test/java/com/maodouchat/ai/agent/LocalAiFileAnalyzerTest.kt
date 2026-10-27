@@ -365,4 +365,46 @@ class LocalAiFileAnalyzerTest {
         val withNewline = "aGVs\nbG8="
         assertNull(LocalAiFileAnalyzer.prepare("a.txt", "text/plain", withNewline))
     }
+
+    @Test
+    fun `plain text keeps surrounding spaces verbatim`() {
+        val body = "  hi  "
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(body, prepared.text)
+    }
+
+    @Test
+    fun `markdown mime with parameters is accepted by prefix match`() {
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.md", "text/markdown; charset=utf-8", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("text/markdown; charset=utf-8", prepared.mimeType)
+        assertEquals("hi", prepared.text)
+    }
+
+    @Test
+    fun `uppercase markdown mime is lowercased and accepted`() {
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.md", "TEXT/MARKDOWN", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("text/markdown", prepared.mimeType)
+        assertEquals("hi", prepared.text)
+    }
+
+    @Test
+    fun `xml mime with parameters is rejected by exact match`() {
+        val encoded = Base64.getEncoder().encodeToString("<a/>".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.xml", "application/xml; charset=utf-8", encoded))
+    }
+
+    @Test
+    fun `image mime with pdf magic bytes is sniffed as pdf`() {
+        val encoded = Base64.getEncoder().encodeToString("%PDF-1.4 junk".toByteArray(Charsets.US_ASCII))
+        assertNull(LocalAiFileAnalyzer.prepare("a.png", "image/png", encoded))
+    }
 }
