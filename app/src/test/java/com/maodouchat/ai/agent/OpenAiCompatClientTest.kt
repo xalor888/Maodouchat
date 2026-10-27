@@ -329,4 +329,50 @@ class OpenAiCompatClientTest {
         assertEquals("hi", (result as OpenAiCompatClient.Completion.Tools).content)
     }
 
+    @Test
+    fun `parseNonStream reads whitespace-only content as text`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[{"message":{"content":" "}}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals(" ", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream skips tool call with null function`() {
+        val payload = """{"choices":[{"message":{"content":"hi","tool_calls":[{"id":"c1","function":null}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream skips null tool call entries`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[null,{"id":"c1","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val call = (result as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("c1", call.id)
+        assertEquals("list_chats", call.name)
+    }
+
+    @Test
+    fun `parseNonStream ignores second choice tools when first choice has text`() {
+        val payload = """{"choices":[
+          {"message":{"content":"first"}},
+          {"message":{"content":"","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{}"}}]}}
+        ]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("first", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream generates id for whitespace-only tool call id`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[{"id":" ","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val call = (result as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("list_chats", call.name)
+        assertTrue(call.id.startsWith("call_"))
+    }
+
 }
