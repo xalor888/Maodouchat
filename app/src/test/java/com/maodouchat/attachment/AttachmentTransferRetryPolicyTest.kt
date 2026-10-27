@@ -186,4 +186,111 @@ class AttachmentTransferRetryPolicyTest {
             )
         )
     }
+
+    @Test
+    fun alreadyAcceptedDuplicateMatchesTrimmedCaseInsensitiveCode() {
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.HTTP, serverCode = "MESSAGE_ALREADY_ACCEPTED")
+            )
+        )
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.HTTP, serverCode = " message_already_accepted ")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.HTTP, serverCode = "OTHER")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.NETWORK, serverCode = "MESSAGE_ALREADY_ACCEPTED")
+            )
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(RuntimeException("x")))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(null))
+    }
+
+    @Test
+    fun notReadyConflictEnglishAndBareChineseVariants() {
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "attachment upload pending")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "attachment ready")
+            )
+        )
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "尚未上传完成")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409)
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.NETWORK, statusCode = 409, serverMessage = "attachment not ready")
+            )
+        )
+    }
+
+    @Test
+    fun httpStatusBoundariesForRetryable() {
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 500, serverMessage = "err")
+            )
+        )
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 501, serverMessage = "err")
+            )
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(ApiException(ApiFailureKind.HTTP)))
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.NETWORK, statusCode = 403, serverMessage = "down")
+            )
+        )
+    }
+
+    @Test
+    fun transientCryptoMessageMatchingIsCaseSensitive() {
+        assertFalse(AttachmentSendAfterUploadPolicy.isTransientCryptoError(RuntimeException("NOT READY")))
+        assertFalse(AttachmentSendAfterUploadPolicy.isTransientCryptoError(RuntimeException("Protocol Initialization")))
+        assertTrue(AttachmentSendAfterUploadPolicy.isTransientCryptoError(RuntimeException("x protocol initialization y")))
+    }
+
+    @Test
+    fun notReadyConflictMatchingIsCaseInsensitive() {
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "ATTACHMENT NOT READY")
+            )
+        )
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "Attachment Upload")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "attachment")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(
+                ApiException(ApiFailureKind.HTTP, statusCode = 409, serverMessage = "")
+            )
+        )
+    }
+
 }

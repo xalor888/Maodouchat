@@ -234,4 +234,53 @@ class MissedCallTimeoutPolicyTest {
         val b = a.copy(contactName = "Alicia")
         assertTrue(MissedCallTimeoutPolicy.shouldRecordMissed(a, b))
     }
+
+    @Test
+    fun bothPendingNullDoesNotRecord() {
+        assertFalse(MissedCallTimeoutPolicy.shouldRecordMissed(null, null))
+    }
+
+    @Test
+    fun sameInstanceWithBlankCallIdStillRecords() {
+        // 相等分支先于空 id 检查：同一实例即使 callId 为空也判同一通。
+        val p = pending(callId = "")
+        assertTrue(MissedCallTimeoutPolicy.shouldRecordMissed(p, p))
+    }
+
+    @Test
+    fun peerCancelWireStateIsNotTrimmed() {
+        assertFalse(
+            MissedCallTimeoutPolicy.shouldRecordPeerCancelAsMissed(
+                isIncoming = true,
+                callStateWire = "RINGING ",
+            )
+        )
+        assertFalse(
+            MissedCallTimeoutPolicy.shouldRecordPeerCancelAsMissed(
+                isIncoming = true,
+                callStateWire = " RINGING",
+            )
+        )
+        assertTrue(
+            MissedCallTimeoutPolicy.shouldRecordPeerCancelAsMissed(
+                isIncoming = true,
+                callStateWire = "Ringing",
+            )
+        )
+    }
+
+    @Test
+    fun signalingCallIdIgnoresPeerAndTime() {
+        assertEquals(
+            MissedCallTimeoutPolicy.missedRecordId("sig-1", "u1", 1000L),
+            MissedCallTimeoutPolicy.missedRecordId("sig-1", "u2", 999_999L),
+        )
+    }
+
+    @Test
+    fun syntheticIdKeepsInnerSpacesAndZeroBucket() {
+        assertEquals("mc_u 9_0", MissedCallTimeoutPolicy.missedRecordId(" ", "u 9", 0L))
+        assertEquals("mc_u9_0", MissedCallTimeoutPolicy.missedRecordId(" ", "u9", 0L))
+    }
+
 }
