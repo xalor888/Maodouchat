@@ -604,4 +604,41 @@ class AiTaskDndPolicyTest {
         assertFalse(AiTaskDndPolicy.isInQuietHours(60, 1500, 60))
         assertTrue(AiTaskDndPolicy.isInQuietHours(0, 1500, 60))
     }
+
+    @Test
+    fun `overnight window 1350 to 420 boundary quartet`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(1349, 1350, 420))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1350, 1350, 420))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(419, 1350, 420))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(420, 1350, 420))
+    }
+
+    @Test
+    fun `overnight window sweep 1350 to 420 counts five hundred ten minutes`() {
+        val count = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1350, 420) }
+        assertEquals(510, count)
+    }
+
+    @Test
+    fun `midnight-start same-day window boundary trio`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(0, 0, 60))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(59, 0, 60))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(60, 0, 60))
+    }
+
+    @Test
+    fun `overnight window sweep 1439 to 1438 counts 1439 minutes`() {
+        val count = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1439, 1438) }
+        assertEquals(1439, count)
+    }
+
+    @Test
+    fun `same-day window sweep 100 to 101 counts one minute`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(99, 100, 101))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(100, 100, 101))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(101, 100, 101))
+        val count = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 100, 101) }
+        assertEquals(1, count)
+    }
+
 }

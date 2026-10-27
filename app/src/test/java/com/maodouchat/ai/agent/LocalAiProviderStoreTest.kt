@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -500,6 +501,72 @@ class LocalAiProviderStoreTest {
         assertTrue(LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(emptyList())).isEmpty())
         assertEquals("[]", LocalAiProviderStore.encodeSessions(emptyList()))
         assertTrue(LocalAiProviderStore.parseSessions(LocalAiProviderStore.encodeSessions(emptyList())).isEmpty())
+    }
+
+
+    @Test
+    fun `provider context window clamps to one thousand twenty four and two million`() {
+        val small = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "m",
+            contextWindowTokens = 512
+        )
+        val large = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "m",
+            contextWindowTokens = 3_000_000
+        )
+        assertEquals(1_024, small.clampedContextWindow())
+        assertEquals(2_000_000, large.clampedContextWindow())
+        assertEquals(128_000, LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "m"
+        ).clampedContextWindow())
+    }
+
+    @Test
+    fun `provider vision capability matches known model names`() {
+        val plain = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "deepseek-chat"
+        )
+        val claude = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "claude-3-5-sonnet"
+        )
+        val fourO = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "gpt-4o-mini"
+        )
+        val forced = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "plain-model",
+            supportsVision = true
+        )
+        assertFalse(plain.hasVisionCapability())
+        assertTrue(claude.hasVisionCapability())
+        assertTrue(fourO.hasVisionCapability())
+        assertTrue(forced.hasVisionCapability())
+    }
+
+    @Test
+    fun `provider unknown json fields are ignored on parse`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x","zzz":123,"futureFlag":true}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("p1", decoded.single().id)
+        assertEquals("https://x", decoded.single().baseUrl)
+    }
+
+    @Test
+    fun `provider baseUrl with surrounding spaces is trimmed on parse`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"  https://x/v1/  "}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals("https://x/v1", decoded.single().baseUrl)
+    }
+
+    @Test
+    fun `provider default extra headers object survives round trip`() {
+        val provider = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "m"
+        )
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(listOf(provider)))
+        assertEquals(1, decoded.size)
+        assertEquals("{}", decoded.single().extraHeadersJson)
     }
 
 }

@@ -876,4 +876,45 @@ class AiPrivacyPreferencesTest {
     fun `scoped key keeps spaces in base verbatim`() {
         assertEquals("a b:u", AiPrivacyPreferences.scopedKey("a b", "u"))
     }
+
+    @Test
+    fun `scoped key keeps semicolon in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a;b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a;b")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps question mark in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a?b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a?b")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps ampersand in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a&b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a&b")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps asterisk in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a*b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a*b")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps pipe in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a|b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a|b")
+        )
+    }
+
 }
