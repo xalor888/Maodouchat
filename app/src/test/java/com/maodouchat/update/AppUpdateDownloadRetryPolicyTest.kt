@@ -57,4 +57,51 @@ class AppUpdateDownloadRetryPolicyTest {
         assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("apk_not_official"))
         assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("redirect_host_not_official"))
     }
+
+    @Test
+    fun httpPrefixCoversAnyStatusCode() {
+        // 判据只看 http_ 前缀，不校验状态码本身。
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("http_404"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("http_500"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("http_200"))
+    }
+
+    @Test
+    fun substringMatchesAreCaseInsensitive() {
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("TIMEOUT"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("Connection Reset"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("BROKEN PIPE"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("Failed To Connect"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("UNABLE TO RESOLVE host"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("Unexpected End Of Stream"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("Software Caused Connection Abort"))
+    }
+
+    @Test
+    fun nearMissCodesAreNotRetryable() {
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("http"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("HTTP_503"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("empty_bod"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("apk_too_small_extra"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("connection"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("reset"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable(""))
+    }
+
+    @Test
+    fun ioExceptionsAreRetryableRegardlessOfMessage() {
+        // 类型优先：哪怕 message 与已知规则全不沾边，IOException 一族照样重试。
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(java.io.IOException("totally unrelated")))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(java.io.EOFException("eof")))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(java.net.SocketException("closed")))
+    }
+
+    @Test
+    fun nonIoExceptionsWithRetryableTextOrEmptyMessage() {
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException("timeout while fetching")))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException("Connection reset by peer")))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException("empty_body")))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException()))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException("")))
+    }
 }

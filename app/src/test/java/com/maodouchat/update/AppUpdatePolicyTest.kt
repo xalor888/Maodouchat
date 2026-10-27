@@ -69,4 +69,64 @@ class AppUpdatePolicyTest {
         assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://cdn.example.com/maodou.apk"))
         assertTrue(AppUpdatePolicy.isOfficialApkUrl("https://files.mdou.me/maodou.apk"))
     }
+
+    @Test
+    fun negativeCurrentAndNonPositiveRemoteAreRejected() {
+        assertFalse(
+            AppUpdatePolicy.shouldOfferUpdate(-1, 2, "https://chat.mdou.me/a.apk", apkSha256)
+        )
+        assertFalse(
+            AppUpdatePolicy.shouldOfferUpdate(1, 0, "https://chat.mdou.me/a.apk", apkSha256)
+        )
+        assertFalse(
+            AppUpdatePolicy.shouldOfferUpdate(1, -5, "https://chat.mdou.me/a.apk", apkSha256)
+        )
+        // current=0 不在拒绝条件里（只拒 <0），remote 更大就照常给。
+        assertTrue(
+            AppUpdatePolicy.shouldOfferUpdate(0, 1, "https://chat.mdou.me/a.apk", apkSha256)
+        )
+    }
+
+    @Test
+    fun bareDomainAndSubdomainsAreOfficial() {
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("https://mdou.me/a.apk"))
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("https://deep.sub.mdou.me/a.apk"))
+        assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://mdou.me.evil.com/a.apk"))
+        assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://fakemdou.me/a.apk"))
+        assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://chat.mdou.me.evil.com/a.apk"))
+    }
+
+    @Test
+    fun uppercaseSchemeAndPaddedUrlAreOfficial() {
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("HTTPS://chat.mdou.me/a.apk"))
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("  https://chat.mdou.me/a.apk  "))
+        // trim 后尾部换行也没了，照样官方。
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("https://chat.mdou.me/a.apk\n"))
+        // 无路径也算官方（hostOf 不要求斜杠）。
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("https://chat.mdou.me"))
+        // userinfo 花招：host 取到的是 @ 后的 evil.com。
+        assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://chat.mdou.me@evil.com/a.apk"))
+    }
+
+    @Test
+    fun formatNotesHandlesBlankTrimAndPercent() {
+        assertTrue(AppUpdatePolicy.formatNotes("").isEmpty())
+        assertTrue(AppUpdatePolicy.formatNotes("   ").isEmpty())
+        assertTrue(AppUpdatePolicy.formatNotes("hello world") == "hello world")
+        assertTrue(AppUpdatePolicy.formatNotes("  hello world  ") == "hello world")
+        assertTrue(AppUpdatePolicy.formatNotes("hello%20world") == "hello world")
+        // 没有 % 就不走 URL 解码，加号原样保留。
+        assertTrue(AppUpdatePolicy.formatNotes("a+b") == "a+b")
+        // % 后没跟两位十六进制：解码抛异常，回落原文。
+        assertTrue(AppUpdatePolicy.formatNotes("100%") == "100%")
+    }
+
+    @Test
+    fun hostOfStripsPortQueryAndRejectsSchemeLess() {
+        assertTrue(AppUpdatePolicy.hostOf("https://chat.mdou.me:8443/a.apk?x=1") == "chat.mdou.me")
+        assertTrue(AppUpdatePolicy.hostOf("https://chat.mdou.me/a.apk?x=1") == "chat.mdou.me")
+        assertTrue(AppUpdatePolicy.hostOf("no-scheme-here") == null)
+        assertTrue(AppUpdatePolicy.hostOf("") == null)
+        assertTrue(AppUpdatePolicy.hostOf("https://") == null)
+    }
 }
