@@ -863,4 +863,38 @@ class AiLocalRulesTest {
         assertEquals(2.0 / 3.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `classify salary word alone hits finance at full confidence`() {
+        val result = AiMessageClassifier.classifyText("工资到账")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify please note phrase alone hits notice at full confidence`() {
+        val result = AiMessageClassifier.classifyText("请注意")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify good morning word alone hits social at full confidence`() {
+        val result = AiMessageClassifier.classifyText("早安")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion disgust word alone hits angry at full confidence`() {
+        val result = AiEmotionReply.detectEmotion(listOf("真恶心"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion pressure word alone hits anxious at full confidence`() {
+        val result = AiEmotionReply.detectEmotion(listOf("压力大"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }

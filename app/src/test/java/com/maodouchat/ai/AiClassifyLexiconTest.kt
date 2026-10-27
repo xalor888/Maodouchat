@@ -814,4 +814,38 @@ class AiClassifyLexiconTest {
         assertEquals(1.0, joined.confidence, 0.0001)
     }
 
+    @Test
+    fun `english follow up phrase and deadline share todo at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("follow up deadline")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `trip word alone hits social at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("trip")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `uppercase maintenance hits notice at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("MAINTENANCE")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `notice and todo tie breaks toward notice with half confidence`() {
+        val result = AiClassifyLexicon.classifyText("通知 任务")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `announcements plural still hits notice via substring`() {
+        val result = AiClassifyLexicon.classifyText("announcements")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
 }

@@ -1078,4 +1078,47 @@ class AiRetryPolicyTest {
         assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
     }
 
+    @Test
+    fun decideForbiddenFallsThroughToNonTransient() {
+        val decision = AiRetryPolicy.decide("FORBIDDEN", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("non-transient error", decision.explanation)
+        assertEquals("FORBIDDEN", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideAuthRequiredSuffixKeepsBaseVisibleWithoutWait() {
+        val decision = AiRetryPolicy.decide("AUTH_REQUIRED:30", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("AUTH_REQUIRED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBillingOverdueUsesQuotaBranchWithZeroWait() {
+        val decision = AiRetryPolicy.decide("BILLING_OVERDUE", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("quota exceeded; do not auto-retry", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBareLowercaseRateLimitedUsesRateBranchWithDefaultWait() {
+        val decision = AiRetryPolicy.decide("rate_limited", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(30_000L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideConnectionFailureAtExactlyMaxAttemptsStopsWithBaseVisible() {
+        val decision = AiRetryPolicy.decide("CONNECTION_NOT_ESTABLISHED", attempts = 3)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("reached max auto retries; user must retry", decision.explanation)
+        assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
+    }
 }
