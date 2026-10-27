@@ -188,6 +188,54 @@ class MentionPolicyTest {
     }
 
     @Test
+    fun activeQuery_emptyText_zeroCursor_and_cursorOnWhitespace_returnNull() {
+        assertNull(MentionPolicy.activeQuery(""))
+        assertNull(MentionPolicy.activeQuery("hi", cursor = 0))
+        assertNull(MentionPolicy.activeQuery("hi @Al x", cursor = 6))
+    }
+
+    @Test
+    fun extractMentionIds_allAlias_mapsToEveryone_and_repeatsDeduped() {
+        assertEquals(
+            listOf(MentionPolicy.EVERYONE_ID),
+            MentionPolicy.extractMentionIds("hi @all", members, "me"),
+        )
+        assertEquals(
+            listOf("u1"),
+            MentionPolicy.extractMentionIds("@Alice @Alice ok", members, "me"),
+        )
+    }
+
+    @Test
+    fun filterCandidates_trimsFilter_and_matchesByUserId() {
+        val byId = MentionPolicy.filterCandidates(members, "me", " u2 ")
+        assertTrue(byId.any { it.userId == "u2" })
+        assertFalse(byId.any { it.userId == "u1" })
+        assertFalse(byId.any { it.isEveryone })
+        val both = MentionPolicy.filterCandidates(members, "me", "U")
+        assertEquals(listOf("u1", "u2"), both.map { it.userId })
+    }
+
+    @Test
+    fun extractMentionIds_skipsEmailLikeTokens() {
+        assertTrue(MentionPolicy.extractMentionIds("mail to a@b ok", members, "me").isEmpty())
+    }
+
+    @Test
+    fun insertMention_preservesTextAfterCursor_and_noQueryKeepsText() {
+        // 光标落在空白上不算进行中 query（见同文件 activeQuery 空白断言），
+        // 故用光标落在 token 内的情形验证光标后文本保留：cursor=6 时 filter 为 "Al"，
+        // 插入后光标后 "x" 原样保留。
+        val r = MentionPolicy.insertMention("hi @Alx", 6, "Alice")
+        assertEquals("hi @Alice x", r.text)
+        assertEquals(10, r.cursor)
+        assertEquals(
+            InsertResult("hello", 5),
+            MentionPolicy.insertMention("hello", 5, "Alice"),
+        )
+    }
+
+    @Test
     fun shouldHighlightMention_blankCurrentUser_and_emptyMentions_neverHighlight() {
         assertFalse(MentionPolicy.shouldHighlightMention(listOf("me"), "", false))
         assertFalse(MentionPolicy.shouldHighlightMention(emptyList(), "me", false))
