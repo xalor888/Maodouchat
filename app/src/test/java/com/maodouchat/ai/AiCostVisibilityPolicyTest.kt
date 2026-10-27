@@ -1668,4 +1668,49 @@ class AiCostVisibilityPolicyTest {
         assertFalse(signal.warnRetryBills)
     }
 
+    @Test
+    fun `classify rate code with quota message still maps quota`() {
+        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
+            statusCode = null,
+            serverCode = "RATE_LIMITED",
+            serverMessage = "quota exceeded"
+        )
+        assertTrue(signal.isRateLimited)
+        assertTrue(signal.isQuota)
+        assertNull(signal.retryAfterSeconds)
+        assertEquals(
+            AiCostVisibilityPolicy.ERROR_QUOTA,
+            AiCostVisibilityPolicy.mapToErrorCode(signal)
+        )
+    }
+
+    @Test
+    fun `wait seconds cancelled embedded seconds beats default zero`() {
+        assertEquals(45L, AiCostVisibilityPolicy.waitSecondsFor("CANCELLED:45"))
+    }
+
+    @Test
+    fun `billing hint generic code auto retry beats failed flag`() {
+        assertEquals(
+            BillingHint.SAFE_AUTO_RETRY,
+            AiCostVisibilityPolicy.billingHintFor("SOME_ERROR", isFailed = true, hasScheduledAutoRetry = true)
+        )
+        assertEquals(
+            BillingHint.RETRY_MAY_BILL_AGAIN,
+            AiCostVisibilityPolicy.billingHintFor("SOME_ERROR", isFailed = true)
+        )
+    }
+
+    @Test
+    fun `base error code blank before colon falls back to full upper`() {
+        assertEquals(":45", AiCostVisibilityPolicy.baseErrorCode(" :45"))
+        assertEquals("RATE_LIMITED", AiCostVisibilityPolicy.baseErrorCode("RATE_LIMITED: 45 "))
+    }
+
+    @Test
+    fun `embedded retry after with surrounding spaces still reads seconds`() {
+        assertEquals(45L, AiCostVisibilityPolicy.embeddedRetryAfterSeconds("RATE_LIMITED: 45 "))
+        assertEquals(45L, AiCostVisibilityPolicy.waitSecondsFor("RATE_LIMITED: 45 "))
+    }
+
 }
