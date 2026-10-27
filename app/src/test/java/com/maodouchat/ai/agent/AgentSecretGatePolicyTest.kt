@@ -504,4 +504,72 @@ class AgentSecretGatePolicyTest {
         assertEquals(5, denied)
     }
 
+
+    @Test
+    fun pinLockedChatBecomesListedAfterUnlock() {
+        assertEquals(
+            AgentSecretGatePolicy.PIN_DENIED,
+            AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, false)
+        )
+        assertFalse(AgentSecretGatePolicy.includeInChatList(false, true, false))
+        assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, true))
+        assertTrue(AgentSecretGatePolicy.includeInChatList(false, true, true))
+    }
+
+    @Test
+    fun secretChatStaysDeniedAcrossUnlockTransitions() {
+        for (unlocked in listOf(false, true)) {
+            assertEquals(
+                AgentSecretGatePolicy.SECRET_DENIED,
+                AgentSecretGatePolicy.denyIfSecretOrLocked(true, true, unlocked)
+            )
+            assertFalse(AgentSecretGatePolicy.includeInChatList(true, true, unlocked))
+        }
+    }
+
+    @Test
+    fun gateDecisionsDoNotDependOnCallOrder() {
+        repeat(3) {
+            assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, true))
+            assertEquals(
+                AgentSecretGatePolicy.PIN_DENIED,
+                AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, false)
+            )
+            assertNull(AgentSecretGatePolicy.denyIfSecretOrLocked(false, true, true))
+            assertEquals(
+                AgentSecretGatePolicy.SECRET_DENIED,
+                AgentSecretGatePolicy.denyIfSecretOrLocked(true, false, true)
+            )
+        }
+    }
+
+    @Test
+    fun denialMessagesContainOnlyLettersSpacesColonAndHyphen() {
+        listOf(AgentSecretGatePolicy.SECRET_DENIED, AgentSecretGatePolicy.PIN_DENIED).forEach { message ->
+            assertTrue(message.all { it.isLetter() || it == ' ' || it == ':' || it == '-' })
+        }
+    }
+
+    @Test
+    fun nullDenialCasesAreExactlyThree() {
+        val allowed = mutableSetOf<Triple<Boolean, Boolean, Boolean>>()
+        for (isSecret in listOf(false, true)) {
+            for (isLocked in listOf(false, true)) {
+                for (unlocked in listOf(false, true)) {
+                    if (AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret, isLocked, unlocked) == null) {
+                        allowed.add(Triple(isSecret, isLocked, unlocked))
+                    }
+                }
+            }
+        }
+        assertEquals(
+            setOf(
+                Triple(false, false, false),
+                Triple(false, false, true),
+                Triple(false, true, true)
+            ),
+            allowed
+        )
+    }
+
 }
