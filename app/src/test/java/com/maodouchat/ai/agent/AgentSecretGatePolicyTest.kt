@@ -459,4 +459,49 @@ class AgentSecretGatePolicyTest {
             }
         }
     }
+
+    @Test
+    fun secretDenialBeatsPinDenialWhenLockedAndNotUnlocked() {
+        assertEquals(
+            AgentSecretGatePolicy.SECRET_DENIED,
+            AgentSecretGatePolicy.denyIfSecretOrLocked(isSecret = true, isLocked = true, unlocked = false)
+        )
+        assertFalse(AgentSecretGatePolicy.includeInChatList(true, true, false))
+    }
+
+    @Test
+    fun pinDenialMentionsPinExactlyOnce() {
+        assertEquals(1, AgentSecretGatePolicy.PIN_DENIED.split("PIN").size - 1)
+        assertTrue(AgentSecretGatePolicy.PIN_DENIED.contains("PIN-locked"))
+    }
+
+    @Test
+    fun secretDenialMentionsSecretAndAssistantOnceEach() {
+        assertEquals(1, AgentSecretGatePolicy.SECRET_DENIED.split("secret").size - 1)
+        assertEquals(1, AgentSecretGatePolicy.SECRET_DENIED.split("assistant").size - 1)
+    }
+
+    @Test
+    fun denialStringsAreSingleLineAndUnpadded() {
+        assertEquals(AgentSecretGatePolicy.SECRET_DENIED, AgentSecretGatePolicy.SECRET_DENIED.trim())
+        assertEquals(AgentSecretGatePolicy.PIN_DENIED, AgentSecretGatePolicy.PIN_DENIED.trim())
+        assertFalse(AgentSecretGatePolicy.SECRET_DENIED.contains("\n"))
+        assertFalse(AgentSecretGatePolicy.PIN_DENIED.contains("\n"))
+    }
+
+    @Test
+    fun exactlyThreeOfEightCombinationsAreListed() {
+        var listed = 0
+        var denied = 0
+        for (isSecret in listOf(false, true)) {
+            for (isLocked in listOf(false, true)) {
+                for (unlocked in listOf(false, true)) {
+                    if (AgentSecretGatePolicy.includeInChatList(isSecret, isLocked, unlocked)) listed++ else denied++
+                }
+            }
+        }
+        assertEquals(3, listed)
+        assertEquals(5, denied)
+    }
+
 }

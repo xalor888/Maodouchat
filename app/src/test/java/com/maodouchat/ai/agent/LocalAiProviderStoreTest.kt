@@ -569,4 +569,44 @@ class LocalAiProviderStoreTest {
         assertEquals("{}", decoded.single().extraHeadersJson)
     }
 
+
+    @Test
+    fun `provider vision capability matches more model patterns`() {
+        for (model in listOf("gemini-1.5-pro", "qwen-vl-max", "llava-13b", "my-multimodal-model", "pixtral-12b")) {
+            assertTrue(model, LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = model).hasVisionCapability())
+        }
+        assertFalse(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "gpt-3.5-turbo").hasVisionCapability())
+    }
+
+    @Test
+    fun `provider vision match ignores case and surrounding spaces`() {
+        assertTrue(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "  GPT-4O-MINI  ").hasVisionCapability())
+        assertTrue(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "CLAUDE-3-OPUS").hasVisionCapability())
+        assertTrue(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "  GEMINI-PRO ").hasVisionCapability())
+    }
+
+    @Test
+    fun `provider vision suffix vl pattern`() {
+        assertTrue(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "my-model-vl").hasVisionCapability())
+        assertFalse(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "vlmodel").hasVisionCapability())
+    }
+
+    @Test
+    fun `responses and anthropic urls keep existing suffixes`() {
+        val responses = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x.example/v1/responses/", apiKey = "", model = "m")
+        assertEquals("https://x.example/v1/responses", responses.resolvedResponsesUrl())
+        val anthropic = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://api.anthropic.com/v1/messages/", apiKey = "", model = "m")
+        assertEquals("https://api.anthropic.com/v1/messages", anthropic.resolvedAnthropicUrl())
+    }
+
+    @Test
+    fun `provider missing protocol and optionals fall back to defaults on parse`() {
+        val raw = """[{"id":"p1","model":"m","baseUrl":"https://x"}]"""
+        val decoded = LocalAiProviderStore.parseProviders(raw)
+        assertEquals(1, decoded.size)
+        assertEquals(LocalAiProtocol.OPENAI_CHAT_COMPLETIONS, decoded.single().protocol)
+        assertEquals("2023-06-01", decoded.single().anthropicVersion)
+        assertEquals("", decoded.single().organization)
+    }
+
 }

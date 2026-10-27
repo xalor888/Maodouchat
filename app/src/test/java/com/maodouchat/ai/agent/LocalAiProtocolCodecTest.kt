@@ -653,4 +653,42 @@ class LocalAiProtocolCodecTest {
         val high = LocalAiProtocolCodec.responsesBody(provider.copy(maxTokens = 999_999), emptyList(), null, stream = false)
         assertEquals(128_000, high.getInt("max_output_tokens"))
     }
+
+    @Test
+    fun `parse protocol accepts lowercase full aliases`() {
+        assertEquals(LocalAiProtocol.OPENAI_RESPONSES, LocalAiProtocolCodec.parseProtocol("openai_responses"))
+        assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, LocalAiProtocolCodec.parseProtocol("anthropic_messages"))
+    }
+
+    @Test
+    fun `parse responses malformed returns model not json error`() {
+        val result = LocalAiProtocolCodec.parseResponses("{oops")
+        assertTrue(result is OpenAiCompatClient.Completion.Error)
+        assertEquals("模型返回不是 JSON", (result as OpenAiCompatClient.Completion.Error).message)
+    }
+
+    @Test
+    fun `parse responses reads root output text without output array`() {
+        val result = LocalAiProtocolCodec.parseResponses("""{"output_text":"hi"}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parse responses concatenates message output text parts`() {
+        val payload = """{"output":[{"type":"message","content":[{"type":"output_text","text":"Hel"},{"type":"output_text","text":"lo"}]}]}"""
+        val result = LocalAiProtocolCodec.parseResponses(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("Hello", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parse sse chat empty payload returns empty stream error`() {
+        val deltas = mutableListOf<String>()
+        val result = LocalAiProtocolCodec.parseSseChat("") { deltas += it }
+        assertTrue(result is OpenAiCompatClient.Completion.Error)
+        assertEquals("empty stream", (result as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(deltas.isEmpty())
+    }
+
 }
