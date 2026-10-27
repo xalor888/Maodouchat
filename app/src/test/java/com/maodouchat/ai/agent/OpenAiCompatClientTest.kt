@@ -421,4 +421,56 @@ class OpenAiCompatClientTest {
         assertEquals("", tools.content)
         assertEquals("call_9", tools.calls.single().id)
     }
+
+    @Test
+    fun `parseNonStream keeps only the valid call beside a null function entry`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[
+          {"id":"c1","function":{"name":"list_chats","arguments":"{}"}},
+          {"id":"c2","function":null}
+        ]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val call = (result as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("list_chats", call.name)
+        assertEquals("c1", call.id)
+    }
+
+    @Test
+    fun `parseNonStream null tool calls falls back to text`() {
+        val payload = """{"choices":[{"message":{"content":"hi","tool_calls":null}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
+    @Test
+    fun `parseNonStream generates id for tool call with null id`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[
+          {"id":null,"function":{"name":"list_chats","arguments":"{}"}}
+        ]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val call = (result as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("list_chats", call.name)
+        assertTrue(call.id.startsWith("call_"))
+    }
+
+    @Test
+    fun `parseNonStream tool call with null arguments yields empty arguments`() {
+        val payload = """{"choices":[{"message":{"content":"","tool_calls":[
+          {"id":"c1","function":{"name":"list_chats","arguments":null}}
+        ]}}]}"""
+        val result = OpenAiCompatClient.parseNonStream(payload)
+        assertTrue(result is OpenAiCompatClient.Completion.Tools)
+        val call = (result as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertEquals("", call.argumentsJson)
+    }
+
+    @Test
+    fun `parseNonStream string message yields empty text`() {
+        val result = OpenAiCompatClient.parseNonStream("""{"choices":[{"message":"hi"}]}""")
+        assertTrue(result is OpenAiCompatClient.Completion.Text)
+        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+    }
+
 }

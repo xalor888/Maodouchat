@@ -673,4 +673,37 @@ class AiTaskDndPolicyTest {
         assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 60, 1500, 60, 2_000L))
     }
 
+    @Test
+    fun `negative minute clamps into the overnight window`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(-5, 1350, 420))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(-5, 600, 660))
+    }
+
+    @Test
+    fun `overnight window nine hundred to three hundred boundary quartet`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(899, 900, 300))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(900, 900, 300))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(299, 900, 300))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(300, 900, 300))
+    }
+
+    @Test
+    fun `single minute window one to two boundary trio`() {
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 1, 2))
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1, 1, 2))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(2, 1, 2))
+    }
+
+    @Test
+    fun `epoch zero nextAllowedTime treats zero end as not after now`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(0L, 720, 0, 1439, 0L))
+        assertEquals(1L, AiTaskDndPolicy.nextAllowedTime(0L, 720, 0, 1439, 1L))
+    }
+
+    @Test
+    fun `nextAllowedTime inside nine hundred to three hundred window returns end`() {
+        assertEquals(5_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1000, 900, 300, 5_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 300, 900, 300, 5_000L))
+    }
+
 }
