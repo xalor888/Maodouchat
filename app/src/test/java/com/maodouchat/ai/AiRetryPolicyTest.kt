@@ -1121,4 +1121,48 @@ class AiRetryPolicyTest {
         assertEquals("reached max auto retries; user must retry", decision.explanation)
         assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
     }
+
+    @Test
+    fun decideBareQuotaExceededUsesQuotaDefaultWait() {
+        val decision = AiRetryPolicy.decide("QUOTA_EXCEEDED", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(300_000L, decision.delayMs)
+        assertEquals("quota exceeded; do not auto-retry", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideRateLimitedWithExplicitSecondsUsesEmbeddedWait() {
+        val decision = AiRetryPolicy.decide("RATE_LIMITED:45", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(45_000L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBareUnauthorizedMapsToAuthBranch() {
+        val decision = AiRetryPolicy.decide("UNAUTHORIZED", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("UNAUTHORIZED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBareTimeoutFallsThroughToNonTransient() {
+        val decision = AiRetryPolicy.decide("TIMEOUT", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("non-transient error", decision.explanation)
+        assertEquals("TIMEOUT", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBareInsufficientFundsMapsToQuotaWithZeroWait() {
+        val decision = AiRetryPolicy.decide("INSUFFICIENT_FUNDS", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("quota exceeded; do not auto-retry", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
 }
