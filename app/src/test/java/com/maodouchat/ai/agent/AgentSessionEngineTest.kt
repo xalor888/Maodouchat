@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -1036,6 +1037,111 @@ class AgentSessionEngineTest {
         assertEquals("c9", pending.call.id)
         assertEquals("update_chat", pending.call.name)
         assertEquals("改会话 chat-9 pinned=null muted=true archived=null unread=null", pending.preview)
+    }
+
+
+    @Test
+    fun `model receives the exact provider passed to runTurn`() = runBlocking {
+        var seen: LocalAiProvider? = null
+        val engine = AgentSessionEngine(
+            complete = { provider, _, _, _ ->
+                seen = provider
+                OpenAiCompatClient.Completion.Text("done")
+            }
+        )
+        engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertEquals("p", seen?.id)
+        assertEquals("t", seen?.name)
+        assertEquals("https://example.test/v1", seen?.baseUrl)
+        assertEquals("m", seen?.model)
+    }
+
+    @Test
+    fun `model receives the tool catalog json on every round`() = runBlocking {
+        val seenTools = mutableListOf<List<Map<String, Any?>>?>()
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, _, tools, _ ->
+                seenTools += tools
+                round++
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { _, _ -> "ok" }
+        )
+        engine.runTurn(provider, emptyList(), "列出会话", null).toList()
+        assertEquals(2, seenTools.size)
+        seenTools.forEach { assertEquals(AgentToolPolicy.openaiToolsJson(), it) }
+    }
+
+    @Test
+    fun `round two message count grows by assistant plus tool`() = runBlocking {
+        var roundTwoMessages: List<AgentChatMessage> = emptyList()
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                round++
+                if (round == 2) roundTwoMessages = messages.toList()
+                if (round == 1) {
+                    OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                } else {
+                    OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { _, _ -> "ok" }
+        )
+        engine.runTurn(provider, emptyList(), "列出会话", null).toList()
+        assertEquals(listOf("system", "user", "assistant", "tool"), roundTwoMessages.map { it.role })
+    }
+
+    @Test
+    fun `round three messages carry both prior tool results in order`() = runBlocking {
+        var roundThreeMessages: List<AgentChatMessage> = emptyList()
+        var round = 0
+        val engine = AgentSessionEngine(
+            complete = { _, messages, _, _ ->
+                round++
+                if (round == 3) roundThreeMessages = messages.toList()
+                when (round) {
+                    1 -> OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c1", "list_chats", "{}")),
+                        ""
+                    )
+                    2 -> OpenAiCompatClient.Completion.Tools(
+                        listOf(AgentToolCall("c2", "get_contacts", "{}")),
+                        ""
+                    )
+                    else -> OpenAiCompatClient.Completion.Text("done")
+                }
+            },
+            executeTool = { name, _ -> if (name == "list_chats") "chats-ok" else "contacts-ok" }
+        )
+        engine.runTurn(provider, emptyList(), "列出会话和联系人", null).toList()
+        val toolMessages = roundThreeMessages.filter { it.role == "tool" }
+        assertEquals(listOf("c1", "c2"), toolMessages.map { it.toolCallId })
+        assertEquals(listOf("chats-ok", "contacts-ok"), toolMessages.map { it.content })
+    }
+
+    @Test
+    fun `model onDelta callback is null`() = runBlocking {
+        var seenDelta: ((String) -> Unit)? = { _ -> error("must stay null") }
+        val engine = AgentSessionEngine(
+            complete = { _, _, _, onDelta ->
+                seenDelta = onDelta
+                OpenAiCompatClient.Completion.Text("done")
+            }
+        )
+        engine.runTurn(provider, emptyList(), "问一句", null).toList()
+        assertNull(seenDelta)
     }
 
 }
