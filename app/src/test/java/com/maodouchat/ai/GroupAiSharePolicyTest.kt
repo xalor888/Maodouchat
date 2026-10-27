@@ -910,4 +910,43 @@ class GroupAiSharePolicyTest {
         )
     }
 
+
+    @Test
+    fun `share limits match documented constants`() {
+        assertEquals(4_000, GroupAiSharePolicy.MAX_SHARE_CHARS)
+        assertEquals(30, GroupAiSharePolicy.MAX_TASKS_PER_SAVE)
+        assertEquals(360, GroupAiSharePolicy.MAX_TASK_TITLE_CHARS)
+    }
+
+    @Test
+    fun `closed loop not ready for non-group even with valid tasks`() {
+        assertFalse(
+            GroupAiSharePolicy.isClosedLoopReady(
+                isGroup = false,
+                answer = "answer",
+                tasks = listOf(TaskDraft("follow up"))
+            )
+        )
+    }
+
+    @Test
+    fun `sanitizeTasks keeps internal newline in owner`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", owner = "a\nb"))
+        )
+        assertEquals("a\nb", cleaned.single().owner)
+    }
+
+    @Test
+    fun `decideShare allows single emoji answer`() {
+        val decision = GroupAiSharePolicy.decideShare(true, "\uD83D\uDE00")
+        assertTrue(decision.allowed)
+        assertEquals("\uD83D\uDE00", decision.body)
+    }
+
+    @Test
+    fun `shareAssistantMode keeps internal tab`() {
+        assertEquals("a\tb", GroupAiSharePolicy.shareAssistantMode("a\tb"))
+    }
+
 }
