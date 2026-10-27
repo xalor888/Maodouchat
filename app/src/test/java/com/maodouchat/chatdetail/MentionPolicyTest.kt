@@ -223,8 +223,11 @@ class MentionPolicyTest {
 
     @Test
     fun insertMention_preservesTextAfterCursor_and_noQueryKeepsText() {
-        val r = MentionPolicy.insertMention("hi @Al rest", 6, "Alice")
-        assertEquals("hi @Alice  rest", r.text)
+        // 光标落在空白上不算进行中 query（见同文件 activeQuery 空白断言），
+        // 故用光标落在 token 内的情形验证光标后文本保留：cursor=6 时 filter 为 "Al"，
+        // 插入后光标后 "x" 原样保留。
+        val r = MentionPolicy.insertMention("hi @Alx", 6, "Alice")
+        assertEquals("hi @Alice x", r.text)
         assertEquals(10, r.cursor)
         assertEquals(
             InsertResult("hello", 5),
