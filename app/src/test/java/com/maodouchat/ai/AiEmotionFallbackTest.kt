@@ -744,4 +744,42 @@ class AiEmotionFallbackTest {
         assertEquals("slowly.", text.split(" ").last())
     }
 
+    @Test
+    fun `only sad template mentions whenever`() {
+        assertTrue(AiEmotionFallback.localFallback(context, Emotion.SAD).contains("whenever"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.HAPPY).contains("whenever"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.ANGRY).contains("whenever"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.ANXIOUS).contains("whenever"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.NEUTRAL).contains("whenever"))
+    }
+
+    @Test
+    fun `only angry template mentions tell`() {
+        assertTrue(AiEmotionFallback.localFallback(context, Emotion.ANGRY).contains("tell"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.HAPPY).contains("tell"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.SAD).contains("tell"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.ANXIOUS).contains("tell"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.NEUTRAL).contains("tell"))
+    }
+
+    @Test
+    fun `only happy template says for you`() {
+        assertTrue(AiEmotionFallback.localFallback(context, Emotion.HAPPY).contains("for you"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.SAD).contains("for you"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.ANGRY).contains("for you"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.ANXIOUS).contains("for you"))
+        assertFalse(AiEmotionFallback.localFallback(context, Emotion.NEUTRAL).contains("for you"))
+    }
+
+    @Test
+    fun `neutral template mentions neither understanding nor feeling`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.NEUTRAL)
+        assertFalse(text.contains("understand"))
+        assertFalse(text.contains("feel"))
+    }
+
+    @Test
+    fun `anxious template opens with dont worry`() {
+        assertTrue(AiEmotionFallback.localFallback(context, Emotion.ANXIOUS).startsWith("Don't"))
+    }
 }

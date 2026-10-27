@@ -897,4 +897,39 @@ class AiLocalRulesTest {
         assertEquals(Emotion.ANXIOUS, result.emotion)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `classify do not forget phrase alone hits todo at full confidence`() {
+        val result = AiMessageClassifier.classifyText("别忘了")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion hate word alone hits angry at full confidence`() {
+        val result = AiEmotionReply.detectEmotion(listOf("hate"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify notice finance study three-way tie takes notice at third confidence`() {
+        val result = AiMessageClassifier.classifyText("通知 转账 学习")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(1.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion sad cry words share sad at full confidence`() {
+        val result = AiEmotionReply.detectEmotion(listOf("sad cry"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion split texts tie takes happy with half confidence`() {
+        val result = AiEmotionReply.detectEmotion(listOf("开心", "难过"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
 }
