@@ -883,4 +883,41 @@ class AiClassifyLexiconTest {
         assertEquals(AiMessageClassifierCategory.SOCIAL, result.category)
         assertEquals(1.0, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `refund word alone hits finance at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("refund")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `deploy word alone hits tech at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("deploy")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study word alone hits study at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("study")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `task word alone hits todo at full confidence`() {
+        val result = AiClassifyLexicon.classifyText("task")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `duplicate bug votes give tech two thirds share`() {
+        // "bug" 在 TECH 词典列两次得 2 票，对财务 1 票，占比 2/3。
+        val result = AiClassifyLexicon.classifyText("bug 转账")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
 }
