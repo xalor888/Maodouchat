@@ -635,4 +635,41 @@ class AiEmotionFallbackTest {
         }
     }
 
+
+    @Test
+    fun `only happy template has no period`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertEquals(emotion == Emotion.HAPPY, !text.contains("."))
+        }
+    }
+
+    @Test
+    fun `only neutral and anxious templates avoid second person`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertEquals(emotion == Emotion.NEUTRAL || emotion == Emotion.ANXIOUS, !text.contains("you"))
+        }
+    }
+
+    @Test
+    fun `every template is pure ASCII`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertTrue(text.all { it.code < 128 })
+        }
+    }
+
+    @Test
+    fun `anxious template worries before it steps`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.ANXIOUS)
+        assertTrue(text.indexOf("worry") < text.indexOf("step"))
+    }
+
+    @Test
+    fun `sad template needs before it talks`() {
+        val text = AiEmotionFallback.localFallback(context, Emotion.SAD)
+        assertTrue(text.indexOf("need") < text.indexOf("talk"))
+    }
+
 }
