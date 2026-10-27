@@ -84,6 +84,48 @@ class ContactsIndexPolicyTest {
     }
 
     @Test
+    fun `initialFor maps trimmed latin and hashes other scripts`() {
+        assertEquals("Z", ContactsIndexPolicy.initialFor(" zed "))
+        assertEquals("#", ContactsIndexPolicy.initialFor("Æsop"))
+        assertEquals("#", ContactsIndexPolicy.initialFor("Ωmega"))
+    }
+
+    @Test
+    fun `leadingFixedItemCount counts each section independently`() {
+        assertEquals(5, ContactsIndexPolicy.leadingFixedItemCount(1, 0, 0))
+        assertEquals(6, ContactsIndexPolicy.leadingFixedItemCount(0, 2, 0))
+        assertEquals(7, ContactsIndexPolicy.leadingFixedItemCount(0, 0, 3))
+        assertEquals(5, ContactsIndexPolicy.leadingFixedItemCount(0, 0, 0, trailingActionRows = 5))
+    }
+
+    @Test
+    fun `letterListIndex honors custom leading count`() {
+        val letters = listOf("A", "B")
+        val sizes = mapOf("A" to 2)
+        assertEquals(13, ContactsIndexPolicy.letterListIndex(letters, sizes, "B", leadingFixedItems = 10))
+        assertEquals(0, ContactsIndexPolicy.letterListIndex(letters, sizes, "A", leadingFixedItems = 0))
+        assertEquals(3, ContactsIndexPolicy.letterListIndex(letters, sizes, "B", leadingFixedItems = 0))
+    }
+
+    @Test
+    fun `groupByInitial handles blank names`() {
+        val grouped = ContactsIndexPolicy.groupByInitial(
+            listOf("u1" to "", "u2" to " ", "u3" to "Bob")
+        )
+        assertEquals(listOf("#", "B"), grouped.keys.toList())
+        assertEquals(listOf("u1", "u2"), grouped["#"])
+        assertEquals(listOf("u3"), grouped["B"])
+    }
+
+    @Test
+    fun `letterListIndex first letters with empty sizes`() {
+        val letters = listOf("A", "B", "C")
+        assertEquals(1, ContactsIndexPolicy.letterListIndex(letters, emptyMap(), "A"))
+        assertEquals(2, ContactsIndexPolicy.letterListIndex(letters, emptyMap(), "B"))
+        assertEquals(3, ContactsIndexPolicy.letterListIndex(letters, emptyMap(), "C"))
+    }
+
+    @Test
     fun `groupByInitial keeps ids order and handles empty input`() {
         assertEquals(emptyMap<String, List<String>>(), ContactsIndexPolicy.groupByInitial(emptyList()))
         val grouped = ContactsIndexPolicy.groupByInitial(

@@ -70,6 +70,70 @@ class ChatListReceiptPolicyTest {
     }
 
     @Test
+    fun groupNonDeliveredStatusesPassThrough() {
+        assertEquals(MessageStatus.SENT, ChatListReceiptPolicy.displayStatus(MessageStatus.SENT, isGroup = true))
+        assertEquals(MessageStatus.FAILED, ChatListReceiptPolicy.displayStatus(MessageStatus.FAILED, isGroup = true))
+        assertEquals(MessageStatus.SENDING, ChatListReceiptPolicy.displayStatus(MessageStatus.SENDING, isGroup = true))
+        assertEquals(MessageStatus.READ, ChatListReceiptPolicy.displayStatus(MessageStatus.READ, isGroup = false))
+    }
+
+    @Test
+    fun badgeTextBoundaries() {
+        assertEquals("99", ChatListReceiptPolicy.unreadBadgeText(99, markedUnread = false))
+        assertEquals("99+", ChatListReceiptPolicy.unreadBadgeText(100, markedUnread = false))
+        assertEquals("1", ChatListReceiptPolicy.unreadBadgeText(1, markedUnread = false))
+        assertEquals("", ChatListReceiptPolicy.unreadBadgeText(0, markedUnread = false))
+        assertTrue(ChatListReceiptPolicy.showUnreadBadge(1, markedUnread = false))
+        assertTrue(ChatListReceiptPolicy.showUnreadBadge(5, markedUnread = true))
+        assertEquals("5", ChatListReceiptPolicy.unreadBadgeText(5, markedUnread = true))
+    }
+
+    @Test
+    fun sendingTailShowsSendingReceipt() {
+        val receipt = ChatListReceiptPolicy.fromLatest(
+            latest = message(senderId = "me", status = MessageStatus.SENDING),
+            currentUserId = "me",
+        )
+        assertNotNull(receipt)
+        assertTrue(receipt.fromMe)
+        assertEquals(MessageStatus.SENDING, receipt.status)
+    }
+
+    @Test
+    fun groupReadKeepsDoubleCheck() {
+        val readReceipt = ChatListReceiptPolicy.fromLatest(
+            latest = message(senderId = "me", status = MessageStatus.READ),
+            currentUserId = "me",
+            isGroup = true,
+        )
+        assertNotNull(readReceipt)
+        assertEquals(MessageStatus.READ, readReceipt.status)
+        val sentReceipt = ChatListReceiptPolicy.fromLatest(
+            latest = message(senderId = "me", status = MessageStatus.SENT),
+            currentUserId = "me",
+            isGroup = true,
+        )
+        assertNotNull(sentReceipt)
+        assertEquals(MessageStatus.SENT, sentReceipt.status)
+    }
+
+    @Test
+    fun whitespaceOwnerAndCaseSensitiveSenderHideTicks() {
+        assertNull(
+            ChatListReceiptPolicy.fromLatest(
+                latest = message(senderId = "me", status = MessageStatus.SENT),
+                currentUserId = " ",
+            )
+        )
+        assertNull(
+            ChatListReceiptPolicy.fromLatest(
+                latest = message(senderId = "ME", status = MessageStatus.SENT),
+                currentUserId = "me",
+            )
+        )
+    }
+
+    @Test
     fun markedUnreadKeepsBadgeWithoutNumber() {
         assertTrue(ChatListReceiptPolicy.showUnreadBadge(0, markedUnread = true))
         assertEquals("", ChatListReceiptPolicy.unreadBadgeText(0, markedUnread = true))
