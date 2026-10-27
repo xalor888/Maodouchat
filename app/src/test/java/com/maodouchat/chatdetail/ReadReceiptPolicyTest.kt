@@ -224,4 +224,102 @@ class ReadReceiptPolicyTest {
         )
         assertEquals(listOf("c"), ids)
     }
+
+    @Test
+    fun canViewReceipts_groupAdminWhitespaceRoleAndDmAdminDenied() {
+        assertTrue(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "admin",
+                senderId = "peer",
+                isGroup = true,
+                viewerRole = " admin ",
+            )
+        )
+        assertFalse(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "admin",
+                senderId = "peer",
+                isGroup = false,
+                viewerRole = "ADMIN",
+            )
+        )
+    }
+
+    @Test
+    fun shouldShowGroupReadCount_ownerRoleAndDmDenied() {
+        assertTrue(ReadReceiptPolicy.shouldShowGroupReadCount(true, isOwnMessage = false, viewerRole = " owner "))
+        assertFalse(ReadReceiptPolicy.shouldShowGroupReadCount(false, isOwnMessage = true, viewerRole = "OWNER"))
+        assertFalse(ReadReceiptPolicy.shouldShowGroupReadCount(false, isOwnMessage = false, viewerRole = "ADMIN"))
+    }
+
+    @Test
+    fun computeGroupReadCount_viewerOnlyRosterFallsBackToReceipts() {
+        val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = listOf("me"),
+            receiptUserIds = listOf("a", "me", "a"),
+        )
+        assertEquals(1, read)
+        assertEquals(1, total)
+        val (emptyRead, emptyTotal) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = listOf("me"),
+            receiptUserIds = listOf("me"),
+        )
+        assertEquals(0, emptyRead)
+        assertEquals(0, emptyTotal)
+    }
+
+    @Test
+    fun computeGroupReadCount_allReadAndNoneReadBounds() {
+        val (allRead, allTotal) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = listOf("me", "a", "b"),
+            receiptUserIds = listOf("a", "b"),
+        )
+        assertEquals(2, allRead)
+        assertEquals(2, allTotal)
+        val (noneRead, noneTotal) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = listOf("me", "a", "b"),
+            receiptUserIds = listOf("ghost"),
+        )
+        assertEquals(0, noneRead)
+        assertEquals(2, noneTotal)
+    }
+
+    @Test
+    fun prefetchAndIncomplete_respectMaxAndSkipBlankIds() {
+        val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("", "me", true),
+                PrefetchMessage("x", "me", true),
+                PrefetchMessage("y", "me", false),
+            ),
+            max = 8,
+        )
+        assertEquals(listOf("x"), ids)
+        val incomplete = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("a", "me", true),
+                PrefetchMessage("b", "me", true),
+                PrefetchMessage("c", "me", true),
+                PrefetchMessage("d", "me", true),
+            ),
+            counts = emptyMap(),
+            max = 2,
+        )
+        assertEquals(listOf("d", "c"), incomplete)
+        assertEquals(
+            emptyList(),
+            ReadReceiptPolicy.incompleteGroupReadMessageIds(
+                viewerId = " ",
+                messagesNewestLast = listOf(PrefetchMessage("a", "me", true)),
+                counts = emptyMap(),
+            ),
+        )
+    }
+
 }
