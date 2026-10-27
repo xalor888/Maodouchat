@@ -722,4 +722,52 @@ class AiLocalRulesTest {
         assertEquals(0.5, swapped.confidence, 0.0001)
     }
 
+    @Test
+    fun `classify good night phrase needs exact single space`() {
+        val phrase = AiMessageClassifier.classifyText("good night")
+        assertEquals(AiMessageClassifierCategory.SOCIAL, phrase.category)
+        assertEquals(1.0, phrase.confidence, 0.0001)
+        assertEquals(AiMessageClassifierCategory.OTHER, AiMessageClassifier.classifyText("good").category)
+        assertEquals(0.2, AiMessageClassifier.classifyText("good").confidence, 0.0001)
+        assertEquals(AiMessageClassifierCategory.OTHER, AiMessageClassifier.classifyText("night").category)
+        assertEquals(AiMessageClassifierCategory.OTHER, AiMessageClassifier.classifyText("good  night").category)
+    }
+
+    @Test
+    fun `classify todo and tech tie takes todo`() {
+        val result = AiMessageClassifier.classifyText("提交 修复")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val swapped = AiMessageClassifier.classifyText("修复 提交")
+        assertEquals(AiMessageClassifierCategory.TODO, swapped.category)
+        assertEquals(0.5, swapped.confidence, 0.0001)
+    }
+
+    @Test
+    fun `classify notice and social tie takes notice`() {
+        val result = AiMessageClassifier.classifyText("通知 周末")
+        assertEquals(AiMessageClassifierCategory.NOTICE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val swapped = AiMessageClassifier.classifyText("周末 通知")
+        assertEquals(AiMessageClassifierCategory.NOTICE, swapped.category)
+        assertEquals(0.5, swapped.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detectEmotion haha triple counts both happy forms against sad`() {
+        val result = AiEmotionReply.detectEmotion(listOf("哈哈哈 难过"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detectEmotion sad anxious tie takes sad`() {
+        val result = AiEmotionReply.detectEmotion(listOf("难过 担心"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+        val swapped = AiEmotionReply.detectEmotion(listOf("担心 难过"))
+        assertEquals(Emotion.SAD, swapped.emotion)
+        assertEquals(0.5, swapped.confidence, 0.0001)
+    }
+
 }

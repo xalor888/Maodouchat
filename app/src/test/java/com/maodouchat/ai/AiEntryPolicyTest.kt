@@ -1145,4 +1145,53 @@ class AiEntryPolicyTest {
         )
     }
 
+    @Test
+    fun `contextActionsFor null and bell padded text does not fold`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("\u0000TEXT\u0000").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("\u0007FILE\u0007").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("\u0000TEXT\u0000"))
+    }
+
+    @Test
+    fun `contextActionsFor gif and image share analyze image action`() {
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_IMAGE),
+            AiEntryPolicy.contextActionsFor("GIF")
+        )
+        assertEquals(
+            AiEntryPolicy.contextActionsFor("IMAGE"),
+            AiEntryPolicy.contextActionsFor("GIF", hasTranscript = true)
+        )
+    }
+
+    @Test
+    fun `canOpenComposerMenu single argument form blocks only on busy`() {
+        assertTrue(AiEntryPolicy.canOpenComposerMenu(isBusy = false))
+        assertFalse(AiEntryPolicy.canOpenComposerMenu(isBusy = true))
+    }
+
+    @Test
+    fun `contextActionsFor voice default argument transcribes`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("VOICE")
+        )
+    }
+
+    @Test
+    fun `canRunContextAction two arg form matches master on form`() {
+        assertEquals(
+            AiEntryPolicy.canRunContextAction(masterEnabled = true, chatAiEnabled = true, isBusy = false),
+            AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = false)
+        )
+        assertEquals(
+            AiEntryPolicy.canRunContextAction(masterEnabled = true, chatAiEnabled = false, isBusy = false),
+            AiEntryPolicy.canRunContextAction(chatAiEnabled = false, isBusy = false)
+        )
+        assertEquals(
+            AiEntryPolicy.canRunContextAction(masterEnabled = true, chatAiEnabled = true, isBusy = true),
+            AiEntryPolicy.canRunContextAction(chatAiEnabled = true, isBusy = true)
+        )
+    }
+
 }
