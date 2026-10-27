@@ -1030,4 +1030,52 @@ class AiRetryPolicyTest {
         AiRetryPolicy.clearSession()
     }
 
+
+    @Test
+    fun decideCancelledWithSuffixKeepsBaseVisibleWithoutWait() {
+        val decision = AiRetryPolicy.decide("CANCELLED:30", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("non-transient error", decision.explanation)
+        assertEquals("CANCELLED", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideLowercaseTooManyWithSuffixUsesRateWait() {
+        val decision = AiRetryPolicy.decide("too_many_requests:30", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(30_000L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBillingOversizedSuffixCapsAtOneDay() {
+        val decision = AiRetryPolicy.decide("BILLING_ERROR:999999", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(86_400_000L, decision.delayMs)
+        assertEquals("quota exceeded; do not auto-retry", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun globalWindowFullBlocksHeavyCategoryToo() {
+        AiRetryPolicy.clearSession()
+        repeat(240) { index ->
+            AiRetryPolicy.recordCall("chat-$index", AiRetryPolicyCategory.LIGHT)
+        }
+        assertFalse(AiRetryPolicy.canCallNow("fresh-chat", AiRetryPolicyCategory.HEAVY))
+        assertTrue(AiRetryPolicy.remainingDelayMs("fresh-chat", AiRetryPolicyCategory.HEAVY) > 0L)
+        AiRetryPolicy.clearSession()
+    }
+
+    @Test
+    fun decideRateLimitedTooManyWithSuffixUsesRateWait() {
+        val decision = AiRetryPolicy.decide("RATE_LIMITED_TOO_MANY:45", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(45_000L, decision.delayMs)
+        assertEquals("rate-limited; ask user to wait", decision.explanation)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
 }

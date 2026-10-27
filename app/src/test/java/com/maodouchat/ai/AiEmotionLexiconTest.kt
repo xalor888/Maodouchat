@@ -594,4 +594,41 @@ class AiEmotionLexiconTest {
         assertEquals(0.5, result.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `haha and great in one text both count toward happy`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("haha great"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `plain neutral sentence without dictionary words stays neutral`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("今天天气不错"))
+        assertEquals(Emotion.NEUTRAL, result.emotion)
+        assertEquals(0.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `anxious words across two texts aggregate to full confidence`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("我很担心", "压力好大"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad majority across texts keeps two thirds share`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("哈哈", "哭了", "哭了"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `chinese keyword ending exactly at scan window edge counts`() {
+        // 200 字窗口恰好包住末尾的「哈哈」
+        val result = AiEmotionLexicon.detectEmotion(listOf("垫".repeat(198) + "哈哈"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
 }
