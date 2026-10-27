@@ -624,4 +624,45 @@ class LocalAiGatewayRankTest {
         )
     }
 
+    @Test
+    fun `chinese query tokens score per token`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "会议 记录",
+            listOf("c1" to "会议记录在这里", "c2" to "会议通知")
+        )
+        assertEquals(listOf("c1" to 2.0, "c2" to 1.0), scored)
+    }
+
+    @Test
+    fun `digit tokens score like word tokens`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("2024 report", listOf("c1" to "2024 annual report"))
+        )
+    }
+
+    @Test
+    fun `plus token matches literally`() = runBlocking {
+        val candidates = listOf("c1" to "c++ guide", "c2" to "c guide")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("c++", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("c++", candidates))
+    }
+
+    @Test
+    fun `whitespace-only tab newline query ranks to empty`() = runBlocking {
+        val candidates = listOf("c1" to "red car")
+        assertEquals(emptyList<String>(), LocalAiGateway.rankSemantic("\t \n", candidates))
+        assertEquals(
+            emptyList<Pair<String, Double>>(),
+            LocalAiGateway.rankSemanticScored("\t \n", candidates)
+        )
+    }
+
+    @Test
+    fun `alphanumeric token scores as one token`() = runBlocking {
+        val candidates = listOf("c1" to "abc123 notes", "c2" to "abc notes")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("abc123", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("abc123", candidates))
+    }
+
 }

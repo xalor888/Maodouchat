@@ -729,4 +729,44 @@ class AiClassifyLexiconTest {
         )
     }
 
+    @Test
+    fun `finance category from chinese receipt word`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.FINANCE, 1.0),
+            AiClassifyLexicon.classifyText("收款")
+        )
+    }
+
+    @Test
+    fun `social category from chinese good night word`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.SOCIAL, 1.0),
+            AiClassifyLexicon.classifyText("晚安")
+        )
+    }
+
+    @Test
+    fun `todo category from chinese arrange word`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.TODO, 1.0),
+            AiClassifyLexicon.classifyText("安排一下")
+        )
+    }
+
+    @Test
+    fun `study category from chinese learn word`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.STUDY, 1.0),
+            AiClassifyLexicon.classifyText("学习时间")
+        )
+    }
+
+    @Test
+    fun `tech category from english api word`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.TECH, 1.0),
+            AiClassifyLexicon.classifyText("call the api")
+        )
+    }
+
 }
