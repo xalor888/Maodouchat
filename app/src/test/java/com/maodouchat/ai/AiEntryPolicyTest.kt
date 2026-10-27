@@ -1392,4 +1392,39 @@ class AiEntryPolicyTest {
         assertFalse(AiEntryPolicy.hasContextAiActions("transcribe"))
     }
 
+    @Test
+    fun `contextActionsFor punctuation suffixed types stay empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT!").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT?").isEmpty())
+        assertTrue(AiEntryPolicy.contextActionsFor("TEXT.").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TEXT!"))
+    }
+
+    @Test
+    fun `contextActionsFor padded voice with transcript stays empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("\tVOICE\t", hasTranscript = true).isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("\tVOICE\t", hasTranscript = true))
+    }
+
+    @Test
+    fun `contextActionsFor mixed separators wrapped system with transcript still translates`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u001C\u001DSYSTEM\u001E\u001F", hasTranscript = true)
+        )
+        assertTrue(AiEntryPolicy.hasContextAiActions("\u001C\u001DSYSTEM\u001E\u001F", hasTranscript = true))
+    }
+
+    @Test
+    fun `contextActionsFor separators only string stays empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("\u001C\u001D\u001E\u001F").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("\u001C\u001D\u001E\u001F"))
+    }
+
+    @Test
+    fun `contextActionsFor internal tab in voice type stays empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("VO\tICE").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("VO\tICE"))
+    }
+
 }

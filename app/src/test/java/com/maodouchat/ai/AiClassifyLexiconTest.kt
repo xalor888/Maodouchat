@@ -920,4 +920,40 @@ class AiClassifyLexiconTest {
         assertEquals(2.0 / 3.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `todo study tie breaks toward todo with half confidence`() {
+        // 平局取枚举在前：TODO 在 STUDY 之前。
+        val result = AiClassifyLexicon.classifyText("任务 考试")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `todo tech tie breaks toward todo with half confidence`() {
+        val result = AiClassifyLexicon.classifyText("任务 代码")
+        assertEquals(AiMessageClassifierCategory.TODO, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `finance social tie breaks toward finance with half confidence`() {
+        val result = AiClassifyLexicon.classifyText("转账 电影")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `study social tie breaks toward study with half confidence`() {
+        val result = AiClassifyLexicon.classifyText("考试 电影")
+        assertEquals(AiMessageClassifierCategory.STUDY, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `tech social tie breaks toward tech with half confidence`() {
+        val result = AiClassifyLexicon.classifyText("代码 电影")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
 }
