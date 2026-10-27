@@ -917,4 +917,44 @@ class AiPrivacyPreferencesTest {
         )
     }
 
+    @Test
+    fun `scoped key keeps square brackets in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a[0]",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a[0]")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps braces in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a{b}",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a{b}")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps angle brackets in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a<b>",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a<b>")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps backtick in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a`b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a`b")
+        )
+    }
+
+    @Test
+    fun `scoped key keeps comma in user id verbatim`() {
+        assertEquals(
+            "ai_consent_accepted:a,b",
+            AiPrivacyPreferences.scopedKey(AiPrivacyPreferences.KEY_CONSENT, "a,b")
+        )
+    }
+
 }
