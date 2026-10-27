@@ -455,4 +455,47 @@ class LocalAiFileAnalyzerTest {
         assertEquals(Kind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
+
+    @Test
+    fun `base64 without padding is accepted`() {
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", "aGk")
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("hi", prepared.text)
+    }
+
+    @Test
+    fun `text one char below max is kept whole`() {
+        val body = "y".repeat(LocalAiFileAnalyzer.MAX_TEXT_CHARS - 1)
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("short.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(body, prepared!!.text)
+    }
+
+    @Test
+    fun `tab and newline text is accepted verbatim`() {
+        val body = "a\tb\nc"
+        val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(body, prepared.text)
+    }
+
+    @Test
+    fun `uppercase json mime with trailing space is rejected by exact match`() {
+        val encoded = Base64.getEncoder().encodeToString("{\"a\":1}".toByteArray(Charsets.UTF_8))
+        assertNull(LocalAiFileAnalyzer.prepare("a.json", "APPLICATION/JSON ", encoded))
+    }
+
+    @Test
+    fun `pdf suffix in the middle does not force pdf path`() {
+        val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
+        val prepared = LocalAiFileAnalyzer.prepare("notes.pdf.txt", "text/plain", encoded)
+        assertNotNull(prepared)
+        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals("notes.pdf.txt", prepared.fileName)
+    }
+
 }

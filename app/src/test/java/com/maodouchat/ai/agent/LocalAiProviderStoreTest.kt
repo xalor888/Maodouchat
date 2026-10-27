@@ -609,4 +609,59 @@ class LocalAiProviderStoreTest {
         assertEquals("", decoded.single().organization)
     }
 
+
+    @Test
+    fun `clamp boundary values pass through unchanged`() {
+        val atLow = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "m",
+            historyMessageLimit = 4, maxTokens = 16, contextWindowTokens = 1_024, timeoutSeconds = 15
+        )
+        assertEquals(4, atLow.clampedHistoryLimit())
+        assertEquals(16, atLow.clampedMaxTokens())
+        assertEquals(1_024, atLow.clampedContextWindow())
+        assertEquals(15, atLow.clampedTimeoutSeconds())
+        val atHigh = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "m",
+            historyMessageLimit = 200, maxTokens = 128_000, contextWindowTokens = 2_000_000, timeoutSeconds = 300
+        )
+        assertEquals(200, atHigh.clampedHistoryLimit())
+        assertEquals(128_000, atHigh.clampedMaxTokens())
+        assertEquals(2_000_000, atHigh.clampedContextWindow())
+        assertEquals(300, atHigh.clampedTimeoutSeconds())
+    }
+
+    @Test
+    fun `multiple providers keep order on round trip`() {
+        val providers = listOf("a", "b", "c").map { id ->
+            LocalAiProvider(id = id, name = "n", baseUrl = "https://x", apiKey = "", model = "m")
+        }
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(providers))
+        assertEquals(listOf("a", "b", "c"), decoded.map { it.id })
+    }
+
+    @Test
+    fun `zero temperature and topP survive round trip`() {
+        val provider = LocalAiProvider(
+            id = "p1", name = "n", baseUrl = "https://x", apiKey = "", model = "m",
+            temperature = 0.0, topP = 0.0
+        )
+        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(listOf(provider)))
+        assertEquals(1, decoded.size)
+        assertEquals(0.0, decoded.single().temperature)
+        assertEquals(0.0, decoded.single().topP)
+    }
+
+    @Test
+    fun `chat completions url without trailing slash appends suffix`() {
+        val provider = LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x.example/v1", apiKey = "", model = "m")
+        assertEquals("https://x.example/v1/chat/completions", provider.resolvedChatCompletionsUrl())
+    }
+
+    @Test
+    fun `vision capability matches vision substring and vl infix`() {
+        assertTrue(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "vision-pro").hasVisionCapability())
+        assertTrue(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "vl-model-x").hasVisionCapability())
+        assertFalse(LocalAiProvider(id = "p1", name = "n", baseUrl = "https://x", apiKey = "k", model = "plain-text-model").hasVisionCapability())
+    }
+
 }
