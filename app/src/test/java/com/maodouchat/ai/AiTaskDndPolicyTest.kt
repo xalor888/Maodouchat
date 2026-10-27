@@ -641,4 +641,36 @@ class AiTaskDndPolicyTest {
         assertEquals(1, count)
     }
 
+    @Test
+    fun `nextAllowedTime inside same-day window with end equal to now returns null`() {
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 30, 0, 60, 1_000L))
+        assertEquals(1_001L, AiTaskDndPolicy.nextAllowedTime(1_000L, 30, 0, 60, 1_001L))
+    }
+
+    @Test
+    fun `overnight window sweep 1200 to 0 counts two hundred forty minutes`() {
+        val count = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1200, 0) }
+        assertEquals(240, count)
+    }
+
+    @Test
+    fun `same-day window 60 to overflowing end sweep counts 1379 minutes`() {
+        val count = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 60, 1500) }
+        assertEquals(1379, count)
+    }
+
+    @Test
+    fun `clamped overnight window 1500 to negative end counts one minute`() {
+        assertTrue(AiTaskDndPolicy.isInQuietHours(1439, 1500, -100))
+        assertFalse(AiTaskDndPolicy.isInQuietHours(0, 1500, -100))
+        val count = (0..1439).count { AiTaskDndPolicy.isInQuietHours(it, 1500, -100) }
+        assertEquals(1, count)
+    }
+
+    @Test
+    fun `nextAllowedTime inside clamped overnight window returns end`() {
+        assertEquals(2_000L, AiTaskDndPolicy.nextAllowedTime(1_000L, 1439, 1500, 60, 2_000L))
+        assertNull(AiTaskDndPolicy.nextAllowedTime(1_000L, 60, 1500, 60, 2_000L))
+    }
+
 }
