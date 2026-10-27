@@ -108,4 +108,66 @@ class BotCommandPolicyTest {
         assertTrue(BotCommandPolicy.shouldSendInbox("/ping", false, true))
         assertFalse(BotCommandPolicy.shouldSendInbox("/ping", false, false))
     }
+
+    @Test
+    fun parseSlashRejectsUppercaseAndOverlongCommands() {
+        // 命令与目标用户名只认小写：大写直接整串不匹配，不是转小写后放行。
+        assertEquals(null, BotCommandPolicy.parseSlash("/HELP"))
+        assertEquals(null, BotCommandPolicy.parseSlash("/help@HELPER_BOT"))
+        assertEquals(null, BotCommandPolicy.parseSlash("/1help"))
+        assertEquals("a", BotCommandPolicy.parseSlash("/a")?.command)
+        assertEquals("a".repeat(32), BotCommandPolicy.parseSlash("/a" + "a".repeat(31))?.command)
+        assertEquals(null, BotCommandPolicy.parseSlash("/a" + "a".repeat(32)))
+    }
+
+    @Test
+    fun ciphertextDetectionIsCaseSensitiveAndSubstringBased() {
+        assertFalse(BotCommandPolicy.looksLikeCiphertext("sk:abc"))
+        assertTrue(BotCommandPolicy.looksLikeCiphertext("SK:"))
+        assertTrue(BotCommandPolicy.looksLikeCiphertext("  ENC:xyz  "))
+        assertTrue(BotCommandPolicy.looksLikeCiphertext("prefix \"senderKey\" suffix"))
+        assertFalse(BotCommandPolicy.looksLikeCiphertext("hello ciphertext world"))
+        assertFalse(BotCommandPolicy.looksLikeCiphertext(""))
+        assertFalse(BotCommandPolicy.looksLikeCiphertext("   "))
+    }
+
+    @Test
+    fun directChatCiphertextAndBlankNeverGoToInbox() {
+        assertFalse(BotCommandPolicy.shouldSendInbox("SK:x", true, false))
+        assertFalse(BotCommandPolicy.shouldSendInbox("", true, false))
+        assertFalse(BotCommandPolicy.shouldSendInbox("   ", true, false))
+        assertTrue(BotCommandPolicy.shouldSendInbox("123", true, false))
+        assertTrue(BotCommandPolicy.shouldSendInbox("@abc hi", false, true))
+        assertFalse(BotCommandPolicy.shouldSendInbox("@helper-bot hi", false, true))
+        assertTrue(BotCommandPolicy.shouldSendInbox(" @helper_bot hi ", false, true))
+    }
+
+    @Test
+    fun composerMenuQueryAndOfferEdgeCases() {
+        assertEquals("help", BotCommandPolicy.composerMenuQuery("  /HELP"))
+        assertEquals("help", BotCommandPolicy.composerMenuQuery("/HELP@Helper_Bot arg"))
+        assertTrue(BotCommandPolicy.shouldOfferComposerMenu("/"))
+        assertTrue(BotCommandPolicy.shouldOfferComposerMenu(" /help"))
+        assertFalse(BotCommandPolicy.shouldOfferComposerMenu(""))
+        assertFalse(BotCommandPolicy.shouldOfferComposerMenu("/help\n"))
+        assertTrue(BotCommandPolicy.shouldOfferComposerMenu("/" + "x".repeat(63)))
+    }
+
+    @Test
+    fun filterCommandsMatchesCaseInsensitivelyAndPreservesOrder() {
+        val items = listOf(
+            BotCommandItem("bot_1", "helper_bot", "Helper", "help", "帮助"),
+            BotCommandItem("bot_1", "helper_bot", "Helper", "ping", "探活"),
+        )
+        assertEquals(1, BotCommandPolicy.filterCommands(items, "/HE").size)
+        assertTrue(BotCommandPolicy.filterCommands(items, "help").isEmpty())
+        assertEquals(
+            listOf("help", "ping"),
+            BotCommandPolicy.filterCommands(items, "/").map { it.command },
+        )
+        assertTrue(BotCommandPolicy.isBotUserId("bot_"))
+        assertFalse(BotCommandPolicy.isBotUserId("Bot_abc"))
+        assertFalse(BotCommandPolicy.isBotUserId(""))
+    }
+
 }
