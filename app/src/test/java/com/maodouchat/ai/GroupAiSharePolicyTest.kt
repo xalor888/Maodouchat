@@ -834,4 +834,43 @@ class GroupAiSharePolicyTest {
         assertFalse(GroupAiSharePolicy.canPersistTasks((0 until 35).map { TaskDraft("   ") }))
     }
 
+    @Test
+    fun `sanitizeTasks keeps internal double spaces in owner`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", owner = "a  b"))
+        )
+        assertEquals("a  b", cleaned.single().owner)
+    }
+
+    @Test
+    fun `sanitizeTasks keeps internal newline in dueText`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft(title = "t", dueText = "a\nb"))
+        )
+        assertEquals("a\nb", cleaned.single().dueText)
+    }
+
+    @Test
+    fun `sanitizeTasks drops middle invalid task but keeps order`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft("first"), TaskDraft("   "), TaskDraft("second"))
+        )
+        assertEquals(listOf("first", "second"), cleaned.map { it.title })
+    }
+
+    @Test
+    fun `sanitizeTasks keeps padded title at exactly max chars`() {
+        val tasks = listOf(TaskDraft(" " + "x".repeat(360) + " "))
+        assertEquals(360, GroupAiSharePolicy.sanitizeTasks(tasks).single().title.length)
+        assertTrue(GroupAiSharePolicy.canPersistTasks(tasks))
+    }
+
+    @Test
+    fun `sanitizeTasks keeps internal tab in title`() {
+        val cleaned = GroupAiSharePolicy.sanitizeTasks(
+            listOf(TaskDraft("a\tb"))
+        )
+        assertEquals("a\tb", cleaned.single().title)
+    }
+
 }

@@ -672,4 +672,45 @@ class AiEmotionFallbackTest {
         assertTrue(text.indexOf("need") < text.indexOf("talk"))
     }
 
+    @Test
+    fun `only sad template mentions here`() {
+        val naming = Emotion.entries.filter {
+            AiEmotionFallback.localFallback(context, it).contains("here")
+        }
+        assertEquals(listOf(Emotion.SAD), naming)
+    }
+
+    @Test
+    fun `only anxious template says too much`() {
+        val naming = Emotion.entries.filter {
+            AiEmotionFallback.localFallback(context, it).contains("too much")
+        }
+        assertEquals(listOf(Emotion.ANXIOUS), naming)
+    }
+
+    @Test
+    fun `templates open with their own first word`() {
+        assertEquals("That's", AiEmotionFallback.localFallback(context, Emotion.HAPPY).split(" ").first())
+        assertEquals("I", AiEmotionFallback.localFallback(context, Emotion.SAD).split(" ").first())
+        assertEquals("Take", AiEmotionFallback.localFallback(context, Emotion.ANGRY).split(" ").first())
+        assertEquals("Don't", AiEmotionFallback.localFallback(context, Emotion.ANXIOUS).split(" ").first())
+        assertEquals("Got", AiEmotionFallback.localFallback(context, Emotion.NEUTRAL).split(" ").first())
+    }
+
+    @Test
+    fun `understanding comes before feeling in sad and angry templates`() {
+        listOf(Emotion.SAD, Emotion.ANGRY).forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertTrue(text.indexOf("understand") < text.indexOf("feel"))
+        }
+    }
+
+    @Test
+    fun `understanding phrase sits in its own clause`() {
+        val sadClauses = AiEmotionFallback.localFallback(context, Emotion.SAD).split(",")
+        assertEquals("I understand how you feel", sadClauses.first().trim())
+        val angryClauses = AiEmotionFallback.localFallback(context, Emotion.ANGRY).split(",")
+        assertEquals("I understand how you feel", angryClauses[1].trim())
+    }
+
 }
