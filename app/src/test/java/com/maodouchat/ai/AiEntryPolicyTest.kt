@@ -1307,4 +1307,45 @@ class AiEntryPolicyTest {
         )
     }
 
+
+    @Test
+    fun `contextActionsFor file separator wrapped text folds to translate`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u001CTEXT\u001C")
+        )
+    }
+
+    @Test
+    fun `contextActionsFor group separator wrapped voice folds before transcript gate`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSCRIBE),
+            AiEntryPolicy.contextActionsFor("\u001Dvoice\u001D")
+        )
+        assertTrue(
+            AiEntryPolicy.contextActionsFor("\u001Dvoice\u001D", hasTranscript = true).isEmpty()
+        )
+    }
+
+    @Test
+    fun `contextActionsFor record separator wrapped file analyzes`() {
+        assertEquals(
+            listOf(MessageAiAction.ANALYZE_FILE),
+            AiEntryPolicy.contextActionsFor("\u001Efile\u001E")
+        )
+    }
+
+    @Test
+    fun `hasContextAiActions file separator wrapped gif stays true`() {
+        assertTrue(AiEntryPolicy.hasContextAiActions("\u001CGIF\u001D"))
+    }
+
+    @Test
+    fun `contextActionsFor mixed separators wrapped system still translates`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u001C\u001Dsystem\u001E\u001F")
+        )
+    }
+
 }

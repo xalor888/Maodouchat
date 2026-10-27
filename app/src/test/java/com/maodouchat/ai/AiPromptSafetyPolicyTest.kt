@@ -780,4 +780,39 @@ class AiPromptSafetyPolicyTest {
         assertTrue(scan.hasClaim)
         assertEquals(setOf(PrivilegeClaimKind.TRANSFER_OR_PAYMENT), scan.kinds)
     }
+
+    @Test
+    fun `scan catches account wiped claim alone`() {
+        val scan = AiPromptSafetyPolicy.scanPrivilegeClaims("the account has been wiped")
+        assertTrue(scan.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.ACCOUNT_DESTRUCTIVE), scan.kinds)
+    }
+
+    @Test
+    fun `scan catches password changed auth claim alone`() {
+        val scan = AiPromptSafetyPolicy.scanPrivilegeClaims("your password changed yesterday")
+        assertTrue(scan.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.AUTH_OR_KEY), scan.kinds)
+    }
+
+    @Test
+    fun `scan catches promoted to admin claim alone`() {
+        val scan = AiPromptSafetyPolicy.scanPrivilegeClaims("he was promoted to admin yesterday")
+        assertTrue(scan.hasClaim)
+        assertEquals(setOf(PrivilegeClaimKind.ADMIN_OR_MODERATION), scan.kinds)
+    }
+
+    @Test
+    fun `annotate falls back to default disclaimer when disclaimer is blank`() {
+        assertEquals(
+            "payment completed\n\nAI cannot execute privileged actions; verify before trusting claims.",
+            AiPromptSafetyPolicy.annotateIfPrivilegedHallucination("payment completed", "   ")
+        )
+    }
+
+    @Test
+    fun `sender strips vertical tab control while keeping tab`() {
+        assertEquals("ab\tc", AiPromptSafetyPolicy.sanitizeSender("a\u000Bb\tc"))
+    }
+
 }
