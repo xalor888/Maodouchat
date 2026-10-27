@@ -741,4 +741,43 @@ class AgentToolPolicyTest {
         assertEquals(names.size, names.toSet().size)
     }
 
+    @Test
+    fun `parseBool rejects numerics other than zero and one`() {
+        listOf("2", "-1", "10", "1.0").forEach {
+            assertEquals(it, null, AgentToolHost.parseBool(it))
+        }
+        assertEquals(true, AgentToolHost.parseBool(" 1 "))
+        assertEquals(false, AgentToolHost.parseBool(" 0 "))
+    }
+
+    @Test
+    fun `parseArgs keeps nested array of objects as string`() {
+        val args = AgentToolHost.parseArgs("""{"a":[{"b":1}]}""")
+        assertEquals("""[{"b":1}]""", args["a"])
+    }
+
+    @Test
+    fun `write tool approval ignores blank arguments`() {
+        assertEquals(Approval.NEED_USER, AgentToolPolicy.approvalFor("create_group", emptyMap()))
+        assertEquals(
+            Approval.NEED_USER,
+            AgentToolPolicy.approvalFor("create_group", mapOf("name" to "", "memberIds" to ""))
+        )
+    }
+
+    @Test
+    fun `search and contacts tools carry read risk`() {
+        assertEquals(Risk.READ, AgentToolPolicy.toolByName("search_messages")?.risk)
+        assertEquals(Risk.READ, AgentToolPolicy.toolByName("get_contacts")?.risk)
+        assertEquals(Approval.ALLOW, AgentToolPolicy.approvalFor("search_messages", emptyMap()))
+    }
+
+    @Test
+    fun `preview fallback keeps spaced json verbatim`() {
+        assertEquals(
+            """no_such_tool {"a": "b"}""",
+            AgentToolHost.preview("no_such_tool", """{"a": "b"}""")
+        )
+    }
+
 }
