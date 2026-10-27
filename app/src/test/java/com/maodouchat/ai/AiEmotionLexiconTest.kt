@@ -557,4 +557,41 @@ class AiEmotionLexiconTest {
         assertEquals(1.0 / 3.0, result.confidence, 0.0001)
     }
 
+    @Test
+    fun `english miss word hits sad`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("miss you"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english stress word hits anxious`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("under stress"))
+        assertEquals(Emotion.ANXIOUS, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `english emo word hits sad`() {
+        val result = AiEmotionLexicon.detectEmotion(listOf("feeling emo"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `sad angry tie breaks toward sad`() {
+        // maxByOrNull 取首个最大值：sad 在 angry 之前
+        val result = AiEmotionLexicon.detectEmotion(listOf("难过", "生气"))
+        assertEquals(Emotion.SAD, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `angry anxious tie breaks toward angry`() {
+        // 同理：angry 在 anxious 之前
+        val result = AiEmotionLexicon.detectEmotion(listOf("生气", "担心"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(0.5, result.confidence, 0.0001)
+    }
+
 }

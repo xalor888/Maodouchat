@@ -985,4 +985,49 @@ class AiRetryPolicyTest {
         assertEquals("CONNECTION_NOT_ESTABLISHED", decision.visibleErrorCode)
     }
 
+    @Test
+    fun decideQuotaSuffixOverridesDefaultWait() {
+        val decision = AiRetryPolicy.decide("QUOTA_EXCEEDED:60", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(60_000L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideTooManyZeroSuffixReportsZeroWait() {
+        // 零后缀不是正数等待：TOO_MANY 分支的等待落回 0，而不是 30 秒默认
+        val decision = AiRetryPolicy.decide("TOO_MANY:0", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_RATE_LIMIT, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideTimeoutSuffixStripsToBaseCode() {
+        // 非重试分支只看基码：后缀剥离后仍走 else 分支
+        val decision = AiRetryPolicy.decide("TIMEOUT:30", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals("TIMEOUT", decision.visibleErrorCode)
+    }
+
+    @Test
+    fun decideBudgetZeroSuffixFallsBackToZeroWait() {
+        // BUDGET 基码本身没有默认等待：零后缀同样落回 0
+        val decision = AiRetryPolicy.decide("BUDGET_EXCEEDED:0", attempts = 1)
+        assertFalse(decision.shouldRetry)
+        assertEquals(0L, decision.delayMs)
+        assertEquals(AiCostVisibilityPolicy.ERROR_QUOTA, decision.visibleErrorCode)
+    }
+
+    @Test
+    fun heavyRecordLeavesLightRemainingAtZero() {
+        AiRetryPolicy.clearSession()
+        AiRetryPolicy.recordCall("chat-heavy", AiRetryPolicyCategory.HEAVY)
+        assertTrue(AiRetryPolicy.canCallNow("chat-heavy", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-heavy", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.remainingDelayMs("chat-heavy", AiRetryPolicyCategory.HEAVY) > 0L)
+        AiRetryPolicy.clearSession()
+    }
+
 }
