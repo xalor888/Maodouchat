@@ -44,6 +44,7 @@ class ConversationWidgetConfigActivity : ComponentActivity() {
         setContent {
             ConversationWidgetConfigContent(
                 initial = initialConfig,
+                ownerUserId = tokenManager.getUserId().orEmpty(),
                 onSave = { chatIds, badge, compact -> saveAndFinish(chatIds, badge, compact) },
             )
         }

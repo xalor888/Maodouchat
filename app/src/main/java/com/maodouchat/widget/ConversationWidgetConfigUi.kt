@@ -35,7 +35,6 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.repository.ChatRepository
-import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -46,11 +45,10 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun ConversationWidgetConfigContent(
     initial: WidgetConfig,
+    ownerUserId: String,
     onSave: (List<String>, Boolean, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
-    val tokenManager = remember { TokenManager.getInstance(context) }
-    val ownerUserId = remember { tokenManager.getUserId().orEmpty() }
 
     var chats by remember { mutableStateOf<List<Chat>>(emptyList()) }
     var loadFailed by remember { mutableStateOf(false) }
