@@ -289,7 +289,7 @@ Gate：空壳模块可编译；旧 app 仍能运行；禁止依赖检查进入 C
 - [ ] 明确定义登出、登出全部设备、换号、删号、切服务器的不同数据清理策略。
 - [~] 所有后台任务和本地行按账号与 account generation 隔离（`AccountGeneration` 值类已建）。
 - [~] Session 变化通过稳定状态流通知消息、Push、Widget、AI 等模块（`SessionCoordinator.changes: Flow` 已声明）。
-- [ ] 删除 ViewModel 和 Composable 对 Token/Application/WebSocket 的直接访问。
+- [~] 删除 ViewModel 和 Composable 对 Token/Application/WebSocket 的直接访问。
 
 Gate：并发 401、进程恢复、A-B-A 换号、切服、设备吊销、错误数据库密钥测试通过。
 
