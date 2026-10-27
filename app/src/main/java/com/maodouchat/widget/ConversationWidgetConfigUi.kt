@@ -27,11 +27,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.repository.ChatRepository
@@ -46,10 +44,9 @@ import kotlinx.coroutines.withContext
 internal fun ConversationWidgetConfigContent(
     initial: WidgetConfig,
     ownerUserId: String,
+    chatRepository: ChatRepository?,
     onSave: (List<String>, Boolean, Boolean) -> Unit,
 ) {
-    val context = LocalContext.current
-
     var chats by remember { mutableStateOf<List<Chat>>(emptyList()) }
     var loadFailed by remember { mutableStateOf(false) }
     val maxConfigChats = ConversationWidgetContract.MAX_CONFIG_CHATS
@@ -59,10 +56,10 @@ internal fun ConversationWidgetConfigContent(
     var compact by rememberSaveable { mutableStateOf(initial.compact) }
 
     LaunchedEffect(Unit) {
-        val app = context.applicationContext as? MaodouchatApp ?: return@LaunchedEffect
+        val repository = chatRepository ?: return@LaunchedEffect
         try {
             chats = withContext(Dispatchers.IO) {
-                ChatRepository(app.database.chatDao(), app.database.userDao()).getActiveChats().first()
+                repository.getActiveChats().first()
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
