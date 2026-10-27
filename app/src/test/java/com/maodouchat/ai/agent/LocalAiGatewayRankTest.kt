@@ -583,4 +583,45 @@ class LocalAiGatewayRankTest {
         )
     }
 
+    @Test
+    fun `comma-joined query token matches only as a whole`() = runBlocking {
+        val candidates = listOf("c1" to "red,blue sky", "c2" to "red blue sky")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("red,blue", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("red,blue", candidates))
+    }
+
+    @Test
+    fun `trailing period token does not match bare word`() = runBlocking {
+        assertEquals(emptyList<String>(), LocalAiGateway.rankSemantic("red.", listOf("m1" to "red car")))
+        assertEquals(
+            emptyList<Pair<String, Double>>(),
+            LocalAiGateway.rankSemanticScored("red.", listOf("m1" to "red car"))
+        )
+    }
+
+    @Test
+    fun `underscore token matches literally`() = runBlocking {
+        val candidates = listOf("c1" to "red_blue sky", "c2" to "red blue sky")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("red_blue", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("red_blue", candidates))
+    }
+
+    @Test
+    fun `three identical query tokens triple the score`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 3.0),
+            LocalAiGateway.rankSemanticScored("red red red", listOf("c1" to "red car"))
+        )
+    }
+
+    @Test
+    fun `single-token candidate ranks below both-token candidate`() = runBlocking {
+        val candidates = listOf("c1" to "beta only", "c2" to "alpha beta")
+        assertEquals(listOf("c2", "c1"), LocalAiGateway.rankSemantic("alpha beta", candidates))
+        assertEquals(
+            listOf("c2" to 2.0, "c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("alpha beta", candidates)
+        )
+    }
+
 }

@@ -367,4 +367,50 @@ class AgentSecretGatePolicyTest {
         assertEquals("chat", AgentSecretGatePolicy.PIN_DENIED.split(" ")[1])
     }
 
+    @Test
+    fun denialMessagesContainNoQuestionOrExclamation() {
+        listOf(AgentSecretGatePolicy.SECRET_DENIED, AgentSecretGatePolicy.PIN_DENIED).forEach { message ->
+            assertFalse(message.contains("?"))
+            assertFalse(message.contains("!"))
+        }
+    }
+
+    @Test
+    fun secretMessageCountsAvailableAndAssistantOnce() {
+        assertEquals(1, AgentSecretGatePolicy.SECRET_DENIED.split("available").size - 1)
+        assertEquals(1, AgentSecretGatePolicy.SECRET_DENIED.split("assistant").size - 1)
+    }
+
+    @Test
+    fun pinDenialBodyHasThreeWords() {
+        assertEquals(
+            listOf("chat", "is", "PIN-locked"),
+            AgentSecretGatePolicy.PIN_DENIED.removePrefix("Error: ").split(" ")
+        )
+    }
+
+    @Test
+    fun secretDenialForEveryLockedCombination() {
+        for (isLocked in listOf(false, true)) {
+            for (unlocked in listOf(false, true)) {
+                assertEquals(
+                    AgentSecretGatePolicy.SECRET_DENIED,
+                    AgentSecretGatePolicy.denyIfSecretOrLocked(true, isLocked, unlocked)
+                )
+            }
+        }
+    }
+
+    @Test
+    fun secretChatsNeverGetPinDenial() {
+        for (isLocked in listOf(false, true)) {
+            for (unlocked in listOf(false, true)) {
+                assertNotEquals(
+                    AgentSecretGatePolicy.PIN_DENIED,
+                    AgentSecretGatePolicy.denyIfSecretOrLocked(true, isLocked, unlocked)
+                )
+            }
+        }
+    }
+
 }
