@@ -782,4 +782,44 @@ class AiEmotionFallbackTest {
     fun `anxious template opens with dont worry`() {
         assertTrue(AiEmotionFallback.localFallback(context, Emotion.ANXIOUS).startsWith("Don't"))
     }
+
+    @Test
+    fun `happy and angry templates address you exactly once each`() {
+        fun youCount(text: String): Int =
+            text.split(Regex("[\\s,!.]+")).count { it == "you" }
+        assertEquals(1, youCount(AiEmotionFallback.localFallback(context, Emotion.HAPPY)))
+        assertEquals(1, youCount(AiEmotionFallback.localFallback(context, Emotion.ANGRY)))
+    }
+
+    @Test
+    fun `talk is the last word of the sad template`() {
+        val words = AiEmotionFallback.localFallback(context, Emotion.SAD)
+            .split(Regex("[\\s,!.]+")).filter { it.isNotEmpty() }
+        assertEquals("talk", words.last())
+    }
+
+    @Test
+    fun `together is the last word of the anxious template`() {
+        val words = AiEmotionFallback.localFallback(context, Emotion.ANXIOUS)
+            .split(Regex("[\\s,!.]+")).filter { it.isNotEmpty() }
+        assertEquals("together", words.last())
+    }
+
+    @Test
+    fun `only angry template says easy`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertEquals(emotion == Emotion.ANGRY, text.contains("easy"))
+        }
+    }
+
+    @Test
+    fun `no template contains parentheses`() {
+        Emotion.entries.forEach { emotion ->
+            val text = AiEmotionFallback.localFallback(context, emotion)
+            assertFalse(text.contains("("))
+            assertFalse(text.contains(")"))
+        }
+    }
+
 }

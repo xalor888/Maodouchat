@@ -817,4 +817,60 @@ class AgentToolPolicyTest {
         assertTrue(AgentToolPolicy.tools.any { it.risk == Risk.SEND })
     }
 
+    @Test
+    fun `draft limit equals text send limit`() {
+        assertEquals(AgentToolPolicy.MAX_TEXT_SEND_CHARS, AgentToolPolicy.MAX_DRAFT_CHARS)
+    }
+
+    @Test
+    fun `write approval ignores non-blank arguments`() {
+        assertEquals(
+            Approval.NEED_USER,
+            AgentToolPolicy.approvalFor("create_group", mapOf("name" to "g", "memberIds" to "[\"u1\"]"))
+        )
+    }
+
+    @Test
+    fun `openai property maps carry only type description and enum keys`() {
+        val json = AgentToolPolicy.openaiToolsJson()
+        AgentToolPolicy.tools.forEachIndexed { index, spec ->
+            @Suppress("UNCHECKED_CAST")
+            val fn = json[index]["function"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val params = fn["parameters"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val props = params["properties"] as Map<String, Map<String, Any?>>
+            spec.parameters.forEach { (name, _) ->
+                val prop = props[name]
+                assertTrue(spec.name + ":" + name, prop != null)
+                assertTrue(prop!!.keys.all { it == "type" || it == "description" || it == "enum" })
+                assertTrue(prop.containsKey("type"))
+                assertTrue(prop.containsKey("description"))
+            }
+        }
+    }
+
+    @Test
+    fun `zero parameter tool serializes to empty properties and required`() {
+        val json = AgentToolPolicy.openaiToolsJson()
+        val entry = json.single { item ->
+            @Suppress("UNCHECKED_CAST")
+            (item["function"] as Map<String, Any?>)["name"] == "get_me"
+        }
+        @Suppress("UNCHECKED_CAST")
+        val fn = entry["function"] as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val params = fn["parameters"] as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val props = params["properties"] as Map<String, Any?>
+        assertTrue(props.isEmpty())
+        assertEquals(emptyList<String>(), params["required"])
+    }
+
+    @Test
+    fun `catalog starts with list chats and ends with delete chat`() {
+        assertEquals("list_chats", AgentToolPolicy.tools.first().name)
+        assertEquals("delete_chat", AgentToolPolicy.tools.last().name)
+    }
+
 }

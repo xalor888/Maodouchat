@@ -1348,4 +1348,48 @@ class AiEntryPolicyTest {
         )
     }
 
+    @Test
+    fun `contextActionsFor figure space wrapped text matches after trim`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u2007TEXT")
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("TEXT\u2007")
+        )
+        assertTrue(AiEntryPolicy.hasContextAiActions("\u2007TEXT"))
+    }
+
+    @Test
+    fun `contextActionsFor narrow no-break space wrapped text matches after trim`() {
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("\u202FTEXT")
+        )
+        assertEquals(
+            listOf(MessageAiAction.TRANSLATE),
+            AiEntryPolicy.contextActionsFor("TEXT\u202F")
+        )
+        assertTrue(AiEntryPolicy.hasContextAiActions("\u202FTEXT"))
+    }
+
+    @Test
+    fun `contextActionsFor internal space in text type stays empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("TE XT").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("TE XT"))
+    }
+
+    @Test
+    fun `contextActionsFor action name translate as type stays empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("translate").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("translate"))
+    }
+
+    @Test
+    fun `contextActionsFor action name transcribe as type stays empty`() {
+        assertTrue(AiEntryPolicy.contextActionsFor("transcribe").isEmpty())
+        assertFalse(AiEntryPolicy.hasContextAiActions("transcribe"))
+    }
+
 }
