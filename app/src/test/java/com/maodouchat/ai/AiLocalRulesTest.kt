@@ -818,4 +818,49 @@ class AiLocalRulesTest {
         assertEquals(1.0, repeated.confidence, 0.0001)
     }
 
+
+    @Test
+    fun `detect emotion word emotion itself hits sad via emo`() {
+        val word = AiEmotionReply.detectEmotion(listOf("emotion"))
+        assertEquals(Emotion.SAD, word.emotion)
+        assertEquals(1.0, word.confidence, 0.0001)
+        val memo = AiEmotionReply.detectEmotion(listOf("memo"))
+        assertEquals(Emotion.SAD, memo.emotion)
+        assertEquals(1.0, memo.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion crying hits cry but cried misses`() {
+        val crying = AiEmotionReply.detectEmotion(listOf("crying"))
+        assertEquals(Emotion.SAD, crying.emotion)
+        assertEquals(1.0, crying.confidence, 0.0001)
+        val cried = AiEmotionReply.detectEmotion(listOf("cried"))
+        assertEquals(Emotion.NEUTRAL, cried.emotion)
+        assertEquals(0.0, cried.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion madam hits mad angry but capital misses`() {
+        val lower = AiEmotionReply.detectEmotion(listOf("madam"))
+        assertEquals(Emotion.ANGRY, lower.emotion)
+        assertEquals(1.0, lower.confidence, 0.0001)
+        val capital = AiEmotionReply.detectEmotion(listOf("Madam"))
+        assertEquals(Emotion.NEUTRAL, capital.emotion)
+        assertEquals(0.0, capital.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion four way tie takes happy at quarter confidence`() {
+        val result = AiEmotionReply.detectEmotion(listOf("开心 难过 生气 担心"))
+        assertEquals(Emotion.HAPPY, result.emotion)
+        assertEquals(0.25, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `detect emotion annoyed to death counts both angry forms against happy`() {
+        val result = AiEmotionReply.detectEmotion(listOf("烦死了", "开心"))
+        assertEquals(Emotion.ANGRY, result.emotion)
+        assertEquals(2.0 / 3.0, result.confidence, 0.0001)
+    }
+
 }

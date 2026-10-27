@@ -769,4 +769,49 @@ class AiClassifyLexiconTest {
         )
     }
 
+
+    @Test
+    fun `partial lexicon phrase alone does not hit`() {
+        val bare = AiClassifyLexicon.classifyText("注意")
+        assertEquals(AiMessageClassifierCategory.OTHER, bare.category)
+        assertEquals(0.2, bare.confidence, 0.0001)
+        val full = AiClassifyLexicon.classifyText("请注意")
+        assertEquals(AiMessageClassifierCategory.NOTICE, full.category)
+        assertEquals(1.0, full.confidence, 0.0001)
+    }
+
+    @Test
+    fun `bug substring inside debug counts as tech`() {
+        val result = AiClassifyLexicon.classifyText("debug")
+        assertEquals(AiMessageClassifierCategory.TECH, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `priceless contains price and counts as finance`() {
+        val result = AiClassifyLexicon.classifyText("priceless")
+        assertEquals(AiMessageClassifierCategory.FINANCE, result.category)
+        assertEquals(1.0, result.confidence, 0.0001)
+    }
+
+    @Test
+    fun `single char package alone does not hit finance`() {
+        val bare = AiClassifyLexicon.classifyText("包")
+        assertEquals(AiMessageClassifierCategory.OTHER, bare.category)
+        assertEquals(0.2, bare.confidence, 0.0001)
+        val full = AiClassifyLexicon.classifyText("红包")
+        assertEquals(AiMessageClassifierCategory.FINANCE, full.category)
+        assertEquals(1.0, full.confidence, 0.0001)
+    }
+
+    @Test
+    fun `phrase split by middle word does not hit todo`() {
+        val split = AiClassifyLexicon.classifyText("follow me up")
+        assertEquals(AiMessageClassifierCategory.OTHER, split.category)
+        assertEquals(0.2, split.confidence, 0.0001)
+        val joined = AiClassifyLexicon.classifyText("follow up")
+        assertEquals(AiMessageClassifierCategory.TODO, joined.category)
+        assertEquals(1.0, joined.confidence, 0.0001)
+    }
+
 }

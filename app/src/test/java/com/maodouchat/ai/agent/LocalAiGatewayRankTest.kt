@@ -665,4 +665,44 @@ class LocalAiGatewayRankTest {
         assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("abc123", candidates))
     }
 
+
+    @Test
+    fun `case variants of same token triple the score after folding`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "Red RED red",
+            listOf("c1" to "red car")
+        )
+        assertEquals(listOf("c1" to 3.0), scored)
+    }
+
+    @Test
+    fun `hash token matches literally`() = runBlocking {
+        val candidates = listOf("c1" to "c# guide", "c2" to "c guide")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("c#", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("c#", candidates))
+    }
+
+    @Test
+    fun `dot token matches literally not as wildcard`() = runBlocking {
+        val candidates = listOf("c1" to "v1.2 release", "c2" to "v12 release")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("v1.2", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("v1.2", candidates))
+    }
+
+    @Test
+    fun `long token matches without length cap`() = runBlocking {
+        val scored = LocalAiGateway.rankSemanticScored(
+            "abcdefghijklmnop",
+            listOf("c1" to "abcdefghijklmnop notes")
+        )
+        assertEquals(listOf("c1" to 1.0), scored)
+    }
+
+    @Test
+    fun `apostrophe token matches literally`() = runBlocking {
+        val candidates = listOf("c1" to "don't stop", "c2" to "dont stop")
+        assertEquals(listOf("c1" to 1.0), LocalAiGateway.rankSemanticScored("don't", candidates))
+        assertEquals(listOf("c1"), LocalAiGateway.rankSemantic("don't", candidates))
+    }
+
 }
