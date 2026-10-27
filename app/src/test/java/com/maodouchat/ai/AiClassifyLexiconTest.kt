@@ -685,4 +685,48 @@ class AiClassifyLexiconTest {
         )
     }
 
+
+    @Test
+    fun `shared launch word ties notice and tech toward notice`() {
+        // “上线”同时命中 NOTICE 与 TECH，entries 顺序里 NOTICE 在前
+        assertEquals(
+            Classification(AiMessageClassifierCategory.NOTICE, 0.5),
+            AiClassifyLexicon.classifyText("系统上线了")
+        )
+    }
+
+    @Test
+    fun `triple laughter counts both laughter dictionary entries`() {
+        // “哈哈哈”同时含“哈哈”与“哈哈哈”两条词典词，算 2 次命中
+        assertEquals(
+            Classification(AiMessageClassifierCategory.SOCIAL, 1.0),
+            AiClassifyLexicon.classifyText("哈哈哈")
+        )
+    }
+
+    @Test
+    fun `english invoice and bill words share finance at full confidence`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.FINANCE, 1.0),
+            AiClassifyLexicon.classifyText("INVOICE BILL")
+        )
+    }
+
+    @Test
+    fun `study lecture and course words share study at full confidence`() {
+        assertEquals(
+            Classification(AiMessageClassifierCategory.STUDY, 1.0),
+            AiClassifyLexicon.classifyText("lecture course")
+        )
+    }
+
+    @Test
+    fun `finance study tech three-way tie breaks toward finance`() {
+        // TECH 词典里 "bug" 出现两次会算 2 次命中，凑不成平局，改用单次词 "代码"。
+        assertEquals(
+            Classification(AiMessageClassifierCategory.FINANCE, 1.0 / 3.0),
+            AiClassifyLexicon.classifyText("转账 考试 代码")
+        )
+    }
+
 }
