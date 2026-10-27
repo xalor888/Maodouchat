@@ -746,4 +746,65 @@ class LocalAiGatewayRankTest {
         assertEquals(listOf("c2" to 3.0, "c1" to 1.0), scored)
     }
 
+
+    @Test
+    fun `file separator and no-break space do not split query tokens`() = runBlocking {
+        assertEquals(
+            emptyList<String>(),
+            LocalAiGateway.rankSemantic("red\u001Cblue", listOf("c1" to "red blue car"))
+        )
+        assertEquals(
+            emptyList<String>(),
+            LocalAiGateway.rankSemantic("red\u00A0blue", listOf("c1" to "red blue car"))
+        )
+    }
+
+    @Test
+    fun `dotless i folds to neither ascii i nor dotted i`() = runBlocking {
+        assertEquals(
+            emptyList<String>(),
+            LocalAiGateway.rankSemantic("I", listOf("c1" to "\u0131spanak"))
+        )
+        assertEquals(
+            emptyList<String>(),
+            LocalAiGateway.rankSemantic("\u0131", listOf("c1" to "Ispanak"))
+        )
+    }
+
+    @Test
+    fun `sharp s and double s never match each other`() = runBlocking {
+        assertEquals(
+            emptyList<String>(),
+            LocalAiGateway.rankSemantic("strasse", listOf("c1" to "stra\u00DFe"))
+        )
+        assertEquals(
+            emptyList<String>(),
+            LocalAiGateway.rankSemantic("stra\u00DFe", listOf("c1" to "strasse"))
+        )
+        assertEquals(
+            listOf("c1"),
+            LocalAiGateway.rankSemantic("stra\u00DFe", listOf("c1" to "stra\u00DFe"))
+        )
+    }
+
+    @Test
+    fun `carriage return line feed inside candidate text keeps both tokens`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 2.0),
+            LocalAiGateway.rankSemanticScored("red blue", listOf("c1" to "red\r\nblue car"))
+        )
+    }
+
+    @Test
+    fun `question mark and star tokens match literally not as wildcards`() = runBlocking {
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("a?b", listOf("c1" to "a?b", "c2" to "axb"))
+        )
+        assertEquals(
+            listOf("c1" to 1.0),
+            LocalAiGateway.rankSemanticScored("a*b", listOf("c1" to "a*b", "c2" to "aab"))
+        )
+    }
+
 }

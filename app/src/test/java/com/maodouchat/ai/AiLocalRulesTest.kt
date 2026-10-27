@@ -932,4 +932,96 @@ class AiLocalRulesTest {
         assertEquals(Emotion.HAPPY, result.emotion)
         assertEquals(0.5, result.confidence, 0.0001)
     }
+
+    @Test
+    fun `classify uncovered notice and finance words hit at full confidence`() {
+        listOf(
+            "系统消息" to AiMessageClassifierCategory.NOTICE,
+            "变更" to AiMessageClassifierCategory.NOTICE,
+            "announcement" to AiMessageClassifierCategory.NOTICE,
+            "收款" to AiMessageClassifierCategory.FINANCE,
+            "余额" to AiMessageClassifierCategory.FINANCE,
+            "发票" to AiMessageClassifierCategory.FINANCE,
+            "报销" to AiMessageClassifierCategory.FINANCE
+        ).forEach { (word, category) ->
+            val result = AiMessageClassifier.classifyText(word)
+            assertEquals(category, result.category)
+            assertEquals(1.0, result.confidence, 0.0001)
+        }
+    }
+
+    @Test
+    fun `classify uncovered study tech and social words hit at full confidence`() {
+        listOf(
+            "作业" to AiMessageClassifierCategory.STUDY,
+            "阅读" to AiMessageClassifierCategory.STUDY,
+            "论文" to AiMessageClassifierCategory.STUDY,
+            "lecture" to AiMessageClassifierCategory.STUDY,
+            "数据库" to AiMessageClassifierCategory.TECH,
+            "release" to AiMessageClassifierCategory.TECH,
+            "dinner" to AiMessageClassifierCategory.SOCIAL,
+            "旅行" to AiMessageClassifierCategory.SOCIAL
+        ).forEach { (word, category) ->
+            val result = AiMessageClassifier.classifyText(word)
+            assertEquals(category, result.category)
+            assertEquals(1.0, result.confidence, 0.0001)
+        }
+    }
+
+    @Test
+    fun `classify english words fold case before matching`() {
+        listOf(
+            "REFUND" to AiMessageClassifierCategory.FINANCE,
+            "ANNOUNCEMENT" to AiMessageClassifierCategory.NOTICE,
+            "FOLLOW UP" to AiMessageClassifierCategory.TODO,
+            "Lecture" to AiMessageClassifierCategory.STUDY
+        ).forEach { (word, category) ->
+            val result = AiMessageClassifier.classifyText(word)
+            assertEquals(category, result.category)
+            assertEquals(1.0, result.confidence, 0.0001)
+        }
+    }
+
+    @Test
+    fun `classify remaining two way ties take enum first at half confidence`() {
+        listOf(
+            "公告 转账" to AiMessageClassifierCategory.NOTICE,
+            "任务 考试" to AiMessageClassifierCategory.TODO,
+            "代码 电影" to AiMessageClassifierCategory.TECH
+        ).forEach { (text, category) ->
+            val result = AiMessageClassifier.classifyText(text)
+            assertEquals(category, result.category)
+            assertEquals(0.5, result.confidence, 0.0001)
+        }
+    }
+
+    @Test
+    fun `detect emotion uncovered words and multi hit accumulation`() {
+        listOf(
+            "嘻嘻" to Emotion.HAPPY,
+            "耶" to Emotion.HAPPY,
+            "喜欢" to Emotion.HAPPY,
+            "遗憾" to Emotion.SAD,
+            "失落" to Emotion.SAD,
+            "难受" to Emotion.SAD,
+            "愤怒" to Emotion.ANGRY,
+            "可恶" to Emotion.ANGRY,
+            "吵" to Emotion.ANGRY,
+            "滚" to Emotion.ANGRY,
+            "来不及" to Emotion.ANXIOUS,
+            "害怕" to Emotion.ANXIOUS,
+            "紧张" to Emotion.ANXIOUS
+        ).forEach { (word, emotion) ->
+            val result = AiEmotionReply.detectEmotion(listOf(word))
+            assertEquals(emotion, result.emotion)
+            assertEquals(1.0, result.confidence, 0.0001)
+        }
+        val happy = AiEmotionReply.detectEmotion(listOf("嘻嘻", "耶"))
+        assertEquals(Emotion.HAPPY, happy.emotion)
+        assertEquals(1.0, happy.confidence, 0.0001)
+        val anxious = AiEmotionReply.detectEmotion(listOf("害怕 紧张"))
+        assertEquals(Emotion.ANXIOUS, anxious.emotion)
+        assertEquals(1.0, anxious.confidence, 0.0001)
+    }
+
 }
