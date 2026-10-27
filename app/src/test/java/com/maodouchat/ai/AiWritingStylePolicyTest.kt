@@ -872,4 +872,36 @@ class AiWritingStylePolicyTest {
         assertNull(AiWritingStylePolicy.rewriteStyleHint(snap))
         assertFalse(snap.hasMemorableContent)
     }
+
+    @Test
+    fun `normalize custom note collapses lone carriage returns to single spaces`() {
+        assertEquals("a b c", AiWritingStylePolicy.normalizeCustomNote("a\rb\rc"))
+    }
+
+    @Test
+    fun `clear returns none preset and empty note`() {
+        val snap = AiWritingStylePolicy.clear()
+        assertFalse(snap.enabled)
+        assertEquals(Preset.NONE, snap.preset)
+        assertEquals("", snap.customNote)
+    }
+
+    @Test
+    fun `normalize output equals hand-built snapshot for warm preset and note`() {
+        assertEquals(
+            Snapshot(enabled = true, preset = Preset.WARM, customNote = "be kind"),
+            AiWritingStylePolicy.normalize(true, "warm", " be kind ")
+        )
+    }
+
+    @Test
+    fun `fromId dash separated id never matches`() {
+        assertEquals(Preset.NONE, Preset.fromId("warm-formal"))
+    }
+
+    @Test
+    fun `normalize custom note with tabs only yields empty`() {
+        assertEquals("", AiWritingStylePolicy.normalizeCustomNote("\t\t"))
+    }
+
 }
