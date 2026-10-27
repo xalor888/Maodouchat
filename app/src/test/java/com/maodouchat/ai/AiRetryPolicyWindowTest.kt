@@ -830,4 +830,50 @@ class AiRetryPolicyWindowTest {
         assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
     }
 
+    @Test
+    fun rlmCharChatIdIsDistinctFromPlainAndLrmKeys() {
+        AiRetryPolicy.recordCall("chat\u200Fa", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u200Fa", AiRetryPolicyCategory.LIGHT))
+        // RLM 与 LRM 是不同方向控制符：含 RLM 的键既不同于普通键，也不同于 LRM 键。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat\u200Ea", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun bomCharChatIdIsDistinctFromPlainKey() {
+        AiRetryPolicy.recordCall("\uFEFFchat", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("\uFEFFchat", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun softHyphenChatIdIsDistinctFromPlainAndJoinedKeys() {
+        AiRetryPolicy.recordCall("chat\u00ADa", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u00ADa", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chata", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun wordJoinerChatIdIsDistinctFromPlainAndJoinedKeys() {
+        AiRetryPolicy.recordCall("chat\u2060a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u2060a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chata", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
+    @Test
+    fun c1ControlChatIdIsDistinctFromPlainAndNelKeys() {
+        AiRetryPolicy.recordCall("chat\u0084a", AiRetryPolicyCategory.LIGHT)
+        assertFalse(AiRetryPolicy.canCallNow("chat\u0084a", AiRetryPolicyCategory.LIGHT))
+        // C1 控制符与 NEL 是不同字符：含 C1 的键既不同于普通键，也不同于 NEL 键。
+        assertTrue(AiRetryPolicy.canCallNow("chat-a", AiRetryPolicyCategory.LIGHT))
+        assertTrue(AiRetryPolicy.canCallNow("chat\u0085a", AiRetryPolicyCategory.LIGHT))
+        assertEquals(0L, AiRetryPolicy.remainingDelayMs("chat-a", AiRetryPolicyCategory.LIGHT))
+    }
+
 }
