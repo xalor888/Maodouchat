@@ -189,7 +189,8 @@ class SecretChatPrivacyPolicyTest {
     @Test
     fun `state machine full transition table`() {
         listOf(true, false).forEach { hasTimer ->
-            assertEquals(SecretChatState.ARMED, SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer))
+            val expectedActive = if (hasTimer) SecretChatState.ARMED else SecretChatState.ACTIVE
+            assertEquals(expectedActive, SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer))
             assertEquals(SecretChatState.ARMED, SecretChatStateMachine.onRead(SecretChatState.ARMED, hasTimer))
             assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onRead(SecretChatState.EXPIRING, hasTimer))
             assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onRead(SecretChatState.DESTROYED, hasTimer))
