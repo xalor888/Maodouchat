@@ -171,4 +171,128 @@ class ChatListRemoteMergePolicyTest {
             ),
         )
     }
+
+    @Test
+    fun groupChatKeepsAllParticipantsIncludingSelf() {
+        val dto = ChatDto(
+            id = "g1",
+            participants = listOf(
+                UserDto(id = "me", name = "Me"),
+                UserDto(id = "u2", name = "Other"),
+            ),
+            isGroup = true,
+            unreadCount = 1,
+            lastMessageTime = 10,
+        )
+        val merged = ChatListRemoteMergePolicy.mergeRemoteChat(
+            dto = dto,
+            local = null,
+            currentUserId = "me",
+            isActiveChat = false,
+        )
+        assertEquals(listOf("me", "u2"), merged.participants.map { it.id })
+        assertEquals(1, merged.unreadCount)
+    }
+
+    @Test
+    fun singleChatWithOnlySelfFallsBackToFullList() {
+        val dto = ChatDto(
+            id = "c1",
+            participants = listOf(UserDto(id = "me", name = "Me")),
+            unreadCount = 0,
+            lastMessageTime = 10,
+        )
+        val merged = ChatListRemoteMergePolicy.mergeRemoteChat(
+            dto = dto,
+            local = null,
+            currentUserId = "me",
+            isActiveChat = false,
+        )
+        assertEquals(listOf("me"), merged.participants.map { it.id })
+    }
+
+    @Test
+    fun equalSettingsTimestampsPreferServerSnapshot() {
+        val dto = ChatDto(
+            id = "c1",
+            unreadCount = 2,
+            lastMessageTime = 10,
+            pinnedAt = 10,
+            notificationsMuted = true,
+            archived = false,
+            markedUnread = false,
+            settingsUpdatedAt = 100,
+        )
+        val local = Chat(
+            id = "c1",
+            unreadCount = 2,
+            lastMessageTime = 10,
+            pinnedAt = 50,
+            notificationsMuted = false,
+            archived = true,
+            markedUnread = false,
+            settingsUpdatedAt = 100,
+        )
+        val merged = ChatListRemoteMergePolicy.mergeRemoteChat(
+            dto = dto,
+            local = local,
+            currentUserId = "me",
+            isActiveChat = false,
+        )
+        assertEquals(10, merged.pinnedAt)
+        assertTrue(merged.notificationsMuted)
+        assertFalse(merged.archived)
+        assertFalse(merged.markedUnread)
+        assertEquals(100, merged.settingsUpdatedAt)
+    }
+
+    @Test
+    fun nullLocalAcceptsServerUnreadAndSettings() {
+        val dto = ChatDto(
+            id = "c1",
+            participants = listOf(UserDto(id = "u2", name = "Other")),
+            unreadCount = 3,
+            lastMessageTime = 10,
+            pinnedAt = 7,
+            notificationsMuted = true,
+            archived = true,
+            markedUnread = true,
+            settingsUpdatedAt = 42,
+        )
+        val merged = ChatListRemoteMergePolicy.mergeRemoteChat(
+            dto = dto,
+            local = null,
+            currentUserId = "me",
+            isActiveChat = false,
+        )
+        assertEquals(3, merged.unreadCount)
+        assertEquals(listOf("u2"), merged.participants.map { it.id })
+        assertEquals(7, merged.pinnedAt)
+        assertTrue(merged.notificationsMuted)
+        assertTrue(merged.archived)
+        assertTrue(merged.markedUnread)
+        assertEquals(42, merged.settingsUpdatedAt)
+    }
+
+    @Test
+    fun filterDeletedAndStaleEdgeCases() {
+        assertEquals(
+            emptyList(),
+            ChatListRemoteMergePolicy.filterDeleted(emptyList(), setOf("a")),
+        )
+        val chats = listOf(Chat(id = "a"), Chat(id = "b"))
+        assertEquals(
+            listOf("a", "b"),
+            ChatListRemoteMergePolicy.filterDeleted(chats, emptySet()).map { it.id },
+        )
+        assertEquals(
+            emptyList(),
+            ChatListRemoteMergePolicy.staleChatIds(emptyList(), setOf("a")),
+        )
+        assertEquals(
+            listOf("a", "b"),
+            ChatListRemoteMergePolicy.staleChatIds(listOf("a", "b"), emptySet()),
+        )
+    }
+
 }

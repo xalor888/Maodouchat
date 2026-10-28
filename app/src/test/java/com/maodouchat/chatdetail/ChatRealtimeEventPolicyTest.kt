@@ -70,4 +70,44 @@ class ChatRealtimeEventPolicyTest {
         assertFalse(isActiveChatEvent("chat-a", ""))
         assertFalse(isActiveChatEvent("", "chat-a"))
     }
+
+    @Test
+    fun `blank current user id never counts as removed`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "", "chat-a", "", "MEMBER_REMOVED")
+        )
+        assertFalse(shouldInvalidateGroupKey(5L, 5L, GroupRevisionImpact.REFRESH))
+    }
+
+    @Test
+    fun `unknown removal reason is plain refresh`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "MEMBER_BANNED")
+        )
+    }
+
+    @Test
+    fun `null target user never marks current user removed`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", null, "MEMBER_REMOVED")
+        )
+    }
+
+    @Test
+    fun `removed impact invalidates even on stale revision`() {
+        assertTrue(shouldInvalidateGroupKey(9L, 1L, GroupRevisionImpact.CURRENT_USER_REMOVED))
+        assertTrue(shouldInvalidateGroupKey(5L, 6L, GroupRevisionImpact.IGNORE))
+        assertFalse(shouldInvalidateGroupKey(6L, 5L, GroupRevisionImpact.IGNORE))
+    }
+
+    @Test
+    fun `whitespace contact id never applies presence`() {
+        assertFalse(shouldApplyContactPresence(false, " ", " "))
+        assertFalse(shouldApplyContactPresence(false, "user-2", " "))
+        assertFalse(shouldApplyContactPresence(false, " ", "user-2"))
+    }
+
 }

@@ -115,4 +115,43 @@ class ChatListSettingsMergePolicyTest {
         val local = SettingsSnapshot(0, true, true, true, -3)
         assertSame(local, ChatListSettingsMergePolicy.merge(server, local))
     }
+
+    @Test
+    fun serverWinsWhenLocalOnlyOneMsOlder() {
+        val server = SettingsSnapshot(10, true, false, false, 100)
+        val local = SettingsSnapshot(50, false, true, true, 99)
+        assertSame(server, ChatListSettingsMergePolicy.merge(server, local))
+    }
+
+    @Test
+    fun localWinsAtLongMaxBoundary() {
+        val server = SettingsSnapshot(10, true, false, false, Long.MAX_VALUE - 1)
+        val local = SettingsSnapshot(50, false, true, true, Long.MAX_VALUE)
+        assertSame(local, ChatListSettingsMergePolicy.merge(server, local))
+    }
+
+    @Test
+    fun winnerFieldsAreNotMixed() {
+        val server = SettingsSnapshot(1, true, false, true, 100)
+        val local = SettingsSnapshot(2, false, true, false, 200)
+        assertEquals(local, ChatListSettingsMergePolicy.merge(server, local))
+    }
+
+    @Test
+    fun equalTimestampsReturnServerReference() {
+        val server = SettingsSnapshot(10, true, false, false, 100)
+        val local = SettingsSnapshot(50, false, true, true, 100)
+        assertSame(server, ChatListSettingsMergePolicy.merge(server, local))
+    }
+
+    @Test
+    fun singleFieldDifferenceFollowsTimestamp() {
+        val server = SettingsSnapshot(10, true, false, true, 100)
+        val local = SettingsSnapshot(10, true, false, false, 200)
+        assertFalse(ChatListSettingsMergePolicy.merge(server, local).markedUnread)
+        val newerServer = SettingsSnapshot(10, true, false, true, 200)
+        val olderLocal = SettingsSnapshot(10, true, false, false, 100)
+        assertTrue(ChatListSettingsMergePolicy.merge(newerServer, olderLocal).markedUnread)
+    }
+
 }
