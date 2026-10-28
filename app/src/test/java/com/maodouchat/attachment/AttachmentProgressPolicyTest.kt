@@ -131,4 +131,33 @@ class AttachmentProgressPolicyTest {
         assertNull(AttachmentProgressPolicy.mapSegmentProgress(1, 10000, 0f, 1f, 0f))
         assertEquals(0.0001f, AttachmentProgressPolicy.mapSegmentProgress(1, 10000, 0f, 1f, -1f)!!, 0.00001f)
     }
+
+    @Test
+    fun `regression beyond threshold republishes lower value`() {
+        val back = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 0f, 1f, 0.8f)
+        assertEquals(0.5f, back!!, 0.0001f)
+    }
+
+    @Test
+    fun `regression within threshold suppresses`() {
+        assertNull(AttachmentProgressPolicy.mapSegmentProgress(495, 1000, 0f, 1f, 0.5f))
+    }
+
+    @Test
+    fun `segment end below one does not force publish`() {
+        assertNull(AttachmentProgressPolicy.mapSegmentProgress(100, 100, 0.2f, 0.8f, 0.795f))
+        assertEquals(0.8f, AttachmentProgressPolicy.mapSegmentProgress(100, 100, 0.2f, 0.8f, 0.7f)!!, 0.0001f)
+    }
+
+    @Test
+    fun `fully negative segment collapses to zero`() {
+        val p = AttachmentProgressPolicy.mapSegmentProgress(50, 100, -0.5f, -0.2f, -1f)
+        assertEquals(0f, p!!, 0.0001f)
+    }
+
+    @Test
+    fun `any negative previous counts as unset`() {
+        val p = AttachmentProgressPolicy.mapSegmentProgress(10, 100, 0f, 1f, -0.5f)
+        assertEquals(0.1f, p!!, 0.0001f)
+    }
 }

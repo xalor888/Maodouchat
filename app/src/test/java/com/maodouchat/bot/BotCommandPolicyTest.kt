@@ -154,6 +154,44 @@ class BotCommandPolicyTest {
     }
 
     @Test
+    fun parseSlashRejectsTooShortTargetButKeepsArgs() {
+        assertEquals(null, BotCommandPolicy.parseSlash("/start@ab"))
+        val targeted = BotCommandPolicy.parseSlash("/start@helper_bot arg1")
+        assertEquals("start", targeted?.command)
+        assertEquals("helper_bot", targeted?.targetUsername)
+        assertEquals("arg1", targeted?.arguments)
+    }
+
+    @Test
+    fun parseSlashToleratesTrailingSpaceAndKeepsInnerSpacing() {
+        val bare = BotCommandPolicy.parseSlash("/help ")
+        assertEquals("help", bare?.command)
+        assertEquals("", bare?.arguments)
+        val spaced = BotCommandPolicy.parseSlash("/start  double  space")
+        assertEquals("double  space", spaced?.arguments)
+    }
+
+    @Test
+    fun parseSlashAcceptsDigitsAndUnderscoresInCommand() {
+        assertEquals("h3lp_me", BotCommandPolicy.parseSlash("/h3lp_me")?.command)
+        assertEquals("a_b", BotCommandPolicy.parseSlash("/a_b")?.command)
+    }
+
+    @Test
+    fun bareAtMentionGoesToInboxButMidTextMentionDoesNot() {
+        assertTrue(BotCommandPolicy.shouldSendInbox("@helper_bot", false, true))
+        assertFalse(BotCommandPolicy.shouldSendInbox("@ab", false, true))
+        assertFalse(BotCommandPolicy.shouldSendInbox("hello @helper_bot", false, true))
+    }
+
+    @Test
+    fun midStringCiphertextMarkerIsNotTreatedAsCiphertext() {
+        assertFalse(BotCommandPolicy.looksLikeCiphertext("prefix SK:abc"))
+        assertTrue(BotCommandPolicy.shouldSendInbox("note SK:abc", true, false))
+        assertFalse(BotCommandPolicy.isBotUserId("bot"))
+    }
+
+    @Test
     fun filterCommandsMatchesCaseInsensitivelyAndPreservesOrder() {
         val items = listOf(
             BotCommandItem("bot_1", "helper_bot", "Helper", "help", "帮助"),

@@ -169,6 +169,60 @@ class QrScanFeedbackPolicyTest {
     }
 
     @Test
+    fun `join unknown server code falls through to status and keeps normalized code`() {
+        val blocked = QrScanFeedbackPolicy.forJoinInvite(403, "something_else", null)
+        assertEquals(Kind.INVITE_BLOCKED, blocked.kind)
+        assertEquals("SOMETHING_ELSE", blocked.serverCode)
+        val unknown = QrScanFeedbackPolicy.forJoinInvite(500, "something_else", "neutral")
+        assertEquals(Kind.UNKNOWN, unknown.kind)
+        assertTrue(unknown.retryable)
+        assertEquals("SOMETHING_ELSE", unknown.serverCode)
+    }
+
+    @Test
+    fun `join chinese invalid keywords map through message branch`() {
+        assertEquals(
+            Kind.INVITE_INVALID_OR_EXPIRED,
+            QrScanFeedbackPolicy.forJoinInvite(500, null, "此邀请已失效").kind
+        )
+        assertEquals(
+            Kind.INVITE_INVALID_OR_EXPIRED,
+            QrScanFeedbackPolicy.forJoinInvite(500, null, "邀请码无效").kind
+        )
+    }
+
+    @Test
+    fun `join chinese block keyword outranks limit keyword`() {
+        assertEquals(
+            Kind.INVITE_BLOCKED,
+            QrScanFeedbackPolicy.forJoinInvite(500, null, "已被屏蔽且人数已达上限").kind
+        )
+    }
+
+    @Test
+    fun `lookup network and timeout ignore the http status`() {
+        val net = QrScanFeedbackPolicy.forUserLookup(404, isNetwork = true)
+        assertEquals(Kind.NETWORK, net.kind)
+        assertTrue(net.retryable)
+        val timeout = QrScanFeedbackPolicy.forUserLookup(401, isTimeout = true)
+        assertEquals(Kind.NETWORK, timeout.kind)
+        assertTrue(timeout.retryable)
+    }
+
+    @Test
+    fun `fixed feedback kinds are not retryable and carry no code`() {
+        val invalid = QrScanFeedbackPolicy.forUnparseablePayload()
+        assertEquals(Kind.INVALID_PAYLOAD, invalid.kind)
+        assertFalse(invalid.retryable)
+        assertEquals(null, invalid.serverCode)
+        val miss = QrScanFeedbackPolicy.forUserLookupMiss()
+        assertFalse(miss.retryable)
+        val expired = QrScanFeedbackPolicy.forSessionExpired()
+        assertFalse(expired.retryable)
+        assertEquals(null, expired.serverCode)
+    }
+
+    @Test
     fun `join blank server code falls back to status with null code`() {
         val full = QrScanFeedbackPolicy.forJoinInvite(409, "   ", null)
         assertEquals(Kind.GROUP_FULL, full.kind)
