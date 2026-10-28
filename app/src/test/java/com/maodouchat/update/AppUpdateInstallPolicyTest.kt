@@ -250,4 +250,107 @@ class AppUpdateInstallPolicyTest {
             )
         )
     }
+    @Test
+    fun archiveMismatchBelowOfferIsRejected() {
+        assertFalse(
+            AppUpdateInstallPolicy.acceptsArchiveVersion(
+                expectedRemoteVersionCode = 50,
+                archiveVersionCode = 42L,
+                installedVersionCode = 42L,
+            )
+        )
+        assertFalse(
+            AppUpdateInstallPolicy.acceptsArchiveVersion(
+                expectedRemoteVersionCode = 42,
+                archiveVersionCode = 41L,
+                installedVersionCode = 40L,
+            )
+        )
+    }
+
+    @Test
+    fun negativeInstalledIsNotChecked() {
+        // 门闩只看 expected/archive/两两关系，installed 为负也不拦升级。
+        assertTrue(
+            AppUpdateInstallPolicy.acceptsArchiveVersion(
+                expectedRemoteVersionCode = 42,
+                archiveVersionCode = 42L,
+                installedVersionCode = -1L,
+            )
+        )
+        assertTrue(
+            AppUpdateInstallPolicy.acceptsArchiveVersion(
+                expectedRemoteVersionCode = 42,
+                archiveVersionCode = 42L,
+                installedVersionCode = Long.MIN_VALUE,
+            )
+        )
+    }
+
+    @Test
+    fun archiveBeyondIntMaxIsRejected() {
+        assertFalse(
+            AppUpdateInstallPolicy.acceptsArchiveVersion(
+                expectedRemoteVersionCode = Int.MAX_VALUE,
+                archiveVersionCode = Int.MAX_VALUE.toLong() + 1L,
+                installedVersionCode = 0L,
+            )
+        )
+        assertFalse(
+            AppUpdateInstallPolicy.acceptsArchiveVersion(
+                expectedRemoteVersionCode = 42,
+                archiveVersionCode = 4294967296L,
+                installedVersionCode = 41L,
+            )
+        )
+    }
+
+    @Test
+    fun emptySignerSetsAreRejected() {
+        assertFalse(
+            AppUpdateInstallPolicy.isPackageAndSignerTrusted(
+                installedPackageName = "com.maodouchat",
+                archivePackageName = "com.maodouchat",
+                installedSignerDigests = emptySet(),
+                archiveSignerDigests = emptySet(),
+            )
+        )
+        assertFalse(
+            AppUpdateInstallPolicy.isPackageAndSignerTrusted(
+                installedPackageName = "com.maodouchat",
+                archivePackageName = "com.maodouchat",
+                installedSignerDigests = emptySet(),
+                archiveSignerDigests = setOf("aa"),
+            )
+        )
+    }
+
+    @Test
+    fun packageNameIsNotTrimmedOrCaseFolded() {
+        assertFalse(
+            AppUpdateInstallPolicy.isPackageAndSignerTrusted(
+                installedPackageName = "com.maodouchat ",
+                archivePackageName = "com.maodouchat",
+                installedSignerDigests = setOf("aa"),
+                archiveSignerDigests = setOf("aa"),
+            )
+        )
+        assertFalse(
+            AppUpdateInstallPolicy.isPackageAndSignerTrusted(
+                installedPackageName = "com.maodouchat",
+                archivePackageName = " com.maodouchat",
+                installedSignerDigests = setOf("aa"),
+                archiveSignerDigests = setOf("aa"),
+            )
+        )
+        assertFalse(
+            AppUpdateInstallPolicy.isPackageAndSignerTrusted(
+                installedPackageName = "com.maodouchat",
+                archivePackageName = "   ",
+                installedSignerDigests = setOf("aa"),
+                archiveSignerDigests = setOf("aa"),
+            )
+        )
+    }
+
 }

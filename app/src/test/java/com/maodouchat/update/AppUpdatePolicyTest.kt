@@ -129,4 +129,57 @@ class AppUpdatePolicyTest {
         assertTrue(AppUpdatePolicy.hostOf("") == null)
         assertTrue(AppUpdatePolicy.hostOf("https://") == null)
     }
+    @Test
+    fun nonOfficialUrlFailsEvenWithNewerVersionAndValidSha() {
+        assertFalse(
+            AppUpdatePolicy.shouldOfferUpdate(
+                currentVersionCode = 17,
+                remoteVersionCode = 18,
+                apkUrl = "https://github.com/xalor888/maodouchat/releases/download/v1/a.apk",
+                apkSha256 = apkSha256,
+            )
+        )
+        assertFalse(
+            AppUpdatePolicy.shouldOfferUpdate(
+                currentVersionCode = 17,
+                remoteVersionCode = 18,
+                apkUrl = "https://cdn.example.com/a.apk",
+                apkSha256 = apkSha256,
+            )
+        )
+    }
+
+    @Test
+    fun sha256ComparisonTrimsAndIgnoresCaseButRejectsInnerSpace() {
+        val expected = "a".repeat(64)
+        assertTrue(AppUpdatePolicy.hasExpectedApkSha256("  $expected  "))
+        assertTrue(AppUpdatePolicy.matchesExpectedApkSha256(expected.uppercase(), "  $expected  "))
+        assertFalse(AppUpdatePolicy.hasExpectedApkSha256("a".repeat(32) + " " + "a".repeat(32)))
+        assertFalse(AppUpdatePolicy.matchesExpectedApkSha256(expected, "a".repeat(32) + " " + "a".repeat(32)))
+        assertFalse(AppUpdatePolicy.hasExpectedApkSha256(""))
+    }
+
+    @Test
+    fun formatNotesRecoversLatin1Mojibake() {
+        // UTF-8 字节被误当 Latin-1 读出的乱码：含 0x80..0xFF 字符且不在 CJK 区，
+        // 走 ISO-8859-1 取字节再按 UTF-8 解码，正好还原原文。
+        val mojibake = String("更新说明".toByteArray(Charsets.UTF_8), Charsets.ISO_8859_1)
+        assertTrue(mojibake != "更新说明")
+        assertTrue(AppUpdatePolicy.formatNotes(mojibake) == "更新说明")
+    }
+
+    @Test
+    fun formatNotesDecodesPercentEncodedUtf8() {
+        assertTrue(AppUpdatePolicy.formatNotes("%E6%9B%B4%E6%96%B0") == "更新")
+        assertTrue(AppUpdatePolicy.formatNotes("%25") == "%")
+    }
+
+    @Test
+    fun hostOfKeepsUserinfoAndStripsTrailingSlashes() {
+        // hostOf 不拆 @：userinfo 花招的 host 原样是 chat.mdou.me@evil.com。
+        assertTrue(AppUpdatePolicy.hostOf("https://chat.mdou.me@evil.com/a.apk") == "chat.mdou.me@evil.com")
+        assertTrue(AppUpdatePolicy.hostOf("https://chat.mdou.me///a.apk") == "chat.mdou.me")
+        assertTrue(AppUpdatePolicy.hostOf("https://   ") == null)
+    }
+
 }
