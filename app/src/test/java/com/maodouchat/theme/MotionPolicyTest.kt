@@ -88,4 +88,44 @@ class MotionPolicyTest {
         assertTrue(off.tweenSpec(200) is androidx.compose.animation.core.SnapSpec)
         assertFalse(on.tweenSpec(200) is androidx.compose.animation.core.SnapSpec)
     }
+
+    @Test
+    fun `negative animator scale disables animations`() {
+        val settings = MotionPolicy.resolve(animatorScale = -1f, transitionScale = 1f)
+
+        assertFalse(settings.animationsEnabled)
+        assertEquals(0, settings.duration(280))
+    }
+
+    @Test
+    fun `non-positive base duration stays zero even when enabled`() {
+        val settings = MotionSettings(animationsEnabled = true, durationScale = 1f)
+
+        assertEquals(0, settings.duration(0))
+        assertEquals(0, settings.duration(-50))
+    }
+
+    @Test
+    fun `scaled duration never drops below one millisecond`() {
+        val settings = MotionSettings(animationsEnabled = true, durationScale = 0.001f)
+
+        assertEquals(1, settings.duration(200))
+    }
+
+    @Test
+    fun `scaled duration caps at twice the base even for oversized scale`() {
+        val settings = MotionSettings(animationsEnabled = true, durationScale = 5f)
+
+        assertEquals(400, settings.duration(200))
+    }
+
+    @Test
+    fun `custom max animated items bounds initial list animation`() {
+        val settings = MotionSettings(animationsEnabled = true, durationScale = 1f)
+
+        assertTrue(MotionPolicy.shouldAnimateInitialListEntry(1, settings, maxAnimatedItems = 2))
+        assertFalse(MotionPolicy.shouldAnimateInitialListEntry(2, settings, maxAnimatedItems = 2))
+        assertEquals(32, MotionPolicy.initialListEntryDelay(1, settings, maxAnimatedItems = 2))
+        assertEquals(0, MotionPolicy.initialListEntryDelay(2, settings, maxAnimatedItems = 2))
+    }
 }

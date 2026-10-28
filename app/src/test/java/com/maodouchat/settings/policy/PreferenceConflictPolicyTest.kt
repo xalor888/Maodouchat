@@ -243,4 +243,117 @@ class PreferenceConflictPolicyTest {
         assertTrue(result.requiresPushToRemote)
         assertEquals(listOf("themeMode"), result.conflictFields)
     }
+
+    @Test
+    fun `blank local and remote owners skip isolation guard and normalize to session owner`() {
+        val local = MultiDevicePreferences(ownerUserId = "", revision = 1L, themeMode = "light")
+        val remote = MultiDevicePreferences(ownerUserId = "", revision = 2L, themeMode = "dark")
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+        )
+
+        assertTrue(result is ConflictResolutionResult.AcceptedRemote)
+        val accepted = (result as ConflictResolutionResult.AcceptedRemote).preferences
+        assertEquals("user_1", accepted.ownerUserId)
+        assertEquals("dark", accepted.themeMode)
+    }
+
+    @Test
+    fun `blank remote owner does not hide a mismatched local owner`() {
+        val local = MultiDevicePreferences(ownerUserId = "user_2", revision = 9L)
+        val remote = MultiDevicePreferences(ownerUserId = "", revision = 1L)
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+        )
+
+        assertTrue(result is ConflictResolutionResult.AccountMismatchRejected)
+        val rejected = result as ConflictResolutionResult.AccountMismatchRejected
+        assertEquals("user_1", rejected.localOwner)
+        assertEquals("user_2", rejected.remoteOwner)
+    }
+
+    @Test
+    fun `remote mismatch takes precedence over local mismatch`() {
+        val local = MultiDevicePreferences(ownerUserId = "user_2", revision = 9L)
+        val remote = MultiDevicePreferences(ownerUserId = "user_3", revision = 1L)
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+        )
+
+        assertTrue(result is ConflictResolutionResult.AccountMismatchRejected)
+        val rejected = result as ConflictResolutionResult.AccountMismatchRejected
+        assertEquals("user_1", rejected.localOwner)
+        assertEquals("user_3", rejected.remoteOwner)
+    }
+
+    @Test
+    fun `equal revision with equal timestamp keeps local`() {
+        val local = MultiDevicePreferences(
+            ownerUserId = "user_1",
+            revision = 3L,
+            updatedAtEpochMs = 1000L,
+            themeMode = "light",
+        )
+        val remote = MultiDevicePreferences(
+            ownerUserId = "user_1",
+            revision = 3L,
+            updatedAtEpochMs = 1000L,
+            themeMode = "dark",
+        )
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+        )
+
+        assertTrue(result is ConflictResolutionResult.AcceptedRemote)
+        val accepted = (result as ConflictResolutionResult.AcceptedRemote).preferences
+        assertEquals("light", accepted.themeMode)
+    }
+
+    @Test
+    fun `two conflicting pending fields are both recorded in field order`() {
+        val local = MultiDevicePreferences(
+            ownerUserId = "user_1",
+            revision = 2L,
+            themeMode = "light",
+            languageMode = "zh-cn",
+            chatWallpaper = "pattern_1",
+        )
+        val remote = MultiDevicePreferences(
+            ownerUserId = "user_1",
+            revision = 4L,
+            themeMode = "dark",
+            languageMode = "en",
+            chatWallpaper = "pattern_2",
+        )
+        val patch = PreferencesPatch(themeMode = "system", languageMode = "fr")
+
+        val result = PreferenceConflictPolicy.resolve(
+            sessionOwnerUserId = "user_1",
+            local = local,
+            remote = remote,
+            pendingLocalPatch = patch,
+            currentTimestampMs = 5000L,
+        )
+
+        assertTrue(result is ConflictResolutionResult.Merged)
+        val merged = result as ConflictResolutionResult.Merged
+        assertEquals(5L, merged.mergedPreferences.revision)
+        assertEquals("system", merged.mergedPreferences.themeMode)
+        assertEquals("fr", merged.mergedPreferences.languageMode)
+        assertEquals("pattern_2", merged.mergedPreferences.chatWallpaper)
+        assertEquals(listOf("themeMode", "languageMode"), merged.conflictFields)
+        assertTrue(merged.requiresPushToRemote)
+    }
 }

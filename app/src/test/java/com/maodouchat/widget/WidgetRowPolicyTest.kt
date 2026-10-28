@@ -1,6 +1,7 @@
 package com.maodouchat.widget
 
 import com.maodouchat.data.model.Chat
+import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
@@ -127,5 +128,46 @@ class WidgetRowPolicyTest {
         val c = chat("g", groupName = "Group!")
         assertEquals("Group!", widgetChatTitle(c, "me"))
         assertNull(widgetChatTitle(chat("d", peer = null).copy(groupName = null), "me"))
+    }
+
+    @Test
+    fun markdownPreviewPassesTextThrough() {
+        assertEquals("hello", widgetPreviewOf("hello", MessageType.MARKDOWN, "[ATT]"))
+    }
+
+    @Test
+    fun metaTagSuffixIsStrippedAndTrimmed() {
+        val raw = "hello  " + Message.META_TAG_PREFIX + """{"k":1}"""
+        assertEquals("hello", widgetPreviewOf(raw, MessageType.TEXT, "[ATT]"))
+    }
+
+    @Test
+    fun exactlyFortyCharsNeedsNoEllipsis() {
+        assertEquals("a".repeat(40), widgetPreviewOf("a".repeat(40), MessageType.TEXT, "[ATT]"))
+        assertEquals("a".repeat(40) + "…", widgetPreviewOf("a".repeat(41), MessageType.TEXT, "[ATT]"))
+    }
+
+    @Test
+    fun lockedChatUnderAppLockKeepsLockedPreviewButZeroesBadge() {
+        val r = build(
+            listOf(WidgetChatInput(chat("c", unread = 5, lastMessage = "secret"), lockedCaps)),
+            appLockOn = true,
+        )
+        assertEquals("APP", r.rows.single().title)
+        assertEquals("LOCKED", r.rows.single().subtitle)
+        assertEquals(0, r.rows.single().unread)
+        assertEquals(0, r.totalUnread)
+    }
+
+    @Test
+    fun skippedSecretChatsDoNotConsumeMaxRows() {
+        val inputs = listOf(
+            WidgetChatInput(chat("s"), secretCaps),
+            WidgetChatInput(chat("a"), openCaps),
+            WidgetChatInput(chat("b"), openCaps),
+            WidgetChatInput(chat("c"), openCaps),
+        )
+        val r = build(inputs, maxRows = 2)
+        assertEquals(listOf("a", "b"), r.rows.map { it.chatId })
     }
 }
