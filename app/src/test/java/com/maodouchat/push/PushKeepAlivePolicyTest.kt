@@ -66,4 +66,44 @@ class PushKeepAlivePolicyTest {
             PushKeepAlivePolicy.shouldResurrectDaemon(PushKeepAliveModeStore.MODE_CALL, hasToken = true)
         )
     }
+
+    @Test
+    fun blankAndCaseVariantsAreDisabled() {
+        assertFalse(PushKeepAlivePolicy.isEnabled(""))
+        assertFalse(PushKeepAlivePolicy.isEnabled(" "))
+        assertFalse(PushKeepAlivePolicy.isEnabled("FOREGROUND"))
+        assertFalse(PushKeepAlivePolicy.isEnabled(" off"))
+    }
+
+    @Test
+    fun unknownAndBlankNormalizeToOff() {
+        assertEquals(PushKeepAliveModeStore.MODE_OFF, PushKeepAlivePolicy.effectiveMode(""))
+        assertEquals(PushKeepAliveModeStore.MODE_OFF, PushKeepAlivePolicy.effectiveMode("bogus"))
+        assertEquals(PushKeepAliveModeStore.MODE_OFF, PushKeepAlivePolicy.effectiveMode("FOREGROUND"))
+        assertEquals(PushKeepAliveModeStore.MODE_OFF, PushKeepAlivePolicy.effectiveMode(" foreground"))
+    }
+
+    @Test
+    fun legacyModesStillStartServiceWithToken() {
+        assertTrue(PushKeepAlivePolicy.shouldStartService(PushKeepAliveModeStore.MODE_MEDIA, hasToken = true))
+        assertTrue(PushKeepAlivePolicy.shouldStartService(PushKeepAliveModeStore.MODE_CALL, hasToken = true))
+        assertFalse(PushKeepAlivePolicy.shouldStartService(PushKeepAliveModeStore.MODE_MEDIA, hasToken = false))
+    }
+
+    @Test
+    fun resurrectMirrorsStartServiceForForegroundAndOff() {
+        assertFalse(PushKeepAlivePolicy.shouldResurrectDaemon(PushKeepAliveModeStore.MODE_OFF, hasToken = true))
+        assertFalse(PushKeepAlivePolicy.shouldResurrectDaemon(PushKeepAliveModeStore.MODE_FOREGROUND, hasToken = false))
+        assertTrue(PushKeepAlivePolicy.shouldResurrectDaemon(PushKeepAliveModeStore.MODE_FOREGROUND, hasToken = true))
+    }
+
+    @Test
+    fun retiredDisguisesNeverEnabledForAnyInput() {
+        assertFalse(PushKeepAlivePolicy.wantsMediaSession(PushKeepAliveModeStore.MODE_OFF))
+        assertFalse(PushKeepAlivePolicy.wantsMediaSession("bogus"))
+        assertFalse(PushKeepAlivePolicy.wantsMediaSession(""))
+        assertFalse(PushKeepAlivePolicy.wantsFakeCall(PushKeepAliveModeStore.MODE_OFF))
+        assertFalse(PushKeepAlivePolicy.wantsFakeCall("bogus"))
+        assertFalse(PushKeepAlivePolicy.wantsFakeCall(""))
+    }
 }

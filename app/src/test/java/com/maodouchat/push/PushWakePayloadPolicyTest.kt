@@ -65,4 +65,53 @@ class PushWakePayloadPolicyTest {
             PushWakePayloadPolicy.evaluate(emptyMap())
         )
     }
+
+    @Test
+    fun paddedAndUppercaseAllowedKeysAreAccepted() {
+        assertTrue(
+            PushWakePayloadPolicy.isSafe(
+                mapOf(
+                    " Type " to "NEW_MESSAGE",
+                    "ChatID" to "g1",
+                    "SenderId" to "u1",
+                )
+            )
+        )
+    }
+
+    @Test
+    fun forbiddenKeyBeatsUnknownKey() {
+        val decision = PushWakePayloadPolicy.evaluate(
+            mapOf("type" to "NEW_MESSAGE", "body" to "hi", "zzz" to "x")
+        )
+        assertIs<Decision.Reject>(decision)
+        assertEquals("sensitive_keys=body", decision.reason)
+    }
+
+    @Test
+    fun multipleForbiddenKeysAreSortedInReason() {
+        val decision = PushWakePayloadPolicy.evaluate(
+            mapOf("type" to "NEW_MESSAGE", "text" to "hi", "body" to "hi")
+        )
+        assertIs<Decision.Reject>(decision)
+        assertEquals("sensitive_keys=body,text", decision.reason)
+    }
+
+    @Test
+    fun multipleUnknownKeysAreSortedInReason() {
+        val decision = PushWakePayloadPolicy.evaluate(
+            mapOf("type" to "NEW_MESSAGE", "zz" to "x", "aa" to "x")
+        )
+        assertIs<Decision.Reject>(decision)
+        assertEquals("unknown_keys=aa,zz", decision.reason)
+    }
+
+    @Test
+    fun blankKeysAreIgnored() {
+        assertTrue(
+            PushWakePayloadPolicy.isSafe(
+                mapOf("   " to "x", "type" to "NEW_MESSAGE")
+            )
+        )
+    }
 }

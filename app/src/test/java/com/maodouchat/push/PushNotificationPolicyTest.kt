@@ -135,4 +135,70 @@ class PushNotificationPolicyTest {
         assertNull(PushNotificationPolicy.resolveChatId("  "))
         assertEquals("c1", PushNotificationPolicy.resolveChatId(" c1 "))
     }
+
+    @Test
+    fun blankIdsDropAddressing() {
+        assertFalse(
+            PushNotificationPolicy.isAddressedToCurrentUser(
+                payloadRecipientId = "user-a",
+                currentUserId = "",
+            )
+        )
+        assertFalse(
+            PushNotificationPolicy.isAddressedToCurrentUser(
+                payloadRecipientId = " ",
+                currentUserId = " ",
+            )
+        )
+    }
+
+    @Test
+    fun nullTypeWireIsAllowed() {
+        assertTrue(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = null,
+                chatId = "c1",
+                activeChatId = null,
+                chatNotificationsMuted = false
+            )
+        )
+    }
+
+    @Test
+    fun whitespaceChatIdIsSuppressed() {
+        assertFalse(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "TEXT",
+                chatId = "   ",
+                activeChatId = null,
+                chatNotificationsMuted = false
+            )
+        )
+    }
+
+    @Test
+    fun blankActiveChatDoesNotSuppress() {
+        assertTrue(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "TEXT",
+                chatId = "c1",
+                activeChatId = "",
+                chatNotificationsMuted = false
+            )
+        )
+        assertTrue(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "TEXT",
+                chatId = "c1",
+                activeChatId = " ",
+                chatNotificationsMuted = false
+            )
+        )
+    }
+
+    @Test
+    fun resolveChatIdTrimsOnlyEdges() {
+        assertEquals("a b", PushNotificationPolicy.resolveChatId(" a b "))
+        assertEquals("c1", PushNotificationPolicy.resolveChatId("\tc1\n"))
+    }
 }
