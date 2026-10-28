@@ -205,4 +205,73 @@ class AttachmentSendAfterUploadPolicyTest {
         )
         assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
     }
+    @Test
+    fun networkKindNotReadyTextIsNotConflict() {
+        val err = ApiException(
+            ApiFailureKind.NETWORK,
+            statusCode = 409,
+            serverMessage = "附件尚未上传完成",
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(err))
+    }
+
+    @Test
+    fun bareChineseNotReadyPrefixIsConflict() {
+        val err = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "附件尚未",
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
+
+    @Test
+    fun englishKeywordNeedsAttachmentCompanion() {
+        val uploadOnly = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "upload pending",
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(uploadOnly))
+        val keywordOnly = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "attachment processing",
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(keywordOnly))
+    }
+
+    @Test
+    fun acceptedCodeNeedsHttpKindAndNonBlankCode() {
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.NETWORK, serverCode = "MESSAGE_ALREADY_ACCEPTED")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.HTTP, serverCode = null)
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.HTTP, serverCode = "   ")
+            )
+        )
+    }
+
+    @Test
+    fun nullStatusAndUnexpectedKindAreNotRetryable() {
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(ApiException(ApiFailureKind.HTTP))
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.UNEXPECTED, serverMessage = "weird")
+            )
+        )
+    }
+
 }

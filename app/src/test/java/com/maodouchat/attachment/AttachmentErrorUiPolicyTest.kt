@@ -140,4 +140,54 @@ class AttachmentErrorUiPolicyTest {
         )
         assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(wrapped))
     }
+    @Test
+    fun invalidResponseKindBeatsHttp500Status() {
+        assertEquals(
+            Kind.INTEGRITY_FAILED,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(kind = ApiFailureKind.INVALID_RESPONSE, statusCode = 500, serverMessage = "boom")
+            )
+        )
+    }
+
+    @Test
+    fun httpKindWithoutStatusFallsBack() {
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(kind = ApiFailureKind.HTTP, serverMessage = "boom")
+            )
+        )
+    }
+
+    @Test
+    fun unexpectedKindFallsBack() {
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                ApiException(kind = ApiFailureKind.UNEXPECTED, serverMessage = "weird")
+            )
+        )
+    }
+
+    @Test
+    fun cryptoFailureWrappedInPlainExceptionFallsBack() {
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                RuntimeException("wrap", AttachmentCryptoException(AttachmentCryptoFailure.TOO_LARGE))
+            )
+        )
+    }
+
+    @Test
+    fun repeatedClassificationIsStable() {
+        val tooLarge = AttachmentCryptoException(AttachmentCryptoFailure.TOO_LARGE)
+        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(tooLarge))
+        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(tooLarge))
+        val unknown = IllegalStateException("x")
+        assertEquals(Kind.FALLBACK, AttachmentErrorUiPolicy.classify(unknown))
+        assertEquals(Kind.FALLBACK, AttachmentErrorUiPolicy.classify(unknown))
+    }
+
 }
