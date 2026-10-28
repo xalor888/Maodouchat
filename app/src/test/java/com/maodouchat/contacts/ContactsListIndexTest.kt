@@ -84,4 +84,58 @@ class ContactsListIndexTest {
             findLetterIndex(grouped, 2, 1, 1, "B")
         )
     }
+
+    @Test
+    fun `letter index for middle sections accumulates headers and rows`() {
+        val grouped = linkedMapOf(
+            "A" to listOf(user("a1"), user("a2")),
+            "B" to listOf(user("b1")),
+            "C" to emptyList(),
+            "D" to listOf(user("d1"), user("d2"), user("d3"))
+        )
+        assertEquals(3, findLetterIndex(grouped, 0, 0, 0, "A"))
+        assertEquals(6, findLetterIndex(grouped, 0, 0, 0, "B"))
+        assertEquals(8, findLetterIndex(grouped, 0, 0, 0, "C"))
+        assertEquals(9, findLetterIndex(grouped, 0, 0, 0, "D"))
+    }
+
+    @Test
+    fun `letter index shifts wholly with request counts`() {
+        val grouped = linkedMapOf("A" to listOf(user("a1")))
+        assertEquals(5, findLetterIndex(grouped, 1, 0, 0, "A"))
+        assertEquals(6, findLetterIndex(grouped, 0, 2, 0, "A"))
+        assertEquals(8, findLetterIndex(grouped, 1, 2, 0, "A"))
+    }
+
+    @Test
+    fun `letter index misses unknown and blank targets despite counts`() {
+        val grouped = linkedMapOf("A" to listOf(user("a1")))
+        assertEquals(-1, findLetterIndex(grouped, 2, 1, 1, "Q"))
+        assertEquals(-1, findLetterIndex(grouped, 2, 1, 1, ""))
+    }
+
+    @Test
+    fun `letter index counts single rows and trailing empty section`() {
+        val grouped = linkedMapOf(
+            "A" to listOf(user("a1")),
+            "B" to emptyList()
+        )
+        assertEquals(3, findLetterIndex(grouped, 0, 0, 0, "A"))
+        assertEquals(5, findLetterIndex(grouped, 0, 0, 0, "B"))
+        assertEquals(-1, findLetterIndex(grouped, 0, 0, 0, "#"))
+    }
+
+    @Test
+    fun `letter index follows section insertion order`() {
+        val ab = linkedMapOf(
+            "A" to listOf(user("a1"), user("a2")),
+            "B" to listOf(user("b1"))
+        )
+        val ba = linkedMapOf(
+            "B" to listOf(user("b1")),
+            "A" to listOf(user("a1"), user("a2"))
+        )
+        assertEquals(6, findLetterIndex(ab, 0, 0, 0, "B"))
+        assertEquals(3, findLetterIndex(ba, 0, 0, 0, "B"))
+    }
 }

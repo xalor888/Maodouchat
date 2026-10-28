@@ -134,4 +134,47 @@ class ContactsIndexPolicyTest {
         // 同字母内保持原输入顺序，名字相同的两个 id 都在
         assertEquals(listOf("u1", "u2", "u3"), grouped["A"])
     }
+
+    @Test
+    fun `initialFor hashes digits underscores dots and emoji`() {
+        assertEquals("#", ContactsIndexPolicy.initialFor("9lives"))
+        assertEquals("#", ContactsIndexPolicy.initialFor("_priv"))
+        assertEquals("#", ContactsIndexPolicy.initialFor(".hidden"))
+        assertEquals("#", ContactsIndexPolicy.initialFor("😀hi"))
+    }
+
+    @Test
+    fun `groupByInitial merges upper and lower case initials`() {
+        val grouped = ContactsIndexPolicy.groupByInitial(
+            listOf("u1" to "Amy", "u2" to "amy", "u3" to "Andy")
+        )
+        assertEquals(listOf("A"), grouped.keys.toList())
+        assertEquals(listOf("u1", "u2", "u3"), grouped["A"])
+    }
+
+    @Test
+    fun `groupByInitial keeps distinct cjk initials sorted`() {
+        val grouped = ContactsIndexPolicy.groupByInitial(
+            listOf("u1" to "张三", "u2" to "李四", "u3" to "张伟")
+        )
+        assertEquals(listOf("张", "李"), grouped.keys.toList())
+        assertEquals(listOf("u1", "u3"), grouped["张"])
+        assertEquals(listOf("u2"), grouped["李"])
+    }
+
+    @Test
+    fun `leadingFixedItemCount stacks sections on custom trailing rows`() {
+        assertEquals(7, ContactsIndexPolicy.leadingFixedItemCount(2, 1, 1, trailingActionRows = 0))
+        assertEquals(1, ContactsIndexPolicy.leadingFixedItemCount(0, 0, 0, trailingActionRows = 1))
+        assertEquals(4, ContactsIndexPolicy.leadingFixedItemCount(1, 0, 0, trailingActionRows = 2))
+    }
+
+    @Test
+    fun `letterListIndex mixes custom leading with zero size sections`() {
+        val letters = listOf("A", "B", "C")
+        val sizes = mapOf("A" to 0, "C" to 5)
+        assertEquals(2, ContactsIndexPolicy.letterListIndex(letters, sizes, "A", leadingFixedItems = 2))
+        assertEquals(3, ContactsIndexPolicy.letterListIndex(letters, sizes, "B", leadingFixedItems = 2))
+        assertEquals(4, ContactsIndexPolicy.letterListIndex(letters, sizes, "C", leadingFixedItems = 2))
+    }
 }

@@ -117,4 +117,64 @@ class QrScanFeedbackPolicyTest {
         assertEquals(Kind.USER_NOT_FOUND, miss.kind)
         assertFalse(miss.retryable)
     }
+
+    @Test
+    fun `user lookup null and unexpected statuses are unknown retryable`() {
+        val nullStatus = QrScanFeedbackPolicy.forUserLookup(null)
+        assertEquals(Kind.UNKNOWN, nullStatus.kind)
+        assertTrue(nullStatus.retryable)
+        val forbidden = QrScanFeedbackPolicy.forUserLookup(403)
+        assertEquals(Kind.UNKNOWN, forbidden.kind)
+        assertTrue(forbidden.retryable)
+        val ok = QrScanFeedbackPolicy.forUserLookup(200)
+        assertEquals(Kind.UNKNOWN, ok.kind)
+        assertTrue(ok.retryable)
+    }
+
+    @Test
+    fun `join timeout outranks server code and network passes raw code`() {
+        val timeout = QrScanFeedbackPolicy.forJoinInvite(403, "GROUP_INVITE_BLOCKED", null, isTimeout = true)
+        assertEquals(Kind.NETWORK, timeout.kind)
+        assertTrue(timeout.retryable)
+        assertEquals("GROUP_INVITE_BLOCKED", timeout.serverCode)
+        val spaced = QrScanFeedbackPolicy.forJoinInvite(null, "  group_member_limit_exceeded  ", null, isNetwork = true)
+        assertEquals(Kind.NETWORK, spaced.kind)
+        assertEquals("  group_member_limit_exceeded  ", spaced.serverCode)
+        val noCode = QrScanFeedbackPolicy.forJoinInvite(null, null, null, isNetwork = true)
+        assertEquals(Kind.NETWORK, noCode.kind)
+        assertEquals(null, noCode.serverCode)
+    }
+
+    @Test
+    fun `join session invalid and blocked statuses are not retryable`() {
+        val session = QrScanFeedbackPolicy.forJoinInvite(401, null, null)
+        assertEquals(Kind.SESSION_EXPIRED, session.kind)
+        assertFalse(session.retryable)
+        val invalid = QrScanFeedbackPolicy.forJoinInvite(400, null, null)
+        assertEquals(Kind.INVITE_INVALID_OR_EXPIRED, invalid.kind)
+        assertFalse(invalid.retryable)
+        val blocked = QrScanFeedbackPolicy.forJoinInvite(403, null, null)
+        assertEquals(Kind.INVITE_BLOCKED, blocked.kind)
+        assertFalse(blocked.retryable)
+    }
+
+    @Test
+    fun `join message english keywords check block before limit`() {
+        assertEquals(Kind.GROUP_FULL, QrScanFeedbackPolicy.forJoinInvite(500, null, "member limit reached").kind)
+        assertEquals(Kind.INVITE_BLOCKED, QrScanFeedbackPolicy.forJoinInvite(500, null, "blocked by admin").kind)
+        assertEquals(Kind.INVITE_BLOCKED, QrScanFeedbackPolicy.forJoinInvite(500, null, "blocked, limit reached").kind)
+        val neutral = QrScanFeedbackPolicy.forJoinInvite(500, null, "something else")
+        assertEquals(Kind.UNKNOWN, neutral.kind)
+        assertTrue(neutral.retryable)
+    }
+
+    @Test
+    fun `join blank server code falls back to status with null code`() {
+        val full = QrScanFeedbackPolicy.forJoinInvite(409, "   ", null)
+        assertEquals(Kind.GROUP_FULL, full.kind)
+        assertEquals(null, full.serverCode)
+        val session = QrScanFeedbackPolicy.forJoinInvite(401, "  ", null)
+        assertEquals(Kind.SESSION_EXPIRED, session.kind)
+        assertEquals(null, session.serverCode)
+    }
 }
