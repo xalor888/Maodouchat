@@ -238,4 +238,73 @@ class ChatListUnreadPolicyTest {
             )
         )
     }
+
+    @Test
+    fun activeChatZeroBeatsMarkedUnread() {
+        assertEquals(
+            0,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = 9,
+                localUnread = 5,
+                isActiveChat = true,
+                localMarkedUnread = true
+            )
+        )
+    }
+
+    @Test
+    fun markedUnreadSurvivesNewerServerTail() {
+        assertEquals(
+            5,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = 5,
+                localUnread = 0,
+                isActiveChat = false,
+                localMarkedUnread = true,
+                serverLastMessageTime = 200,
+                localLastMessageTime = 100
+            )
+        )
+    }
+
+    @Test
+    fun negativeLocalCoercedToClearedZero() {
+        // 负本地数先钳到 0，再按“已读清零且服务端尾巴不更新”走清零分支。
+        assertEquals(
+            0,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = 6,
+                localUnread = -2,
+                isActiveChat = false,
+                serverLastMessageTime = 100,
+                localLastMessageTime = 100
+            )
+        )
+    }
+
+    @Test
+    fun negativeLocalWithUnknownTailKeepsServer() {
+        assertEquals(
+            6,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = 6,
+                localUnread = -2,
+                isActiveChat = false
+            )
+        )
+    }
+
+    @Test
+    fun markedUnreadWithLocalPositiveTakesServerMax() {
+        assertEquals(
+            8,
+            ChatListUnreadPolicy.mergeUnreadCount(
+                serverUnread = 8,
+                localUnread = 3,
+                isActiveChat = false,
+                localMarkedUnread = true
+            )
+        )
+    }
+
 }
