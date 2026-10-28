@@ -104,4 +104,44 @@ class AppUpdateDownloadRetryPolicyTest {
         assertFalse(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException()))
         assertFalse(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException("")))
     }
+    @Test
+    fun httpPrefixIsCaseSensitiveAndPositionSensitive() {
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("xhttp_503"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable(" http_503"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("http__503"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("http_"))
+    }
+
+    @Test
+    fun emptyBodyAndTooSmallAreExactCodesOnly() {
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("empty_body "))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("EMPTY_BODY"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("empty_bodyx"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("apk_too_small "))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("APK_TOO_SMALL"))
+    }
+
+    @Test
+    fun ioExceptionWithNullMessageIsRetryable() {
+        // 类型优先：message 为空也不影响，IOException 一族照样重试。
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(java.io.IOException(null as String?)))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(java.net.SocketException(null as String?)))
+    }
+
+    @Test
+    fun timeoutSubstringNeedsTheFullWord() {
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException("read timeout")))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException("operation timed out")))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable(RuntimeException("time out")))
+    }
+
+    @Test
+    fun connectionPhrasesRequireFullPhraseInOrder() {
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("connection failed"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("pipe broken"))
+        assertFalse(AppUpdateDownloadRetryPolicy.isRetryable("end of stream"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("unexpected end of stream while reading"))
+        assertTrue(AppUpdateDownloadRetryPolicy.isRetryable("connection aborted by peer"))
+    }
+
 }
