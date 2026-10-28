@@ -81,4 +81,60 @@ class SpoilerMediaPolicyTest {
             assertTrue(SpoilerMediaPolicy.supports(MessageType.IMAGE))
         }
     }
+
+    @Test
+    fun `supported set iterates in declaration order`() {
+        assertEquals(
+            listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF),
+            SpoilerMediaPolicy.SUPPORTED.toList()
+        )
+    }
+
+    @Test
+    fun `supported set rejects remove and clear too`() {
+        kotlin.test.assertFailsWith<UnsupportedOperationException> {
+            @Suppress("UNCHECKED_CAST")
+            (SpoilerMediaPolicy.SUPPORTED as MutableSet<MessageType>).remove(MessageType.IMAGE)
+        }
+        kotlin.test.assertFailsWith<UnsupportedOperationException> {
+            @Suppress("UNCHECKED_CAST")
+            (SpoilerMediaPolicy.SUPPORTED as MutableSet<MessageType>).clear()
+        }
+        assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
+    }
+
+    @Test
+    fun `exactly three enum values classify as supported`() {
+        assertEquals(3, MessageType.entries.count { SpoilerMediaPolicy.supports(it) })
+        assertEquals(
+            setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF),
+            MessageType.entries.filter { SpoilerMediaPolicy.supports(it) }.toSet()
+        )
+    }
+
+    @Test
+    fun `supported set equals a fresh copy of the three types`() {
+        assertEquals(
+            setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF),
+            SpoilerMediaPolicy.SUPPORTED
+        )
+        assertTrue(
+            MessageType.entries.none {
+                it !in setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF) &&
+                    it in SpoilerMediaPolicy.SUPPORTED
+            }
+        )
+    }
+
+    @Test
+    fun `query order does not change classification`() {
+        MessageType.entries.filter { !SpoilerMediaPolicy.supports(it) }.forEach {
+            assertFalse(SpoilerMediaPolicy.supports(it))
+        }
+        listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF).forEach {
+            assertTrue(SpoilerMediaPolicy.supports(it))
+        }
+        assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
+    }
+
 }

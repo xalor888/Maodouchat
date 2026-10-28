@@ -100,4 +100,52 @@ class MediaViewerPolicyTest {
         assertFalse(MediaViewerPolicy.canExportLocal(true, secretChat = true, exportBlockEnabled = false))
         assertFalse(MediaViewerPolicy.canShareLocal(true, secretChat = true, exportBlockEnabled = false))
     }
+
+    @Test
+    fun `clamp pins exact bounds and infinities`() {
+        assertEquals(1f, MediaViewerPolicy.clampScale(1f))
+        assertEquals(8f, MediaViewerPolicy.clampScale(8f))
+        assertEquals(1f, MediaViewerPolicy.clampScale(-5f))
+        assertEquals(1f, MediaViewerPolicy.clampScale(Float.NEGATIVE_INFINITY))
+        assertEquals(8f, MediaViewerPolicy.clampScale(Float.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun `double tap pins zero max and NaN`() {
+        // NaN > 1.05f is false, so it falls through to the zoom-in branch
+        assertEquals(3.5f, MediaViewerPolicy.nextDoubleTapScale(0f))
+        assertEquals(1f, MediaViewerPolicy.nextDoubleTapScale(8f))
+        assertEquals(3.5f, MediaViewerPolicy.nextDoubleTapScale(Float.NaN))
+    }
+
+    @Test
+    fun `mime edge values`() {
+        assertTrue(MediaViewerPolicy.isImageMime("gif"))
+        assertFalse(MediaViewerPolicy.isImageMime(""))
+        assertFalse(MediaViewerPolicy.isVideoMime("video"))
+        assertTrue(MediaViewerPolicy.isVideoMime("VIDEO/"))
+        assertTrue(MediaViewerPolicy.isImageMime("image/svg+xml"))
+    }
+
+    @Test
+    fun `defaultMime keeps explicit mime verbatim and matches type case-insensitively`() {
+        assertEquals(" image/png ", MediaViewerPolicy.defaultMime("IMAGE", " image/png "))
+        assertEquals("image/gif", MediaViewerPolicy.defaultMime("Gif", null))
+        assertEquals("application/octet-stream", MediaViewerPolicy.defaultMime("AUDIO", null))
+    }
+
+    @Test
+    fun `defaultFileName prefix and extension order`() {
+        val imageAsJpg = MediaViewerPolicy.defaultFileName("AUDIO", null, "image/jpeg")
+        assertTrue(imageAsJpg.startsWith("media_"))
+        assertTrue(imageAsJpg.endsWith(".jpg"))
+        val gifTypeVideoMime = MediaViewerPolicy.defaultFileName("GIF", null, "video/mp4")
+        assertTrue(gifTypeVideoMime.startsWith("gif_"))
+        assertTrue(gifTypeVideoMime.endsWith(".mp4"))
+        assertEquals(
+            "my photo.png",
+            MediaViewerPolicy.defaultFileName("IMAGE", "  my photo.png  ", "image/png")
+        )
+    }
+
 }
