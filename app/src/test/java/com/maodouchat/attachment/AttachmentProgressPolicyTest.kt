@@ -100,4 +100,35 @@ class AttachmentProgressPolicyTest {
         val p = AttachmentProgressPolicy.mapSegmentProgress(0, 100, 0.2f, 0.8f, -1f)
         assertEquals(0.2f, p!!, 0.0001f)
     }
+
+    @Test
+    fun `previous above one clamps to one for delta check`() {
+        assertNull(AttachmentProgressPolicy.mapSegmentProgress(995, 1000, 0f, 1f, 1.5f))
+        assertEquals(0.995f, AttachmentProgressPolicy.mapSegmentProgress(995, 1000, 0f, 1f, 0.98f)!!, 0.0001f)
+    }
+
+    @Test
+    fun `narrow segment maps half progress to midpoint`() {
+        val p = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 0.4f, 0.6f, -1f)
+        assertEquals(0.5f, p!!, 0.0001f)
+    }
+
+    @Test
+    fun `above threshold delta inside narrow segment publishes`() {
+        val first = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 0.2f, 0.4f, -1f)!!
+        assertEquals(0.3f, first, 0.0001f)
+        val next = AttachmentProgressPolicy.mapSegmentProgress(60, 100, 0.2f, 0.4f, first)
+        assertEquals(0.32f, next!!, 0.0001f)
+    }
+
+    @Test
+    fun `tiny delta near segment end below one suppresses`() {
+        assertNull(AttachmentProgressPolicy.mapSegmentProgress(999, 1000, 0.2f, 0.8f, 0.795f))
+    }
+
+    @Test
+    fun `zero previous is a set value not unset`() {
+        assertNull(AttachmentProgressPolicy.mapSegmentProgress(1, 10000, 0f, 1f, 0f))
+        assertEquals(0.0001f, AttachmentProgressPolicy.mapSegmentProgress(1, 10000, 0f, 1f, -1f)!!, 0.00001f)
+    }
 }

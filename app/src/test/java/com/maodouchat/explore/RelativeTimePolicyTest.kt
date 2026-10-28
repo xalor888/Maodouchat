@@ -104,4 +104,38 @@ class RelativeTimePolicyTest {
             RelativeTimePolicy.shouldUseJustNow(now - 3_600_000L, now, pastWindowMs = Long.MAX_VALUE)
         )
     }
+
+    @Test
+    fun narrowedFutureGraceRejectsModerateSkew() {
+        val now = 1_000_000L
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now + 31_000L, now, futureGraceMs = 30_000L))
+        assertTrue(RelativeTimePolicy.shouldUseJustNow(now + 31_000L, now))
+    }
+
+    @Test
+    fun zeroNowWithFutureTimestampUsesGrace() {
+        assertTrue(RelativeTimePolicy.shouldUseJustNow(60_000L, 0L))
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(120_000L, 0L))
+    }
+
+    @Test
+    fun exactNowWithZeroPastWindowIsNotJustNow() {
+        val now = 1_000_000L
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now, now, pastWindowMs = 0L))
+    }
+
+    @Test
+    fun negativeWindowsCollapseToEmptyRange() {
+        val now = 1_000_000L
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now, now, pastWindowMs = -1L, futureGraceMs = -1L))
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now - 1L, now, pastWindowMs = -1L, futureGraceMs = -1L))
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now + 1L, now, pastWindowMs = -1L, futureGraceMs = -1L))
+    }
+
+    @Test
+    fun tinyCustomPastWindowPinsExclusiveBound() {
+        val now = 1_000_000L
+        assertFalse(RelativeTimePolicy.shouldUseJustNow(now - 1L, now, pastWindowMs = 1L))
+        assertTrue(RelativeTimePolicy.shouldUseJustNow(now - 1L, now, pastWindowMs = 2L))
+    }
 }

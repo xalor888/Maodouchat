@@ -565,4 +565,105 @@ class GroupCallCapabilitiesTest {
         assertFalse(GroupCallCapabilities.SCREEN_SHARE_SUPPORTED)
         assertFalse(GroupCallCapabilities.CALL_RECORDING_SUPPORTED)
     }
+
+    @Test
+    fun `blank group ids bypass member mismatch`() {
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "b",
+                activeCallId = "",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "g1",
+                activeMembers = listOf("a"),
+                incomingMembers = listOf("a", "b", "c"),
+                signalType = "offer",
+            ),
+        )
+    }
+
+    @Test
+    fun `group member order does not matter`() {
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-1",
+                activeGroupId = "g1",
+                incomingGroupId = "g1",
+                activeMembers = listOf("a", "b"),
+                incomingMembers = listOf("b", "a"),
+                signalType = "answer",
+            ),
+        )
+    }
+
+    @Test
+    fun `same epoch higher sequence is accepted`() {
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-1",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "answer",
+                incomingEpoch = 1,
+                incomingSequence = 3,
+                lastAcceptedCursor = Cursor(1, 2),
+            ),
+        )
+    }
+
+    @Test
+    fun `direct call with blank expected contact accepts any sender`() {
+        assertEquals(
+            Decision.ACCEPT,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = false,
+                expectedContactId = "",
+                fromUserId = "stranger",
+                activeCallId = "",
+                incomingCallId = "call-9",
+                activeGroupId = "",
+                incomingGroupId = "",
+                activeMembers = emptyList(),
+                incomingMembers = emptyList(),
+                signalType = "offer",
+            ),
+        )
+    }
+
+    @Test
+    fun `stale cursor drops even when call id and metadata match`() {
+        assertEquals(
+            Decision.DROP,
+            CallSignalingAdmissionPolicy.admit(
+                isGroupCall = true,
+                expectedContactId = "a",
+                fromUserId = "a",
+                activeCallId = "call-1",
+                incomingCallId = "call-1",
+                activeGroupId = "g1",
+                incomingGroupId = "g1",
+                activeMembers = listOf("a", "b"),
+                incomingMembers = listOf("a", "b"),
+                signalType = "answer",
+                incomingEpoch = 1,
+                incomingSequence = 1,
+                lastAcceptedCursor = Cursor(1, 2),
+            ),
+        )
+    }
 }
