@@ -256,4 +256,85 @@ class NotificationSlotPolicyTest {
             NotificationSlotPolicy.chatDataUri("")
         )
     }
+
+    @Test
+    fun socialNotifyIdsShareBareHashWhileTagsSeparate() {
+        // 好友/群邀请/公告三类通知 id 都是裸 id 哈希：同 id 必然同值，隔离靠 tag 而非 id。
+        assertEquals(
+            NotificationSlotPolicy.friendRequestNotifyId("x1"),
+            NotificationSlotPolicy.groupInviteNotifyId("x1")
+        )
+        assertEquals(
+            NotificationSlotPolicy.friendRequestNotifyId("x1"),
+            NotificationSlotPolicy.announcementNotifyId("x1")
+        )
+        assertEquals("x1".hashCode(), NotificationSlotPolicy.friendRequestNotifyId("x1"))
+        assertTrue(
+            setOf(
+                NotificationSlotPolicy.FRIEND_REQUEST_TAG,
+                NotificationSlotPolicy.GROUP_INVITE_TAG,
+                NotificationSlotPolicy.ANNOUNCEMENT_TAG,
+            ).size == 3,
+            "social tags must stay distinct even though notify ids collide"
+        )
+    }
+
+    @Test
+    fun dataUrisPartitionAcrossNotificationTypes() {
+        // 同一 id 在十种通知 URI 空间里互不重叠，取消一边永不误擦另一边。
+        val uris = setOf(
+            NotificationSlotPolicy.chatDataUri("x1"),
+            NotificationSlotPolicy.incomingCallDataUri("x1"),
+            NotificationSlotPolicy.missedCallDataUri("x1"),
+            NotificationSlotPolicy.postDataUri("x1"),
+            NotificationSlotPolicy.aiTaskDataUri("x1"),
+            NotificationSlotPolicy.friendRequestDataUri("x1"),
+            NotificationSlotPolicy.groupInviteDataUri("x1"),
+            NotificationSlotPolicy.announcementDataUri("x1"),
+            NotificationSlotPolicy.quickReplyDataUri("x1"),
+            NotificationSlotPolicy.markReadDataUri("x1"),
+        )
+        assertEquals(10, uris.size)
+    }
+
+    @Test
+    fun chatActionOffsetsStableAcrossChats() {
+        // +1/+2 错开不是某个 chat 的巧合：多会话逐个验算。
+        for (chat in listOf("c1", "c2", "room-9")) {
+            val base = NotificationSlotPolicy.chatRequestCode(chat)
+            assertEquals(base + 1, NotificationSlotPolicy.markReadRequestCode(chat))
+            assertEquals(base + 2, NotificationSlotPolicy.quickReplyRequestCode(chat))
+        }
+    }
+
+    @Test
+    fun reminderRequestCodeKeyedByChatWhileNotifyIdKeyedByMessage() {
+        // 提醒 requestCode 只由会话决定、notifyId 只由消息决定：两键来源互不串位。
+        assertEquals(
+            "reminder_c1".hashCode(),
+            NotificationSlotPolicy.reminderRequestCode("c1")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.reminderRequestCode("c1"),
+            NotificationSlotPolicy.reminderNotifyId("c1")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.reminderNotifyId("m1"),
+            NotificationSlotPolicy.reminderNotifyId("m2")
+        )
+    }
+
+    @Test
+    fun emptyIdDegenerateNotifyIds() {
+        // 空 id 不抛异常且退化值可算：裸哈希为 0，未接再 xor 盐。
+        assertEquals(0, NotificationSlotPolicy.incomingCallNotifyId(""))
+        assertEquals(
+            NotificationSlotPolicy.MISSED_CALL_ID_SALT,
+            NotificationSlotPolicy.missedCallNotifyId("")
+        )
+        assertEquals(0, NotificationSlotPolicy.aiTaskNotifyId(""))
+        assertEquals("post_".hashCode(), NotificationSlotPolicy.postNotifyId(""))
+        assertEquals(0, NotificationSlotPolicy.friendRequestNotifyId(""))
+    }
+
 }
