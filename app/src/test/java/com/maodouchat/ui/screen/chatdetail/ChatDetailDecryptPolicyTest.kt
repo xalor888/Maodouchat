@@ -52,4 +52,41 @@ class ChatDetailDecryptPolicyTest {
             assertEquals("$type 的分类与预期不符", expected, type.isDecryptable())
         }
     }
+    @Test
+    fun `decryptable set has exactly nine members`() {
+        assertEquals(9, MessageType.entries.count { it.isDecryptable() })
+    }
+
+    @Test
+    fun `non decryptable set has exactly four members`() {
+        val rest = MessageType.entries.filterNot { it.isDecryptable() }
+        assertEquals(
+            setOf(
+                MessageType.NUDGE, MessageType.SK_DIST,
+                MessageType.SYSTEM, MessageType.REVOKED,
+            ),
+            rest.toSet(),
+        )
+    }
+
+    @Test
+    fun `hidden sk dist is not decryptable`() {
+        assertTrue(MessageType.SK_DIST.isHidden)
+        assertFalse(MessageType.SK_DIST.isDecryptable())
+    }
+
+    @Test
+    fun `classification is deterministic`() {
+        val first = MessageType.entries.map { it.isDecryptable() }
+        val second = MessageType.entries.map { it.isDecryptable() }
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun `unknown wire value falls back to decryptable text`() {
+        assertEquals(MessageType.TEXT, MessageType.fromWire("bogus"))
+        assertEquals(MessageType.TEXT, MessageType.fromWire(null))
+        assertTrue(MessageType.fromWire("bogus").isDecryptable())
+    }
+
 }
