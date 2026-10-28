@@ -201,4 +201,63 @@ class PushNotificationPolicyTest {
         assertEquals("a b", PushNotificationPolicy.resolveChatId(" a b "))
         assertEquals("c1", PushNotificationPolicy.resolveChatId("\tc1\n"))
     }
+
+    @Test
+    fun nullChatIdIsSuppressed() {
+        assertFalse(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "TEXT",
+                chatId = null,
+                activeChatId = null,
+                chatNotificationsMuted = false
+            )
+        )
+    }
+
+    @Test
+    fun activeChatPrefixDoesNotSuppress() {
+        assertTrue(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "TEXT",
+                chatId = "c1",
+                activeChatId = "c12",
+                chatNotificationsMuted = false
+            )
+        )
+    }
+
+    @Test
+    fun addressingIsCaseSensitive() {
+        assertFalse(
+            PushNotificationPolicy.isAddressedToCurrentUser(
+                payloadRecipientId = "User-A",
+                currentUserId = "user-a",
+            )
+        )
+    }
+
+    @Test
+    fun skDistPrefixIsNotSuppressed() {
+        assertTrue(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "SK_DIST_EXTRA",
+                chatId = "c1",
+                activeChatId = null,
+                chatNotificationsMuted = false
+            )
+        )
+    }
+
+    @Test
+    fun mixedCaseSkDistIsSuppressed() {
+        assertFalse(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "Sk_DiSt",
+                chatId = "c1",
+                activeChatId = null,
+                chatNotificationsMuted = null
+            )
+        )
+    }
+
 }

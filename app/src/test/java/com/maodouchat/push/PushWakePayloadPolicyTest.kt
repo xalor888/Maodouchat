@@ -114,4 +114,44 @@ class PushWakePayloadPolicyTest {
             )
         )
     }
+
+    @Test
+    fun acceptsFullAllowedKeySet() {
+        val data = PushWakePayloadPolicy.ALLOWED_KEYS.associateWith { "v" }
+        assertTrue(PushWakePayloadPolicy.isSafe(data))
+        assertIs<Decision.Accept>(PushWakePayloadPolicy.evaluate(data))
+    }
+
+    @Test
+    fun ciphertextAndEnvelopeKeysAreForbidden() {
+        val decision = PushWakePayloadPolicy.evaluate(
+            mapOf("type" to "NEW_MESSAGE", "envelope" to "x", "ciphertext" to "y")
+        )
+        assertIs<Decision.Reject>(decision)
+        assertEquals("sensitive_keys=ciphertext,envelope", decision.reason)
+    }
+
+    @Test
+    fun paddedAndUppercaseForbiddenKeyIsRejected() {
+        val decision = PushWakePayloadPolicy.evaluate(
+            mapOf("type" to "NEW_MESSAGE", " Body " to "hi")
+        )
+        assertIs<Decision.Reject>(decision)
+        assertEquals("sensitive_keys=body", decision.reason)
+    }
+
+    @Test
+    fun onlyBlankKeysMapIsAccepted() {
+        assertTrue(PushWakePayloadPolicy.isSafe(mapOf("   " to "x")))
+    }
+
+    @Test
+    fun metadataKeysTsAndSigAreAccepted() {
+        assertTrue(
+            PushWakePayloadPolicy.isSafe(
+                mapOf("type" to "NEW_MESSAGE", "chatId" to "g1", "ts" to "123", "sig" to "abc")
+            )
+        )
+    }
+
 }
