@@ -130,4 +130,40 @@ class MessagePinPolicyTest {
         assertEquals("a <meta> b", MessagePinPolicy.textPreview("a <meta> b<meta>{\"a\":1}"))
         assertEquals("", MessagePinPolicy.textPreview("   "))
     }
+
+    @Test
+    fun group_padded_and_unknown_role_cannot_pin() {
+        assertFalse(MessagePinPolicy.canPin(true, " owner ", MessageType.TEXT))
+        assertFalse(MessagePinPolicy.canPin(true, "SUPERADMIN", MessageType.TEXT))
+        assertFalse(MessagePinPolicy.canPin(true, "", MessageType.TEXT))
+    }
+
+    @Test
+    fun group_admin_can_pin_gif_markdown_and_sticker() {
+        assertTrue(MessagePinPolicy.canPin(true, "ADMIN", MessageType.GIF))
+        assertTrue(MessagePinPolicy.canPin(true, "ADMIN", MessageType.MARKDOWN))
+        assertTrue(MessagePinPolicy.canPin(true, "OWNER", MessageType.STICKER))
+    }
+
+    @Test
+    fun preview_kind_maps_gif_to_image() {
+        assertEquals(PreviewKind.IMAGE, MessagePinPolicy.previewKind(MessageType.GIF))
+    }
+
+    @Test
+    fun isPinnableType_accepts_markdown_location_voice_and_rejects_nudge() {
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.MARKDOWN))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.LOCATION))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.VOICE))
+        assertFalse(MessagePinPolicy.isPinnableType(MessageType.NUDGE))
+    }
+
+    @Test
+    fun text_preview_trims_tabs_meta_only_and_double_newlines() {
+        assertEquals("hello", MessagePinPolicy.textPreview("  hello  "))
+        assertEquals("hello", MessagePinPolicy.textPreview("\thello\t"))
+        assertEquals("", MessagePinPolicy.textPreview("<meta>{\"a\":1}"))
+        assertEquals("a  b", MessagePinPolicy.textPreview("a\n\nb"))
+    }
+
 }

@@ -132,4 +132,80 @@ class MessagePreviewTextTest {
             MessagePreviewText.replyOrQuote(msg, { "[voice]" }, "[encrypted]"),
         )
     }
+
+    @Test
+    fun videoReplyUsesMediaLabel() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://video",
+            type = MessageType.VIDEO,
+        )
+        assertEquals(
+            "[video]",
+            MessagePreviewText.replyOrQuote(msg, { "[video]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun fileReplyUsesMediaLabel() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://doc",
+            type = MessageType.FILE,
+        )
+        assertEquals(
+            "[file]",
+            MessagePreviewText.replyOrQuote(msg, { "[file]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun locationReplyUsesMediaLabel() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "39.9,116.4",
+            type = MessageType.LOCATION,
+        )
+        assertEquals(
+            "[location]",
+            MessagePreviewText.replyOrQuote(msg, { "[location]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun gifReplyUsesMediaLabel() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://anim",
+            type = MessageType.GIF,
+        )
+        assertEquals(
+            "[gif]",
+            MessagePreviewText.replyOrQuote(msg, { "[gif]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun stickerReplyUsesMediaLabel() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "sticker://1",
+            type = MessageType.STICKER,
+        )
+        assertEquals(
+            "[sticker]",
+            MessagePreviewText.replyOrQuote(msg, { "[sticker]" }, "[encrypted]"),
+        )
+    }
+
 }
