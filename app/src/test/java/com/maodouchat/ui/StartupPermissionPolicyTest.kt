@@ -83,4 +83,59 @@ class StartupPermissionPolicyTest {
         assertTrue(needed.isEmpty())
     }
 
+    @Test
+    fun negativeSdkRequestsNothingAndNeverConsults() {
+        var calls = 0
+        val needed = StartupPermissionPolicy.permissionsToRequest(
+            sdkInt = -1,
+            isGranted = { calls++; true },
+        )
+        assertTrue(needed.isEmpty())
+        assertEquals(0, calls)
+    }
+
+    @Test
+    fun farFutureSdkStillRequestsWhenDenied() {
+        val needed = StartupPermissionPolicy.permissionsToRequest(
+            sdkInt = Int.MAX_VALUE,
+            isGranted = { false },
+        )
+        assertEquals(listOf(StartupPermissionPolicy.POST_NOTIFICATIONS), needed)
+    }
+
+    @Test
+    fun otherPermissionGrantDoesNotCount() {
+        val seen = mutableListOf<String>()
+        val needed = StartupPermissionPolicy.permissionsToRequest(
+            sdkInt = 33,
+            isGranted = { seen.add(it); it == "android.permission.CAMERA" },
+        )
+        assertEquals(listOf(StartupPermissionPolicy.POST_NOTIFICATIONS), needed)
+        assertEquals(listOf(StartupPermissionPolicy.POST_NOTIFICATIONS), seen)
+    }
+
+    @Test
+    fun repeatedCallsAreStableAndPure() {
+        var calls = 0
+        val first = StartupPermissionPolicy.permissionsToRequest(
+            sdkInt = 33,
+            isGranted = { calls++; false },
+        )
+        val second = StartupPermissionPolicy.permissionsToRequest(
+            sdkInt = 33,
+            isGranted = { calls++; false },
+        )
+        assertEquals(first, second)
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun grantedAtExactTiramisuSkips() {
+        val needed = StartupPermissionPolicy.permissionsToRequest(
+            sdkInt = 33,
+            isGranted = { it == StartupPermissionPolicy.POST_NOTIFICATIONS },
+        )
+        assertTrue(needed.isEmpty())
+    }
+
 }
