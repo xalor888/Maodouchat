@@ -60,4 +60,35 @@ class CustomStatusPolicyTest {
         assertEquals(exact, CustomStatusPolicy.normalize(exact))
         assertEquals(80, CustomStatusPolicy.normalize("a".repeat(81)).length)
     }
+
+    @Test
+    fun `isValid counts raw length before trimming`() {
+        val padded = "  " + "x".repeat(79)
+        assertFalse(CustomStatusPolicy.isValid(padded))
+        assertEquals(79, CustomStatusPolicy.normalize(padded).length)
+        assertFalse(CustomStatusPolicy.isValid("x".repeat(80) + " "))
+        assertEquals(80, CustomStatusPolicy.normalize("x".repeat(80) + " ").length)
+    }
+
+    @Test
+    fun `isValid accepts null as empty`() {
+        assertTrue(CustomStatusPolicy.isValid(null))
+    }
+
+    @Test
+    fun `normalize keeps inner spacing`() {
+        assertEquals("a  b", CustomStatusPolicy.normalize("  a  b  "))
+    }
+
+    @Test
+    fun `visibleStatus caps long status at max when shown`() {
+        assertEquals("a".repeat(80), CustomStatusPolicy.visibleStatus("a".repeat(100), showStatus = true))
+    }
+
+    @Test
+    fun `presets start online and include do-not-disturb`() {
+        assertEquals("在线", CustomStatusPolicy.PRESETS.first())
+        assertEquals("做饭中", CustomStatusPolicy.PRESETS.last())
+        assertTrue(CustomStatusPolicy.PRESETS.contains("请勿打扰"))
+    }
 }

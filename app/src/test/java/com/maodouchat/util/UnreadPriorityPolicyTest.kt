@@ -96,4 +96,43 @@ class UnreadPriorityPolicyTest {
         assertFalse(UnreadPriorityPolicy.shouldShowHint(false, 3, isSearching = false))
         assertFalse(UnreadPriorityPolicy.shouldShowHint(true, 0, isSearching = false))
     }
+
+    @Test
+    fun `score arithmetic is exact`() {
+        assertEquals(
+            1_000L + 500_000_000L + 3L,
+            UnreadPriorityPolicy.activityScore(lastMessageTime = 1_000L, unreadCount = 3)
+        )
+        assertEquals(
+            100L + 1_000_000_000L + 500_000_000L + 2L,
+            UnreadPriorityPolicy.activityScore(lastMessageTime = 100L, unreadCount = 2, markedUnread = true)
+        )
+    }
+
+    @Test
+    fun `muted clamps negative time to zero`() {
+        assertEquals(
+            0L,
+            UnreadPriorityPolicy.activityScore(
+                lastMessageTime = -50L, unreadCount = 9, markedUnread = true, muted = true
+            )
+        )
+    }
+
+    @Test
+    fun `message time wins when draft is older exact value`() {
+        assertEquals(900L, UnreadPriorityPolicy.activityScore(lastMessageTime = 900L, draftUpdatedAt = 100L))
+        assertEquals(900L, UnreadPriorityPolicy.activityScore(lastMessageTime = 100L, draftUpdatedAt = 900L))
+    }
+
+    @Test
+    fun `countUnreadChats ignores non-positive counts`() {
+        assertEquals(1, UnreadPriorityPolicy.countUnreadChats(listOf(-1, 0, 3), listOf(false, false, false)))
+        assertEquals(0, UnreadPriorityPolicy.countUnreadChats(listOf(-5), listOf(false)))
+    }
+
+    @Test
+    fun `single unread adds base weight plus one`() {
+        assertEquals(500_000_001L, UnreadPriorityPolicy.activityScore(lastMessageTime = 0L, unreadCount = 1))
+    }
 }
