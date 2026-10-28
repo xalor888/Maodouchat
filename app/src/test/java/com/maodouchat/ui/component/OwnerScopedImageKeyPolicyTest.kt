@@ -63,4 +63,34 @@ class OwnerScopedImageKeyPolicyTest {
         )
     }
 
+    @Test
+    fun `tab and newline only data yields null`() {
+        assertNull(OwnerScopedImageKeys.formatKey("u1", "\t \n"))
+        assertNull(OwnerScopedImageKeys.formatKey("u1", "\n"))
+    }
+
+    @Test
+    fun `colons inside data are kept verbatim`() {
+        assertEquals("u1:a:b:c", OwnerScopedImageKeys.formatKey("u1", "a:b:c"))
+        assertEquals("a:b:x:y", OwnerScopedImageKeys.formatKey("a:b", "x:y"))
+    }
+
+    @Test
+    fun `blank data wins over empty owner`() {
+        assertNull(OwnerScopedImageKeys.formatKey("", "   "))
+        assertNull(OwnerScopedImageKeys.formatKey("", ""))
+    }
+
+    @Test
+    fun `unicode and inner newline in data are kept verbatim`() {
+        assertEquals("u1:你好🌍", OwnerScopedImageKeys.formatKey("u1", "你好🌍"))
+        assertEquals("u1:line1\nline2", OwnerScopedImageKeys.formatKey("u1", "line1\nline2"))
+    }
+
+    @Test
+    fun `long data is not truncated`() {
+        val long = "x".repeat(5000)
+        assertEquals("u1:$long", OwnerScopedImageKeys.formatKey("u1", long))
+    }
+
 }

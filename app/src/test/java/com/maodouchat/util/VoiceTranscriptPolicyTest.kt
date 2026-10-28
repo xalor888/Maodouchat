@@ -113,4 +113,51 @@ class VoiceTranscriptPolicyTest {
         assertTrue(VoiceTranscriptPolicy.canRequest(true, "   ", false))
         assertFalse(VoiceTranscriptPolicy.canRequest(true, "  ok  ", false))
     }
+
+    @Test
+    fun `normalize keeps inner whitespace and newlines`() {
+        assertEquals("a  b\tc", VoiceTranscriptPolicy.normalize("a  b\tc"))
+        assertEquals("a\nb", VoiceTranscriptPolicy.normalize("a\nb"))
+        assertEquals("hello", VoiceTranscriptPolicy.normalize("\t\n hello \n"))
+    }
+
+    @Test
+    fun `hasTranscript treats padded and tab-only inputs correctly`() {
+        assertTrue(VoiceTranscriptPolicy.hasTranscript(" x "))
+        assertFalse(VoiceTranscriptPolicy.hasTranscript("\t\n"))
+        assertFalse(VoiceTranscriptPolicy.hasTranscript(""))
+    }
+
+    @Test
+    fun `inline entry and canRequest agree on every combination`() {
+        val transcripts: List<String?> = listOf(null, "   ", "done")
+        for (isVoice in listOf(true, false)) {
+            for (transcript in transcripts) {
+                for (isTranscribing in listOf(true, false)) {
+                    assertEquals(
+                        VoiceTranscriptPolicy.canRequest(isVoice, transcript, isTranscribing),
+                        VoiceTranscriptPolicy.shouldShowInlineEntry(isVoice, transcript, isTranscribing),
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `displayText of null or blank is empty in both states`() {
+        assertEquals("", VoiceTranscriptPolicy.displayText(null, false))
+        assertEquals("", VoiceTranscriptPolicy.displayText(null, true))
+        assertEquals("", VoiceTranscriptPolicy.displayText("   ", false))
+        assertEquals("", VoiceTranscriptPolicy.displayText("   ", true))
+    }
+
+    @Test
+    fun `overlong transcript is capped then previewed`() {
+        val capped = VoiceTranscriptPolicy.normalize("x".repeat(7000))
+        assertEquals(VoiceTranscriptPolicy.MAX_TRANSCRIPT_LENGTH, capped.length)
+        val preview = VoiceTranscriptPolicy.displayText("x".repeat(7000), expanded = false)
+        assertEquals(VoiceTranscriptPolicy.PREVIEW_MAX_CHARS + 1, preview.length)
+        assertTrue(preview.endsWith("…"))
+        assertEquals(capped, VoiceTranscriptPolicy.displayText("x".repeat(7000), expanded = true))
+    }
 }
