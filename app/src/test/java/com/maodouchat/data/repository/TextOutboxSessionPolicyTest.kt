@@ -110,4 +110,59 @@ class TextOutboxSessionPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `whitespace-only batch user aborts`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "   ",
+                liveToken = "tok",
+                liveUserId = "u1",
+            )
+        )
+    }
+
+    @Test
+    fun `tab-newline token aborts`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = "\t\n",
+                liveUserId = "u1",
+            )
+        )
+    }
+
+    @Test
+    fun `user match is case-sensitive`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = "tok",
+                liveUserId = "U1",
+            )
+        )
+    }
+
+    @Test
+    fun `both token and user null aborts`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = null,
+                liveUserId = null,
+            )
+        )
+    }
+
+    @Test
+    fun `padded token with matching user continues`() {
+        assertTrue(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = " tok ",
+                liveUserId = "u1",
+            )
+        )
+    }
 }
