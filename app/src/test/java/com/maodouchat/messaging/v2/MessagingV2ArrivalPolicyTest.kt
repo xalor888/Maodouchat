@@ -136,6 +136,53 @@ class MessagingV2ArrivalPolicyTest {
         assertTrue(decision.shouldSendDeliveryReceipt)
     }
 
+    @Test
+    fun `lowercase service kind still attempts a delivery receipt`() {
+        val decision = evaluate(envelopeKind = "service")
+
+        assertEquals(1, decision.unreadDelta)
+        assertTrue(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `whitespace-only owner suppresses all user-visible effects`() {
+        val decision = evaluate(ownerUserId = "   ")
+
+        assertEquals(0, decision.unreadDelta)
+        assertFalse(decision.shouldAttemptNotification)
+        assertFalse(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `active chat id for another chat does not suppress the notification`() {
+        val decision = evaluate(activeChatId = "other-chat")
+
+        assertEquals(1, decision.unreadDelta)
+        assertTrue(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `open detail id for another chat does not suppress the notification`() {
+        val decision = evaluate(openChatDetailId = "other-chat")
+
+        assertEquals(1, decision.unreadDelta)
+        assertTrue(decision.shouldAttemptNotification)
+        assertTrue(decision.shouldSendDeliveryReceipt)
+    }
+
+    @Test
+    fun `occupied service arrival drops unread and receipt but still notifies`() {
+        // Occupation zeroes only the unread delta; the notification gate keys on
+        // foreground/active/open state, not on occupation.
+        val decision = evaluate(isConversationOccupied = true, envelopeKind = "SERVICE")
+
+        assertEquals(0, decision.unreadDelta)
+        assertTrue(decision.shouldAttemptNotification)
+        assertFalse(decision.shouldSendDeliveryReceipt)
+    }
+
     private fun evaluate(
         isNew: Boolean = true,
         envelopeKind: String = "DATA",

@@ -1,5 +1,6 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.data.model.MessageReaction
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -222,5 +223,141 @@ class MessagingV2ContentPolicyTest {
                 delete.copy(event = delete.event?.copy(targetMessageId = "")),
             ),
         )
+    }
+
+    @Test
+    fun `data kind rejects the other reserved control types`() {
+        assertFalse(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(type = "EVENT")))
+        assertFalse(MessagingV2ContentPolicy.accepts("DATA", MessagingV2Content(type = "SENDER_KEY_REQUEST")))
+    }
+
+    @Test
+    fun `event and receipt kinds require an event-shaped payload`() {
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "EVENT",
+                MessagingV2Content(type = "TEXT", event = MessagingV2Event("EDIT", "m1")),
+            ),
+        )
+        assertFalse(MessagingV2ContentPolicy.accepts("RECEIPT", MessagingV2Content(type = "EVENT")))
+    }
+
+    @Test
+    fun `key request pins blank attributes and exact length bounds`() {
+        val base = MessagingV2Content(
+            type = "SENDER_KEY_REQUEST",
+            attributes = mapOf(
+                "requestedSenderUserId" to "alice",
+                "failedMessageId" to "message-1",
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "KEY_REQUEST",
+                base.copy(attributes = base.attributes + ("requestedSenderUserId" to "   ")),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "KEY_REQUEST",
+                base.copy(attributes = base.attributes - "failedMessageId"),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "KEY_REQUEST",
+                base.copy(event = MessagingV2Event("EDIT", "m1")),
+            ),
+        )
+        assertTrue(
+            MessagingV2ContentPolicy.accepts(
+                "KEY_REQUEST",
+                base.copy(
+                    attributes = mapOf(
+                        "requestedSenderUserId" to "a".repeat(50),
+                        "failedMessageId" to "m".repeat(100),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `service kind rejects unconstrained mutations`() {
+        val edit = MessagingV2Content(
+            type = "EVENT",
+            event = MessagingV2Event(
+                action = MessagingV2EventAction.EDIT,
+                targetMessageId = "m1",
+                content = "updated",
+                editedAt = 12L,
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                edit.copy(event = edit.event?.copy(reactionEmoji = "x")),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                edit.copy(event = edit.event?.copy(reactions = listOf(MessageReaction("u1", "👍")))),
+            ),
+        )
+        val delete = MessagingV2Content(
+            type = "EVENT",
+            event = MessagingV2Event(action = "DELETE", targetMessageId = "m1"),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                delete.copy(event = delete.event?.copy(editedAt = 5L)),
+            ),
+        )
+        val reaction = MessagingV2Content(
+            type = "EVENT",
+            event = MessagingV2Event(
+                action = MessagingV2EventAction.REACTION_SET,
+                targetMessageId = "m1",
+                reactionEmoji = "ok",
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                reaction.copy(event = reaction.event?.copy(reactionEmoji = "x".repeat(33))),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                reaction.copy(event = reaction.event?.copy(reactionEmoji = "  ")),
+            ),
+        )
+    }
+
+    @Test
+    fun `service kind rejects non-domain actions and non-event shapes`() {
+        val revoke = MessagingV2Content(
+            type = "EVENT",
+            event = MessagingV2Event(action = "REVOKE", targetMessageId = "m1"),
+        )
+        assertFalse(MessagingV2ContentPolicy.accepts("SERVICE", revoke))
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                revoke.copy(event = revoke.event?.copy(action = "REACTION_SNAPSHOT")),
+            ),
+        )
+        assertFalse(
+            MessagingV2ContentPolicy.accepts(
+                "SERVICE",
+                MessagingV2Content(type = "TEXT", event = MessagingV2Event("EDIT", "m1")),
+            ),
+        )
+        assertTrue(MessagingV2ServiceEnvelopePolicy.accepts("bot_", 0, "SERVICE_PLAINTEXT"))
+        assertFalse(MessagingV2ServiceEnvelopePolicy.accepts("bot", 0, "SERVICE_PLAINTEXT"))
+        assertFalse(MessagingV2ServiceEnvelopePolicy.accepts("system", -1, "SERVICE_PLAINTEXT"))
     }
 }

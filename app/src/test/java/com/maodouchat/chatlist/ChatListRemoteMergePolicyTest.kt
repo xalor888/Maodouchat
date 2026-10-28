@@ -295,4 +295,127 @@ class ChatListRemoteMergePolicyTest {
         )
     }
 
+    @Test
+    fun visibleRefreshWithBlankOrMissingFailureFallsBack() {
+        assertEquals(
+            "fallback",
+            ChatListRemoteMergePolicy.nextErrorOnFailure(
+                showLoading = true,
+                rateLimited = false,
+                currentError = "old",
+                failureMessage = "  ",
+                fallback = "fallback",
+            ),
+        )
+        assertEquals(
+            "fallback",
+            ChatListRemoteMergePolicy.nextErrorOnFailure(
+                showLoading = true,
+                rateLimited = false,
+                currentError = "old",
+                failureMessage = null,
+                fallback = "fallback",
+            ),
+        )
+    }
+
+    @Test
+    fun singleChatFiltersSelfFromParticipants() {
+        val dto = ChatDto(
+            id = "c1",
+            participants = listOf(
+                UserDto(id = "me", name = "Me"),
+                UserDto(id = "u2", name = "Other"),
+                UserDto(id = "u3", name = "Third"),
+            ),
+            unreadCount = 0,
+            lastMessageTime = 10,
+        )
+        val merged = ChatListRemoteMergePolicy.mergeRemoteChat(
+            dto = dto,
+            local = null,
+            currentUserId = "me",
+            isActiveChat = false,
+        )
+        assertEquals(listOf("u2", "u3"), merged.participants.map { it.id })
+    }
+
+    @Test
+    fun groupMergePassesThroughGroupMetadata() {
+        val dto = ChatDto(
+            id = "g1",
+            participants = listOf(UserDto(id = "u2", name = "Other")),
+            isGroup = true,
+            groupName = "Team",
+            groupAnnouncement = "Hello",
+            groupAvatar = "ava",
+            memberRevision = 7,
+            chatType = "GROUP",
+            disappearingMessageSeconds = 60,
+            unreadCount = 0,
+            lastMessageTime = 10,
+        )
+        val merged = ChatListRemoteMergePolicy.mergeRemoteChat(
+            dto = dto,
+            local = null,
+            currentUserId = "me",
+            isActiveChat = false,
+        )
+        assertEquals("Team", merged.groupName)
+        assertEquals("Hello", merged.groupAnnouncement)
+        assertEquals("ava", merged.groupAvatar)
+        assertEquals(7, merged.memberRevision)
+        assertEquals("GROUP", merged.chatType)
+        assertEquals(60, merged.disappearingMessageSeconds)
+    }
+
+    @Test
+    fun activeChatWithNullLocalForcesZeroUnreadAndClearsMarked() {
+        val dto = ChatDto(
+            id = "c1",
+            unreadCount = 4,
+            markedUnread = true,
+            lastMessageTime = 10,
+        )
+        val merged = ChatListRemoteMergePolicy.mergeRemoteChat(
+            dto = dto,
+            local = null,
+            currentUserId = "me",
+            isActiveChat = true,
+        )
+        assertEquals(0, merged.unreadCount)
+        assertFalse(merged.markedUnread)
+    }
+
+    @Test
+    fun localMarkedUnreadSurvivesNewerServerSettings() {
+        // Settings merge prefers the newer server snapshot, but the marked-unread
+        // merge keeps the optimistic local toggle when the server still says false.
+        val dto = ChatDto(
+            id = "c1",
+            unreadCount = 0,
+            lastMessageTime = 10,
+            pinnedAt = 9,
+            markedUnread = false,
+            settingsUpdatedAt = 200,
+        )
+        val local = Chat(
+            id = "c1",
+            unreadCount = 0,
+            lastMessageTime = 10,
+            pinnedAt = 50,
+            markedUnread = true,
+            settingsUpdatedAt = 100,
+        )
+        val merged = ChatListRemoteMergePolicy.mergeRemoteChat(
+            dto = dto,
+            local = local,
+            currentUserId = "me",
+            isActiveChat = false,
+        )
+        assertEquals(200, merged.settingsUpdatedAt)
+        assertEquals(9, merged.pinnedAt)
+        assertTrue(merged.markedUnread)
+    }
+
 }
