@@ -138,4 +138,51 @@ class DecryptFailureDisplayPolicyTest {
         timestamp = 100L,
         status = MessageStatus.SENT
     )
+
+    @Test
+    fun `plaintext wins over MD prefixed envelope`() {
+        val readable = message("m1", "hello")
+        val wire = message("m1", "MD:abcdefghijklm")
+
+        assertEquals("hello", mergeMessageVersions(listOf(readable), listOf(wire)).single().content)
+        assertEquals("hello", mergeMessageVersions(listOf(wire), listOf(readable)).single().content)
+    }
+
+    @Test
+    fun `plaintext wins over SK prefixed envelope`() {
+        val readable = message("m1", "hello")
+        val wire = message("m1", "SK:abcdefghijklm")
+
+        assertEquals("hello", mergeMessageVersions(listOf(readable), listOf(wire)).single().content)
+        assertEquals("hello", mergeMessageVersions(listOf(wire), listOf(readable)).single().content)
+    }
+
+    @Test
+    fun `newer edit replaces placeholder with plaintext`() {
+        val failed = message("m1", "无法解密")
+        val readable = message("m1", "hello").copy(editedAt = 200L)
+
+        val merged = mergeMessageVersions(listOf(failed), listOf(readable)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
+    @Test
+    fun `equal revision plaintext versus plaintext takes incoming`() {
+        val old = message("m1", "old")
+        val new = message("m1", "new")
+
+        assertEquals("new", mergeMessageVersions(listOf(old), listOf(new)).single().content)
+        assertEquals("old", mergeMessageVersions(listOf(new), listOf(old)).single().content)
+    }
+
+    @Test
+    fun `revoked incoming replaces plaintext regardless of older edit`() {
+        val readable = message("m1", "hello").copy(editedAt = 200L)
+        val revoked = message("m1", "hello").copy(type = MessageType.REVOKED, editedAt = 100L)
+
+        assertEquals(revoked, mergeMessageVersions(listOf(readable), listOf(revoked)).single())
+        assertEquals(revoked, mergeMessageVersions(listOf(revoked), listOf(readable)).single())
+    }
+
 }
