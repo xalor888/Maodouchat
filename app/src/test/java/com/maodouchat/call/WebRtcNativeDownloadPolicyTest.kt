@@ -95,4 +95,42 @@ class WebRtcNativeDownloadPolicyTest {
         assertNull(WebRtcNativeDownloadPolicy.parseChecksum("g".repeat(64), null))
         assertNull(WebRtcNativeDownloadPolicy.parseChecksum("a".repeat(63), null))
     }
+    @Test
+    fun requestAbiReturnsFirstHostedAbiInListOrder() {
+        assertEquals(
+            "arm64-v8a",
+            WebRtcNativeDownloadPolicy.requestAbi(arrayOf("arm64-v8a", "x86_64"))
+        )
+    }
+
+    @Test
+    fun requestAbiDefaultsWhenNoHostedOrArm64AbiPresent() {
+        assertEquals(
+            "arm64-v8a",
+            WebRtcNativeDownloadPolicy.requestAbi(arrayOf("armeabi-v7a"))
+        )
+        assertEquals(
+            "arm64-v8a",
+            WebRtcNativeDownloadPolicy.requestAbi(arrayOf("mips"))
+        )
+    }
+
+    @Test
+    fun originTrustIsCaseAndWhitespaceInsensitiveForOfficialHosts() {
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("  HTTPS://CHAT.MDOU.ME/lib  "))
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("https://Files.Mdou.Me/lib"))
+    }
+
+    @Test
+    fun apexMdouMeHostIsTrusted() {
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("https://mdou.me/lib/arm64-v8a"))
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("https://mdou.me:8443/lib"))
+    }
+
+    @Test
+    fun parseChecksumFallsBackToEtagWhenHeaderIsNotValidHex() {
+        assertEquals(sha, WebRtcNativeDownloadPolicy.parseChecksum("\"$sha\"", "g".repeat(64)))
+        assertEquals(sha, WebRtcNativeDownloadPolicy.parseChecksum("\"$sha\"", "a".repeat(63)))
+    }
+
 }
