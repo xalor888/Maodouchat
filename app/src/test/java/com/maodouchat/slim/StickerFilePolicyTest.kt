@@ -1,5 +1,6 @@
 package com.maodouchat.slim
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -41,4 +42,43 @@ class StickerFilePolicyTest {
         val empty = temporaryFolder.newFile("empty.bin")
         assertFalse(StickerFilePolicy.isCurrent(empty, StickerFilePolicy.sha256(empty)))
     }
+
+    @Test
+    fun isCurrent_rejectsMissingFile() {
+        val missing = File(temporaryFolder.root, "missing.bin")
+        assertFalse(StickerFilePolicy.isCurrent(missing, "0".repeat(64)))
+    }
+
+    @Test
+    fun isCurrent_rejectsDirectory() {
+        assertFalse(StickerFilePolicy.isCurrent(temporaryFolder.root, "0".repeat(64)))
+    }
+
+    @Test
+    fun sha256_isStableAndResetAcrossFiles() {
+        val first = temporaryFolder.newFile("a.bin").apply { writeText("abc") }
+        val second = temporaryFolder.newFile("b.bin").apply { writeText("abd") }
+        val firstDigest = StickerFilePolicy.sha256(first)
+        val secondDigest = StickerFilePolicy.sha256(second)
+        assertEquals(firstDigest, StickerFilePolicy.sha256(first))
+        assertTrue(firstDigest != secondDigest)
+    }
+
+    @Test
+    fun sha256_emptyFileMatchesKnownDigest() {
+        val empty = temporaryFolder.newFile("empty2.bin")
+        assertEquals(
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            StickerFilePolicy.sha256(empty),
+        )
+    }
+
+    @Test
+    fun isCurrent_rejectsExpectedHashWithWhitespace() {
+        val file = temporaryFolder.newFile("ws.bin").apply { writeText("abc") }
+        val digest = StickerFilePolicy.sha256(file)
+        assertFalse(StickerFilePolicy.isCurrent(file, " $digest"))
+        assertFalse(StickerFilePolicy.isCurrent(file, "$digest "))
+    }
+
 }

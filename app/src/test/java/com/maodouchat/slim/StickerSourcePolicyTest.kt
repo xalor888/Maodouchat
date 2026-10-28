@@ -48,4 +48,45 @@ class StickerSourcePolicyTest {
         assertNull(StickerSourcePolicy.resolve("javascript:alert(1)", base))
         assertNull(StickerSourcePolicy.resolve("/a.webp", "not-a-url"))
     }
+
+    @Test
+    fun relativePathWithoutLeadingSlash_resolvesAgainstBase() {
+        assertEquals(
+            "https://chat.example.com/stickers/cat.webp",
+            StickerSourcePolicy.resolve("stickers/cat.webp", base),
+        )
+    }
+
+    @Test
+    fun sameHostProtocolRelativeUrl_isAllowed() {
+        assertEquals(
+            "https://chat.example.com/a.webp",
+            StickerSourcePolicy.resolve("//chat.example.com/a.webp", base),
+        )
+    }
+
+    @Test
+    fun baseWithPath_resolvesRelativeAgainstIt() {
+        assertEquals(
+            "https://chat.example.com/api/a.webp",
+            StickerSourcePolicy.resolve("a.webp", "https://chat.example.com/api/"),
+        )
+    }
+
+    @Test
+    fun whitespaceAroundInputs_isTrimmed() {
+        assertEquals(
+            "https://chat.example.com/a.webp",
+            StickerSourcePolicy.resolve("  /a.webp  ", "  https://chat.example.com  "),
+        )
+    }
+
+    @Test
+    fun uppercaseHostInUrl_isAccepted() {
+        assertEquals(
+            "https://chat.example.com/a.webp",
+            StickerSourcePolicy.resolve("https://CHAT.EXAMPLE.COM/a.webp", base),
+        )
+    }
+
 }

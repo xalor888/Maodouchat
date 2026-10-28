@@ -30,4 +30,30 @@ class StickerNamePolicyTest {
         assertEquals("", StickerNamePolicy.sanitizeFileName(".."))
         assertEquals("..cat.webp", StickerNamePolicy.sanitizeFileName("../cat.webp"))
     }
+
+    @Test
+    fun sanitizePackId_stripsSpacesAndSpecialsInside() {
+        assertEquals("abcd", StickerNamePolicy.sanitizePackId("a b/c:d"))
+    }
+
+    @Test
+    fun sanitizePackId_trimsBeforeLengthCap() {
+        assertEquals("a".repeat(40), StickerNamePolicy.sanitizePackId("   " + "a".repeat(50)))
+    }
+
+    @Test
+    fun sanitizePackId_keepsDashUnderscoreDigits() {
+        assertEquals("A-1_b2", StickerNamePolicy.sanitizePackId("A-1_b2"))
+    }
+
+    @Test
+    fun sanitizeFileName_keepsMultipleDotsInside() {
+        assertEquals("a..b.webp", StickerNamePolicy.sanitizeFileName("a..b.webp"))
+    }
+
+    @Test
+    fun sanitizeFileName_trimsBeforeLengthCap() {
+        assertEquals("b".repeat(80), StickerNamePolicy.sanitizeFileName("  " + "b".repeat(100)))
+    }
+
 }
