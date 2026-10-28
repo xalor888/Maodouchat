@@ -216,4 +216,58 @@ class NudgeDisplayPolicyTest {
         assertEquals("李四 拍了拍张三", group)
     }
 
+    @Test
+    fun nonOwnDirect_blankStoredContentStillShowsTheyNudgedYou() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "   ",
+            senderDisplayName = "李四",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍你", text)
+    }
+
+    @Test
+    fun nonOwnGroup_blankStoredAndBlankSender_doubleEllipsis() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "   ",
+            senderDisplayName = "  ",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("… 拍了拍…", text)
+    }
+
+    @Test
+    fun nonOwnGroup_blankSenderButPresentTarget() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "你拍了拍张三",
+            senderDisplayName = "  ",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("… 拍了拍张三", text)
+    }
+
+    @Test
+    fun extractTargetName_keepsInternalSpacesInTarget() {
+        assertEquals("张 三", NudgeDisplayPolicy.extractTargetName("你拍了拍张 三"))
+        assertEquals("Mary Jane", NudgeDisplayPolicy.extractTargetName("You nudged Mary Jane"))
+    }
+
+    @Test
+    fun ownMessage_targetTrailingPunctuationKept() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "你拍了拍张三!",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍张三!", text)
+    }
+
 }

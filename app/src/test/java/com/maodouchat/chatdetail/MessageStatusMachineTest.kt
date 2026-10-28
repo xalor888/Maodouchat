@@ -123,6 +123,50 @@ class MessageStatusMachineTest {
         assertEquals(MessageStatus.READ, higherDeliveryStatus(MessageStatus.DELIVERED, MessageStatus.READ))
     }
 
+    @Test
+    fun `fromWire is case-insensitive but does not trim`() {
+        assertEquals(MessageStatus.READ, MessageStatus.fromWire("READ"))
+        assertEquals(MessageStatus.DELIVERED, MessageStatus.fromWire("Delivered"))
+        assertEquals(MessageStatus.SENT, MessageStatus.fromWire(""))
+        assertEquals(MessageStatus.SENT, MessageStatus.fromWire(" read "))
+    }
+
+    @Test
+    fun `canAdvanceTo same status and FAILED recovery edges`() {
+        assertTrue(MessageStatus.READ.canAdvanceTo(MessageStatus.READ))
+        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.FAILED))
+        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.READ))
+        assertTrue(MessageStatus.SENT.canAdvanceTo(MessageStatus.READ))
+        assertFalse(MessageStatus.READ.canAdvanceTo(MessageStatus.FAILED))
+    }
+
+    @Test
+    fun `merge keeps local-only and server-only messages in timestamp order`() {
+        val merged = mergeMessageVersions(
+            listOf(base("m1")),
+            listOf(base("m2").copy(timestamp = 500L))
+        )
+        assertEquals(listOf("m2", "m1"), merged.map { it.id })
+        assertEquals(MessageStatus.SENT, merged.single { it.id == "m2" }.status)
+    }
+
+    @Test
+    fun `newer server edit cannot overwrite readable plaintext with ciphertext`() {
+        val local = base("m1").copy(content = "hello", editedAt = 10L)
+        val server = local.copy(content = "eyJjaXBoZXJ0ZXh0IjoiYWJjIn0=", editedAt = 20L)
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(20L, merged.editedAt)
+    }
+
+    @Test
+    fun `candidate revoke beats even a newer local edit`() {
+        val local = base("m1").copy(content = "local newer", editedAt = 99L)
+        val revoked = local.copy(type = MessageType.REVOKED, editedAt = 1L, content = "revoked")
+        val merged = mergeMessageVersions(listOf(local), listOf(revoked)).single()
+        assertEquals(MessageType.REVOKED, merged.type)
+    }
+
     private fun base(id: String) = Message(
         id = id,
         chatId = "chat-1",
