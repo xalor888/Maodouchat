@@ -57,4 +57,76 @@ class GroupPollPolicyTest {
         assertFalse(GroupPollPolicy.isValidPollOptions(listOf("a")))
         assertFalse(GroupPollPolicy.isValidPollOptions(listOf("a", "A")))
     }
+
+    @Test
+    fun voteShortcutParseNormalizesIndexes() {
+        assertEquals("p1" to listOf(2, 0), GroupPollPolicy.parseVoteShortcut("~vote:p1|2, 0, 2, -1"))
+        assertEquals("p1" to listOf(1), GroupPollPolicy.parseVoteShortcut("  ~vote:p1|1  "))
+        assertEquals("p1" to listOf(0, 1), GroupPollPolicy.parseVoteShortcut("~vote:p1|0,abc,1"))
+        assertTrue(GroupPollPolicy.isVoteShortcut("~vote:p1|0"))
+        assertFalse(GroupPollPolicy.isVoteShortcut("~vote:p1|-1"))
+    }
+
+    @Test
+    fun sanitizePollOptionsTrimsFiltersAndTruncatesWithoutDedup() {
+        assertEquals(
+            listOf("a", "b".repeat(80)),
+            GroupPollPolicy.sanitizePollOptions(listOf("  a  ", "", "   ", "b".repeat(100))),
+        )
+        assertEquals(listOf("a", "a"), GroupPollPolicy.sanitizePollOptions(listOf("a", "a")))
+    }
+
+    @Test
+    fun pollOptionsBounds() {
+        assertTrue(GroupPollPolicy.isValidPollOptions((1..12).map { "o$it" }))
+        assertFalse(GroupPollPolicy.isValidPollOptions((1..13).map { "o$it" }))
+        assertTrue(GroupPollPolicy.isValidPollOptions(listOf("x".repeat(80), "y")))
+        assertFalse(GroupPollPolicy.isValidPollOptions(listOf("x".repeat(81), "y")))
+        assertTrue(GroupPollPolicy.isValidPollOptions(listOf("a", " ", "b")))
+    }
+
+    @Test
+    fun chainAndPkValidationBounds() {
+        assertTrue(GroupPollPolicy.isValidChainTitle("x".repeat(200)))
+        assertFalse(GroupPollPolicy.isValidChainTitle("x".repeat(201)))
+        assertFalse(GroupPollPolicy.isValidChainTitle(""))
+        assertFalse(GroupPollPolicy.isValidChainTitle("   "))
+        assertTrue(GroupPollPolicy.isValidChainTopic("x".repeat(500)))
+        assertFalse(GroupPollPolicy.isValidChainTopic("x".repeat(501)))
+        assertTrue(GroupPollPolicy.isValidChainTopic(""))
+        assertTrue(GroupPollPolicy.isValidChainTopic("   "))
+        assertFalse(GroupPollPolicy.isValidChainContent(""))
+        assertFalse(GroupPollPolicy.isValidChainContent("   "))
+        assertTrue(GroupPollPolicy.isValidChainContent("x".repeat(500)))
+        assertFalse(GroupPollPolicy.isValidChainContent("x".repeat(501)))
+        assertTrue(GroupPollPolicy.isValidPkTitle("x".repeat(120)))
+        assertFalse(GroupPollPolicy.isValidPkTitle("x".repeat(121)))
+        assertFalse(GroupPollPolicy.isValidPkTitle(""))
+    }
+
+    @Test
+    fun shareFormatsEmbedShortcuts() {
+        assertEquals(
+            "📊 群投票 · Q?\n1. A\n2. B\n~vote:p1|0",
+            GroupPollPolicy.formatPollShare("p1", "Q?", listOf("A", "B"), false),
+        )
+        assertEquals(
+            "📊 群投票 · Q?\n1. A\n2. B\n（可多选）\n~vote:p1|0",
+            GroupPollPolicy.formatPollShare("p1", "Q?", listOf("A", "B"), true),
+        )
+        val longShare = GroupPollPolicy.formatPollShare("p1", "q".repeat(250), emptyList(), false)
+        assertTrue(longShare.startsWith("📊 群投票 · " + "q".repeat(200)))
+        assertTrue(longShare.endsWith("~vote:p1|0"))
+        assertEquals("~checkin 小明 已签到 · 连续 3 天", GroupPollPolicy.formatCheckinShare("小明", 3))
+        assertEquals(
+            "🔗 群接龙 · T\ntopic\n第 2 条：~chain:c1|topic",
+            GroupPollPolicy.formatChainShare("c1", "T", "topic", 2),
+        )
+        assertEquals(
+            "⚔️ 群 PK\n~pk:k1|left · ~pk:k1|right\n左 vs 右",
+            GroupPollPolicy.formatPkShare("k1", "左", "右"),
+        )
+        assertTrue(GroupPollPolicy.isPkShortcut("~pk:k1|LEFT"))
+        assertFalse(GroupPollPolicy.isChainShortcut("~chain:c1|"))
+    }
 }

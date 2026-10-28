@@ -81,4 +81,47 @@ class StickerFilePolicyTest {
         assertFalse(StickerFilePolicy.isCurrent(file, "$digest "))
     }
 
+    @Test
+    fun sha256_isLowercaseHex64() {
+        val file = temporaryFolder.newFile("hex.bin").apply { writeText("abc") }
+        val digest = StickerFilePolicy.sha256(file)
+        assertEquals(64, digest.length)
+        assertEquals(digest, digest.lowercase())
+    }
+
+    @Test
+    fun sha256_multiBlockContentIsStableAndDistinct() {
+        // 100KB 超过 64KB 读缓冲，走多轮 update 循环
+        val big = temporaryFolder.newFile("big.bin").apply { writeText("a".repeat(100_000)) }
+        val digest = StickerFilePolicy.sha256(big)
+        assertEquals(digest, StickerFilePolicy.sha256(big))
+        val small = temporaryFolder.newFile("small.bin").apply { writeText("abc") }
+        assertTrue(digest != StickerFilePolicy.sha256(small))
+        assertTrue(digest != StickerFilePolicy.sha256(temporaryFolder.newFile("empty3.bin")))
+    }
+
+    @Test
+    fun isCurrent_acceptsUppercaseDigestForLargeFile() {
+        val big = temporaryFolder.newFile("big2.bin").apply { writeText("a".repeat(100_000)) }
+        assertTrue(StickerFilePolicy.isCurrent(big, StickerFilePolicy.sha256(big).uppercase()))
+    }
+
+    @Test
+    fun isCurrent_rejectsShortAndNonHexExpected() {
+        val file = temporaryFolder.newFile("short.bin").apply { writeText("abc") }
+        assertFalse(StickerFilePolicy.isCurrent(file, "abc"))
+        assertFalse(StickerFilePolicy.isCurrent(file, "g".repeat(64)))
+        assertFalse(StickerFilePolicy.isCurrent(file, "0".repeat(63)))
+    }
+
+    @Test
+    fun isCurrent_rejectsEmbeddedWhitespaceAndOtherFileDigest() {
+        val file = temporaryFolder.newFile("emb.bin").apply { writeText("abc") }
+        val digest = StickerFilePolicy.sha256(file)
+        val spaced = digest.substring(0, 32) + " " + digest.substring(32)
+        assertFalse(StickerFilePolicy.isCurrent(file, spaced))
+        val other = temporaryFolder.newFile("other.bin").apply { writeText("abd") }
+        assertFalse(StickerFilePolicy.isCurrent(file, StickerFilePolicy.sha256(other)))
+    }
+
 }
