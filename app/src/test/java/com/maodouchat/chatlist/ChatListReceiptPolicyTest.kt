@@ -134,6 +134,61 @@ class ChatListReceiptPolicyTest {
     }
 
     @Test
+    fun failedTailKeepsFailedReceiptInBothChatKinds() {
+        val direct = ChatListReceiptPolicy.fromLatest(
+            latest = message(senderId = "me", status = MessageStatus.FAILED),
+            currentUserId = "me",
+        )
+        assertNotNull(direct)
+        assertTrue(direct.fromMe)
+        assertEquals(MessageStatus.FAILED, direct.status)
+        val group = ChatListReceiptPolicy.fromLatest(
+            latest = message(senderId = "me", status = MessageStatus.FAILED),
+            currentUserId = "me",
+            isGroup = true,
+        )
+        assertNotNull(group)
+        assertEquals(MessageStatus.FAILED, group.status)
+    }
+
+    @Test
+    fun negativeUnreadCountsShowNoBadge() {
+        assertEquals("", ChatListReceiptPolicy.unreadBadgeText(-5, markedUnread = false))
+        assertFalse(ChatListReceiptPolicy.showUnreadBadge(-5, markedUnread = false))
+        assertEquals("", ChatListReceiptPolicy.unreadBadgeText(-5, markedUnread = true))
+        assertTrue(ChatListReceiptPolicy.showUnreadBadge(-5, markedUnread = true))
+    }
+
+    @Test
+    fun nonGroupDisplayStatusPassesEveryStatusThrough() {
+        MessageStatus.values().forEach { status ->
+            assertEquals(status, ChatListReceiptPolicy.displayStatus(status, isGroup = false))
+        }
+    }
+
+    @Test
+    fun blankSenderHidesTicksWhileSystemTypeShowsReceipt() {
+        assertNull(
+            ChatListReceiptPolicy.fromLatest(
+                latest = message(senderId = "", status = MessageStatus.SENT),
+                currentUserId = "me",
+            )
+        )
+        val system = ChatListReceiptPolicy.fromLatest(
+            latest = message(senderId = "me", type = MessageType.SYSTEM, status = MessageStatus.SENT),
+            currentUserId = "me",
+        )
+        assertNotNull(system)
+        assertEquals(MessageStatus.SENT, system.status)
+    }
+
+    @Test
+    fun markedUnreadWithHugeCountStillCapsAt99Plus() {
+        assertEquals("99+", ChatListReceiptPolicy.unreadBadgeText(150, markedUnread = true))
+        assertTrue(ChatListReceiptPolicy.showUnreadBadge(150, markedUnread = true))
+    }
+
+    @Test
     fun markedUnreadKeepsBadgeWithoutNumber() {
         assertTrue(ChatListReceiptPolicy.showUnreadBadge(0, markedUnread = true))
         assertEquals("", ChatListReceiptPolicy.unreadBadgeText(0, markedUnread = true))
