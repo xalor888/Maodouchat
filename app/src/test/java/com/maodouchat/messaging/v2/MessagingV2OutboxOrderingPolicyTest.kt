@@ -88,4 +88,51 @@ class MessagingV2OutboxOrderingPolicyTest {
             assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
         }
     }
+
+    @Test
+    fun `mixed-case kind names are unknown`() {
+        listOf("Data", "Event", "Receipt", "Sender_Key", "Key_Request").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind))
+            assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
+        }
+    }
+
+    @Test
+    fun `separator variants of documented kinds are unknown`() {
+        listOf("SENDER KEY", "KEY-REQUEST", "RECEIPT_", "_RECEIPT", "SENDER__KEY").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind))
+            assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
+        }
+    }
+
+    @Test
+    fun `kinds with inner whitespace are unknown`() {
+        listOf("DA TA", "EV\tENT", "RECE\nIPT", "SENDER\tKEY").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind))
+            assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
+        }
+    }
+
+    @Test
+    fun `compound near-miss names are unknown`() {
+        listOf("MESSAGE_DATA", "DATA_EVENT", "EVENT_DATA", "KEY", "SENDER", "REQUEST", "RECEIPTDATA", "DATARECEIPT").forEach { kind ->
+            assertFalse(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind))
+            assertFalse(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind))
+        }
+    }
+
+    @Test
+    fun `documented classification is stable across repeated evaluation`() {
+        listOf("DATA", "EVENT", "SENDER_KEY", "KEY_REQUEST", "RECEIPT").forEach { kind ->
+            val firstCausal = MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind)
+            val firstBypass = MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind)
+            assertTrue(MessagingV2OutboxOrderingPolicy.requiresConversationOrder(kind) == firstCausal)
+            assertTrue(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder(kind) == firstBypass)
+        }
+        assertTrue(MessagingV2OutboxOrderingPolicy.requiresConversationOrder("DATA"))
+        assertTrue(MessagingV2OutboxOrderingPolicy.requiresConversationOrder("EVENT"))
+        assertTrue(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder("SENDER_KEY"))
+        assertTrue(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder("KEY_REQUEST"))
+        assertTrue(MessagingV2OutboxOrderingPolicy.mayBypassConversationOrder("RECEIPT"))
+    }
 }

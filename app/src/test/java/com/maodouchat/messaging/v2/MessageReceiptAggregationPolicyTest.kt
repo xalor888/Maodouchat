@@ -268,4 +268,137 @@ class MessageReceiptAggregationPolicyTest {
         assertEquals(5000L, updated.deliveredAt)
         assertEquals(1000L, updated.updatedAt)
     }
+
+    @Test
+    fun `negative timestamps behave like missing`() {
+        val fresh = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = null,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = -100L,
+            readAt = -5L,
+            playedAt = -1L,
+            now = 1050L,
+        )
+
+        assertNull(fresh.deliveredAt)
+        assertNull(fresh.readAt)
+        assertNull(fresh.playedAt)
+        assertEquals(1050L, fresh.updatedAt)
+    }
+
+    @Test
+    fun `partial advance leaves the other fields untouched`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = null,
+            playedAt = null,
+            updatedAt = 5050L,
+        )
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = null,
+            readAt = 3000L,
+            playedAt = null,
+            now = 3050L,
+        )
+
+        assertEquals(5000L, updated.deliveredAt)
+        assertEquals(3000L, updated.readAt)
+        assertNull(updated.playedAt)
+        assertEquals(3050L, updated.updatedAt)
+    }
+
+    @Test
+    fun `mixed advance and regression resolve independently per field`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = 7000L,
+            updatedAt = 7500L,
+        )
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 9000L,
+            readAt = 1000L,
+            playedAt = null,
+            now = 9100L,
+        )
+
+        assertEquals(9000L, updated.deliveredAt)
+        assertEquals(6000L, updated.readAt)
+        assertEquals(7000L, updated.playedAt)
+        assertEquals(9100L, updated.updatedAt)
+    }
+
+    @Test
+    fun `equal timestamps merge without changing stored values`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = 7000L,
+            updatedAt = 7500L,
+        )
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = 7000L,
+            now = 8000L,
+        )
+
+        assertEquals(5000L, updated.deliveredAt)
+        assertEquals(6000L, updated.readAt)
+        assertEquals(7000L, updated.playedAt)
+        assertEquals(8000L, updated.updatedAt)
+    }
+
+    @Test
+    fun `fresh receipt with only a played timestamp`() {
+        val fresh = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = null,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = null,
+            readAt = null,
+            playedAt = 4000L,
+            now = 4050L,
+        )
+
+        assertNull(fresh.deliveredAt)
+        assertNull(fresh.readAt)
+        assertEquals(4000L, fresh.playedAt)
+        assertEquals(4050L, fresh.updatedAt)
+    }
 }
