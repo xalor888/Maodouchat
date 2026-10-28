@@ -88,6 +88,56 @@ class MessageDuplicatePolicyTest {
         assertEquals("hello", canonical.content)
     }
 
+    @Test
+    fun chatIdOrSenderIdDiffBreaksRedundancy() {
+        val existing = base("srv-1")
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(chatId = "c2")))
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(senderId = "u2")))
+    }
+
+    @Test
+    fun typeOrTimestampDiffBreaksRedundancy() {
+        val existing = base("srv-1")
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(type = MessageType.IMAGE)))
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(timestamp = 43L)))
+    }
+
+    @Test
+    fun contentDiffBreaksRedundancyDespiteSameId() {
+        val existing = base("srv-1")
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(content = "bye")))
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(content = "hello<meta>{}")))
+    }
+
+    @Test
+    fun sameDeliveryIgnoresStatusIdAndStarred() {
+        val local = base("local-tmp")
+        val remote = local.copy(id = "srv-1", status = MessageStatus.READ, starred = true)
+        assertTrue(MessageDuplicatePolicy.isSameDelivery(local, remote))
+        assertTrue(
+            MessageDuplicatePolicy.isSameDelivery(
+                local,
+                local.copy(id = "srv-1", reactions = listOf(MessageReaction("bob", "heart", 1L)))
+            )
+        )
+    }
+
+    @Test
+    fun pickCanonicalTakesIncomingSideFields() {
+        val local = base("local-tmp")
+        val incoming = local.copy(
+            id = "srv-1",
+            reactions = listOf(MessageReaction("bob", "heart", 1L)),
+            sealedSender = true,
+            expiresAt = 99L
+        )
+        val canonical = MessageDuplicatePolicy.pickCanonical(local, incoming)
+        assertEquals("local-tmp", canonical.id)
+        assertEquals(incoming.reactions, canonical.reactions)
+        assertTrue(canonical.sealedSender)
+        assertEquals(99L, canonical.expiresAt)
+    }
+
     private fun base(id: String) = Message(
         id = id,
         chatId = "c1",
