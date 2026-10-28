@@ -113,4 +113,52 @@ class VoiceCapturePolicyTest {
         assertEquals("0:00", VoiceRecorder.formatDuration(999))
         assertEquals("0:01", VoiceRecorder.formatDuration(1_500))
     }
+
+    @Test
+    fun normalizeAmplitude_isMonotonicOnSmallRaws() {
+        val small = VoiceRecorder.normalizeAmplitude(1)
+        val mid = VoiceRecorder.normalizeAmplitude(2)
+        val large = VoiceRecorder.normalizeAmplitude(10)
+        assertEquals(0f, small, 0.0001f)
+        assertTrue(mid > small && mid < 0.2f)
+        assertTrue(large > mid && large < 0.6f)
+        assertEquals(1f, VoiceRecorder.normalizeAmplitude(100), 0.0001f)
+    }
+
+    @Test
+    fun waveform_clampsOutOfRangePushes() {
+        val wave = VoiceRecordingWaveform(capacity = 4)
+        wave.push(-0.5f)
+        wave.push(1.5f)
+        val snap = wave.snapshot()
+        assertEquals(0f, snap[0], 0.0001f)
+        assertEquals(0f, snap[1], 0.0001f)
+        assertEquals(0f, snap[2], 0.0001f)
+        assertEquals(1f, snap[3], 0.0001f)
+    }
+
+    @Test
+    fun waveform_capacityOneKeepsOnlyLatest() {
+        val wave = VoiceRecordingWaveform(capacity = 1)
+        wave.push(0.2f)
+        wave.push(0.7f)
+        val snap = wave.snapshot()
+        assertEquals(1, snap.size)
+        assertEquals(0.7f, snap[0], 0.0001f)
+    }
+
+    @Test
+    fun previewPolicy_sendSharesEnterBoundary() {
+        assertFalse(VoiceCapturePolicy.canSendPreview(499))
+        assertTrue(VoiceCapturePolicy.canEnterPreview(Long.MAX_VALUE))
+        assertTrue(VoiceCapturePolicy.canSendPreview(Long.MAX_VALUE))
+    }
+
+    @Test
+    fun formatSpeedLabel_unknownSpeedsFallBackToOneX() {
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(0.75f))
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(3f))
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(0f))
+    }
+
 }
