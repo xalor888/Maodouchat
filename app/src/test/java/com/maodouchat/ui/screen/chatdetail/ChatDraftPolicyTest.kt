@@ -71,4 +71,37 @@ class ChatDraftPolicyTest {
         assertFalse(ChatDraftPolicy.shouldApplyRestoredDraft(true, "typing"))
         assertTrue(ChatDraftPolicy.shouldApplyRestoredDraft(false, ""))
     }
+    @Test
+    fun paddedIdsStillSchedule() {
+        assertTrue(ChatDraftPolicy.canSchedule(" u1 ", " c1 "))
+        assertTrue(ChatDraftPolicy.canSchedule("\tu1", "c1"))
+    }
+
+    @Test
+    fun writeComparisonDoesNotTrim() {
+        assertTrue(ChatDraftPolicy.shouldWrite(" u1 ", " u1 "))
+        assertFalse(ChatDraftPolicy.shouldWrite("u1", "u1 "))
+        assertFalse(ChatDraftPolicy.shouldWrite("u1 ", "u1"))
+    }
+
+    @Test
+    fun generationExtremes() {
+        assertTrue(ChatDraftPolicy.shouldPersistGeneration(Long.MAX_VALUE, Long.MAX_VALUE))
+        assertTrue(ChatDraftPolicy.shouldPersistGeneration(Long.MIN_VALUE, Long.MIN_VALUE))
+        assertFalse(ChatDraftPolicy.shouldPersistGeneration(Long.MAX_VALUE, Long.MIN_VALUE))
+    }
+
+    @Test
+    fun whitespaceOnlyFieldAcceptsRestoredDraft() {
+        assertTrue(ChatDraftPolicy.shouldApplyRestoredDraft(false, "   "))
+        assertFalse(ChatDraftPolicy.shouldApplyRestoredDraft(true, "   "))
+    }
+
+    @Test
+    fun nullWriterOrLiveNeverWrites() {
+        assertFalse(ChatDraftPolicy.shouldWrite("u1", null))
+        assertFalse(ChatDraftPolicy.shouldWrite(null, "u1"))
+        assertFalse(ChatDraftPolicy.shouldWrite(null, null))
+    }
+
 }

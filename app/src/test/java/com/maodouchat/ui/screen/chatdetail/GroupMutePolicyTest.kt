@@ -30,4 +30,46 @@ class GroupMutePolicyTest {
         assertFalse(GroupMutePolicy.isActiveMute(now, now))
         assertEquals(0L, GroupMutePolicy.clearMuteUntil())
     }
+    @Test
+    fun presetsAreElevenStrictlyIncreasingAndCappedAtMax() {
+        assertEquals(11, GroupMutePolicy.presets.size)
+        val durations = GroupMutePolicy.presets.map { it.durationMs }
+        assertEquals(durations.sorted(), durations)
+        assertTrue(durations.zipWithNext().all { (a, b) -> a < b })
+        assertEquals(GroupMutePolicy.MAX_MUTE_MS, durations.last())
+        assertEquals(300_000L, durations.first())
+    }
+
+    @Test
+    fun mutedUntilNeverExceedsMaxForAnyPreset() {
+        val now = 10_000_000L
+        GroupMutePolicy.presets.forEach { preset ->
+            assertTrue(GroupMutePolicy.mutedUntil(now, preset) <= now + GroupMutePolicy.MAX_MUTE_MS)
+        }
+        assertEquals(now + GroupMutePolicy.MAX_MUTE_MS, GroupMutePolicy.mutedUntil(now, Preset.DAYS_30))
+    }
+
+    @Test
+    fun smallPresetDurationsAreExact() {
+        val now = 2_000_000L
+        assertEquals(now + 300_000L, GroupMutePolicy.mutedUntil(now, Preset.MINUTES_5))
+        assertEquals(now + 1_800_000L, GroupMutePolicy.mutedUntil(now, Preset.MINUTES_30))
+        assertEquals(now + 86_400_000L, GroupMutePolicy.mutedUntil(now, Preset.DAY_1))
+    }
+
+    @Test
+    fun pastAndClearedMutesAreInactive() {
+        val now = 5_000_000L
+        assertFalse(GroupMutePolicy.isActiveMute(now - 1, now))
+        assertFalse(GroupMutePolicy.isActiveMute(GroupMutePolicy.clearMuteUntil(), now))
+    }
+
+    @Test
+    fun namedPresetDurationsAreExact() {
+        assertEquals(600_000L, Preset.MINUTES_10.durationMs)
+        assertEquals(7_200_000L, Preset.HOURS_2.durationMs)
+        assertEquals(28_800_000L, Preset.HOURS_8.durationMs)
+        assertEquals(604_800_000L, Preset.DAYS_7.durationMs)
+    }
+
 }
