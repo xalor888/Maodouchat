@@ -171,4 +171,51 @@ class ViewOncePolicyTest {
         assertFalse(ViewOncePolicy.isLockedForViewer(opened, isOwnMessage = true),
             "发送者视角永不锁，即使元数据已记打开")
     }
+
+    @Test
+    fun videoAndGifLockParityWithImage() {
+        listOf(MessageType.VIDEO, MessageType.GIF).forEach { type ->
+            val fresh = msg(type = type, viewOnce = true, opened = false)
+            assertFalse(ViewOncePolicy.isLockedForViewer(fresh, isOwnMessage = false))
+            val opened = ViewOncePolicy.markOpened(fresh)
+            assertTrue(ViewOncePolicy.isLockedForViewer(opened, isOwnMessage = false))
+        }
+    }
+
+    @Test
+    fun markOpenedPreservesNonMetaFields() {
+        val m = msg(type = MessageType.IMAGE, viewOnce = true, opened = false)
+        val marked = ViewOncePolicy.markOpened(m)
+        assertEquals(m.id, marked.id)
+        assertEquals(m.chatId, marked.chatId)
+        assertEquals(m.senderId, marked.senderId)
+        assertEquals(m.type, marked.type)
+        assertEquals(m.timestamp, marked.timestamp)
+        assertEquals("x", marked.parsedContent())
+    }
+
+    @Test
+    fun openedFlagOnUnsupportedTypeNeverLocks() {
+        val text = msg(type = MessageType.TEXT, viewOnce = true, opened = true)
+        assertFalse(ViewOncePolicy.isLockedForViewer(text, isOwnMessage = false))
+        val file = msg(type = MessageType.FILE, viewOnce = true, opened = true)
+        assertFalse(ViewOncePolicy.isLockedForViewer(file, isOwnMessage = false))
+    }
+
+    @Test
+    fun senderNeverLockedForVideoAndGifEither() {
+        listOf(MessageType.VIDEO, MessageType.GIF).forEach { type ->
+            val m = msg(type = type, viewOnce = true, opened = true, own = true)
+            assertFalse(ViewOncePolicy.isLockedForViewer(m, isOwnMessage = true))
+        }
+    }
+
+    @Test
+    fun markingOneMessageLeavesSiblingUntouched() {
+        val first = msg(type = MessageType.IMAGE, viewOnce = true, opened = false)
+        val second = msg(type = MessageType.IMAGE, viewOnce = true, opened = false)
+        ViewOncePolicy.markOpened(first)
+        assertFalse(ViewOncePolicy.isLockedForViewer(second, isOwnMessage = false))
+    }
+
 }

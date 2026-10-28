@@ -128,4 +128,38 @@ class LiveLocationPolicyTest {
         assertEquals(0L, LiveLocationPolicy.remainingFromUntil(1_000L, now = 1_000L))
         assertEquals(1L, LiveLocationPolicy.remainingFromUntil(1_001L, now = 1_000L))
     }
+
+    @Test
+    fun `duration constants are sane`() {
+        assertEquals(12_000L, LiveLocationPolicy.MIN_UPDATE_INTERVAL_MS)
+        assertEquals(3, LiveLocationPolicy.DURATION_OPTIONS_MS.size)
+        assertTrue(LiveLocationPolicy.DURATION_OPTIONS_MS.contains(LiveLocationPolicy.DEFAULT_DURATION_MS))
+        assertTrue(LiveLocationPolicy.MIN_UPDATE_INTERVAL_MS < LiveLocationPolicy.DEFAULT_DURATION_MS)
+    }
+
+    @Test
+    fun `formatRemaining handles day-scale hours`() {
+        assertEquals("24h 0m", LiveLocationPolicy.formatRemaining(86_400_000L))
+        assertEquals("25h 0m", LiveLocationPolicy.formatRemaining(90_000_000L))
+        assertEquals("25h 1m", LiveLocationPolicy.formatRemaining(90_060_000L))
+    }
+
+    @Test
+    fun `remainingMs is the exact millisecond difference`() {
+        val payload = LocationPayload(latitude = 31.2, longitude = 121.5, live = true, liveUntil = 5_000L, sessionId = "live-3")
+        assertEquals(3_766L, LiveLocationPolicy.remainingMs(payload, now = 1_234L))
+    }
+
+    @Test
+    fun `remainingFromUntil handles extreme values`() {
+        assertEquals(Long.MAX_VALUE, LiveLocationPolicy.remainingFromUntil(Long.MAX_VALUE, now = 0L))
+        assertEquals(0L, LiveLocationPolicy.remainingFromUntil(Long.MIN_VALUE, now = 0L))
+    }
+
+    @Test
+    fun `non-live payload with future until is still not live`() {
+        val payload = LocationPayload(latitude = 31.2, longitude = 121.5, live = false, liveUntil = 99_999L)
+        assertFalse(LiveLocationPolicy.isLive(payload, now = 1_000L))
+    }
+
 }
