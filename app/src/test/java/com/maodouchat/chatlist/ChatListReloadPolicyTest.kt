@@ -83,4 +83,40 @@ class ChatListReloadPolicyTest {
             )
         }
     }
+
+    @Test
+    fun visibleModeHasNoDebounceForNonReconnectTriggers() {
+        assertEquals(0L, ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_VISIBLE))
+        assertEquals(0L, ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_VISIBLE, Trigger.USER_REFRESH))
+        assertEquals(0L, ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_VISIBLE, Trigger.INITIAL))
+        assertEquals(0L, ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_VISIBLE, Trigger.GROUP_REVISION))
+    }
+
+    @Test
+    fun debouncedSilentKeepsDefaultDebounceWithoutTriggerAndOnForeground() {
+        assertEquals(ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS, ChatListReloadPolicy.debounceMs(Mode.DEBOUNCED_SILENT))
+        assertEquals(ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS, ChatListReloadPolicy.debounceMs(Mode.DEBOUNCED_SILENT, Trigger.FOREGROUND))
+    }
+
+    @Test
+    fun groupRevisionIsTheOnlyDebouncedTrigger() {
+        assertEquals(Mode.DEBOUNCED_SILENT, ChatListReloadPolicy.modeFor(Trigger.GROUP_REVISION))
+        Trigger.values().filter { it != Trigger.GROUP_REVISION }.forEach { trigger ->
+            assertTrue(ChatListReloadPolicy.modeFor(trigger) != Mode.DEBOUNCED_SILENT)
+        }
+    }
+
+    @Test
+    fun reconnectDebounceExceedsDefaultDebounce() {
+        assertTrue(ChatListReloadPolicy.RECONNECT_DEBOUNCE_MS > ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS)
+        assertTrue(ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS > 0L)
+    }
+
+    @Test
+    fun everyModeIsReachableFromSomeTrigger() {
+        assertEquals(3, Mode.values().size)
+        val reached = Trigger.values().map { ChatListReloadPolicy.modeFor(it) }.toSet()
+        assertEquals(Mode.values().toSet(), reached)
+    }
+
 }
