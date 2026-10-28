@@ -363,4 +363,84 @@ class ChatListPreviewPolicyTest {
         timestamp = ts,
         status = MessageStatus.SENT
     )
+
+    @Test
+    fun systemMessageKeepsContentAsPreview() {
+        val msg = sample(type = MessageType.SYSTEM, content = "系统提示", ts = 7L)
+        val preview = ChatListPreviewPolicy.fromLatestMessage(msg, mediaLabel, "[enc]", "[revoked]")
+        assertEquals("系统提示", preview.text)
+        assertEquals(MessageType.SYSTEM, preview.type)
+        assertEquals(7L, preview.timestamp)
+    }
+
+    @Test
+    fun remainingMediaTypesUseLabels() {
+        val cases = listOf(
+            MessageType.GIF to "[GIF]",
+            MessageType.STICKER to "[贴纸]",
+            MessageType.LOCATION to "[位置]",
+            MessageType.VOICE to "[语音]",
+            MessageType.VIDEO to "[视频]",
+            MessageType.FILE to "[文件]"
+        )
+        for ((type, label) in cases) {
+            val preview = ChatListPreviewPolicy.fromLatestMessage(
+                sample(type = type, content = "blob", ts = 5L), mediaLabel, "[enc]", "[revoked]"
+            )
+            assertEquals(label, preview.text)
+            assertEquals(type, preview.type)
+        }
+    }
+
+    @Test
+    fun emptyCandidateListClearsPreview() {
+        val preview = ChatListPreviewPolicy.fromLatestMessages(
+            candidatesNewestFirst = emptyList(),
+            mediaLabel = mediaLabel,
+            encryptedPlaceholder = "[enc]",
+            revokedPlaceholder = "[revoked]"
+        )
+        assertEquals("", preview.text)
+        assertEquals(MessageType.TEXT, preview.type)
+        assertEquals(0L, preview.timestamp)
+    }
+
+    @Test
+    fun redactedIfWireHidesEnvelopeButKeepsPlaintext() {
+        val wire = """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
+        assertEquals("[enc]", ChatListPreviewPolicy.redactedIfWire(wire, "[enc]"))
+        assertEquals("hello", ChatListPreviewPolicy.redactedIfWire("hello", "[enc]"))
+        assertEquals("[enc]", ChatListPreviewPolicy.redactedIfWire("  ", "[enc]"))
+    }
+
+    @Test
+    fun ownEchoNudgeFallsBackToExistingPreview() {
+        assertEquals(
+            "old tail",
+            ChatListPreviewPolicy.ownEchoListPreview(
+                messageType = MessageType.NUDGE,
+                sameMessagePlainOrLabel = "",
+                existingListPreview = "old tail",
+                mediaLabel = mediaLabel
+            )
+        )
+        assertEquals(
+            "",
+            ChatListPreviewPolicy.ownEchoListPreview(
+                messageType = MessageType.NUDGE,
+                sameMessagePlainOrLabel = "",
+                existingListPreview = null,
+                mediaLabel = mediaLabel
+            )
+        )
+        assertEquals(
+            "拍了拍",
+            ChatListPreviewPolicy.ownEchoListPreview(
+                messageType = MessageType.NUDGE,
+                sameMessagePlainOrLabel = "拍了拍",
+                existingListPreview = "old tail",
+                mediaLabel = mediaLabel
+            )
+        )
+    }
 }

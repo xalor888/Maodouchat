@@ -90,4 +90,48 @@ class ChatMessageInteractionPolicyTest {
     fun defaultQuickReactionIsPinned() {
         assertEquals("❤️", DEFAULT_QUICK_REACTION)
     }
+
+    @Test
+    fun copyableOnlyTextAndMarkdown() {
+        assertFalse(isMessageCopyable(MessageType.VOICE))
+        assertFalse(isMessageCopyable(MessageType.FILE))
+        assertFalse(isMessageCopyable(MessageType.SYSTEM))
+        assertFalse(isMessageCopyable(MessageType.NUDGE))
+        assertFalse(isMessageCopyable(MessageType.IMAGE, isSecretChat = false))
+        assertTrue(isMessageCopyable(MessageType.MARKDOWN, isSecretChat = false))
+    }
+
+    @Test
+    fun secretChatBlocksCopyEvenWhenCopyBlockFlagOff() {
+        // copyBlockEnabled is currently not consulted by the implementation.
+        assertFalse(isMessageCopyable(MessageType.TEXT, isSecretChat = true, copyBlockEnabled = false))
+        assertTrue(isMessageCopyable(MessageType.TEXT, isSecretChat = false, copyBlockEnabled = false))
+    }
+
+    @Test
+    fun gestureEligibilityCoversMediaAndMarkdown() {
+        assertTrue(isMessageGestureEligible(MessageType.MARKDOWN))
+        assertTrue(isMessageGestureEligible(MessageType.VOICE))
+        assertTrue(isMessageGestureEligible(MessageType.VIDEO))
+        assertTrue(isMessageGestureEligible(MessageType.GIF))
+        assertTrue(isMessageGestureEligible(MessageType.STICKER))
+        assertTrue(isMessageGestureEligible(MessageType.LOCATION))
+        assertTrue(isMessageGestureEligible(MessageType.FILE))
+        assertFalse(isMessageGestureEligible(MessageType.NUDGE))
+    }
+
+    @Test
+    fun selectionToggleBlankIdRoundTrips() {
+        val selected = toggleMessageSelection(emptySet(), "")
+        assertEquals(setOf(""), selected)
+        assertEquals(emptySet(), toggleMessageSelection(selected, ""))
+        assertEquals(setOf("m1", ""), toggleMessageSelection(setOf("m1"), ""))
+    }
+
+    @Test
+    fun swipeReplyBoundaryIsInclusiveAtLargerThreshold() {
+        assertFalse(shouldTriggerSwipeReply(-52f, 100f))
+        assertTrue(shouldTriggerSwipeReply(-100f, 100f))
+        assertTrue(shouldTriggerSwipeReply(-101f, 100f))
+    }
 }
