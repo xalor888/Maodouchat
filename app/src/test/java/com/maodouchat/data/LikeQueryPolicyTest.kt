@@ -36,4 +36,35 @@ class LikeQueryPolicyTest {
         // 普通 accountId（十六进制/字母数字）转义无变化，新旧键字面量兼容
         assertEquals("9f2c4ab1", LikeQueryPolicy.escapeForPrefix("9f2c4ab1"))
     }
+    @Test
+    fun containsKeepsInnerAndEdgeSpacesForNonBlankInput() {
+        assertEquals("a b", LikeQueryPolicy.escapeForContains("a b"))
+        assertEquals(" hello ", LikeQueryPolicy.escapeForContains(" hello "))
+    }
+
+    @Test
+    fun containsEscapesRepeatedWildcards() {
+        assertEquals("\\%\\_\\%", LikeQueryPolicy.escapeForContains("%_%"))
+    }
+
+    @Test
+    fun prefixEscapesBackslash() {
+        assertEquals("a\\\\b", LikeQueryPolicy.escapeForPrefix("a\\b"))
+    }
+
+    @Test
+    fun prefixKeepsWhitespaceVerbatim() {
+        assertEquals(" a b ", LikeQueryPolicy.escapeForPrefix(" a b "))
+    }
+
+    @Test
+    fun escapeCharIsBackslashAndBothEscapersAgreeOnNonBlank() {
+        assertEquals('\\', LikeQueryPolicy.ESCAPE_CHAR)
+        val sample = "a%b_c"
+        assertEquals(
+            LikeQueryPolicy.escapeForContains(sample),
+            LikeQueryPolicy.escapeForPrefix(sample),
+        )
+    }
+
 }
