@@ -56,4 +56,35 @@ class StickerNamePolicyTest {
         assertEquals("b".repeat(80), StickerNamePolicy.sanitizeFileName("  " + "b".repeat(100)))
     }
 
+    @Test
+    fun sanitizePackId_emptyAndBlankInputsStayEmpty() {
+        assertEquals("", StickerNamePolicy.sanitizePackId(""))
+        assertEquals("", StickerNamePolicy.sanitizePackId("   "))
+    }
+
+    @Test
+    fun sanitize_oneOverCapIsCut() {
+        assertEquals("a".repeat(40), StickerNamePolicy.sanitizePackId("a".repeat(41)))
+        assertEquals("b".repeat(80), StickerNamePolicy.sanitizeFileName("b".repeat(81)))
+    }
+
+    @Test
+    fun sanitize_nonAsciiLettersAreStripped() {
+        assertEquals("caf-pack", StickerNamePolicy.sanitizePackId("caf\u00e9-pack"))
+        assertEquals("caf.webp", StickerNamePolicy.sanitizeFileName("caf\u00e9.webp"))
+    }
+
+    @Test
+    fun sanitize_dotSeparatedBySpaceCollapsesToDotDotAndIsRejected() {
+        assertEquals("", StickerNamePolicy.sanitizePackId(". ."))
+        assertEquals("", StickerNamePolicy.sanitizeFileName(". ."))
+    }
+
+    @Test
+    fun sanitize_packStripsDotsWhileFileKeepsThem() {
+        assertEquals("abwebp", StickerNamePolicy.sanitizePackId("a.b.webp"))
+        assertEquals("a.b.webp", StickerNamePolicy.sanitizeFileName("a.b.webp"))
+        assertEquals("...", StickerNamePolicy.sanitizeFileName("..."))
+    }
+
 }
