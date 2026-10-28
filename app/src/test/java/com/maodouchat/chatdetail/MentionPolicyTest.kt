@@ -247,4 +247,58 @@ class MentionPolicyTest {
             )
         )
     }
+
+    @Test
+    fun activeQuery_cursorCoercion_loneAtSign_and_negativeCursor() {
+        val coerced = MentionPolicy.activeQuery("hi @Al", cursor = 99)!!
+        assertEquals(3, coerced.atIndex)
+        assertEquals("Al", coerced.filter)
+
+        val lone = MentionPolicy.activeQuery("@", cursor = 1)!!
+        assertEquals(0, lone.atIndex)
+        assertEquals("", lone.filter)
+
+        assertNull(MentionPolicy.activeQuery("hi @Al", cursor = -5))
+    }
+
+    @Test
+    fun activeQuery_doubleAtSign_and_nonBoundaryAtSign_rejected() {
+        assertNull(MentionPolicy.activeQuery("@@Al", cursor = 4))
+        assertNull(MentionPolicy.activeQuery("x@Al", cursor = 4))
+        assertNull(MentionPolicy.activeQuery("hi@Al", cursor = 5))
+    }
+
+    @Test
+    fun shouldShowPicker_midTextBareAiSuppressed_midMentionShows() {
+        assertFalse(MentionPolicy.shouldShowPicker("hi @AI", isGroupChat = true))
+        assertFalse(MentionPolicy.shouldShowPicker("hi @AI x", isGroupChat = true))
+        assertTrue(MentionPolicy.shouldShowPicker("hi @Al", isGroupChat = true))
+    }
+
+    @Test
+    fun filterCandidates_excludesBlankIdAndEveryoneIdParticipants() {
+        val people = listOf(
+            me,
+            User(id = "", name = "Ghost"),
+            User(id = MentionPolicy.EVERYONE_ID, name = "Fake"),
+            alice,
+        )
+        val result = MentionPolicy.filterCandidates(people, "me", "")
+        assertTrue(result.none { it.userId.isBlank() })
+        assertEquals(1, result.count { it.isEveryone })
+        assertTrue(result.any { it.userId == "u1" })
+    }
+
+    @Test
+    fun extractMentionIds_punctuationBoundaries_caseSensitive_selfExcluded() {
+        assertEquals(
+            listOf("u1", "u2"),
+            MentionPolicy.extractMentionIds("@Alice! @Bob Chen? @Alice。", members, "me"),
+        )
+        assertTrue(MentionPolicy.extractMentionIds("@alice hi", members, "me").isEmpty())
+        assertEquals(
+            listOf(MentionPolicy.EVERYONE_ID),
+            MentionPolicy.extractMentionIds("@everyone @me", members, "me"),
+        )
+    }
 }
