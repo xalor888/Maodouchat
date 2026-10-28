@@ -160,4 +160,51 @@ class CallReliabilityPolicyTest {
         assertFalse(GroupCallPolicy.shouldAcceptMetadata("group-a", "group-a", listOf("a", "b"), listOf("a", "c")))
         assertTrue(GroupCallPolicy.shouldAcceptMetadata("group-a", "", listOf("a", "b"), emptyList()))
     }
+
+    @Test
+    fun `group call requires microphone only`() {
+        assertEquals(
+            setOf(CallMediaPermission.MICROPHONE),
+            CallReliabilityPolicy.requiredPermissions(CallType.GROUP)
+        )
+    }
+
+    @Test
+    fun `blank sender is rejected even for group calls and blank expected contact accepts any sender`() {
+        assertFalse(CallReliabilityPolicy.shouldAcceptSignal(true, "user-a", ""))
+        assertFalse(CallReliabilityPolicy.shouldAcceptSignal(true, "", ""))
+        assertTrue(CallReliabilityPolicy.shouldAcceptSignal(false, "", "user-b"))
+        assertFalse(CallReliabilityPolicy.shouldAcceptSignal(false, "", ""))
+    }
+
+    @Test
+    fun `ice reconnect handles lowercase states negative attempts and unknown states`() {
+        assertEquals(IceReconnectAction.START_GRACE, CallReliabilityPolicy.iceReconnectAction("disconnected"))
+        assertEquals(IceReconnectAction.RESTART_ICE, CallReliabilityPolicy.iceReconnectAction("failed", restartAttempts = -1))
+        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction("gathering"))
+        assertEquals(2, CallReliabilityPolicy.ICE_MAX_RESTART_ATTEMPTS)
+        assertEquals(5_000L, CallReliabilityPolicy.ICE_RESTART_INTERVAL_MS)
+    }
+
+    @Test
+    fun `network quality pins boundary values`() {
+        assertEquals(Level.GOOD, CallNetworkQualityPolicy.fromStats(200, 1.0))
+        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(500, 4.0))
+        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(201, 1.0))
+        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(501, 0.0))
+        assertEquals(Level.GOOD, CallNetworkQualityPolicy.fromStats(200, null))
+        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(500, null))
+        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(501, null))
+    }
+
+    @Test
+    fun `group grid mesh and active states pin their edges`() {
+        assertEquals(2, GroupCallPolicy.gridColumns(0))
+        assertEquals(3, GroupCallPolicy.gridColumns(100))
+        assertFalse(GroupCallPolicy.shouldInitiateMeshEdge("", "user-b"))
+        assertFalse(GroupCallPolicy.shouldInitiateMeshEdge("user-a", "user-a"))
+        assertTrue(GroupCallPolicy.isActive(GroupPeerConnectionState.CONNECTED))
+        assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.DISCONNECTED))
+        assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.BUSY))
+    }
 }

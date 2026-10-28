@@ -45,4 +45,39 @@ class WebRTCAudioPolicyTest {
         assertEquals(3, keys.size)
         assertEquals(keys.toSet().size, keys.size)
     }
+
+    @Test
+    fun `constraints keep echo gain noise order`() {
+        val keys = standardAudioConstraints().map { it.first }
+        assertTrue(keys.indexOf("echoCancellation") < keys.indexOf("autoGainControl"))
+        assertTrue(keys.indexOf("autoGainControl") < keys.indexOf("noiseSuppression"))
+    }
+
+    @Test
+    fun `repeated calls return the same list`() {
+        assertEquals(standardAudioConstraints(), standardAudioConstraints())
+    }
+
+    @Test
+    fun `keys contain no separator or deprecated prefix`() {
+        standardAudioConstraints().forEach { (key, _) ->
+            assertTrue("键名含分隔符: $key", key.none { it == '_' || it == '-' || it == ' ' })
+            assertTrue("键名是 goog* 变体: $key", !key.lowercase().startsWith("goog"))
+        }
+    }
+
+    @Test
+    fun `every value parses as boolean true`() {
+        standardAudioConstraints().forEach { (_, value) ->
+            assertTrue(value.toBooleanStrict())
+        }
+    }
+
+    @Test
+    fun `key set matches the three expected names`() {
+        assertEquals(
+            setOf("echoCancellation", "autoGainControl", "noiseSuppression"),
+            standardAudioConstraints().map { it.first }.toSet(),
+        )
+    }
 }
