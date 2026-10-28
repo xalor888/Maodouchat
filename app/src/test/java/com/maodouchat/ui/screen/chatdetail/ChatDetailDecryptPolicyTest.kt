@@ -89,4 +89,43 @@ class ChatDetailDecryptPolicyTest {
         assertTrue(MessageType.fromWire("bogus").isDecryptable())
     }
 
+    @Test
+    fun `fromWire matches names case-insensitively`() {
+        assertEquals(MessageType.IMAGE, MessageType.fromWire("image"))
+        assertEquals(MessageType.SK_DIST, MessageType.fromWire("Sk_Dist"))
+        assertTrue(MessageType.fromWire("video").isDecryptable())
+        assertFalse(MessageType.fromWire("system").isDecryptable())
+    }
+
+    @Test
+    fun `empty and padded wire values fall back to text`() {
+        assertEquals(MessageType.TEXT, MessageType.fromWire(""))
+        assertEquals(MessageType.TEXT, MessageType.fromWire(" IMAGE"))
+        assertEquals(MessageType.TEXT, MessageType.fromWire("image "))
+    }
+
+    @Test
+    fun `hidden set is exactly sk dist`() {
+        assertEquals(
+            setOf(MessageType.SK_DIST),
+            MessageType.entries.filter { it.isHidden }.toSet(),
+        )
+        MessageType.entries.filterNot { it == MessageType.SK_DIST }.forEach {
+            assertFalse("$it 不应隐藏", it.isHidden)
+        }
+    }
+
+    @Test
+    fun `decryptable and hidden sets are disjoint`() {
+        val both = MessageType.entries.filter { it.isDecryptable() && it.isHidden }
+        assertTrue(both.isEmpty())
+    }
+
+    @Test
+    fun `every entry round-trips through its wire name`() {
+        MessageType.entries.forEach {
+            assertEquals(it, MessageType.fromWire(it.name))
+        }
+    }
+
 }
