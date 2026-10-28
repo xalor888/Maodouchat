@@ -172,4 +172,41 @@ class ChatFolderPolicyTest {
         assertEquals(listOf("c2"), removed[1].chatIds)
         assertEquals(start, ChatFolderPolicy.moveChatToFolder(start, "  ", "f1"))
     }
+
+    @Test
+    fun `createFolder next order follows max order not count`() {
+        val existing = listOf(
+            ChatFolder(id = "f0", name = "A", sortOrder = 0),
+            ChatFolder(id = "f1", name = "B", sortOrder = 2),
+        )
+        val created = ChatFolderPolicy.createFolder(existing, "C")
+        assertEquals(listOf("A", "B", "C"), created?.map { it.name })
+        assertEquals(listOf(0, 2, 3), created?.map { it.sortOrder })
+    }
+
+    @Test
+    fun `createFolder rejects normalized case duplicate`() {
+        assertNull(ChatFolderPolicy.createFolder(folders("Work"), "  WORK  "))
+    }
+
+    @Test
+    fun `moveFolder delta two swaps with distant folder`() {
+        val result = ChatFolderPolicy.moveFolder(folders("A", "B", "C"), "f0", delta = 2)
+        assertEquals(listOf("C", "B", "A"), result?.map { it.name })
+        assertEquals(listOf(0, 1, 2), result?.map { it.sortOrder })
+    }
+
+    @Test
+    fun `moveFolder delta zero returns same order`() {
+        val result = ChatFolderPolicy.moveFolder(folders("A", "B", "C"), "f1", delta = 0)
+        assertEquals(listOf("A", "B", "C"), result?.map { it.name })
+        assertEquals(listOf(0, 1, 2), result?.map { it.sortOrder })
+    }
+
+    @Test
+    fun `reorderFolder negative target clamps to front`() {
+        val reordered = ChatFolderPolicy.reorderFolder(folders("A", "B", "C"), "f2", -5)
+        assertEquals(listOf("C", "A", "B"), reordered?.map { it.name })
+        assertEquals(listOf(0, 1, 2), reordered?.map { it.sortOrder })
+    }
 }
