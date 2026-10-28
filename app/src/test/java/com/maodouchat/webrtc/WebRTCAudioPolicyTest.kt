@@ -80,4 +80,46 @@ class WebRTCAudioPolicyTest {
             standardAudioConstraints().map { it.first }.toSet(),
         )
     }
+
+    @Test
+    fun `first and last pairs are echo and noise`() {
+        val constraints = standardAudioConstraints()
+        assertEquals("echoCancellation" to "true", constraints.first())
+        assertEquals("noiseSuppression" to "true", constraints.last())
+    }
+
+    @Test
+    fun `keys sit at exact indices`() {
+        val keys = standardAudioConstraints().map { it.first }
+        assertEquals(0, keys.indexOf("echoCancellation"))
+        assertEquals(1, keys.indexOf("autoGainControl"))
+        assertEquals(2, keys.indexOf("noiseSuppression"))
+    }
+
+    @Test
+    fun `lookup by key through a map returns true`() {
+        val map = standardAudioConstraints().toMap()
+        assertEquals(3, map.size)
+        assertEquals("true", map["echoCancellation"])
+        assertEquals("true", map["autoGainControl"])
+        assertEquals("true", map["noiseSuppression"])
+    }
+
+    @Test
+    fun `keys are camelCase`() {
+        standardAudioConstraints().forEach { (key, _) ->
+            assertTrue("首字母应小写: $key", key.first().isLowerCase())
+            assertTrue("应含大写字母: $key", key.any { it.isUpperCase() })
+        }
+    }
+
+    @Test
+    fun `no blank entries and no key equals its value`() {
+        standardAudioConstraints().forEach { (key, value) ->
+            assertTrue(key.isNotBlank())
+            assertTrue(value.isNotBlank())
+            assertTrue("键与值相同: $key", key != value)
+        }
+    }
+
 }
