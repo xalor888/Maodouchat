@@ -73,4 +73,45 @@ class ScreenshotDetectorPolicyTest {
             SecureCaptureScrubber.shouldDeleteImage("Pictures/Screenshots/", "Screenshot_1.png", -1)
         )
     }
+
+    @Test
+    fun `shouldStart truth table is secret or flag`() {
+        assertFalse(ScreenshotDetector.shouldStart(secretActive = false, screenshotDetectFlag = false))
+        assertTrue(ScreenshotDetector.shouldStart(secretActive = true, screenshotDetectFlag = false))
+        assertTrue(ScreenshotDetector.shouldStart(secretActive = false, screenshotDetectFlag = true))
+        assertTrue(ScreenshotDetector.shouldStart(secretActive = true, screenshotDetectFlag = true))
+    }
+
+    @Test
+    fun `screenshot matching is case insensitive for path and name`() {
+        assertTrue(ScreenshotDetector.isScreenshotPath("Pictures/SCREENSHOTS/", "pic.png"))
+        assertTrue(ScreenshotDetector.isScreenshotPath("Pictures/ScreenShots/", ""))
+        assertTrue(ScreenshotDetector.isScreenshotPath("DCIM/Camera/", "myScreenshot_1.png"))
+        assertFalse(ScreenshotDetector.isScreenshotPath("Pictures/Screen/", "pic.png"))
+    }
+
+    @Test
+    fun `screenshot matching covers chinese path and name`() {
+        assertTrue(ScreenshotDetector.isScreenshotPath("DCIM/Camera/", "我的截图.jpg"))
+        assertTrue(ScreenshotDetector.isScreenshotPath("相册/截屏/", "pic.png"))
+        assertFalse(ScreenshotDetector.isScreenshotPath("DCIM/Camera/", "风景照.jpg"))
+    }
+
+    @Test
+    fun `screen record matching covers chinese and hyphen variants`() {
+        assertTrue(ScreenshotDetector.isScreenRecordPath("Movies/录屏/", "clip.mp4"))
+        assertTrue(ScreenshotDetector.isScreenRecordPath("DCIM/Camera/", "我的录屏.mp4"))
+        assertTrue(ScreenshotDetector.isScreenRecordPath("Movies/Screen-recording/", "clip.mp4"))
+        assertFalse(ScreenshotDetector.isScreenRecordPath("Movies/", "myrecording.mp4"))
+        assertFalse(ScreenshotDetector.isScreenRecordPath("Movies/", "clip_rec.mp4"))
+    }
+
+    @Test
+    fun `scrubber age zero passes but a non capture path never does`() {
+        assertTrue(SecureCaptureScrubber.shouldDeleteImage("Pictures/Screenshots/", "Screenshot_1.png", 0))
+        assertTrue(SecureCaptureScrubber.shouldDeleteVideo("Movies/Screen recordings/", "screenrecord.mp4", 0))
+        assertFalse(SecureCaptureScrubber.shouldDeleteImage("DCIM/Camera/", "IMG_0001.jpg", 0))
+        assertFalse(SecureCaptureScrubber.shouldDeleteVideo("Movies/", "clip.mp4", 0))
+    }
+
 }

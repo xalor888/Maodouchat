@@ -131,4 +131,45 @@ class GroupPlaySealPolicyTest {
             GroupPlaySealPolicy.formatLastSeenSeal("A|B", "myhost")
         )
     }
+
+    @Test
+    fun `parse tolerates a payload without the separator`() {
+        assertEquals("ON", GroupPlaySealPolicy.parseLinkLock("LINKLOCK:ON"))
+        assertEquals("OFF", GroupPlaySealPolicy.parseReadSeal("READSEAL:OFF"))
+    }
+
+    @Test
+    fun `host label is kept verbatim including spaces`() {
+        assertEquals(
+            "LINKLOCK:ON|  host   link lock",
+            GroupPlaySealPolicy.formatLinkLock("ON", "  host  ")
+        )
+        assertEquals(
+            "PREVIEWMUTE:ON| preview mute",
+            GroupPlaySealPolicy.formatPreviewMute("ON", "")
+        )
+    }
+
+    @Test
+    fun `separator at the forty char edge survives or is cut with the mode`() {
+        val edge = "a".repeat(39) + "|"
+        assertEquals(edge, GroupPlaySealPolicy.parseLinkLock(GroupPlaySealPolicy.formatLinkLock(edge, "host")))
+        val over = "b".repeat(40) + "|"
+        assertEquals("b".repeat(40), GroupPlaySealPolicy.parseLinkLock(GroupPlaySealPolicy.formatLinkLock(over, "host")))
+    }
+
+    @Test
+    fun `prefix matching is case sensitive and exact`() {
+        assertNull(GroupPlaySealPolicy.parseLinkLock("linklock:ON|host"))
+        assertNull(GroupPlaySealPolicy.parseLinkLock("LINKLOCKX:ON|host"))
+        assertNull(GroupPlaySealPolicy.parseLinkLock("LINKLOCK :ON|host"))
+    }
+
+    @Test
+    fun `parse takes text before the first pipe regardless of trailing pipes`() {
+        assertEquals("ON", GroupPlaySealPolicy.parseLinkLock("LINKLOCK:ON|a|b"))
+        assertEquals("ON", GroupPlaySealPolicy.parseLinkLock("LINKLOCK:ON|host link lock extra"))
+        assertEquals("ON", GroupPlaySealPolicy.parseLinkLock("LINKLOCK:ON|"))
+    }
+
 }
