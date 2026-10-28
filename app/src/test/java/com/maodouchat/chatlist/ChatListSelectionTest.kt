@@ -91,4 +91,49 @@ class ChatListSelectionTest {
         assertEquals(listOf("d1"), targets.ordinary.map { it.id })
         assertEquals(listOf("s1"), targets.secret.map { it.id })
     }
+
+    @Test
+    fun enterOnAlreadyEnteredStateKeepsSelection() {
+        val state = ChatListSelection(selectionMode = true, selectedChatIds = setOf("a"))
+        val next = reduceSelection(state, ChatListSelectionEvent.Enter)
+        assertTrue(next.selectionMode)
+        assertEquals(setOf("a"), next.selectedChatIds)
+    }
+
+    @Test
+    fun exitIsIdempotentOnClearedState() {
+        val state = ChatListSelection(selectionMode = false, selectedChatIds = emptySet())
+        val next = reduceSelection(state, ChatListSelectionEvent.Exit)
+        assertFalse(next.selectionMode)
+        assertTrue(next.selectedChatIds.isEmpty())
+    }
+
+    @Test
+    fun toggleFromNonModeAddsWithoutEnteringMode() {
+        // reducer 只换集合、不碰 mode：UI 恒先 enter 再 toggle，裸 toggle 不进多选。
+        val state = ChatListSelection(selectionMode = false, selectedChatIds = emptySet())
+        val next = reduceSelection(state, ChatListSelectionEvent.Toggle("x"))
+        assertFalse(next.selectionMode)
+        assertEquals(setOf("x"), next.selectedChatIds)
+    }
+
+    @Test
+    fun readChatsYieldNoTargets() {
+        val chats = listOf(
+            Chat(id = "a", unreadCount = 0),
+            Chat(id = "b", unreadCount = 0, markedUnread = false)
+        )
+        val targets = selectUnreadBatchTargets(chats, setOf("a", "b"))
+        assertTrue(targets.ordinary.isEmpty())
+        assertTrue(targets.secret.isEmpty())
+    }
+
+    @Test
+    fun archivedSecretExcludedOnlyWithFlag() {
+        val chats = listOf(Chat(id = "s", unreadCount = 1, chatType = "SECRET", archived = true))
+        assertEquals(listOf("s"), selectUnreadBatchTargets(chats, setOf("s")).secret.map { it.id })
+        val excluded = selectUnreadBatchTargets(chats, setOf("s"), excludeArchived = true)
+        assertTrue(excluded.ordinary.isEmpty())
+        assertTrue(excluded.secret.isEmpty())
+    }
 }

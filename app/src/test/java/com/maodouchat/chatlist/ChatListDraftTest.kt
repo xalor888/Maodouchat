@@ -84,4 +84,69 @@ class ChatListDraftTest {
             ChatListUiState(chats = chats, showArchived = true).filteredChats.map(Chat::id)
         )
     }
+
+    @Test
+    fun transferCheckIgnoresKindAndStatusButNeedsCode() {
+        assertTrue(
+            requiresGroupOwnershipTransfer(
+                ApiException(ApiFailureKind.NETWORK, statusCode = 500, serverCode = "GROUP_OWNER_TRANSFER_REQUIRED")
+            )
+        )
+        assertFalse(requiresGroupOwnershipTransfer(null))
+        assertFalse(requiresGroupOwnershipTransfer(RuntimeException("boom")))
+    }
+
+    @Test
+    fun olderDraftDoesNotPromoteAheadOfNewerMessage() {
+        val state = ChatListUiState(
+            chats = listOf(
+                Chat(id = "newer", lastMessageTime = 200L),
+                Chat(id = "older", lastMessageTime = 100L)
+            ),
+            drafts = mapOf(
+                "older" to ChatDraftEntity("owner", "older", "stale", 50L)
+            )
+        )
+
+        assertEquals(listOf("newer", "older"), state.filteredChats.map(Chat::id))
+    }
+
+    @Test
+    fun lockedChatDraftTextDoesNotMatchSearch() {
+        val state = ChatListUiState(
+            chats = listOf(Chat(id = "draft-chat", lastMessage = "unrelated", lastMessageTime = 100L)),
+            searchQuery = "发布计划",
+            drafts = mapOf(
+                "draft-chat" to ChatDraftEntity("owner", "draft-chat", "明天讨论发布计划", 200L)
+            ),
+            lockedChatIds = setOf("draft-chat")
+        )
+
+        assertEquals(emptyList(), state.filteredChats.map(Chat::id))
+    }
+
+    @Test
+    fun mutedChatSortsAfterSameTimeChatWhenUnreadPriorityOff() {
+        val state = ChatListUiState(
+            chats = listOf(
+                Chat(id = "muted", lastMessageTime = 200L, notificationsMuted = true),
+                Chat(id = "plain", lastMessageTime = 200L)
+            ),
+            unreadPriorityEnabled = false
+        )
+
+        assertEquals(listOf("plain", "muted"), state.filteredChats.map(Chat::id))
+    }
+
+    @Test
+    fun largerPinnedAtWinsAmongPinned() {
+        val state = ChatListUiState(
+            chats = listOf(
+                Chat(id = "pin100", lastMessageTime = 900L, pinnedAt = 100L),
+                Chat(id = "pin300", lastMessageTime = 100L, pinnedAt = 300L)
+            )
+        )
+
+        assertEquals(listOf("pin300", "pin100"), state.filteredChats.map(Chat::id))
+    }
 }

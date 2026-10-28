@@ -117,4 +117,53 @@ class ChatListSettingsToggleTest {
         val targets = selectUnreadBatchTargets(chats, setOf("b"))
         assertEquals(listOf("b"), targets.ordinary.map { it.id })
     }
+
+    @Test
+    fun negativePinnedAtCountsAsUnpinned() {
+        val chat = Chat(id = "a", pinnedAt = -5, settingsUpdatedAt = 100)
+        val m = buildSettingsToggle(chat, ChatSettingsToggle.PIN, nowMs = 1000)
+        assertEquals(1000, m.optimistic.pinnedAt)
+        assertEquals(true, m.request.pinned)
+    }
+
+    @Test
+    fun muteOnMutedChatUnmutes() {
+        val chat = Chat(id = "a", notificationsMuted = true)
+        val m = buildSettingsToggle(chat, ChatSettingsToggle.MUTE, nowMs = 1000)
+        assertFalse(m.optimistic.notificationsMuted)
+        assertEquals(false, m.request.notificationsMuted)
+    }
+
+    @Test
+    fun markedUnreadOnMarkedChatClears() {
+        val chat = Chat(id = "a", markedUnread = true)
+        val m = buildSettingsToggle(chat, ChatSettingsToggle.MARKED_UNREAD, nowMs = 1000)
+        assertFalse(m.optimistic.markedUnread)
+        assertEquals(false, m.request.markedUnread)
+    }
+
+    @Test
+    fun confirmedMergeKeepsTimeAndUnreadFields() {
+        val optimistic = Chat(
+            id = "a", pinnedAt = 111, notificationsMuted = true,
+            archived = false, markedUnread = true, settingsUpdatedAt = 1000,
+            lastMessageTime = 777, unreadCount = 9
+        )
+        val confirmed = applyConfirmedSettings(
+            optimistic,
+            ChatSettingsResponse(
+                chatId = "a", pinnedAt = 222, notificationsMuted = false,
+                archived = true, markedUnread = false, updatedAt = 2000
+            )
+        )
+        assertEquals(777, confirmed.lastMessageTime)
+        assertEquals(9, confirmed.unreadCount)
+        assertEquals(2000, confirmed.settingsUpdatedAt)
+    }
+
+    @Test
+    fun clockTieGoesOnePast() {
+        val chat = Chat(id = "a", settingsUpdatedAt = 1000)
+        assertEquals(1001, bumpOptimisticSettingsClock(chat, nowMs = 1000).settingsUpdatedAt)
+    }
 }
