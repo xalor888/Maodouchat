@@ -94,4 +94,41 @@ class WebRTCStatsMathTest {
             assertTrue("$lost/$received 越界: $pct", pct in 0.0..100.0)
         }
     }
+
+    @Test
+    fun `scientific notation strings parse`() {
+        assertEquals(1000.0, readStatNumber("1e3"))
+        assertEquals(250.0, readStatNumber("2.5E2"))
+        assertEquals(0.01, readStatNumber("1E-2"))
+    }
+
+    @Test
+    fun `whitespace padded numeric strings still parse`() {
+        // JVM 的 toDoubleOrNull 经 Double.parseDouble 实现，首尾空白会被忽略
+        assertEquals(1.5, readStatNumber(" 1.5 "))
+        assertEquals(120.0, readStatNumber("120 "))
+        assertEquals(42.0, readStatNumber(" 42"))
+    }
+
+    @Test
+    fun `NaN and Infinity strings parse`() {
+        assertTrue(readStatNumber("NaN")!!.isNaN())
+        assertEquals(Double.POSITIVE_INFINITY, readStatNumber("Infinity"))
+        assertEquals(Double.NEGATIVE_INFINITY, readStatNumber("-Infinity"))
+    }
+
+    @Test
+    fun `non-positive total means null not a percentage`() {
+        assertNull(packetLossPercent(-10L, 5L))
+        assertNull(packetLossPercent(0L, -1L))
+        assertNull(packetLossPercent(-5L, -5L))
+    }
+
+    @Test
+    fun `overflowed total wraps to null`() {
+        // lost + received 按 Long 回绕成负数，总量判定随之落到 null 分支
+        assertNull(packetLossPercent(Long.MAX_VALUE, 1L))
+        assertNull(packetLossPercent(Long.MAX_VALUE, Long.MAX_VALUE))
+    }
+
 }
