@@ -54,4 +54,33 @@ class NotificationIntentPolicyTest {
         )
         assertNull(NotificationIntentPolicy.resolveOpenChatId("   "))
     }
+
+    @Test
+    fun `purge flag dominates regardless of id match`() {
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount("u1", "u2", true))
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount("u1", null, true))
+    }
+
+    @Test
+    fun `blank current user never matches even with a valid owner`() {
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount("u1", "   ", false))
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount("u1", "", false))
+    }
+
+    @Test
+    fun `resolveOpenChatId trims tabs and newlines`() {
+        assertEquals("chat-1", NotificationIntentPolicy.resolveOpenChatId("\t chat-1 \n"))
+        assertNull(NotificationIntentPolicy.resolveOpenChatId("\t \n"))
+    }
+
+    @Test
+    fun `resolveOpenChatId keeps inner tabs`() {
+        assertEquals("chat\t1", NotificationIntentPolicy.resolveOpenChatId("chat\t1"))
+    }
+
+    @Test
+    fun `resolveOpenChatId preserves case`() {
+        assertEquals("CHAT_1", NotificationIntentPolicy.resolveOpenChatId("  CHAT_1 "))
+    }
+
 }
