@@ -65,4 +65,42 @@ class MessageReminderPolicyTest {
         assertTrue(MessageReminderPolicy.MAX_DELAY_MS > MessageReminderPolicy.QUICK_DELAYS_MS.last())
         assertEquals(30L * 24L * 60L * 60L * 1_000L, MessageReminderPolicy.MAX_DELAY_MS)
     }
+
+    @Test
+    fun `minute presets are one five fifteen thirty`() {
+        assertEquals(
+            listOf(60_000L, 300_000L, 900_000L, 1_800_000L),
+            MessageReminderPolicy.QUICK_DELAYS_MS.take(4)
+        )
+    }
+
+    @Test
+    fun `hour presets run one two three four six twelve twenty-four`() {
+        val hour = 60L * 60L * 1_000L
+        assertEquals(
+            listOf(1L * hour, 2L * hour, 3L * hour, 4L * hour, 6L * hour, 12L * hour, 24L * hour),
+            MessageReminderPolicy.QUICK_DELAYS_MS.slice(4..10)
+        )
+    }
+
+    @Test
+    fun `every preset is a whole number of minutes`() {
+        MessageReminderPolicy.QUICK_DELAYS_MS.forEach { delay ->
+            assertEquals(0L, delay % MessageReminderPolicy.MIN_DELAY_MS)
+        }
+    }
+
+    @Test
+    fun `no preset falls between twenty-four hours and two days`() {
+        val hour = 60L * 60L * 1_000L
+        assertEquals(24L * hour, MessageReminderPolicy.QUICK_DELAYS_MS[10])
+        assertEquals(48L * hour, MessageReminderPolicy.QUICK_DELAYS_MS[11])
+        assertTrue(MessageReminderPolicy.QUICK_DELAYS_MS.none { it == 36L * hour })
+    }
+
+    @Test
+    fun `window bounds are exact multiples of one minute`() {
+        assertEquals(0L, MessageReminderPolicy.MAX_DELAY_MS % MessageReminderPolicy.MIN_DELAY_MS)
+        assertEquals(43_200L, MessageReminderPolicy.MAX_DELAY_MS / MessageReminderPolicy.MIN_DELAY_MS)
+    }
 }
