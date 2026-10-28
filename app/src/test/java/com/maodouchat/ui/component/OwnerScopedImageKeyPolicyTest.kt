@@ -27,4 +27,40 @@ class OwnerScopedImageKeyPolicyTest {
         val url = "file:///data/media.jpg"
         assertEquals(":$url", OwnerScopedImageKeys.formatKey("", url))
     }
+    @Test
+    fun `owner containing a colon is kept verbatim`() {
+        val url = "https://cdn.example/post/1.jpg"
+        assertEquals("a:b:$url", OwnerScopedImageKeys.formatKey("a:b", url))
+    }
+
+    @Test
+    fun `blank owner still prefixes when data is non-blank`() {
+        val url = "https://cdn.example/post/1.jpg"
+        assertEquals("   :$url", OwnerScopedImageKeys.formatKey("   ", url))
+    }
+
+    @Test
+    fun `padded data is not trimmed`() {
+        assertEquals("u1: url ", OwnerScopedImageKeys.formatKey("u1", " url "))
+    }
+
+    @Test
+    fun `query string in data is kept verbatim`() {
+        val url = "https://cdn.example/a.jpg?v=1&x=2"
+        assertEquals("u1:$url", OwnerScopedImageKeys.formatKey("u1", url))
+    }
+
+    @Test
+    fun `same owner and data is deterministic and data-sensitive`() {
+        val url = "https://cdn.example/post/1.jpg"
+        assertEquals(
+            OwnerScopedImageKeys.formatKey("u1", url),
+            OwnerScopedImageKeys.formatKey("u1", url),
+        )
+        assertNotEquals(
+            OwnerScopedImageKeys.formatKey("u1", url),
+            OwnerScopedImageKeys.formatKey("u1", "https://cdn.example/post/2.jpg"),
+        )
+    }
+
 }
