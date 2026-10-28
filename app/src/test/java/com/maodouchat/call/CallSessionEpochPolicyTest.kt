@@ -167,4 +167,63 @@ class CallSessionEpochPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `min long epoch handshake is safe`() {
+        // 只做比较不做算术：最小代 +1 不溢出。
+        assertTrue(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = Long.MIN_VALUE,
+                currentGenerationAtHangUp = Long.MIN_VALUE,
+                postInvalidateGeneration = Long.MIN_VALUE + 1L,
+            )
+        )
+    }
+
+    @Test
+    fun `huge post bump is safe`() {
+        assertTrue(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = 100L,
+                currentGenerationAtHangUp = 100L,
+                postInvalidateGeneration = Long.MAX_VALUE,
+            )
+        )
+    }
+
+    @Test
+    fun `unsafe decision is deterministic across repeated calls`() {
+        repeat(3) {
+            assertFalse(
+                CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                    hangUpGeneration = 3L,
+                    currentGenerationAtHangUp = 4L,
+                    postInvalidateGeneration = 5L,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `post at min long is unsafe`() {
+        assertFalse(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = 0L,
+                currentGenerationAtHangUp = 0L,
+                postInvalidateGeneration = Long.MIN_VALUE,
+            )
+        )
+    }
+
+    @Test
+    fun `both conditions failing together is unsafe`() {
+        // 挂断戳对不上活 VM，且 post 代也没超过挂断代：双失即不安全。
+        assertFalse(
+            CallSessionEpochPolicy.isHangUpThenInvalidateSafe(
+                hangUpGeneration = 3L,
+                currentGenerationAtHangUp = 4L,
+                postInvalidateGeneration = 3L,
+            )
+        )
+    }
 }

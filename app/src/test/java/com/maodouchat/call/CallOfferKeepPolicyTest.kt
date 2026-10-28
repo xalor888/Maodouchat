@@ -345,4 +345,77 @@ class CallOfferKeepPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `mixed case offer type is kept`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "Offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - 1_000L,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `candidate type is never kept as incoming offer`() {
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "candidate",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `blank id still loses to a stale timestamp`() {
+        // 空白 id 只豁免终止集匹配，不豁免新鲜度窗口。
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "",
+                terminatedCallIds = emptySet(),
+                timestampMillis = now - IncomingCallCoordinator.STALE_MS - 1L,
+                nowMillis = now
+            )
+        )
+    }
+
+    @Test
+    fun `negative timestamp is kept despite negative window`() {
+        // 时间戳未知先于窗口判定：负时间戳恒放行，不看窗口正负。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = emptySet(),
+                timestampMillis = -5L,
+                nowMillis = now,
+                maxAgeMs = -1L
+            )
+        )
+    }
+
+    @Test
+    fun `terminated set of only blank entries does not drop`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "call-a",
+                terminatedCallIds = setOf("", "   "),
+                timestampMillis = now - 1_000L,
+                nowMillis = now
+            )
+        )
+    }
 }
