@@ -93,4 +93,65 @@ class WebRTCIcePolicyTest {
         )
         assertTrue(CallIceServer.isStunOnly(emptyList()))
     }
+    @Test
+    fun `degenerate non-empty configuration is not replaced by fallback`() {
+        // ifEmpty 只看列表是否为空：哪怕服务器本身没有 url，也不回落
+        val configured = listOf(CallIceServer(emptyList(), "u", "p"))
+        val resolved = resolveIceServers(configured)
+        assertSame(configured, resolved)
+        assertEquals(1, resolved.size)
+        assertTrue(resolved.single().urls.isEmpty())
+        assertEquals("u", resolved.single().username)
+    }
+
+    @Test
+    fun `fallback stun server carries no credentials`() {
+        val server = resolveIceServers(emptyList()).single()
+        assertEquals("", server.username)
+        assertEquals("", server.credential)
+    }
+
+    @Test
+    fun `configured server order is preserved across stun turn and turns`() {
+        val configured = listOf(
+            CallIceServer(listOf("stun:stun.example.com"), "", ""),
+            CallIceServer(listOf("turn:turn.example.com:3478"), "u", "p"),
+            CallIceServer(listOf("turns:turn.example.com:5349"), "u2", "p2"),
+        )
+        val resolved = resolveIceServers(configured)
+        assertEquals(
+            listOf(
+                "stun:stun.example.com",
+                "turn:turn.example.com:3478",
+                "turns:turn.example.com:5349",
+            ),
+            resolved.flatMap { it.urls },
+        )
+        assertFalse(CallIceServer.isStunOnly(resolved))
+    }
+
+    @Test
+    fun `fallback server element is a fresh instance on each call`() {
+        assertNotSame(
+            resolveIceServers(emptyList()).single(),
+            resolveIceServers(emptyList()).single(),
+        )
+        assertEquals(
+            resolveIceServers(emptyList()).single(),
+            resolveIceServers(emptyList()).single(),
+        )
+    }
+
+    @Test
+    fun `only turn and turns schemes disqualify stun only`() {
+        assertTrue(
+            CallIceServer.isStunOnly(
+                listOf(
+                    CallIceServer(listOf("stuns:stun.example.com:443"), "", ""),
+                    CallIceServer(listOf("turnserver.example.com"), "", ""),
+                )
+            )
+        )
+    }
+
 }

@@ -207,4 +207,60 @@ class CallReliabilityPolicyTest {
         assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.DISCONNECTED))
         assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.BUSY))
     }
+    @Test
+    fun `hang-up action with both ids blank passes exact equality`() {
+        // 挂断要求精确相等，空白 == 空白也算相等（与初始信令的放行语义不同）
+        assertTrue(CallReliabilityPolicy.shouldAcceptHangUpAction("", ""))
+    }
+
+    @Test
+    fun `disconnected and connected grace ignore restart attempts`() {
+        assertEquals(
+            IceReconnectAction.START_GRACE,
+            CallReliabilityPolicy.iceReconnectAction("DISCONNECTED", restartAttempts = 99)
+        )
+        assertEquals(
+            IceReconnectAction.CANCEL_GRACE,
+            CallReliabilityPolicy.iceReconnectAction("connected", restartAttempts = 99)
+        )
+        assertEquals(
+            IceReconnectAction.CANCEL_GRACE,
+            CallReliabilityPolicy.iceReconnectAction("COMPLETED", restartAttempts = 5)
+        )
+    }
+
+    @Test
+    fun `ice state with surrounding whitespace is not recognized`() {
+        // 状态只做 uppercase，不 trim：带空白的状态落到 IGNORE
+        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction(" disconnected "))
+        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction("failed "))
+        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction(""))
+    }
+
+    @Test
+    fun `whitespace-only sender is rejected even for group calls`() {
+        assertFalse(CallReliabilityPolicy.shouldAcceptSignal(true, "user-a", "   "))
+        assertFalse(CallReliabilityPolicy.shouldAcceptSignal(false, "", "   "))
+        assertFalse(CallReliabilityPolicy.shouldAcceptSignal(true, "", "   "))
+    }
+
+    @Test
+    fun `group metadata blank active id accepts and member sets compare as sets`() {
+        assertTrue(
+            GroupCallPolicy.shouldAcceptMetadata(
+                "", "group-b", listOf("a"), listOf("x", "y")
+            )
+        )
+        assertTrue(
+            GroupCallPolicy.shouldAcceptMetadata(
+                "group-a", "group-a", listOf("a", "a", "b"), listOf("b", "a")
+            )
+        )
+        assertFalse(
+            GroupCallPolicy.shouldAcceptMetadata(
+                "group-a", "group-a", listOf("a", "b"), listOf("a")
+            )
+        )
+    }
+
 }
