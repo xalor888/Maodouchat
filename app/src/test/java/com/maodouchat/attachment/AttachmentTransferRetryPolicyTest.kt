@@ -293,4 +293,71 @@ class AttachmentTransferRetryPolicyTest {
         )
     }
 
+    @Test
+    fun acceptedDuplicateIgnoresStatusCode() {
+        val serverError = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 500,
+            serverCode = "MESSAGE_ALREADY_ACCEPTED"
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(serverError))
+        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(serverError))
+        val okStatus = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 200,
+            serverCode = "MESSAGE_ALREADY_ACCEPTED"
+        )
+        assertTrue(AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(okStatus))
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(okStatus))
+    }
+
+    @Test
+    fun emptyAndBlankAcceptedCodeAreNotDuplicate() {
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.HTTP, serverCode = "")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(
+                ApiException(ApiFailureKind.HTTP, serverCode = "   ")
+            )
+        )
+    }
+
+    @Test
+    fun uploadKeywordWithoutAttachmentIsNotConflict() {
+        val err = ApiException(
+            ApiFailureKind.HTTP,
+            statusCode = 409,
+            serverMessage = "upload pending"
+        )
+        assertFalse(AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(err))
+        assertFalse(AttachmentSendAfterUploadPolicy.isRetryable(err))
+    }
+
+    @Test
+    fun transientNameMatchingForSignalExceptionNames() {
+        class StaleKeyException : RuntimeException()
+        class NoSessionException : RuntimeException()
+        class SessionException : RuntimeException()
+        assertTrue(AttachmentSendAfterUploadPolicy.isTransientCryptoError(StaleKeyException()))
+        assertTrue(AttachmentSendAfterUploadPolicy.isTransientCryptoError(NoSessionException()))
+        assertFalse(AttachmentSendAfterUploadPolicy.isTransientCryptoError(SessionException()))
+    }
+
+    @Test
+    fun http502IsRetryableWhile498IsNot() {
+        assertTrue(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 502, serverMessage = "bad gateway")
+            )
+        )
+        assertFalse(
+            AttachmentSendAfterUploadPolicy.isRetryable(
+                ApiException(ApiFailureKind.HTTP, statusCode = 498, serverMessage = "client closed")
+            )
+        )
+    }
+
 }
