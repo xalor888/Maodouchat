@@ -57,4 +57,35 @@ class SettingsVisibilityPolicyTest {
     fun `the recognised set is exactly the three protocol values`() {
         assertEquals(setOf("PUBLIC", "CONTACTS", "PRIVATE"), VISIBILITY_VALUES)
     }
+
+    @Test
+    fun `whitespace-only values fall back in both directions`() {
+        assertEquals("PRIVATE", normalizeVisibility("   ", "PRIVATE"))
+        assertEquals("PUBLIC", normalizeVisibility("\t", "PUBLIC"))
+    }
+
+    @Test
+    fun `fallback is returned verbatim even when it is not a known value`() {
+        assertEquals("CONTACTS", normalizeVisibility("WEIRD", "CONTACTS"))
+        assertEquals("CUSTOM", normalizeVisibility("WEIRD", "CUSTOM"))
+    }
+
+    @Test
+    fun `padded known values are not recognised`() {
+        assertEquals("PRIVATE", normalizeVisibility(" PUBLIC", "PRIVATE"))
+        assertEquals("PRIVATE", normalizeVisibility("PUBLIC ", "PRIVATE"))
+        assertEquals("PUBLIC", normalizeVisibility(" CONTACTS", "PUBLIC"))
+    }
+
+    @Test
+    fun `empty fallback is returned as-is for unknown values`() {
+        assertEquals("", normalizeVisibility("X", ""))
+    }
+
+    @Test
+    fun `near-miss values fall back`() {
+        assertEquals("PRIVATE", normalizeVisibility("PUBLIC1", "PRIVATE"))
+        assertEquals("PUBLIC", normalizeVisibility("PUBLICS", "PUBLIC"))
+        assertEquals("PRIVATE", normalizeVisibility("CONTACT", "PRIVATE"))
+    }
 }

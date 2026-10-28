@@ -55,4 +55,34 @@ class TypingSessionPolicyTest {
         repeat(10) { assertFalse(TypingSessionPolicy.shouldAnnounceStart("c1", "c1")) }
         repeat(10) { assertTrue(TypingSessionPolicy.shouldAnnounceStart("c2", "c1")) }
     }
+
+    @Test
+    fun `whitespace-only owner never emits`() {
+        assertFalse(TypingSessionPolicy.mayEmit("   ", "t", "   "))
+        assertFalse(TypingSessionPolicy.mayEmit("", "t", "u1"))
+    }
+
+    @Test
+    fun `owner with internal spaces is not the me placeholder`() {
+        assertTrue(TypingSessionPolicy.mayEmit("m e", "t", "m e"))
+        assertTrue(TypingSessionPolicy.mayEmit("me2", "t", "me2"))
+    }
+
+    @Test
+    fun `announce start compares chat ids without trimming`() {
+        assertTrue(TypingSessionPolicy.shouldAnnounceStart(" c1 ", "c1"))
+        assertFalse(TypingSessionPolicy.shouldAnnounceStart(" c1 ", " c1 "))
+    }
+
+    @Test
+    fun `announce start still announces when already announced is blank`() {
+        assertTrue(TypingSessionPolicy.shouldAnnounceStart("c1", ""))
+        assertTrue(TypingSessionPolicy.shouldAnnounceStart("c1", "   "))
+    }
+
+    @Test
+    fun `emit requires the live id to match the trimmed owner exactly`() {
+        assertFalse(TypingSessionPolicy.mayEmit(" u1 ", "t", " u1 "))
+        assertFalse(TypingSessionPolicy.mayEmit("u1", "t", "u1 "))
+    }
 }
