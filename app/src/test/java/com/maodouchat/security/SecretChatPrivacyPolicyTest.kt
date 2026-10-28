@@ -156,4 +156,84 @@ class SecretChatPrivacyPolicyTest {
             SecretChatStateMachine.onDestroy(SecretChatState.DESTROYED)
         )
     }
+
+    @Test
+    fun `privacy decision truth table covers all four capability combinations`() {
+        val allAllowed = mapOf(
+            PrivacyAction.SEARCH to true,
+            PrivacyAction.FORWARD to true,
+            PrivacyAction.EXPORT to true,
+            PrivacyAction.AI to true,
+            PrivacyAction.SCREENSHOT to true,
+            PrivacyAction.NOTIFICATION_PREVIEW to true
+        )
+        val lockedOnly = allAllowed + (PrivacyAction.SEARCH to false)
+        val allDenied = allAllowed.mapValues { false }
+        listOf(
+            Triple(false, false, allAllowed),
+            Triple(false, true, lockedOnly),
+            Triple(true, false, allDenied),
+            Triple(true, true, allDenied)
+        ).forEach { (isSecret, isLocked, expected) ->
+            val caps = ConversationPrivacyCapabilities(isSecretChat = isSecret, isLocked = isLocked)
+            expected.forEach { (action, verdict) ->
+                assertEquals(
+                    "$isSecret/$isLocked/$action",
+                    verdict,
+                    ConversationPrivacyPolicy.allows(caps, action)
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `state machine full transition table`() {
+        listOf(true, false).forEach { hasTimer ->
+            val expectedActive = if (hasTimer) SecretChatState.ARMED else SecretChatState.ACTIVE
+            assertEquals(expectedActive, SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer))
+            assertEquals(SecretChatState.ARMED, SecretChatStateMachine.onRead(SecretChatState.ARMED, hasTimer))
+            assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onRead(SecretChatState.EXPIRING, hasTimer))
+            assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onRead(SecretChatState.DESTROYED, hasTimer))
+        }
+        assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onExpiry(SecretChatState.ARMED))
+        assertEquals(SecretChatState.ACTIVE, SecretChatStateMachine.onExpiry(SecretChatState.ACTIVE))
+        assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onExpiry(SecretChatState.EXPIRING))
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onExpiry(SecretChatState.DESTROYED))
+        SecretChatState.values().forEach { state ->
+            assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onDestroy(state))
+        }
+    }
+
+    @Test
+    fun `capabilities equality is value based`() {
+        assertEquals(
+            ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false),
+            ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false)
+        )
+        assertFalse(
+            ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false) ==
+                ConversationPrivacyCapabilities(isSecretChat = false, isLocked = false)
+        )
+        assertEquals(
+            ConversationPrivacyCapabilities(isSecretChat = true, isLocked = true),
+            ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false).copy(isLocked = true)
+        )
+    }
+
+    @Test
+    fun `destroyed state ignores every transition`() {
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onRead(SecretChatState.DESTROYED, true))
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onRead(SecretChatState.DESTROYED, false))
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onExpiry(SecretChatState.DESTROYED))
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onDestroy(SecretChatState.DESTROYED))
+    }
+
+    @Test
+    fun `expiring state is terminal except destroy`() {
+        assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onRead(SecretChatState.EXPIRING, true))
+        assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onRead(SecretChatState.EXPIRING, false))
+        assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onExpiry(SecretChatState.EXPIRING))
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onDestroy(SecretChatState.EXPIRING))
+    }
+
 }

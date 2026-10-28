@@ -122,4 +122,67 @@ class AccountIsolationPolicyTest {
             AccountIsolationPolicy.draftPrimaryKey("u2", "chat-9")
         )
     }
+
+    @Test
+    fun `both blank accounts keep local store`() {
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount(null, null)
+        )
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount("", "")
+        )
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount("  ", " ")
+        )
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount(null, "   ")
+        )
+    }
+
+    @Test
+    fun `owned rows reject every blank side combination`() {
+        listOf<String?>(null, "", "  ").forEach { session ->
+            listOf<String?>(null, "", "  ").forEach { owner ->
+                assertFalse(AccountIsolationPolicy.acceptsOwnedRow(session, owner))
+            }
+        }
+        assertFalse(AccountIsolationPolicy.acceptsOwnedRow(null, "u1"))
+        assertFalse(AccountIsolationPolicy.acceptsOwnedRow("u1", null))
+    }
+
+    @Test
+    fun `preference key keeps base and user verbatim without trimming`() {
+        assertEquals(" items :alice", AccountIsolationPolicy.preferenceKey(" items ", "alice"))
+        assertEquals("items: alice ", AccountIsolationPolicy.preferenceKey("items", " alice "))
+        assertNotEquals(
+            AccountIsolationPolicy.preferenceKey("items", "alice"),
+            AccountIsolationPolicy.preferenceKey("items", "alice ")
+        )
+    }
+
+    @Test
+    fun `draft primary key keeps owner and chat verbatim without trimming`() {
+        assertEquals(" u1 " to "chat-9", AccountIsolationPolicy.draftPrimaryKey(" u1 ", "chat-9"))
+        assertNotEquals(
+            AccountIsolationPolicy.draftPrimaryKey("u1", "chat-9"),
+            AccountIsolationPolicy.draftPrimaryKey(" u1 ", "chat-9")
+        )
+    }
+
+    @Test
+    fun `padded different accounts still purge`() {
+        assertEquals(
+            AccountSwitchAction.PURGE_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount(" user-a ", " user-b ")
+        )
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount(" user-a ", " user-a ")
+        )
+    }
+
 }

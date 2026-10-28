@@ -139,4 +139,72 @@ class LogoutStorePolicyTest {
             AccountIsolationPolicy.onLoginAccount(previous, next)
         )
     }
+
+    @Test
+    fun keepAndDestroyReasonsPartitionAllFiveEntries() {
+        val keep = Reason.entries.filter { !LogoutStorePolicy.destroyEncryptedDatabase(it) }
+        val destroy = Reason.entries.filter { LogoutStorePolicy.destroyEncryptedDatabase(it) }
+        assertEquals(
+            listOf(Reason.LOGOUT, Reason.TOKEN_EXPIRED),
+            keep
+        )
+        assertEquals(
+            listOf(Reason.ACCOUNT_SWITCH, Reason.DELETE_ACCOUNT, Reason.TRUST_DOMAIN_CHANGE),
+            destroy
+        )
+        assertTrue(keep.intersect(destroy.toSet()).isEmpty())
+        assertEquals(5, keep.size + destroy.size)
+    }
+
+    @Test
+    fun wipeSurfacesAgreeWithEachOtherForEveryReason() {
+        Reason.entries.forEach { reason ->
+            val surfaces = listOf(
+                LogoutStorePolicy.wipeOrdinaryMediaCache(reason),
+                LogoutStorePolicy.wipeCoilDiskCache(reason),
+                LogoutStorePolicy.wipeInFlightAttachmentTransfers(reason),
+                LogoutStorePolicy.cancelSenderKeyRetryWork(reason)
+            )
+            assertEquals(reason.name, 1, surfaces.distinct().size)
+        }
+    }
+
+    @Test
+    fun logoutPolicyAgreesWithAccountSwitchPolicy() {
+        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(Reason.LOGOUT))
+        assertEqualsKeep("user-a", "user-a")
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.ACCOUNT_SWITCH))
+        assertEqualsPurge("user-a", "user-b")
+    }
+
+    @Test
+    fun reasonEntriesKeepDeclarationOrder() {
+        assertEquals(
+            listOf(
+                Reason.LOGOUT,
+                Reason.TOKEN_EXPIRED,
+                Reason.ACCOUNT_SWITCH,
+                Reason.DELETE_ACCOUNT,
+                Reason.TRUST_DOMAIN_CHANGE
+            ),
+            Reason.entries.toList()
+        )
+        assertEquals(0, Reason.LOGOUT.ordinal)
+        assertEquals(4, Reason.TRUST_DOMAIN_CHANGE.ordinal)
+    }
+
+    @Test
+    fun destroyVerdictDoesNotDependOnCallOrder() {
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.DELETE_ACCOUNT))
+        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(Reason.LOGOUT))
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.ACCOUNT_SWITCH))
+        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(Reason.TOKEN_EXPIRED))
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.TRUST_DOMAIN_CHANGE))
+        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(Reason.TOKEN_EXPIRED))
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.TRUST_DOMAIN_CHANGE))
+        assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(Reason.LOGOUT))
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.ACCOUNT_SWITCH))
+        assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.DELETE_ACCOUNT))
+    }
+
 }
