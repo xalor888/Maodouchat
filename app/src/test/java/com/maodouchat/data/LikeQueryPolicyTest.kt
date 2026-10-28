@@ -67,4 +67,31 @@ class LikeQueryPolicyTest {
         )
     }
 
+    @Test
+    fun containsBlankWhitespaceVariantsReturnEmpty() {
+        assertEquals("", LikeQueryPolicy.escapeForContains("\t"))
+        assertEquals("", LikeQueryPolicy.escapeForContains("\n"))
+        assertEquals("", LikeQueryPolicy.escapeForContains(" \t\n "))
+    }
+
+    @Test
+    fun containsLeavesOtherPunctuationUntouched() {
+        assertEquals("a-b!c@d", LikeQueryPolicy.escapeForContains("a-b!c@d"))
+    }
+
+    @Test
+    fun prefixEscapesRepeatedWildcards() {
+        assertEquals("\\%\\_\\%", LikeQueryPolicy.escapeForPrefix("%_%"))
+    }
+
+    @Test
+    fun containsDoubleEscapesAlreadyEscapedInput() {
+        assertEquals("\\\\\\%", LikeQueryPolicy.escapeForContains("\\%"))
+    }
+
+    @Test
+    fun prefixKeepsUnicodeVerbatimExceptSpecials() {
+        assertEquals("用户\\_123\\%", LikeQueryPolicy.escapeForPrefix("用户_123%"))
+    }
+
 }

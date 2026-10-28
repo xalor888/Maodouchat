@@ -72,4 +72,37 @@ class GroupMutePolicyTest {
         assertEquals(604_800_000L, Preset.DAYS_7.durationMs)
     }
 
+    @Test
+    fun remainingPresetDurationsAreExact() {
+        assertEquals(10_800_000L, Preset.HOURS_3.durationMs)
+        assertEquals(21_600_000L, Preset.HOURS_6.durationMs)
+        assertEquals(GroupMutePolicy.MAX_MUTE_MS, Preset.DAYS_30.durationMs)
+    }
+
+    @Test
+    fun mutedUntilFromZeroEqualsEachDuration() {
+        GroupMutePolicy.presets.forEach { preset ->
+            assertEquals(preset.durationMs, GroupMutePolicy.mutedUntil(0L, preset))
+        }
+    }
+
+    @Test
+    fun maxMuteConstantIsThirtyDays() {
+        assertEquals(30L * 24L * 60L * 60L * 1_000L, GroupMutePolicy.MAX_MUTE_MS)
+        assertEquals(2_592_000_000L, GroupMutePolicy.MAX_MUTE_MS)
+    }
+
+    @Test
+    fun clearedMuteIsInactiveAtNonNegativeNow() {
+        assertEquals(0L, GroupMutePolicy.clearMuteUntil())
+        assertFalse(GroupMutePolicy.isActiveMute(GroupMutePolicy.clearMuteUntil(), 0L))
+        assertFalse(GroupMutePolicy.isActiveMute(GroupMutePolicy.clearMuteUntil(), 5_000_000L))
+        assertFalse(GroupMutePolicy.isActiveMute(GroupMutePolicy.clearMuteUntil(), Long.MAX_VALUE))
+    }
+
+    @Test
+    fun presetsListEqualsPresetEntries() {
+        assertEquals(Preset.entries, GroupMutePolicy.presets)
+    }
+
 }
