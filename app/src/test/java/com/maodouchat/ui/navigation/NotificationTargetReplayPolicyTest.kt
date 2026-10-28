@@ -152,4 +152,70 @@ class NotificationTargetReplayPolicyTest {
             decision,
         )
     }
+
+    @Test
+    fun generationMismatchDropsEvenWhenReadyAndOwnerMatches() {
+        val decision = NotificationTargetReplayPolicy.evaluate(
+            target = chat(gen = 1L),
+            isLoggedIn = true,
+            currentRoute = "main",
+            loginRoute = loginRoute,
+            liveSessionGeneration = 2L,
+            liveUserId = "u1",
+        )
+        assertIs<NotificationTargetReplayDecision.Drop>(decision)
+    }
+
+    @Test
+    fun groupInviteNavigatesWhenReadyDespiteOwnerMismatch() {
+        val decision = NotificationTargetReplayPolicy.evaluate(
+            target = NotificationTarget.GroupInvite("tok", 1L, ""),
+            isLoggedIn = true,
+            currentRoute = "main",
+            loginRoute = loginRoute,
+            liveSessionGeneration = 1L,
+            liveUserId = "u2",
+        )
+        assertIs<NotificationTargetReplayDecision.Navigate>(decision)
+    }
+
+    @Test
+    fun blankLiveUserIdWhileWaitingDoesNotDrop() {
+        val decision = NotificationTargetReplayPolicy.evaluate(
+            target = chat(owner = "u1"),
+            isLoggedIn = false,
+            currentRoute = null,
+            loginRoute = loginRoute,
+            liveSessionGeneration = 1L,
+            liveUserId = "   ",
+        )
+        assertIs<NotificationTargetReplayDecision.ContinueWaiting>(decision)
+    }
+
+    @Test
+    fun loggedInButNullRouteStillWaits() {
+        val decision = NotificationTargetReplayPolicy.evaluate(
+            target = chat(owner = "u1"),
+            isLoggedIn = true,
+            currentRoute = null,
+            loginRoute = loginRoute,
+            liveSessionGeneration = 1L,
+            liveUserId = "u1",
+        )
+        assertIs<NotificationTargetReplayDecision.ContinueWaiting>(decision)
+    }
+
+    @Test
+    fun readyChatWithNullLiveUserDropsOnOwnerMismatch() {
+        val decision = NotificationTargetReplayPolicy.evaluate(
+            target = chat(owner = "u1"),
+            isLoggedIn = true,
+            currentRoute = "main",
+            loginRoute = loginRoute,
+            liveSessionGeneration = 1L,
+            liveUserId = null,
+        )
+        assertIs<NotificationTargetReplayDecision.Drop>(decision)
+    }
+
 }
