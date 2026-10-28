@@ -78,4 +78,44 @@ class QuickPhrasePolicyTest {
         assertEquals(listOf("a", "b"), result)
         assertEquals(listOf("a"), base)
     }
+
+    @Test
+    fun `length limit applies after trimming`() {
+        val paddedExact = " " + "a".repeat(QuickPhrasePolicy.MAX_PHRASE_LENGTH) + " "
+        assertTrue(QuickPhrasePolicy.isAddable(emptyList(), paddedExact))
+        assertEquals(
+            listOf("a".repeat(QuickPhrasePolicy.MAX_PHRASE_LENGTH)),
+            QuickPhrasePolicy.add(emptyList(), paddedExact),
+        )
+        val paddedOver = " " + "a".repeat(QuickPhrasePolicy.MAX_PHRASE_LENGTH + 1) + " "
+        assertFalse(QuickPhrasePolicy.isAddable(emptyList(), paddedOver))
+    }
+
+    @Test
+    fun `remove drops every duplicate occurrence`() {
+        assertEquals(listOf("b"), QuickPhrasePolicy.remove(listOf("a", "b", "a"), "a"))
+    }
+
+    @Test
+    fun `capacity boundary admits the fortieth phrase only`() {
+        val almostFull = List(QuickPhrasePolicy.MAX_PHRASES - 1) { "p$it" }
+        val full = QuickPhrasePolicy.add(almostFull, "last")
+        assertEquals(QuickPhrasePolicy.MAX_PHRASES, full.size)
+        assertFalse(QuickPhrasePolicy.isAddable(full, "overflow"))
+        assertEquals(full, QuickPhrasePolicy.add(full, "overflow"))
+    }
+
+    @Test
+    fun `default phrases are exactly eight and each is addable`() {
+        assertEquals(8, QuickPhrasePolicy.DEFAULT_PHRASES.size)
+        QuickPhrasePolicy.DEFAULT_PHRASES.forEach { phrase ->
+            assertTrue(QuickPhrasePolicy.isAddable(emptyList(), phrase))
+        }
+    }
+
+    @Test
+    fun `add trims ends but keeps inner spaces`() {
+        assertEquals(listOf("hello world"), QuickPhrasePolicy.add(emptyList(), "  hello world  "))
+    }
+
 }

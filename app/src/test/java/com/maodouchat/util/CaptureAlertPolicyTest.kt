@@ -90,4 +90,43 @@ class CaptureAlertPolicyTest {
                 CaptureAlertPolicy.format("Alice", "screenrecord"),
         )
     }
+
+    @Test
+    fun `kind with surrounding whitespace is trimmed`() {
+        val alert = CaptureAlertPolicy.format("Alice", "  screenrecord  ")
+        val parsed = CaptureAlertPolicy.parse(alert)
+        assertEquals("screenrecord", parsed?.first)
+        assertTrue(alert.contains("screenrecord|"))
+    }
+
+    @Test
+    fun `exactly 32 char label is kept whole`() {
+        val label = "x".repeat(32)
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.format(label, "screenshot"))
+        assertEquals("$label took a screenshot (privacy alert)", parsed?.second)
+    }
+
+    @Test
+    fun `parse without pipe returns body as message`() {
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.PREFIX + "screenshot")
+        assertEquals("screenshot", parsed?.first)
+        assertEquals("screenshot", parsed?.second)
+    }
+
+    @Test
+    fun `parse of kind plus trailing pipe yields empty message`() {
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.PREFIX + "screenshot|")
+        assertEquals("screenshot", parsed?.first)
+        assertEquals("", parsed?.second)
+    }
+
+    @Test
+    fun `default kind applies and prefix check is case sensitive`() {
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.format("Alice"))
+        assertEquals("screenshot", parsed?.first)
+        assertNull(CaptureAlertPolicy.parse("capture_alert:x"))
+        assertFalse(CaptureAlertPolicy.isCaptureAlert("capture_alert:x"))
+        assertTrue(CaptureAlertPolicy.isCaptureAlert(CaptureAlertPolicy.PREFIX))
+    }
+
 }
