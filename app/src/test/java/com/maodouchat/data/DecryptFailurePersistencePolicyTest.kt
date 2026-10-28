@@ -103,4 +103,53 @@ class DecryptFailurePersistencePolicyTest {
         timestamp = 1L,
         status = MessageStatus.SENT
     )
+
+    @Test
+    fun `blank content is never readable plaintext`() {
+        val readable = base("m1").copy(content = "hello")
+        val blank = base("m1").copy(content = "   ")
+        assertEquals("hello", mergeMessageForPersistence(readable, blank).content)
+        assertEquals("hello", mergeMessageForPersistence(blank, readable).content)
+        val blank2 = base("m1").copy(content = "")
+        assertEquals("", mergeMessageForPersistence(blank, blank2).content)
+    }
+
+    @Test
+    fun `eyJ prefixed content is never readable plaintext`() {
+        val readable = base("m1").copy(content = "hello")
+        val encoded = base("m1").copy(content = "eyJhbGciOiJIUzI1NiJ9")
+        assertEquals("hello", mergeMessageForPersistence(readable, encoded).content)
+        assertEquals("hello", mergeMessageForPersistence(encoded, readable).content)
+    }
+
+    @Test
+    fun `MD prefixed content is never readable plaintext`() {
+        val readable = base("m1").copy(content = "hello")
+        val md = base("m1").copy(content = "MD:dist-payload")
+        assertEquals("hello", mergeMessageForPersistence(readable, md).content)
+        assertEquals("hello", mergeMessageForPersistence(md, readable).content)
+    }
+
+    @Test
+    fun `bracketed legacy placeholders lose to readable plaintext`() {
+        val readable = base("m1").copy(content = "hello")
+        listOf("[\u65e0\u6cd5\u89e3\u5bc6\u7684\u56fe\u7247]", "[unable to decrypt file]", "\u89e3\u5bc6\u5931\u8d25").forEach { placeholder ->
+            val ph = base("m1").copy(content = placeholder)
+            assertEquals("hello", mergeMessageForPersistence(readable, ph).content)
+            assertEquals("hello", mergeMessageForPersistence(ph, readable).content)
+        }
+    }
+
+    @Test
+    fun `near placeholder user text with extra words stays readable`() {
+        val nearMiss = base("m1").copy(content = "\u65e0\u6cd5\u89e3\u5bc6\uff0c\u8bf7\u91cd\u8bd5")
+        val placeholder = base("m1").copy(content = "\u65e0\u6cd5\u89e3\u5bc6")
+        assertEquals(nearMiss.content, mergeMessageForPersistence(nearMiss, placeholder).content)
+        assertEquals(nearMiss.content, mergeMessageForPersistence(placeholder, nearMiss).content)
+        val bang = base("m1").copy(content = "decrypt failed!")
+        val exact = base("m1").copy(content = "decrypt failed")
+        assertEquals("decrypt failed!", mergeMessageForPersistence(bang, exact).content)
+        assertEquals("decrypt failed!", mergeMessageForPersistence(exact, bang).content)
+    }
+
 }
