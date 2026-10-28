@@ -163,4 +163,55 @@ class CallLockScreenFlagPolicyTest {
             )
         )
     }
+
+    @Test
+    fun zeroWidthSpaceIdKeepsEnabled() {
+        // U+200B 是格式字符而非空白：isBlank 不认它，id 非空即点亮。
+        assertTrue(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\u200B",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun emojiIdKeepsEnabled() {
+        assertTrue(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "📞",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun carriageReturnOnlyIdDisablesFlags() {
+        assertFalse(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\r",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun longIdKeepsEnabled() {
+        assertTrue(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "c".repeat(500),
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun verticalTabOnlyIdDisablesFlags() {
+        assertFalse(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\u000B",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
 }
