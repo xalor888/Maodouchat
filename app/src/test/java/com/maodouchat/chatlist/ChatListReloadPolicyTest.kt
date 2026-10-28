@@ -119,4 +119,30 @@ class ChatListReloadPolicyTest {
         assertEquals(Mode.values().toSet(), reached)
     }
 
+    @Test
+    fun visibleModeHasNoDebounceOnForeground() {
+        assertEquals(0L, ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_VISIBLE, Trigger.FOREGROUND))
+    }
+
+    @Test
+    fun immediateSilentHasNoDebounceOnGroupRevision() {
+        assertEquals(0L, ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_SILENT, Trigger.GROUP_REVISION))
+    }
+
+    @Test
+    fun debouncedSilentKeepsDefaultOnInitialAndGroupRevision() {
+        assertEquals(ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS, ChatListReloadPolicy.debounceMs(Mode.DEBOUNCED_SILENT, Trigger.INITIAL))
+        assertEquals(ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS, ChatListReloadPolicy.debounceMs(Mode.DEBOUNCED_SILENT, Trigger.GROUP_REVISION))
+    }
+
+    @Test
+    fun reconnectDebounceAppliesToSilentModeToo() {
+        assertEquals(ChatListReloadPolicy.RECONNECT_DEBOUNCE_MS, ChatListReloadPolicy.debounceMs(Mode.IMMEDIATE_SILENT, Trigger.RECONNECT))
+    }
+
+    @Test
+    fun reconnectDebounceIsExactlyTwiceDefault() {
+        assertEquals(2 * ChatListReloadPolicy.DEFAULT_DEBOUNCE_MS, ChatListReloadPolicy.RECONNECT_DEBOUNCE_MS)
+    }
+
 }
