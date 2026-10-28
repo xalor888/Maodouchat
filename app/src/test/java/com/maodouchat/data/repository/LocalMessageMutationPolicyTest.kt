@@ -55,6 +55,74 @@ class LocalMessageMutationPolicyTest {
         assertEquals(emptyList(), applied.reactions)
     }
 
+    @Test
+    fun `edit and revoke reject mismatched ids`() {
+        assertNull(
+            applyEditedMessageVersion(
+                existing = message(editedAt = 20L),
+                candidate = message(content = "edited", editedAt = 30L).copy(id = "m2"),
+            ),
+        )
+        assertNull(
+            applyRevokedMessageVersion(
+                existing = message(editedAt = 20L),
+                candidate = message(type = MessageType.REVOKED, editedAt = 30L).copy(id = "m2"),
+            ),
+        )
+    }
+
+    @Test
+    fun `edit without a revision is rejected`() {
+        assertNull(
+            applyEditedMessageVersion(
+                existing = message(editedAt = 20L),
+                candidate = message(content = "edited", editedAt = null),
+            ),
+        )
+    }
+
+    @Test
+    fun `edit applies against an unedited message`() {
+        val applied = applyEditedMessageVersion(
+            existing = message(content = "old", editedAt = null),
+            candidate = message(content = "new", editedAt = 5L),
+        )!!
+        assertEquals("new", applied.content)
+        assertEquals(5L, applied.editedAt)
+    }
+
+    @Test
+    fun `equal revision and equal content keep the existing row`() {
+        val existing = message(content = "same", editedAt = 20L).copy(
+            meta = com.maodouchat.data.model.MessageMeta(replyToId = "r1"),
+        )
+        val candidate = message(content = "same", editedAt = 20L).copy(
+            meta = com.maodouchat.data.model.MessageMeta(replyToId = "r2"),
+        )
+        val applied = applyEditedMessageVersion(existing, candidate)!!
+        assertEquals(existing, applied)
+        assertEquals("r1", applied.meta.replyToId)
+    }
+
+    @Test
+    fun `revoke against a revoked row keeps the newer row`() {
+        val existing = message(content = "gone", type = MessageType.REVOKED, editedAt = 30L)
+        assertEquals(
+            existing,
+            applyRevokedMessageVersion(
+                existing,
+                message(content = "older", type = MessageType.REVOKED, editedAt = 20L),
+            ),
+        )
+        assertEquals(
+            existing,
+            applyRevokedMessageVersion(
+                existing,
+                message(content = "aaa", type = MessageType.REVOKED, editedAt = 30L),
+            ),
+        )
+    }
+
     private fun message(
         content: String = "body",
         type: MessageType = MessageType.TEXT,

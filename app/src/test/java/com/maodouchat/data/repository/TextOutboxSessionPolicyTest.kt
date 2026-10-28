@@ -46,6 +46,61 @@ class TextOutboxSessionPolicyTest {
     }
 
     @Test
+    fun `null live user aborts`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = "tok",
+                liveUserId = null,
+            )
+        )
+    }
+
+    @Test
+    fun `whitespace-only token aborts`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = "   ",
+                liveUserId = "u1",
+            )
+        )
+    }
+
+    @Test
+    fun `whitespace-only live user aborts`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = "tok",
+                liveUserId = "   ",
+            )
+        )
+    }
+
+    @Test
+    fun `padded live user does not match`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = "tok",
+                liveUserId = " u1",
+            )
+        )
+    }
+
+    @Test
+    fun `padded batch user does not match`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1 ",
+                liveToken = "tok",
+                liveUserId = "u1",
+            )
+        )
+    }
+
+    @Test
     fun `blank batch user aborts`() {
         assertFalse(
             TextOutboxSessionPolicy.mayContinueFlush(

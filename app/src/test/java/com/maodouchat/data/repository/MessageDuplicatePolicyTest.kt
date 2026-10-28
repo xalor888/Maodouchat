@@ -1,6 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.data.model.Message
+import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import org.junit.Assert.assertEquals
@@ -31,6 +32,60 @@ class MessageDuplicatePolicyTest {
         assertFalse(MessageDuplicatePolicy.isSameDelivery(local, remote.copy(chatId = "c2")))
         assertEquals("local-tmp", MessageDuplicatePolicy.pickCanonical(local, remote).id)
         assertEquals("hello", MessageDuplicatePolicy.pickCanonical(local, remote.copy(content = "hello")).content)
+    }
+
+    @Test
+    fun differentIdAloneBreaksRedundancy() {
+        val existing = base("srv-1")
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(id = "srv-2")))
+    }
+
+    @Test
+    fun redundancyComparesStoredFieldsNotMeta() {
+        val existing = base("srv-1")
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(starred = true)))
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(editedAt = 5L)))
+        assertFalse(
+            MessageDuplicatePolicy.isRedundantWrite(
+                existing,
+                existing.copy(reactions = listOf(MessageReaction("bob", "heart", 1L)))
+            )
+        )
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(sealedSender = true)))
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(existing, existing.copy(expiresAt = 99L)))
+        assertTrue(
+            MessageDuplicatePolicy.isRedundantWrite(
+                existing,
+                existing.copy(meta = existing.meta.copy(replyToId = "m0"))
+            )
+        )
+    }
+
+    @Test
+    fun senderOrTypeDiffBreaksSameDelivery() {
+        val local = base("local-tmp")
+        val remote = local.copy(id = "srv-1")
+        assertFalse(MessageDuplicatePolicy.isSameDelivery(local, remote.copy(senderId = "u2")))
+        assertFalse(MessageDuplicatePolicy.isSameDelivery(local, remote.copy(type = MessageType.IMAGE)))
+    }
+
+    @Test
+    fun sameDeliveryComparesParsedContent() {
+        val local = base("local-tmp")
+        val withMetaSuffix = local.copy(id = "srv-1", content = "hello<meta>{}")
+        assertTrue(MessageDuplicatePolicy.isSameDelivery(local, withMetaSuffix))
+        assertFalse(MessageDuplicatePolicy.isSameDelivery(local, local.copy(id = "srv-1", content = "bye")))
+    }
+
+    @Test
+    fun pickCanonicalKeepsIdButTakesIncomingRest() {
+        val local = base("local-tmp")
+        val incoming = local.copy(id = "srv-1", status = MessageStatus.READ, chatId = "c2")
+        val canonical = MessageDuplicatePolicy.pickCanonical(local, incoming)
+        assertEquals("local-tmp", canonical.id)
+        assertEquals(MessageStatus.READ, canonical.status)
+        assertEquals("c2", canonical.chatId)
+        assertEquals("hello", canonical.content)
     }
 
     private fun base(id: String) = Message(
