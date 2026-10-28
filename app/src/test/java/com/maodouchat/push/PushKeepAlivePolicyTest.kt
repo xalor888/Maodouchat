@@ -106,4 +106,62 @@ class PushKeepAlivePolicyTest {
         assertFalse(PushKeepAlivePolicy.wantsFakeCall("bogus"))
         assertFalse(PushKeepAlivePolicy.wantsFakeCall(""))
     }
+
+    @Test
+    fun resurrectMediaModeNeedsTokenToo() {
+        assertTrue(PushKeepAlivePolicy.shouldResurrectDaemon(PushKeepAliveModeStore.MODE_MEDIA, hasToken = true))
+        assertFalse(PushKeepAlivePolicy.shouldResurrectDaemon(PushKeepAliveModeStore.MODE_MEDIA, hasToken = false))
+    }
+
+    @Test
+    fun effectiveModeIsIdempotent() {
+        val modes = listOf(
+            PushKeepAliveModeStore.MODE_OFF,
+            PushKeepAliveModeStore.MODE_FOREGROUND,
+            PushKeepAliveModeStore.MODE_MEDIA,
+            PushKeepAliveModeStore.MODE_CALL,
+            "bogus",
+            "",
+            "FOREGROUND",
+        )
+        for (mode in modes) {
+            val once = PushKeepAlivePolicy.effectiveMode(mode)
+            assertEquals(once, PushKeepAlivePolicy.effectiveMode(once))
+        }
+    }
+
+    @Test
+    fun startServiceRejectsBlankAndUnknownEvenWithToken() {
+        assertFalse(PushKeepAlivePolicy.shouldStartService("", hasToken = true))
+        assertFalse(PushKeepAlivePolicy.shouldStartService("bogus", hasToken = true))
+        assertFalse(PushKeepAlivePolicy.shouldStartService(" foreground", hasToken = true))
+        assertFalse(PushKeepAlivePolicy.shouldStartService("FOREGROUND", hasToken = true))
+    }
+
+    @Test
+    fun modeConstantsAreDistinctAndAllModesCovered() {
+        val modes = listOf(
+            PushKeepAliveModeStore.MODE_OFF,
+            PushKeepAliveModeStore.MODE_FOREGROUND,
+            PushKeepAliveModeStore.MODE_MEDIA,
+            PushKeepAliveModeStore.MODE_CALL,
+        )
+        assertEquals(4, modes.toSet().size)
+        assertEquals(modes, PushKeepAliveModeStore.ALL_MODES)
+        assertFalse(PushKeepAlivePolicy.isEnabled(PushKeepAliveModeStore.MODE_OFF))
+        assertTrue(PushKeepAlivePolicy.isEnabled(PushKeepAliveModeStore.MODE_FOREGROUND))
+        assertTrue(PushKeepAlivePolicy.isEnabled(PushKeepAliveModeStore.MODE_MEDIA))
+        assertTrue(PushKeepAlivePolicy.isEnabled(PushKeepAliveModeStore.MODE_CALL))
+    }
+
+    @Test
+    fun supportedRuntimeModesExcludeLegacy() {
+        assertEquals(
+            listOf(PushKeepAliveModeStore.MODE_OFF, PushKeepAliveModeStore.MODE_FOREGROUND),
+            PushKeepAliveModeStore.SUPPORTED_RUNTIME_MODES,
+        )
+        assertFalse(PushKeepAliveModeStore.MODE_MEDIA in PushKeepAliveModeStore.SUPPORTED_RUNTIME_MODES)
+        assertFalse(PushKeepAliveModeStore.MODE_CALL in PushKeepAliveModeStore.SUPPORTED_RUNTIME_MODES)
+    }
+
 }
