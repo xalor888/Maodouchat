@@ -320,4 +320,62 @@ class NotificationCenterReadPolicyTest {
             )
         )
     }
+
+    @Test
+    fun deeplinkChannelWinsOverMismatchedExtra() {
+        assertTrue(
+            NotificationCenterReadPolicy.isChatMessageItem(
+                chatId = "c1",
+                mergeKey = "other",
+                deeplink = "maodouchat:chat:c1",
+                extraChatId = "c2"
+            )
+        )
+    }
+
+    @Test
+    fun msgPrefixAloneWithoutExactOrExtraMatchIsNotAMessageItem() {
+        assertFalse(
+            NotificationCenterReadPolicy.isChatMessageItem(
+                chatId = "c1",
+                mergeKey = "msg_c2",
+                deeplink = null,
+                extraChatId = null
+            )
+        )
+    }
+
+    @Test
+    fun aiTasksMergeKeyWinsOverOtherChatDeeplink() {
+        assertTrue(
+            NotificationCenterReadPolicy.belongsToChat(
+                chatId = "c1",
+                mergeKey = "ai_tasks_c1",
+                deeplink = "maodouchat:chat:c2",
+                extraChatId = null
+            )
+        )
+    }
+
+    @Test
+    fun itemIdAnchorWinsOverMismatchedExtra() {
+        assertTrue(
+            NotificationCenterReadPolicy.referencesMessage(
+                messageId = "m_9",
+                itemId = "msg_c1_m_9",
+                extraMessageId = "m_8"
+            )
+        )
+    }
+
+    @Test
+    fun extraChannelNeedsNoMsgPrefix() {
+        assertTrue(
+            NotificationCenterReadPolicy.referencesMessage(
+                messageId = "m_9",
+                itemId = "notif_x",
+                extraMessageId = "m_9"
+            )
+        )
+    }
 }

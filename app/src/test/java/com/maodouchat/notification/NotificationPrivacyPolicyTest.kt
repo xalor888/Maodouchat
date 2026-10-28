@@ -54,4 +54,41 @@ class NotificationPrivacyPolicyTest {
             assertFalse(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = true))
         }
     }
+
+    @Test
+    fun `lock alone and preview off alone are each sufficient to hide`() {
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = true))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = false))
+    }
+
+    @Test
+    fun `revealing requires unlocked and preview on jointly`() {
+        assertFalse(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = true))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = true))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = false))
+    }
+
+    @Test
+    fun `full decision table is stable on repeat`() {
+        val combos = listOf(true to true, true to false, false to true, false to false)
+        repeat(2) {
+            val hidden = combos.map { (lock, preview) ->
+                NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = lock, previewEnabled = preview)
+            }
+            assertEquals(listOf(true, true, false, true), hidden)
+        }
+    }
+
+    @Test
+    fun `preview off hides under either lock state`() {
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = false))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = false))
+    }
+
+    @Test
+    fun `lock hides under either preview state`() {
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = true))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = false))
+    }
+
 }
