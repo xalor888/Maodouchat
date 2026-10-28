@@ -66,6 +66,48 @@ class ChatListPreviewProjectionTest {
     }
 
     @Test
+    fun previewUpdatesTypeAndAccumulatesUnread() {
+        val chats = listOf(chat("a", unread = 2))
+        val next = applyPreviewToChats(chats, "a", "pic", MessageType.IMAGE, 200, unreadDelta = 3)
+        assertEquals("pic", next.single().lastMessage)
+        assertEquals(MessageType.IMAGE, next.single().lastMessageType)
+        assertEquals(5, next.single().unreadCount)
+    }
+
+    @Test
+    fun previewWithEqualTimestampKeepsTimeButUpdatesText() {
+        val chats = listOf(chat("a", lastTime = 500))
+        val next = applyPreviewToChats(chats, "a", "same", MessageType.TEXT, 500)
+        assertEquals(500, next.single().lastMessageTime)
+        assertEquals("same", next.single().lastMessage)
+    }
+
+    @Test
+    fun pinnedTargetDoesNotYieldToUnpinnedOnNewerTime() {
+        val chats = listOf(
+            chat("pinned", pinnedAt = 50, lastTime = 10),
+            chat("plain", lastTime = 300),
+        )
+        val next = applyPreviewToChats(chats, "pinned", "new", MessageType.TEXT, 400)
+        assertEquals(listOf("pinned", "plain"), next.map { it.id })
+        assertEquals(400, next.first().lastMessageTime)
+    }
+
+    @Test
+    fun restoreInsertsUnpinnedByRecencyAfterPinned() {
+        val existing = listOf(chat("pinned", pinnedAt = 10, lastTime = 1), chat("old", lastTime = 300))
+        val next = restoreChatSorted(existing, chat("back", lastTime = 400))
+        assertEquals(listOf("pinned", "back", "old"), next.map { it.id })
+    }
+
+    @Test
+    fun restoreKeepsStableOrderOnEqualSortKeys() {
+        val existing = listOf(chat("a", lastTime = 100), chat("b", lastTime = 100))
+        val next = restoreChatSorted(existing, chat("c", lastTime = 100))
+        assertEquals(listOf("a", "b", "c"), next.map { it.id })
+    }
+
+    @Test
     fun restoreInsertsByPinnedFirstOrder() {
         val existing = listOf(chat("pinned", pinnedAt = 10, lastTime = 1), chat("old", lastTime = 300))
         val next = restoreChatSorted(existing, chat("back", lastTime = 200))
