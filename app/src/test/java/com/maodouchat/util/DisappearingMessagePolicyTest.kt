@@ -207,4 +207,44 @@ class DisappearingMessagePolicyTest {
         assertEquals(14, DisappearingMessagePolicy.ALLOWED_SECONDS.size)
         assertEquals(30 * 24 * 60 * 60, DisappearingMessagePolicy.ALLOWED_SECONDS.last())
     }
+
+    @Test
+    fun isAllowedSecondsCoversWhitelistAndRejectsNeighbors() {
+        DisappearingMessagePolicy.ALLOWED_SECONDS.forEach {
+            assertTrue(DisappearingMessagePolicy.isAllowedSeconds(it))
+        }
+        listOf(-30, 29, 31, 59, 61, 3599, 3601, 604799).forEach {
+            assertFalse(DisappearingMessagePolicy.isAllowedSeconds(it))
+        }
+    }
+
+    @Test
+    fun effectiveSecondsPassesEveryWhitelistedValueThrough() {
+        DisappearingMessagePolicy.ALLOWED_SECONDS.forEach {
+            assertEquals(it, DisappearingMessagePolicy.effectiveSeconds(false, it))
+        }
+    }
+
+    @Test
+    fun resolveExpiresAtDegenerateTimerAndReadAt() {
+        assertEquals(null, DisappearingMessagePolicy.resolveExpiresAt(null, timerSeconds = 0, readAtMs = 1_000L))
+        assertEquals(null, DisappearingMessagePolicy.resolveExpiresAt(null, timerSeconds = -10, readAtMs = 5_000L))
+        assertEquals(2_000L, DisappearingMessagePolicy.resolveExpiresAt(2_000L, timerSeconds = 0, readAtMs = 5_000L))
+        assertEquals(2_000L, DisappearingMessagePolicy.resolveExpiresAt(2_000L, timerSeconds = 30, readAtMs = -1L))
+        assertEquals(null, DisappearingMessagePolicy.resolveExpiresAt(null, timerSeconds = 30, readAtMs = -1L))
+    }
+
+    @Test
+    fun negativeDeadlinesAreTreatedAsAbsent() {
+        assertFalse(DisappearingMessagePolicy.isExpired(-5L, 1_000L))
+        assertEquals(-1L, DisappearingMessagePolicy.remainingMs(-5L, 1_000L))
+        assertEquals(0L, DisappearingMessagePolicy.remainingMs(1_000L, 1_000L))
+    }
+
+    @Test
+    fun armOnVisibleIgnoresTimerMagnitude() {
+        assertTrue(DisappearingMessagePolicy.shouldArmOnVisible(isSecretChat = true, timerSeconds = Int.MAX_VALUE))
+        assertFalse(DisappearingMessagePolicy.shouldArmOnVisible(isSecretChat = false, timerSeconds = Int.MIN_VALUE))
+        assertTrue(DisappearingMessagePolicy.shouldSkipReadReceipts(isSecretChat = true, blockReadReceipts = true))
+    }
 }
