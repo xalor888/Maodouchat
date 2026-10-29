@@ -270,4 +270,51 @@ class ViewOncePolicyTest {
         assertSame(noMeta, ViewOncePolicy.markOpened(noMeta))
     }
 
+
+    @Test
+    fun supportedTypesWithFlagOffAndOpenedNeverLock() {
+        // 有 opened、无 viewOnce 标记：支持类型也不锁，markOpened 原样返回
+        listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF).forEach { type ->
+            val m = msg(type = type, viewOnce = false, opened = true)
+            assertFalse(ViewOncePolicy.isLockedForViewer(m, isOwnMessage = false))
+            assertSame(m, ViewOncePolicy.markOpened(m))
+        }
+    }
+
+    @Test
+    fun videoMarkOpenedLocksViewerButNotSender() {
+        val fresh = msg(type = MessageType.VIDEO, viewOnce = true, opened = false)
+        val opened = ViewOncePolicy.markOpened(fresh)
+        assertTrue(ViewOncePolicy.isViewOnce(opened))
+        assertTrue(ViewOncePolicy.isLockedForViewer(opened, isOwnMessage = false))
+        assertFalse(ViewOncePolicy.isLockedForViewer(opened, isOwnMessage = true))
+    }
+
+    @Test
+    fun gifMarkOpenedIsIdempotent() {
+        val fresh = msg(type = MessageType.GIF, viewOnce = true, opened = false)
+        val once = ViewOncePolicy.markOpened(fresh)
+        assertTrue(once.parsedMeta().viewOnceOpened)
+        assertEquals(once, ViewOncePolicy.markOpened(once))
+    }
+
+    @Test
+    fun flagOffMeansNotViewOnceForVideoAndGifEvenWhenOpened() {
+        listOf(MessageType.VIDEO, MessageType.GIF).forEach { type ->
+            assertFalse(ViewOncePolicy.isViewOnce(msg(type = type, viewOnce = false, opened = true)))
+        }
+    }
+
+    @Test
+    fun gifMarkOpenedPreservesIdentityFields() {
+        val m = msg(type = MessageType.GIF, viewOnce = true, opened = false)
+        val marked = ViewOncePolicy.markOpened(m)
+        assertEquals(m.id, marked.id)
+        assertEquals(m.chatId, marked.chatId)
+        assertEquals(m.senderId, marked.senderId)
+        assertEquals(m.type, marked.type)
+        assertEquals(m.timestamp, marked.timestamp)
+        assertEquals("x", marked.parsedContent())
+    }
+
 }
