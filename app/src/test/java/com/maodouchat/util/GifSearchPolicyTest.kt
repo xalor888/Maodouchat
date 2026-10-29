@@ -170,4 +170,48 @@ class GifSearchPolicyTest {
         assertEquals(emptyList<LocalGifItem>(), GifSearchPolicy.filterAndSort(samples, "zzz"))
     }
 
+    @Test
+    fun `matches separator conversions combine across the name`() {
+        val item = LocalGifItem("9", "content://9", "happy_birthday-cat.gif")
+        assertTrue(GifSearchPolicy.matches(item, "happy birthday"))
+        assertTrue(GifSearchPolicy.matches(item, "birthday-cat"))
+    }
+
+    @Test
+    fun `filterAndSort recent non-matches do not occupy the limit`() {
+        val samples = listOf(
+            LocalGifItem("1", "content://1", "party_cat.gif", dateAddedSec = 30),
+            LocalGifItem("2", "content://2", "thumbs-up.gif", dateAddedSec = 20),
+        )
+        assertEquals(
+            listOf("1"),
+            GifSearchPolicy.filterAndSort(samples, "party", recentIds = listOf("2"), limit = 1)
+                .map { it.id }
+        )
+    }
+
+    @Test
+    fun `pushRecent negative max still keeps one`() {
+        assertEquals(listOf("c"), GifSearchPolicy.pushRecent(listOf("a", "b"), "c", max = -3))
+    }
+
+    @Test
+    fun `matches is substring based not token based`() {
+        val item = LocalGifItem("1", "content://1", "party_cat.gif")
+        assertTrue(GifSearchPolicy.matches(item, "art"))
+        assertFalse(GifSearchPolicy.matches(item, "partycat"))
+    }
+
+    @Test
+    fun `filterAndSort default cap is 160 newest first`() {
+        val items = (1..200).map {
+            LocalGifItem("g$it", "content://$it", "gif$it.gif", dateAddedSec = it.toLong())
+        }
+        assertEquals(160, GifSearchPolicy.MAX_RESULTS)
+        val page = GifSearchPolicy.filterAndSort(items, "")
+        assertEquals(160, page.size)
+        assertEquals("g200", page.first().id)
+        assertEquals("g41", page.last().id)
+    }
+
 }
