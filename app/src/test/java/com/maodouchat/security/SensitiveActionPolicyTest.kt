@@ -305,4 +305,88 @@ class SensitiveActionPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `gate flags commute for every action`() {
+        SensitiveAction.entries.forEach { action ->
+            listOf(true to true, true to false, false to true, false to false).forEach { (a, b) ->
+                assertEquals(
+                    action.name,
+                    SensitiveActionPolicy.requiresStepUp(a, b, action),
+                    SensitiveActionPolicy.requiresStepUp(b, a, action)
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `all actions agree under any gate combination`() {
+        listOf(true to true, true to false, false to true, false to false).forEach { (a, b) ->
+            val results = SensitiveAction.entries.map {
+                SensitiveActionPolicy.requiresStepUp(a, b, it)
+            }.toSet()
+            assertEquals("gates=$a,$b", setOf(a && b), results)
+        }
+    }
+
+    @Test
+    fun `interleaved gate toggles stay deterministic`() {
+        repeat(5) {
+            assertTrue(stepUp(SensitiveAction.LOGOUT))
+            assertFalse(
+                SensitiveActionPolicy.requiresStepUp(
+                    appLockEnabled = true,
+                    sensitiveGateEnabled = false,
+                    action = SensitiveAction.LOGOUT
+                )
+            )
+            assertTrue(stepUp(SensitiveAction.DISABLE_TOTP))
+            assertFalse(
+                SensitiveActionPolicy.requiresStepUp(
+                    appLockEnabled = false,
+                    sensitiveGateEnabled = false,
+                    action = SensitiveAction.DISABLE_TOTP
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `self-disabling actions are still gated`() {
+        // 关掉应用锁 / 2FA 本身也要先验证，不能用“正在关保护”绕过门禁。
+        assertTrue(stepUp(SensitiveAction.DISABLE_APP_LOCK))
+        assertTrue(stepUp(SensitiveAction.DISABLE_TOTP))
+        listOf(SensitiveAction.DISABLE_APP_LOCK, SensitiveAction.DISABLE_TOTP).forEach { action ->
+            assertFalse(
+                SensitiveActionPolicy.requiresStepUp(
+                    appLockEnabled = true,
+                    sensitiveGateEnabled = false,
+                    action = action
+                )
+            )
+            assertFalse(
+                SensitiveActionPolicy.requiresStepUp(
+                    appLockEnabled = false,
+                    sensitiveGateEnabled = true,
+                    action = action
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `named and positional calls agree for every action`() {
+        SensitiveAction.entries.forEach { action ->
+            assertEquals(
+                action.name,
+                stepUp(action),
+                SensitiveActionPolicy.requiresStepUp(true, true, action)
+            )
+            assertEquals(
+                action.name,
+                false,
+                SensitiveActionPolicy.requiresStepUp(false, false, action)
+            )
+        }
+    }
 }
