@@ -205,4 +205,82 @@ class ReactionMutationPolicyTest {
             ReactionMutationPolicy.apply(existing, "alice", "wow", 0L),
         )
     }
+
+    @Test
+    fun `absent actor reaction is appended to a non-empty list`() {
+        val existing = listOf(
+            MessageReaction("alice", "like", 10L),
+            MessageReaction("bob", "heart", 20L),
+        )
+
+        assertEquals(
+            listOf(
+                MessageReaction("alice", "like", 10L),
+                MessageReaction("bob", "heart", 20L),
+                MessageReaction("carol", "wow", 30L),
+            ),
+            ReactionMutationPolicy.apply(existing, "carol", "wow", 30L),
+        )
+    }
+
+    @Test
+    fun `removal for an absent actor leaves the list untouched`() {
+        val existing = listOf(
+            MessageReaction("alice", "like", 10L),
+            MessageReaction("bob", "heart", 20L),
+        )
+
+        assertEquals(
+            existing,
+            ReactionMutationPolicy.apply(existing, "carol", null, 30L),
+        )
+    }
+
+    @Test
+    fun `actor id is not trimmed before matching`() {
+        val existing = listOf(
+            MessageReaction("alice", "like", 10L),
+            MessageReaction("bob", "heart", 20L),
+        )
+
+        assertEquals(
+            listOf(
+                MessageReaction("alice", "like", 10L),
+                MessageReaction("bob", "heart", 20L),
+                MessageReaction(" alice ", "laugh", 30L),
+            ),
+            ReactionMutationPolicy.apply(existing, " alice ", "laugh", 30L),
+        )
+    }
+
+    @Test
+    fun `legacy snapshot with a blank actor emoji removes the actor reaction`() {
+        val existing = listOf(
+            MessageReaction("alice", "like", 10L),
+            MessageReaction("bob", "heart", 20L),
+        )
+        val snapshot = listOf(
+            MessageReaction("alice", "   ", 30L),
+            MessageReaction("bob", "angry", 30L),
+        )
+
+        assertEquals(
+            listOf(MessageReaction("bob", "heart", 20L)),
+            ReactionMutationPolicy.applyLegacySnapshot(existing, "alice", snapshot, 99L),
+        )
+    }
+
+    @Test
+    fun `legacy snapshot with no entries removes the actor reaction`() {
+        val existing = listOf(
+            MessageReaction("alice", "like", 10L),
+            MessageReaction("bob", "heart", 20L),
+        )
+
+        assertEquals(
+            listOf(MessageReaction("bob", "heart", 20L)),
+            ReactionMutationPolicy.applyLegacySnapshot(existing, "alice", emptyList(), 99L),
+        )
+    }
+
 }
