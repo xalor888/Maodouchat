@@ -133,4 +133,41 @@ class GifSearchPolicyTest {
         assertEquals(listOf("b", "a"), GifSearchPolicy.pushRecent(listOf("b", "a"), " b "))
     }
 
+
+    @Test
+    fun `filterAndSort trims and lowercases the query before matching`() {
+        assertEquals(listOf("1"), GifSearchPolicy.filterAndSort(samples, "  PARTY ").map { it.id })
+        val item = LocalGifItem("1", "content://1", "party_cat.gif")
+        assertTrue(GifSearchPolicy.matches(item, "  PARTY_CAT  "))
+    }
+
+    @Test
+    fun `filterAndSort recent order fully dominates date order`() {
+        val ordered = GifSearchPolicy.filterAndSort(samples, "", recentIds = listOf("2", "3", "1"))
+        assertEquals(listOf("2", "3", "1"), ordered.map { it.id })
+    }
+
+    @Test
+    fun `pushRecent default cap is 48`() {
+        val existing = (1..50).map { "g$it" }
+        val next = GifSearchPolicy.pushRecent(existing, "new")
+        assertEquals(48, next.size)
+        assertEquals("new", next.first())
+        assertEquals("g47", next.last())
+    }
+
+    @Test
+    fun `matches direct hyphen and underscore substrings`() {
+        val dashed = LocalGifItem("2", "content://2", "thumbs-up.gif")
+        val underscored = LocalGifItem("1", "content://1", "party_cat.gif")
+        assertTrue(GifSearchPolicy.matches(dashed, "thumbs-up"))
+        assertTrue(GifSearchPolicy.matches(underscored, "party_cat"))
+    }
+
+    @Test
+    fun `filterAndSort empty input and no-match query yield empty`() {
+        assertEquals(emptyList<LocalGifItem>(), GifSearchPolicy.filterAndSort(emptyList(), ""))
+        assertEquals(emptyList<LocalGifItem>(), GifSearchPolicy.filterAndSort(samples, "zzz"))
+    }
+
 }

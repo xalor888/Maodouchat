@@ -118,4 +118,34 @@ class QuickPhrasePolicyTest {
         assertEquals(listOf("hello world"), QuickPhrasePolicy.add(emptyList(), "  hello world  "))
     }
 
+
+    @Test
+    fun `isAddable and add reject tab and newline only phrases`() {
+        assertFalse(QuickPhrasePolicy.isAddable(listOf("a"), "\t\n"))
+        assertEquals(listOf("a"), QuickPhrasePolicy.add(listOf("a"), "\t\n"))
+    }
+
+    @Test
+    fun `remove is case sensitive`() {
+        assertEquals(listOf("OK", "Ok"), QuickPhrasePolicy.remove(listOf("OK", "ok", "Ok"), "ok"))
+    }
+
+    @Test
+    fun `full list rejects a duplicate as well as an overflow`() {
+        val full = List(QuickPhrasePolicy.MAX_PHRASES) { "p$it" }
+        assertFalse(QuickPhrasePolicy.isAddable(full, "p0"))
+        assertEquals(full, QuickPhrasePolicy.add(full, "p0"))
+    }
+
+    @Test
+    fun `max constants are pinned`() {
+        assertEquals(40, QuickPhrasePolicy.MAX_PHRASES)
+        assertEquals(80, QuickPhrasePolicy.MAX_PHRASE_LENGTH)
+    }
+
+    @Test
+    fun `add trims emoji phrase ends but keeps the emoji`() {
+        assertEquals(listOf("好的 👍"), QuickPhrasePolicy.add(emptyList(), "  好的 👍  "))
+    }
+
 }

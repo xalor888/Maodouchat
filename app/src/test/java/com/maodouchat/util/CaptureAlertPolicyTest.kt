@@ -129,4 +129,41 @@ class CaptureAlertPolicyTest {
         assertTrue(CaptureAlertPolicy.isCaptureAlert(CaptureAlertPolicy.PREFIX))
     }
 
+
+    @Test
+    fun `format with blank label uses peer and exact wire form`() {
+        assertEquals(
+            "CAPTURE_ALERT:screenshot|peer took a screenshot (privacy alert)",
+            CaptureAlertPolicy.format("   "),
+        )
+    }
+
+    @Test
+    fun `parse keeps extra pipes inside the message`() {
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.PREFIX + "screenshot|a|b")
+        assertEquals("screenshot", parsed?.first)
+        assertEquals("a|b", parsed?.second)
+    }
+
+    @Test
+    fun `kind containing a pipe splits at the first pipe on parse`() {
+        val alert = CaptureAlertPolicy.format("Alice", "a|b")
+        val parsed = CaptureAlertPolicy.parse(alert)
+        assertEquals("a", parsed?.first)
+    }
+
+    @Test
+    fun `label of 33 chars truncates to 32`() {
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.format("x".repeat(33), "screenshot"))
+        assertEquals("x".repeat(32) + " took a screenshot (privacy alert)", parsed?.second)
+    }
+
+    @Test
+    fun `kind boundary 24 kept whole and 25 truncated`() {
+        val kept = CaptureAlertPolicy.parse(CaptureAlertPolicy.format("Alice", "k".repeat(24)))
+        assertEquals("k".repeat(24), kept?.first)
+        val cut = CaptureAlertPolicy.parse(CaptureAlertPolicy.format("Alice", "k".repeat(25)))
+        assertEquals("k".repeat(24), cut?.first)
+    }
+
 }
