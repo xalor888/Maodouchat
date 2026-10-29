@@ -211,4 +211,64 @@ class ChatFolderPolicyTest {
         assertEquals(listOf("b", "c"), ChatFolderPolicy.deleteFolder(folders, "a").map { it.id })
         assertEquals(folders, ChatFolderPolicy.deleteFolder(folders, "nope"), "删不存在的应原样返回")
     }
+
+    @Test
+    fun createFolderAssignsNextOrderAndSortsResult() {
+        val existing = listOf(folder("b", "B", order = 5), folder("a", "A", order = 2))
+        val created = assertNotNull(ChatFolderPolicy.createFolder(existing, "New", id = "n1"))
+        assertEquals("n1", created.last().id)
+        assertEquals(6, created.last().sortOrder)
+        assertEquals(listOf("a", "b", "n1"), created.map { it.id })
+    }
+
+    @Test
+    fun moveFolderDownSwapsAndZeroDeltaIsIdentity() {
+        val folders = listOf(
+            folder("a", "A", order = 0),
+            folder("b", "B", order = 1),
+            folder("c", "C", order = 2),
+        )
+        val moved = assertNotNull(ChatFolderPolicy.moveFolder(folders, "a", +1))
+        assertEquals(listOf("b", "a", "c"), moved.map { it.id })
+        val same = assertNotNull(ChatFolderPolicy.moveFolder(folders, "b", 0))
+        assertEquals(listOf("a", "b", "c"), same.map { it.id })
+    }
+
+    @Test
+    fun reorderFolderBackwardMoveShiftsMiddleForward() {
+        val folders = listOf(
+            folder("a", "A", order = 0),
+            folder("b", "B", order = 1),
+            folder("c", "C", order = 2),
+            folder("d", "D", order = 3),
+        )
+        val reordered = assertNotNull(ChatFolderPolicy.reorderFolder(folders, "d", 1))
+        assertEquals(listOf("a", "d", "b", "c"), reordered.map { it.id })
+        assertEquals(listOf(0, 1, 2, 3), reordered.map { it.sortOrder })
+        val clamped = assertNotNull(ChatFolderPolicy.reorderFolder(folders, "c", -5))
+        assertEquals(listOf("c", "a", "b", "d"), clamped.map { it.id })
+    }
+
+    @Test
+    fun folderOfChatReturnsFirstAndFilterKeepsInputOrder() {
+        val folders = listOf(
+            folder("f1", "F1", chats = listOf("c3", "c1")),
+            folder("f2", "F2", chats = listOf("c1")),
+        )
+        assertEquals("f1", ChatFolderPolicy.folderOfChat(folders, "c1")?.id)
+        assertNull(ChatFolderPolicy.folderOfChat(folders, "c9"))
+        val f = folder("f1", "F1", chats = listOf("c3", "c1"))
+        assertEquals(listOf("c1", "c3"), ChatFolderPolicy.filterChatIds(f, listOf("c1", "c2", "c3")))
+    }
+
+    @Test
+    fun createFolderNormalizesBeforeComparing() {
+        val base = listOf(folder("f1", "a b"))
+        assertNull(ChatFolderPolicy.createFolder(base, "a   b"))
+        val long = listOf(folder("f1", "x".repeat(48)))
+        assertNull(ChatFolderPolicy.createFolder(long, "x".repeat(100)))
+        val created = assertNotNull(ChatFolderPolicy.createFolder(emptyList(), "x".repeat(100)))
+        assertEquals(48, created.last().name.length)
+    }
+
 }
