@@ -187,4 +187,49 @@ class NearbyPolicyTest {
             ) > 0
         )
     }
+
+    @Test
+    fun nearestOptionKm_midpointTiesBetweenUpperChips() {
+        // 中点并列时 minByOrNull 取列表先出现的低档
+        assertEquals(10.0, NearbyPolicy.nearestOptionKm(12.5), 0.0)
+        assertEquals(15.0, NearbyPolicy.nearestOptionKm(17.5), 0.0)
+        assertEquals(20.0, NearbyPolicy.nearestOptionKm(22.5), 0.0)
+    }
+
+    @Test
+    fun normalizeRadiusKm_keepsInteriorValuesExact() {
+        assertEquals(1.0, NearbyPolicy.normalizeRadiusKm(1.0), 0.0)
+        assertEquals(7.3, NearbyPolicy.normalizeRadiusKm(7.3), 0.0)
+        assertEquals(29.99, NearbyPolicy.normalizeRadiusKm(29.99), 0.0)
+    }
+
+    @Test
+    fun defaultRadiusIsAChip() {
+        assertEquals(10.0, NearbyPolicy.DEFAULT_RADIUS_KM, 0.0)
+        assertTrue(NearbyPolicy.RADIUS_OPTIONS_KM.contains(NearbyPolicy.DEFAULT_RADIUS_KM))
+        assertEquals(10.0, NearbyPolicy.nearestOptionKm(NearbyPolicy.DEFAULT_RADIUS_KM), 0.0)
+    }
+
+    @Test
+    fun compareNearby_negativeDistancesOrderNumerically() {
+        // 距离不做钳制：负距离按数值排在正距离之前
+        assertTrue(
+            NearbyPolicy.compareNearby(
+                isOnlineA = false, distanceA = -5, updatedAtA = 1L,
+                isOnlineB = false, distanceB = 10, updatedAtB = 1L
+            ) < 0
+        )
+        assertTrue(
+            NearbyPolicy.compareNearby(
+                isOnlineA = false, distanceA = 10, updatedAtA = 1L,
+                isOnlineB = false, distanceB = -5, updatedAtB = 1L
+            ) > 0
+        )
+    }
+
+    @Test
+    fun nearestOptionKm_nanSnapsToFirstChip() {
+        // normalize 后 NaN 穿过，minByOrNull 在全 NaN 比较下保留首个档位
+        assertEquals(0.5, NearbyPolicy.nearestOptionKm(Double.NaN), 0.0)
+    }
 }

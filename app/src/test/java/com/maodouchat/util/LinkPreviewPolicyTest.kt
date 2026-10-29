@@ -269,4 +269,55 @@ class LinkPreviewPolicyTest {
         assertEquals("a".repeat(96), LinkPreviewPolicy.displayHost(longHost))
         assertEquals("not a url", LinkPreviewPolicy.displayHost("not a url"))
     }
+
+    @Test
+    fun firstHttpUrl_returnsNullForBlankAndMetaOnlyText() {
+        assertNull(LinkPreviewPolicy.firstHttpUrl(""))
+        assertNull(LinkPreviewPolicy.firstHttpUrl("   "))
+        assertNull(LinkPreviewPolicy.firstHttpUrl("<meta>"))
+        assertNull(LinkPreviewPolicy.firstHttpUrl("<meta> https://evil.com/b"))
+    }
+
+    @Test
+    fun sanitizeUrl_preservesPublicUrlVerbatim() {
+        assertEquals(
+            "https://example.com:8443/a?b=c#d",
+            LinkPreviewPolicy.sanitizeUrl("https://example.com:8443/a?b=c#d"),
+        )
+        assertEquals(
+            "http://[2001:4860:4860::8888]/path",
+            LinkPreviewPolicy.sanitizeUrl("http://[2001:4860:4860::8888]/path"),
+        )
+    }
+
+    @Test
+    fun parseHtmlPreview_prefersOgOverTwitterAndFallsBackToHost() {
+        val html = "<html><head>" +
+            "<meta property=\"og:title\" content=\"OG Title\"/>" +
+            "<meta name=\"twitter:title\" content=\"Tw Title\"/>" +
+            "<meta name=\"twitter:description\" content=\"Tw Desc\"/>" +
+            "<title>Fallback</title>" +
+            "</head></html>"
+        val p = LinkPreviewPolicy.parseHtmlPreview("https://example.com/page", html)
+        assertEquals("OG Title", p.title)
+        assertEquals("Tw Desc", p.description)
+        assertNull(p.imageUrl)
+        assertEquals("example.com", p.siteName)
+        assertTrue(LinkPreviewPolicy.isUseful(p))
+    }
+
+    @Test
+    fun isUseful_countsDescriptionOrImageAlone() {
+        assertTrue(LinkPreviewPolicy.isUseful(Preview("https://x.com", null, "d", null, null)))
+        assertTrue(LinkPreviewPolicy.isUseful(Preview("https://x.com", null, null, "https://i.png", null)))
+        assertFalse(LinkPreviewPolicy.isUseful(Preview("https://x.com", null, null, null, "Site")))
+        assertFalse(LinkPreviewPolicy.isUseful(Preview("https://x.com", "  ", null, null, null)))
+    }
+
+    @Test
+    fun sanitizeUrl_rejectsSchemeRelativeAndBareHost() {
+        assertNull(LinkPreviewPolicy.sanitizeUrl("//example.com/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("example.com/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http:/example.com"))
+    }
 }
