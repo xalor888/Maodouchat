@@ -78,7 +78,8 @@ class PostgresRestoreUpgradeTest {
     private fun runTool(command: List<String>, t: PgTarget, stdoutTo: File? = null) {
         val proc = ProcessBuilder(command).apply {
             environment()["PGPASSWORD"] = t.password
-            if (stdoutTo != null) redirectOutput(stdoutTo) else redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            // 没接文件时 stdout 保持 PIPE：失败时才能在断言里看到 pg 工具的报错，而不是丢弃。
+            if (stdoutTo != null) redirectOutput(stdoutTo)
             redirectErrorStream(true)
         }.start()
         val output = proc.inputStream.bufferedReader().readText()
