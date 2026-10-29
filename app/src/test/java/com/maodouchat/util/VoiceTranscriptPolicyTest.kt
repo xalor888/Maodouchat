@@ -160,4 +160,40 @@ class VoiceTranscriptPolicyTest {
         assertTrue(preview.endsWith("…"))
         assertEquals(capped, VoiceTranscriptPolicy.displayText("x".repeat(7000), expanded = true))
     }
+
+    // ---- oct22ju 续批：五态 ----
+
+    @Test
+    fun `length constants are pinned`() {
+        assertEquals(6_000, VoiceTranscriptPolicy.MAX_TRANSCRIPT_LENGTH)
+        assertEquals(360, VoiceTranscriptPolicy.PREVIEW_MAX_CHARS)
+    }
+
+    @Test
+    fun `padded input counts only after trim for the expand toggle`() {
+        val pad = " ".repeat(10)
+        assertFalse(VoiceTranscriptPolicy.needsExpandToggle(pad + "a".repeat(360) + pad))
+        assertTrue(VoiceTranscriptPolicy.needsExpandToggle(pad + "a".repeat(361) + pad))
+    }
+
+    @Test
+    fun `preview trims a run of trailing spaces at the cut`() {
+        val transcript = "a".repeat(358) + "   " + "b".repeat(100)
+        assertEquals("a".repeat(358) + "…", VoiceTranscriptPolicy.displayText(transcript, expanded = false))
+    }
+
+    @Test
+    fun `normalize preserves inner blank lines`() {
+        assertEquals("a\n\nb", VoiceTranscriptPolicy.normalize("\n\na\n\nb\n\n"))
+        assertTrue(VoiceTranscriptPolicy.hasTranscript("a\n\nb"))
+    }
+
+    @Test
+    fun `trim happens before the cap for overlong padded input`() {
+        val padded = "  " + "x".repeat(7000) + "  "
+        assertEquals("x".repeat(6000), VoiceTranscriptPolicy.displayText(padded, expanded = true))
+        val preview = VoiceTranscriptPolicy.displayText(padded, expanded = false)
+        assertEquals(361, preview.length)
+        assertTrue(preview.endsWith("…"))
+    }
 }
