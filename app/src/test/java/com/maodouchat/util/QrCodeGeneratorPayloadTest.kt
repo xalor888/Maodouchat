@@ -237,4 +237,70 @@ class QrCodeGeneratorPayloadTest {
             QrCodeGenerator.encodeChatInviteQrPayload("  a b  ")
         )
     }
+
+    @Test
+    fun safetyV1PayloadHasNoV2Marker() {
+        val payload = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "u1", ownerDeviceId = 1,
+            peerUserId = "u2", peerDeviceId = 2,
+            safetyCode = "123456",
+        )
+        assertTrue(payload.startsWith("maodouchat:safety:"))
+        assertFalse(payload.startsWith("maodouchat:safety:v2:"))
+        assertEquals(6, payload.count { it == ':' })
+        assertFalse(payload.contains("="))
+    }
+
+    @Test
+    fun deviceIdBoundariesOneAnd255RoundTrip() {
+        val payload = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "u1", ownerDeviceId = 1,
+            peerUserId = "u2", peerDeviceId = 255,
+            safetyCode = "123456",
+        )
+        val target = QrCodeGenerator.parsePayload(payload)
+        assertIs<QrTarget.Safety>(target)
+        assertEquals(1, target.ownerDeviceId)
+        assertEquals(255, target.peerDeviceId)
+    }
+
+    @Test
+    fun inviteTokenWithSurroundingSpacesTrimsToExactly32AndParses() {
+        val token = "t".repeat(32)
+        val payload = QrCodeGenerator.encodeChatInviteQrPayload("  $token  ")
+        assertEquals("maodouchat:chat-invite:v1:$token", payload)
+        val parsed = QrCodeGenerator.parsePayload(payload)
+        assertIs<QrTarget.ChatInvite>(parsed)
+        assertEquals(token, parsed.token)
+    }
+
+    @Test
+    fun safetyCodeWithNewlineAndSpacesRoundTrips() {
+        val payload = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "u1", ownerDeviceId = 3,
+            peerUserId = "u2", peerDeviceId = 4,
+            safetyCode = "a b\nc",
+        )
+        val target = QrCodeGenerator.parsePayload(payload)
+        assertIs<QrTarget.Safety>(target)
+        assertEquals("a b\nc", target.safetyCode)
+        assertEquals(3, target.ownerDeviceId)
+        assertEquals(4, target.peerDeviceId)
+    }
+
+    @Test
+    fun safetyV2FingerprintsWithSpacesRoundTripAndCodeStaysNull() {
+        val payload = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "u1", ownerDeviceId = 255,
+            peerUserId = "u2", peerDeviceId = 1,
+            ownerIdentityFingerprint = "fp 1", peerIdentityFingerprint = "fp 2",
+        )
+        val target = QrCodeGenerator.parsePayload(payload)
+        assertIs<QrTarget.Safety>(target)
+        assertEquals("fp 1", target.ownerIdentityFingerprint)
+        assertEquals("fp 2", target.peerIdentityFingerprint)
+        assertEquals(null, target.safetyCode)
+        assertEquals(255, target.ownerDeviceId)
+        assertEquals(1, target.peerDeviceId)
+    }
 }
