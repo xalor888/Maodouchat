@@ -406,4 +406,69 @@ class PolledIncomingBatchPolicyTest {
         assertNull(decision.primary)
         assertFalse(decision.shouldNavigate)
     }
+
+    @Test
+    fun `a video pending without group records a video but non-group tombstone`() {
+        val decision = decide(
+            messages = listOf(msg(type = "hang-up", callId = "c1")),
+            existingPending = pending(callType = CallType.VIDEO, groupId = ""),
+        )
+
+        val missed = decision.terminals.single().missedRecord
+        assertTrue(missed!!.isVideo)
+        assertFalse(missed.isGroup, "无 groupId 的视频来电墓碑不得标记群组")
+    }
+
+    @Test
+    fun `a blank caller name in pending passes through to the tombstone`() {
+        val decision = decide(
+            messages = listOf(msg(type = "hang-up", callId = "c1")),
+            existingPending = pending(contactName = ""),
+        )
+
+        val missed = decision.terminals.single().missedRecord
+        assertEquals("", missed!!.callerName, "墓碑 callerName 原样取 pending，不回退其他字段")
+        assertEquals("u2", missed.fromUserId)
+    }
+
+    @Test
+    fun `a prefer killed by a terminal still lets a surviving offer ring`() {
+        val decision = decide(
+            messages = listOf(
+                msg(type = "hang-up", callId = "c1"),
+                msg(id = "m2", type = "offer", callId = "c2"),
+            ),
+            preferCallId = "c1",
+        )
+
+        assertTrue(decision.cancelPreferCallId, "FCM 指定的 callId 已被终端覆盖：掐掉")
+        assertEquals("c2", decision.primary!!.callId, "存活的 offer 照常响铃")
+        assertTrue(decision.shouldNavigate)
+    }
+
+    @Test
+    fun `a stale first offer is filtered and the fresh second offer becomes primary`() {
+        val decision = decide(
+            messages = listOf(
+                msg(id = "m1", type = "offer", callId = "c1", timestamp = nowMs - IncomingCallCoordinator.STALE_MS - 1L),
+                msg(id = "m2", type = "offer", callId = "c2"),
+            ),
+        )
+
+        assertEquals("c2", decision.primary!!.callId, "古董 offer 被滤掉后不占 primary 槽")
+        assertTrue(decision.busyReplies.isEmpty())
+        assertTrue(decision.shouldNavigate)
+    }
+
+    @Test
+    fun `a blank call id offer from another contact is not deduped`() {
+        val decision = decide(
+            messages = listOf(msg(type = "offer", callId = "", from = "u3")),
+            existingPending = pending(callId = "", contactId = "u2"),
+        )
+
+        assertEquals("", decision.primary!!.callId)
+        assertTrue(decision.shouldNavigate, "空 callId 时只按联系人去重：不同联系人不压制")
+    }
+
 }
