@@ -107,6 +107,45 @@ class ScreenshotDetectorPolicyTest {
     }
 
     @Test
+    fun `empty and bare screen inputs do not match`() {
+        assertFalse(ScreenshotDetector.isScreenshotPath("", ""))
+        assertFalse(ScreenshotDetector.isScreenshotPath("DCIM/Camera/", ""))
+        assertFalse(ScreenshotDetector.isScreenshotPath("DCIM/Camera/", "screen.png"))
+        assertFalse(ScreenshotDetector.isScreenshotPath("Pictures/Screen/", "screen.png"))
+        assertFalse(ScreenshotDetector.isScreenRecordPath("", ""))
+    }
+
+    @Test
+    fun `record path and name spelling variants match`() {
+        assertTrue(ScreenshotDetector.isScreenRecordPath("Movies/Screenrecording/", "clip.mp4"))
+        assertTrue(ScreenshotDetector.isScreenRecordPath("Movies/Screen_record/", "clip.mp4"))
+        assertTrue(ScreenshotDetector.isScreenRecordPath("Movies/", "scr_record.mp4"))
+        // rec 只是 record 的缩写，单独出现不算证据（与 clip_rec 的否定断言一致）。
+        assertFalse(ScreenshotDetector.isScreenRecordPath("Movies/", "rec_screen.mp4"))
+        assertFalse(ScreenshotDetector.isScreenRecordPath("Movies/", "screenclip.mp4"))
+    }
+
+    @Test
+    fun `scrubber video window is wider than image window`() {
+        assertFalse(SecureCaptureScrubber.shouldDeleteVideo("Movies/Screen recordings/", "screenrecord.mp4", -1))
+        assertFalse(SecureCaptureScrubber.shouldDeleteImage("Pictures/Screenshots/", "Screenshot_1.png", 10))
+        assertTrue(SecureCaptureScrubber.shouldDeleteVideo("Movies/Screen recordings/", "screenrecord.mp4", 10))
+    }
+
+    @Test
+    fun `mid-string screen shot name does not match but path does`() {
+        assertFalse(ScreenshotDetector.isScreenshotPath("DCIM/Camera/", "my_screen_shot.png"))
+        assertTrue(ScreenshotDetector.isScreenshotPath("Pictures/Screen_shot/", "my_screen_shot.png"))
+        assertTrue(ScreenshotDetector.isScreenshotPath("DCIM/Camera/", "screen_shot_1.png"))
+    }
+
+    @Test
+    fun `scrubber never deletes across capture types`() {
+        assertFalse(SecureCaptureScrubber.shouldDeleteImage("Movies/Screen recordings/", "screenrecord.mp4", 5))
+        assertFalse(SecureCaptureScrubber.shouldDeleteVideo("Pictures/Screenshots/", "Screenshot_1.png", 5))
+    }
+
+    @Test
     fun `scrubber age zero passes but a non capture path never does`() {
         assertTrue(SecureCaptureScrubber.shouldDeleteImage("Pictures/Screenshots/", "Screenshot_1.png", 0))
         assertTrue(SecureCaptureScrubber.shouldDeleteVideo("Movies/Screen recordings/", "screenrecord.mp4", 0))

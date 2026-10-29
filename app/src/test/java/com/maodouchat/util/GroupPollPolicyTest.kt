@@ -105,6 +105,66 @@ class GroupPollPolicyTest {
     }
 
     @Test
+    fun pkShortcutParseEdges() {
+        assertEquals("k1" to "left", GroupPollPolicy.parsePkShortcut("~pk:k1|LEFT"))
+        assertEquals("k1" to "right", GroupPollPolicy.parsePkShortcut("~pk:k1| RIGHT "))
+        assertEquals("~pk:k1|left", GroupPollPolicy.buildPkShortcut("k1", "LEFT"))
+        assertEquals("~pk:k1|left", GroupPollPolicy.buildPkShortcut("k1", ""))
+        assertNull(GroupPollPolicy.parsePkShortcut("~pk:|left"))
+        assertNull(GroupPollPolicy.parsePkShortcut("~pk:k1|"))
+        assertFalse(GroupPollPolicy.isPkShortcut("~pk:k1|middle"))
+    }
+
+    @Test
+    fun checkinShortcutBlankEdgesAndStreakZero() {
+        assertEquals("~checkin", GroupPollPolicy.buildCheckinShortcut("  "))
+        assertNull(GroupPollPolicy.parseCheckinShortcut("~checkin:"))
+        assertEquals("g1", GroupPollPolicy.parseCheckinShortcut("~checkin: g1 "))
+        assertFalse(GroupPollPolicy.isCheckinShortcut("~checkin:"))
+        assertTrue(GroupPollPolicy.isCheckinShortcut("~checkin"))
+        assertEquals("~checkin 小明 已签到 · 连续 0 天", GroupPollPolicy.formatCheckinShare("小明", 0))
+        assertEquals("~checkin 小明 已签到 · 连续 1 天", GroupPollPolicy.formatCheckinShare("小明", 1))
+    }
+
+    @Test
+    fun chainShortcutCaretEscapeAndEmptyContent() {
+        val built = GroupPollPolicy.buildChainShortcut("c1", "a^b|c")
+        assertEquals("c1" to "a^b|c", GroupPollPolicy.parseChainShortcut(built))
+        assertNull(GroupPollPolicy.parseChainShortcut("~chain:c1|"))
+        assertFalse(GroupPollPolicy.isChainShortcut("~chain:c1|"))
+        assertTrue(GroupPollPolicy.isChainShortcut("~chain:c1|x"))
+        assertEquals(
+            "🔗 群接龙 · T\na|b\n第 1 条：~chain:c1|a\u0001b",
+            GroupPollPolicy.formatChainShare("c1", "T", "a|b", 1),
+        )
+    }
+
+    @Test
+    fun voteShortcutEmptyAndDedupOrder() {
+        assertEquals("~vote:p1|", GroupPollPolicy.buildVoteShortcut("p1", emptyList()))
+        assertNull(GroupPollPolicy.parseVoteShortcut("~vote:p1|"))
+        assertFalse(GroupPollPolicy.isVoteShortcut("~vote:p1|"))
+        assertNull(GroupPollPolicy.parseVoteShortcut("~vote:p1|abc"))
+        assertEquals("p1" to listOf(2, 1), GroupPollPolicy.parseVoteShortcut("~vote:p1|2,2,1"))
+        assertEquals("p1" to listOf(3, 1), GroupPollPolicy.parseVoteShortcut("~vote:p1|3, 1, 3"))
+    }
+
+    @Test
+    fun pollQuestionLengthCapAppliesToValidationAndShare() {
+        assertFalse(GroupPollPolicy.isValidPollQuestion(""))
+        assertFalse(GroupPollPolicy.isValidPollQuestion("   "))
+        assertTrue(GroupPollPolicy.isValidPollQuestion(" " + "x".repeat(200) + " "))
+        assertFalse(GroupPollPolicy.isValidPollQuestion(" " + "x".repeat(201) + " "))
+        assertFalse(GroupPollPolicy.isValidPollOptions(listOf("a ", " A")))
+        assertEquals(emptyList<String>(), GroupPollPolicy.sanitizePollOptions(emptyList()))
+        assertEquals(listOf("x"), GroupPollPolicy.sanitizePollOptions(listOf("  x  ")))
+        assertEquals(
+            "📊 群投票 · " + "q".repeat(200) + "\n~vote:p1|0",
+            GroupPollPolicy.formatPollShare("p1", "q".repeat(250), emptyList(), false),
+        )
+    }
+
+    @Test
     fun shareFormatsEmbedShortcuts() {
         assertEquals(
             "📊 群投票 · Q?\n1. A\n2. B\n~vote:p1|0",
