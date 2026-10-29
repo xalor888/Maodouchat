@@ -148,4 +148,41 @@ class QuickPhrasePolicyTest {
         assertEquals(listOf("好的 👍"), QuickPhrasePolicy.add(emptyList(), "  好的 👍  "))
     }
 
+    @Test
+    fun `remove preserves order and duplicates of other phrases`() {
+        assertEquals(
+            listOf("b", "b", "c"),
+            QuickPhrasePolicy.remove(listOf("b", "a", "b", "c"), "a")
+        )
+    }
+
+    @Test
+    fun `default phrases carry no leading or trailing whitespace`() {
+        QuickPhrasePolicy.DEFAULT_PHRASES.forEach { phrase ->
+            assertEquals(phrase, phrase.trim())
+        }
+    }
+
+    @Test
+    fun `default phrases first and last are pinned`() {
+        assertEquals("好的，收到 👍", QuickPhrasePolicy.DEFAULT_PHRASES.first())
+        assertEquals("好的，马上来", QuickPhrasePolicy.DEFAULT_PHRASES.last())
+    }
+
+    @Test
+    fun `add overlong phrase leaves the input untouched`() {
+        val base = listOf("a")
+        assertEquals(base, QuickPhrasePolicy.add(base, "x".repeat(81)))
+        assertEquals(listOf("a"), base)
+    }
+
+    @Test
+    fun `accepted add creates a new list but rejected add returns the input`() {
+        val base = listOf("a")
+        val added = QuickPhrasePolicy.add(base, "b")
+        assertEquals(listOf("a", "b"), added)
+        assertTrue(added !== base)
+        assertTrue(QuickPhrasePolicy.add(base, "a") === base)
+    }
+
 }

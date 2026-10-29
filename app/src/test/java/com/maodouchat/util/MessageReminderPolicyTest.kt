@@ -137,4 +137,46 @@ class MessageReminderPolicyTest {
         val week = 7L * 24L * 60L * 60L * 1_000L
         assertEquals(listOf(week), MessageReminderPolicy.QUICK_DELAYS_MS.filter { it >= week })
     }
+
+    @Test
+    fun `full preset list is pinned exactly`() {
+        assertEquals(
+            listOf(
+                60_000L, 300_000L, 900_000L, 1_800_000L,
+                3_600_000L, 7_200_000L, 10_800_000L, 14_400_000L,
+                21_600_000L, 43_200_000L, 86_400_000L,
+                172_800_000L, 259_200_000L, 604_800_000L
+            ),
+            MessageReminderPolicy.QUICK_DELAYS_MS
+        )
+    }
+
+    @Test
+    fun `largest preset gap is the four days from three to seven days`() {
+        val delays = MessageReminderPolicy.QUICK_DELAYS_MS
+        val widest = delays.zipWithNext().maxByOrNull { (a, b) -> b - a }
+        assertEquals(259_200_000L to 604_800_000L, widest)
+        assertEquals(345_600_000L, widest!!.second - widest.first)
+    }
+
+    @Test
+    fun `smallest preset gap is four minutes from one to five minutes`() {
+        val delays = MessageReminderPolicy.QUICK_DELAYS_MS
+        val narrowest = delays.zipWithNext().minByOrNull { (a, b) -> b - a }
+        assertEquals(60_000L to 300_000L, narrowest)
+        assertEquals(240_000L, narrowest!!.second - narrowest.first)
+    }
+
+    @Test
+    fun `preset span is seven days minus one minute with four sub-hour presets`() {
+        val delays = MessageReminderPolicy.QUICK_DELAYS_MS
+        assertEquals(604_740_000L, delays.last() - delays.first())
+        assertEquals(4, delays.count { it < 3_600_000L })
+    }
+
+    @Test
+    fun `all presets sum to 20451 minutes`() {
+        assertEquals(1_227_060_000L, MessageReminderPolicy.QUICK_DELAYS_MS.sum())
+    }
+
 }
