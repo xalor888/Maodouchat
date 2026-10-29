@@ -91,4 +91,67 @@ class NotificationPrivacyPolicyTest {
         assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = false))
     }
 
+    @Test
+    fun `lock masks preview toggle`() {
+        // 上锁时预览开关拨动不改变隐藏结论；未上锁时拨动会翻转结论。
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = true))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = false))
+        assertFalse(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = true))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = false))
+    }
+
+    @Test
+    fun `lock toggle matters only when preview is on`() {
+        // 上锁/解锁只在预览开启时改变结论；预览关闭时结论恒为隐藏。
+        assertFalse(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = true))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = true))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = false))
+        assertTrue(NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = false))
+    }
+
+    @Test
+    fun `hide matches lock-or-not-preview formula`() {
+        // 隐藏结论逐字等于 lock || !preview：四格公式级钉住。
+        for (lock in listOf(true, false)) {
+            for (preview in listOf(true, false)) {
+                assertEquals(
+                    lock || !preview,
+                    NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = lock, previewEnabled = preview),
+                    "($lock, $preview)"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `hide is monotone in lock and antitone in preview`() {
+        // 上锁只会从"显示"变"隐藏"；开预览只会从"隐藏"变"显示"，方向永不反转。
+        for (preview in listOf(true, false)) {
+            assertTrue(
+                !NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = false, previewEnabled = preview) ||
+                    NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = true, previewEnabled = preview)
+            )
+        }
+        for (lock in listOf(true, false)) {
+            // 开预览永不新增隐藏：预览开时隐藏，则预览关时也隐藏。
+            assertTrue(
+                !NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = lock, previewEnabled = true) ||
+                    NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = lock, previewEnabled = false)
+            )
+        }
+    }
+
+    @Test
+    fun `lock toggle sequence flips hide only on preview-on path`() {
+        // 连续拨动上锁：预览开时结论跟随翻转（false,true,false），预览关时恒真。
+        val onPath = listOf(false, true, false).map { lock ->
+            NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = lock, previewEnabled = true)
+        }
+        assertEquals(listOf(false, true, false), onPath)
+        val offPath = listOf(false, true, false).map { lock ->
+            NotificationPrivacyPolicy.hideSensitiveDetails(appLockEnabled = lock, previewEnabled = false)
+        }
+        assertEquals(listOf(true, true, true), offPath)
+    }
+
 }

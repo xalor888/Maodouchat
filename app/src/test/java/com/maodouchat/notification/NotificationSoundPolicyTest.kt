@@ -306,4 +306,101 @@ class NotificationSoundPolicyTest {
             NotificationSoundPolicy.ringtoneEnabled(false, true)
         )
     }
+
+    @Test
+    fun unmutedTraySoundEqualsMessageSound() {
+        // 静音关时托盘音判定退化为消息音判定：2x2 全格等价。
+        for (flag in listOf(true, false)) {
+            for (pref in listOf(true, false)) {
+                assertEquals(
+                    NotificationSoundPolicy.messageSoundEnabled(flag, pref),
+                    NotificationSoundPolicy.trayMessageSoundEnabled(flag, pref, false),
+                    "unmuted tray must equal message sound for ($flag, $pref)"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun inAppToneFullTruthTable() {
+        // 32 格全表：仅"四门全开且后台"一格为真，其余 31 格全灭。
+        for (inApp in listOf(true, false)) {
+            for (notif in listOf(true, false)) {
+                for (soundFlag in listOf(true, false)) {
+                    for (pref in listOf(true, false)) {
+                        for (fg in listOf(true, false)) {
+                            val expected = inApp && notif && soundFlag && pref && !fg
+                            assertEquals(
+                                expected,
+                                NotificationSoundPolicy.inAppReceiveToneEnabled(
+                                    inAppSoundsFlag = inApp,
+                                    notificationsEnabled = notif,
+                                    notificationSoundFlag = soundFlag,
+                                    soundPreference = pref,
+                                    appInForeground = fg,
+                                ),
+                                "($inApp, $notif, $soundFlag, $pref, $fg)"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun ringtoneIgnoresForegroundWhileTraySoundDoesNot() {
+        // 前台只压托盘/应用内音，不压来电铃声：铃声没有前台参数。
+        assertTrue(NotificationSoundPolicy.ringtoneEnabled(true, true))
+        assertFalse(NotificationSoundPolicy.traySoundAllowed(true, true))
+        assertFalse(
+            NotificationSoundPolicy.inAppReceiveToneEnabled(
+                inAppSoundsFlag = true,
+                notificationsEnabled = true,
+                notificationSoundFlag = true,
+                soundPreference = true,
+                appInForeground = true,
+            )
+        )
+    }
+
+    @Test
+    fun messageSoundIsMonotoneInEachGate() {
+        // 开 flag/偏好只会把声音从关变开，永不反向。
+        for (pref in listOf(true, false)) {
+            assertTrue(
+                !NotificationSoundPolicy.messageSoundEnabled(false, pref) ||
+                    NotificationSoundPolicy.messageSoundEnabled(true, pref)
+            )
+        }
+        for (flag in listOf(true, false)) {
+            assertTrue(
+                !NotificationSoundPolicy.messageSoundEnabled(flag, false) ||
+                    NotificationSoundPolicy.messageSoundEnabled(flag, true)
+            )
+        }
+    }
+
+    @Test
+    fun inAppToneExplicitForegroundFalseMatchesDefault() {
+        // appInForeground 显式传 false 与缺省（默认 false）逐格一致。
+        val combos = listOf(
+            listOf(true, true, true, true),
+            listOf(true, false, true, true),
+            listOf(false, true, true, false),
+        )
+        for ((inApp, notif, soundFlag, pref) in combos) {
+            assertEquals(
+                NotificationSoundPolicy.inAppReceiveToneEnabled(inApp, notif, soundFlag, pref),
+                NotificationSoundPolicy.inAppReceiveToneEnabled(
+                    inAppSoundsFlag = inApp,
+                    notificationsEnabled = notif,
+                    notificationSoundFlag = soundFlag,
+                    soundPreference = pref,
+                    appInForeground = false,
+                )
+            )
+        }
+    }
+
 }
