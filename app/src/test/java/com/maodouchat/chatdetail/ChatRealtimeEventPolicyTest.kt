@@ -110,4 +110,49 @@ class ChatRealtimeEventPolicyTest {
         assertFalse(shouldApplyContactPresence(false, " ", "user-2"))
     }
 
+    @Test
+    fun `whitespace ids never count as active`() {
+        assertFalse(isActiveChatEvent(" ", " "))
+        assertFalse(isActiveChatEvent("chat-a", "chat-a "))
+    }
+
+    @Test
+    fun `active chat match is case sensitive`() {
+        assertFalse(isActiveChatEvent("Chat-A", "chat-a"))
+        assertFalse(isActiveChatEvent("chat-a", "Chat-A"))
+    }
+
+    @Test
+    fun `other member leaving is plain refresh not terminal`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "user-2", "MEMBER_LEFT")
+        )
+        assertEquals(
+            GroupRevisionImpact.IGNORE,
+            groupRevisionImpact("chat-a", "user-1", "chat-b", "user-2", "MEMBER_LEFT")
+        )
+    }
+
+    @Test
+    fun `lowercase removal reason is not terminal`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "member_removed")
+        )
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "Member_Removed")
+        )
+    }
+
+    @Test
+    fun `current user removal needs an active chat and ignore needs a newer revision`() {
+        assertEquals(
+            GroupRevisionImpact.IGNORE,
+            groupRevisionImpact("", "user-1", "", "user-1", "MEMBER_REMOVED")
+        )
+        assertFalse(shouldInvalidateGroupKey(5L, 5L, GroupRevisionImpact.IGNORE))
+    }
+
 }
