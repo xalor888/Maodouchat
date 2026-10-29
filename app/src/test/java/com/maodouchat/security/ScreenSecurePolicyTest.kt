@@ -300,4 +300,41 @@ class ScreenSecurePolicyTest {
             )
         )
     }
+
+    @Test
+    fun `route head detection ignores the query string`() {
+        assertTrue(ScreenSecurePolicy.isChatSurfaceRoute("chat_detail?messageId=m1"))
+        assertFalse(ScreenSecurePolicy.isChatSurfaceRoute("main?next=chat_detail"))
+    }
+
+    @Test
+    fun `plus in a route segment stays a plus after decoding`() {
+        // 解码前先把 + 转成 %2B，所以它不是空格。
+        assertEquals("a+b", ScreenSecurePolicy.extractChatIdFromRoute("media_center/a+b"))
+    }
+
+    @Test
+    fun `blank query chat id extracts to null`() {
+        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("starred_messages?chatId="))
+        assertNull(ScreenSecurePolicy.extractChatIdFromRoute("starred_messages?chatId=%20"))
+    }
+
+    @Test
+    fun `fillRoutePattern substitutes only the provided arguments`() {
+        assertEquals(
+            "chat_detail/abc?messageId={messageId}",
+            ScreenSecurePolicy.fillRoutePattern(
+                "chat_detail/{chatId}?messageId={messageId}",
+                mapOf("chatId" to "abc")
+            )
+        )
+    }
+
+    @Test
+    fun `optimistic secret excludes call and forensic surfaces`() {
+        assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface("call/u1/Alice/AUDIO"))
+        assertFalse(ScreenSecurePolicy.isOptimisticSecretSurface("watermark_forensic/x"))
+        assertTrue(ScreenSecurePolicy.isOptimisticSecretSurface("group_chain/g1"))
+    }
+
 }

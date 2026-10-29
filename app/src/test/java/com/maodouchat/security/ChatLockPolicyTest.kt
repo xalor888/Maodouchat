@@ -112,4 +112,33 @@ class ChatLockPolicyTest {
     fun `live user case mismatch against owner fails closed`() {
         assertFalse(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "u1", liveUserId = "U1"))
     }
+
+    @Test
+    fun `tab and newline chat ids are blank`() {
+        assertFalse(ChatLockPolicy.isUnlocked("\t", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
+        assertFalse(ChatLockPolicy.isUnlocked("\n", setOf("c1"), ownerUserId = "u1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `blank owner matching a blank live user passes the owner check`() {
+        // 空串归属两边一致时不触发 mismatch，只看解锁集合。
+        assertTrue(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = "", liveUserId = ""))
+    }
+
+    @Test
+    fun `null owner ignores a blank live user`() {
+        assertTrue(ChatLockPolicy.isUnlocked("c1", setOf("c1"), ownerUserId = null, liveUserId = ""))
+    }
+
+    @Test
+    fun `unicode chat id membership is exact`() {
+        assertFalse(ChatLockPolicy.isUnlocked("café", setOf("cafe"), ownerUserId = "u1", liveUserId = "u1"))
+        assertTrue(ChatLockPolicy.isUnlocked("café", setOf("café"), ownerUserId = "u1", liveUserId = "u1"))
+    }
+
+    @Test
+    fun `absent chat id stays locked even with no owner on either side`() {
+        assertFalse(ChatLockPolicy.isUnlocked("c9", setOf("c1"), ownerUserId = null, liveUserId = null))
+    }
+
 }

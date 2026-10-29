@@ -120,4 +120,33 @@ class AppLockPolicyTest {
         assertFalse(AppLockPolicy.shouldLock(true, true, true, 10_000L, 60_000L, 40_000L))
         assertTrue(AppLockPolicy.shouldLock(true, true, false, 10_000L, 60_000L, 40_000L))
     }
+
+    @Test
+    fun `long min timeout coerces to one millisecond`() {
+        assertFalse(AppLockPolicy.shouldLock(true, true, true, 10_000L, Long.MIN_VALUE, 10_000L))
+        assertTrue(AppLockPolicy.shouldLock(true, true, true, 10_000L, Long.MIN_VALUE, 10_001L))
+    }
+
+    @Test
+    fun `logged out beats an unauthenticated session`() {
+        // 登出检查在前：即便没通过验证也不弹锁。
+        assertFalse(AppLockPolicy.shouldLock(true, false, false, 10_000L, 60_000L, 200_000L))
+    }
+
+    @Test
+    fun `unauthenticated beats a never-backgrounded session`() {
+        assertTrue(AppLockPolicy.shouldLock(true, true, false, -1L, 60_000L, 100_000L))
+    }
+
+    @Test
+    fun `long min background timestamp counts as never backgrounded`() {
+        assertFalse(AppLockPolicy.shouldLock(true, true, true, Long.MIN_VALUE, 60_000L, 100_000L))
+    }
+
+    @Test
+    fun `threshold still applies at the long max boundary`() {
+        assertFalse(AppLockPolicy.shouldLock(true, true, true, Long.MAX_VALUE - 5_000L, 60_000L, Long.MAX_VALUE))
+        assertTrue(AppLockPolicy.shouldLock(true, true, true, Long.MAX_VALUE - 5_000L, 5_000L, Long.MAX_VALUE))
+    }
+
 }
