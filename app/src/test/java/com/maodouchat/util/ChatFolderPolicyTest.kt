@@ -271,4 +271,55 @@ class ChatFolderPolicyTest {
         assertEquals(48, created.last().name.length)
     }
 
+    @Test
+    fun createFolderOnEmptyListStartsAtZeroWithGeneratedId() {
+        val created = assertNotNull(ChatFolderPolicy.createFolder(emptyList(), "Work"))
+        assertEquals(1, created.size)
+        assertEquals(0, created.first().sortOrder)
+        assertTrue(created.first().id.startsWith("folder_"))
+    }
+
+    @Test
+    fun renameFolderNormalizesAndPreservesOrderAndChats() {
+        val folders = listOf(folder("f1", "Work", order = 3, chats = listOf("c1", "c2")))
+        val renamed = assertNotNull(ChatFolderPolicy.renameFolder(folders, "f1", "  New   Name  "))
+        assertEquals("New Name", renamed.first().name)
+        assertEquals(3, renamed.first().sortOrder)
+        assertEquals(listOf("c1", "c2"), renamed.first().chatIds)
+    }
+
+    @Test
+    fun moveFolderTwoStepsSwapsWithTheDistantFolder() {
+        val folders = listOf(
+            folder("a", "A", order = 0),
+            folder("b", "B", order = 1),
+            folder("c", "C", order = 2),
+        )
+        val moved = assertNotNull(ChatFolderPolicy.moveFolder(folders, "a", +2))
+        assertEquals(listOf("c", "b", "a"), moved.map { it.id })
+        assertNull(ChatFolderPolicy.moveFolder(folders, "a", +3))
+    }
+
+    @Test
+    fun moveChatToUnknownTargetRemovesItEverywhere() {
+        val folders = listOf(
+            folder("f1", "F1", chats = listOf("c1", "c2")),
+            folder("f2", "F2", chats = listOf("c3")),
+        )
+        val moved = ChatFolderPolicy.moveChatToFolder(folders, "c1", "nope")
+        assertTrue(moved.none { "c1" in it.chatIds })
+        assertEquals(listOf("c2"), moved.first { it.id == "f1" }.chatIds)
+        assertEquals(listOf("c3"), moved.first { it.id == "f2" }.chatIds)
+    }
+
+    @Test
+    fun setChatRemoveAbsentLeavesFoldersUntouched() {
+        val folders = listOf(
+            folder("f1", "F1", chats = listOf("c1")),
+            folder("f2", "F2", chats = listOf("c2")),
+        )
+        val result = ChatFolderPolicy.setChatInFolder(folders, "f1", "c9", included = false)
+        assertEquals(folders, result)
+    }
+
 }
