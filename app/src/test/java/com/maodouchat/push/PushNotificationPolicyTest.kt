@@ -260,4 +260,58 @@ class PushNotificationPolicyTest {
         )
     }
 
+
+    @Test
+    fun mutedChatSuppressedEvenWhenNotActive() {
+        assertFalse(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "TEXT",
+                chatId = "c1",
+                activeChatId = "c2",
+                chatNotificationsMuted = true
+            )
+        )
+    }
+
+    @Test
+    fun skDistSuppressedEvenWhenNotActiveAndMuteUnknown() {
+        assertFalse(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "SK_DIST",
+                chatId = "c1",
+                activeChatId = "c2",
+                chatNotificationsMuted = null
+            )
+        )
+    }
+
+    @Test
+    fun paddedChatIdIsNotBlankSoShows() {
+        assertTrue(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "TEXT",
+                chatId = " c1 ",
+                activeChatId = null,
+                chatNotificationsMuted = false
+            )
+        )
+    }
+
+    @Test
+    fun activeChatMatchIsExactNotTrimmed() {
+        assertTrue(
+            PushNotificationPolicy.shouldShowNewMessage(
+                messageTypeWire = "TEXT",
+                chatId = "c1",
+                activeChatId = " c1 ",
+                chatNotificationsMuted = false
+            )
+        )
+    }
+
+    @Test
+    fun tabAndNewlineOnlyChatIdResolvesToNull() {
+        assertNull(PushNotificationPolicy.resolveChatId("\t"))
+        assertNull(PushNotificationPolicy.resolveChatId("\n"))
+    }
 }

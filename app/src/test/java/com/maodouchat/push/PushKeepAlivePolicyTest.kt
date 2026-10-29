@@ -164,4 +164,65 @@ class PushKeepAlivePolicyTest {
         assertFalse(PushKeepAliveModeStore.MODE_CALL in PushKeepAliveModeStore.SUPPORTED_RUNTIME_MODES)
     }
 
+
+    @Test
+    fun isEnabledRejectsPaddedKnownModes() {
+        assertFalse(PushKeepAlivePolicy.isEnabled(" foreground"))
+        assertFalse(PushKeepAlivePolicy.isEnabled("foreground "))
+        assertFalse(PushKeepAlivePolicy.isEnabled("\tforeground"))
+        assertFalse(PushKeepAlivePolicy.isEnabled(" media"))
+        assertFalse(PushKeepAlivePolicy.isEnabled("call\n"))
+    }
+
+    @Test
+    fun effectiveModePaddedLegacyMapsToOff() {
+        assertEquals(PushKeepAliveModeStore.MODE_OFF, PushKeepAlivePolicy.effectiveMode(" media"))
+        assertEquals(PushKeepAliveModeStore.MODE_OFF, PushKeepAlivePolicy.effectiveMode("call "))
+        assertEquals(PushKeepAliveModeStore.MODE_OFF, PushKeepAlivePolicy.effectiveMode("\tforeground"))
+    }
+
+    @Test
+    fun resurrectMatchesStartServiceForEveryModeAndToken() {
+        val modes = listOf(
+            PushKeepAliveModeStore.MODE_OFF,
+            PushKeepAliveModeStore.MODE_FOREGROUND,
+            PushKeepAliveModeStore.MODE_MEDIA,
+            PushKeepAliveModeStore.MODE_CALL,
+            "bogus",
+            "",
+        )
+        for (mode in modes) {
+            for (hasToken in listOf(true, false)) {
+                assertEquals(
+                    PushKeepAlivePolicy.shouldStartService(mode, hasToken),
+                    PushKeepAlivePolicy.shouldResurrectDaemon(mode, hasToken),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun retiredDisguisesStayFalseForCaseAndPaddedVariants() {
+        assertFalse(PushKeepAlivePolicy.wantsMediaSession("MEDIA"))
+        assertFalse(PushKeepAlivePolicy.wantsMediaSession(" media"))
+        assertFalse(PushKeepAlivePolicy.wantsFakeCall("CALL"))
+        assertFalse(PushKeepAlivePolicy.wantsFakeCall("call "))
+    }
+
+    @Test
+    fun effectiveModeOutputIsAlwaysSupportedRuntimeMode() {
+        val modes = listOf(
+            PushKeepAliveModeStore.MODE_OFF,
+            PushKeepAliveModeStore.MODE_FOREGROUND,
+            PushKeepAliveModeStore.MODE_MEDIA,
+            PushKeepAliveModeStore.MODE_CALL,
+            "bogus",
+            "",
+        )
+        for (mode in modes) {
+            assertTrue(
+                PushKeepAlivePolicy.effectiveMode(mode) in PushKeepAliveModeStore.SUPPORTED_RUNTIME_MODES
+            )
+        }
+    }
 }
