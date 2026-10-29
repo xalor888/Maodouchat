@@ -161,4 +161,57 @@ class VoiceCapturePolicyTest {
         assertEquals("1x", VoicePlayer.formatSpeedLabel(0f))
     }
 
+    @Test
+    fun waveform_defaultCapacityIsFiftySixAndEmpty() {
+        assertEquals(56, VoiceRecordingWaveform.DEFAULT_CAPACITY)
+        val wave = VoiceRecordingWaveform()
+        val snap = wave.snapshot()
+        assertEquals(56, snap.size)
+        assertTrue(snap.all { it == 0f })
+    }
+
+    @Test
+    fun waveform_capacityTwoRotatesOnThirdPush() {
+        val wave = VoiceRecordingWaveform(capacity = 2)
+        wave.push(0.1f)
+        wave.push(0.2f)
+        assertEquals(0.1f, wave.snapshot()[0], 0.0001f)
+        assertEquals(0.2f, wave.snapshot()[1], 0.0001f)
+        wave.push(0.3f)
+        val snap = wave.snapshot()
+        assertEquals(0.2f, snap[0], 0.0001f)
+        assertEquals(0.3f, snap[1], 0.0001f)
+    }
+
+    @Test
+    fun waveform_singlePushRightAligns() {
+        val wave = VoiceRecordingWaveform(capacity = 3)
+        wave.push(0.7f)
+        val snap = wave.snapshot()
+        assertEquals(0f, snap[0], 0.0001f)
+        assertEquals(0f, snap[1], 0.0001f)
+        assertEquals(0.7f, snap[2], 0.0001f)
+        wave.push(0.8f)
+        val snap2 = wave.snapshot()
+        assertEquals(0f, snap2[0], 0.0001f)
+        assertEquals(0.7f, snap2[1], 0.0001f)
+        assertEquals(0.8f, snap2[2], 0.0001f)
+    }
+
+    @Test
+    fun formatDuration_minuteBoundaries() {
+        assertEquals("0:59", VoiceRecorder.formatDuration(59_000))
+        assertEquals("1:00", VoiceRecorder.formatDuration(60_000))
+        assertEquals("1:01", VoiceRecorder.formatDuration(61_500))
+        assertEquals("10:00", VoiceRecorder.formatDuration(600_000))
+    }
+
+    @Test
+    fun previewPolicy_minSendMsConstantPinned() {
+        assertEquals(500L, VoiceCapturePolicy.MIN_SEND_MS)
+        assertTrue(VoiceCapturePolicy.canEnterPreview(VoiceCapturePolicy.MIN_SEND_MS))
+        assertTrue(VoiceCapturePolicy.canSendPreview(VoiceCapturePolicy.MIN_SEND_MS))
+        assertFalse(VoiceCapturePolicy.canEnterPreview(VoiceCapturePolicy.MIN_SEND_MS - 1))
+        assertFalse(VoiceCapturePolicy.canSendPreview(VoiceCapturePolicy.MIN_SEND_MS - 1))
+    }
 }

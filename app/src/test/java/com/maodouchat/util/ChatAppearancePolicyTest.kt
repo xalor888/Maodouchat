@@ -165,4 +165,41 @@ class ChatAppearancePolicyTest {
         assertEquals(Color(0xFF141618), ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.GRAPHITE))
     }
 
+    @Test
+    fun `normalize wallpaper ids round trip`() {
+        ChatWallpaperPreset.entries.forEach {
+            assertEquals(it, ChatAppearancePolicy.normalizeWallpaper(it.id))
+        }
+    }
+
+    @Test
+    fun `normalize font scale ids round trip`() {
+        ChatFontScale.entries.forEach {
+            assertEquals(it, ChatAppearancePolicy.normalizeFontScale(it.id))
+        }
+    }
+
+    @Test
+    fun `spot palette dark colors are pinned`() {
+        assertEquals(Color(0xFF14241F), ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.MINT))
+        assertEquals(Color(0xFF2A161C), ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.ROSE))
+        assertEquals(Color(0xFF101A28), ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.SKY))
+        assertEquals(Color(0xFF2A2010), ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.AMBER))
+    }
+
+    @Test
+    fun `spot palette light colors are pinned for remaining presets`() {
+        assertEquals(Color(0xFFF0ECFA), ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.LAVENDER))
+        assertEquals(Color(0xFFF7F1E6), ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.SAND))
+        assertEquals(Color(0xFFFFF0E8), ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.PEACH))
+        assertEquals(Color(0xFFE4F6F5), ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.TEAL))
+    }
+
+    @Test
+    fun `palette colors are distinct within each theme`() {
+        val lights = ChatWallpaperPreset.entries.map { ChatAppearancePolicy.wallpaperColorLight(it) }
+        val darks = ChatWallpaperPreset.entries.map { ChatAppearancePolicy.wallpaperColorDark(it) }
+        assertEquals(16, lights.toSet().size)
+        assertEquals(16, darks.toSet().size)
+    }
 }
