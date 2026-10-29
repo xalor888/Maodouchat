@@ -177,4 +177,44 @@ class UnreadPriorityPolicyTest {
             lastMessageTime = 100L, draftUpdatedAt = -5L))
     }
 
+
+    @Test
+    fun `hint rejects negative total`() {
+        assertFalse(UnreadPriorityPolicy.shouldShowHint(true, -2, isSearching = false))
+    }
+
+    @Test
+    fun `countUnreadChats counts dual-signal chat once`() {
+        assertEquals(1, UnreadPriorityPolicy.countUnreadChats(listOf(3), listOf(true)))
+    }
+
+    @Test
+    fun `marked unread outranks capped unread count`() {
+        val marked = UnreadPriorityPolicy.activityScore(lastMessageTime = 100L, markedUnread = true)
+        val capped = UnreadPriorityPolicy.activityScore(lastMessageTime = 100L, unreadCount = 999)
+        assertEquals(1_000_000_100L, marked)
+        assertEquals(500_001_099L, capped)
+        assertTrue(marked > capped)
+    }
+
+    @Test
+    fun `draft plus unread weights combine exactly`() {
+        assertEquals(
+            500_000_903L,
+            UnreadPriorityPolicy.activityScore(
+                lastMessageTime = 100L, draftUpdatedAt = 900L, unreadCount = 3
+            )
+        )
+    }
+
+    @Test
+    fun `marked plus capped unread combine exactly`() {
+        assertEquals(
+            1_500_001_099L,
+            UnreadPriorityPolicy.activityScore(
+                lastMessageTime = 100L, unreadCount = 5000, markedUnread = true
+            )
+        )
+    }
+
 }

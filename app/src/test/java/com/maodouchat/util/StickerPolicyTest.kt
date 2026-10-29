@@ -163,4 +163,44 @@ class StickerPolicyTest {
         )
         assertTrue(StickerPolicy.searchStickers("qqqqqqqq-nope").isEmpty())
     }
+
+    @Test
+    fun `pushRecent truncates to default max 48`() {
+        val base = (0..59).map { "s$it" }
+        val next = StickerPolicy.pushRecent(base, "NEW")
+        assertEquals(48, next.size)
+        assertEquals("NEW", next.first())
+        assertEquals("s46", next.last())
+    }
+
+    @Test
+    fun `pushRecent on empty list`() {
+        assertEquals(listOf("A"), StickerPolicy.pushRecent(emptyList(), "A"))
+        assertEquals(emptyList<String>(), StickerPolicy.pushRecent(emptyList(), "   "))
+    }
+
+    @Test
+    fun `normalizeEnabledPackIds all unknown falls back to defaults`() {
+        assertEquals(
+            StickerCatalog.defaultEnabledPackIds(),
+            StickerPolicy.normalizeEnabledPackIds(listOf("nope", "alsono"))
+        )
+    }
+
+    @Test
+    fun `togglePackEnabled enable already enabled keeps list`() {
+        val base = listOf(StickerCatalog.PACK_MOOD, StickerCatalog.PACK_PARTY)
+        assertEquals(base, StickerPolicy.togglePackEnabled(base, StickerCatalog.PACK_MOOD, enable = true))
+    }
+
+    @Test
+    fun `searchStickers dedupes custom pack glyph and tag hits`() {
+        val pack = StickerPack(
+            id = "t", nameKey = "t", stickers = listOf("🔥"),
+            emojiTags = mapOf("fire" to listOf("🔥"))
+        )
+        assertEquals(listOf("🔥"), StickerPolicy.searchStickers("🔥", listOf(pack)))
+        assertEquals(listOf("🔥"), StickerPolicy.searchStickers("fire", listOf(pack)))
+    }
+
 }
