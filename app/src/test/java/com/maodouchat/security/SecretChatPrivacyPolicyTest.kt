@@ -229,6 +229,75 @@ class SecretChatPrivacyPolicyTest {
     }
 
     @Test
+    fun `privacy actions keep declaration order`() {
+        assertEquals(
+            listOf(
+                PrivacyAction.SEARCH,
+                PrivacyAction.FORWARD,
+                PrivacyAction.EXPORT,
+                PrivacyAction.AI,
+                PrivacyAction.SCREENSHOT,
+                PrivacyAction.NOTIFICATION_PREVIEW
+            ),
+            PrivacyAction.values().toList()
+        )
+    }
+
+    @Test
+    fun `secret chat states keep declaration order`() {
+        assertEquals(
+            listOf(
+                SecretChatState.ACTIVE,
+                SecretChatState.ARMED,
+                SecretChatState.EXPIRING,
+                SecretChatState.DESTROYED
+            ),
+            SecretChatState.values().toList()
+        )
+    }
+
+    @Test
+    fun `lifecycle chain runs read expiry destroy in order`() {
+        val armed = SecretChatStateMachine.onRead(SecretChatState.ACTIVE, hasTimer = true)
+        assertEquals(SecretChatState.ARMED, armed)
+        val expiring = SecretChatStateMachine.onExpiry(armed)
+        assertEquals(SecretChatState.EXPIRING, expiring)
+        assertEquals(SecretChatState.DESTROYED, SecretChatStateMachine.onDestroy(expiring))
+    }
+
+    @Test
+    fun `capability copy flips the verdict`() {
+        val normalCaps = ConversationPrivacyCapabilities(isSecretChat = false, isLocked = false)
+        val secretCopy = normalCaps.copy(isSecretChat = true)
+        PrivacyAction.values().forEach { action ->
+            assertFalse(
+                "Secret copy should deny $action",
+                ConversationPrivacyPolicy.allows(secretCopy, action)
+            )
+        }
+        val lockedCaps = ConversationPrivacyCapabilities(isSecretChat = false, isLocked = true)
+        val unlockedCopy = lockedCaps.copy(isLocked = false)
+        PrivacyAction.values().forEach { action ->
+            assertTrue(
+                "Unlocked copy should allow $action",
+                ConversationPrivacyPolicy.allows(unlockedCopy, action)
+            )
+        }
+    }
+
+    @Test
+    fun `privacy decision is stable for every capability combination`() {
+        listOf(false, true).forEach { isSecret ->
+            listOf(false, true).forEach { isLocked ->
+                val caps = ConversationPrivacyCapabilities(isSecretChat = isSecret, isLocked = isLocked)
+                val first = PrivacyAction.values().map { ConversationPrivacyPolicy.allows(caps, it) }
+                val second = PrivacyAction.values().map { ConversationPrivacyPolicy.allows(caps, it) }
+                assertEquals("$isSecret/$isLocked", first, second)
+            }
+        }
+    }
+
+    @Test
     fun `expiring state is terminal except destroy`() {
         assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onRead(SecretChatState.EXPIRING, true))
         assertEquals(SecretChatState.EXPIRING, SecretChatStateMachine.onRead(SecretChatState.EXPIRING, false))
