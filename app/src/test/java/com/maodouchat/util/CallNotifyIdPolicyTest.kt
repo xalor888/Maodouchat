@@ -237,4 +237,94 @@ class CallNotifyIdPolicyTest {
             NotificationSlotPolicy.scheduledMessageFailedNotifyId()
         )
     }
+
+    @Test
+    fun reminderAndChatNamespacesStaySeparateForSameId() {
+        assertNotEquals(
+            NotificationSlotPolicy.messageTag("c9"),
+            NotificationSlotPolicy.reminderTag("c9")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.chatRequestCode("c9"),
+            NotificationSlotPolicy.reminderRequestCode("c9")
+        )
+        assertEquals(
+            "maodouchat_reminder_c9",
+            NotificationSlotPolicy.reminderTag("c9")
+        )
+        assertEquals(
+            "m9".hashCode(),
+            NotificationSlotPolicy.reminderNotifyId("m9")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.messageNotifyId(),
+            NotificationSlotPolicy.reminderNotifyId("m9")
+        )
+    }
+
+    @Test
+    fun emptyCallIdDataUrisKeepIncomingAndMissedApart() {
+        assertEquals(
+            "maodouchat-notify://incoming/",
+            NotificationSlotPolicy.incomingCallDataUri("")
+        )
+        assertEquals(
+            "maodouchat-notify://missed/",
+            NotificationSlotPolicy.missedCallDataUri("")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.incomingCallDataUri(""),
+            NotificationSlotPolicy.missedCallDataUri("")
+        )
+    }
+
+    @Test
+    fun aiTaskNotifyEqualsRequestAndGroupKeysAreChatScoped() {
+        listOf("t2", "task-x").forEach { taskId ->
+            assertEquals(
+                NotificationSlotPolicy.aiTaskNotifyId(taskId),
+                NotificationSlotPolicy.aiTaskRequestCode(taskId)
+            )
+        }
+        assertEquals("ai_tasks_", NotificationSlotPolicy.aiTaskGroupKey(""))
+        assertEquals(
+            "ai_summary_c9".hashCode(),
+            NotificationSlotPolicy.aiTaskSummaryId("c9")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.aiTaskSummaryId("c9"),
+            NotificationSlotPolicy.aiTaskSummaryId("c2")
+        )
+    }
+
+    @Test
+    fun socialRequestCodesFollowPrefixFormulasForNewIds() {
+        assertEquals("req-9".hashCode(), NotificationSlotPolicy.friendRequestNotifyId("req-9"))
+        assertEquals("friend_req-9".hashCode(), NotificationSlotPolicy.friendRequestRequestCode("req-9"))
+        assertEquals("inv-9".hashCode(), NotificationSlotPolicy.groupInviteNotifyId("inv-9"))
+        assertEquals("group_invite_inv-9".hashCode(), NotificationSlotPolicy.groupInviteRequestCode("inv-9"))
+        assertEquals("ann-9".hashCode(), NotificationSlotPolicy.announcementNotifyId("ann-9"))
+        assertEquals(
+            "announcement_ann-9".hashCode(),
+            NotificationSlotPolicy.announcementRequestCode("ann-9")
+        )
+    }
+
+    @Test
+    fun postNotifyAndRequestCodesStayIsolatedForNewId() {
+        assertEquals("post_z".hashCode(), NotificationSlotPolicy.postNotifyId("z"))
+        assertEquals("z".hashCode(), NotificationSlotPolicy.postRequestCode("z"))
+        assertNotEquals(
+            NotificationSlotPolicy.postNotifyId("z"),
+            NotificationSlotPolicy.postRequestCode("z")
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.scheduledMessageFailedNotifyId(),
+            NotificationSlotPolicy.messageNotifyId()
+        )
+        assertEquals(
+            NotificationSlotPolicy.scheduledMessageFailedNotifyId(),
+            NotificationSlotPolicy.scheduledMessageFailedNotifyId()
+        )
+    }
 }

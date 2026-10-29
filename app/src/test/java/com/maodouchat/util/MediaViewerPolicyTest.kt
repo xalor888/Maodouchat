@@ -148,4 +148,59 @@ class MediaViewerPolicyTest {
         )
     }
 
+    @Test
+    fun `scale constants pinned and mid scale passes through`() {
+        assertEquals(1f, MediaViewerPolicy.MIN_SCALE)
+        assertEquals(8f, MediaViewerPolicy.MAX_SCALE)
+        assertEquals(3.5f, MediaViewerPolicy.DOUBLE_TAP_SCALE)
+        assertEquals(4.25f, MediaViewerPolicy.clampScale(4.25f))
+        assertEquals(1f, MediaViewerPolicy.nextDoubleTapScale(3.5f))
+    }
+
+    @Test
+    fun `mime family coverage`() {
+        assertTrue(MediaViewerPolicy.isImageMime("image/webp"))
+        assertTrue(MediaViewerPolicy.isVideoMime("video/webm"))
+        assertFalse(MediaViewerPolicy.isImageMime("audio/mp3"))
+        assertFalse(MediaViewerPolicy.isVideoMime("audio/mp3"))
+        assertFalse(MediaViewerPolicy.isImageMime("application/pdf"))
+        assertFalse(MediaViewerPolicy.isVideoMime("application/pdf"))
+    }
+
+    @Test
+    fun `defaultMime explicit wins and type fallback covers gif and file`() {
+        assertEquals("application/pdf", MediaViewerPolicy.defaultMime("IMAGE", "application/pdf"))
+        assertEquals("image/gif", MediaViewerPolicy.defaultMime("gif", null))
+        assertEquals("application/octet-stream", MediaViewerPolicy.defaultMime("file", null))
+    }
+
+    @Test
+    fun `defaultFileName generated names follow mime before type`() {
+        val videoTypeGifMime = MediaViewerPolicy.defaultFileName("VIDEO", null, "image/gif")
+        assertTrue(videoTypeGifMime.startsWith("video_"))
+        assertTrue(videoTypeGifMime.endsWith(".gif"))
+        val noTypeVideoMime = MediaViewerPolicy.defaultFileName(null, null, "video/mp4")
+        assertTrue(noTypeVideoMime.startsWith("media_"))
+        assertTrue(noTypeVideoMime.endsWith(".mp4"))
+        val emptyExplicitName = MediaViewerPolicy.defaultFileName("IMAGE", "", "image/png")
+        assertTrue(emptyExplicitName.startsWith("image_"))
+        assertTrue(emptyExplicitName.endsWith(".png"))
+        val noTypeNoMime = MediaViewerPolicy.defaultFileName(null, null, null)
+        assertTrue(noTypeNoMime.startsWith("media_"))
+        assertTrue(noTypeNoMime.endsWith(".bin"))
+    }
+
+    @Test
+    fun `export and share gates agree on the full truth table`() {
+        listOf(
+            Triple(true, false, true),
+            Triple(false, false, false),
+            Triple(true, true, false),
+            Triple(false, true, false),
+        ).forEach { (readable, secret, expected) ->
+            assertEquals(expected, MediaViewerPolicy.canExportLocal(readable, secretChat = secret))
+            assertEquals(expected, MediaViewerPolicy.canShareLocal(readable, secretChat = secret))
+        }
+    }
+
 }
