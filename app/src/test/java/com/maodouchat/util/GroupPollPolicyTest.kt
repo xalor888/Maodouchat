@@ -239,4 +239,49 @@ class GroupPollPolicyTest {
         )
     }
 
+    @Test
+    fun votePollIdKeepsSurroundingSpaces() {
+        // pollId 只判 blank 不 trim：分隔符两侧的空格是 pollId 的一部分
+        assertEquals("p1 " to listOf(0), GroupPollPolicy.parseVoteShortcut("~vote:p1 |0"))
+        assertEquals(" p1" to listOf(0), GroupPollPolicy.parseVoteShortcut("  ~vote: p1|0"))
+    }
+
+    @Test
+    fun voteShortcutPipeInPollIdBreaksRoundTrip() {
+        // build 不转义分隔符：pollId 含 | 时拼出的串解析即失败，不是往返
+        assertEquals("~vote:a|b|0", GroupPollPolicy.buildVoteShortcut("a|b", listOf(0)))
+        assertNull(GroupPollPolicy.parseVoteShortcut("~vote:a|b|0"))
+        assertFalse(GroupPollPolicy.isVoteShortcut("~vote:a|b|0"))
+    }
+
+    @Test
+    fun checkinChatIdColonAndNonPrefix() {
+        // chatId 里的冒号原样透传；~checkinX 不是签到快捷符
+        assertEquals("g1:extra", GroupPollPolicy.parseCheckinShortcut("~checkin:g1:extra"))
+        assertNull(GroupPollPolicy.parseCheckinShortcut("~checkinX"))
+        assertFalse(GroupPollPolicy.isCheckinShortcut("~checkinX"))
+        assertEquals("~checkin: g1 ", GroupPollPolicy.buildCheckinShortcut(" g1 "))
+        assertEquals("g1", GroupPollPolicy.parseCheckinShortcut(GroupPollPolicy.buildCheckinShortcut(" g1 ")))
+    }
+
+    @Test
+    fun chainBlankChainIdRejectedAndPaddedInputParses() {
+        assertNull(GroupPollPolicy.parseChainShortcut("~chain:|x"))
+        assertNull(GroupPollPolicy.parseChainShortcut("~chain: |x"))
+        assertEquals("c1" to "x", GroupPollPolicy.parseChainShortcut("  ~chain:c1|x  "))
+        assertFalse(GroupPollPolicy.isChainShortcut("~chain:c1| "))
+    }
+
+    @Test
+    fun shareFormatsEdgeValues() {
+        assertEquals(
+            "📊 群投票 · Q?\n（可多选）\n~vote:p1|0",
+            GroupPollPolicy.formatPollShare("p1", "Q?", emptyList(), true),
+        )
+        assertEquals("~checkin 小明 已签到 · 连续 -1 天", GroupPollPolicy.formatCheckinShare("小明", -1))
+        assertEquals(
+            "🔗 群接龙 · T\ntopic\n第 -1 条：~chain:c1|topic",
+            GroupPollPolicy.formatChainShare("c1", "T", "topic", -1),
+        )
+    }
 }
