@@ -228,4 +228,73 @@ class MediaCachePathEscapeTest {
         assertEquals(target.toUri().toString(), out, "源即目标时应短路返回同一 uri")
     }
 
+
+    @Test
+    fun blankSecretChatIdFallsBackToSharedDirectory() {
+        val blank = MediaCache.createAttachmentCacheFile(
+            ctx, messageId = "m-blank", fileName = "x.jpg", secretChatId = "",
+        )
+        assertEquals("maodouchat_media", blank.parentFile?.name, "空串密聊 id 应回落共享目录")
+        val missing = MediaCache.createAttachmentCacheFile(
+            ctx, messageId = "m-blank", fileName = "x.jpg", secretChatId = null,
+        )
+        assertEquals("maodouchat_media", missing.parentFile?.name, "null 密聊 id 应回落共享目录")
+    }
+
+    @Test
+    fun deleteSecretChatMediaRemovesOnlyThatChat() {
+        val a = MediaCache.createAttachmentCacheFile(
+            ctx, messageId = "m-a", fileName = "x.jpg", secretChatId = "chat_a",
+        ).apply { writeText("a") }
+        val b = MediaCache.createAttachmentCacheFile(
+            ctx, messageId = "m-b", fileName = "x.jpg", secretChatId = "chat_b",
+        ).apply { writeText("b") }
+        assertTrue(MediaCache.deleteSecretChatMedia(ctx, "chat_a"), "删除应成功")
+        assertFalse(a.exists(), "chat_a 的文件必须被清掉")
+        assertTrue(b.exists(), "chat_b 的文件必须保留")
+        assertTrue(MediaCache.deleteSecretChatMedia(ctx, "chat_nope"), "不存在的密聊删除应返回 true")
+        File(ctx.cacheDir, "maodouchat_media_secret").deleteRecursively()
+    }
+
+    @Test
+    fun deleteCachedMediaForMessageAlsoCleansSecretDirs() {
+        val sharedDir = File(ctx.cacheDir, "maodouchat_media").apply { mkdirs() }
+        val shared = File(sharedDir, "m-sec.jpg").apply { writeText("x") }
+        val secret = MediaCache.createAttachmentCacheFile(
+            ctx, messageId = "m-sec", fileName = "x.jpg", secretChatId = "chat_s",
+        ).apply { writeText("x") }
+        assertTrue(MediaCache.deleteCachedMediaForMessage(ctx, "m-sec"), "删除应成功")
+        assertFalse(shared.exists(), "共享目录的同 messageId 文件必须被清掉")
+        assertFalse(secret.exists(), "密聊隔离目录的同 messageId 文件必须被清掉")
+        File(ctx.cacheDir, "maodouchat_media_secret").deleteRecursively()
+    }
+
+    @Test
+    fun encryptedDownloadFileDiscriminatorVariants() {
+        val blank = MediaCache.createEncryptedDownloadFile(ctx, attachmentId = "att_abc", discriminator = "")
+        assertEquals("att_abc.part", blank.name, "空 discriminator 应无分隔符后缀")
+        val dir = File(ctx.cacheDir, "attachment-downloads")
+        listOf("../../x", "a/b", "a b").forEach { disc ->
+            val target = MediaCache.createEncryptedDownloadFile(ctx, attachmentId = "att_abc", discriminator = disc)
+            assertInside(dir, target)
+            assertFalse(target.name.contains("/"), "discriminator 不得残留 '/'，实际 ${target.name}")
+            assertTrue(target.name.endsWith(".part"), "下载文件必须以 .part 结尾，实际 ${target.name}")
+        }
+    }
+
+    @Test
+    fun preparedAttachmentSourceExtensionVariants() {
+        val dir = File(ctx.cacheDir, "attachment-sources").apply { mkdirs() }
+        listOf(".png", ".jpeg", ".mp4", ".a1", ".1234567890").forEach { ext ->
+            val target = MediaCache.createPreparedAttachmentSource(ctx, messageId = "m-ext", extension = ext)
+            assertInside(dir, target)
+            assertTrue(target.name.endsWith(ext), "扩展名 $ext 应原样保留，实际 ${target.name}")
+        }
+        listOf(".12345678901", ".jpg ", ".j-p", ".jp g").forEach { bad ->
+            assertFailsWith<IllegalArgumentException>("扩展名 '$bad' 必须被拒") {
+                MediaCache.createPreparedAttachmentSource(ctx, messageId = "m-ext", extension = bad)
+            }
+        }
+    }
+
 }
