@@ -151,4 +151,40 @@ class NearbyPolicyTest {
         }
         assertEquals(listOf("p3", "p1", "p4", "p2"), sorted.map { it.id })
     }
+
+    @Test
+    fun radiusOptions_exactNineChipsPinned() {
+        assertEquals(
+            listOf(0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0),
+            NearbyPolicy.RADIUS_OPTIONS_KM
+        )
+    }
+
+    @Test
+    fun nearestOptionKm_betweenChipsPicksNearer() {
+        assertEquals(10.0, NearbyPolicy.nearestOptionKm(12.0), 0.0)
+        assertEquals(20.0, NearbyPolicy.nearestOptionKm(22.0), 0.0)
+        assertEquals(2.0, NearbyPolicy.nearestOptionKm(3.0), 0.0)
+    }
+
+    @Test
+    fun remainingVisibleMs_oneMillisecondLeftIsStillVisible() {
+        assertEquals(1L, NearbyPolicy.remainingVisibleMs(1_001L, 1_000L))
+        assertTrue(NearbyPolicy.isStillVisible(1_001L, 1_000L))
+    }
+
+    @Test
+    fun normalizeRadiusKm_zeroClampsToMin() {
+        assertEquals(0.5, NearbyPolicy.normalizeRadiusKm(0.0), 0.0)
+    }
+
+    @Test
+    fun compareNearby_offlineDistanceBeatsRecency() {
+        assertTrue(
+            NearbyPolicy.compareNearby(
+                isOnlineA = false, distanceA = 100, updatedAtA = 1L,
+                isOnlineB = false, distanceB = 50, updatedAtB = 9L
+            ) > 0
+        )
+    }
 }

@@ -193,4 +193,48 @@ class QrCodeGeneratorPayloadTest {
         assertIs<QrTarget.ChatInvite>(ok)
         assertEquals("t".repeat(32), ok.token)
     }
+
+    @Test
+    fun emptyIdsEncodeToBarePrefixes() {
+        assertEquals("maodouchat:user:", QrCodeGenerator.encodeUserQrPayload(""))
+        assertEquals("maodouchat:chat:", QrCodeGenerator.encodeChatQrPayload(""))
+    }
+
+    @Test
+    fun unicodeIdsKeepSixColonStructure() {
+        val payload = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "用户甲", ownerDeviceId = 1,
+            peerUserId = "用户乙", peerDeviceId = 2,
+            safetyCode = "安全码",
+        )
+        assertEquals(6, payload.count { it == ':' })
+        assertFalse(payload.contains("="))
+    }
+
+    @Test
+    fun safetyV2PayloadHasEightColonsAndV2Marker() {
+        val payload = QrCodeGenerator.encodeSafetyQrPayload(
+            ownerUserId = "u1", ownerDeviceId = 1,
+            peerUserId = "u2", peerDeviceId = 2,
+            ownerIdentityFingerprint = "fp1", peerIdentityFingerprint = "fp2",
+        )
+        assertEquals(8, payload.count { it == ':' })
+        assertTrue(payload.startsWith("maodouchat:safety:v2:"))
+        assertFalse(payload.contains("="))
+    }
+
+    @Test
+    fun whitespaceOnlyInviteTokenTrimsToBarePrefixAndParsesNull() {
+        val payload = QrCodeGenerator.encodeChatInviteQrPayload("   ")
+        assertEquals("maodouchat:chat-invite:v1:", payload)
+        assertNull(QrCodeGenerator.parsePayload(payload), "全空白 token 应解析为 null")
+    }
+
+    @Test
+    fun inviteTokenInnerSpacesArePreserved() {
+        assertEquals(
+            "maodouchat:chat-invite:v1:a b",
+            QrCodeGenerator.encodeChatInviteQrPayload("  a b  ")
+        )
+    }
 }

@@ -124,4 +124,43 @@ class StickerPolicyTest {
         val packs = StickerPolicy.enabledPacks(listOf(StickerCatalog.PACK_MOOD, "nope"))
         assertEquals(listOf(StickerCatalog.PACK_MOOD), packs.map { it.id })
     }
+
+    @Test
+    fun `pushRecent removes all duplicates of pushed sticker`() {
+        assertEquals(listOf("A", "B"), StickerPolicy.pushRecent(listOf("A", "B", "A"), "A"))
+        assertEquals(listOf("B", "A"), StickerPolicy.pushRecent(listOf("A", "B"), "B"))
+    }
+
+    @Test
+    fun `normalizeEnabledPackIds preserves request order`() {
+        assertEquals(
+            listOf(StickerCatalog.PACK_PARTY, StickerCatalog.PACK_MOOD),
+            StickerPolicy.normalizeEnabledPackIds(listOf(StickerCatalog.PACK_PARTY, StickerCatalog.PACK_MOOD))
+        )
+    }
+
+    @Test
+    fun `enabledPacks empty request falls back to all defaults`() {
+        val packs = StickerPolicy.enabledPacks(emptyList())
+        assertEquals(3, packs.size)
+        assertEquals(
+            StickerCatalog.defaultEnabledPackIds().toSet(),
+            packs.map { it.id }.toSet()
+        )
+    }
+
+    @Test
+    fun `togglePackEnabled from empty disables one of defaults`() {
+        val result = StickerPolicy.togglePackEnabled(emptyList(), StickerCatalog.PACK_MOOD, enable = false)
+        assertEquals(listOf(StickerCatalog.PACK_GESTURE, StickerCatalog.PACK_PARTY), result)
+    }
+
+    @Test
+    fun `searchStickers trims query and misses unknown text`() {
+        assertEquals(
+            StickerPolicy.searchStickers("party"),
+            StickerPolicy.searchStickers("  party  ")
+        )
+        assertTrue(StickerPolicy.searchStickers("qqqqqqqq-nope").isEmpty())
+    }
 }
