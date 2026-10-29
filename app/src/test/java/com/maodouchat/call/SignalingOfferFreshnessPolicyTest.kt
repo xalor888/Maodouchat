@@ -341,4 +341,87 @@ class SignalingOfferFreshnessPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `未知时间戳压过零窗口`() {
+        // 时间戳未知分支排在窗口判定之前：零/负窗口也挡不住未知时间戳的 offer。
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.isOfferFresh(
+                timestampMillis = 0L,
+                nowMillis = now,
+                maxAgeMs = 0L,
+            )
+        )
+        assertTrue(
+            SignalingOfferFreshnessPolicy.isOfferFresh(
+                timestampMillis = -5L,
+                nowMillis = now,
+                maxAgeMs = -1L,
+            )
+        )
+    }
+
+    @Test
+    fun `未来时间戳遇零窗口仍被拒`() {
+        // 窗口判定排在时钟偏移判定之前：窗口已关时未来时间戳也不放行。
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.isOfferFresh(
+                timestampMillis = now + 1_000L,
+                nowMillis = now,
+                maxAgeMs = 0L,
+            )
+        )
+    }
+
+    @Test
+    fun `空白 callId 仍走新鲜度且跳过 terminated 比对`() {
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "   ",
+                terminatedCallIds = setOf("   "),
+                timestampMillis = now - IncomingCallCoordinator.STALE_MS - 5L,
+                nowMillis = now,
+            )
+        )
+        assertTrue(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "offer",
+                callId = "   ",
+                terminatedCallIds = setOf("   "),
+                timestampMillis = now - 1_000L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun `大写 OFFER 被终止集合照常过滤`() {
+        val now = 1_000_000L
+        assertFalse(
+            SignalingOfferFreshnessPolicy.shouldKeepOffer(
+                type = "OFFER",
+                callId = "c1",
+                terminatedCallIds = setOf("c1"),
+                timestampMillis = now - 1_000L,
+                nowMillis = now,
+            )
+        )
+    }
+
+    @Test
+    fun `自定义窗口下未来时间戳仍新鲜`() {
+        val now = 1_000_000L
+        assertTrue(
+            SignalingOfferFreshnessPolicy.isOfferFresh(
+                timestampMillis = now + 5_000L,
+                nowMillis = now,
+                maxAgeMs = 1_000L,
+            )
+        )
+    }
+
 }

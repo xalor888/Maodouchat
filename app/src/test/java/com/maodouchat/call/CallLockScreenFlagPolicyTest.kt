@@ -214,4 +214,58 @@ class CallLockScreenFlagPolicyTest {
             )
         )
     }
+
+    @Test
+    fun figureSpaceOnlyIdDisablesFlags() {
+        // U+2007 与 NBSP 同属空格分隔符：纯图形空格 id 视为空白。
+        assertFalse(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\u2007",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun ideographicSpaceOnlyIdDisablesFlags() {
+        assertFalse(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\u3000",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun narrowNoBreakSpaceOnlyIdDisablesFlags() {
+        assertFalse(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\u202F",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun byteOrderMarkOnlyIdKeepsEnabled() {
+        // U+FEFF 是格式字符而非空白：与零宽空格同理，id 非空即点亮。
+        assertTrue(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\uFEFF",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
+    @Test
+    fun nulOnlyIdKeepsEnabled() {
+        // NUL 是控制字符而非空白：isBlank 不认它。
+        assertTrue(
+            CallLockScreenFlagPolicy.shouldEnable(
+                activeCallId = "\u0000",
+                hasPendingIncomingCall = false,
+            )
+        )
+    }
+
 }
