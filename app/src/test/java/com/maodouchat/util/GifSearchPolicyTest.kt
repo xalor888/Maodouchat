@@ -97,4 +97,40 @@ class GifSearchPolicyTest {
         val ordered = GifSearchPolicy.filterAndSort(items, "")
         assertEquals(listOf("b", "a"), ordered.map { it.id })
     }
+
+    @Test
+    fun `normalizeQuery keeps inner spacing and trims tabs and newlines`() {
+        assertEquals("hello   world", GifSearchPolicy.normalizeQuery("  HELLO   WORLD  "))
+        assertEquals("hello", GifSearchPolicy.normalizeQuery("\tHello\n"))
+        assertEquals("ab".repeat(40), GifSearchPolicy.normalizeQuery("Ab".repeat(50)))
+    }
+
+    @Test
+    fun `matches normalizes name separators but not query separators`() {
+        val dashed = LocalGifItem("2", "content://2", "thumbs-up.gif")
+        val underscored = LocalGifItem("1", "content://1", "party_cat.gif")
+        assertTrue(GifSearchPolicy.matches(dashed, "thumbs up"))
+        assertFalse(GifSearchPolicy.matches(dashed, "thumbs_up"))
+        assertTrue(GifSearchPolicy.matches(underscored, "party cat"))
+        assertFalse(GifSearchPolicy.matches(underscored, "party-cat"))
+    }
+
+    @Test
+    fun `filterAndSort duplicate recent ids converge to one slot`() {
+        val ordered = GifSearchPolicy.filterAndSort(samples, "", recentIds = listOf("2", "2", "1"))
+        assertEquals(listOf("2", "1", "3"), ordered.map { it.id })
+    }
+
+    @Test
+    fun `filterAndSort limit two and oversized limit`() {
+        assertEquals(listOf("1", "2"), GifSearchPolicy.filterAndSort(samples, "", limit = 2).map { it.id })
+        assertEquals(listOf("1", "2", "3"), GifSearchPolicy.filterAndSort(samples, "", limit = 100).map { it.id })
+    }
+
+    @Test
+    fun `pushRecent trims id before dedup`() {
+        assertEquals(listOf("b", "a"), GifSearchPolicy.pushRecent(listOf("a"), " b "))
+        assertEquals(listOf("b", "a"), GifSearchPolicy.pushRecent(listOf("b", "a"), " b "))
+    }
+
 }
