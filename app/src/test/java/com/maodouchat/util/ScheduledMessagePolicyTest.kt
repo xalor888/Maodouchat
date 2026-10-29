@@ -150,4 +150,48 @@ class ScheduledMessagePolicyTest {
     fun delayFromNowWithMaxTimestampDoesNotOverflow() {
         assertEquals(Long.MAX_VALUE - now, ScheduledMessagePolicy.delayFromNow(Long.MAX_VALUE, now))
     }
+
+    @Test
+    fun clampSendAtIsIdempotent() {
+        val raws = listOf(
+            Long.MIN_VALUE, -1L, 0L, now - 30L * 24 * 60 * 60 * 1000,
+            now, now + 30_000L, now + ScheduledMessagePolicy.MAX_DELAY_MS,
+            now + 100L * 24 * 60 * 60 * 1000, Long.MAX_VALUE,
+        )
+        raws.forEach { raw ->
+            val once = ScheduledMessagePolicy.clampSendAt(raw, now)
+            assertEquals(once, ScheduledMessagePolicy.clampSendAt(once, now), "clamp 应幂等：$raw")
+        }
+    }
+
+    @Test
+    fun normalizeTextTruncationKeepsPrefix() {
+        val kept = "x".repeat(ScheduledMessagePolicy.MAX_TEXT_LENGTH)
+        assertEquals(kept, ScheduledMessagePolicy.normalizeText(kept + "TAIL"))
+        assertFalse(ScheduledMessagePolicy.normalizeText(kept + "TAIL").endsWith("TAIL"))
+    }
+
+    @Test
+    fun delayFromNowIsExactAtWindowEndpoints() {
+        assertEquals(
+            ScheduledMessagePolicy.MIN_DELAY_MS,
+            ScheduledMessagePolicy.delayFromNow(now + ScheduledMessagePolicy.MIN_DELAY_MS, now),
+        )
+        assertEquals(
+            ScheduledMessagePolicy.MAX_DELAY_MS,
+            ScheduledMessagePolicy.delayFromNow(now + ScheduledMessagePolicy.MAX_DELAY_MS, now),
+        )
+    }
+
+    @Test
+    fun validTextRejectsLongWhitespaceOnlyInput() {
+        assertFalse(ScheduledMessagePolicy.isValidText(" ".repeat(5_000)))
+        assertFalse(ScheduledMessagePolicy.isValidText("\t\n ".repeat(100)))
+    }
+
+    @Test
+    fun normalizeTextTrimsNewlinesAndTabsAtEdges() {
+        assertEquals("hello", ScheduledMessagePolicy.normalizeText("\n\t hello \n"))
+        assertEquals("hi\nthere", ScheduledMessagePolicy.normalizeText("\n  hi\nthere  \t"))
+    }
 }

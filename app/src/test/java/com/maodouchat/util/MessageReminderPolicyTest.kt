@@ -103,4 +103,38 @@ class MessageReminderPolicyTest {
         assertEquals(0L, MessageReminderPolicy.MAX_DELAY_MS % MessageReminderPolicy.MIN_DELAY_MS)
         assertEquals(43_200L, MessageReminderPolicy.MAX_DELAY_MS / MessageReminderPolicy.MIN_DELAY_MS)
     }
+
+    @Test
+    fun `consecutive preset gaps are never below one minute`() {
+        val delays = MessageReminderPolicy.QUICK_DELAYS_MS
+        delays.zipWithNext().forEach { (a, b) ->
+            assertTrue("gap $a -> $b below one minute", b - a >= MessageReminderPolicy.MIN_DELAY_MS)
+        }
+    }
+
+    @Test
+    fun `reminder ceiling is above the scheduled message ceiling`() {
+        assertTrue(MessageReminderPolicy.MAX_DELAY_MS > ScheduledMessagePolicy.MAX_DELAY_MS)
+        assertEquals(30L * 24L * 60L * 60L * 1_000L, MessageReminderPolicy.MAX_DELAY_MS)
+        assertEquals(7L * 24L * 60L * 60L * 1_000L, ScheduledMessagePolicy.MAX_DELAY_MS)
+    }
+
+    @Test
+    fun `hour presets skip five hours`() {
+        val hour = 60L * 60L * 1_000L
+        assertTrue(MessageReminderPolicy.QUICK_DELAYS_MS.contains(4L * hour))
+        assertTrue(MessageReminderPolicy.QUICK_DELAYS_MS.contains(6L * hour))
+        assertTrue(MessageReminderPolicy.QUICK_DELAYS_MS.none { it == 5L * hour })
+    }
+
+    @Test
+    fun `first four presets sum to fifty one minutes`() {
+        assertEquals(3_060_000L, MessageReminderPolicy.QUICK_DELAYS_MS.take(4).sum())
+    }
+
+    @Test
+    fun `seven days is the only week scale preset`() {
+        val week = 7L * 24L * 60L * 60L * 1_000L
+        assertEquals(listOf(week), MessageReminderPolicy.QUICK_DELAYS_MS.filter { it >= week })
+    }
 }

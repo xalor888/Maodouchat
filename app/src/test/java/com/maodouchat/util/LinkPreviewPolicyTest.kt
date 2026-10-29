@@ -202,4 +202,71 @@ class LinkPreviewPolicyTest {
         assertEquals(400, q.description?.length)
         assertEquals(120, q.siteName?.length)
     }
+
+    @Test
+    fun sanitizeUrl_rejectsNonHttpSchemesAndEmptyHost() {
+        assertNull(LinkPreviewPolicy.sanitizeUrl("ftp://example.com/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("javascript:alert(1)"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("https://"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl(""))
+        assertEquals(
+            "HTTPS://EXAMPLE.COM/A",
+            LinkPreviewPolicy.sanitizeUrl("HTTPS://EXAMPLE.COM/A"),
+        )
+    }
+
+    @Test
+    fun sanitizeUrl_rejectsLocalhostWithTrailingDotAndCaseVariants() {
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://localhost./a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://LOCALHOST/a"))
+        assertNull(LinkPreviewPolicy.sanitizeUrl("http://LocalHost:8080/a"))
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://example.com./a"))
+        assertNotNull(LinkPreviewPolicy.sanitizeUrl("http://notlocalhost.com/a"))
+    }
+
+    @Test
+    fun firstHttpUrl_handlesUppercaseSchemeAndWwwAndSkipsNonHttp() {
+        assertEquals(
+            "https://WWW.EXAMPLE.COM/x",
+            LinkPreviewPolicy.firstHttpUrl("WWW.EXAMPLE.COM/x"),
+        )
+        assertEquals(
+            "HTTPS://EXAMPLE.COM/A",
+            LinkPreviewPolicy.firstHttpUrl("see HTTPS://EXAMPLE.COM/A please"),
+        )
+        assertEquals(
+            "https://ok.com/y",
+            LinkPreviewPolicy.firstHttpUrl("see ftp://x.com/a and https://ok.com/y"),
+        )
+    }
+
+    @Test
+    fun parseHtmlPreview_twitterDescriptionAndImageFallbacks() {
+        val html = "<html><head>" +
+            "<meta name=\"twitter:description\" content=\"Tw Desc\"/>" +
+            "<meta name=\"twitter:image\" content=\"/tw.png\"/>" +
+            "</head></html>"
+        val p = LinkPreviewPolicy.parseHtmlPreview("https://example.com/page", html)
+        assertNull(p.title)
+        assertEquals("Tw Desc", p.description)
+        assertEquals("https://example.com/tw.png", p.imageUrl)
+        assertEquals("example.com", p.siteName)
+        assertTrue(LinkPreviewPolicy.isUseful(p))
+
+        val empty = LinkPreviewPolicy.parseHtmlPreview("https://example.com", "<html></html>")
+        assertNull(empty.title)
+        assertNull(empty.description)
+        assertNull(empty.imageUrl)
+        assertEquals("example.com", empty.siteName)
+        assertFalse(LinkPreviewPolicy.isUseful(empty))
+    }
+
+    @Test
+    fun displayHost_stripsWwwCapsAt96AndPassesThroughBadInput() {
+        assertEquals("example.com", LinkPreviewPolicy.displayHost("https://www.example.com/x"))
+        assertEquals("sub.example.com", LinkPreviewPolicy.displayHost("https://sub.example.com/a/b"))
+        val longHost = "https://www." + "a".repeat(100) + ".com/x"
+        assertEquals("a".repeat(96), LinkPreviewPolicy.displayHost(longHost))
+        assertEquals("not a url", LinkPreviewPolicy.displayHost("not a url"))
+    }
 }
