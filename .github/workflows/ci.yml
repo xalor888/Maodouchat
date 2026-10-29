@@ -18,7 +18,8 @@ env:
 jobs:
   server:
     name: Server
-    runs-on: ubuntu-latest
+    # ubuntu-latest 切到 26.04 后 pg_restore 开始失败，先钉回验证过的 24.04。
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
 
     services:
