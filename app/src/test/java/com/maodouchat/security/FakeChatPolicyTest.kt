@@ -197,4 +197,79 @@ class FakeChatPolicyTest {
             )
         )
     }
+
+    @Test
+    fun `long min background keeps unlocked relocking session open`() {
+        assertFalse(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = true,
+                unlockedForCurrentUser = true,
+                relockOnBackground = true,
+                backgroundAtMillis = Long.MIN_VALUE
+            )
+        )
+    }
+
+    @Test
+    fun `locked session intercepts even with long min background`() {
+        assertTrue(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = true,
+                unlockedForCurrentUser = false,
+                relockOnBackground = true,
+                backgroundAtMillis = Long.MIN_VALUE
+            )
+        )
+    }
+
+    @Test
+    fun `pinless unlocked backgrounded session never intercepts`() {
+        assertFalse(
+            FakeChatPolicy.shouldShowFake(
+                enabled = true,
+                hasPin = false,
+                unlockedForCurrentUser = true,
+                relockOnBackground = true,
+                backgroundAtMillis = Long.MAX_VALUE
+            )
+        )
+    }
+
+    @Test
+    fun `disabled locked session never intercepts`() {
+        assertFalse(
+            FakeChatPolicy.shouldShowFake(
+                enabled = false,
+                hasPin = true,
+                unlockedForCurrentUser = false,
+                relockOnBackground = true,
+                backgroundAtMillis = Long.MAX_VALUE
+            )
+        )
+    }
+
+    @Test
+    fun `truth table matches formula for positive background`() {
+        for (enabled in listOf(true, false)) {
+            for (hasPin in listOf(true, false)) {
+                for (unlocked in listOf(true, false)) {
+                    for (relock in listOf(true, false)) {
+                        val expected = enabled && hasPin && (!unlocked || relock)
+                        assertEquals(
+                            expected,
+                            FakeChatPolicy.shouldShowFake(
+                                enabled = enabled,
+                                hasPin = hasPin,
+                                unlockedForCurrentUser = unlocked,
+                                relockOnBackground = relock,
+                                backgroundAtMillis = 10_000L
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

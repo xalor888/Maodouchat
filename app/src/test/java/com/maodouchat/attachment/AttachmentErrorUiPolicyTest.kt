@@ -190,4 +190,74 @@ class AttachmentErrorUiPolicyTest {
         assertEquals(Kind.FALLBACK, AttachmentErrorUiPolicy.classify(unknown))
     }
 
+
+    @Test
+    fun allNonInvalidResponseApiKindsFallBack() {
+        for (kind in ApiFailureKind.entries) {
+            if (kind == ApiFailureKind.INVALID_RESPONSE) continue
+            assertEquals(
+                Kind.FALLBACK,
+                AttachmentErrorUiPolicy.classify(
+                    ApiException(kind = kind, statusCode = 400, serverMessage = "x")
+                )
+            )
+        }
+    }
+
+    @Test
+    fun readFailedAndSizeMismatchWithCausesStillFallBack() {
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                AttachmentCryptoException(AttachmentCryptoFailure.READ_FAILED, IOException("disk"))
+            )
+        )
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(
+                AttachmentCryptoException(AttachmentCryptoFailure.SIZE_MISMATCH, IOException("disk"))
+            )
+        )
+    }
+
+    @Test
+    fun integrityAndContentMismatchIgnoreCause() {
+        assertEquals(
+            Kind.INTEGRITY_FAILED,
+            AttachmentErrorUiPolicy.classify(
+                AttachmentCryptoException(AttachmentCryptoFailure.INTEGRITY_FAILED, IOException("disk"))
+            )
+        )
+        assertEquals(
+            Kind.CONTENT_MISMATCH,
+            AttachmentErrorUiPolicy.classify(
+                AttachmentCryptoException(
+                    AttachmentCryptoFailure.UNSUPPORTED_MEDIA_CONTENT,
+                    IOException("disk")
+                )
+            )
+        )
+    }
+
+    @Test
+    fun errorNotExceptionFallsBack() {
+        assertEquals(
+            Kind.FALLBACK,
+            AttachmentErrorUiPolicy.classify(AssertionError("boom"))
+        )
+    }
+
+    @Test
+    fun workflowExceptionsAreInstanceIndependent() {
+        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(AttachmentTooLargeException()))
+        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(AttachmentTooLargeException()))
+        assertEquals(
+            Kind.INVALID_REFERENCE,
+            AttachmentErrorUiPolicy.classify(AttachmentReferenceInvalidException())
+        )
+        assertEquals(
+            Kind.INVALID_REFERENCE,
+            AttachmentErrorUiPolicy.classify(AttachmentReferenceInvalidException())
+        )
+    }
 }
