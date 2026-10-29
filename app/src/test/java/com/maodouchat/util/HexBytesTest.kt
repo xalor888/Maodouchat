@@ -58,4 +58,34 @@ class HexBytesTest {
     }
 
     private fun assertTrue(b: Boolean) = org.junit.Assert.assertTrue(b)
+
+    @Test
+    fun `negative bytes encode as unsigned hex`() {
+        assertEquals("ff80", byteArrayOf((-1).toByte(), (-128).toByte()).toHexString())
+        assertEquals("80", byteArrayOf((-128).toByte()).toHexString())
+    }
+
+    @Test
+    fun `byte order is preserved`() {
+        assertEquals("123456", byteArrayOf(0x12, 0x34, 0x56).toHexString())
+    }
+
+    @Test
+    fun `all nibble values appear in order`() {
+        assertEquals("abcdef", byteArrayOf(0xAB.toByte(), 0xCD.toByte(), 0xEF.toByte()).toHexString())
+    }
+
+    @Test
+    fun `single zero byte differs from empty`() {
+        assertEquals("", ByteArray(0).toHexString())
+        assertEquals("00", byteArrayOf(0x00).toHexString())
+    }
+
+    @Test
+    fun `full 256-byte array has known head and tail`() {
+        val hex = ByteArray(256) { it.toByte() }.toHexString()
+        assertEquals(512, hex.length)
+        assertTrue(hex.startsWith("000102030405060708090a0b0c0d0e0f"))
+        assertTrue(hex.endsWith("f8f9fafbfcfdfeff"))
+    }
 }

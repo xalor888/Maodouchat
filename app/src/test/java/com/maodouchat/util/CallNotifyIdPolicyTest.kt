@@ -327,4 +327,63 @@ class CallNotifyIdPolicyTest {
             NotificationSlotPolicy.scheduledMessageFailedNotifyId()
         )
     }
+
+    @Test
+    fun socialDataUrisFollowTheirFormulasForNewIds() {
+        assertEquals(
+            "maodouchat-notify://friend/req-9",
+            NotificationSlotPolicy.friendRequestDataUri("req-9")
+        )
+        assertEquals(
+            "maodouchat-notify://group-invite/inv-9",
+            NotificationSlotPolicy.groupInviteDataUri("inv-9")
+        )
+        assertEquals(
+            "maodouchat-notify://announcement/ann-9",
+            NotificationSlotPolicy.announcementDataUri("ann-9")
+        )
+    }
+
+    @Test
+    fun missedSaltXorIsItsOwnInverse() {
+        listOf("sig-call-42", "").forEach { callId ->
+            assertEquals(
+                NotificationSlotPolicy.incomingCallNotifyId(callId),
+                NotificationSlotPolicy.missedCallNotifyId(callId) xor
+                    NotificationSlotPolicy.MISSED_CALL_ID_SALT
+            )
+        }
+    }
+
+    @Test
+    fun chatActionOffsetsHoldForEmptyChatId() {
+        assertEquals(0, NotificationSlotPolicy.chatRequestCode(""))
+        assertEquals(1, NotificationSlotPolicy.markReadRequestCode(""))
+        assertEquals(2, NotificationSlotPolicy.quickReplyRequestCode(""))
+        assertEquals("maodouchat-notify://chat/", NotificationSlotPolicy.chatDataUri(""))
+    }
+
+    @Test
+    fun reminderAndChatNamespacesStaySeparateForEmptyId() {
+        assertEquals("maodouchat_reminder_", NotificationSlotPolicy.reminderTag(""))
+        assertEquals("maodouchat_", NotificationSlotPolicy.messageTag(""))
+        assertEquals("reminder_".hashCode(), NotificationSlotPolicy.reminderRequestCode(""))
+        assertEquals(0, NotificationSlotPolicy.chatRequestCode(""))
+        assertNotEquals(
+            NotificationSlotPolicy.reminderRequestCode(""),
+            NotificationSlotPolicy.chatRequestCode("")
+        )
+    }
+
+    @Test
+    fun scheduledFailedIdEqualsItsFormulaAndDiffersFromFixedMessageId() {
+        assertEquals(
+            "scheduled_message_failed".hashCode(),
+            NotificationSlotPolicy.scheduledMessageFailedNotifyId()
+        )
+        assertNotEquals(
+            NotificationSlotPolicy.messageNotifyId(),
+            NotificationSlotPolicy.scheduledMessageFailedNotifyId()
+        )
+    }
 }
