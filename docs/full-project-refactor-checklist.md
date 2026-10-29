@@ -639,7 +639,7 @@ Gate：锁屏超时、进程恢复、设备撤销、TOTP replay、截图与数�
 - [ ] 明确每种模型调用的数据出境清单、密聊/PIN 门禁和日志脱敏。
 - [ ] 写操作携带审批记录和幂等键；取消后不得继续执行工具。
 - [ ] 改写、回复建议、翻译、摘要、OCR、转写、任务提取分别拥有状态和错误边界。
-- [ ] 端侧 embedding 当前仍未实现，保持明确标记。
+- [x] 端侧 embedding 当前仍未实现，保持明确标记。（2026-10-29 核验：未实现——`OnDeviceEmbeddingGate` 已删且无残留引用，app/server 均无 onnx/tflite 等向量模型依赖，端侧 AI 能力均为纯本地启发式规则；标记明确——`docs/feature-inventory.md` 能力表记“暂不考虑”、已知缺口记“明确禁止进包”、本机助手行记“不引入 embedding 向量模型”。）
 
 Gate：prompt injection、伪造 tool call、重复写、流中断、账号切换和零隐私泄漏测试通过。
 
