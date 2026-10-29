@@ -401,4 +401,149 @@ class MessageReceiptAggregationPolicyTest {
         assertEquals(4000L, fresh.playedAt)
         assertEquals(4050L, fresh.updatedAt)
     }
+
+    @Test
+    fun `fresh receipt with only a read timestamp`() {
+        val fresh = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = null,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = null,
+            readAt = 2000L,
+            playedAt = null,
+            now = 2050L,
+        )
+
+        assertNull(fresh.deliveredAt)
+        assertEquals(2000L, fresh.readAt)
+        assertNull(fresh.playedAt)
+        assertEquals(2050L, fresh.updatedAt)
+    }
+
+    @Test
+    fun `zero incoming timestamp never erases an existing positive value`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = null,
+            updatedAt = 6050L,
+        )
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 0L,
+            readAt = 0L,
+            playedAt = null,
+            now = 7000L,
+        )
+
+        assertEquals(5000L, updated.deliveredAt)
+        assertEquals(6000L, updated.readAt)
+        assertNull(updated.playedAt)
+        assertEquals(7000L, updated.updatedAt)
+    }
+
+    @Test
+    fun `negative incoming timestamp never regresses an existing value`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = 7000L,
+            updatedAt = 7500L,
+        )
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = -100L,
+            readAt = -5L,
+            playedAt = -1L,
+            now = 8000L,
+        )
+
+        assertEquals(5000L, updated.deliveredAt)
+        assertEquals(6000L, updated.readAt)
+        assertEquals(7000L, updated.playedAt)
+        assertEquals(8000L, updated.updatedAt)
+    }
+
+    @Test
+    fun `max timestamp is kept and later normal merge does not regress it`() {
+        val fresh = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = null,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = Long.MAX_VALUE,
+            readAt = null,
+            playedAt = null,
+            now = 1050L,
+        )
+        assertEquals(Long.MAX_VALUE, fresh.deliveredAt)
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = fresh,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 1000L,
+            readAt = null,
+            playedAt = null,
+            now = 2050L,
+        )
+
+        assertEquals(Long.MAX_VALUE, updated.deliveredAt)
+        assertEquals(2050L, updated.updatedAt)
+    }
+
+    @Test
+    fun `recipient-only re-key keeps timestamps`() {
+        val existing = MessagingV2ReceiptEntity(
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "bob",
+            deliveredAt = 5000L,
+            readAt = 6000L,
+            playedAt = 7000L,
+            updatedAt = 7500L,
+        )
+
+        val updated = MessageReceiptAggregationPolicy.mergeReceipt(
+            existing = existing,
+            ownerUserId = "alice",
+            messageId = "msg-1",
+            conversationId = "conv-1",
+            recipientUserId = "carol",
+            deliveredAt = 9000L,
+            readAt = null,
+            playedAt = null,
+            now = 9100L,
+        )
+
+        assertEquals("carol", updated.recipientUserId)
+        assertEquals(9000L, updated.deliveredAt)
+        assertEquals(6000L, updated.readAt)
+        assertEquals(7000L, updated.playedAt)
+        assertEquals(9100L, updated.updatedAt)
+    }
 }

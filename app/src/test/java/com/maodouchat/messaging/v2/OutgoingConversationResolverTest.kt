@@ -213,6 +213,86 @@ class OutgoingConversationResolverTest {
         assertTrue(harness.cachedWrites.isEmpty())
     }
 
+    @Test
+    fun `painted complete group conversation resolves without fetch`() = runTest {
+        val harness = Harness()
+
+        val result = harness.resolver.resolve(
+            harness.request(
+                activeConversationId = "group",
+                paintedConversation = groupChat("group", revision = 5),
+            ),
+        )
+
+        val resolved = result.getOrThrow()
+        assertEquals("group", resolved.conversation.id)
+        assertEquals(null, resolved.peerUserId)
+        assertEquals(0, harness.fetchCount)
+        assertEquals(1, harness.cryptoCount)
+    }
+
+    @Test
+    fun `constructor conversation id is used when active id is blank`() = runTest {
+        val harness = Harness(cached = groupChat("ctor-group", revision = 7))
+
+        val result = harness.resolver.resolve(
+            harness.request(constructorConversationId = "ctor-group"),
+        )
+
+        val resolved = result.getOrThrow()
+        assertEquals("ctor-group", resolved.conversation.id)
+        assertEquals(0, harness.fetchCount)
+        assertEquals(1, harness.cryptoCount)
+    }
+
+    @Test
+    fun `active conversation id takes precedence over constructor id`() = runTest {
+        val harness = Harness()
+
+        val result = harness.resolver.resolve(
+            harness.request(
+                activeConversationId = "active",
+                constructorConversationId = "ctor",
+                paintedConversation = groupChat("active", revision = 3),
+            ),
+        )
+
+        // If the constructor id won, the painted chat would miss and the empty
+        // fetch would fail with a recipient error instead of resolving.
+        val resolved = result.getOrThrow()
+        assertEquals("active", resolved.conversation.id)
+        assertEquals(0, harness.fetchCount)
+        assertEquals(0, harness.createCount)
+    }
+
+    @Test
+    fun `domain resolve for bot peer skips crypto`() = runTest {
+        val harness = Harness(
+            created = directChat("bot-chat", "bot_helper"),
+            botIds = setOf("bot_helper"),
+        )
+
+        val resolved = harness.resolver.resolve(peerAccountId = "bot_helper")
+
+        assertEquals("bot-chat", resolved.conversationId)
+        assertTrue(resolved.isCryptoReady)
+        assertEquals(0, harness.cryptoCount)
+    }
+
+    @Test
+    fun `session switch after create cancels before caching`() = runTest {
+        val harness = Harness()
+        harness.sessionChecksBeforeInvalid = 2
+
+        assertFailsWith<CancellationException> {
+            harness.resolver.resolve(harness.request(activeContactId = "alice"))
+        }
+
+        assertEquals(1, harness.createCount)
+        assertEquals(1, harness.cryptoCount)
+        assertTrue(harness.cachedWrites.isEmpty())
+    }
+
     private class Harness(
         private val cached: Chat? = null,
         private val fetched: List<Chat> = emptyList(),
@@ -268,6 +348,7 @@ class OutgoingConversationResolverTest {
 
         fun request(
             activeConversationId: String = "",
+            constructorConversationId: String = "",
             paintedConversation: Chat? = null,
             activeContactId: String = "",
             createSecretConversation: Boolean = false,
@@ -276,7 +357,7 @@ class OutgoingConversationResolverTest {
             ownerUserId = "owner",
             authToken = authToken,
             activeConversationId = activeConversationId,
-            constructorConversationId = "",
+            constructorConversationId = constructorConversationId,
             paintedConversation = paintedConversation,
             activeContactId = activeContactId,
             createSecretConversation = createSecretConversation,

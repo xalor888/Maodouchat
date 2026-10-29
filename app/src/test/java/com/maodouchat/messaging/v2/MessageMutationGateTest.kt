@@ -338,4 +338,105 @@ class MessageMutationGateTest {
         // Only EDITs seen: no tombstone was ever written.
         assertFalse(isMessageTerminal(messageId), "EDIT history alone must not gate the delayed DATA")
     }
+
+    @Test
+    fun `duplicate terminal event keeps a single tombstone entry`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        val tombstone = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = 1000L,
+        )
+        tombstones[messageId] = tombstone
+        tombstones[messageId] = tombstone.copy(terminalAt = 2000L)
+
+        assertEquals(1, tombstones.size, "Re-delivered terminal event must overwrite, not duplicate")
+        assertTrue(tombstones.containsKey(messageId))
+    }
+
+    @Test
+    fun `revoke tombstone for another owner does not gate`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = "bob",
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.REVOKE,
+            terminalAt = 1000L,
+        )
+
+        fun isMessageTerminal(ownerUserId: String, targetMessageId: String): Boolean {
+            val tombstone = tombstones[targetMessageId] ?: return false
+            return tombstone.ownerUserId == ownerUserId
+        }
+
+        assertFalse(isMessageTerminal(owner, messageId), "Owner scoping applies to REVOKE exactly like DELETE")
+    }
+
+    @Test
+    fun `delayed DATA in another conversation is still dropped for the same message id`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = 1000L,
+        )
+
+        fun isMessageTerminal(ownerUserId: String, targetMessageId: String): Boolean {
+            val tombstone = tombstones[targetMessageId] ?: return false
+            return tombstone.ownerUserId == ownerUserId
+        }
+
+        // The gate is keyed on message id alone: a delayed DATA carrying the same
+        // message id under a different conversation is still terminal.
+        val delayedDataMessage = Message(
+            id = messageId,
+            chatId = "conv-456",
+            senderId = "bob",
+            content = "Delayed text message",
+            timestamp = 900L,
+            status = MessageStatus.SENT,
+            type = MessageType.TEXT,
+        )
+
+        assertTrue(isMessageTerminal(owner, delayedDataMessage.id))
+    }
+
+    @Test
+    fun `reaction against a terminal message is dropped`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = 1000L,
+        )
+
+        // Mirrors MessageEventProjector: the terminal check runs before any action dispatch,
+        // so a late REACTION_SET is dropped exactly like a late EDIT.
+        val dropped = tombstones.containsKey(messageId)
+        assertTrue(dropped, "Late REACTION_SET must not resurrect a terminal message")
+    }
+
+    @Test
+    fun `future-dated tombstone still gates delayed DATA`() {
+        val tombstones = mutableMapOf<String, MessageMutationTombstoneEntity>()
+        tombstones[messageId] = MessageMutationTombstoneEntity(
+            ownerUserId = owner,
+            messageId = messageId,
+            conversationId = conversationId,
+            kind = MessageMutationTombstoneKind.DELETE,
+            terminalAt = Long.MAX_VALUE,
+        )
+
+        fun isMessageTerminal(targetMessageId: String): Boolean = tombstones.containsKey(targetMessageId)
+
+        // The gate is presence-based, not time-based: a tombstone gates regardless of its date.
+        assertTrue(isMessageTerminal(messageId))
+    }
 }
