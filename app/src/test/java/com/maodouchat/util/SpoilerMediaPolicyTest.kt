@@ -193,4 +193,44 @@ class SpoilerMediaPolicyTest {
         assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
     }
 
+
+    @Test
+    fun `supported set iterator cannot remove`() {
+        @Suppress("UNCHECKED_CAST")
+        val mutable = SpoilerMediaPolicy.SUPPORTED as MutableSet<MessageType>
+        val iterator = mutable.iterator()
+        iterator.next()
+        kotlin.test.assertFailsWith<UnsupportedOperationException> { iterator.remove() }
+        assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
+    }
+
+    @Test
+    fun `supported set hash equals a fresh set of the three types`() {
+        assertEquals(
+            setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF).hashCode(),
+            SpoilerMediaPolicy.SUPPORTED.hashCode()
+        )
+    }
+
+    @Test
+    fun `supported set containsAll checks`() {
+        assertTrue(SpoilerMediaPolicy.SUPPORTED.containsAll(listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF)))
+        assertFalse(SpoilerMediaPolicy.SUPPORTED.containsAll(listOf(MessageType.IMAGE, MessageType.TEXT)))
+        assertFalse(SpoilerMediaPolicy.SUPPORTED.containsAll(listOf(MessageType.STICKER)))
+    }
+
+    @Test
+    fun `supported set first and last follow declaration order`() {
+        assertEquals(MessageType.IMAGE, SpoilerMediaPolicy.SUPPORTED.first())
+        assertEquals(MessageType.GIF, SpoilerMediaPolicy.SUPPORTED.last())
+    }
+
+    @Test
+    fun `supported set typed array matches declaration order`() {
+        assertTrue(
+            SpoilerMediaPolicy.SUPPORTED.toTypedArray()
+                .contentEquals(arrayOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF))
+        )
+    }
+
 }
