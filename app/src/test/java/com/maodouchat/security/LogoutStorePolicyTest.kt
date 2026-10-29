@@ -194,6 +194,62 @@ class LogoutStorePolicyTest {
     }
 
     @Test
+    fun tokenExpiredWipeSurfacesIndividuallyKeepStore() {
+        assertFalse(LogoutStorePolicy.wipeOrdinaryMediaCache(Reason.TOKEN_EXPIRED))
+        assertFalse(LogoutStorePolicy.wipeCoilDiskCache(Reason.TOKEN_EXPIRED))
+        assertFalse(LogoutStorePolicy.wipeInFlightAttachmentTransfers(Reason.TOKEN_EXPIRED))
+        assertFalse(LogoutStorePolicy.cancelSenderKeyRetryWork(Reason.TOKEN_EXPIRED))
+    }
+
+    @Test
+    fun trustDomainChangeWipeSurfacesIndividuallyDestroyStore() {
+        assertTrue(LogoutStorePolicy.wipeOrdinaryMediaCache(Reason.TRUST_DOMAIN_CHANGE))
+        assertTrue(LogoutStorePolicy.wipeCoilDiskCache(Reason.TRUST_DOMAIN_CHANGE))
+        assertTrue(LogoutStorePolicy.wipeInFlightAttachmentTransfers(Reason.TRUST_DOMAIN_CHANGE))
+        assertTrue(LogoutStorePolicy.cancelSenderKeyRetryWork(Reason.TRUST_DOMAIN_CHANGE))
+    }
+
+    @Test
+    fun wipeSurfacesAreStableAcrossInterleavedCalls() {
+        Reason.entries.forEach { reason ->
+            val first = listOf(
+                LogoutStorePolicy.wipeOrdinaryMediaCache(reason),
+                LogoutStorePolicy.wipeCoilDiskCache(reason),
+                LogoutStorePolicy.wipeInFlightAttachmentTransfers(reason),
+                LogoutStorePolicy.cancelSenderKeyRetryWork(reason)
+            )
+            LogoutStorePolicy.destroyEncryptedDatabase(Reason.DELETE_ACCOUNT)
+            LogoutStorePolicy.destroyEncryptedDatabase(Reason.LOGOUT)
+            val second = listOf(
+                LogoutStorePolicy.wipeOrdinaryMediaCache(reason),
+                LogoutStorePolicy.wipeCoilDiskCache(reason),
+                LogoutStorePolicy.wipeInFlightAttachmentTransfers(reason),
+                LogoutStorePolicy.cancelSenderKeyRetryWork(reason)
+            )
+            assertEquals(reason.name, first, second)
+        }
+    }
+
+    @Test
+    fun reasonEntriesKeepNamesInDeclarationOrder() {
+        assertEquals(
+            listOf("LOGOUT", "TOKEN_EXPIRED", "ACCOUNT_SWITCH", "DELETE_ACCOUNT", "TRUST_DOMAIN_CHANGE"),
+            Reason.entries.map { it.name }
+        )
+    }
+
+    @Test
+    fun coilCachePartitionMatchesDestroyPartition() {
+        val keep = Reason.entries.filter { !LogoutStorePolicy.wipeCoilDiskCache(it) }
+        val destroy = Reason.entries.filter { LogoutStorePolicy.wipeCoilDiskCache(it) }
+        assertEquals(listOf(Reason.LOGOUT, Reason.TOKEN_EXPIRED), keep)
+        assertEquals(
+            listOf(Reason.ACCOUNT_SWITCH, Reason.DELETE_ACCOUNT, Reason.TRUST_DOMAIN_CHANGE),
+            destroy
+        )
+    }
+
+    @Test
     fun destroyVerdictDoesNotDependOnCallOrder() {
         assertTrue(LogoutStorePolicy.destroyEncryptedDatabase(Reason.DELETE_ACCOUNT))
         assertFalse(LogoutStorePolicy.destroyEncryptedDatabase(Reason.LOGOUT))

@@ -185,4 +185,61 @@ class AccountIsolationPolicyTest {
         )
     }
 
+    @Test
+    fun `whitespace-only previous account keeps local store on first real login`() {
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount("   ", "u2")
+        )
+        assertEquals(
+            AccountSwitchAction.KEEP_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount("", "u2")
+        )
+    }
+
+    @Test
+    fun `account identity is case-sensitive`() {
+        assertEquals(
+            AccountSwitchAction.PURGE_LOCAL_DATA,
+            AccountIsolationPolicy.onLoginAccount("User-A", "user-a")
+        )
+        assertFalse(AccountIsolationPolicy.acceptsOwnedRow("U1", "u1"))
+        assertFalse(AccountIsolationPolicy.acceptsOwnedRow("u1", "U1"))
+    }
+
+    @Test
+    fun `preference key is deterministic and separates bases`() {
+        assertEquals(
+            AccountIsolationPolicy.preferenceKey("items", "alice"),
+            AccountIsolationPolicy.preferenceKey("items", "alice")
+        )
+        assertNotEquals(
+            AccountIsolationPolicy.preferenceKey("items", "alice"),
+            AccountIsolationPolicy.preferenceKey("other", "alice")
+        )
+        assertEquals("other:alice", AccountIsolationPolicy.preferenceKey("other", "alice"))
+    }
+
+    @Test
+    fun `preference key and draft key reject empty strings`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            AccountIsolationPolicy.preferenceKey("items", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            AccountIsolationPolicy.draftPrimaryKey("u1", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            AccountIsolationPolicy.draftPrimaryKey("", "chat-9")
+        }
+    }
+
+    @Test
+    fun `draft primary key separates chats under the same owner`() {
+        assertEquals("u1" to "chat-9", AccountIsolationPolicy.draftPrimaryKey("u1", "chat-9"))
+        assertNotEquals(
+            AccountIsolationPolicy.draftPrimaryKey("u1", "chat-9"),
+            AccountIsolationPolicy.draftPrimaryKey("u1", "chat-10")
+        )
+    }
+
 }
