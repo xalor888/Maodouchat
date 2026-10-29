@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import com.maodouchat.data.model.MessageType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -233,4 +234,51 @@ class SpoilerMediaPolicyTest {
         )
     }
 
+    @Test
+    fun `supported set instance is stable across reads`() {
+        assertSame(SpoilerMediaPolicy.SUPPORTED, SpoilerMediaPolicy.SUPPORTED)
+        assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
+    }
+
+    @Test
+    fun `supported set sorted by enum ordinal differs from declaration order`() {
+        // 枚举声明顺序是 IMAGE、GIF、VIDEO（GIF 在 VIDEO 之前），而 SUPPORTED
+        // 的声明顺序是 IMAGE、VIDEO、GIF——按 ordinal 排与声明顺序不同
+        assertEquals(
+            listOf(MessageType.IMAGE, MessageType.GIF, MessageType.VIDEO),
+            SpoilerMediaPolicy.SUPPORTED.sortedBy { it.ordinal }
+        )
+    }
+
+    @Test
+    fun `elementAtOrNull bounds follow declaration order`() {
+        assertEquals(MessageType.IMAGE, SpoilerMediaPolicy.SUPPORTED.elementAtOrNull(0))
+        assertEquals(MessageType.GIF, SpoilerMediaPolicy.SUPPORTED.elementAtOrNull(2))
+        assertEquals(null, SpoilerMediaPolicy.SUPPORTED.elementAtOrNull(3))
+        assertEquals(null, SpoilerMediaPolicy.SUPPORTED.elementAtOrNull(-1))
+    }
+
+    @Test
+    fun `mixed sample counts exactly three supported`() {
+        val sample = listOf(
+            MessageType.TEXT, MessageType.IMAGE, MessageType.VIDEO,
+            MessageType.FILE, MessageType.GIF, MessageType.STICKER
+        )
+        assertEquals(3, sample.count { SpoilerMediaPolicy.supports(it) })
+        assertEquals(
+            listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF),
+            sample.filter { SpoilerMediaPolicy.supports(it) }
+        )
+    }
+
+    @Test
+    fun `set difference against the three types is empty and complement holds the rest`() {
+        assertEquals(
+            emptySet<MessageType>(),
+            SpoilerMediaPolicy.SUPPORTED - setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF)
+        )
+        val complement = MessageType.entries.toSet() - SpoilerMediaPolicy.SUPPORTED
+        assertEquals(10, complement.size)
+        assertTrue(complement.containsAll(listOf(MessageType.TEXT, MessageType.STICKER, MessageType.LOCATION)))
+    }
 }

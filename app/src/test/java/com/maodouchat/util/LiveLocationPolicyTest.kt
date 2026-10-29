@@ -201,4 +201,47 @@ class LiveLocationPolicyTest {
         assertEquals(0L, LiveLocationPolicy.remainingMs(openEnded, now = Long.MAX_VALUE))
     }
 
+    @Test
+    fun `formatRemaining exact minute and multi-hour boundaries`() {
+        assertEquals("1m", LiveLocationPolicy.formatRemaining(60_000L))
+        assertEquals("1m", LiveLocationPolicy.formatRemaining(119_999L))
+        assertEquals("1h 0m", LiveLocationPolicy.formatRemaining(3_600_999L))
+        assertEquals("2h 3m", LiveLocationPolicy.formatRemaining(7_380_000L))
+    }
+
+    @Test
+    fun `remainingMs agrees with remainingFromUntil on the same deadline`() {
+        val payload = LocationPayload(latitude = 31.2, longitude = 121.5, live = true, liveUntil = 5_000L, sessionId = "agree-1")
+        assertEquals(4_000L, LiveLocationPolicy.remainingMs(payload, now = 1_000L))
+        assertEquals(4_000L, LiveLocationPolicy.remainingFromUntil(5_000L, now = 1_000L))
+        val expired = LocationPayload(latitude = 31.2, longitude = 121.5, live = true, liveUntil = 500L, sessionId = "agree-2")
+        assertEquals(0L, LiveLocationPolicy.remainingMs(expired, now = 1_000L))
+        assertEquals(0L, LiveLocationPolicy.remainingFromUntil(500L, now = 1_000L))
+    }
+
+    @Test
+    fun `live payload without sessionId is still live on both paths`() {
+        val payload = LocationPayload(latitude = 31.2, longitude = 121.5, live = true, liveUntil = 5_000L)
+        assertTrue(LiveLocationPolicy.isLive(payload, now = 1_000L))
+        val json = Json.encodeToString(LocationPayload.serializer(), payload)
+        val msg = Message(id = "m6", chatId = "c1", senderId = "u1", content = json, type = MessageType.LOCATION)
+        assertTrue(LiveLocationPolicy.isLiveMessage(msg, now = 1_000L))
+    }
+
+    @Test
+    fun `non-live future-until LOCATION message is not live`() {
+        val json = Json.encodeToString(
+            LocationPayload.serializer(),
+            LocationPayload(latitude = 31.2, longitude = 121.5, live = false, liveUntil = 99_999L, sessionId = "dead-1")
+        )
+        val msg = Message(id = "m7", chatId = "c1", senderId = "u1", content = json, type = MessageType.LOCATION)
+        assertFalse(LiveLocationPolicy.isLiveMessage(msg, now = 1_000L))
+    }
+
+    @Test
+    fun `remainingFromUntil one-millisecond edges`() {
+        assertEquals(1L, LiveLocationPolicy.remainingFromUntil(1_001L, now = 1_000L))
+        assertEquals(1L, LiveLocationPolicy.remainingFromUntil(Long.MAX_VALUE, now = Long.MAX_VALUE - 1L))
+        assertEquals(1L, LiveLocationPolicy.remainingFromUntil(-999L, now = -1_000L))
+    }
 }

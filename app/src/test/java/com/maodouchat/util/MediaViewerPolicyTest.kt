@@ -203,4 +203,54 @@ class MediaViewerPolicyTest {
         }
     }
 
+    @Test
+    fun `image mime gif suffix and video prefix edges`() {
+        assertTrue(MediaViewerPolicy.isImageMime("IMAGE/GIF"))
+        assertTrue(MediaViewerPolicy.isImageMime("application/gif"))
+        assertTrue(MediaViewerPolicy.isImageMime("image2/gif"))
+        assertTrue(MediaViewerPolicy.isVideoMime("video/mp4;codecs=avc1"))
+        assertFalse(MediaViewerPolicy.isVideoMime("videox/mp4"))
+    }
+
+    @Test
+    fun `defaultMime spaced type names fall through and explicit wins`() {
+        assertEquals("application/octet-stream", MediaViewerPolicy.defaultMime(" image ", null))
+        assertEquals("application/octet-stream", MediaViewerPolicy.defaultMime("", null))
+        assertEquals("video/webm", MediaViewerPolicy.defaultMime("VIDEO", "video/webm"))
+        assertEquals("image/png", MediaViewerPolicy.defaultMime("GIF", "image/png"))
+    }
+
+    @Test
+    fun `defaultFileName svg falls back to jpg and png beats video prefix`() {
+        val svg = MediaViewerPolicy.defaultFileName("IMAGE", null, "image/svg+xml")
+        assertTrue(svg.startsWith("image_"))
+        assertTrue(svg.endsWith(".jpg"))
+        val videoPng = MediaViewerPolicy.defaultFileName("VIDEO", null, "image/png")
+        assertTrue(videoPng.startsWith("video_"))
+        assertTrue(videoPng.endsWith(".png"))
+        val gifWebp = MediaViewerPolicy.defaultFileName("GIF", null, "image/webp")
+        assertTrue(gifWebp.startsWith("gif_"))
+        assertTrue(gifWebp.endsWith(".webp"))
+    }
+
+    @Test
+    fun `clampScale in-range passes through and double tap handles negatives`() {
+        assertEquals(2.5f, MediaViewerPolicy.clampScale(2.5f))
+        assertEquals(7.999f, MediaViewerPolicy.clampScale(7.999f))
+        assertEquals(3.5f, MediaViewerPolicy.nextDoubleTapScale(-1f))
+        assertEquals(3.5f, MediaViewerPolicy.nextDoubleTapScale(1.04f))
+        assertEquals(1f, MediaViewerPolicy.nextDoubleTapScale(1.1f))
+    }
+
+    @Test
+    fun `export and share gates ignore exportBlockEnabled in both directions`() {
+        listOf(true, false).forEach { block ->
+            assertTrue(MediaViewerPolicy.canExportLocal(true, exportBlockEnabled = block))
+            assertTrue(MediaViewerPolicy.canShareLocal(true, exportBlockEnabled = block))
+            assertFalse(MediaViewerPolicy.canExportLocal(false, exportBlockEnabled = block))
+            assertFalse(MediaViewerPolicy.canShareLocal(false, exportBlockEnabled = block))
+        }
+        assertTrue(MediaViewerPolicy.canExportLocal(true, false, false))
+        assertTrue(MediaViewerPolicy.canShareLocal(true, false, false))
+    }
 }
