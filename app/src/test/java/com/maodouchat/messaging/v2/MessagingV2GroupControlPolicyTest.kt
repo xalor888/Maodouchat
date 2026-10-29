@@ -87,4 +87,40 @@ class MessagingV2GroupControlPolicyTest {
         assertTrue(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", Long.MAX_VALUE - 1, Long.MAX_VALUE))
         assertFalse(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", Long.MAX_VALUE, Long.MAX_VALUE))
     }
+
+    @Test
+    fun `non-control kinds never go stale even when revisions differ`() {
+        listOf("DATA", "EVENT", "RECEIPT", "").forEach { kind ->
+            assertFalse(MessagingV2GroupControlPolicy.isStale(kind, 4L, 5L))
+        }
+    }
+
+    @Test
+    fun `padded kind names are not group controls`() {
+        listOf(" SENDER_KEY", "SENDER_KEY ", "\tKEY_REQUEST").forEach { kind ->
+            assertFalse(MessagingV2GroupControlPolicy.isGroupControl(kind))
+            assertFalse(MessagingV2GroupControlPolicy.isStale(kind, 4L, 5L))
+        }
+    }
+
+    @Test
+    fun `extreme non-positive live revision never reports stale`() {
+        assertFalse(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", Long.MAX_VALUE, Long.MIN_VALUE))
+        assertFalse(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", Long.MAX_VALUE, Long.MIN_VALUE))
+    }
+
+    @Test
+    fun `extreme queued revision is stale against a positive live revision`() {
+        assertTrue(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", Long.MIN_VALUE, 5L))
+        assertTrue(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", Long.MIN_VALUE, 5L))
+    }
+
+    @Test
+    fun `live revision crossing zero flips the stale signal`() {
+        assertFalse(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", null, 0L))
+        assertTrue(MessagingV2GroupControlPolicy.isStale("SENDER_KEY", null, 1L))
+        assertFalse(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", null, 0L))
+        assertTrue(MessagingV2GroupControlPolicy.isStale("KEY_REQUEST", null, 1L))
+    }
+
 }

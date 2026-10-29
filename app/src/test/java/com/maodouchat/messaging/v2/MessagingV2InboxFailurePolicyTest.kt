@@ -123,4 +123,49 @@ class MessagingV2InboxFailurePolicyTest {
         assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_whatever", -50))
         assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_device", -1))
     }
+
+    @Test
+    fun `extended and hyphenated error codes stay recoverable`() {
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_device2", 1))
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong-device", 1))
+        assertFalse(
+            MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_sender_key_install_failed ", 1),
+        )
+        assertFalse(
+            MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_sender_key_install_failed2", 1),
+        )
+    }
+
+    @Test
+    fun `near-miss codes still exhaust through the retry budget`() {
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_devic", 7))
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_devic", 8))
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_device2", 8))
+    }
+
+    @Test
+    fun `extreme attempt counts follow the same two rules`() {
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_device", Int.MAX_VALUE))
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_no_session", Int.MAX_VALUE))
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_no_session", Int.MIN_VALUE))
+        assertTrue(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_wrong_device", Int.MIN_VALUE))
+    }
+
+    @Test
+    fun `unknown code flips to dead letter exactly at the budget`() {
+        val seen = (0..10).map { attempts ->
+            MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_v2_something_else", attempts)
+        }
+        val firstTrue = seen.indexOfFirst { it }
+        assertTrue(firstTrue == MessagingV2InboxFailurePolicy.MAX_RECOVERABLE_ATTEMPTS)
+        assertTrue(seen.drop(firstTrue).all { it })
+    }
+
+    @Test
+    fun `partially capitalised error codes do not count as permanent`() {
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("Messaging_v2_wrong_device", 1))
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("Messaging_v2_wrong_device", 7))
+        assertFalse(MessagingV2InboxFailurePolicy.shouldDeadLetter("messaging_V2_wrong_device", 1))
+    }
+
 }
