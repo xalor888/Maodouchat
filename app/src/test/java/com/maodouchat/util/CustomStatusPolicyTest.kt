@@ -129,4 +129,37 @@ class CustomStatusPolicyTest {
         }
     }
 
+    @Test
+    fun `isValid counts multi-byte chars not bytes at boundary`() {
+        assertTrue(CustomStatusPolicy.isValid("忙".repeat(80)))
+        assertFalse(CustomStatusPolicy.isValid("忙".repeat(81)))
+    }
+
+    @Test
+    fun `presets first five in fixed order`() {
+        assertEquals(
+            listOf("在线", "忙碌", "开会中", "请勿打扰", "马上回来"),
+            CustomStatusPolicy.PRESETS.take(5),
+        )
+    }
+
+    @Test
+    fun `normalize keeps emoji and trims around it`() {
+        assertEquals("😀 hi", CustomStatusPolicy.normalize("  😀 hi  "))
+    }
+
+    @Test
+    fun `visibleStatus shows multi-byte status and caps it at 80 chars`() {
+        assertEquals("忙".repeat(80), CustomStatusPolicy.visibleStatus("忙".repeat(100), showStatus = true))
+        assertEquals("", CustomStatusPolicy.visibleStatus("忙碌", showStatus = false))
+    }
+
+    @Test
+    fun `visibleStatus trims then caps padded long status`() {
+        assertEquals(
+            "y".repeat(80),
+            CustomStatusPolicy.visibleStatus("  " + "y".repeat(100) + "  ", showStatus = true),
+        )
+    }
+
 }
