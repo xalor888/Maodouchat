@@ -139,4 +139,40 @@ class VoicePlayerSpeedPolicyTest {
             assertEquals(start, cur, "从 $start 出发转两圈应回到起点，实际 $cur")
         }
     }
+
+    @Test
+    fun nextSpeedFromInfinityAndNegativeZero() {
+        listOf(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, -0f).forEach {
+            assertEquals(1.5f, VoicePlayer.nextSpeed(it), "$it 应按未知值落到 1.5x")
+        }
+    }
+
+    @Test
+    fun formatSpeedLabelForNaNAndNegativeZero() {
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(Float.NaN))
+        assertEquals("1x", VoicePlayer.formatSpeedLabel(-0f))
+    }
+
+    @Test
+    fun threeStepsAdvanceThreeSlots() {
+        assertEquals(0.5f, VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(1f))))
+        assertEquals(2f, VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(0.5f))))
+        assertEquals(1.5f, VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(VoicePlayer.nextSpeed(2f))))
+    }
+
+    @Test
+    fun speedStepsAreDistinctAndBounded() {
+        assertEquals(4, steps.size)
+        assertEquals(4, steps.toSet().size)
+        steps.forEach { assertTrue(it > 0f && it <= 2f, "$it 应在 (0, 2] 内") }
+    }
+
+    @Test
+    fun labelOfNextMatchesExpectedLabelForEachStep() {
+        mapOf(1f to "1.5x", 1.5f to "2x", 2f to "0.5x", 0.5f to "1x").forEach { (step, label) ->
+            assertEquals(label, VoicePlayer.formatSpeedLabel(VoicePlayer.nextSpeed(step)),
+                "$step 的下一档文案应为 $label")
+        }
+    }
+
 }
