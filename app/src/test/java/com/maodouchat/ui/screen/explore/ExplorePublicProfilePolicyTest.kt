@@ -143,4 +143,71 @@ class ExplorePublicProfilePolicyTest {
         )
         assertEquals("load-failed", result)
     }
+
+    @Test
+    fun normalizeAtOnlyAndTrailingSlashYieldEmpty() {
+        assertEquals("", ExplorePublicProfilePolicy.normalizeUsername("@@@"))
+        assertEquals("", ExplorePublicProfilePolicy.normalizeUsername("ada/"))
+        assertEquals("ada", ExplorePublicProfilePolicy.normalizeUsername("/ada"))
+    }
+
+    @Test
+    fun normalizeDecodesSpacesAndPassesThroughBadEncoding() {
+        assertEquals("ada", ExplorePublicProfilePolicy.normalizeUsername("%20ada%20"))
+        // 非法百分号序列解码失败时原样透出，不抛错。
+        assertEquals("%zzada", ExplorePublicProfilePolicy.normalizeUsername("%zzada"))
+    }
+
+    @Test
+    fun normalizeMixedQuotesTrimmedFromBothEnds() {
+        assertEquals("ada", ExplorePublicProfilePolicy.normalizeUsername("'ada\""))
+        assertEquals("ada", ExplorePublicProfilePolicy.normalizeUsername("\"'ada'\""))
+    }
+
+    @Test
+    fun displayLoadErrorStatusFirstAndKindSecond() {
+        val notFoundOnNetwork = ExplorePublicProfilePolicy.displayLoadError(
+            failure = ApiException(kind = ApiFailureKind.NETWORK, statusCode = 404),
+            notFound = "not-found",
+            loadFailed = "load-failed",
+            networkError = "network"
+        )
+        assertEquals("not-found", notFoundOnNetwork)
+
+        val goneWithMessage = ExplorePublicProfilePolicy.displayLoadError(
+            failure = ApiException(kind = ApiFailureKind.HTTP, statusCode = 410, serverMessage = "banned"),
+            notFound = "not-found",
+            loadFailed = "load-failed",
+            networkError = "network"
+        )
+        assertEquals("not-found", goneWithMessage)
+
+        val timeoutWithMessage = ExplorePublicProfilePolicy.displayLoadError(
+            failure = ApiException(kind = ApiFailureKind.TIMEOUT, serverMessage = "boom"),
+            notFound = "not-found",
+            loadFailed = "load-failed",
+            networkError = "network"
+        )
+        assertEquals("load-failed: network", timeoutWithMessage)
+    }
+
+    @Test
+    fun displayLoadErrorTrimsServerMessageAndBlankStaysBare() {
+        val trimmed = ExplorePublicProfilePolicy.displayLoadError(
+            failure = ApiException(kind = ApiFailureKind.HTTP, statusCode = 500, serverMessage = "  banned  "),
+            notFound = "not-found",
+            loadFailed = "load-failed",
+            networkError = "network"
+        )
+        assertEquals("load-failed: banned", trimmed)
+
+        val blank = ExplorePublicProfilePolicy.displayLoadError(
+            failure = ApiException(kind = ApiFailureKind.HTTP, statusCode = 500, serverMessage = "   "),
+            notFound = "not-found",
+            loadFailed = "load-failed",
+            networkError = "network"
+        )
+        assertEquals("load-failed", blank)
+    }
+
 }
