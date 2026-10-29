@@ -162,4 +162,43 @@ class LiveLocationPolicyTest {
         assertFalse(LiveLocationPolicy.isLive(payload, now = 1_000L))
     }
 
+
+    @Test
+    fun `formatRemaining handles day-boundary and sub-minute edges`() {
+        assertEquals("23h 59m", LiveLocationPolicy.formatRemaining(86_399_000L))
+        assertEquals("1m", LiveLocationPolicy.formatRemaining(61_999L))
+        assertEquals("59m", LiveLocationPolicy.formatRemaining(3_599_999L))
+        assertEquals("59s", LiveLocationPolicy.formatRemaining(59_999L))
+    }
+
+    @Test
+    fun `remaining with negative now measures from before epoch`() {
+        val payload = LocationPayload(latitude = 31.2, longitude = 121.5, live = true, liveUntil = 1_000L, sessionId = "n-1")
+        assertEquals(1_500L, LiveLocationPolicy.remainingMs(payload, now = -500L))
+        assertEquals(1_000L, LiveLocationPolicy.remainingFromUntil(0L, now = -1_000L))
+        assertEquals(500L, LiveLocationPolicy.remainingFromUntil(-500L, now = -1_000L))
+    }
+
+    @Test
+    fun `isLive at Long extremes follows strict greater-than`() {
+        val payload = LocationPayload(latitude = 31.2, longitude = 121.5, live = true, liveUntil = Long.MAX_VALUE, sessionId = "n-2")
+        assertTrue(LiveLocationPolicy.isLive(payload, now = Long.MAX_VALUE - 1L))
+        assertFalse(LiveLocationPolicy.isLive(payload, now = Long.MAX_VALUE))
+        assertEquals(1L, LiveLocationPolicy.remainingMs(payload, now = Long.MAX_VALUE - 1L))
+    }
+
+    @Test
+    fun `duration options read as minutes and minimum interval as seconds`() {
+        assertEquals(listOf(15L, 60L, 480L), LiveLocationPolicy.DURATION_OPTIONS_MS.map { it / 60_000L })
+        assertEquals(12L, LiveLocationPolicy.MIN_UPDATE_INTERVAL_MS / 1_000L)
+        assertTrue(LiveLocationPolicy.DURATION_OPTIONS_MS.all { it > LiveLocationPolicy.MIN_UPDATE_INTERVAL_MS })
+    }
+
+    @Test
+    fun `open-ended payload stays live even at max now`() {
+        val openEnded = LocationPayload(latitude = 31.2, longitude = 121.5, live = true, liveUntil = null, sessionId = "n-3")
+        assertTrue(LiveLocationPolicy.isLive(openEnded, now = Long.MAX_VALUE))
+        assertEquals(0L, LiveLocationPolicy.remainingMs(openEnded, now = Long.MAX_VALUE))
+    }
+
 }
