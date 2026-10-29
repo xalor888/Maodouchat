@@ -162,4 +162,41 @@ class CustomStatusPolicyTest {
         )
     }
 
+    @Test
+    fun `presets last five and key positions are pinned`() {
+        assertEquals(
+            listOf("充电中", "听歌中", "阅读中", "观影中", "做饭中"),
+            CustomStatusPolicy.PRESETS.takeLast(5),
+        )
+        assertEquals(5, CustomStatusPolicy.PRESETS.indexOf("休假中"))
+        assertEquals(23, CustomStatusPolicy.PRESETS.indexOf("做饭中"))
+    }
+
+    @Test
+    fun `normalize keeps inner newlines`() {
+        assertEquals("a\nb", CustomStatusPolicy.normalize("a\nb"))
+        assertEquals("a\nb", CustomStatusPolicy.normalize("  a\nb  "))
+    }
+
+    @Test
+    fun `normalize caps multi-byte status at 80 chars`() {
+        assertEquals("忙".repeat(80), CustomStatusPolicy.normalize("忙".repeat(100)))
+    }
+
+    @Test
+    fun `isValid counts a trailing newline as a char`() {
+        assertTrue(CustomStatusPolicy.isValid("a".repeat(79) + "\n"))
+        assertFalse(CustomStatusPolicy.isValid("a".repeat(80) + "\n"))
+        assertEquals("a".repeat(80), CustomStatusPolicy.normalize("a".repeat(80) + "\n"))
+    }
+
+    @Test
+    fun `visibleStatus trims then caps padded multi-byte status`() {
+        assertEquals(
+            "忙".repeat(80),
+            CustomStatusPolicy.visibleStatus("  " + "忙".repeat(100) + "  ", showStatus = true),
+        )
+        assertEquals("做饭中", CustomStatusPolicy.visibleStatus("  做饭中  ", showStatus = true))
+    }
+
 }

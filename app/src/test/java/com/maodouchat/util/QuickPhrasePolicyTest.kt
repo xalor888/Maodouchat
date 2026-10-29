@@ -185,4 +185,49 @@ class QuickPhrasePolicyTest {
         assertTrue(QuickPhrasePolicy.add(base, "a") === base)
     }
 
+    @Test
+    fun `default phrases are pinned verbatim`() {
+        assertEquals(
+            listOf(
+                "好的，收到 👍",
+                "稍等，我看一下",
+                "在忙，稍后回复你",
+                "谢谢你！",
+                "没问题",
+                "哈哈哈 😄",
+                "收到",
+                "好的，马上来",
+            ),
+            QuickPhrasePolicy.DEFAULT_PHRASES,
+        )
+    }
+
+    @Test
+    fun `length limit counts multi-byte chars not bytes`() {
+        assertTrue(QuickPhrasePolicy.isAddable(emptyList(), "忙".repeat(80)))
+        assertEquals(listOf("忙".repeat(80)), QuickPhrasePolicy.add(emptyList(), "忙".repeat(80)))
+        assertFalse(QuickPhrasePolicy.isAddable(emptyList(), "忙".repeat(81)))
+    }
+
+    @Test
+    fun `full list rejects a blank phrase too`() {
+        val full = List(QuickPhrasePolicy.MAX_PHRASES) { "p$it" }
+        assertFalse(QuickPhrasePolicy.isAddable(full, "   "))
+        assertEquals(full, QuickPhrasePolicy.add(full, "   "))
+    }
+
+    @Test
+    fun `remove matches inner-space phrases exactly and tolerates empty input`() {
+        assertEquals(listOf("c"), QuickPhrasePolicy.remove(listOf("a b", "c"), "a b"))
+        assertEquals(emptyList<String>(), QuickPhrasePolicy.remove(emptyList(), "x"))
+    }
+
+    @Test
+    fun `duplicate check compares the trimmed phrase exactly`() {
+        assertEquals(
+            listOf("hello world", "hello  world"),
+            QuickPhrasePolicy.add(listOf("hello world"), "hello  world"),
+        )
+    }
+
 }

@@ -206,4 +206,47 @@ class CaptureAlertPolicyTest {
         assertTrue(CaptureAlertPolicy.isCaptureAlert(CaptureAlertPolicy.PREFIX))
     }
 
+    @Test
+    fun `format with default kind has exact wire form`() {
+        assertEquals(
+            "CAPTURE_ALERT:screenshot|Alice took a screenshot (privacy alert)",
+            CaptureAlertPolicy.format("Alice"),
+        )
+    }
+
+    @Test
+    fun `format with blank label and custom kind has exact wire form`() {
+        assertEquals(
+            "CAPTURE_ALERT:screenrecord|peer took a screenrecord (privacy alert)",
+            CaptureAlertPolicy.format("   ", "screenrecord"),
+        )
+    }
+
+    @Test
+    fun `format keeps inner spaces in kind`() {
+        assertEquals(
+            "CAPTURE_ALERT:screen record|Alice took a screen record (privacy alert)",
+            CaptureAlertPolicy.format("Alice", "screen record"),
+        )
+    }
+
+    @Test
+    fun `format label containing a pipe leaks into the parsed message`() {
+        // parse 只按第一个 | 分隔，label 里的 | 不会被当成分隔符
+        val alert = CaptureAlertPolicy.format("a|b", "screenshot")
+        assertEquals(
+            "CAPTURE_ALERT:screenshot|a|b took a screenshot (privacy alert)",
+            alert,
+        )
+        val parsed = CaptureAlertPolicy.parse(alert)
+        assertEquals("screenshot", parsed?.first)
+        assertEquals("a|b took a screenshot (privacy alert)", parsed?.second)
+    }
+
+    @Test
+    fun `isCaptureAlert and parse reject a prefix in the middle`() {
+        assertFalse(CaptureAlertPolicy.isCaptureAlert("xCAPTURE_ALERT:y"))
+        assertNull(CaptureAlertPolicy.parse("xCAPTURE_ALERT:y"))
+    }
+
 }
