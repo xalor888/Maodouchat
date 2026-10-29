@@ -137,4 +137,60 @@ class SpoilerMediaPolicyTest {
         assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
     }
 
+
+    @Test
+    fun `unmodifiable wrapper rejects bulk mutations too`() {
+        @Suppress("UNCHECKED_CAST")
+        val mutable = SpoilerMediaPolicy.SUPPORTED as MutableSet<MessageType>
+        kotlin.test.assertFailsWith<UnsupportedOperationException> { mutable.addAll(listOf(MessageType.TEXT)) }
+        kotlin.test.assertFailsWith<UnsupportedOperationException> { mutable.removeAll(listOf(MessageType.IMAGE)) }
+        kotlin.test.assertFailsWith<UnsupportedOperationException> { mutable.retainAll(listOf(MessageType.IMAGE)) }
+        assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
+        assertTrue(SpoilerMediaPolicy.supports(MessageType.IMAGE))
+    }
+
+    @Test
+    fun `supported set is a proper subset of all message types`() {
+        assertTrue(SpoilerMediaPolicy.SUPPORTED.size < MessageType.entries.size)
+        assertTrue(MessageType.entries.filter { it !in SpoilerMediaPolicy.SUPPORTED }.isNotEmpty())
+        assertEquals(
+            SpoilerMediaPolicy.SUPPORTED,
+            SpoilerMediaPolicy.SUPPORTED.intersect(MessageType.entries.toSet())
+        )
+    }
+
+    @Test
+    fun `other attachment types never support spoiler`() {
+        listOf(MessageType.FILE, MessageType.VOICE, MessageType.STICKER).forEach {
+            assertFalse("$it 不应支持剧透", SpoilerMediaPolicy.supports(it))
+        }
+        listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF).forEach {
+            assertTrue("$it 应支持剧透", SpoilerMediaPolicy.supports(it))
+        }
+    }
+
+    @Test
+    fun `classification survives a storm of failed mutations`() {
+        @Suppress("UNCHECKED_CAST")
+        val mutable = SpoilerMediaPolicy.SUPPORTED as MutableSet<MessageType>
+        kotlin.test.assertFailsWith<UnsupportedOperationException> { mutable.add(MessageType.TEXT) }
+        kotlin.test.assertFailsWith<UnsupportedOperationException> { mutable.remove(MessageType.VIDEO) }
+        kotlin.test.assertFailsWith<UnsupportedOperationException> { mutable.clear() }
+        MessageType.entries.forEach { type ->
+            val expected = type in setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF)
+            assertEquals("$type 风暴后分类应不变", expected, SpoilerMediaPolicy.supports(type))
+        }
+        assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
+    }
+
+    @Test
+    fun `mutating a copy never leaks into the supported set`() {
+        val copy = SpoilerMediaPolicy.SUPPORTED.toMutableSet()
+        copy.add(MessageType.TEXT)
+        copy.remove(MessageType.IMAGE)
+        assertFalse(SpoilerMediaPolicy.supports(MessageType.TEXT))
+        assertTrue(SpoilerMediaPolicy.supports(MessageType.IMAGE))
+        assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
+    }
+
 }

@@ -91,4 +91,42 @@ class CustomStatusPolicyTest {
         assertEquals("做饭中", CustomStatusPolicy.PRESETS.last())
         assertTrue(CustomStatusPolicy.PRESETS.contains("请勿打扰"))
     }
+
+    @Test
+    fun `normalize trims tabs and newlines and keeps inner whitespace`() {
+        assertEquals("hi", CustomStatusPolicy.normalize("\t hi \n"))
+        assertEquals("", CustomStatusPolicy.normalize("\t\n "))
+        assertEquals("a\tb", CustomStatusPolicy.normalize("  a\tb  "))
+    }
+
+    @Test
+    fun `isValid accepts exactly 80 chars with single-side padding`() {
+        assertTrue(CustomStatusPolicy.isValid(" " + "x".repeat(79)))
+        assertEquals(79, CustomStatusPolicy.normalize(" " + "x".repeat(79)).length)
+        assertTrue(CustomStatusPolicy.isValid("x".repeat(79) + " "))
+        assertEquals(79, CustomStatusPolicy.normalize("x".repeat(79) + " ").length)
+    }
+
+    @Test
+    fun `visibleStatus strips tabs and newlines when shown and stays empty when hidden`() {
+        assertEquals("忙碌", CustomStatusPolicy.visibleStatus("\n忙碌\t", showStatus = true))
+        assertEquals("", CustomStatusPolicy.visibleStatus("x".repeat(100), showStatus = false))
+        assertEquals("", CustomStatusPolicy.visibleStatus("  \t ", showStatus = false))
+    }
+
+    @Test
+    fun `presets survive normalize unchanged and are all valid`() {
+        assertEquals(CustomStatusPolicy.PRESETS, CustomStatusPolicy.PRESETS.map { CustomStatusPolicy.normalize(it) })
+        assertTrue(CustomStatusPolicy.PRESETS.all { CustomStatusPolicy.isValid(it) })
+    }
+
+    @Test
+    fun `normalize is idempotent and its output is always valid`() {
+        listOf(null, "", "  hi  ", "a".repeat(100), "  " + "b".repeat(79)).forEach { raw ->
+            val once = CustomStatusPolicy.normalize(raw)
+            assertEquals(once, CustomStatusPolicy.normalize(once))
+            assertTrue(CustomStatusPolicy.isValid(once))
+        }
+    }
+
 }
