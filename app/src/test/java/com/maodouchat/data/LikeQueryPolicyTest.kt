@@ -94,4 +94,36 @@ class LikeQueryPolicyTest {
         assertEquals("用户\\_123\\%", LikeQueryPolicy.escapeForPrefix("用户_123%"))
     }
 
+
+    @Test
+    fun nbspIsBlankForContainsButVerbatimForPrefix() {
+        assertEquals("", LikeQueryPolicy.escapeForContains("\u00A0"))
+        assertEquals("\u00A0", LikeQueryPolicy.escapeForPrefix("\u00A0"))
+    }
+
+    @Test
+    fun containsAndPrefixSplitOnBlankOnly() {
+        for (blank in listOf("\t", "   ", " \t\n ")) {
+            assertEquals("", LikeQueryPolicy.escapeForContains(blank))
+            assertEquals(blank, LikeQueryPolicy.escapeForPrefix(blank))
+        }
+    }
+
+    @Test
+    fun prefixDoubleEscapesAlreadyEscapedInput() {
+        assertEquals("\\\\\\%", LikeQueryPolicy.escapeForPrefix("\\%"))
+    }
+
+    @Test
+    fun containsLeavesBracketsQuotesAndColonUntouched() {
+        assertEquals("a[b]c'd:e;f", LikeQueryPolicy.escapeForContains("a[b]c'd:e;f"))
+    }
+
+    @Test
+    fun doubleEscapeIsNotIdempotent() {
+        assertEquals(
+            "a\\\\\\%b\\\\\\_c",
+            LikeQueryPolicy.escapeForContains(LikeQueryPolicy.escapeForContains("a%b_c"))
+        )
+    }
 }
