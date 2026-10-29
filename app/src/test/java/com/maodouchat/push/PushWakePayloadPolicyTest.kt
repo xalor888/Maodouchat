@@ -154,4 +154,57 @@ class PushWakePayloadPolicyTest {
         )
     }
 
+
+    @Test
+    fun emptyPayloadRejectReasonIsEmpty() {
+        val decision = PushWakePayloadPolicy.evaluate(emptyMap())
+        assertIs<Decision.Reject>(decision)
+        assertEquals("empty", decision.reason)
+    }
+
+    @Test
+    fun messageAndLastMessageKeysAreForbidden() {
+        val decision = PushWakePayloadPolicy.evaluate(
+            mapOf("type" to "NEW_MESSAGE", "message" to "x", "lastMessage" to "y")
+        )
+        assertIs<Decision.Reject>(decision)
+        assertEquals("sensitive_keys=lastmessage,message", decision.reason)
+        val content = PushWakePayloadPolicy.evaluate(
+            mapOf("type" to "NEW_MESSAGE", "content" to "x")
+        )
+        assertIs<Decision.Reject>(content)
+        assertEquals("sensitive_keys=content", (content as Decision.Reject).reason)
+    }
+
+    @Test
+    fun paddedCaseForbiddenBeatsUnknown() {
+        val decision = PushWakePayloadPolicy.evaluate(
+            mapOf(" Preview " to "x", "zz" to "y")
+        )
+        assertIs<Decision.Reject>(decision)
+        assertEquals("sensitive_keys=preview", decision.reason)
+    }
+
+    @Test
+    fun blankKeysFilteredBeforeUnknownCheck() {
+        val decision = PushWakePayloadPolicy.evaluate(
+            mapOf("   " to "x", "zz" to "y")
+        )
+        assertIs<Decision.Reject>(decision)
+        assertEquals("unknown_keys=zz", decision.reason)
+    }
+
+    @Test
+    fun titleLevelAndCaseInsensitiveCallKeysAreAccepted() {
+        assertTrue(
+            PushWakePayloadPolicy.isSafe(
+                mapOf("type" to "X", "title" to "t", "level" to "info")
+            )
+        )
+        assertTrue(
+            PushWakePayloadPolicy.isSafe(
+                mapOf("CALLTYPE" to "AUDIO", "CallId" to "c1", "TYPE" to "INCOMING_CALL")
+            )
+        )
+    }
 }
