@@ -322,4 +322,61 @@ class ChatFolderPolicyTest {
         assertEquals(folders, result)
     }
 
+    @Test
+    fun reorderFolderSameIndexKeepsOriginalSortOrders() {
+        // 移到原位只排序不重排号：历史间隔/碰撞原样保留
+        val folders = listOf(folder("b", "B", 5), folder("a", "A", 3))
+        val reordered = ChatFolderPolicy.reorderFolder(folders, "a", 0)
+        assertNotNull(reordered)
+        assertEquals(listOf("a", "b"), reordered.map { it.id })
+        assertEquals(listOf(3, 5), reordered.map { it.sortOrder })
+    }
+
+    @Test
+    fun reorderFolderClampsOutOfRangeTargets() {
+        val folders = listOf(folder("a", "A", 0), folder("b", "B", 1), folder("c", "C", 2))
+        val toEnd = ChatFolderPolicy.reorderFolder(folders, "a", 99)
+        assertNotNull(toEnd)
+        assertEquals(listOf("b", "c", "a"), toEnd.map { it.id })
+        assertEquals(listOf(0, 1, 2), toEnd.map { it.sortOrder })
+        val toStart = ChatFolderPolicy.reorderFolder(folders, "c", -5)
+        assertNotNull(toStart)
+        assertEquals(listOf("c", "a", "b"), toStart.map { it.id })
+        assertEquals(listOf(0, 1, 2), toStart.map { it.sortOrder })
+    }
+
+    @Test
+    fun unknownIdsReturnNullForReorderAndRename() {
+        val folders = listOf(folder("f1", "Work"), folder("f2", "Family"))
+        assertNull(ChatFolderPolicy.reorderFolder(folders, "missing", 0))
+        assertNull(ChatFolderPolicy.renameFolder(folders, "missing", "Brand"))
+    }
+
+    @Test
+    fun moveChatToNullTargetPurgesEverywhereAndBlankChatIsNoop() {
+        val folders = listOf(
+            folder("f1", "Work", chats = listOf("c1", "c2")),
+            folder("f2", "Family", chats = listOf("c1")),
+        )
+        val purged = ChatFolderPolicy.moveChatToFolder(folders, "c1", null)
+        assertTrue(purged.none { "c1" in it.chatIds })
+        assertEquals(listOf("c2"), purged.first { it.id == "f1" }.chatIds)
+        assertEquals(folders, ChatFolderPolicy.moveChatToFolder(folders, "  ", "f1"))
+    }
+
+    @Test
+    fun unreadAndLookupEdgeCases() {
+        val folderWithChats = folder("f1", "Work", chats = listOf("x", "y", "z"))
+        assertEquals(3, ChatFolderPolicy.unreadInFolder(folderWithChats, mapOf("x" to -5, "y" to 3)))
+        assertFalse(ChatFolderPolicy.isUnreadChat(-3, false))
+        assertTrue(ChatFolderPolicy.isUnreadChat(-3, true))
+        assertFalse(ChatFolderPolicy.isSystemFilter(null))
+        assertFalse(ChatFolderPolicy.isSystemFilter("system:unknown"))
+        assertFalse(ChatFolderPolicy.isSystemFilter(""))
+        assertNull(ChatFolderPolicy.folderOfChat(listOf(folderWithChats), "missing"))
+        assertEquals(
+            listOf("c3", "c1"),
+            ChatFolderPolicy.filterChatIds(null, listOf("c3", "c1")),
+        )
+    }
 }

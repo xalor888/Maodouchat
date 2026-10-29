@@ -175,4 +175,51 @@ class VoicePlayerSpeedPolicyTest {
         }
     }
 
+    @Test
+    fun neighboringFloatsAreUnknownForBothFunctions() {
+        // 档位是精确 Float 相等：上下一个可表示浮点都已不是档位
+        steps.forEach { step ->
+            val up = Math.nextAfter(step, Double.POSITIVE_INFINITY).toFloat()
+            val down = Math.nextAfter(step, Double.NEGATIVE_INFINITY).toFloat()
+            assertTrue(up != step && down != step, "$step 的邻值应与档位不同")
+            assertEquals(1.5f, VoicePlayer.nextSpeed(up), "$up 应按未知值落到 1.5x")
+            assertEquals(1.5f, VoicePlayer.nextSpeed(down), "$down 应按未知值落到 1.5x")
+            assertEquals("1x", VoicePlayer.formatSpeedLabel(up))
+            assertEquals("1x", VoicePlayer.formatSpeedLabel(down))
+        }
+    }
+
+    @Test
+    fun labelsParseBackToTheirSteps() {
+        // 文案去掉末尾 x 必须恰好解析回档位值，不能是近似文案
+        steps.forEach { step ->
+            assertEquals(step, VoicePlayer.formatSpeedLabel(step).dropLast(1).toFloat())
+        }
+    }
+
+    @Test
+    fun unknownValueJoinsRingAndClosesAfterFourSteps() {
+        // 未知值先并入环（落到 1.5x），再走 4 步恰好回到并入后 4 步的位置
+        listOf(9f, Float.NaN).forEach { unknown ->
+            var cur = VoicePlayer.nextSpeed(unknown)
+            assertEquals(1.5f, cur, "$unknown 应先并入 1.5x")
+            repeat(4) { cur = VoicePlayer.nextSpeed(cur) }
+            assertEquals(1.5f, cur, "从 $unknown 并入后转 4 步应回到 1.5x")
+        }
+    }
+
+    @Test
+    fun extremeMagnitudesAreUnknown() {
+        listOf(Float.MIN_VALUE, -Float.MAX_VALUE, 1e30f).forEach { extreme ->
+            assertEquals(1.5f, VoicePlayer.nextSpeed(extreme), "$extreme 应按未知值落到 1.5x")
+            assertEquals("1x", VoicePlayer.formatSpeedLabel(extreme))
+        }
+    }
+
+    @Test
+    fun labelOfNextFromAnyUnknownIsOnePointFiveX() {
+        listOf(0f, 3f, Float.NaN, Float.MAX_VALUE, -1f).forEach { unknown ->
+            assertEquals("1.5x", VoicePlayer.formatSpeedLabel(VoicePlayer.nextSpeed(unknown)))
+        }
+    }
 }
