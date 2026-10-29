@@ -124,4 +124,47 @@ class StickerFilePolicyTest {
         assertFalse(StickerFilePolicy.isCurrent(file, StickerFilePolicy.sha256(other)))
     }
 
+
+    @Test
+    fun sha256_singleByteMatchesKnownDigest() {
+        val file = temporaryFolder.newFile("one.bin").apply { writeText("a") }
+        assertEquals(
+            "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+            StickerFilePolicy.sha256(file),
+        )
+    }
+
+    @Test
+    fun isCurrent_acceptsMixedCaseDigest() {
+        val file = temporaryFolder.newFile("mixed.bin").apply { writeText("abc") }
+        val digest = StickerFilePolicy.sha256(file)
+        val mixed = digest.mapIndexed { i, c ->
+            if (i % 2 == 0) c.uppercaseChar() else c
+        }.joinToString("")
+        assertTrue(StickerFilePolicy.isCurrent(file, mixed))
+    }
+
+    @Test
+    fun sha256_twoFilesSameContentShareDigest() {
+        val first = temporaryFolder.newFile("same1.bin").apply { writeText("abc") }
+        val second = temporaryFolder.newFile("same2.bin").apply { writeText("abc") }
+        assertEquals(StickerFilePolicy.sha256(first), StickerFilePolicy.sha256(second))
+    }
+
+    @Test
+    fun isCurrent_rejectsEmptyAndTrailingNewlineExpected() {
+        val file = temporaryFolder.newFile("nl.bin").apply { writeText("abc") }
+        val digest = StickerFilePolicy.sha256(file)
+        assertFalse(StickerFilePolicy.isCurrent(file, ""))
+        assertFalse(StickerFilePolicy.isCurrent(file, "$digest\n"))
+    }
+
+    @Test
+    fun sha256_contentWithTrailingNewlineMatchesKnownDigest() {
+        val file = temporaryFolder.newFile("nl2.bin").apply { writeText("abc\n") }
+        assertEquals(
+            "edeaaff3f1774ad2888673770c6d64097e391bc362d7d6fb34982ddf0efd18cb",
+            StickerFilePolicy.sha256(file),
+        )
+    }
 }

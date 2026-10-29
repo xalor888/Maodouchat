@@ -126,4 +126,41 @@ class StickerSourcePolicyTest {
         assertNull(StickerSourcePolicy.resolve("https://user@chat.example.com/a.webp", base))
     }
 
+
+    @Test
+    fun rootBase_resolvesBareRelative() {
+        assertEquals(
+            "https://chat.example.com/a.webp",
+            StickerSourcePolicy.resolve("a.webp", "https://chat.example.com"),
+        )
+    }
+
+    @Test
+    fun passwordOnly_isRejected() {
+        assertNull(StickerSourcePolicy.resolve("https://:pass@chat.example.com/a.webp", base))
+    }
+
+    @Test
+    fun baseQuery_isDroppedForAbsolutePath() {
+        assertEquals(
+            "https://chat.example.com/a.webp",
+            StickerSourcePolicy.resolve("/a.webp", "https://chat.example.com/?token=1"),
+        )
+    }
+
+    @Test
+    fun uppercaseScheme_isAcceptedAndNormalized() {
+        assertEquals(
+            "https://chat.example.com/a.webp",
+            StickerSourcePolicy.resolve("HTTPS://chat.example.com/a.webp", base),
+        )
+    }
+
+    @Test
+    fun singleDotSegment_isNormalized() {
+        assertEquals(
+            "https://chat.example.com/static/a.webp",
+            StickerSourcePolicy.resolve("/static/./a.webp", base),
+        )
+    }
 }

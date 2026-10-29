@@ -87,4 +87,36 @@ class StickerNamePolicyTest {
         assertEquals("...", StickerNamePolicy.sanitizeFileName("..."))
     }
 
+
+    @Test
+    fun sanitize_trimsTabsAndNewlines() {
+        assertEquals("cute-pack", StickerNamePolicy.sanitizePackId("\t cute-pack \n"))
+        assertEquals("cat.webp", StickerNamePolicy.sanitizeFileName("\tcat.webp\n"))
+    }
+
+    @Test
+    fun sanitizeFileName_dotOnlyPrefixesKept() {
+        assertEquals(".webp", StickerNamePolicy.sanitizeFileName(".webp"))
+        assertEquals("...cat.webp", StickerNamePolicy.sanitizeFileName("...cat.webp"))
+    }
+
+    @Test
+    fun sanitize_emojiAndAccentsStripped() {
+        assertEquals("cafpack", StickerNamePolicy.sanitizePackId("caf\u00e9\uD83C\uDF89pack"))
+        assertEquals("caf.webp", StickerNamePolicy.sanitizeFileName("caf\u00e9\uD83C\uDF89.webp"))
+    }
+
+    @Test
+    fun sanitize_exactCapLengthKept() {
+        assertEquals("a".repeat(40), StickerNamePolicy.sanitizePackId("a".repeat(40)))
+        assertEquals("b".repeat(80), StickerNamePolicy.sanitizeFileName("b".repeat(80)))
+    }
+
+    @Test
+    fun sanitize_slashDotCombosCollapseOrEmpty() {
+        assertEquals("", StickerNamePolicy.sanitizePackId("/"))
+        assertEquals("", StickerNamePolicy.sanitizePackId("/."))
+        assertEquals("", StickerNamePolicy.sanitizePackId("/.."))
+        assertEquals("ab", StickerNamePolicy.sanitizePackId("a/../b"))
+    }
 }
