@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -170,6 +171,81 @@ class GroupPlaySealPolicyTest {
         assertEquals("ON", GroupPlaySealPolicy.parseLinkLock("LINKLOCK:ON|a|b"))
         assertEquals("ON", GroupPlaySealPolicy.parseLinkLock("LINKLOCK:ON|host link lock extra"))
         assertEquals("ON", GroupPlaySealPolicy.parseLinkLock("LINKLOCK:ON|"))
+    }
+
+    // ---- oct22ju 续批：五态 ----
+
+    @Test
+    fun `bare prefix or prefix plus pipe parses to null for every pair`() {
+        pairs.forEach { (name, _, parse) ->
+            val prefix = when (name) {
+                "LINK_LOCK" -> GroupPlaySealPolicy.LINK_LOCK_PREFIX
+                "PREVIEW_MUTE" -> GroupPlaySealPolicy.PREVIEW_MUTE_PREFIX
+                "URL_FENCE" -> GroupPlaySealPolicy.URL_FENCE_PREFIX
+                "NOTIF_MASK" -> GroupPlaySealPolicy.NOTIF_MASK_PREFIX
+                "LIST_BLUR" -> GroupPlaySealPolicy.LIST_BLUR_PREFIX
+                "TRAY_SEAL" -> GroupPlaySealPolicy.TRAY_SEAL_PREFIX
+                "REACT_LOCK" -> GroupPlaySealPolicy.REACT_LOCK_PREFIX
+                "STAR_SEAL" -> GroupPlaySealPolicy.STAR_SEAL_PREFIX
+                "META_FENCE" -> GroupPlaySealPolicy.META_FENCE_PREFIX
+                "TYPING_SEAL" -> GroupPlaySealPolicy.TYPING_SEAL_PREFIX
+                "READ_SEAL" -> GroupPlaySealPolicy.READ_SEAL_PREFIX
+                "PRESENCE_SEAL" -> GroupPlaySealPolicy.PRESENCE_SEAL_PREFIX
+                else -> GroupPlaySealPolicy.LASTSEEN_SEAL_PREFIX
+            }
+            assertNull("$name 裸前缀应为 null", parse(prefix))
+            assertNull("$name 前缀加分隔符应为 null", parse(prefix + "|host"))
+        }
+    }
+
+    @Test
+    fun `mode with newline or tab round-trips for every pair`() {
+        pairs.forEach { (name, format, parse) ->
+            assertEquals("$name 换行往返失败", "A\nB", parse(format("A\nB", "host")))
+            assertEquals("$name 制表符往返失败", "A\tB", parse(format("A\tB", "host")))
+        }
+    }
+
+    @Test
+    fun `host label mimicking the kind suffix does not corrupt the mode`() {
+        assertEquals(
+            "ON",
+            GroupPlaySealPolicy.parseLinkLock(GroupPlaySealPolicy.formatLinkLock("ON", "host link lock"))
+        )
+        assertEquals(
+            "OFF",
+            GroupPlaySealPolicy.parseReadSeal(GroupPlaySealPolicy.formatReadSeal("OFF", "host read seal"))
+        )
+    }
+
+    @Test
+    fun `every pair format output ends with its documented kind phrase`() {
+        val kinds = mapOf(
+            GroupPlaySealPolicy::formatLinkLock to "link lock",
+            GroupPlaySealPolicy::formatPreviewMute to "preview mute",
+            GroupPlaySealPolicy::formatUrlFence to "url fence",
+            GroupPlaySealPolicy::formatNotifMask to "notif mask",
+            GroupPlaySealPolicy::formatListBlur to "list blur",
+            GroupPlaySealPolicy::formatTraySeal to "tray seal",
+            GroupPlaySealPolicy::formatReactLock to "react lock",
+            GroupPlaySealPolicy::formatStarSeal to "star seal",
+            GroupPlaySealPolicy::formatMetaFence to "meta fence",
+            GroupPlaySealPolicy::formatTypingSeal to "typing seal",
+            GroupPlaySealPolicy::formatReadSeal to "read seal",
+            GroupPlaySealPolicy::formatPresenceSeal to "presence seal",
+            GroupPlaySealPolicy::formatLastSeenSeal to "last seen seal",
+        )
+        kinds.forEach { (format, kind) ->
+            assertTrue("缺少 kind 后缀 $kind", format("ON", "host").endsWith(kind))
+        }
+    }
+
+    @Test
+    fun `caret at the forty char edge survives or is cut with the mode`() {
+        val edge = "c".repeat(39) + "^"
+        assertEquals(edge, GroupPlaySealPolicy.parseLinkLock(GroupPlaySealPolicy.formatLinkLock(edge, "host")))
+        val over = "d".repeat(40) + "^"
+        assertEquals("d".repeat(40), GroupPlaySealPolicy.parseLinkLock(GroupPlaySealPolicy.formatLinkLock(over, "host")))
     }
 
 }

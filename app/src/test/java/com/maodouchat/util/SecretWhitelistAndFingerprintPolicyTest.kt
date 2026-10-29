@@ -203,4 +203,69 @@ class SecretWhitelistAndFingerprintPolicyTest {
             check(!SecretForwardWhitelistPrefs.isForwardAllowed(c, "user-b")) { "未命中判定应稳定禁止" }
         }
     }
+
+    // ---- oct22ju 续批：五态 ----
+
+    @Test
+    fun markFingerprintVerifiedTrimsOnWriteButVerifyMatchesExactly() {
+        val c = ctx
+        SecretDeviceVerifyPrefs.setEnabled(c, true)
+        // 写入时裁边，读回的集合里是裁过的指纹
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, " fp-c ")
+        check(SecretDeviceVerifyPrefs.verifiedFingerprints(c) == setOf("fp-c")) {
+            "写入应裁边，实际 ${SecretDeviceVerifyPrefs.verifiedFingerprints(c)}"
+        }
+        check(SecretDeviceVerifyPrefs.isFingerprintVerified(c, "fp-c")) { "裁后指纹应命中" }
+        // 但核验本身不裁查询串：带空格的查询串按原样比对，命中不了
+        check(!SecretDeviceVerifyPrefs.isFingerprintVerified(c, " fp-c ")) { "查询串不裁边，不应命中" }
+    }
+
+    @Test
+    fun forwardDecisionDoesNotTrimTheQueryTarget() {
+        val c = ctx
+        SecretForwardWhitelistPrefs.setEnabled(c, true)
+        SecretForwardWhitelistPrefs.setWhitelist(c, setOf("user-a"))
+        check(SecretForwardWhitelistPrefs.isForwardAllowed(c, "user-a")) { "原样应放行" }
+        check(!SecretForwardWhitelistPrefs.isForwardAllowed(c, " user-a ")) { "带空格的查询串不应命中" }
+    }
+
+    @Test
+    fun fingerprintMarksAccumulateWithoutDuplicates() {
+        val c = ctx
+        SecretDeviceVerifyPrefs.setEnabled(c, true)
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, "fp-a")
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, "fp-b")
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, "fp-a")
+        check(SecretDeviceVerifyPrefs.verifiedFingerprints(c) == setOf("fp-a", "fp-b")) {
+            "重复标记不应重复计入，实际 ${SecretDeviceVerifyPrefs.verifiedFingerprints(c)}"
+        }
+    }
+
+    @Test
+    fun whitelistIsIsolatedPerAccount() {
+        val c = ctx
+        SecretForwardWhitelistPrefs.setEnabled(c, true)
+        SecretForwardWhitelistPrefs.setWhitelist(c, setOf("user-a"))
+        AccountFeatureSwitch.userIdOverrideForTest = { "other-user" }
+        try {
+            check(SecretForwardWhitelistPrefs.whitelist(c).isEmpty()) { "他账号白名单应为空" }
+            check(!SecretForwardWhitelistPrefs.isForwardAllowed(c, "user-a")) { "他账号不应继承白名单" }
+        } finally {
+            AccountFeatureSwitch.userIdOverrideForTest = { "user-under-test" }
+        }
+        check(SecretForwardWhitelistPrefs.isForwardAllowed(c, "user-a")) { "切回原账号应恢复放行" }
+    }
+
+    @Test
+    fun writesMadeWhileSwitchOffSurviveReEnable() {
+        val c = ctx
+        SecretDeviceVerifyPrefs.setEnabled(c, false)
+        SecretForwardWhitelistPrefs.setEnabled(c, false)
+        SecretDeviceVerifyPrefs.markFingerprintVerified(c, "fp-z")
+        SecretForwardWhitelistPrefs.setWhitelist(c, setOf("user-z"))
+        SecretDeviceVerifyPrefs.setEnabled(c, true)
+        SecretForwardWhitelistPrefs.setEnabled(c, true)
+        check(SecretDeviceVerifyPrefs.isFingerprintVerified(c, "fp-z")) { "关开关时写入的指纹重开后应仍可信" }
+        check(SecretForwardWhitelistPrefs.isForwardAllowed(c, "user-z")) { "关开关时写入的白名单重开后应仍放行" }
+    }
 }
