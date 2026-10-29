@@ -885,7 +885,7 @@ Gate：master/moderator/user 权限、审计、敏感配置和大数据查询性
 - [x] 更新发布使用签名 manifest、不可降级策略和不可变制品元数据（不可降级 + 不可变 manifest 旁文件 + HMAC-SHA256 签名（key=JWT_SECRET，客户端验签）全部落地；`AppUpdatePublishPolicy` 修复 UTF-8 / ISO 智能转码防乱码）。
 - [~] 静态/官网资源与 API route 分离部署和缓存策略（缓存策略已落地：HTML no-cache、静态 CSS/JS `public, max-age=3600`、PNG/WebRTC 更长缓存；分离部署属 nginx/CDN 运维配置）。
 - [x] 水印提取任务异步化，限制文件、CPU、内存和执行时间（`Dispatchers.Default` 异步 + 30s 超时兜底；请求体 4MB + 维度 ≤8192/像素 ≤16M 解压炸弹防御）。
-- [ ] 备份/恢复脚本纳入版本 migration 和定期恢复演练。
+- [x] 备份/恢复脚本纳入版本 migration 和定期恢复演练。（2026-10-29 核验：生产 backup-production.sh 用 pg_dump --create --format=custom 全库导出，含 schema_migrations 迁移版本表；演练脚本 rehearse-pg-restore.sh 源库显式建 schema_migrations 并插 3 个版本行，逐表行数比对覆盖该表，恢复后版本行一致；CI Server job 每次提交都跑该演练脚本（ci.yml Rehearse PostgreSQL backup and restore），演练频率高于定期。）
 - [x] 健康检查拆 liveness/readiness，并覆盖数据库、迁移和后台任务状态（`/health/live` + `/health/ready` 已拆；ready 覆盖 database/migrations/storage/`backgroundTasks`（连续失败>=3 判 degraded，未运行为 unknown 不拉低）；11 个周期清理任务经 `runTracked` 统一执行 + 心跳追踪，`BackgroundTaskHealthTest` 5 例）。
 
 Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布测试通过。
