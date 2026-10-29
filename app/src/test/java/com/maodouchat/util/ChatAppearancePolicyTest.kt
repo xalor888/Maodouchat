@@ -123,4 +123,46 @@ class ChatAppearancePolicyTest {
         assertEquals(16, ChatWallpaperPreset.entries.size)
         assertEquals(5, ChatFontScale.entries.size)
     }
+
+    @Test
+    fun `night preset is darker than default in both themes`() {
+        val nightLight = ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.NIGHT)!!
+        val defaultLight = ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.DEFAULT)!!
+        assertTrue(nightLight.red < defaultLight.red && nightLight.green < defaultLight.green && nightLight.blue < defaultLight.blue)
+        val nightDark = ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.NIGHT)!!
+        val defaultDark = ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.DEFAULT)!!
+        assertTrue(nightDark.red < defaultDark.red && nightDark.green < defaultDark.green && nightDark.blue < defaultDark.blue)
+    }
+
+    @Test
+    fun `normalize wallpaper unknown and case variants`() {
+        assertEquals(ChatWallpaperPreset.DEFAULT, ChatAppearancePolicy.normalizeWallpaper("neon"))
+        assertEquals(ChatWallpaperPreset.MINT, ChatAppearancePolicy.normalizeWallpaper("MINT"))
+        assertEquals(ChatWallpaperPreset.SKY, ChatAppearancePolicy.normalizeWallpaper(" sky "))
+        assertEquals(ChatWallpaperPreset.DEFAULT, ChatAppearancePolicy.normalizeWallpaper("minty"))
+    }
+
+    @Test
+    fun `normalize font scale trims and lowercases variants`() {
+        assertEquals(ChatFontScale.SMALL, ChatAppearancePolicy.normalizeFontScale("small"))
+        assertEquals(ChatFontScale.XLARGE, ChatAppearancePolicy.normalizeFontScale(" XLarge "))
+        assertEquals(ChatFontScale.NORMAL, ChatAppearancePolicy.normalizeFontScale("xx_large"))
+        assertEquals(ChatFontScale.XXLARGE, ChatAppearancePolicy.normalizeFontScale("XXLARGE"))
+    }
+
+    @Test
+    fun `light and dark palettes share no color`() {
+        val lights = ChatWallpaperPreset.entries.map { ChatAppearancePolicy.wallpaperColorLight(it) }.toSet()
+        val darks = ChatWallpaperPreset.entries.map { ChatAppearancePolicy.wallpaperColorDark(it) }.toSet()
+        assertTrue("light/dark palettes must not overlap", lights.intersect(darks).isEmpty())
+    }
+
+    @Test
+    fun `spot palette colors are pinned`() {
+        assertEquals(Color(0xFFE8F6F1), ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.MINT))
+        assertEquals(Color(0xFF0B1018), ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.NIGHT))
+        assertEquals(Color(0xFFFFEBE6), ChatAppearancePolicy.wallpaperColorLight(ChatWallpaperPreset.CORAL))
+        assertEquals(Color(0xFF141618), ChatAppearancePolicy.wallpaperColorDark(ChatWallpaperPreset.GRAPHITE))
+    }
+
 }

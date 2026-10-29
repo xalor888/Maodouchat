@@ -86,4 +86,38 @@ class ChatTextDisplayPolicyTest {
             ChatTextDisplayPolicy.unescapeHtmlEntities("1 &lt; 2 &amp;&amp; 3 &gt; 2"),
         )
     }
+
+    @Test
+    fun `numeric ampersand quote and carriage return decode`() {
+        assertEquals("&", ChatTextDisplayPolicy.unescapeHtmlEntities("&#38;"))
+        assertEquals("\"", ChatTextDisplayPolicy.unescapeHtmlEntities("&#34;"))
+        assertEquals("\r", ChatTextDisplayPolicy.unescapeHtmlEntities("&#13;"))
+    }
+
+    @Test
+    fun `leading zeros in numeric entities decode`() {
+        assertEquals("A", ChatTextDisplayPolicy.unescapeHtmlEntities("&#065;"))
+        assertEquals("A", ChatTextDisplayPolicy.unescapeHtmlEntities("&#x0041;"))
+        assertEquals("A", ChatTextDisplayPolicy.unescapeHtmlEntities("&#0000065;"))
+    }
+
+    @Test
+    fun `named entities are case sensitive`() {
+        assertEquals("&AMP;", ChatTextDisplayPolicy.unescapeHtmlEntities("&AMP;"))
+        assertEquals("&LT;", ChatTextDisplayPolicy.unescapeHtmlEntities("&LT;"))
+        assertEquals("&NBSP;", ChatTextDisplayPolicy.unescapeHtmlEntities("&NBSP;"))
+    }
+
+    @Test
+    fun `mixed case hex entities decode`() {
+        assertEquals("JK", ChatTextDisplayPolicy.unescapeHtmlEntities("&#X4a;&#x4B;"))
+        assertEquals("j", ChatTextDisplayPolicy.unescapeHtmlEntities("&#X6A;"))
+    }
+
+    @Test
+    fun `double encoded numeric entity stays single decoded`() {
+        assertEquals("&#65;", ChatTextDisplayPolicy.unescapeHtmlEntities("&amp;#65;"))
+        assertEquals("&#x41;", ChatTextDisplayPolicy.unescapeHtmlEntities("&amp;#x41;"))
+    }
+
 }
