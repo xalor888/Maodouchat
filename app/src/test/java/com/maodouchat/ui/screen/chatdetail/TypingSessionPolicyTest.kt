@@ -85,4 +85,37 @@ class TypingSessionPolicyTest {
         assertFalse(TypingSessionPolicy.mayEmit(" u1 ", "t", " u1 "))
         assertFalse(TypingSessionPolicy.mayEmit("u1", "t", "u1 "))
     }
+
+    @Test
+    fun `blank token with spaces never emits`() {
+        assertFalse(TypingSessionPolicy.mayEmit("u1", "   ", "u1"))
+        assertFalse(TypingSessionPolicy.mayEmit("u1", "\t", "u1"))
+    }
+
+    @Test
+    fun `me placeholder refuses regardless of live session`() {
+        assertFalse(TypingSessionPolicy.mayEmit("me", "t", "u1"))
+        assertFalse(TypingSessionPolicy.mayEmit("me", null, null))
+        assertFalse(TypingSessionPolicy.mayEmit(" me ", "t", "u1"))
+    }
+
+    @Test
+    fun `tab-trimmed owner still matches live id`() {
+        assertTrue(TypingSessionPolicy.mayEmit("\tu1\t", "t", "u1"))
+        assertFalse(TypingSessionPolicy.mayEmit("\tme\n", "t", "me"))
+    }
+
+    @Test
+    fun `announce start with null active never announces`() {
+        assertFalse(TypingSessionPolicy.shouldAnnounceStart(null, null))
+        assertFalse(TypingSessionPolicy.shouldAnnounceStart("\t", null))
+        assertTrue(TypingSessionPolicy.shouldAnnounceStart("c1", "c1 "))
+    }
+
+    @Test
+    fun `live id case mismatch never emits`() {
+        assertFalse(TypingSessionPolicy.mayEmit("u1", "t", "U1"))
+        assertFalse(TypingSessionPolicy.mayEmit("U1", "t", "u1"))
+        assertTrue(TypingSessionPolicy.mayEmit("u1", "t", "u1"))
+    }
 }

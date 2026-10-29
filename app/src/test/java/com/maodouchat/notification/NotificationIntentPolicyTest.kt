@@ -83,4 +83,37 @@ class NotificationIntentPolicyTest {
         assertEquals("CHAT_1", NotificationIntentPolicy.resolveOpenChatId("  CHAT_1 "))
     }
 
+    @Test
+    fun `ids compare verbatim without trimming`() {
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount(" u1 ", "u1", false))
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount("u1", " u1 ", false))
+        assertTrue(NotificationIntentPolicy.belongsToCurrentAccount("u1 ", "u1 ", false))
+    }
+
+    @Test
+    fun `case mismatch in either direction refuses`() {
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount("u1", "U1", false))
+        assertTrue(NotificationIntentPolicy.belongsToCurrentAccount("U1", "U1", false))
+    }
+
+    @Test
+    fun `nbsp-only chat id is dropped by trim`() {
+        // Kotlin 的 trim 按 Char.isWhitespace 判定，NBSP 也算空白会被剥掉。
+        assertNull(NotificationIntentPolicy.resolveOpenChatId("\u00A0"))
+        assertEquals("chat-1", NotificationIntentPolicy.resolveOpenChatId("\u00A0chat-1\u00A0"))
+    }
+
+    @Test
+    fun `nbsp owner ids are blank and match nobody`() {
+        // 同理 isBlank 把 NBSP 判空白，纯 NBSP 的 owner 属于任何人都不成立。
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount("\u00A0", "\u00A0", false))
+        assertFalse(NotificationIntentPolicy.belongsToCurrentAccount("\u00A0", "u1", false))
+    }
+
+    @Test
+    fun `single character and numeric chat ids pass through`() {
+        assertEquals("x", NotificationIntentPolicy.resolveOpenChatId("x"))
+        assertEquals("42", NotificationIntentPolicy.resolveOpenChatId(" 42 "))
+        assertEquals("0", NotificationIntentPolicy.resolveOpenChatId("0"))
+    }
 }
