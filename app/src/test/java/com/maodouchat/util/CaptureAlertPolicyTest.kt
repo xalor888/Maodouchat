@@ -166,4 +166,44 @@ class CaptureAlertPolicyTest {
         assertEquals("k".repeat(24), cut?.first)
     }
 
+    @Test
+    fun `format trims tabs and newlines in label and kind`() {
+        assertEquals(
+            "CAPTURE_ALERT:screenrecord|Alice took a screenrecord (privacy alert)",
+            CaptureAlertPolicy.format("\nAlice\t", "\tscreenrecord\n"),
+        )
+    }
+
+    @Test
+    fun `format caps label and kind together in one wire`() {
+        val label = "x".repeat(40)
+        val kind = "k".repeat(30)
+        assertEquals(
+            "CAPTURE_ALERT:" + "k".repeat(24) + "|" + "x".repeat(32) +
+                " took a " + "k".repeat(24) + " (privacy alert)",
+            CaptureAlertPolicy.format(label, kind),
+        )
+    }
+
+    @Test
+    fun `parse keeps surrounding spaces in kind`() {
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.PREFIX + " screenshot |hi")
+        assertEquals(" screenshot ", parsed?.first)
+        assertEquals("hi", parsed?.second)
+    }
+
+    @Test
+    fun `parse of prefix plus pipe only yields default kind and empty message`() {
+        val parsed = CaptureAlertPolicy.parse(CaptureAlertPolicy.PREFIX + "|")
+        assertEquals("screenshot", parsed?.first)
+        assertEquals("", parsed?.second)
+    }
+
+    @Test
+    fun `isCaptureAlert rejects leading space and empty input`() {
+        assertFalse(CaptureAlertPolicy.isCaptureAlert(" CAPTURE_ALERT:x"))
+        assertFalse(CaptureAlertPolicy.isCaptureAlert(""))
+        assertTrue(CaptureAlertPolicy.isCaptureAlert(CaptureAlertPolicy.PREFIX))
+    }
+
 }

@@ -120,4 +120,29 @@ class ChatTextDisplayPolicyTest {
         assertEquals("&#x41;", ChatTextDisplayPolicy.unescapeHtmlEntities("&amp;#x41;"))
     }
 
+    @Test
+    fun `hex max code point decodes`() {
+        assertEquals("\uDBFF\uDFFF", ChatTextDisplayPolicy.unescapeHtmlEntities("&#x10FFFF;"))
+    }
+
+    @Test
+    fun `unknown named entities stay literal`() {
+        assertEquals("&copy;&unknown;", ChatTextDisplayPolicy.unescapeHtmlEntities("&copy;&unknown;"))
+    }
+
+    @Test
+    fun `decimal entity with 8 digits stays literal`() {
+        assertEquals("&#12345678;", ChatTextDisplayPolicy.unescapeHtmlEntities("&#12345678;"))
+    }
+
+    @Test
+    fun `hex entity with 7 digits stays literal`() {
+        assertEquals("&#x1234567;", ChatTextDisplayPolicy.unescapeHtmlEntities("&#x1234567;"))
+    }
+
+    @Test
+    fun `del control character decodes`() {
+        assertEquals("\u007F", ChatTextDisplayPolicy.unescapeHtmlEntities("&#127;"))
+    }
+
 }
