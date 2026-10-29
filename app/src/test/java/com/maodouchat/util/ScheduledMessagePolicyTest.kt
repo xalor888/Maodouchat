@@ -194,4 +194,47 @@ class ScheduledMessagePolicyTest {
         assertEquals("hello", ScheduledMessagePolicy.normalizeText("\n\t hello \n"))
         assertEquals("hi\nthere", ScheduledMessagePolicy.normalizeText("\n  hi\nthere  \t"))
     }
+
+    @Test
+    fun quickDelaysExactFourteenStepsPinned() {
+        assertEquals(
+            listOf(
+                60_000L, 5 * 60_000L, 15 * 60_000L, 30 * 60_000L,
+                60 * 60_000L, 2 * 60 * 60_000L, 3 * 60 * 60_000L,
+                4 * 60 * 60_000L, 6 * 60 * 60_000L, 12 * 60 * 60_000L,
+                24 * 60 * 60_000L, 2L * 24 * 60 * 60_000L,
+                3L * 24 * 60 * 60_000L, 7L * 24 * 60 * 60_000L,
+            ),
+            ScheduledMessagePolicy.QUICK_DELAYS_MS,
+        )
+    }
+
+    @Test
+    fun normalizeTextTrimsBeforeTruncating() {
+        assertEquals("y".repeat(4000), ScheduledMessagePolicy.normalizeText("  " + "y".repeat(4010) + "  "))
+        assertEquals("z".repeat(4000), ScheduledMessagePolicy.normalizeText(" " + "z".repeat(4000)))
+    }
+
+    @Test
+    fun isValidTextAcceptsExactly4000AfterTrim() {
+        assertTrue(ScheduledMessagePolicy.isValidText(" " + "x".repeat(4000) + " "))
+        assertTrue(ScheduledMessagePolicy.isValidText("x".repeat(4001)))
+    }
+
+    @Test
+    fun clampSendAtKeepsInteriorValuesUnchanged() {
+        assertEquals(now + 61_000L, ScheduledMessagePolicy.clampSendAt(now + 61_000L, now))
+        assertEquals(now + 3L * 24 * 60 * 60 * 1000, ScheduledMessagePolicy.clampSendAt(now + 3L * 24 * 60 * 60 * 1000, now))
+        assertEquals(
+            now + ScheduledMessagePolicy.MAX_DELAY_MS - 1,
+            ScheduledMessagePolicy.clampSendAt(now + ScheduledMessagePolicy.MAX_DELAY_MS - 1, now),
+        )
+    }
+
+    @Test
+    fun isValidSendAtRejectsZeroAndNegativeDelay() {
+        assertFalse(ScheduledMessagePolicy.isValidSendAt(now, now))
+        assertFalse(ScheduledMessagePolicy.isValidSendAt(now - 60_000L, now))
+        assertFalse(ScheduledMessagePolicy.isValidSendAt(now - ScheduledMessagePolicy.MAX_DELAY_MS, now))
+    }
 }
