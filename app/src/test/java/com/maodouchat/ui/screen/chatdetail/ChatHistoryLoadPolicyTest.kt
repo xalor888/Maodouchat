@@ -161,4 +161,50 @@ class ChatHistoryLoadPolicyTest {
 
         assertEquals("m2", result.unreadSeparatorId, "SK_DIST 不参与未读分母")
     }
+
+    @Test
+    fun `unread count equal to the message count means no separator but the receipt still goes out`() {
+        val result = plan(fourMessages, unreadCount = 4, isSecretChat = false, readBoundaryMessageId = "m4", groupRevision = null)
+
+        assertNull(result.unreadSeparatorId, "未读数追平消息数时没有更早的消息可标分隔线")
+        assertTrue(result.enqueueReadReceipt, "分隔线缺失不该阻断回执")
+        assertEquals("m4", result.readReceiptThroughMessageId)
+    }
+
+    @Test
+    fun `a secret chat still computes the separator`() {
+        val result = plan(fourMessages, unreadCount = 2, isSecretChat = true, readBoundaryMessageId = "m4", groupRevision = null)
+
+        assertEquals("m3", result.unreadSeparatorId, "分隔线判定与密聊与否无关")
+        assertTrue(result.armSecretDisappearing)
+        assertFalse(result.enqueueReadReceipt)
+    }
+
+    @Test
+    fun `a secret chat drops the group revision too`() {
+        val result = plan(fourMessages, unreadCount = 2, isSecretChat = true, readBoundaryMessageId = "m4", groupRevision = 7L)
+
+        assertNull(result.readReceiptGroupRevision, "密聊不发回执，revision 也必须为空")
+    }
+
+    @Test
+    fun `no receipt means no revision even when one is supplied`() {
+        val result = plan(fourMessages, unreadCount = 0, isSecretChat = false, readBoundaryMessageId = "m4", groupRevision = 7L)
+
+        assertFalse(result.enqueueReadReceipt)
+        assertNull(result.readReceiptGroupRevision, "不发回执时不得带 revision")
+    }
+
+    @Test
+    fun `control messages do not count toward the separator denominator at the boundary`() {
+        val withSk = listOf(
+            msg("m1", 10L),
+            msg("sk1", 20L, MessageType.SK_DIST),
+            msg("m2", 30L),
+        )
+        val result = plan(withSk, unreadCount = 2, isSecretChat = false, readBoundaryMessageId = "m2", groupRevision = null)
+
+        assertNull(result.unreadSeparatorId, "非控制消息只有 2 条，未读 2 条即追平分母，分隔线为空")
+    }
+
 }
