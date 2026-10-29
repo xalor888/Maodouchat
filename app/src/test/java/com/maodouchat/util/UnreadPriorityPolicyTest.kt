@@ -135,4 +135,46 @@ class UnreadPriorityPolicyTest {
     fun `single unread adds base weight plus one`() {
         assertEquals(500_000_001L, UnreadPriorityPolicy.activityScore(lastMessageTime = 0L, unreadCount = 1))
     }
+
+    @Test
+    fun `marked unread alone adds exactly its weight`() {
+        assertEquals(1_000_000_100L, UnreadPriorityPolicy.activityScore(
+            lastMessageTime = 100L, markedUnread = true))
+        assertEquals(1_000_000_000L, UnreadPriorityPolicy.activityScore(
+            lastMessageTime = 0L, markedUnread = true))
+    }
+
+    @Test
+    fun `unread cap boundary 999 vs 1000 vs 998`() {
+        val capped = UnreadPriorityPolicy.activityScore(lastMessageTime = 100L, unreadCount = 999)
+        assertEquals(500_001_099L, capped)
+        assertEquals(capped, UnreadPriorityPolicy.activityScore(
+            lastMessageTime = 100L, unreadCount = 1000))
+        assertEquals(capped - 1, UnreadPriorityPolicy.activityScore(
+            lastMessageTime = 100L, unreadCount = 998))
+    }
+
+    @Test
+    fun `muted keeps draft time even with unread and marked`() {
+        assertEquals(900L, UnreadPriorityPolicy.activityScore(
+            lastMessageTime = 100L, draftUpdatedAt = 900L,
+            unreadCount = 5, markedUnread = true, muted = true))
+    }
+
+    @Test
+    fun `countUnreadChats counts marked-only chats`() {
+        assertEquals(2, UnreadPriorityPolicy.countUnreadChats(
+            listOf(0, 0, 0), listOf(true, false, true)))
+        assertEquals(2, UnreadPriorityPolicy.countUnreadChats(
+            emptyList(), listOf(true, true)))
+    }
+
+    @Test
+    fun `draft time exact with no unread weight`() {
+        assertEquals(700L, UnreadPriorityPolicy.activityScore(
+            lastMessageTime = 0L, draftUpdatedAt = 700L))
+        assertEquals(100L, UnreadPriorityPolicy.activityScore(
+            lastMessageTime = 100L, draftUpdatedAt = -5L))
+    }
+
 }

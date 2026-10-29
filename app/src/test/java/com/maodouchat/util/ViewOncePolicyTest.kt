@@ -6,6 +6,7 @@ import com.maodouchat.data.model.MessageType
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -216,6 +217,57 @@ class ViewOncePolicyTest {
         val second = msg(type = MessageType.IMAGE, viewOnce = true, opened = false)
         ViewOncePolicy.markOpened(first)
         assertFalse(ViewOncePolicy.isLockedForViewer(second, isOwnMessage = false))
+    }
+
+
+    @Test
+    fun supportsSweepIsExactlyImageVideoGif() {
+        val supported = MessageType.entries.filter { ViewOncePolicy.supports(it) }.toSet()
+        assertEquals(setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF), supported)
+    }
+
+    @Test
+    fun unsupportedTypesStayInertEvenWhenFlaggedAndOpened() {
+        listOf(
+            MessageType.MARKDOWN, MessageType.STICKER, MessageType.NUDGE,
+            MessageType.SK_DIST, MessageType.SYSTEM, MessageType.REVOKED
+        ).forEach { type ->
+            val m = msg(type = type, viewOnce = true, opened = true)
+            assertFalse(ViewOncePolicy.isViewOnce(m), "$type 不应生效")
+            assertFalse(ViewOncePolicy.isLockedForViewer(m, isOwnMessage = false), "$type 不应锁")
+            assertSame(m, ViewOncePolicy.markOpened(m), "$type 的 markOpened 应原样返回")
+        }
+    }
+
+    @Test
+    fun videoAndGifAreViewOnceAtFlagLevel() {
+        listOf(MessageType.VIDEO, MessageType.GIF).forEach { type ->
+            assertTrue(ViewOncePolicy.isViewOnce(msg(type = type, viewOnce = true)))
+            assertFalse(ViewOncePolicy.isViewOnce(msg(type = type, viewOnce = false)))
+        }
+    }
+
+    @Test
+    fun lockFollowsOwnFlagNotSenderId() {
+        val ownOpened = msg(type = MessageType.IMAGE, viewOnce = true, opened = true, own = true)
+        assertTrue(ViewOncePolicy.isLockedForViewer(ownOpened, isOwnMessage = false),
+            "senderId 是自己也不影响：按 isOwnMessage=false 算就是接收者视角，应锁")
+        val peerOpened = msg(type = MessageType.IMAGE, viewOnce = true, opened = true, own = false)
+        assertFalse(ViewOncePolicy.isLockedForViewer(peerOpened, isOwnMessage = true),
+            "senderId 是对方也不影响：按 isOwnMessage=true 算就是发送者视角，永不锁")
+    }
+
+    @Test
+    fun markOpenedReturnsSameInstanceForInertMessages() {
+        val alreadyOpened = msg(type = MessageType.IMAGE, viewOnce = true, opened = true)
+        assertSame(alreadyOpened, ViewOncePolicy.markOpened(alreadyOpened))
+        val plain = msg(type = MessageType.IMAGE, viewOnce = false, opened = false)
+        assertSame(plain, ViewOncePolicy.markOpened(plain))
+        val noMeta = Message(
+            id = "m9", chatId = "c1", senderId = "peer",
+            content = "plain photo text", type = MessageType.IMAGE, timestamp = 1L
+        )
+        assertSame(noMeta, ViewOncePolicy.markOpened(noMeta))
     }
 
 }
