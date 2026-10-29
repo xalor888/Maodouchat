@@ -89,4 +89,41 @@ class StickerSourcePolicyTest {
         )
     }
 
+    @Test
+    fun queryString_isPreserved() {
+        assertEquals(
+            "https://chat.example.com/a.webp?v=2",
+            StickerSourcePolicy.resolve("/a.webp?v=2", base),
+        )
+    }
+
+    @Test
+    fun dotDotSegment_isNormalizedWithinSameOrigin() {
+        assertEquals(
+            "https://chat.example.com/a.webp",
+            StickerSourcePolicy.resolve("/static/../a.webp", base),
+        )
+    }
+
+    @Test
+    fun dotDotAgainstBasePath_climbsOneLevel() {
+        assertEquals(
+            "https://chat.example.com/api/a.webp",
+            StickerSourcePolicy.resolve("../a.webp", "https://chat.example.com/api/v1/"),
+        )
+    }
+
+    @Test
+    fun percentEncodedPath_isPreserved() {
+        assertEquals(
+            "https://chat.example.com/a%20b.webp",
+            StickerSourcePolicy.resolve("/a%20b.webp", base),
+        )
+    }
+
+    @Test
+    fun usernameOnly_isRejected() {
+        assertNull(StickerSourcePolicy.resolve("https://user@chat.example.com/a.webp", base))
+    }
+
 }

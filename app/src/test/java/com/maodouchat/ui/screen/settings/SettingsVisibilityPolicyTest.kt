@@ -88,4 +88,33 @@ class SettingsVisibilityPolicyTest {
         assertEquals("PUBLIC", normalizeVisibility("PUBLICS", "PUBLIC"))
         assertEquals("PRIVATE", normalizeVisibility("CONTACT", "PRIVATE"))
     }
+
+    @Test
+    fun `known values win even over a blank fallback`() {
+        assertEquals("PUBLIC", normalizeVisibility("PUBLIC", ""))
+        assertEquals("PRIVATE", normalizeVisibility("PRIVATE", ""))
+    }
+
+    @Test
+    fun `newline padded known values are not recognised`() {
+        assertEquals("PRIVATE", normalizeVisibility("PUBLIC\n", "PRIVATE"))
+        assertEquals("PRIVATE", normalizeVisibility("\nPUBLIC", "PRIVATE"))
+    }
+
+    @Test
+    fun `lowercase contacts and private fall back`() {
+        assertEquals("PUBLIC", normalizeVisibility("contacts", "PUBLIC"))
+        assertEquals("PUBLIC", normalizeVisibility("private", "PUBLIC"))
+    }
+
+    @Test
+    fun `empty value with contacts fallback returns contacts`() {
+        assertEquals("CONTACTS", normalizeVisibility("", "CONTACTS"))
+    }
+
+    @Test
+    fun `whitespace padded fallback is returned verbatim`() {
+        assertEquals(" PUBLIC ", normalizeVisibility("X", " PUBLIC "))
+    }
+
 }
