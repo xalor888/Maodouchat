@@ -282,4 +282,59 @@ class MediaCacheAttachmentReferenceTest {
             "kind 被篡改必须被拒",
         )
     }
+
+    @Test
+    fun keyBase64LowerAndUpperBoundariesPass() {
+        MediaCache.encodeEncryptedAttachmentReference(validRef(keyBase64 = "k".repeat(40)))
+        MediaCache.encodeEncryptedAttachmentReference(validRef(keyBase64 = "k".repeat(48)))
+    }
+
+    @Test
+    fun plainSizeAtCapPassesAndOneOverFails() {
+        MediaCache.encodeEncryptedAttachmentReference(
+            validRef(plainSize = MediaCache.MAX_ATTACHMENT_PLAIN_BYTES))
+        assertFailsWith<Exception>("plainSize 超过上界 1 字节必须被拒") {
+            MediaCache.encodeEncryptedAttachmentReference(
+                validRef(plainSize = MediaCache.MAX_ATTACHMENT_PLAIN_BYTES + 1))
+        }
+    }
+
+    @Test
+    fun durationMsBoundariesPassAtBothEnds() {
+        MediaCache.encodeEncryptedAttachmentReference(validRef(durationMs = 500L))
+        MediaCache.encodeEncryptedAttachmentReference(
+            validRef(durationMs = MediaCache.MAX_VOICE_DURATION_MS))
+    }
+
+    @Test
+    fun mimeTypeAtLengthLimitLowercasesAndOneOverFails() {
+        val decoded = MediaCache.decodeEncryptedAttachmentReference(
+            MediaCache.encodeEncryptedAttachmentReference(validRef(mimeType = "A".repeat(100))))
+        assertNotNull(decoded)
+        assertEquals("a".repeat(100), decoded.mimeType, "100 字符 mimeType 应小写后原长通过")
+        assertFailsWith<Exception>("mimeType 101 字符必须被拒") {
+            MediaCache.encodeEncryptedAttachmentReference(validRef(mimeType = "a".repeat(101)))
+        }
+    }
+
+    @Test
+    fun decodeRejectsTamperedKeyHashAndCipherSize() {
+        val encoded = MediaCache.encodeEncryptedAttachmentReference(validRef())
+        val badKey = encoded.replace("k".repeat(44), "k".repeat(39))
+        assertNull(
+            MediaCache.decodeEncryptedAttachmentReference(badKey),
+            "keyBase64 被截到 39 字符必须被拒",
+        )
+        val badHash = encoded.replace("e".repeat(64), "E".repeat(64))
+        assertNull(
+            MediaCache.decodeEncryptedAttachmentReference(badHash),
+            "plainSha256 大写必须被拒",
+        )
+        val badCipher = encoded.replace("1056", "16")
+        assertNull(
+            MediaCache.decodeEncryptedAttachmentReference(badCipher),
+            "cipherSize 被改到 16 必须被拒",
+        )
+    }
+
 }

@@ -7,8 +7,10 @@ import org.robolectric.annotation.Config
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -324,4 +326,68 @@ class MediaCacheAttachmentSizeLimitTest {
             "cipherSize 恰等于密文上界必须放行",
         )
     }
+
+    @Test
+    fun `decode cipher size lower boundary is seventeen`() {
+        assertNotNull(
+            MediaCache.decodeEncryptedAttachmentReference(validRefJson(17)),
+            "cipherSize 恰等于 17 必须放行",
+        )
+        assertNull(
+            MediaCache.decodeEncryptedAttachmentReference(validRefJson(16)),
+            "cipherSize 16 必须被拒",
+        )
+    }
+
+    @Test
+    fun `copyFileToCache rejects an empty uri source`() {
+        val out = MediaCache.copyFileToCache(
+            context, android.net.Uri.EMPTY, "m-nouri",
+            LocalFileMetadata("src.bin", "application/octet-stream", 8L),
+        )
+        assertNull(out, "读不到流的源必须返回 null")
+    }
+
+    @Test
+    fun `copyFileToCache rejects an empty file under any declaration`() {
+        val empty = temporaryFolder.newFile("empty.bin").apply { writeBytes(ByteArray(0)) }
+        assertNull(
+            MediaCache.copyFileToCache(
+                context, android.net.Uri.fromFile(empty), "m-empty0",
+                LocalFileMetadata("empty.bin", "application/octet-stream", 0L),
+            ),
+            "声明 0 字节必须被下限拒",
+        )
+        assertNull(
+            MediaCache.copyFileToCache(
+                context, android.net.Uri.fromFile(empty), "m-empty8",
+                LocalFileMetadata("empty.bin", "application/octet-stream", 8L),
+            ),
+            "空文件配 8 字节声明必须被完整性校验拒",
+        )
+    }
+
+    @Test
+    fun `copyFileToCache rejects a directory as source`() {
+        val dir = temporaryFolder.newFolder("srcdir")
+        assertNull(
+            MediaCache.copyFileToCache(
+                context, android.net.Uri.fromFile(dir), "m-dirsrc",
+                LocalFileMetadata("dir.bin", "application/octet-stream", 8L),
+            ),
+            "目录不是文件，inputStream 应为 null",
+        )
+    }
+
+    @Test
+    fun `currentCacheBytes delta matches a fresh file and cleanup returns it`() {
+        val dir = File(context.cacheDir, "maodouchat_media").apply { mkdirs() }
+        val before = MediaCache.currentCacheBytes(context)
+        val fresh = File(dir, "m-bytes.bin").apply { writeBytes(ByteArray(1234)) }
+        assertEquals(before + 1234L, MediaCache.currentCacheBytes(context), "新增文件字节必须精确计入")
+        val removed = MediaCache.cleanupReturningBytes(context)
+        assertTrue(removed >= 1234L, "清理返还字节不得小于新增文件，实际 $removed")
+        assertFalse(fresh.exists(), "清理后新增文件必须消失")
+    }
+
 }
