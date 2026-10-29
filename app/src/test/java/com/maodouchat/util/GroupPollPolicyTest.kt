@@ -189,4 +189,54 @@ class GroupPollPolicyTest {
         assertTrue(GroupPollPolicy.isPkShortcut("~pk:k1|LEFT"))
         assertFalse(GroupPollPolicy.isChainShortcut("~chain:c1|"))
     }
+
+    @Test
+    fun voteShortcutNormalizesPlusAndLeadingZeroIndexes() {
+        assertEquals("p1" to listOf(1, 2), GroupPollPolicy.parseVoteShortcut("~vote:p1|+1,01,2"))
+        assertEquals("p1" to listOf(7), GroupPollPolicy.parseVoteShortcut("~vote:p1|007"))
+        assertEquals("p1" to listOf(0), GroupPollPolicy.parseVoteShortcut("~vote:p1|00"))
+    }
+
+    @Test
+    fun voteShortcutSecondPipeBreaksIndexSection() {
+        assertNull(GroupPollPolicy.parseVoteShortcut("~vote:a|b|0"))
+        assertNull(GroupPollPolicy.parseVoteShortcut("~vote:p1|0|1"))
+        assertFalse(GroupPollPolicy.isVoteShortcut("~vote:p1|0|1"))
+    }
+
+    @Test
+    fun pkShortcutBuildDoesNotTrimChoice() {
+        assertEquals("~pk:k1|left", GroupPollPolicy.buildPkShortcut("k1", "LEFT "))
+        assertEquals("~pk:k1|left", GroupPollPolicy.buildPkShortcut("k1", " Right"))
+        assertNull(GroupPollPolicy.parsePkShortcut("~pk:k1|left extra"))
+        assertEquals("k1" to "left", GroupPollPolicy.parsePkShortcut("~pk:k1|left "))
+    }
+
+    @Test
+    fun voteBuildParseDropsNegativeIndexes() {
+        val built = GroupPollPolicy.buildVoteShortcut("p1", listOf(-1, 5))
+        assertEquals("~vote:p1|-1,5", built)
+        assertEquals("p1" to listOf(5), GroupPollPolicy.parseVoteShortcut(built))
+        assertEquals(
+            "p1" to listOf(3),
+            GroupPollPolicy.parseVoteShortcut(GroupPollPolicy.buildVoteShortcut("p1", listOf(3, -2, 3))),
+        )
+    }
+
+    @Test
+    fun pollShareNumbersOptionsAndKeepsTitlesVerbatim() {
+        assertEquals(
+            "📊 群投票 · Q?\n1. A\n2. B\n3. C\n~vote:p1|0",
+            GroupPollPolicy.formatPollShare("p1", "Q?", listOf("A", "B", "C"), false),
+        )
+        assertEquals(
+            "⚔️ 群 PK\n~pk:k1|left · ~pk:k1|right\n左 vs 右 vs 右",
+            GroupPollPolicy.formatPkShare("k1", "左 vs 右", "右"),
+        )
+        assertEquals(
+            "🔗 群接龙 · T\ntopic\n第 0 条：~chain:c1|topic",
+            GroupPollPolicy.formatChainShare("c1", "T", "topic", 0),
+        )
+    }
+
 }
