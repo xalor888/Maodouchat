@@ -247,4 +247,71 @@ class SecretGateAndTtlPolicyTest {
             "总开关开关一次不应清掉徽标偏好"
         }
     }
+
+    // ---- oct22jh 续批：五态 ----
+
+    @Test
+    fun gateClosesExactlyAtTimeoutBoundary() {
+        Secret2faGatePrefs.setEnabled(ctx, true)
+        Secret2faGatePrefs.setGateTimeoutMs(ctx, 60_000L)
+        val prefs = ctx.getSharedPreferences("secret_2fa_gate", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putLong("last_verified_at:user-under-test", System.currentTimeMillis() - 60_000L)
+            .apply()
+        check(!Secret2faGatePrefs.isGateOpen(ctx)) { "恰好满窗口时门必须关（判定是严格小于）" }
+        prefs.edit()
+            .putLong("last_verified_at:user-under-test", System.currentTimeMillis() - 59_000L)
+            .apply()
+        check(Secret2faGatePrefs.isGateOpen(ctx)) { "窗口内 1 秒时门必须还开着" }
+    }
+
+    @Test
+    fun gateReverificationReopensAfterExpiry() {
+        Secret2faGatePrefs.setEnabled(ctx, true)
+        Secret2faGatePrefs.setGateTimeoutMs(ctx, 60_000L)
+        Secret2faGatePrefs.markVerified(ctx)
+        val prefs = ctx.getSharedPreferences("secret_2fa_gate", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putLong("last_verified_at:user-under-test", System.currentTimeMillis() - 120_000L)
+            .apply()
+        check(!Secret2faGatePrefs.isGateOpen(ctx)) { "过期后门必须关" }
+        Secret2faGatePrefs.markVerified(ctx)
+        check(Secret2faGatePrefs.isGateOpen(ctx)) { "重新验证后门必须再次打开，不是粘性关闭" }
+    }
+
+    @Test
+    fun gateDisabledIgnoresStaleStamp() {
+        Secret2faGatePrefs.setEnabled(ctx, false)
+        val prefs = ctx.getSharedPreferences("secret_2fa_gate", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putLong("last_verified_at:user-under-test", System.currentTimeMillis() - 120_000L)
+            .apply()
+        check(Secret2faGatePrefs.isGateOpen(ctx)) { "开关关着时陈旧戳不应让门关闭，fail-open 短路在读戳之前" }
+    }
+
+    @Test
+    fun autoDestroyTtlExactBoundsRoundTrip() {
+        SecretAutoDestroyPrefs.setTtlSeconds(ctx, 299L)
+        check(SecretAutoDestroyPrefs.ttlSeconds(ctx) == 300L) { "低于下限 1 秒应收钳到 MIN" }
+        SecretAutoDestroyPrefs.setTtlSeconds(ctx, 300L)
+        check(SecretAutoDestroyPrefs.ttlSeconds(ctx) == 300L) { "下限值应原样保留" }
+        val max = SecretAutoDestroyPrefs.MAX_TTL_SECONDS
+        SecretAutoDestroyPrefs.setTtlSeconds(ctx, max)
+        check(SecretAutoDestroyPrefs.ttlSeconds(ctx) == max) { "上限值应原样保留" }
+        SecretAutoDestroyPrefs.setTtlSeconds(ctx, max + 1)
+        check(SecretAutoDestroyPrefs.ttlSeconds(ctx) == max) { "高于上限 1 秒应收钳到 MAX" }
+        SecretAutoDestroyPrefs.setTtlSeconds(ctx, -5L)
+        check(SecretAutoDestroyPrefs.ttlSeconds(ctx) == 300L) { "负数经 setter 同样钳到 MIN" }
+    }
+
+    @Test
+    fun peerNoticeShownByDefaultWhenNeverConfigured() {
+        check(SecretSessionNoticePrefs.shouldShowPeerNotice(ctx, peerSecretEnabled = true)) {
+            "从未配置过时总开关与徽标开关均为默认开，对端开密聊就应显示"
+        }
+        check(!SecretSessionNoticePrefs.shouldShowPeerNotice(ctx, peerSecretEnabled = false)) {
+            "默认开也改变不了对端没开密聊时不显示"
+        }
+        check(SecretSessionNoticePrefs.showPeerNotice(ctx)) { "徽标开关默认值应为 true" }
+    }
 }

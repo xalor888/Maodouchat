@@ -219,6 +219,59 @@ class PinSecurityPolicyTest {
         assertFalse(repo.verifyPin("chat_x", "1111"))
     }
 
+
+    @Test
+    fun isValidPinFormat_allowsLeadingZerosAndRejectsSeparators() {
+        assertTrue(PinSecurityPolicy.isValidPinFormat("0000"))
+        assertTrue(PinSecurityPolicy.isValidPinFormat("0123"))
+        assertFalse(PinSecurityPolicy.isValidPinFormat("12 4"))
+        assertFalse(PinSecurityPolicy.isValidPinFormat("12-4"))
+        // Char.isDigit 接受一切 Unicode 十进制数字，全角数字同样算数字
+        assertTrue(PinSecurityPolicy.isValidPinFormat("１２３４"))
+    }
+
+    @Test
+    fun hashPbkdf2_isDeterministicAndSensitiveToSaltAndIterations() {
+        val salt = "00112233445566778899aabbccddeeff"
+        val first = PinSecurityPolicy.hashPbkdf2("5678", salt, 1000)
+        assertEquals(64, first.length)
+        assertEquals(first, PinSecurityPolicy.hashPbkdf2("5678", salt, 1000))
+        assertTrue(first != PinSecurityPolicy.hashPbkdf2("5678", "ffeeddccbbaa99887766554433221100", 1000))
+        assertTrue(first != PinSecurityPolicy.hashPbkdf2("5678", salt, 1001))
+    }
+
+    @Test
+    fun generateSalt_hasRequestedLengthAndHexAlphabet() {
+        val salt = PinSecurityPolicy.generateSalt()
+        assertEquals(32, salt.length)
+        assertTrue(salt.all { it in '0'..'9' || it in 'a'..'f' })
+        assertEquals(16, PinSecurityPolicy.generateSalt(8).length)
+        assertTrue(salt != PinSecurityPolicy.generateSalt())
+    }
+
+    @Test
+    fun verifyPin_malformedVariants_returnsCorrupted() {
+        assertEquals(VerificationOutcome.Corrupted, PinSecurityPolicy.verifyPin("1234", "   "))
+        assertEquals(
+            VerificationOutcome.Corrupted,
+            PinSecurityPolicy.verifyPin("1234", "pbkdf2$" + "1000" + "$" + "salt")
+        )
+        assertEquals(
+            VerificationOutcome.Corrupted,
+            PinSecurityPolicy.verifyPin(
+                "1234",
+                "pbkdf2$" + "1000" + "$" + "salt" + "$" + "hash" + "$" + "extra"
+            )
+        )
+    }
+
+    @Test
+    fun verifyPin_legacyMismatch_returnsMismatch() {
+        val legacyHash = PinSecurityPolicy.hashSha256Legacy("1234", "f0e1d2c3")
+        assertEquals(VerificationOutcome.Mismatch, PinSecurityPolicy.verifyPin("9999", legacyHash, "f0e1d2c3"))
+        assertEquals(VerificationOutcome.Mismatch, PinSecurityPolicy.verifyPin("1234", legacyHash, "other-salt"))
+    }
+
     private class FakeSharedPreferences : SharedPreferences {
         private val data = mutableMapOf<String, Any>()
 

@@ -3,6 +3,7 @@ package com.maodouchat.data.repository
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
+import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -136,6 +137,90 @@ class MessageDuplicatePolicyTest {
         assertEquals(incoming.reactions, canonical.reactions)
         assertTrue(canonical.sealedSender)
         assertEquals(99L, canonical.expiresAt)
+    }
+
+
+    @Test
+    fun sameDeliveryIgnoresNonContentSideFieldsTogether() {
+        val local = base("local-tmp")
+        val remote = local.copy(
+            id = "srv-1",
+            status = MessageStatus.READ,
+            starred = true,
+            editedAt = 5L,
+            sealedSender = true,
+            expiresAt = 99L,
+            reactions = listOf(MessageReaction("bob", "heart", 1L))
+        )
+        assertTrue(MessageDuplicatePolicy.isSameDelivery(local, remote))
+    }
+
+    @Test
+    fun sameDeliveryMatchesAfterEntityDecoding() {
+        val local = base("local-tmp")
+        assertTrue(
+            MessageDuplicatePolicy.isSameDelivery(
+                local.copy(content = "a&amp;b"), local.copy(id = "srv-1", content = "a&b")
+            )
+        )
+        assertTrue(
+            MessageDuplicatePolicy.isSameDelivery(
+                local.copy(content = "a&lt;b"), local.copy(id = "srv-1", content = "a<b")
+            )
+        )
+        assertFalse(
+            MessageDuplicatePolicy.isSameDelivery(
+                local.copy(content = "a&amp;b"), local.copy(id = "srv-1", content = "a&amp;c")
+            )
+        )
+    }
+
+    @Test
+    fun sameDeliveryOnlyStripsLastMetaTag() {
+        val local = base("local-tmp")
+        assertFalse(
+            MessageDuplicatePolicy.isSameDelivery(
+                local.copy(content = "hello<meta>{}"),
+                local.copy(id = "srv-1", content = "hello<meta>{}<meta>{}")
+            )
+        )
+        assertTrue(
+            MessageDuplicatePolicy.isSameDelivery(
+                local, local.copy(id = "srv-1", content = "hello<meta>{\"x\":1}")
+            )
+        )
+    }
+
+    @Test
+    fun redundancyAndDeliveryAreSymmetric() {
+        val existing = base("srv-1")
+        val changed = existing.copy(status = MessageStatus.READ)
+        assertEquals(
+            MessageDuplicatePolicy.isRedundantWrite(existing, changed),
+            MessageDuplicatePolicy.isRedundantWrite(changed, existing)
+        )
+        assertFalse(MessageDuplicatePolicy.isRedundantWrite(changed, existing))
+        val local = base("local-tmp")
+        val remote = local.copy(id = "srv-1")
+        assertEquals(
+            MessageDuplicatePolicy.isSameDelivery(local, remote),
+            MessageDuplicatePolicy.isSameDelivery(remote, local)
+        )
+    }
+
+    @Test
+    fun pickCanonicalIsIdempotentAndKeepsIncomingMeta() {
+        val local = base("local-tmp")
+        val incoming = local.copy(
+            id = "srv-1",
+            status = MessageStatus.READ,
+            meta = MessageMeta(replyToId = "m9")
+        )
+        val canonical = MessageDuplicatePolicy.pickCanonical(local, incoming)
+        assertEquals("local-tmp", canonical.id)
+        assertEquals(MessageStatus.READ, canonical.status)
+        assertEquals("m9", canonical.meta.replyToId)
+        assertEquals(canonical, MessageDuplicatePolicy.pickCanonical(canonical, incoming))
     }
 
     private fun base(id: String) = Message(
