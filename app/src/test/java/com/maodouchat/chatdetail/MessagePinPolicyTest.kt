@@ -166,4 +166,46 @@ class MessagePinPolicyTest {
         assertEquals("a  b", MessagePinPolicy.textPreview("a\n\nb"))
     }
 
+    @Test
+    fun max_pins_constant_is_twenty_and_over_limit_blocked() {
+        assertEquals(20, MessagePinPolicy.MAX_PINS)
+        assertTrue(MessagePinPolicy.wouldExceedLimit(21, alreadyPinned = false))
+        assertFalse(MessagePinPolicy.wouldExceedLimit(21, alreadyPinned = true))
+        assertFalse(MessagePinPolicy.wouldExceedLimit(0, alreadyPinned = false))
+    }
+
+    @Test
+    fun isPinnableType_accepts_all_nine_pinnable_types() {
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.TEXT))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.MARKDOWN))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.IMAGE))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.GIF))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.STICKER))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.LOCATION))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.VOICE))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.VIDEO))
+        assertTrue(MessagePinPolicy.isPinnableType(MessageType.FILE))
+    }
+
+    @Test
+    fun text_preview_keeps_only_text_before_last_meta() {
+        assertEquals("a<meta>b", MessagePinPolicy.textPreview("a<meta>b<meta>c"))
+        assertEquals("x", MessagePinPolicy.textPreview("x<meta>y"))
+    }
+
+    @Test
+    fun text_preview_empty_and_whitespace_meta_only_are_blank() {
+        assertEquals("", MessagePinPolicy.textPreview(""))
+        assertEquals("", MessagePinPolicy.textPreview(" <meta> "))
+    }
+
+    @Test
+    fun text_preview_default_limit_truncates_at_96_chars() {
+        val over = "a".repeat(100)
+        val preview = MessagePinPolicy.textPreview(over)
+        assertEquals("a".repeat(95) + "…", preview)
+        assertEquals(96, preview.length)
+        assertEquals("a".repeat(96), MessagePinPolicy.textPreview("a".repeat(96)))
+    }
+
 }

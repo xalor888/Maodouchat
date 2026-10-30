@@ -270,4 +270,73 @@ class NudgeDisplayPolicyTest {
         assertEquals("你拍了拍张三!", text)
     }
 
+    @Test
+    fun ownMessage_prefixOnlyStoredRebuildsFromTrimmedRaw() {
+        val english = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "You nudged ",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍You nudged", english)
+        val chinese = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "你拍了拍",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍你拍了拍", chinese)
+    }
+
+    @Test
+    fun nonOwnDirect_englishStoredStillShowsTheyNudgedYou() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "You nudged Alex",
+            senderDisplayName = "李四",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍你", text)
+    }
+
+    @Test
+    fun extractTargetName_nestedPrefixStripsOnlyFirst() {
+        assertEquals("你拍了拍张三", NudgeDisplayPolicy.extractTargetName("你拍了拍你拍了拍张三"))
+    }
+
+    @Test
+    fun nonOwn_senderInternalSpacesPreserved() {
+        val direct = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "你拍了拍张三",
+            senderDisplayName = "李 四",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("李 四 拍了拍你", direct)
+        val group = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "你拍了拍张三",
+            senderDisplayName = "李 四",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("李 四 拍了拍张三", group)
+    }
+
+    @Test
+    fun ownMessage_englishStoredTrailingSpacesTrimmed() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "You nudged   Alex  ",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍Alex", text)
+    }
+
 }

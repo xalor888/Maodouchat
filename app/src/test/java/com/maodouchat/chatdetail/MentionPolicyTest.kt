@@ -1,6 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.User
+import com.maodouchat.ui.screen.chatdetail.ActiveQuery
 import com.maodouchat.ui.screen.chatdetail.InsertResult
 import com.maodouchat.ui.screen.chatdetail.MentionPolicy
 import org.junit.Assert.assertEquals
@@ -300,5 +301,53 @@ class MentionPolicyTest {
             listOf(MentionPolicy.EVERYONE_ID),
             MentionPolicy.extractMentionIds("@everyone @me", members, "me"),
         )
+    }
+
+    @Test
+    fun activeQuery_midWordCursor_returns_partial_filter() {
+        val partial = MentionPolicy.activeQuery("hi @Alice", cursor = 5)!!
+        assertEquals(3, partial.atIndex)
+        assertEquals("A", partial.filter)
+        val bare = MentionPolicy.activeQuery("hi @Alice", cursor = 4)!!
+        assertEquals(3, bare.atIndex)
+        assertEquals("", bare.filter)
+    }
+
+    @Test
+    fun activeQuery_ai_trailing_space_and_cursor_on_at_sign_return_null() {
+        assertNull(MentionPolicy.activeQuery("@AI ", cursor = 4))
+        assertNull(MentionPolicy.activeQuery("hi @Al", cursor = 3))
+    }
+
+    @Test
+    fun insertMention_explicitQuery_overrides_detection() {
+        val r = MentionPolicy.insertMention("hi @Al", 6, "Bob Chen", ActiveQuery(3, "Al"))
+        assertEquals("hi @Bob Chen ", r.text)
+        assertEquals(13, r.cursor)
+        assertEquals(
+            InsertResult("hi @Al", 6),
+            MentionPolicy.insertMention("hi @Al", 6, "  ", ActiveQuery(3, "Al")),
+        )
+    }
+
+    @Test
+    fun extractMentionIds_appearance_order_kept() {
+        assertEquals(
+            listOf("u2", "u1"),
+            MentionPolicy.extractMentionIds("@Bob Chen @Alice", members, "me"),
+        )
+        assertEquals(
+            listOf(MentionPolicy.EVERYONE_ID, "u1"),
+            MentionPolicy.extractMentionIds("@everyone @Alice", members, "me"),
+        )
+    }
+
+    @Test
+    fun filterCandidates_limit_keeps_everyone_first() {
+        val one = MentionPolicy.filterCandidates(members, "me", "", limit = 1)
+        assertEquals(1, one.size)
+        assertTrue(one.single().isEveryone)
+        val two = MentionPolicy.filterCandidates(members, "me", "", limit = 2)
+        assertEquals(listOf(MentionPolicy.EVERYONE_ID, "u1"), two.map { it.userId })
     }
 }
