@@ -415,4 +415,97 @@ class AttachMenuPolicyTest {
         assertFalse(AttachMenuKind.VIEW_ONCE in AttachMenuPolicy.items(true, false, true, true, true))
         assertFalse(AttachMenuKind.VIEW_ONCE in AttachMenuPolicy.items(true, true, true, true, true))
     }
+
+    @Test
+    fun dmAiExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.VIEW_ONCE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.CONTACT_CARD,
+                AttachMenuKind.AI,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(false, false, true, true, true, aiEnabled = true),
+        )
+    }
+
+    @Test
+    fun groupWithoutContactCardExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(true, false, true, false, true),
+        )
+    }
+
+    @Test
+    fun dmAiWithoutContactCardExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.VIEW_ONCE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.AI,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(false, false, true, false, true, aiEnabled = true),
+        )
+    }
+
+    @Test
+    fun channelIgnoresNudgeFlag() {
+        val off = AttachMenuPolicy.items(true, true, true, true, false)
+        val on = AttachMenuPolicy.items(true, true, true, true, true)
+        assertEquals(off, on)
+        assertEquals(6, on.size)
+        assertFalse(AttachMenuKind.NUDGE in on)
+    }
+
+    @Test
+    fun baseTilesPresentInEveryMode() {
+        val base = listOf(
+            AttachMenuKind.IMAGE,
+            AttachMenuKind.PASTE,
+            AttachMenuKind.VIDEO,
+            AttachMenuKind.FILE,
+            AttachMenuKind.SCHEDULE,
+            AttachMenuKind.SILENT,
+        )
+        listOf(
+            AttachMenuPolicy.items(false, false, true, true, true),
+            AttachMenuPolicy.items(true, false, true, true, true),
+            AttachMenuPolicy.items(true, true, true, true, true),
+        ).forEach { items ->
+            base.forEach { assertTrue(it in items) }
+        }
+    }
+
 }
