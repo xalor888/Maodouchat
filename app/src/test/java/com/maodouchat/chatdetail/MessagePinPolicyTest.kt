@@ -208,4 +208,35 @@ class MessagePinPolicyTest {
         assertEquals("a".repeat(96), MessagePinPolicy.textPreview("a".repeat(96)))
     }
 
+    @Test
+    fun text_preview_tinyLimit_collapsesToEllipsis() {
+        assertEquals("…", MessagePinPolicy.textPreview("hello", 1))
+        assertEquals("h…", MessagePinPolicy.textPreview("hello", 2))
+    }
+
+    @Test
+    fun text_preview_trailingEmptyMetaBlock_keepsEarlierLiteralMeta() {
+        assertEquals("a<meta>b", MessagePinPolicy.textPreview("a<meta>b<meta>"))
+        assertEquals("hello", MessagePinPolicy.textPreview("hello<meta>"))
+    }
+
+    @Test
+    fun text_preview_metaStrippedBeforeTruncationBudget() {
+        val preview = MessagePinPolicy.textPreview("a".repeat(100) + "<meta>{\"a\":1}")
+        assertEquals("a".repeat(95) + "…", preview)
+        assertEquals(96, preview.length)
+    }
+
+    @Test
+    fun group_role_withTrailingWhitespace_rejected() {
+        assertFalse(MessagePinPolicy.canPin(true, "ADMIN ", MessageType.TEXT))
+        assertFalse(MessagePinPolicy.canPin(true, "OWNER\t", MessageType.TEXT))
+    }
+
+    @Test
+    fun direct_chat_nonPinnableTypes_stillBlockedForOwner() {
+        assertFalse(MessagePinPolicy.canPin(false, "OWNER", MessageType.SYSTEM))
+        assertFalse(MessagePinPolicy.canPin(false, "OWNER", MessageType.SK_DIST))
+        assertFalse(MessagePinPolicy.canPin(false, null, MessageType.REVOKED))
+    }
 }

@@ -350,4 +350,60 @@ class MentionPolicyTest {
         val two = MentionPolicy.filterCandidates(members, "me", "", limit = 2)
         assertEquals(listOf(MentionPolicy.EVERYONE_ID, "u1"), two.map { it.userId })
     }
+
+    @Test
+    fun activeQuery_aiLookalikeName_isNotAssistantCommand() {
+        val aix = MentionPolicy.activeQuery("hi @AIX", cursor = 8)!!
+        assertEquals(3, aix.atIndex)
+        assertEquals("AIX", aix.filter)
+        assertNull(MentionPolicy.activeQuery("hi @AI x", cursor = 8))
+        assertNull(MentionPolicy.activeQuery("hi @ai x", cursor = 8))
+    }
+
+    @Test
+    fun filterCandidates_limitZero_stillYieldsEveryone_and_uppercaseAliasMatches() {
+        val zero = MentionPolicy.filterCandidates(members, "me", "", limit = 0)
+        assertEquals(1, zero.size)
+        assertTrue(zero.single().isEveryone)
+        assertTrue(
+            MentionPolicy.filterCandidates(members, "me", "", includeEveryone = false, limit = 0).isEmpty()
+        )
+        val alias = MentionPolicy.filterCandidates(members, "me", "EVERY")
+        assertEquals(1, alias.size)
+        assertTrue(alias.single().isEveryone)
+    }
+
+    @Test
+    fun extractMentionIds_adjacentMentions_yieldNothing_and_duplicateNameFirstWins() {
+        assertTrue(MentionPolicy.extractMentionIds("@Alice@Bob Chen", members, "me").isEmpty())
+        val dup = MentionPolicy.extractMentionIds(
+            "@Alice",
+            members + User(id = "u3", name = "Alice"),
+            "me",
+        )
+        assertEquals(listOf("u1"), dup)
+    }
+
+    @Test
+    fun insertMention_cursorCoerced_toTextBounds() {
+        val pastEnd = MentionPolicy.insertMention("hi @Al", 99, "Alice")
+        assertEquals("hi @Alice ", pastEnd.text)
+        assertEquals(10, pastEnd.cursor)
+        assertEquals(
+            InsertResult("hi @Al", -5),
+            MentionPolicy.insertMention("hi @Al", -5, "Alice"),
+        )
+    }
+
+    @Test
+    fun highlight_everyoneWithBlankCurrentUser_neverHighlights_and_displayTokenKeepsSpaces() {
+        assertFalse(
+            MentionPolicy.shouldHighlightMention(
+                listOf(MentionPolicy.EVERYONE_ID),
+                "",
+                false,
+            )
+        )
+        assertEquals("@Bob Chen", MentionPolicy.displayTokenForUser(bob))
+    }
 }
