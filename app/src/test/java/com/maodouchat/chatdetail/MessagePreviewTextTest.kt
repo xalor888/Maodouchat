@@ -208,4 +208,79 @@ class MessagePreviewTextTest {
         )
     }
 
+
+    @Test
+    fun surroundingWhitespaceInTextReplyIsTrimmed() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "  hello  ",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "hello",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun newlineOnlyTextFallsBackToEncryptedPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "\n\n",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun mediaTypeIgnoresEmptyContentAndStillUsesLabel() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "",
+            type = MessageType.IMAGE,
+        )
+        assertEquals(
+            "[image]",
+            MessagePreviewText.replyOrQuote(msg, { "[image]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun skDistWithPlainTextStillShowsPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "hello",
+            type = MessageType.SK_DIST,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun textWithMetaSuffixShowsOnlyBodyBeforeMeta() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "hello<meta>{\"x\":1}</meta>",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "hello",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
 }
