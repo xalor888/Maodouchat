@@ -285,4 +285,76 @@ class ChatTimelineModelTest {
         assertTrue(rows[0].showAvatar)
         assertTrue(rows[1].showAvatar)
     }
+
+    @Test
+    fun `empty message list yields an empty timeline`() {
+        val items = buildChatItems(emptyList(), labelForTimestamp = { "day-1" })
+
+        assertTrue(items.isEmpty())
+    }
+
+    @Test
+    fun `recurring date label keeps distinct separator keys`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L),
+                message("m3", "u1", 3L)
+            ),
+            labelForTimestamp = { if (it == 2L) "day-2" else "day-1" }
+        )
+        val separators = items.filterIsInstance<ChatItem.DateSeparator>()
+
+        assertEquals(listOf("day-1", "day-2", "day-1"), separators.map { it.label })
+        assertEquals(3, separators.map { it.listKey }.toSet().size)
+    }
+
+    @Test
+    fun `unread separator is inserted once even when its id repeats`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m1", "u1", 2L),
+                message("m2", "u1", 3L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "m1"
+        )
+
+        assertEquals(1, items.filterIsInstance<ChatItem.UnreadSeparator>().size)
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `same sender crossing a day boundary starts a new avatar group`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { if (it == 1L) "day-1" else "day-2" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertTrue(rows[0].showAvatar)
+        assertTrue(rows[1].showAvatar)
+        assertTrue(rows[1].showSenderName)
+    }
+
+    @Test
+    fun `middle message of a three message group is not a group edge`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L),
+                message("m3", "u1", 3L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertFalse(rows[0].isGroupEdge)
+        assertFalse(rows[1].isGroupEdge)
+        assertTrue(rows[2].isGroupEdge)
+    }
 }

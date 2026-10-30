@@ -262,6 +262,70 @@ class ChatMediaStateControllerTest {
         assertEquals(0.75f, updated.fileTransferProgress.getValue("seg"), 0.0001f)
     }
 
+    @Test
+    fun `applyTransfers maps sending to sending with near complete progress`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u1", content = "a", type = MessageType.FILE),
+        )
+        val updated = controller.applyTransfers(
+            ChatDetailUiState(messages = messages),
+            listOf(transfer("m1", AttachmentTransferState.SENDING)),
+        )
+
+        assertEquals(MessageStatus.SENDING, updated.messages.single().status)
+        assertEquals(0.92f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+        assertEquals(AttachmentTransferState.SENDING, updated.fileTransferStates["m1"])
+    }
+
+    @Test
+    fun `applyTransfers clamps uploading progress past cipher size`() {
+        val entity = transfer("m1", AttachmentTransferState.UPLOADING).copy(uploadedBytes = 200L, cipherSize = 100L)
+        val updated = controller.applyTransfers(ChatDetailUiState(), listOf(entity))
+
+        assertEquals(0.9f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+    }
+
+    @Test
+    fun `applyTransfers drops stale error codes of replaced transfers`() {
+        val state = ChatDetailUiState(
+            fileTransferErrors = mapOf("old" to "ERR_GONE"),
+            fileTransferStates = mapOf("old" to AttachmentTransferState.FAILED),
+        )
+        val updated = controller.applyTransfers(state, listOf(transfer("fresh", AttachmentTransferState.QUEUED)))
+
+        assertTrue(updated.fileTransferErrors.isEmpty())
+        assertFalse(updated.fileTransferStates.containsKey("old"))
+    }
+
+    @Test
+    fun `finishDownload marks failure on a never started id without inventing a download`() {
+        val done = controller.finishDownload(
+            ChatDetailUiState(),
+            "ghost",
+            failureMessage = "boom",
+            markMediaFailure = true,
+        )
+
+        assertTrue(done.mediaDownloadErrorMessageIds.contains("ghost"))
+        assertEquals("boom", done.groupEncryptionWarning)
+        assertTrue(done.downloadingFileMessageIds.isEmpty())
+        assertEquals(null, done.fileReadyToOpenUri)
+    }
+
+    @Test
+    fun `updateSegmentProgress publishes first value without a previous reading`() {
+        val updated = controller.updateSegmentProgress(
+            ChatDetailUiState(),
+            messageId = "fresh",
+            completed = 50L,
+            total = 100L,
+            start = 0f,
+            end = 1f,
+        )
+
+        assertEquals(0.5f, updated.fileTransferProgress.getValue("fresh"), 0.0001f)
+    }
+
     private fun transfer(
         messageId: String,
         state: String,

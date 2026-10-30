@@ -246,4 +246,88 @@ class ChatExportControllerTest {
 
         assertNull(uiState.value.exportInfoMessage)
     }
+
+    @Test
+    fun exportChatAsJson_includesPerMessageFields() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(
+                    id = "m1",
+                    chatId = "c1",
+                    senderId = "user_me",
+                    content = "hello",
+                    type = MessageType.TEXT,
+                    timestamp = 12345L,
+                    status = com.maodouchat.data.model.MessageStatus.READ,
+                ),
+                Message(
+                    id = "m2",
+                    chatId = "c1",
+                    senderId = "other",
+                    content = "pic",
+                    type = MessageType.IMAGE,
+                    timestamp = 12346L,
+                ),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"sender\":\"user_me\""))
+        assertTrue(json.contains("\"type\":\"IMAGE\""))
+        assertTrue(json.contains("\"status\":\"READ\""))
+        assertTrue(json.contains("\"timestamp\":12345"))
+        assertTrue(json.contains("\"id\":\"m2\""))
+    }
+
+    @Test
+    fun exportChatAsJson_returnsEmptyWhenOwnerIsFallbackMe() {
+        CurrentSession.override = { Snapshot("valid_token", "me") }
+        try {
+            uiState.value = ChatDetailUiState(
+                chat = Chat(id = "c1", isGroup = false),
+                messages = emptyList(),
+            )
+
+            assertEquals("{}", controller.exportChatAsJson())
+        } finally {
+            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        }
+    }
+
+    @Test
+    fun exportChatAsJson_countsAllLoadedMessages() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "a", chatId = "c1", senderId = "user_me", content = "one", type = MessageType.TEXT),
+                Message(id = "b", chatId = "c1", senderId = "user_me", content = "two", type = MessageType.TEXT),
+                Message(id = "c", chatId = "c1", senderId = "user_me", content = "three", type = MessageType.TEXT),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"messageCount\":3"))
+        assertTrue(json.contains("one") && json.contains("two") && json.contains("three"))
+    }
+
+    @Test
+    fun exportChatAsJson_includesExportTimestamp() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = emptyList(),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"exportedAt\":"))
+    }
+
+    @Test
+    fun exportChatAsJson_marksDirectChatNotGroup() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = emptyList(),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"isGroup\":false"))
+    }
 }
