@@ -155,4 +155,43 @@ class ChatRealtimeEventPolicyTest {
         assertFalse(shouldInvalidateGroupKey(5L, 5L, GroupRevisionImpact.IGNORE))
     }
 
+
+    @Test
+    fun `joined event in another chat is ignored even for current user`() {
+        assertEquals(
+            GroupRevisionImpact.IGNORE,
+            groupRevisionImpact("chat-a", "user-1", "chat-b", "user-1", "MEMBER_JOINED")
+        )
+    }
+
+    @Test
+    fun `blank target user with removal reason is plain refresh`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "", "MEMBER_REMOVED")
+        )
+    }
+
+    @Test
+    fun `padded active chat id mismatch is ignored`() {
+        assertEquals(
+            GroupRevisionImpact.IGNORE,
+            groupRevisionImpact("chat-a ", "user-1", "chat-a", "user-1", "MEMBER_REMOVED")
+        )
+    }
+
+    @Test
+    fun `refresh invalidation is strict at revision boundaries`() {
+        assertTrue(shouldInvalidateGroupKey(Long.MAX_VALUE - 1, Long.MAX_VALUE, GroupRevisionImpact.REFRESH))
+        assertFalse(shouldInvalidateGroupKey(Long.MAX_VALUE, Long.MAX_VALUE, GroupRevisionImpact.REFRESH))
+    }
+
+    @Test
+    fun `member left with blank active chat is ignored`() {
+        assertEquals(
+            GroupRevisionImpact.IGNORE,
+            groupRevisionImpact("", "user-1", "", "user-1", "MEMBER_LEFT")
+        )
+    }
+
 }

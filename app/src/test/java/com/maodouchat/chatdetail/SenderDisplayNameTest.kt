@@ -322,6 +322,78 @@ class SenderDisplayNameTest {
         assertEquals("未知", name)
     }
 
+    @Test
+    fun directChat_nameUsedWhenNicknameBlank() {
+        val state = ChatDetailUiState(
+            contact = User(id = "peer", name = "原始名"),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("peer"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("原始名", name)
+    }
+
+    @Test
+    fun group_senderIdExactlyEightCharsReturnedWhole() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("abcdefgh"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("abcdefgh", name)
+    }
+
+    @Test
+    fun directChat_allBlankFallsToNull() {
+        val state = ChatDetailUiState(
+            contact = User(id = "", name = ""),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message(""),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "",
+            groupMemberLabel = "",
+        )
+        assertNull(name)
+    }
+
+    @Test
+    fun listSenderLabel_blankProfileParticipantReturnsFullId() {
+        val chat = Chat(
+            id = "c",
+            participants = listOf(User(id = "abcdefghij", name = "")),
+            isGroup = true,
+        )
+        assertEquals("abcdefghij", listSenderLabel(chat, "abcdefghij"))
+    }
+
+    @Test
+    fun resolveChatDetailSenderName_explicitIsOwnOverridesDerivation() {
+        val state = ChatDetailUiState(
+            currentUserId = "me",
+            contact = User(id = "peer", name = "", nickname = "备注名"),
+            chatIsGroup = false,
+        )
+        assertNull(
+            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+                message("peer"), state, emptyMap(), "未知", "群成员", isOwn = true,
+            )
+        )
+    }
+
     private fun message(senderId: String) = Message(
         id = "m",
         chatId = "c",
