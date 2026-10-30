@@ -386,4 +386,59 @@ class NudgeDisplayPolicyTest {
         )
         assertEquals("你拍了拍Alex", text)
     }
+
+    @Test
+    fun extractTargetName_englishPrefixRequiresSpaceSeparator() {
+        assertEquals("", NudgeDisplayPolicy.extractTargetName("You nudged\tAlex"))
+        assertEquals("Alex", NudgeDisplayPolicy.extractTargetName("You nudged  Alex"))
+    }
+
+    @Test
+    fun ownMessageIgnoresBlankSenderName() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "你拍了拍张三",
+            senderDisplayName = "",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍张三", text)
+    }
+
+    @Test
+    fun nonOwnGroupTrimsPaddedTarget() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "你拍了拍  张三  ",
+            senderDisplayName = "李四",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍张三", text)
+    }
+
+    @Test
+    fun ownMessageEnglishMultiWordTargetRebuildsYouForm() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "You nudged Mary Jane",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍Mary Jane", text)
+    }
+
+    @Test
+    fun nonOwnGroupPaddedPlainContentTrimsFallback() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "  hello  ",
+            senderDisplayName = "李四",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍hello", text)
+    }
+
 }

@@ -540,4 +540,94 @@ class ReadReceiptPolicyTest {
         assertEquals(emptyList(), ids)
     }
 
+
+    @Test
+    fun prefetchFiltersEligibilityBeforeTakingMax() {
+        val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("old", "me", true),
+                PrefetchMessage("mid", "me", false),
+                PrefetchMessage("new", "peer", true),
+            ),
+            max = 1,
+        )
+        assertEquals(listOf("old"), ids)
+    }
+
+    @Test
+    fun incompleteWindowCapsBeforeCompletenessFilter() {
+        // max 先在预拉阶段截断最新消息，再筛未读满：窗口外的未读消息本轮不补。
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("a", "me", true),
+                PrefetchMessage("b", "me", true),
+                PrefetchMessage("c", "me", true),
+                PrefetchMessage("d", "me", true),
+                PrefetchMessage("e", "me", true),
+            ),
+            counts = mapOf(
+                "e" to ReadCountUi(1, 1),
+                "d" to ReadCountUi(1, 1),
+                "c" to ReadCountUi(0, 1),
+            ),
+            max = 2,
+        )
+        assertEquals(emptyList(), ids)
+    }
+
+    @Test
+    fun incompletePartialReadCountsAsIncomplete() {
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(PrefetchMessage("a", "me", true)),
+            counts = mapOf("a" to ReadCountUi(1, 3)),
+            max = 4,
+        )
+        assertEquals(listOf("a"), ids)
+    }
+
+    @Test
+    fun incompleteDedupesRepeatedMessageIds() {
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("a", "me", true),
+                PrefetchMessage("a", "me", true),
+            ),
+            counts = emptyMap(),
+            max = 4,
+        )
+        assertEquals(listOf("a"), ids)
+    }
+
+    @Test
+    fun canViewReceipts_roleMatchIsExactAfterNormalization() {
+        assertTrue(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "admin",
+                senderId = "peer",
+                isGroup = true,
+                viewerRole = "AdMiN",
+            )
+        )
+        assertTrue(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "owner",
+                senderId = "peer",
+                isGroup = true,
+                viewerRole = "OWNER ",
+            )
+        )
+        assertFalse(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "admin",
+                senderId = "peer",
+                isGroup = true,
+                viewerRole = "SUPERADMIN",
+            )
+        )
+    }
+
 }

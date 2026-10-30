@@ -449,4 +449,54 @@ class MentionPolicyTest {
         assertFalse(MentionPolicy.shouldHighlightMention(listOf("me"), "me", true))
         assertTrue(MentionPolicy.shouldHighlightMention(listOf("me"), "me", false))
     }
+
+    @Test
+    fun filterCandidates_everyoneAlias_partialChineseMatches() {
+        val onlyEveryone = MentionPolicy.filterCandidates(members, "me", "\u4eba")
+        assertEquals(1, onlyEveryone.size)
+        assertTrue(onlyEveryone.single().isEveryone)
+        val prefix = MentionPolicy.filterCandidates(members, "me", "\u6240\u6709")
+        assertEquals(1, prefix.size)
+        assertTrue(prefix.single().isEveryone)
+        assertTrue(MentionPolicy.filterCandidates(members, "me", "very").isEmpty())
+    }
+
+    @Test
+    fun extractMentionIds_everyoneCaseInsensitiveAndBoundaryStrict() {
+        assertEquals(listOf(MentionPolicy.EVERYONE_ID), MentionPolicy.extractMentionIds("@EVERYONE", members, "me"))
+        assertEquals(listOf(MentionPolicy.EVERYONE_ID), MentionPolicy.extractMentionIds("@Everyone!", members, "me"))
+        assertEquals(listOf(MentionPolicy.EVERYONE_ID), MentionPolicy.extractMentionIds("@ALL", members, "me"))
+        assertTrue(MentionPolicy.extractMentionIds("@everyoneX", members, "me").isEmpty())
+        assertTrue(MentionPolicy.extractMentionIds("@allx", members, "me").isEmpty())
+    }
+
+    @Test
+    fun insertMention_explicitQuery_usesCursorForTrailingText() {
+        // 显式 query 只定替换起点，query 后的原文从 cursor 处保留，不是 query 末尾。
+        val mid = MentionPolicy.insertMention("hi @Alice", 5, "Bob", ActiveQuery(3, "Al"))
+        assertEquals("hi @Bob lice", mid.text)
+        assertEquals(8, mid.cursor)
+        val atStart = MentionPolicy.insertMention("hi @Alice", 3, "Bob", ActiveQuery(3, "Al"))
+        assertEquals("hi @Bob @Alice", atStart.text)
+        assertEquals(8, atStart.cursor)
+    }
+
+    @Test
+    fun shouldShowPicker_leadingSpacesBeforeAiCommandStillSuppressed() {
+        assertFalse(MentionPolicy.shouldShowPicker("  @AI summarize", isGroupChat = true))
+        assertTrue(MentionPolicy.shouldShowPicker("  @AI summarize @Al", isGroupChat = true))
+    }
+
+    @Test
+    fun extractMentionIds_colonAndSemicolonBoundaries() {
+        assertEquals(
+            listOf("u1", "u2"),
+            MentionPolicy.extractMentionIds("@Alice: @Bob Chen;", members, "me"),
+        )
+        assertEquals(
+            listOf("u1", "u2"),
+            MentionPolicy.extractMentionIds("@Alice. @Bob Chen\uff0c", members, "me"),
+        )
+    }
+
 }
