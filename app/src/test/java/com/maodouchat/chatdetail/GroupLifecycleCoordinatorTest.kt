@@ -220,6 +220,95 @@ class GroupLifecycleCoordinatorTest {
         assertEquals(listOf("tok-1", "tok-2"), seen)
     }
 
+    @Test
+    fun `blank token rejects before mutation`() = runTest {
+        var mutationCalled = false
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "owner-1" },
+            token = { "  " },
+            sessionActive = { true },
+            fetchChat = { _, _ -> Result.success(null) },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is GroupLifecycleSessionException)
+        assertFalse(mutationCalled)
+    }
+
+    @Test
+    fun `no rotation skips invalidation on refresh success`() = runTest {
+        var invalidateCalled = false
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true, memberRevision = 12L))
+            },
+            invalidateEpoch = { _, _, _ -> invalidateCalled = true },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = false) {}
+
+        assertTrue(result.committed)
+        assertEquals(12L, result.refreshedChat?.memberRevision)
+        assertFalse(result.hasPostCommitWarning)
+        assertFalse(invalidateCalled)
+    }
+
+    @Test
+    fun `zero revision invalidates with null revision`() = runTest {
+        var invalidatedRevision: Long? = 99L
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true, memberRevision = 0L))
+            },
+            invalidateEpoch = { _, _, revision -> invalidatedRevision = revision },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertNull(invalidatedRevision)
+        assertFalse(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `invalidate failure stays committed as a warning`() = runTest {
+        val invalidateFailure = IOException("epoch offline")
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true, memberRevision = 12L))
+            },
+            invalidateEpoch = { _, _, _ -> throw invalidateFailure },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertEquals(12L, result.refreshedChat?.memberRevision)
+        assertSame(invalidateFailure, result.reconciliationError)
+        assertTrue(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `refresh cancellation propagates without invalidation`() = runTest {
+        val cancelled = CancellationException("refresh cancelled")
+        var invalidateCalled = false
+        val coordinator = coordinator(
+            fetchChat = { _, _ -> throw cancelled },
+            invalidateEpoch = { _, _, _ -> invalidateCalled = true },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) {}
+        }.exceptionOrNull()
+
+        assertSame(cancelled, thrown)
+        assertFalse(invalidateCalled)
+    }
+
     private fun coordinator(
         sessionActive: (String) -> Boolean = { true },
         fetchChat: suspend (String, String) -> Result<ChatDto?> = { _, _ -> Result.success(null) },

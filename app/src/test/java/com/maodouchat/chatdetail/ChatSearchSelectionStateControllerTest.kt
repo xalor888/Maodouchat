@@ -206,4 +206,63 @@ class ChatSearchSelectionStateControllerTest {
         assertEquals("query", consumed.semanticSearchQuery)
         assertEquals(listOf("result"), consumed.semanticSearchResultIds)
     }
+    @Test
+    fun `disabled ai precedence over blank query`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = false),
+            "   ", listOf("message"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        assertEquals("disabled", (result as SemanticSearchAdmission.Rejected).state.semanticSearchError)
+    }
+
+    @Test
+    fun `candidate ids blank-filtered and deduplicated in order`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true),
+            "query", listOf("b", " ", "a", "b", ""), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        assertEquals(listOf("b", "a"), (result as SemanticSearchAdmission.Accepted).candidateIds)
+    }
+
+    @Test
+    fun `tab and newline only query rejected as blank`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true),
+            "\t\n ", listOf("message"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        assertEquals("blank", (result as SemanticSearchAdmission.Rejected).state.semanticSearchError)
+    }
+
+    @Test
+    fun `clear keeps unrelated navigation target`() {
+        val cleared = controller.clearSemanticSearch(
+            ChatDetailUiState(
+                navigationTargetMessageId = "nav",
+                semanticSearchResultIds = listOf("one"),
+                isSemanticSearching = true,
+                semanticSearchError = "error",
+            ),
+            showConsentDialog = false,
+        )
+
+        assertEquals("nav", cleared.navigationTargetMessageId)
+        assertTrue(cleared.semanticSearchResultIds.isEmpty())
+        assertFalse(cleared.isSemanticSearching)
+        assertEquals(null, cleared.semanticSearchError)
+    }
+
+    @Test
+    fun `blank navigation does not overwrite existing target`() {
+        val targeted = controller.navigateTo(
+            ChatDetailUiState(navigationTargetMessageId = "old"), ""
+        )
+
+        assertEquals("old", targeted.navigationTargetMessageId)
+    }
 }
