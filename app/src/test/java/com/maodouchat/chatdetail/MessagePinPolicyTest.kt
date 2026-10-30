@@ -239,4 +239,31 @@ class MessagePinPolicyTest {
         assertFalse(MessagePinPolicy.canPin(false, "OWNER", MessageType.SK_DIST))
         assertFalse(MessagePinPolicy.canPin(false, null, MessageType.REVOKED))
     }
+
+    @Test
+    fun text_preview_maxLen_three_keeps_two_chars_plus_ellipsis() {
+        assertEquals("he\u2026", MessagePinPolicy.textPreview("hello", 3))
+    }
+
+    @Test
+    fun text_preview_meta_stripped_text_at_exact_budget_kept() {
+        assertEquals("hello", MessagePinPolicy.textPreview("hello<meta>x", 5))
+    }
+
+    @Test
+    fun wouldExceedLimit_negative_count_never_exceeds() {
+        assertFalse(MessagePinPolicy.wouldExceedLimit(-1, alreadyPinned = false))
+        assertFalse(MessagePinPolicy.wouldExceedLimit(-1, alreadyPinned = true))
+    }
+
+    @Test
+    fun group_mixed_case_admin_pins_but_admin_suffix_role_cannot() {
+        assertTrue(MessagePinPolicy.canPin(true, "aDmIn", MessageType.TEXT))
+        assertFalse(MessagePinPolicy.canPin(true, "ADMINX", MessageType.TEXT))
+    }
+
+    @Test
+    fun text_preview_multibyte_truncates_by_chars_not_bytes() {
+        assertEquals("\u4e00\u4e8c\u4e09\u2026", MessagePinPolicy.textPreview("\u4e00\u4e8c\u4e09\u56db\u4e94", 4))
+    }
 }

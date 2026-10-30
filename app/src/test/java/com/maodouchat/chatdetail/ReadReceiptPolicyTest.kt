@@ -410,4 +410,76 @@ class ReadReceiptPolicyTest {
         )
     }
 
+    @Test
+    fun canViewReceipts_senderMatchIsExactNotTrimmed() {
+        assertFalse(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "me",
+                senderId = " me ",
+                isGroup = false,
+                viewerRole = null,
+            )
+        )
+        assertFalse(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "me",
+                senderId = " me ",
+                isGroup = true,
+                viewerRole = "MEMBER",
+            )
+        )
+    }
+
+    @Test
+    fun computeGroupReadCount_duplicateAndBlankReceiptsIgnored() {
+        val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = listOf("me", "a", "b"),
+            receiptUserIds = listOf("a", "a", "ghost", " "),
+        )
+        assertEquals(1, read)
+        assertEquals(2, total)
+    }
+
+    @Test
+    fun shouldShowGroupReadCount_nullRoleNonOwnerDenied() {
+        assertFalse(ReadReceiptPolicy.shouldShowGroupReadCount(true, isOwnMessage = false, viewerRole = null))
+    }
+
+    @Test
+    fun prefetchKeepsNewestFirstAcrossInterleavedPeers() {
+        val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("a", "me", true),
+                PrefetchMessage("b", "peer", true),
+                PrefetchMessage("c", "me", true),
+                PrefetchMessage("d", "peer", true),
+                PrefetchMessage("e", "me", true),
+            ),
+            max = 8,
+        )
+        assertEquals(listOf("e", "c", "a"), ids)
+    }
+
+    @Test
+    fun incompleteDropsFullyReadWithinMaxWindow() {
+        val messages = listOf(
+            PrefetchMessage("a", "me", true),
+            PrefetchMessage("b", "me", true),
+            PrefetchMessage("c", "me", true),
+            PrefetchMessage("d", "me", true),
+            PrefetchMessage("e", "me", true),
+        )
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = messages,
+            counts = mapOf(
+                "e" to ReadCountUi(1, 1),
+                "d" to ReadCountUi(1, 2),
+            ),
+            max = 3,
+        )
+        assertEquals(listOf("d", "c"), ids)
+    }
 }

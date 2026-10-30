@@ -168,4 +168,44 @@ class ChatHeaderStatusModelTest {
             resolveChatHeaderStatus("  u 2  ", isOnline = false, customStatus = "")
         )
     }
+
+    @Test
+    fun `typing id with tabs and newline trims to inner id`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("u4"),
+            resolveChatHeaderStatus(" \tu4\n ", isOnline = false, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `group negative lastSeen returns none instead of offline`() {
+        assertEquals(
+            ChatHeaderStatus.None,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = true, lastSeen = -5L)
+        )
+    }
+
+    @Test
+    fun `group online outranks custom status and lastSeen`() {
+        assertEquals(
+            ChatHeaderStatus.Online,
+            resolveChatHeaderStatus(null, isOnline = true, customStatus = "Busy", isGroup = true, lastSeen = 999L)
+        )
+    }
+
+    @Test
+    fun `tab-only custom status falls through to lastSeen`() {
+        assertEquals(
+            ChatHeaderStatus.LastSeen(42L),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "\t ", lastSeen = 42L)
+        )
+    }
+
+    @Test
+    fun `lastSeen of one shows lastSeen`() {
+        assertEquals(
+            ChatHeaderStatus.LastSeen(1L),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", lastSeen = 1L)
+        )
+    }
 }
