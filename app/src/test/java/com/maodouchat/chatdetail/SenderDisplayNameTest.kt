@@ -394,6 +394,76 @@ class SenderDisplayNameTest {
         )
     }
 
+
+    @Test
+    fun group_nineCharIdTruncatesToEight() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("abcdefghi"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("abcdefgh", name)
+    }
+
+    @Test
+    fun group_sevenCharIdReturnedWhole() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("abcdefg"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("abcdefg", name)
+    }
+
+    @Test
+    fun directChat_ownMessageReturnsNullEvenWithMappedName() {
+        val state = ChatDetailUiState(chatIsGroup = false)
+        val name = senderDisplayName(
+            state = state,
+            message = message("peer"),
+            isOwn = true,
+            participantNamesById = mapOf("peer" to "列表名"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertNull(name)
+    }
+
+    @Test
+    fun directChat_contactNameWithWhitespaceIsTrimmed() {
+        val state = ChatDetailUiState(
+            contact = User(id = "p", name = "  原始名  "),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("p"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("原始名", name)
+    }
+
+    @Test
+    fun listSenderLabel_nicknameBeatsNameForParticipant() {
+        val chat = Chat(
+            id = "c",
+            participants = listOf(User(id = "u2", name = "原始名", nickname = "备注名")),
+            isGroup = true,
+        )
+        assertEquals("备注名", listSenderLabel(chat, "u2"))
+    }
+
     private fun message(senderId: String) = Message(
         id = "m",
         chatId = "c",

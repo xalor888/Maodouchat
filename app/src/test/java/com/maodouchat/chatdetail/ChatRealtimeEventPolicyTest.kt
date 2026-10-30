@@ -194,4 +194,39 @@ class ChatRealtimeEventPolicyTest {
         )
     }
 
+
+    @Test
+    fun `member kicked reason is plain refresh`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "MEMBER_KICKED")
+        )
+    }
+
+    @Test
+    fun `null target with joined reason is plain refresh`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", null, "MEMBER_JOINED")
+        )
+    }
+
+    @Test
+    fun `left impact invalidates even on stale revision`() {
+        val left = groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "MEMBER_LEFT")
+        assertEquals(GroupRevisionImpact.CURRENT_USER_REMOVED, left)
+        assertTrue(shouldInvalidateGroupKey(9L, 1L, left))
+    }
+
+    @Test
+    fun `presence contact id match is case sensitive`() {
+        assertFalse(shouldApplyContactPresence(false, "User-2", "user-2"))
+    }
+
+    @Test
+    fun `refresh invalidation works with negative revisions`() {
+        assertTrue(shouldInvalidateGroupKey(-5L, -4L, GroupRevisionImpact.REFRESH))
+        assertFalse(shouldInvalidateGroupKey(-4L, -5L, GroupRevisionImpact.REFRESH))
+    }
+
 }
