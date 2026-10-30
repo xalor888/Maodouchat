@@ -119,6 +119,67 @@ class ChatTimelineStateControllerTest {
         assertEquals(null, updated.unreadSeparatorId)
     }
 
+    @Test
+    fun `updateStatus on unknown id leaves messages untouched`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L)))
+
+        val updated = controller.updateStatus(state, "ghost", MessageStatus.SENT)
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals(MessageStatus.SENDING, updated.messages.single().status)
+    }
+
+    @Test
+    fun `applyMutation Remove unknown id leaves list unchanged`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L), message("two", 2L)))
+
+        val updated = controller.applyMutation(state, MessageMutationProjection.Remove("ghost"))
+
+        assertEquals(listOf("one", "two"), updated.messages.map(Message::id))
+    }
+
+    @Test
+    fun `applyMutation Set replaces existing row in place preserving order`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L), message("two", 2L)))
+
+        val updated = controller.applyMutation(
+            state,
+            MessageMutationProjection.Set(message("one", 1L).copy(content = "replaced")),
+        )
+
+        assertEquals(listOf("one", "two"), updated.messages.map(Message::id))
+        assertEquals("replaced", updated.messages[0].content)
+        assertEquals("two", updated.messages[1].content)
+    }
+
+    @Test
+    fun `mergeIncoming with empty incoming keeps existing order`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L), message("two", 2L)))
+
+        val updated = controller.mergeIncoming(state, emptyList())
+
+        assertEquals(listOf("one", "two"), updated.messages.map(Message::id))
+    }
+
+    @Test
+    fun `status SENT rejects FAILED and FAILED recovers to SENDING`() {
+        val sent = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(status = MessageStatus.SENT)),
+        )
+        val failed = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(status = MessageStatus.FAILED)),
+        )
+
+        assertEquals(
+            MessageStatus.SENT,
+            controller.updateStatus(sent, "one", MessageStatus.FAILED).messages.single().status,
+        )
+        assertEquals(
+            MessageStatus.SENDING,
+            controller.updateStatus(failed, "one", MessageStatus.SENDING).messages.single().status,
+        )
+    }
+
     private fun message(id: String, timestamp: Long) = Message(
         id = id,
         chatId = "chat",
