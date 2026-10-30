@@ -295,4 +295,66 @@ class ComposerStateTest {
         assertFalse(snapshot.expressionPanelVisible)
     }
 
+
+    @Test
+    fun `toggling expression panel while ai open switches panels`() {
+        val state = ComposerState()
+        state.showAiMenu()
+        assertTrue(state.snapshot().aiMenuVisible)
+
+        state.toggleExpressionPanel()
+        val snapshot = state.snapshot()
+        assertFalse(snapshot.aiMenuVisible)
+        assertTrue(snapshot.expressionPanelVisible)
+    }
+
+    @Test
+    fun `show ai menu dismisses open quick phrases`() {
+        val state = ComposerState()
+        state.openQuickPhrases()
+        assertTrue(state.snapshot().quickPhrasesVisible)
+
+        state.showAiMenu()
+        val snapshot = state.snapshot()
+        assertFalse(snapshot.quickPhrasesVisible)
+        assertTrue(snapshot.aiMenuVisible)
+    }
+
+    @Test
+    fun `dismiss top panel on fresh state returns false and keeps rest snapshot`() {
+        val state = ComposerState()
+        assertFalse(state.dismissTopPanel())
+        assertEquals(ComposerState().snapshot(), state.snapshot())
+    }
+
+    @Test
+    fun `dismiss transient panels keeps expression mode`() {
+        val state = ComposerState()
+        state.expressionMode.value = "STICKER"
+        state.toggleAttachMenu()
+
+        state.dismissTransientPanels()
+        val snapshot = state.snapshot()
+        assertFalse(snapshot.attachMenuVisible)
+        assertEquals("STICKER", snapshot.expressionMode)
+    }
+
+    @Test
+    fun `saver round trip preserves contact picker translation languages and mode`() {
+        val state = ComposerState()
+        state.expressionMode.value = "STICKER"
+        state.translationLanguages.value = true
+        state.openContactCardPicker()
+
+        val scope = object : SaverScope {
+            override fun canBeSaved(value: Any): Boolean = true
+        }
+        val saved = with(ComposerState.Saver) { scope.save(state) }
+        val restored = ComposerState.Saver.restore(saved!!)
+
+        assertEquals(state.snapshot(), restored?.snapshot())
+        assertTrue(restored!!.snapshot().contactCardPickerVisible)
+        assertTrue(restored.snapshot().translationLanguagesVisible)
+    }
+
 }

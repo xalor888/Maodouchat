@@ -347,4 +347,71 @@ class ChatMediaStateControllerTest {
         state = state,
         lastErrorCode = lastErrorCode,
     )
+
+    @Test
+    fun `applyTransfers maps failed with uploaded bytes to failed status with partial progress`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u1", content = "a", type = MessageType.FILE),
+        )
+        val entity = transfer("m1", AttachmentTransferState.FAILED).copy(uploadedBytes = 50L, cipherSize = 100L)
+        val updated = controller.applyTransfers(ChatDetailUiState(messages = messages), listOf(entity))
+
+        assertEquals(MessageStatus.FAILED, updated.messages.single().status)
+        assertEquals(0.625f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+        assertEquals(AttachmentTransferState.FAILED, updated.fileTransferStates["m1"])
+    }
+
+    @Test
+    fun `applyTransfers maps uploading from zero bytes to base progress`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u1", content = "a", type = MessageType.FILE),
+        )
+        val updated = controller.applyTransfers(
+            ChatDetailUiState(messages = messages),
+            listOf(transfer("m1", AttachmentTransferState.UPLOADING)),
+        )
+
+        assertEquals(MessageStatus.SENDING, updated.messages.single().status)
+        assertEquals(0.35f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+    }
+
+    @Test
+    fun `finishDownload with uri on never started id sets ready uri only`() {
+        val done = controller.finishDownload(ChatDetailUiState(), "ghost", localUri = "content://ghost")
+
+        assertEquals("content://ghost", done.fileReadyToOpenUri)
+        assertTrue(done.downloadingFileMessageIds.isEmpty())
+        assertFalse(done.mediaDownloadErrorMessageIds.contains("ghost"))
+    }
+
+    @Test
+    fun `beginDownload preserves sibling download and ready uri`() {
+        val state = ChatDetailUiState(
+            fileReadyToOpenUri = "content://prev",
+            downloadingFileMessageIds = setOf("a"),
+        )
+        val started = controller.beginDownload(state, "b")
+
+        assertTrue(started.downloadingFileMessageIds.contains("a"))
+        assertTrue(started.downloadingFileMessageIds.contains("b"))
+        assertEquals("content://prev", started.fileReadyToOpenUri)
+        assertEquals(0f, started.fileTransferProgress["b"])
+    }
+
+    @Test
+    fun `consumeReadyFile keeps progress and error markers`() {
+        val state = ChatDetailUiState(
+            fileReadyToOpenUri = "content://x",
+            fileTransferProgress = mapOf("a" to 0.5f),
+            mediaDownloadErrorMessageIds = setOf("e"),
+            downloadingFileMessageIds = setOf("d"),
+        )
+        val cleared = controller.consumeReadyFile(state)
+
+        assertEquals(null, cleared.fileReadyToOpenUri)
+        assertEquals(0.5f, cleared.fileTransferProgress["a"])
+        assertTrue(cleared.mediaDownloadErrorMessageIds.contains("e"))
+        assertTrue(cleared.downloadingFileMessageIds.contains("d"))
+    }
+
 }

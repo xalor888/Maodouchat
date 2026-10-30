@@ -277,4 +277,52 @@ class DecryptFailureDisplayPolicyTest {
         assertEquals(200L, merged.editedAt)
     }
 
+
+    @Test
+    fun `newer plaintext edit wins content and editedAt`() {
+        val old = message("m1", "old").copy(editedAt = 100L)
+        val new = message("m1", "new").copy(editedAt = 200L)
+
+        val merged = mergeMessageVersions(listOf(old), listOf(new)).single()
+        assertEquals("new", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
+    @Test
+    fun `older plaintext edit never overwrites newer plaintext`() {
+        val current = message("m1", "new").copy(editedAt = 200L)
+        val candidate = message("m1", "old").copy(editedAt = 100L)
+
+        val merged = mergeMessageVersions(listOf(current), listOf(candidate)).single()
+        assertEquals("new", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
+    @Test
+    fun `revoked versus revoked takes incoming`() {
+        val current = message("m1", "hello").copy(type = MessageType.REVOKED)
+        val candidate = message("m1", "bye").copy(type = MessageType.REVOKED)
+
+        assertEquals(candidate, mergeMessageVersions(listOf(current), listOf(candidate)).single())
+        assertEquals(current, mergeMessageVersions(listOf(candidate), listOf(current)).single())
+    }
+
+    @Test
+    fun `sent never regresses read on equal revision`() {
+        val sent = message("m1", "hello").copy(status = MessageStatus.SENT)
+        val read = message("m1", "hello").copy(status = MessageStatus.READ)
+
+        assertEquals(MessageStatus.READ, mergeMessageVersions(listOf(sent), listOf(read)).single().status)
+        assertEquals(MessageStatus.READ, mergeMessageVersions(listOf(read), listOf(sent)).single().status)
+    }
+
+    @Test
+    fun `equal timestamps sort by id`() {
+        val current = message("m2", "later").copy(timestamp = 100L)
+        val incoming = message("m1", "earlier").copy(timestamp = 100L)
+
+        val merged = mergeMessageVersions(listOf(current), listOf(incoming))
+        assertEquals(listOf("m1", "m2"), merged.map { it.id })
+    }
+
 }
