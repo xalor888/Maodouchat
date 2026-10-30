@@ -230,4 +230,51 @@ class DecryptFailureDisplayPolicyTest {
         assertEquals("world", merged.first { it.id == "m1" }.content)
     }
 
+
+    @Test
+    fun `older edit never overwrites newer plaintext with placeholder`() {
+        val failed = message("m1", "无法解密").copy(editedAt = 200L)
+        val readable = message("m1", "hello").copy(editedAt = 100L)
+
+        val merged = mergeMessageVersions(listOf(failed), listOf(readable)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
+    @Test
+    fun `star follows newer edit revision in both directions`() {
+        val starred = message("m1", "hello").copy(starred = true, editedAt = 100L)
+        val unstarred = message("m1", "hello").copy(starred = false, editedAt = 200L)
+        assertEquals(false, mergeMessageVersions(listOf(starred), listOf(unstarred)).single().starred)
+        assertEquals(false, mergeMessageVersions(listOf(unstarred), listOf(starred)).single().starred)
+    }
+
+    @Test
+    fun `delivery status never regresses on newer edit`() {
+        val read = message("m1", "hello").copy(status = MessageStatus.READ, editedAt = 100L)
+        val sent = message("m1", "hello").copy(status = MessageStatus.SENT, editedAt = 200L)
+        assertEquals(MessageStatus.READ, mergeMessageVersions(listOf(read), listOf(sent)).single().status)
+        assertEquals(MessageStatus.READ, mergeMessageVersions(listOf(sent), listOf(read)).single().status)
+    }
+
+    @Test
+    fun `incoming-only ids sort by timestamp after merge`() {
+        val current = message("m1", "current").copy(timestamp = 300L)
+        val earlier = message("m2", "earlier").copy(timestamp = 100L)
+        val middle = message("m3", "middle").copy(timestamp = 200L)
+
+        val merged = mergeMessageVersions(listOf(current), listOf(earlier, middle))
+        assertEquals(listOf("m2", "m3", "m1"), merged.map { it.id })
+    }
+
+    @Test
+    fun `both placeholders on newer edit keep current stable copy`() {
+        val current = message("m1", "无法解密").copy(editedAt = 100L)
+        val candidate = message("m1", "decrypt failed").copy(editedAt = 200L)
+
+        val merged = mergeMessageVersions(listOf(current), listOf(candidate)).single()
+        assertEquals("无法解密", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
 }

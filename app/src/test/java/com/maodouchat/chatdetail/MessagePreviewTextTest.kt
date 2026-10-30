@@ -283,4 +283,92 @@ class MessagePreviewTextTest {
             MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
         )
     }
+
+    @Test
+    fun doubleNewlinesFoldToDoubleSpaces() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "a\n\nb",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "a  b",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun mediaLabelLambdaReceivesTheMessageType() {
+        val image = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://x",
+            type = MessageType.IMAGE,
+        )
+        assertEquals(
+            "[IMAGE]",
+            MessagePreviewText.replyOrQuote(image, { "[${it.name}]" }, "[encrypted]"),
+        )
+        val voice = Message(
+            id = "m2",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://v",
+            type = MessageType.VOICE,
+        )
+        assertEquals(
+            "[VOICE]",
+            MessagePreviewText.replyOrQuote(voice, { "[${it.name}]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun longTextIsNotTruncated() {
+        val body = "a".repeat(500)
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = body,
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            body,
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun emptyMediaLabelFallsBackToEncryptedPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://x",
+            type = MessageType.IMAGE,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun metaOnlyTextFallsBackToEncryptedPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "<meta>{\"x\":1}</meta>",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
 }
