@@ -280,4 +280,75 @@ class AiRequestGenerationGateTest {
         assertEquals(201L, fresh)
         assertTrue(gate.isCurrent(fresh))
     }
+    @Test
+    fun `invalidate on a fresh gate makes the first token two`() {
+        val gate = AiRequestGenerationGate()
+
+        gate.invalidate()
+        val first = gate.next()
+
+        assertEquals(2L, first)
+        assertFalse(gate.isCurrent(1L))
+        assertTrue(gate.isCurrent(2L))
+    }
+
+    @Test
+    fun `double invalidate after a request skips two generations`() {
+        val gate = AiRequestGenerationGate()
+        val token = gate.next()
+
+        gate.invalidate()
+        gate.invalidate()
+        val fresh = gate.next()
+
+        assertEquals(1L, token)
+        assertEquals(4L, fresh)
+        assertFalse(gate.isCurrent(2L))
+        assertFalse(gate.isCurrent(3L))
+        assertTrue(gate.isCurrent(4L))
+    }
+
+    @Test
+    fun `invalidating one gate leaves another gate untouched`() {
+        val first = AiRequestGenerationGate()
+        val second = AiRequestGenerationGate()
+
+        first.invalidate()
+        val firstToken = first.next()
+        val secondToken = second.next()
+
+        assertEquals(2L, firstToken)
+        assertEquals(1L, secondToken)
+        assertTrue(first.isCurrent(2L))
+        assertFalse(first.isCurrent(1L))
+        assertTrue(second.isCurrent(1L))
+        assertFalse(second.isCurrent(2L))
+    }
+
+    @Test
+    fun `one thousand sequential tokens increase by one and only the last is current`() {
+        val gate = AiRequestGenerationGate()
+        val tokens = List(1000) { gate.next() }
+
+        assertEquals((1L..1000L).toList(), tokens)
+        assertTrue(gate.isCurrent(1000L))
+        assertFalse(gate.isCurrent(999L))
+    }
+
+    @Test
+    fun `three requests after an invalidate leave only the third current`() {
+        val gate = AiRequestGenerationGate()
+        val stale = List(5) { gate.next() }
+
+        gate.invalidate()
+        val fresh = List(3) { gate.next() }
+
+        assertEquals(listOf(7L, 8L, 9L), fresh)
+        assertTrue(stale.none { gate.isCurrent(it) })
+        assertFalse(gate.isCurrent(6L))
+        assertFalse(gate.isCurrent(7L))
+        assertFalse(gate.isCurrent(8L))
+        assertTrue(gate.isCurrent(9L))
+    }
+
 }

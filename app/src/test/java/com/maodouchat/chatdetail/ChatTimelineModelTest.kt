@@ -515,4 +515,82 @@ class ChatTimelineModelTest {
         assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
     }
 
+    @Test
+    fun `whitespace-only unread id inserts no separator`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "   "
+        )
+
+        assertTrue(items.none { it is ChatItem.UnreadSeparator })
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `blank ids interleaved with real ids keep order and sequential keys`() {
+        var labelCalls = 0
+        val items = buildChatItems(
+            listOf(
+                message("", "u1", 1L),
+                message("m1", "u1", 2L),
+                message("", "u2", 3L)
+            ),
+            labelForTimestamp = { labelCalls++; "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(3, labelCalls)
+        assertEquals(listOf("msg_blank_1", "msg_m1", "msg_blank_2"), rows.map { it.listKey })
+    }
+
+    @Test
+    fun `negative timestamp gap over six minutes breaks the sender group`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", -1_000_000L),
+                message("m2", "u1", -100L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertTrue(rows[0].showAvatar)
+        assertTrue(rows[1].showAvatar)
+        assertTrue(rows[1].showSenderName)
+    }
+
+    @Test
+    fun `sk dist id collision does not consume the visible message id`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L, MessageType.SK_DIST),
+                message("m1", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf("m1"), rows.map { it.message.id })
+        assertEquals(2L, rows[0].message.timestamp)
+    }
+
+    @Test
+    fun `date label is resolved only for visible messages`() {
+        var labelCalls = 0
+        val items = buildChatItems(
+            listOf(
+                message("sk", "u1", 1L, MessageType.SK_DIST),
+                message("m1", "u1", 2L)
+            ),
+            labelForTimestamp = { labelCalls++; "day-1" }
+        )
+
+        assertEquals(1, labelCalls)
+        assertEquals(listOf("m1"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
 }
