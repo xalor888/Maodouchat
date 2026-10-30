@@ -110,6 +110,83 @@ class ChatGroupSecurityStateControllerTest {
     }
 
     @Test
+    fun `presentGroup without warning on fresh state leaves warning null`() {
+        val group = Chat(id = "group", isGroup = true, groupName = "Team")
+        val state = controller.presentGroup(
+            ChatDetailUiState(),
+            group,
+            User("group", "Team"),
+        )
+
+        assertEquals(group, state.chat)
+        assertEquals(null, state.groupEncryptionWarning)
+        assertTrue(state.chatIsGroup)
+        assertFalse(state.isSecretChat == true)
+    }
+
+    @Test
+    fun `presentGroup replaces previous chat and contact`() {
+        val first = controller.presentGroup(
+            ChatDetailUiState(),
+            Chat(id = "old", isGroup = true, groupName = "Old"),
+            User("old", "Old"),
+            warning = "old warning",
+        )
+
+        val state = controller.presentGroup(
+            first,
+            Chat(id = "new", isGroup = true, groupName = "New"),
+            User("new", "New"),
+            warning = "new warning",
+        )
+
+        assertEquals("new", state.chat?.id)
+        assertEquals("New", state.contact?.name)
+        assertEquals("new warning", state.groupEncryptionWarning)
+    }
+
+    @Test
+    fun `presentMembers with empty list clears maps and self fields`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(
+                memberRoleByUser = mapOf("x" to "ADMIN"),
+                memberNicknameByUser = mapOf("x" to "X"),
+            ),
+            emptyList(),
+            currentUserId = "me",
+        )
+
+        assertEquals(null, state.myMemberRole)
+        assertEquals(0L, state.myMutedUntil)
+        assertTrue(state.memberRoleByUser.isEmpty())
+        assertTrue(state.memberNicknameByUser.isEmpty())
+    }
+
+    @Test
+    fun `presentMembers self without explicit mute defaults to zero`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(GroupMemberDto(userId = "me", name = "Me", role = "ADMIN")),
+            currentUserId = "me",
+        )
+
+        assertEquals("ADMIN", state.myMemberRole)
+        assertEquals(0L, state.myMutedUntil)
+    }
+
+    @Test
+    fun `presentMembers drops blank nickname for self but keeps self role`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(GroupMemberDto(userId = "me", name = "Me", role = "ADMIN", groupNickname = "   ")),
+            currentUserId = "me",
+        )
+
+        assertEquals("ADMIN", state.myMemberRole)
+        assertTrue(state.memberNicknameByUser.isEmpty())
+    }
+
+    @Test
     fun `group identity reset removes direct chat safety details`() {
         val state = controller.resetDirectIdentityForGroup(
             ChatDetailUiState(
