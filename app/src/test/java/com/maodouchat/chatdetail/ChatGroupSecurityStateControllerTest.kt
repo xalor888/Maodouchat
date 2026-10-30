@@ -280,4 +280,78 @@ class ChatGroupSecurityStateControllerTest {
         assertEquals("warn", state.groupEncryptionWarning)
     }
 
+    @Test
+    fun `presentMembers duplicate nickname keeps last nickname in map`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(
+                GroupMemberDto(userId = "a", name = "A", role = "ADMIN", mutedUntil = 5L, groupNickname = "First"),
+                GroupMemberDto(userId = "a", name = "A2", role = "MEMBER", mutedUntil = 9L, groupNickname = "Second"),
+            ),
+            currentUserId = "a",
+        )
+
+        assertEquals("ADMIN", state.myMemberRole)
+        assertEquals(5L, state.myMutedUntil)
+        assertEquals(mapOf("a" to "MEMBER"), state.memberRoleByUser)
+        assertEquals(mapOf("a" to "Second"), state.memberNicknameByUser)
+    }
+
+    @Test
+    fun `presentMembers member without explicit role defaults to MEMBER`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(GroupMemberDto(userId = "a", name = "A")),
+            currentUserId = "me",
+        )
+
+        assertEquals(mapOf("a" to "MEMBER"), state.memberRoleByUser)
+        assertEquals(null, state.myMemberRole)
+    }
+
+    @Test
+    fun `presentGroup forces group flag even for a direct chat model`() {
+        val state = controller.presentGroup(
+            ChatDetailUiState(),
+            Chat(id = "dm", isGroup = false),
+            User("dm", "Dm"),
+        )
+
+        assertTrue(state.chatIsGroup)
+        assertEquals("dm", state.chat?.id)
+        assertFalse(state.isSecretChat == true)
+    }
+
+    @Test
+    fun `presentMembers negative mute passes through without clamping`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(GroupMemberDto(userId = "me", name = "Me", role = "ADMIN", mutedUntil = -5L)),
+            currentUserId = "me",
+        )
+
+        assertEquals(-5L, state.myMutedUntil)
+    }
+
+    @Test
+    fun `resetDirectIdentityForGroup preserves chat and member fields`() {
+        val group = Chat(id = "group", isGroup = true, groupName = "Team")
+        val state = controller.resetDirectIdentityForGroup(
+            ChatDetailUiState(
+                chat = group,
+                chatIsGroup = true,
+                myMemberRole = "ADMIN",
+                memberRoleByUser = mapOf("a" to "ADMIN"),
+                identityWarning = "changed",
+                safetyCode = "code",
+            ),
+        )
+
+        assertEquals(group, state.chat)
+        assertTrue(state.chatIsGroup)
+        assertEquals("ADMIN", state.myMemberRole)
+        assertEquals(mapOf("a" to "ADMIN"), state.memberRoleByUser)
+        assertEquals(null, state.identityWarning)
+        assertEquals(null, state.safetyCode)
+    }
 }

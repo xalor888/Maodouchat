@@ -207,4 +207,77 @@ class AiRequestGenerationGateTest {
         assertEquals(6L, newer)
         assertTrue(gate.isCurrent(newer))
     }
+
+    @Test
+    fun `interleaved invalidate keeps only the newest token current`() {
+        val gate = AiRequestGenerationGate()
+        val first = gate.next()
+        gate.invalidate()
+        val second = gate.next()
+        val third = gate.next()
+        gate.invalidate()
+        val fourth = gate.next()
+
+        assertFalse(gate.isCurrent(first))
+        assertFalse(gate.isCurrent(2L))
+        assertFalse(gate.isCurrent(second))
+        assertFalse(gate.isCurrent(third))
+        assertFalse(gate.isCurrent(5L))
+        assertEquals(6L, fourth)
+        assertTrue(gate.isCurrent(fourth))
+    }
+
+    @Test
+    fun `extreme token values are never current on a fresh gate`() {
+        val gate = AiRequestGenerationGate()
+        val current = gate.next()
+
+        assertFalse(gate.isCurrent(Long.MIN_VALUE))
+        assertFalse(gate.isCurrent(Long.MAX_VALUE))
+        assertTrue(gate.isCurrent(current))
+    }
+
+    @Test
+    fun `invalidate then two requests leaves only the second current`() {
+        val gate = AiRequestGenerationGate()
+
+        gate.invalidate()
+        val first = gate.next()
+        val second = gate.next()
+
+        assertFalse(gate.isCurrent(1L))
+        assertFalse(gate.isCurrent(first))
+        assertEquals(3L, second)
+        assertTrue(gate.isCurrent(second))
+    }
+
+    @Test
+    fun `parallel invalidates still yield unique next tokens with one current`() {
+        val gate = AiRequestGenerationGate()
+
+        (1..32).toList().parallelStream().forEach { gate.invalidate() }
+        val tokens = (1..32).toList().parallelStream().map { gate.next() }.toList()
+
+        assertEquals(32, tokens.distinct().size)
+        assertEquals(64L, tokens.max())
+        assertEquals(1, tokens.count { gate.isCurrent(it) })
+        assertTrue(gate.isCurrent(64L))
+    }
+
+    @Test
+    fun `repeated next invalidate cycles keep the counter monotonic`() {
+        val gate = AiRequestGenerationGate()
+        var last = 0L
+        repeat(100) {
+            val token = gate.next()
+            assertTrue(token > last)
+            last = token
+            gate.invalidate()
+            assertFalse(gate.isCurrent(token))
+        }
+
+        val fresh = gate.next()
+        assertEquals(201L, fresh)
+        assertTrue(gate.isCurrent(fresh))
+    }
 }
