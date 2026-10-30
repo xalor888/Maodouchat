@@ -339,4 +339,51 @@ class NudgeDisplayPolicyTest {
         assertEquals("你拍了拍Alex", text)
     }
 
+
+    @Test
+    fun extractTargetNameKeepsTrailingPunctuation() {
+        assertEquals("张三！", NudgeDisplayPolicy.extractTargetName("你拍了拍张三！"))
+        assertEquals("Alex?", NudgeDisplayPolicy.extractTargetName("You nudged Alex?"))
+    }
+
+    @Test
+    fun ownMessageGroupFlagIgnoredForPlainContent() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "hello",
+            senderDisplayName = "ignored",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("你拍了拍hello", text)
+    }
+
+    @Test
+    fun nonOwnDirectEnglishStoredIgnoresTarget() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "You nudged Alex",
+            senderDisplayName = "李四",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍你", text)
+    }
+
+    @Test
+    fun extractTargetNameTabSeparatedTarget() {
+        assertEquals("张三", NudgeDisplayPolicy.extractTargetName("你拍了拍\t张三"))
+    }
+
+    @Test
+    fun ownMessageEnglishStoredInGroupRebuildsYouForm() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "You nudged Alex",
+            senderDisplayName = "ignored",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("你拍了拍Alex", text)
+    }
 }

@@ -406,4 +406,47 @@ class MentionPolicyTest {
         )
         assertEquals("@Bob Chen", MentionPolicy.displayTokenForUser(bob))
     }
+
+    @Test
+    fun activeQuery_newlineAndTabBeforeAt_countAsBoundary() {
+        val nl = MentionPolicy.activeQuery("hi\n@Al", cursor = 6)!!
+        assertEquals(3, nl.atIndex)
+        assertEquals("Al", nl.filter)
+        val tab = MentionPolicy.activeQuery("hi\t@Al", cursor = 6)!!
+        assertEquals(3, tab.atIndex)
+        assertEquals("Al", tab.filter)
+    }
+
+    @Test
+    fun shouldShowPicker_bareAiCommand_suppressed() {
+        assertFalse(MentionPolicy.shouldShowPicker("@AI", isGroupChat = true))
+        assertFalse(MentionPolicy.shouldShowPicker("@ai", isGroupChat = true))
+    }
+
+    @Test
+    fun insertMention_displayNameInternalSpacesKept_outerTrimmed() {
+        val r = MentionPolicy.insertMention("hi @Al", 6, "  Mary  Jane ")
+        assertEquals("hi @Mary  Jane ", r.text)
+        assertEquals(15, r.cursor)
+    }
+
+    @Test
+    fun extractMentionIds_mentionAtEndOfText_matches() {
+        assertEquals(listOf("u1"), MentionPolicy.extractMentionIds("@Alice", members, "me"))
+        assertEquals(listOf("u2"), MentionPolicy.extractMentionIds("@Bob Chen", members, "me"))
+        assertEquals(listOf("u1"), MentionPolicy.extractMentionIds("hi @Alice", members, "me"))
+    }
+
+    @Test
+    fun shouldHighlightMention_mutedSuppressesEveryoneAndSelf() {
+        assertFalse(
+            MentionPolicy.shouldHighlightMention(
+                listOf(MentionPolicy.EVERYONE_ID),
+                "me",
+                true,
+            )
+        )
+        assertFalse(MentionPolicy.shouldHighlightMention(listOf("me"), "me", true))
+        assertTrue(MentionPolicy.shouldHighlightMention(listOf("me"), "me", false))
+    }
 }

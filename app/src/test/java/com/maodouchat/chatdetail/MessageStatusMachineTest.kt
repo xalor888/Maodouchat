@@ -216,4 +216,43 @@ class MessageStatusMachineTest {
         timestamp = 1_000L,
         status = MessageStatus.SENT
     )
+
+    @Test
+    fun `DELIVERED cannot advance to FAILED but FAILED can advance to DELIVERED`() {
+        assertFalse(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.FAILED))
+        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.DELIVERED))
+    }
+
+    @Test
+    fun `equal revision keeps plaintext when server sends MD envelope`() {
+        val local = base("m1").copy(content = "hello")
+        val server = local.copy(content = "MD:0123456789abcdef")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("hello", merged.content)
+    }
+
+    @Test
+    fun `equal revision keeps current when both sides are decrypt placeholders`() {
+        val local = base("m1").copy(content = "解密失败")
+        val server = local.copy(content = "[无法解密的消息]")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("解密失败", merged.content)
+    }
+
+    @Test
+    fun `both revoked versions resolve to candidate`() {
+        val current = base("m1").copy(type = MessageType.REVOKED, content = "old revoked")
+        val candidate = current.copy(content = "new revoked")
+        val result = chooseMessageVersion(current, candidate)
+        assertEquals(MessageType.REVOKED, result.type)
+        assertEquals("new revoked", result.content)
+    }
+
+    @Test
+    fun `merge of empty lists is empty and local-only list passes through`() {
+        assertTrue(mergeMessageVersions(emptyList(), emptyList()).isEmpty())
+        val merged = mergeMessageVersions(listOf(base("m1")), emptyList())
+        assertEquals(listOf("m1"), merged.map { it.id })
+        assertEquals("text", merged.single().content)
+    }
 }
