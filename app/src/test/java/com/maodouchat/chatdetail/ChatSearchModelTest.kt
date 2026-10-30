@@ -330,6 +330,55 @@ class ChatSearchModelTest {
         assertEquals(listOf("pic"), semanticSearchCandidates(documents, ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
     }
 
+    @Test
+    fun `media scope matches file by Chinese keyword`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("doc", MessageType.FILE, "file://doc"))
+        )
+
+        assertEquals(listOf("doc"), searchChatDocuments(documents, "文件", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `voice scope blank query returns empty`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("voice", MessageType.VOICE, "voice://1", MessageMeta(voiceTranscript = "morning brief")))
+        )
+
+        assertTrue(searchChatDocuments(documents, "", ChatSearchScope.VOICE, ChatSearchWindow.ALL).isEmpty())
+    }
+
+    @Test
+    fun `mentions scope blank query ignores unmatched mentions`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("other", MessageType.TEXT, "them", meta = MessageMeta(mentions = listOf("other")), timestamp = 1L))
+        )
+
+        assertTrue(searchChatDocuments(documents, "", ChatSearchScope.MENTIONS, ChatSearchWindow.ALL, currentUserId = "me").isEmpty())
+    }
+
+    @Test
+    fun `equal scores order by timestamp descending`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("early", MessageType.TEXT, "alpha", timestamp = 1L),
+                message("late", MessageType.TEXT, "alpha", timestamp = 5L)
+            )
+        )
+
+        assertEquals(listOf("late", "early"), searchChatDocuments(documents, "alpha", ChatSearchScope.ALL, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `translation scope token matches one translation value only`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("doc", MessageType.TEXT, "hello", MessageMeta(translations = mapOf("English" to "hello world"))))
+        )
+
+        assertEquals(listOf("doc"), searchChatDocuments(documents, "world", ChatSearchScope.TRANSLATION, ChatSearchWindow.ALL).map { it.id })
+        assertTrue(searchChatDocuments(documents, "world", ChatSearchScope.TEXT, ChatSearchWindow.ALL).isEmpty())
+    }
+
     private fun message(
         id: String,
         type: MessageType,

@@ -414,4 +414,59 @@ class ChatMediaStateControllerTest {
         assertTrue(cleared.downloadingFileMessageIds.contains("d"))
     }
 
+    @Test
+    fun `beginDownload resets existing progress to zero for that id`() {
+        val state = ChatDetailUiState(fileTransferProgress = mapOf("b" to 0.8f))
+        val started = controller.beginDownload(state, "b")
+
+        assertEquals(0f, started.fileTransferProgress["b"])
+        assertTrue(started.downloadingFileMessageIds.contains("b"))
+    }
+
+    @Test
+    fun `finishDownload without mark removes pre-existing error marker`() {
+        val state = ChatDetailUiState(
+            mediaDownloadErrorMessageIds = setOf("m"),
+            groupEncryptionWarning = "old",
+        )
+        val done = controller.finishDownload(state, "m")
+
+        assertFalse(done.mediaDownloadErrorMessageIds.contains("m"))
+        assertEquals("old", done.groupEncryptionWarning)
+    }
+
+    @Test
+    fun `finishDownload empty failure message replaces warning with empty string`() {
+        val state = ChatDetailUiState(groupEncryptionWarning = "old")
+        val done = controller.finishDownload(state, "m", failureMessage = "")
+
+        assertEquals("", done.groupEncryptionWarning)
+    }
+
+    @Test
+    fun `applyTransfers duplicate messageId lets last transfer win`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u1", content = "a", type = MessageType.FILE),
+        )
+        val transfers = listOf(
+            transfer("m1", AttachmentTransferState.QUEUED),
+            transfer("m1", AttachmentTransferState.FAILED),
+        )
+        val updated = controller.applyTransfers(ChatDetailUiState(messages = messages), transfers)
+
+        assertEquals(MessageStatus.FAILED, updated.messages.single().status)
+        assertEquals(AttachmentTransferState.FAILED, updated.fileTransferStates["m1"])
+        assertEquals(0.35f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+        assertTrue(updated.fileTransferErrors.isEmpty())
+    }
+
+    @Test
+    fun `applyTransfers keeps progress of ids absent from the states map`() {
+        val state = ChatDetailUiState(fileTransferProgress = mapOf("keep" to 0.5f))
+        val updated = controller.applyTransfers(state, listOf(transfer("fresh", AttachmentTransferState.QUEUED)))
+
+        assertEquals(0.5f, updated.fileTransferProgress["keep"])
+        assertEquals(0.35f, updated.fileTransferProgress["fresh"])
+    }
+
 }

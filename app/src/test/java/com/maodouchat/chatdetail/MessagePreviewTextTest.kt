@@ -523,4 +523,79 @@ class MessagePreviewTextTest {
         )
     }
 
+    @Test
+    fun systemTypeKeepsPlainBody() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "joined",
+            type = MessageType.SYSTEM,
+        )
+        assertEquals(
+            "joined",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun locationEmptyContentStillUsesLabel() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "",
+            type = MessageType.LOCATION,
+        )
+        assertEquals(
+            "[location]",
+            MessagePreviewText.replyOrQuote(msg, { "[location]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun revokedIgnoresMediaLabelLambda() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "撤回了一条消息",
+            type = MessageType.REVOKED,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[${it.name}]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun ampEntityInTextReplyIsUnescaped() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "a &amp; b",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "a & b",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun tabPreservedWhileTrailingNewlineIsTrimmed() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "a\tb\n",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "a\tb",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
 }
