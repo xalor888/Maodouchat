@@ -531,6 +531,83 @@ class SenderDisplayNameTest {
         assertEquals("未知", listSenderLabel(null, "", unknownLabel = "未知"))
     }
 
+    @Test
+    fun group_whitespaceOnlySenderIdFallsToMemberLabel() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("   "),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("群成员", name)
+    }
+
+    @Test
+    fun directChat_whitespaceContactDisplayFallsToMappedName() {
+        val state = ChatDetailUiState(
+            contact = User(id = "", name = "  ", nickname = "  "),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("peer"),
+            isOwn = false,
+            participantNamesById = mapOf("peer" to "列表名"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("列表名", name)
+    }
+
+    @Test
+    fun resolveChatDetailSenderName_explicitNotOwnReturnsNameForOwnSender() {
+        val state = ChatDetailUiState(
+            currentUserId = "me",
+            contact = User(id = "peer", name = "", nickname = "备注名"),
+            chatIsGroup = false,
+        )
+        assertEquals(
+            "备注名",
+            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+                message("me"), state, emptyMap(), "未知", "群成员", isOwn = false,
+            ),
+        )
+    }
+
+    @Test
+    fun group_shortIdWithBlankLabelsReturnsId() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("abc"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "",
+            groupMemberLabel = "",
+        )
+        assertEquals("abc", name)
+    }
+
+    @Test
+    fun directChat_whitespaceUnknownLabelWithAllBlankReturnsNull() {
+        val state = ChatDetailUiState(
+            contact = User(id = "", name = ""),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message(""),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "  ",
+            groupMemberLabel = "",
+        )
+        assertNull(name)
+    }
+
     private fun message(senderId: String) = Message(
         id = "m",
         chatId = "c",
