@@ -292,4 +292,44 @@ class ChatHeaderStatusModelTest {
         )
     }
 
+    @Test
+    fun `group with zero lastSeen returns none`() {
+        assertEquals(
+            ChatHeaderStatus.None,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = true, lastSeen = 0)
+        )
+    }
+
+    @Test
+    fun `nbsp padded typing id still wins over online`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("u5"),
+            resolveChatHeaderStatus("\u00a0u5\u00a0", isOnline = true, customStatus = "Busy")
+        )
+    }
+
+    @Test
+    fun `group nbsp-only custom status with lastSeen returns none`() {
+        assertEquals(
+            ChatHeaderStatus.None,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "\u00a0", isGroup = true, lastSeen = 42L)
+        )
+    }
+
+    @Test
+    fun `single zero custom status is returned verbatim`() {
+        assertEquals(
+            ChatHeaderStatus.Custom("0"),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "0")
+        )
+    }
+
+    @Test
+    fun `empty typing id falls through to custom status`() {
+        assertEquals(
+            ChatHeaderStatus.Custom("Busy"),
+            resolveChatHeaderStatus("", isOnline = false, customStatus = "Busy")
+        )
+    }
+
 }
