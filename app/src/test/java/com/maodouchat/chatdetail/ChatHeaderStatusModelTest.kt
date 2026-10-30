@@ -210,10 +210,10 @@ class ChatHeaderStatusModelTest {
     }
 
     @Test
-    fun `non-breaking-space padded typing id is kept verbatim`() {
-        // trim() only strips chars <= U+0020, so NBSP padding survives and counts as typing.
+    fun `non-breaking-space padded typing id is trimmed to the bare id`() {
+        // Kotlin trim()/isWhitespace() treat NBSP as whitespace, unlike Java's trim().
         assertEquals(
-            ChatHeaderStatus.Typing("\u00a0u5\u00a0"),
+            ChatHeaderStatus.Typing("u5"),
             resolveChatHeaderStatus("\u00a0u5\u00a0", isOnline = false, customStatus = "")
         )
     }
@@ -235,9 +235,10 @@ class ChatHeaderStatusModelTest {
     }
 
     @Test
-    fun `non-breaking-space custom status counts as non-blank`() {
+    fun `non-breaking-space-only custom status counts as blank`() {
+        // Kotlin isBlank() treats NBSP as whitespace, so it falls through to offline.
         assertEquals(
-            ChatHeaderStatus.Custom("\u00a0"),
+            ChatHeaderStatus.Offline,
             resolveChatHeaderStatus(null, isOnline = false, customStatus = "\u00a0")
         )
     }
