@@ -337,4 +337,82 @@ class AttachMenuPolicyTest {
         assertEquals(AttachMenuKind.SILENT, items.last())
     }
 
+    @Test
+    fun groupWithoutViewOnceStillKeepsSpoilerAndVoice() {
+        val items = AttachMenuPolicy.items(
+            isGroup = true,
+            isChannel = false,
+            viewOnceEnabled = false,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+        )
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.CONTACT_CARD,
+                AttachMenuKind.SILENT,
+            ),
+            items
+        )
+    }
+
+    @Test
+    fun dmWithoutViewOnceAndContactCardExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(false, false, false, false, false),
+        )
+    }
+
+    @Test
+    fun dmAiSitsBetweenContactCardAndSilent() {
+        val items = AttachMenuPolicy.items(
+            isGroup = false,
+            isChannel = false,
+            viewOnceEnabled = true,
+            contactCardEnabled = true,
+            nudgeEnabled = true,
+            aiEnabled = true,
+        )
+        assertEquals(14, items.size)
+        assertEquals(AttachMenuKind.CONTACT_CARD, items[items.size - 3])
+        assertEquals(AttachMenuKind.AI, items[items.size - 2])
+        assertEquals(AttachMenuKind.SILENT, items.last())
+    }
+
+    @Test
+    fun channelIgnoresViewOnceAndContactCardFlags() {
+        val flagsOn = AttachMenuPolicy.items(true, true, true, true, true)
+        val flagsOff = AttachMenuPolicy.items(true, true, false, false, false)
+        assertEquals(flagsOn, flagsOff)
+        assertEquals(6, flagsOff.size)
+    }
+
+    @Test
+    fun viewOnceOnlyAppearsInDmWhenEnabled() {
+        assertTrue(AttachMenuKind.VIEW_ONCE in AttachMenuPolicy.items(false, false, true, true, true))
+        assertFalse(AttachMenuKind.VIEW_ONCE in AttachMenuPolicy.items(false, false, false, true, true))
+        assertFalse(AttachMenuKind.VIEW_ONCE in AttachMenuPolicy.items(true, false, true, true, true))
+        assertFalse(AttachMenuKind.VIEW_ONCE in AttachMenuPolicy.items(true, true, true, true, true))
+    }
 }

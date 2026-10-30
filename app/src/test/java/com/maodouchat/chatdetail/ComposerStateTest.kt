@@ -166,4 +166,69 @@ class ComposerStateTest {
         assertFalse(snapshot.aiMenuVisible)
         assertTrue(snapshot.quickPhrasesVisible)
     }
+
+    @Test
+    fun `toggling attach menu twice returns to rest`() {
+        val state = ComposerState()
+        state.toggleAttachMenu()
+        state.toggleAttachMenu()
+
+        assertEquals(ComposerState().snapshot(), state.snapshot())
+    }
+
+    @Test
+    fun `show ai menu twice keeps ai visible`() {
+        val state = ComposerState()
+        state.showAiMenu()
+        state.showAiMenu()
+
+        assertTrue(state.snapshot().aiMenuVisible)
+        assertFalse(state.snapshot().attachMenuVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().aiMenuVisible)
+    }
+
+    @Test
+    fun `dismiss top panel clears attach before expression`() {
+        val state = ComposerState()
+        state.attachMenu.value = true
+        state.expressionPanel.value = true
+
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().attachMenuVisible)
+        assertTrue(state.snapshot().expressionPanelVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().expressionPanelVisible)
+        assertFalse(state.dismissTopPanel())
+    }
+
+    @Test
+    fun `saver round trip preserves translation languages flag`() {
+        val state = ComposerState()
+        state.expressionMode.value = "STICKER"
+        state.translationLanguages.value = true
+
+        val scope = object : SaverScope {
+            override fun canBeSaved(value: Any): Boolean = true
+        }
+        val saved = with(ComposerState.Saver) { scope.save(state) }
+        val restored = ComposerState.Saver.restore(saved!!)
+
+        assertEquals(state.snapshot(), restored?.snapshot())
+        assertTrue(restored!!.snapshot().translationLanguagesVisible)
+    }
+
+    @Test
+    fun `opening contact card picker dismisses ai menu but keeps translation languages`() {
+        val state = ComposerState()
+        state.showAiMenu()
+        state.translationLanguages.value = true
+
+        state.openContactCardPicker()
+        val snapshot = state.snapshot()
+
+        assertFalse(snapshot.aiMenuVisible)
+        assertTrue(snapshot.contactCardPickerVisible)
+        assertTrue(snapshot.translationLanguagesVisible)
+    }
 }
