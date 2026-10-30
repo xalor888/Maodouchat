@@ -423,4 +423,87 @@ class ChatAiOperationModelTest {
         assertEquals(null, timeout.retryAfterSeconds)
         assertEquals(AiOperationError.OUTCOME_UNKNOWN, timeout.persistedCode)
     }
+    @Test
+    fun `analyze image ocr persists the ocr wire mode`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeImage("m1", AiImageAnalysisMode.OCR),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.ANALYZE_IMAGE, preparation.operation.type)
+        assertEquals("m1", preparation.operation.targetMessageId)
+        assertEquals("ocr", parameters.analysisMode)
+    }
+
+    @Test
+    fun `summarize with only blank ids persists an empty id list`() {
+        val messages = listOf(
+            Message(id = "", chatId = "chat-1", senderId = "u", content = "blank"),
+            Message(id = "   ", chatId = "chat-1", senderId = "u", content = "spaces")
+        )
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.RECENT, messages),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.SUMMARIZE_MESSAGES, preparation.operation.type)
+        assertTrue(parameters.messageIds.isEmpty())
+    }
+
+    @Test
+    fun `analyze file blank question persists an empty string`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.QUESTION, "   "),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals("", parameters.question)
+    }
+
+    @Test
+    fun `summarize recent scope persists as enum name`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.RECENT, emptyList()),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals("RECENT", parameters.summaryScope)
+        assertTrue(parameters.messageIds.isEmpty())
+    }
+
+    @Test
+    fun `analyze file fails closed without owner or chat context`() {
+        assertEquals(
+            AiOperationPreparation.InvalidContext,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.SUMMARIZE, null), "", "chat-1"
+            )
+        )
+        assertEquals(
+            AiOperationPreparation.InvalidContext,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.SUMMARIZE, null), "user-1", ""
+            )
+        )
+    }
 }
