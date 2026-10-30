@@ -333,4 +333,94 @@ class ChatAiOperationModelTest {
         assertEquals(300L, detailed.retryAfterSeconds)
         assertEquals("QUOTA_EXCEEDED:300", detailed.persistedCode)
     }
+
+    @Test
+    fun `heavy group assistant action is untracked despite its category`() {
+        assertEquals(
+            AiRetryPolicyCategory.HEAVY,
+            PendingAiAction.GroupAssistant("query", "answer").invocationCategory()
+        )
+        assertEquals(
+            AiOperationPreparation.Untracked,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.GroupAssistant("query", "answer"), "user-1", "chat-1"
+            )
+        )
+    }
+
+    @Test
+    fun `summarize caps message ids at forty-eight in order`() {
+        val messages = (0 until 60).map { index ->
+            Message(id = "m$index", chatId = "chat-1", senderId = "u", content = "text")
+        }
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.RECENT, messages),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(48, parameters.messageIds.size)
+        assertEquals((0 until 48).map { "m$it" }, parameters.messageIds)
+    }
+
+    @Test
+    fun `translate message keeps surrounding spaces and only clips length`() {
+        val spaced = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranslateMessage("message-1", "  English  "),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val spacedParams = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            spaced.operation.parametersJson
+        )
+        assertEquals("  English  ", spacedParams.targetLanguage)
+
+        val long = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranslateMessage("message-1", "  " + "x".repeat(50)),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val longParams = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            long.operation.parametersJson
+        )
+        assertEquals("  " + "x".repeat(38), longParams.targetLanguage)
+    }
+
+    @Test
+    fun `analyze file summarize persists the summarize wire mode`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.SUMMARIZE, null),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.ANALYZE_FILE, preparation.operation.type)
+        assertEquals("summarize", parameters.analysisMode)
+        assertNull(parameters.question)
+    }
+
+    @Test
+    fun `detailed non-retryable failures carry no wait and a bare persisted code`() {
+        val connection = classifyAiOperationErrorDetailed(
+            ApiException(ApiFailureKind.NETWORK, requestMayHaveReachedServer = false)
+        )
+        assertEquals(AiOperationError.CONNECTION_NOT_ESTABLISHED, connection.code)
+        assertEquals(null, connection.retryAfterSeconds)
+        assertEquals(AiOperationError.CONNECTION_NOT_ESTABLISHED, connection.persistedCode)
+
+        val timeout = classifyAiOperationErrorDetailed(ApiException(ApiFailureKind.TIMEOUT))
+        assertEquals(AiOperationError.OUTCOME_UNKNOWN, timeout.code)
+        assertEquals(null, timeout.retryAfterSeconds)
+        assertEquals(AiOperationError.OUTCOME_UNKNOWN, timeout.persistedCode)
+    }
 }

@@ -238,4 +238,49 @@ class MessageMutationPolicyTest {
         timestamp = 100L,
         status = MessageStatus.SENT
     )
+
+    @Test
+    fun `ambiguous transport covers 429 and 504 but not invalid or unexpected`() {
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 429)))
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 504)))
+        assertFalse(isAmbiguousTransportFailure(ApiException(ApiFailureKind.INVALID_RESPONSE)))
+        assertFalse(isAmbiguousTransportFailure(ApiException(ApiFailureKind.UNEXPECTED)))
+    }
+
+    @Test
+    fun `already terminal mutation requires http kind even at 404`() {
+        assertFalse(isAlreadyTerminalMutation(ApiException(ApiFailureKind.TIMEOUT, statusCode = 404)))
+        assertFalse(isAlreadyTerminalMutation(ApiException(ApiFailureKind.HTTP, statusCode = 410)))
+        assertFalse(isAlreadyTerminalMutation(ApiException(ApiFailureKind.HTTP, statusCode = null)))
+    }
+
+    @Test
+    fun `optimistic edit saturates at max revision instead of overflowing`() {
+        val original = message("m-max", "old", MessageType.TEXT).copy(editedAt = Long.MAX_VALUE)
+
+        val edited = original.toOptimisticEdit("new")
+
+        assertEquals(Long.MAX_VALUE, edited.editedAt)
+    }
+
+    @Test
+    fun `optimistic edit without prior revision advances from timestamp`() {
+        val edited = message("m-norev", "old", MessageType.TEXT).toOptimisticEdit("new")
+
+        assertEquals(101L, edited.editedAt)
+    }
+
+    @Test
+    fun `tracker rejects blank id and authoritative edit does not block later mutations`() {
+        val tracker = MessageMutationTracker()
+        assertNull(tracker.begin("", MessageMutationKind.EDIT))
+        assertNull(tracker.begin("   ", MessageMutationKind.EDIT))
+
+        val ticket = tracker.begin("m-edit", MessageMutationKind.EDIT)!!
+        tracker.observeAuthoritative("m-edit", MessageMutationKind.EDIT)
+        assertFalse(tracker.shouldRollback(ticket))
+        assertFalse(tracker.shouldDrop("m-edit"))
+        assertFalse(tracker.shouldRenderRevoked("m-edit"))
+        assertTrue(tracker.begin("m-edit", MessageMutationKind.DELETE) != null)
+    }
 }
