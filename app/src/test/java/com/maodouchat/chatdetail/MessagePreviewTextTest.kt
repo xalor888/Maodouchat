@@ -371,4 +371,80 @@ class MessagePreviewTextTest {
         )
     }
 
+
+    @Test
+    fun tabInsideTextReplyIsPreservedWhileNewlineFolds() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "a\tb\nc",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "a\tb c",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun carriageReturnInsideTextReplyIsPreserved() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "a\rb",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "a\rb",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun newlineInsideMediaLabelIsFolded() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://x",
+            type = MessageType.IMAGE,
+        )
+        assertEquals(
+            "[im age]",
+            MessagePreviewText.replyOrQuote(msg, { "[im\nage]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun spacesOnlyMediaLabelFallsBackToEncryptedPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://x",
+            type = MessageType.IMAGE,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "   " }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun trailingNewlineInTextReplyIsTrimmed() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "hello\n",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "hello",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
 }

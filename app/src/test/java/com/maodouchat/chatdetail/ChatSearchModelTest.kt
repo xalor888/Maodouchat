@@ -202,6 +202,79 @@ class ChatSearchModelTest {
         assertEquals(listOf("pic", "sticker"), documents.map { it.message.id })
     }
 
+
+    @Test
+    fun `padded mixed-case query matches case-insensitively`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("doc", MessageType.TEXT, "Release Plan", timestamp = 1L),
+                message("other", MessageType.TEXT, "unrelated notes", timestamp = 2L)
+            )
+        )
+
+        assertEquals(listOf("doc"), searchChatDocuments(documents, "  RELEASE plan ", ChatSearchScope.ALL, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `today window keeps midnight message and drops previous late night message`() {
+        val noon = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 12)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val now = noon.timeInMillis
+        val midnight = (noon.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("midnight", MessageType.TEXT, "keep me", timestamp = midnight),
+                message("before", MessageType.TEXT, "keep me", timestamp = midnight - 1_000L)
+            )
+        )
+
+        assertEquals(listOf("midnight"), searchChatDocuments(documents, "keep", ChatSearchScope.ALL, ChatSearchWindow.TODAY, now = now).map { it.id })
+    }
+
+    @Test
+    fun `starred scope filters out unstarred text match`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("starred", MessageType.TEXT, "alpha", timestamp = 1L, starred = true),
+                message("plain", MessageType.TEXT, "alpha", timestamp = 2L, starred = false)
+            )
+        )
+
+        assertEquals(listOf("starred"), searchChatDocuments(documents, "alpha", ChatSearchScope.STARRED, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `semantic single-character query token is ignored`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("a", MessageType.TEXT, "apple", timestamp = 1L),
+                message("b", MessageType.TEXT, "banana", timestamp = 2L),
+                message("c", MessageType.TEXT, "cherry", timestamp = 3L)
+            )
+        )
+
+        assertEquals(listOf("a", "b", "c"), semanticSearchCandidates(documents, ChatSearchScope.ALL, ChatSearchWindow.ALL, query = "a").map { it.id })
+    }
+
+    @Test
+    fun `semantic candidates cap keeps earliest one hundred for single sender`() {
+        val messages = (0 until 101).map { index -> message("m$index", MessageType.TEXT, "text $index", timestamp = index.toLong()) }
+        val candidates = semanticSearchCandidates(buildChatSearchDocuments(messages), ChatSearchScope.ALL, ChatSearchWindow.ALL)
+
+        assertEquals(100, candidates.size)
+        assertEquals("m0", candidates.first().id)
+        assertEquals("m99", candidates.last().id)
+    }
+
     private fun message(
         id: String,
         type: MessageType,
