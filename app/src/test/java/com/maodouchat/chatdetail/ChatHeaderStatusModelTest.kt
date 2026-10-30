@@ -251,4 +251,45 @@ class ChatHeaderStatusModelTest {
         )
     }
 
+
+    @Test
+    fun `one-to-one min lastSeen falls back to binary offline`() {
+        assertEquals(
+            ChatHeaderStatus.Offline,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", lastSeen = Long.MIN_VALUE)
+        )
+    }
+
+    @Test
+    fun `group positive lastSeen still returns none`() {
+        assertEquals(
+            ChatHeaderStatus.None,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = true, lastSeen = 42L)
+        )
+    }
+
+    @Test
+    fun `nbsp padded custom status is returned verbatim`() {
+        assertEquals(
+            ChatHeaderStatus.Custom("\u00a0Busy\u00a0"),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "\u00a0Busy\u00a0")
+        )
+    }
+
+    @Test
+    fun `nbsp-only typing id falls through to online`() {
+        assertEquals(
+            ChatHeaderStatus.Online,
+            resolveChatHeaderStatus("\u00a0", isOnline = true, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `nbsp-only custom status falls through to lastSeen`() {
+        assertEquals(
+            ChatHeaderStatus.LastSeen(42L),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "\u00a0", lastSeen = 42L)
+        )
+    }
+
 }

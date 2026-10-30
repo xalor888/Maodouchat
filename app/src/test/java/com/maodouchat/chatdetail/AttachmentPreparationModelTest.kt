@@ -289,4 +289,62 @@ class AttachmentPreparationModelTest {
         assertEquals(expectedMime, normalized.mimeType)
         assertEquals(12L, normalized.sizeBytes)
     }
+
+    @Test
+    fun `video mkv extension maps to matroska mime`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.mkv", "application/octet-stream", 10L)
+        )
+
+        assertEquals("clip.mkv", normalized.fileName)
+        assertEquals("video/x-matroska", normalized.mimeType)
+        assertEquals(10L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `sticker falls through to else branch with sanitized name`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.STICKER,
+            LocalFileMetadata("my sticker.png", "image/png", 7L)
+        )
+
+        assertEquals("my sticker.png", normalized.fileName)
+        assertEquals("image/png", normalized.mimeType)
+        assertEquals(7L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `overlong file mime is truncated to 100 chars and kept`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("doc.txt", "application/" + "x".repeat(100), 8L)
+        )
+
+        assertEquals(100, normalized.mimeType.length)
+        assertTrue(normalized.mimeType.startsWith("application/"))
+    }
+
+    @Test
+    fun `image long base is capped so total stays 120`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.IMAGE,
+            LocalFileMetadata("a".repeat(200) + ".png", "image/png", 9L)
+        )
+
+        assertEquals(120, normalized.fileName.length)
+        assertTrue(normalized.fileName.endsWith(".jpg"))
+    }
+
+    @Test
+    fun `gif uppercase base keeps case while forcing gif extension`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.GIF,
+            LocalFileMetadata("DANCE.PNG", "image/png", 12L)
+        )
+
+        assertEquals("DANCE.gif", normalized.fileName)
+        assertEquals("image/gif", normalized.mimeType)
+    }
+
 }

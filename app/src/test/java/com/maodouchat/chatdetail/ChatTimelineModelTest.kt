@@ -435,4 +435,84 @@ class ChatTimelineModelTest {
         assertFalse(rows[1].isGroupEdge)
         assertTrue(rows[2].isGroupEdge)
     }
+
+    @Test
+    fun `out of order input sorts then groups by sender run`() {
+        val items = buildChatItems(
+            listOf(
+                message("m3", "u1", 3L),
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf("m1", "m2", "m3"), rows.map { it.message.id })
+        assertTrue(rows[0].showAvatar)
+        assertFalse(rows[1].showAvatar)
+        assertFalse(rows[2].showAvatar)
+        assertFalse(rows[0].isGroupEdge)
+        assertFalse(rows[1].isGroupEdge)
+        assertTrue(rows[2].isGroupEdge)
+    }
+
+    @Test
+    fun `unread separator before first message lands after the date separator`() {
+        val items = buildChatItems(
+            listOf(message("m1", "u1", 1L), message("m2", "u1", 2L)),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "m1"
+        )
+
+        assertTrue(items[0] is ChatItem.DateSeparator)
+        assertTrue(items[1] is ChatItem.UnreadSeparator)
+        assertEquals("unread_m1", items[1].listKey)
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `negative timestamps sort before positive ones`() {
+        val items = buildChatItems(
+            listOf(
+                message("m3", "u1", 100L),
+                message("m1", "u1", -100L),
+                message("m2", "u2", 0L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+
+        assertEquals(listOf("m1", "m2", "m3"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `sk dist only timeline stays empty even with an unread id`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L, MessageType.SK_DIST),
+                message("m2", "u1", 2L, MessageType.SK_DIST)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "m1"
+        )
+
+        assertTrue(items.isEmpty())
+    }
+
+    @Test
+    fun `date label is resolved only for deduped messages`() {
+        var labelCalls = 0
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m1", "u1", 2L),
+                message("m2", "u2", 3L)
+            ),
+            labelForTimestamp = { labelCalls++; "day-1" }
+        )
+
+        assertEquals(2, labelCalls)
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
 }
