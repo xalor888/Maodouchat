@@ -258,4 +258,45 @@ class MediaCenterModelTest {
             items.map { it.category }
         )
     }
+
+    @Test
+    fun urlTrimmedBelowMinimumLengthIsDropped() {
+        val message = Message("m", "chat", "u", "看 http://. 好", MessageType.TEXT)
+        assertEquals(emptyList(), buildMediaCenterItems(listOf(message)))
+    }
+
+    @Test
+    fun exclamationAndQuestionMarksAreTrimmedFromUrls() {
+        val message = Message("m", "chat", "u", "见 https://a.com/x! 和 https://b.com/y? 尾", MessageType.TEXT)
+        assertEquals(
+            listOf("https://a.com/x", "https://b.com/y"),
+            buildMediaCenterItems(listOf(message)).map { it.linkUrl }
+        )
+    }
+
+    @Test
+    fun locationContentUrlIsNotExtractedAsLink() {
+        val message = Message("loc", "chat", "u", "https://a.com/x", MessageType.LOCATION, 10)
+        val items = buildMediaCenterItems(listOf(message))
+        assertEquals(1, items.size)
+        assertEquals(MediaCenterCategory.LOCATION, items.single().category)
+        assertEquals(null, items.single().linkUrl)
+    }
+
+    @Test
+    fun revokedSystemAndNudgeMessagesYieldNoItems() {
+        val messages = listOf(
+            Message("r", "chat", "u", "见 https://a.com/x", MessageType.REVOKED, 30),
+            Message("s", "chat", "u", "见 https://a.com/x", MessageType.SYSTEM, 20),
+            Message("n", "chat", "u", "见 https://a.com/x", MessageType.NUDGE, 10)
+        )
+        assertEquals(emptyList(), buildMediaCenterItems(messages))
+    }
+
+    @Test
+    fun duplicateLinksAfterPunctuationTrimmingCollapseToOne() {
+        val message = Message("m", "chat", "u", "见 https://a.com/x, 再 https://a.com/x", MessageType.TEXT)
+        assertEquals(listOf("https://a.com/x"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
 }

@@ -357,4 +357,69 @@ class ComposerStateTest {
         assertTrue(restored.snapshot().translationLanguagesVisible)
     }
 
+    @Test
+    fun `dismiss top panel clears ai before attach`() {
+        val state = ComposerState()
+        state.aiMenu.value = true
+        state.attachMenu.value = true
+
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().aiMenuVisible)
+        assertTrue(state.snapshot().attachMenuVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().attachMenuVisible)
+        assertFalse(state.dismissTopPanel())
+    }
+
+    @Test
+    fun `dismiss top panel clears quick phrases before attach`() {
+        val state = ComposerState()
+        state.quickPhrases.value = true
+        state.attachMenu.value = true
+
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().quickPhrasesVisible)
+        assertTrue(state.snapshot().attachMenuVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().attachMenuVisible)
+    }
+
+    @Test
+    fun `opening quick phrases twice keeps them visible`() {
+        val state = ComposerState()
+        state.openQuickPhrases()
+        state.openQuickPhrases()
+
+        assertTrue(state.snapshot().quickPhrasesVisible)
+    }
+
+    @Test
+    fun `dismiss top panel keeps expression mode`() {
+        val state = ComposerState()
+        state.expressionMode.value = "STICKER"
+        state.toggleAttachMenu()
+
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().attachMenuVisible)
+        assertEquals("STICKER", state.snapshot().expressionMode)
+    }
+
+    @Test
+    fun `saver round trip preserves attach and expression panels`() {
+        val state = ComposerState()
+        state.attachMenu.value = true
+        state.expressionPanel.value = true
+        state.expressionMode.value = "STICKER"
+
+        val scope = object : SaverScope {
+            override fun canBeSaved(value: Any): Boolean = true
+        }
+        val saved = with(ComposerState.Saver) { scope.save(state) }
+        val restored = ComposerState.Saver.restore(saved!!)
+
+        assertEquals(state.snapshot(), restored?.snapshot())
+        assertTrue(restored!!.snapshot().attachMenuVisible)
+        assertTrue(restored.snapshot().expressionPanelVisible)
+    }
+
 }
