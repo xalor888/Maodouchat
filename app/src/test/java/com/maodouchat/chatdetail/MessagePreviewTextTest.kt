@@ -447,4 +447,80 @@ class MessagePreviewTextTest {
         )
     }
 
+
+    @Test
+    fun markdownTypeKeepsBody() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "hello **world**",
+            type = MessageType.MARKDOWN,
+        )
+        assertEquals(
+            "hello **world**",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun nudgeTypeKeepsBody() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "buzz",
+            type = MessageType.NUDGE,
+        )
+        assertEquals(
+            "buzz",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun crlfInTextReplyFoldsNewlineOnly() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "a\r\nb",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "a\r b",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun placeholderWithNewlineIsFolded() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "   ",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "[en crypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[en\ncrypted]"),
+        )
+    }
+
+    @Test
+    fun quotedEntityInTextReplyIsUnescaped() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "say &quot;hi&quot;",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "say \"hi\"",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
 }

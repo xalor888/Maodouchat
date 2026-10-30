@@ -275,6 +275,61 @@ class ChatSearchModelTest {
         assertEquals("m99", candidates.last().id)
     }
 
+@Test
+    fun `media scope matches video by Chinese keyword`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("clip", MessageType.VIDEO, "file://clip"))
+        )
+
+        assertEquals(listOf("clip"), searchChatDocuments(documents, "视频", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+        assertEquals(listOf("clip"), searchChatDocuments(documents, "video", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `translation scope ignores original text without translations`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("doc", MessageType.TEXT, "alpha"))
+        )
+
+        assertTrue(searchChatDocuments(documents, "alpha", ChatSearchScope.TRANSLATION, ChatSearchWindow.ALL).isEmpty())
+        assertEquals(listOf("doc"), searchChatDocuments(documents, "alpha", ChatSearchScope.TEXT, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `revoked message becomes a document but is not searchable`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("rev", MessageType.REVOKED, "bye"))
+        )
+
+        assertEquals(listOf("rev"), documents.map { it.message.id })
+        assertTrue(searchChatDocuments(documents, "bye", ChatSearchScope.ALL, ChatSearchWindow.ALL).isEmpty())
+    }
+
+    @Test
+    fun `semantic candidates sort chronologically regardless of input order`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("late", MessageType.TEXT, "c", timestamp = 3L),
+                message("early", MessageType.TEXT, "a", timestamp = 1L),
+                message("mid", MessageType.TEXT, "b", timestamp = 2L)
+            )
+        )
+
+        assertEquals(listOf("early", "mid", "late"), semanticSearchCandidates(documents, ChatSearchScope.ALL, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `semantic media scope includes image without searchable parts`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("pic", MessageType.IMAGE, "file://pic"),
+                message("note", MessageType.TEXT, "note")
+            )
+        )
+
+        assertEquals(listOf("pic"), semanticSearchCandidates(documents, ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+    }
+
     private fun message(
         id: String,
         type: MessageType,
