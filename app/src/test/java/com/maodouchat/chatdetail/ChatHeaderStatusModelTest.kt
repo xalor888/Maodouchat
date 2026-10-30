@@ -124,4 +124,48 @@ class ChatHeaderStatusModelTest {
             resolveChatHeaderStatus("u3", isOnline = false, customStatus = "", isGroup = true)
         )
     }
+
+    @Test
+    fun `typing wins when every other signal is on in a group`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("u7"),
+            resolveChatHeaderStatus("u7", isOnline = true, customStatus = "Busy", isGroup = true, lastSeen = 999L)
+        )
+    }
+
+    @Test
+    fun `online outranks lastSeen`() {
+        assertEquals(
+            ChatHeaderStatus.Online,
+            resolveChatHeaderStatus(null, isOnline = true, customStatus = "  ", isGroup = false, lastSeen = 999L)
+        )
+    }
+
+    @Test
+    fun `custom status outranks lastSeen in both chat kinds`() {
+        assertEquals(
+            ChatHeaderStatus.Custom("Busy"),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "Busy", isGroup = false, lastSeen = 999L)
+        )
+        assertEquals(
+            ChatHeaderStatus.Custom("Busy"),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "Busy", isGroup = true, lastSeen = 999L)
+        )
+    }
+
+    @Test
+    fun `max lastSeen is shown verbatim`() {
+        assertEquals(
+            ChatHeaderStatus.LastSeen(Long.MAX_VALUE),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = false, lastSeen = Long.MAX_VALUE)
+        )
+    }
+
+    @Test
+    fun `typing id trims ends only and keeps inner space`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("u 2"),
+            resolveChatHeaderStatus("  u 2  ", isOnline = false, customStatus = "")
+        )
+    }
 }
