@@ -152,4 +152,45 @@ class DecryptFailurePersistencePolicyTest {
         assertEquals("decrypt failed!", mergeMessageForPersistence(exact, bang).content)
     }
 
+    @Test
+    fun `both readable plaintext takes incoming on equal revision`() {
+        val first = base("m1").copy(content = "hello")
+        val second = base("m1").copy(content = "world")
+        assertEquals("world", mergeMessageForPersistence(first, second).content)
+        assertEquals("hello", mergeMessageForPersistence(second, first).content)
+    }
+
+    @Test
+    fun `wire versus wire takes incoming`() {
+        val ey = base("m1").copy(content = "eyJ2ZXJzaW9uIjoxLCJhbGdvcml0aG0iOiJzaWduYWwifQ==")
+        val md = base("m1").copy(content = "MD:abcdefghijklmnop")
+        assertEquals("MD:abcdefghijklmnop", mergeMessageForPersistence(ey, md).content)
+        assertEquals("eyJ2ZXJzaW9uIjoxLCJhbGdvcml0aG0iOiJzaWduYWwifQ==", mergeMessageForPersistence(md, ey).content)
+    }
+
+    @Test
+    fun `placeholder versus placeholder takes incoming`() {
+        val first = base("m1").copy(content = "无法解密")
+        val second = base("m1").copy(content = "decrypt failed")
+        assertEquals("decrypt failed", mergeMessageForPersistence(first, second).content)
+        assertEquals("无法解密", mergeMessageForPersistence(second, first).content)
+    }
+
+    @Test
+    fun `newer edit placeholder keeps readable content with newer edit stamp`() {
+        val readable = base("m1").copy(content = "hello", editedAt = 100L)
+        val failed = base("m1").copy(content = "无法解密", editedAt = 200L)
+        val merged = mergeMessageForPersistence(readable, failed)
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
+    @Test
+    fun `revoked wins over readable in both merge directions`() {
+        val revoked = base("m1").copy(content = "hello", type = MessageType.REVOKED)
+        val readable = base("m1").copy(content = "hello")
+        assertEquals(revoked, mergeMessageForPersistence(revoked, readable))
+        assertEquals(revoked, mergeMessageForPersistence(readable, revoked))
+    }
+
 }

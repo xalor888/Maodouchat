@@ -185,4 +185,49 @@ class DecryptFailureDisplayPolicyTest {
         assertEquals(revoked, mergeMessageVersions(listOf(revoked), listOf(readable)).single())
     }
 
+    @Test
+    fun `wire versus wire takes candidate`() {
+        val ey = message("m1", "eyJ2ZXJzaW9uIjoxLCJhbGdvcml0aG0iOiJzaWduYWwifQ==")
+        val md = message("m1", "MD:abcdefghijklmnop")
+        assertEquals("MD:abcdefghijklmnop", mergeMessageVersions(listOf(ey), listOf(md)).single().content)
+        assertEquals("eyJ2ZXJzaW9uIjoxLCJhbGdvcml0aG0iOiJzaWduYWwifQ==", mergeMessageVersions(listOf(md), listOf(ey)).single().content)
+    }
+
+    @Test
+    fun `failed never beats delivered in either order`() {
+        val failed = message("m1", "hello").copy(status = MessageStatus.FAILED)
+        val delivered = message("m1", "hello").copy(status = MessageStatus.DELIVERED)
+        assertEquals(MessageStatus.DELIVERED, mergeMessageVersions(listOf(failed), listOf(delivered)).single().status)
+        assertEquals(MessageStatus.DELIVERED, mergeMessageVersions(listOf(delivered), listOf(failed)).single().status)
+    }
+
+    @Test
+    fun `sending never regresses delivered`() {
+        val sending = message("m1", "hello").copy(status = MessageStatus.SENDING)
+        val delivered = message("m1", "hello").copy(status = MessageStatus.DELIVERED)
+        assertEquals(MessageStatus.DELIVERED, mergeMessageVersions(listOf(sending), listOf(delivered)).single().status)
+        assertEquals(MessageStatus.DELIVERED, mergeMessageVersions(listOf(delivered), listOf(sending)).single().status)
+    }
+
+    @Test
+    fun `star follows candidate on equal revision`() {
+        val current = message("m1", "hello").copy(starred = true)
+        val candidate = message("m1", "hello").copy(starred = false)
+        assertEquals(false, mergeMessageVersions(listOf(current), listOf(candidate)).single().starred)
+        val unstarred = message("m1", "hello").copy(starred = false)
+        val starring = message("m1", "hello").copy(starred = true)
+        assertEquals(true, mergeMessageVersions(listOf(unstarred), listOf(starring)).single().starred)
+    }
+
+    @Test
+    fun `distinct ids merge independently in timestamp order`() {
+        val old = message("m2", "hello").copy(timestamp = 100L)
+        val oldFailed = message("m2", "无法解密").copy(timestamp = 100L)
+        val new = message("m1", "world").copy(timestamp = 200L)
+        val merged = mergeMessageVersions(listOf(old, new), listOf(oldFailed))
+        assertEquals(listOf("m2", "m1"), merged.map { it.id })
+        assertEquals("hello", merged.first { it.id == "m2" }.content)
+        assertEquals("world", merged.first { it.id == "m1" }.content)
+    }
+
 }

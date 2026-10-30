@@ -128,4 +128,42 @@ class ChatDetailDecryptPolicyTest {
         }
     }
 
+    @Test
+    fun `lowercase content wire names map to decryptable types`() {
+        listOf("markdown", "location", "voice", "file", "gif", "sticker").forEach {
+            assertTrue("$it 应可解密", MessageType.fromWire(it).isDecryptable())
+        }
+    }
+
+    @Test
+    fun `lowercase control wire names stay non decryptable`() {
+        listOf("nudge", "system", "revoked", "sk_dist").forEach {
+            assertFalse("$it 不应可解密", MessageType.fromWire(it).isDecryptable())
+        }
+    }
+
+    @Test
+    fun `fromWire lookups are stable under repetition`() {
+        repeat(3) {
+            assertEquals(MessageType.IMAGE, MessageType.fromWire("image"))
+            assertEquals(MessageType.TEXT, MessageType.fromWire("bogus"))
+            assertEquals(MessageType.SK_DIST, MessageType.fromWire("sk_dist"))
+        }
+    }
+
+    @Test
+    fun `hyphenated wire name falls back to decryptable text`() {
+        assertEquals(MessageType.TEXT, MessageType.fromWire("SK-DIST"))
+        assertTrue(MessageType.fromWire("SK-DIST").isDecryptable())
+        assertEquals(MessageType.SK_DIST, MessageType.fromWire("sk_dist"))
+    }
+
+    @Test
+    fun `padded and numeric wire values fall back to decryptable text`() {
+        assertEquals(MessageType.TEXT, MessageType.fromWire("TEXT "))
+        assertEquals(MessageType.TEXT, MessageType.fromWire(" text"))
+        assertEquals(MessageType.TEXT, MessageType.fromWire("123"))
+        assertTrue(MessageType.fromWire("123").isDecryptable())
+    }
+
 }
