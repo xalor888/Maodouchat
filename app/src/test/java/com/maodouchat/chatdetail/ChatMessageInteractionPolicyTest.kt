@@ -169,4 +169,49 @@ class ChatMessageInteractionPolicyTest {
         assertFalse(isMessageCopyable(MessageType.MARKDOWN, isSecretChat = true))
         assertTrue(isMessageCopyable(MessageType.MARKDOWN, isSecretChat = false))
     }
+
+    @Test
+    fun replyableCoversRemainingMediaTypes() {
+        assertTrue(isMessageReplyable(MessageType.MARKDOWN))
+        assertTrue(isMessageReplyable(MessageType.GIF))
+        assertTrue(isMessageReplyable(MessageType.STICKER))
+        assertTrue(isMessageReplyable(MessageType.VOICE))
+        assertTrue(isMessageReplyable(MessageType.FILE))
+    }
+
+    @Test
+    fun copyableRejectsRemainingNonTextTypes() {
+        assertFalse(isMessageCopyable(MessageType.VIDEO))
+        assertFalse(isMessageCopyable(MessageType.GIF))
+        assertFalse(isMessageCopyable(MessageType.STICKER))
+        assertFalse(isMessageCopyable(MessageType.LOCATION))
+        assertFalse(isMessageCopyable(MessageType.SK_DIST))
+        assertFalse(isMessageCopyable(MessageType.REVOKED))
+    }
+
+    @Test
+    fun forwardableCoversRemainingTypes() {
+        assertTrue(isMessageForwardable(MessageType.MARKDOWN))
+        assertTrue(isMessageForwardable(MessageType.STICKER))
+        assertTrue(isMessageForwardable(MessageType.VOICE))
+        assertFalse(isMessageForwardable(MessageType.MARKDOWN, isSecretChat = true))
+    }
+
+    @Test
+    fun swipeReplyExtremeOffsets() {
+        assertFalse(shouldTriggerSwipeReply(Float.NaN, 52f))
+        assertFalse(shouldTriggerSwipeReply(-52f, Float.NaN))
+        assertTrue(shouldTriggerSwipeReply(Float.NEGATIVE_INFINITY, 52f))
+        assertFalse(shouldTriggerSwipeReply(Float.POSITIVE_INFINITY, 52f))
+        assertTrue(shouldTriggerSwipeReply(-0.5f, 0.5f))
+        assertFalse(shouldTriggerSwipeReply(-0.49f, 0.5f))
+    }
+
+    @Test
+    fun selectionToggleReAddMovesIdToEnd() {
+        val afterRemove = toggleMessageSelection(setOf("m1", "m2"), "m1")
+        assertEquals(setOf("m2"), afterRemove)
+        assertEquals(listOf("m2", "m1"), toggleMessageSelection(afterRemove, "m1").toList())
+        assertEquals(emptySet(), toggleMessageSelection(toggleMessageSelection(emptySet(), "m1"), "m1"))
+    }
 }

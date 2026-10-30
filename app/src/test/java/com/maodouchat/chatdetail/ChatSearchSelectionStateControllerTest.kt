@@ -265,4 +265,69 @@ class ChatSearchSelectionStateControllerTest {
 
         assertEquals("old", targeted.navigationTargetMessageId)
     }
+
+    @Test
+    fun `secret precedence over blank query and empty candidates`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(isSecretChat = true, aiEnabled = true),
+            "   ", emptyList(), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        assertEquals("secret", (result as SemanticSearchAdmission.Rejected).state.semanticSearchError)
+    }
+
+    @Test
+    fun `long query is trimmed before the 300 char cap`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true),
+            "  " + "q".repeat(400) + "  ",
+            listOf("a"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        assertEquals("q".repeat(300), (result as SemanticSearchAdmission.Accepted).query)
+    }
+
+    @Test
+    fun `blank rejection preserves existing results and query`() {
+        val state = ChatDetailUiState(
+            aiEnabled = true,
+            semanticSearchResultIds = listOf("old"),
+            semanticSearchQuery = "oldq",
+        )
+
+        val result = controller.admitSemanticSearch(
+            state, "   ", listOf("message"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        val rejected = (result as SemanticSearchAdmission.Rejected).state
+        assertEquals("blank", rejected.semanticSearchError)
+        assertEquals(listOf("old"), rejected.semanticSearchResultIds)
+        assertEquals("oldq", rejected.semanticSearchQuery)
+    }
+
+    @Test
+    fun `whitespace navigation id leaves target untouched`() {
+        val targeted = controller.navigateTo(
+            ChatDetailUiState(navigationTargetMessageId = "old"), "   "
+        )
+
+        assertEquals("old", targeted.navigationTargetMessageId)
+    }
+
+    @Test
+    fun `duplicate ids collapse before the one hundred cap`() {
+        val ids = (0 until 150).map { "id${it % 60}" }
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true), "query", ids, "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        val accepted = (result as SemanticSearchAdmission.Accepted)
+        assertEquals(60, accepted.candidateIds.size)
+        assertEquals("id0", accepted.candidateIds.first())
+        assertEquals("id59", accepted.candidateIds.last())
+    }
 }

@@ -213,6 +213,70 @@ class AttachmentPreparationModelTest {
         assertEquals(2L, normalized.sizeBytes)
     }
 
+    @Test
+    fun `image name without extension gains canonical extension`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.IMAGE,
+            LocalFileMetadata("photo", "image/png", 6L)
+        )
+
+        assertEquals("photo.jpg", normalized.fileName)
+        assertEquals("image/jpeg", normalized.mimeType)
+        assertEquals(6L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `image uppercase base keeps case while forcing jpg`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.IMAGE,
+            LocalFileMetadata("PHOTO.PNG", "image/png", 6L)
+        )
+
+        assertEquals("PHOTO.jpg", normalized.fileName)
+        assertEquals("image/jpeg", normalized.mimeType)
+    }
+
+    @Test
+    fun `file mime is trimmed and lowercased`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("doc.txt", "  Application/PDF  ", 8L)
+        )
+
+        assertEquals("doc.txt", normalized.fileName)
+        assertEquals("application/pdf", normalized.mimeType)
+        assertEquals(8L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `video 3gp extension maps both ways`() {
+        val fromExtension = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.3gp", "application/octet-stream", 10L)
+        )
+        assertEquals("clip.3gp", fromExtension.fileName)
+        assertEquals("video/3gpp", fromExtension.mimeType)
+
+        val fromMime = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.avi", "video/3gpp", 10L)
+        )
+        assertEquals("clip.3gp", fromMime.fileName)
+        assertEquals("video/3gpp", fromMime.mimeType)
+    }
+
+    @Test
+    fun `video multi dot base is preserved`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("my.clip.mp4", "application/octet-stream", 11L)
+        )
+
+        assertEquals("my.clip.mp4", normalized.fileName)
+        assertEquals("video/mp4", normalized.mimeType)
+        assertEquals(11L, normalized.sizeBytes)
+    }
+
     private fun assertMetadata(
         type: MessageType,
         name: String,
