@@ -343,4 +343,60 @@ class GroupMutationFeedbackPolicyTest {
         assertEquals("SOMETHING_ELSE", fb.serverCode)
     }
 
+    @Test
+    fun `GROUP_ADMIN_PEER_PROTECTED code is permission`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.REMOVE_MEMBER,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "GROUP_ADMIN_PEER_PROTECTED")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_PERMISSION, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_ADMIN_PEER_PROTECTED", fb.serverCode)
+    }
+
+    @Test
+    fun `GROUP_MEMBER_BLOCKED code is permission`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ADD_MEMBER,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "GROUP_MEMBER_BLOCKED")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_PERMISSION, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_MEMBER_BLOCKED", fb.serverCode)
+    }
+
+    @Test
+    fun `GROUP_USER_NOT_FOUND code is conflict`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ADD_MEMBER,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "GROUP_USER_NOT_FOUND")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_USER_NOT_FOUND", fb.serverCode)
+    }
+
+    @Test
+    fun `GROUP_OWNER_TRANSFER_REQUIRED code is conflict`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.TRANSFER_OWNER,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "GROUP_OWNER_TRANSFER_REQUIRED")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_OWNER_TRANSFER_REQUIRED", fb.serverCode)
+    }
+
+    @Test
+    fun `success without detail carries no detail and no reload`() {
+        val fb = GroupMutationFeedbackPolicy.success(GroupMutationAction.RENAME)
+        assertEquals(GroupMutationFeedbackKind.SUCCESS, fb.kind)
+        assertNull(fb.detail)
+        assertFalse(fb.canRetry)
+        assertFalse(fb.shouldReload)
+    }
 }

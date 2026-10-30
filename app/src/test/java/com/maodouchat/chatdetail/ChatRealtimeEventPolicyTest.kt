@@ -229,4 +229,39 @@ class ChatRealtimeEventPolicyTest {
         assertFalse(shouldInvalidateGroupKey(-4L, -5L, GroupRevisionImpact.REFRESH))
     }
 
+    @Test
+    fun `presence padded event id never matches`() {
+        assertFalse(shouldApplyContactPresence(false, "user-2", "user-2 "))
+        assertFalse(shouldApplyContactPresence(false, " user-2", "user-2"))
+    }
+
+    @Test
+    fun `member left in another chat is ignored even for current user`() {
+        assertEquals(
+            GroupRevisionImpact.IGNORE,
+            groupRevisionImpact("chat-a", "user-1", "chat-b", "user-1", "MEMBER_LEFT")
+        )
+    }
+
+    @Test
+    fun `null target with left reason is plain refresh`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", null, "MEMBER_LEFT")
+        )
+    }
+
+    @Test
+    fun `empty reason never marks current user removed`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "")
+        )
+    }
+
+    @Test
+    fun `refresh invalidation is false at equal zero revisions`() {
+        assertFalse(shouldInvalidateGroupKey(0L, 0L, GroupRevisionImpact.REFRESH))
+        assertTrue(shouldInvalidateGroupKey(0L, 1L, GroupRevisionImpact.REFRESH))
+    }
 }

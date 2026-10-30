@@ -315,4 +315,64 @@ class ChatAiContextBuilderTest {
         )
     }
 
+    @Test
+    fun `plain context drops system messages even when they carry translations`() {
+        val system = message(
+            "sys", "alice", "system", 10L,
+            MessageMeta(translations = mapOf("en" to "system translation")),
+            MessageType.SYSTEM
+        )
+
+        assertTrue(buildPlainAiContextMessages(listOf(system), senders, limit = 10).isEmpty())
+    }
+
+    @Test
+    fun `plain context cuts an 81-char sender label to 80`() {
+        val longNames = senders.copy(namesByUserId = mapOf("alice" to "A".repeat(81)))
+
+        val context = buildPlainAiContextMessages(
+            listOf(message("m1", "alice", "hi", 1L)),
+            longNames,
+            limit = 10
+        )
+
+        assertEquals(80, context.single().sender.length)
+    }
+
+    @Test
+    fun `summary joins text content and its translation on separate lines`() {
+        val text = message(
+            "t1", "alice", "正文", 10L,
+            MessageMeta(translations = mapOf("en" to "译文"))
+        )
+
+        val context = buildSummaryAiContextMessages(listOf(text), senders)
+
+        assertEquals("正文\n译文", context.single().text)
+    }
+
+    @Test
+    fun `summary keeps only the translation when the transcript is blank`() {
+        val voice = message(
+            "voice", "alice", "encrypted-reference", 10L,
+            MessageMeta(
+                voiceTranscript = "   ",
+                translations = mapOf("en" to "voice translation")
+            ),
+            MessageType.VOICE
+        )
+
+        val context = buildSummaryAiContextMessages(listOf(voice), senders)
+
+        assertEquals("voice translation", context.single().text)
+    }
+
+    @Test
+    fun `plain context negative limit keeps only the latest message`() {
+        val messages = (1..3).map { message("m$it", "alice", "text $it", it.toLong()) }
+
+        val context = buildPlainAiContextMessages(messages, senders, limit = -5)
+
+        assertEquals(listOf("text 3"), context.map { it.text })
+    }
 }
