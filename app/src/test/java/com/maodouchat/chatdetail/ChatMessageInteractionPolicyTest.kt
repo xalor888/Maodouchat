@@ -214,4 +214,44 @@ class ChatMessageInteractionPolicyTest {
         assertEquals(listOf("m2", "m1"), toggleMessageSelection(afterRemove, "m1").toList())
         assertEquals(emptySet(), toggleMessageSelection(toggleMessageSelection(emptySet(), "m1"), "m1"))
     }
+    @Test
+    fun swipeReplyPositiveOffsetNeverTriggers() {
+        assertFalse(shouldTriggerSwipeReply(52f, 52f))
+        assertFalse(shouldTriggerSwipeReply(1000f, 1f))
+        assertFalse(shouldTriggerSwipeReply(1f, 100f))
+        assertTrue(shouldTriggerSwipeReply(-52f, 52f))
+    }
+
+    @Test
+    fun secretChatBlocksForwardForMediaTypes() {
+        assertFalse(isMessageForwardable(MessageType.VIDEO, isSecretChat = true))
+        assertFalse(isMessageForwardable(MessageType.LOCATION, isSecretChat = true))
+        assertFalse(isMessageForwardable(MessageType.GIF, isSecretChat = true))
+        assertFalse(isMessageForwardable(MessageType.STICKER, isSecretChat = true))
+        assertFalse(isMessageForwardable(MessageType.VOICE, isSecretChat = true))
+        assertTrue(isMessageForwardable(MessageType.VIDEO, isSecretChat = false))
+    }
+
+    @Test
+    fun secretChatBlocksCopyForNonTextTypes() {
+        assertFalse(isMessageCopyable(MessageType.VOICE, isSecretChat = true))
+        assertFalse(isMessageCopyable(MessageType.FILE, isSecretChat = true))
+        assertFalse(isMessageCopyable(MessageType.IMAGE, isSecretChat = true))
+        assertFalse(isMessageCopyable(MessageType.TEXT, isSecretChat = true))
+    }
+
+    @Test
+    fun selectionToggleMiddleReAddGoesLast() {
+        val removed = toggleMessageSelection(setOf("m1", "m2", "m3"), "m2")
+        assertEquals(setOf("m1", "m3"), removed)
+        assertEquals(listOf("m1", "m3", "m2"), toggleMessageSelection(removed, "m2").toList())
+    }
+
+    @Test
+    fun replyableMatchesGestureEligibilityForEveryType() {
+        for (type in MessageType.entries) {
+            assertEquals(isMessageGestureEligible(type), isMessageReplyable(type))
+        }
+    }
+
 }

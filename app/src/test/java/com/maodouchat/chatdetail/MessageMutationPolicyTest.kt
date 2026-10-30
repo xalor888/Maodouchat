@@ -387,4 +387,62 @@ class MessageMutationPolicyTest {
         assertEquals("m-revoked", placeholder.id)
     }
 
+    @Test
+    fun `optimistic edit preserves star reactions and timestamp`() {
+        val original = message("m-star", "old", MessageType.TEXT).copy(
+            timestamp = 1_000L,
+            editedAt = 500L,
+            starred = true,
+            reactions = listOf(MessageReaction("u1", "❤"))
+        )
+
+        val edited = original.toOptimisticEdit("new")
+
+        assertEquals("new", edited.content)
+        assertEquals(1_001L, edited.editedAt)
+        assertEquals(1_000L, edited.timestamp)
+        assertTrue(edited.starred)
+        assertEquals(listOf(MessageReaction("u1", "❤")), edited.reactions)
+    }
+
+    @Test
+    fun `tracker rejects blank id for delete and revoke`() {
+        val tracker = MessageMutationTracker()
+        assertNull(tracker.begin("", MessageMutationKind.DELETE))
+        assertNull(tracker.begin("   ", MessageMutationKind.REVOKE))
+        assertTrue(tracker.begin("m-ok", MessageMutationKind.DELETE) != null)
+    }
+
+    @Test
+    fun `ambiguous transport covers other 5xx but not 3xx or missing code`() {
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 501)))
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 507)))
+        assertFalse(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 302)))
+        assertFalse(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 418)))
+        assertFalse(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = null)))
+    }
+
+    @Test
+    fun `already terminal mutation rejects non-http 404`() {
+        assertFalse(isAlreadyTerminalMutation(ApiException(ApiFailureKind.NETWORK, statusCode = 404)))
+        assertFalse(isAlreadyTerminalMutation(ApiException(ApiFailureKind.INVALID_RESPONSE, statusCode = 404)))
+        assertFalse(isAlreadyTerminalMutation(ApiException(ApiFailureKind.UNEXPECTED, statusCode = 404)))
+        assertTrue(isAlreadyTerminalMutation(ApiException(ApiFailureKind.HTTP, statusCode = 404)))
+    }
+
+    @Test
+    fun `revoked placeholder preserves timestamp sender and chat`() {
+        val original = message("m-keep", "hello", MessageType.TEXT).copy(
+            timestamp = 100L,
+            status = MessageStatus.READ
+        )
+
+        val placeholder = original.toRevokedPlaceholder("已撤回")
+
+        assertEquals(100L, placeholder.timestamp)
+        assertEquals("user-1", placeholder.senderId)
+        assertEquals("chat-1", placeholder.chatId)
+        assertEquals("已撤回", placeholder.content)
+    }
+
 }

@@ -305,4 +305,46 @@ class MessageStatusMachineTest {
         assertEquals(MessageStatus.READ, merged.status)
     }
 
+    @Test
+    fun `fromWire trailing whitespace falls back to SENT`() {
+        assertEquals(MessageStatus.SENT, MessageStatus.fromWire("READ "))
+        assertEquals(MessageStatus.SENT, MessageStatus.fromWire("sending "))
+        assertEquals(MessageStatus.SENT, MessageStatus.fromWire("failed "))
+        assertEquals(MessageStatus.FAILED, MessageStatus.fromWire("FAILED"))
+    }
+
+    @Test
+    fun `higherDeliveryStatus FAILED transparency is symmetric`() {
+        assertEquals(MessageStatus.DELIVERED, higherDeliveryStatus(MessageStatus.DELIVERED, MessageStatus.FAILED))
+        assertEquals(MessageStatus.READ, higherDeliveryStatus(MessageStatus.FAILED, MessageStatus.READ))
+        assertEquals(MessageStatus.SENDING, higherDeliveryStatus(MessageStatus.SENDING, MessageStatus.FAILED))
+    }
+
+    @Test
+    fun `canAdvanceTo same status holds for SENDING and SENT`() {
+        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.SENDING))
+        assertTrue(MessageStatus.SENT.canAdvanceTo(MessageStatus.SENT))
+    }
+
+    @Test
+    fun `merge server-only FAILED message passes through unchanged`() {
+        val merged = mergeMessageVersions(
+            emptyList(),
+            listOf(base("m9").copy(status = MessageStatus.FAILED, content = "boom"))
+        )
+        assertEquals(1, merged.size)
+        assertEquals(MessageStatus.FAILED, merged.single().status)
+        assertEquals("boom", merged.single().content)
+    }
+
+    @Test
+    fun `merge equal revision lets candidate win content star and status`() {
+        val local = base("m1").copy(status = MessageStatus.SENT, starred = false, content = "old")
+        val server = local.copy(status = MessageStatus.DELIVERED, starred = true, content = "new")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("new", merged.content)
+        assertEquals(MessageStatus.DELIVERED, merged.status)
+        assertTrue(merged.starred)
+    }
+
 }
