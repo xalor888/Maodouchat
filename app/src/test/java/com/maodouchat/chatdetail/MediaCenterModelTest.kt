@@ -149,4 +149,61 @@ class MediaCenterModelTest {
 
         assertSame(message, item.message)
     }
+
+    @Test
+    fun linksAndMediaSortedByTimestampDescendingAcrossCategories() {
+        val messages = listOf(
+            Message("img", "chat", "u", "content://cached/img", MessageType.IMAGE, 10),
+            Message("link", "chat", "u", "see https://a.com/x", MessageType.TEXT, 100),
+            Message("voice", "chat", "u", "content://cached/voice", MessageType.VOICE, 50)
+        )
+        val items = buildMediaCenterItems(messages)
+        assertEquals(
+            listOf(MediaCenterCategory.LINKS, MediaCenterCategory.VOICE, MediaCenterCategory.MEDIA),
+            items.map { it.category }
+        )
+        assertEquals(listOf("link", "voice", "img"), items.map { it.message.id })
+    }
+
+    @Test
+    fun multipleLinksInOneMessageKeepTextOrderNotAlphabetical() {
+        val message = Message("m", "chat", "u", "first https://z.com/a then https://a.com/z", MessageType.TEXT)
+        assertEquals(
+            listOf("https://z.com/a", "https://a.com/z"),
+            buildMediaCenterItems(listOf(message)).map { it.linkUrl }
+        )
+    }
+
+    @Test
+    fun stickerMessageContentUrlIsNotCollectedAsLink() {
+        val message = Message("m", "chat", "u", "see https://a.com/x", MessageType.STICKER, 10)
+        val items = buildMediaCenterItems(listOf(message))
+        assertEquals(1, items.size)
+        assertEquals(MediaCenterCategory.MEDIA, items.single().category)
+        assertEquals(null, items.single().linkUrl)
+    }
+
+    @Test
+    fun angleBracketTerminatesUrlMatch() {
+        val message = Message("m", "chat", "u", "visit https://a.com/path<x now", MessageType.TEXT)
+        assertEquals(
+            listOf("https://a.com/path"),
+            buildMediaCenterItems(listOf(message)).map { it.linkUrl }
+        )
+    }
+
+    @Test
+    fun sameTimestampItemsKeepInputOrder() {
+        val messages = listOf(
+            Message("file", "chat", "u", "content://cached/file", MessageType.FILE, 10),
+            Message("voice", "chat", "u", "content://cached/voice", MessageType.VOICE, 10),
+            Message("img", "chat", "u", "content://cached/img", MessageType.IMAGE, 10)
+        )
+        val items = buildMediaCenterItems(messages)
+        assertEquals(listOf("file", "voice", "img"), items.map { it.message.id })
+        assertEquals(
+            listOf(MediaCenterCategory.FILES, MediaCenterCategory.VOICE, MediaCenterCategory.MEDIA),
+            items.map { it.category }
+        )
+    }
 }
