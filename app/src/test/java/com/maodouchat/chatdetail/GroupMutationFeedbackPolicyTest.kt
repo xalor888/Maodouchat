@@ -278,4 +278,69 @@ class GroupMutationFeedbackPolicyTest {
         assertFalse(fb.shouldReload)
         assertEquals("weird", fb.detail)
     }
+
+    @Test
+    fun `GROUP_OWNER_PROTECTED code without status is permission`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.REMOVE_MEMBER,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "GROUP_OWNER_PROTECTED")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_PERMISSION, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_OWNER_PROTECTED", fb.serverCode)
+    }
+
+    @Test
+    fun `GROUP_MEMBER_LIMIT_EXCEEDED code is conflict`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ADD_MEMBER,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "GROUP_MEMBER_LIMIT_EXCEEDED")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_MEMBER_LIMIT_EXCEEDED", fb.serverCode)
+    }
+
+    @Test
+    fun `429 is fatal without retry or reload`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.MUTE,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 429, serverMessage = "slow down")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_FATAL, fb.kind)
+        assertFalse(fb.canRetry)
+        assertFalse(fb.shouldReload)
+        assertEquals("slow down", fb.detail)
+    }
+
+    @Test
+    fun `http 500 without message is retryable`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ANNOUNCEMENT,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 500)
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_RETRYABLE, fb.kind)
+        assertTrue(fb.canRetry)
+        assertFalse(fb.shouldReload)
+        assertNull(fb.serverCode)
+    }
+
+    @Test
+    fun `unknown server code falls back to status permission`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.REMOVE_MEMBER,
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 403,
+                serverCode = "SOMETHING_ELSE"
+            )
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_PERMISSION, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("SOMETHING_ELSE", fb.serverCode)
+    }
+
 }

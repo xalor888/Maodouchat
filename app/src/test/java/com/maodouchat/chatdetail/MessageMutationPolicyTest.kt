@@ -283,4 +283,48 @@ class MessageMutationPolicyTest {
         assertFalse(tracker.shouldRenderRevoked("m-edit"))
         assertTrue(tracker.begin("m-edit", MessageMutationKind.DELETE) != null)
     }
+
+    @Test
+    fun `completed ticket allows a later mutation of the same message`() {
+        val tracker = MessageMutationTracker()
+        val ticket = tracker.begin("m1", MessageMutationKind.EDIT)!!
+        assertTrue(tracker.complete(ticket))
+        assertTrue(tracker.begin("m1", MessageMutationKind.DELETE) != null)
+    }
+
+    @Test
+    fun `authoritative delete wins over later revoke render`() {
+        val tracker = MessageMutationTracker()
+        val ticket = tracker.begin("m1", MessageMutationKind.DELETE)!!
+        tracker.observeAuthoritative("m1", MessageMutationKind.DELETE)
+        tracker.observeAuthoritative("m1", MessageMutationKind.REVOKE)
+        assertFalse(tracker.shouldRollback(ticket))
+        assertTrue(tracker.shouldDrop("m1"))
+        assertFalse(tracker.shouldRenderRevoked("m1"))
+    }
+
+    @Test
+    fun `pending edit neither drops nor renders revoked`() {
+        val tracker = MessageMutationTracker()
+        tracker.begin("m1", MessageMutationKind.EDIT)!!
+        assertFalse(tracker.shouldDrop("m1"))
+        assertFalse(tracker.shouldRenderRevoked("m1"))
+    }
+
+    @Test
+    fun `merge appends unknown incoming id sorted by timestamp`() {
+        val existing = message("m2", "current", MessageType.TEXT)
+        val incoming = message("m1", "incoming", MessageType.TEXT).copy(timestamp = 50L)
+        val merged = mergeMessageVersions(listOf(existing), listOf(incoming))
+        assertEquals(listOf("m1", "m2"), merged.map { it.id })
+    }
+
+    @Test
+    fun `equal revision with both readable keeps candidate content`() {
+        val current = message("m1", "old", MessageType.TEXT)
+        val candidate = message("m1", "new", MessageType.TEXT)
+        val merged = mergeMessageVersions(listOf(current), listOf(candidate)).single()
+        assertEquals("new", merged.content)
+    }
+
 }

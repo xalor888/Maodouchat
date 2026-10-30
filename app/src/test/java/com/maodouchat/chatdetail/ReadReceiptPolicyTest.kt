@@ -482,4 +482,62 @@ class ReadReceiptPolicyTest {
         )
         assertEquals(listOf("d", "c"), ids)
     }
+
+    @Test
+    fun computeGroupReadCount_viewerIdTrimmedBeforeRosterExclusion() {
+        val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = " me ",
+            memberIds = listOf("me", "a"),
+            receiptUserIds = listOf("a"),
+        )
+        assertEquals(1, read)
+        assertEquals(1, total)
+    }
+
+    @Test
+    fun computeGroupReadCount_fallbackDropsViewerReceipt() {
+        val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = emptyList(),
+            receiptUserIds = listOf(" me ", "a"),
+        )
+        assertEquals(1, read)
+        assertEquals(1, total)
+    }
+
+    @Test
+    fun prefetchMaxOneKeepsOnlyNewest() {
+        val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("old", "me", true),
+                PrefetchMessage("new", "me", true),
+            ),
+            max = 1,
+        )
+        assertEquals(listOf("new"), ids)
+    }
+
+    @Test
+    fun incompleteSkipsIneligibleMessagesEvenWhenUncached() {
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(PrefetchMessage("s", "me", false)),
+            counts = emptyMap(),
+            max = 4,
+        )
+        assertEquals(emptyList(), ids)
+    }
+
+    @Test
+    fun incompleteExcludesOverReadCounts() {
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(PrefetchMessage("a", "me", true)),
+            counts = mapOf("a" to ReadCountUi(3, 2)),
+            max = 4,
+        )
+        assertEquals(emptyList(), ids)
+    }
+
 }
