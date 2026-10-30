@@ -189,4 +189,71 @@ class ChatTimelineStateControllerTest {
         timestamp = timestamp,
         status = MessageStatus.SENDING,
     )
+
+    @Test
+    fun `replaceMessage on unknown id leaves messages untouched`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L), message("two", 2L)))
+
+        val updated = controller.replaceMessage(state, "ghost") { it.copy(content = "changed") }
+
+        assertEquals(listOf("one", "two"), updated.messages.map(Message::id))
+        assertEquals("two", updated.messages[1].content)
+    }
+
+    @Test
+    fun `mergeIncoming dedupes the same id keeping the newer edit`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L)))
+
+        val updated = controller.mergeIncoming(
+            state,
+            listOf(message("one", 1L).copy(content = "edited", editedAt = 10L)),
+        )
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals("edited", updated.messages.single().content)
+        assertEquals(10L, updated.messages.single().editedAt)
+    }
+
+    @Test
+    fun `mergeIncoming keeps the revoked version over a newer plain version`() {
+        val state = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(type = MessageType.REVOKED, content = "revoked")),
+        )
+
+        val updated = controller.mergeIncoming(
+            state,
+            listOf(message("one", 1L).copy(content = "plain", editedAt = 5L)),
+        )
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals(MessageType.REVOKED, updated.messages.single().type)
+        assertEquals("revoked", updated.messages.single().content)
+    }
+
+    @Test
+    fun `initialHistoryLoaded keeps non-empty history with a null separator`() {
+        val state = ChatDetailUiState(messages = listOf(message("existing", 1L)))
+
+        val updated = controller.initialHistoryLoaded(state, listOf(message("incoming", 2L)), null)
+
+        assertEquals(listOf("existing", "incoming"), updated.messages.map(Message::id))
+        assertEquals(null, updated.unreadSeparatorId)
+        assertTrue(updated.initialTimelineReady)
+        assertFalse(updated.hasMoreOlderMessages)
+    }
+
+    @Test
+    fun `remove then set reinserts the message through merge ordering`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L), message("two", 2L)))
+
+        val removed = controller.applyMutation(state, MessageMutationProjection.Remove("one"))
+        val reinserted = controller.applyMutation(
+            removed,
+            MessageMutationProjection.Set(message("one", 1L).copy(content = "back")),
+        )
+
+        assertEquals(listOf("one", "two"), reinserted.messages.map(Message::id))
+        assertEquals("back", reinserted.messages[0].content)
+    }
+
 }
