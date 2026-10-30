@@ -630,4 +630,84 @@ class ReadReceiptPolicyTest {
         )
     }
 
+    @Test
+    fun canViewReceiptsDmOwnerRoleDeniedForOthers() {
+        assertFalse(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "owner",
+                senderId = "peer",
+                isGroup = false,
+                viewerRole = "OWNER",
+            )
+        )
+        assertFalse(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "owner",
+                senderId = "peer",
+                isGroup = false,
+                viewerRole = " owner ",
+            )
+        )
+    }
+
+    @Test
+    fun computeGroupReadCountFallbackCountsGhostReceipts() {
+        val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = emptyList(),
+            receiptUserIds = listOf("ghost", "me"),
+        )
+        assertEquals(1, read)
+        assertEquals(1, total)
+        val (rosterRead, rosterTotal) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = listOf("me"),
+            receiptUserIds = listOf("ghost"),
+        )
+        assertEquals(1, rosterRead)
+        assertEquals(1, rosterTotal)
+    }
+
+    @Test
+    fun prefetchDedupeAppliesBeforeMax() {
+        val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("a", "me", true),
+                PrefetchMessage("b", "me", true),
+                PrefetchMessage("a", "me", true),
+                PrefetchMessage("c", "peer", true),
+                PrefetchMessage("d", "me", true),
+            ),
+            max = 2,
+        )
+        assertEquals(listOf("d", "a"), ids)
+    }
+
+    @Test
+    fun incompleteSkipsFullyReadNewestButKeepsPartialAndUncached() {
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("a", "me", true),
+                PrefetchMessage("b", "me", true),
+                PrefetchMessage("c", "me", true),
+            ),
+            counts = mapOf(
+                "c" to ReadCountUi(1, 1),
+                "b" to ReadCountUi(1, 2),
+            ),
+            max = 3,
+        )
+        assertEquals(listOf("b", "a"), ids)
+    }
+
+    @Test
+    fun isPrivilegedGroupRoleRejectsAdminLikeVariants() {
+        assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole("ADMINISTRATOR"))
+        assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole("SUPERADMIN"))
+        assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole("OWNER2"))
+        assertTrue(ReadReceiptPolicy.isPrivilegedGroupRole("owner"))
+    }
+
 }
