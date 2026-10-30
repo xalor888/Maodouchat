@@ -167,6 +167,46 @@ class MessageStatusMachineTest {
         assertEquals(MessageType.REVOKED, merged.type)
     }
 
+    @Test
+    fun `canAdvanceTo allows ladder skips but not backward steps`() {
+        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.DELIVERED))
+        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.READ))
+        assertFalse(MessageStatus.SENT.canAdvanceTo(MessageStatus.SENDING))
+        assertTrue(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.DELIVERED))
+    }
+
+    @Test
+    fun `fromWire recognizes every status case-insensitively`() {
+        assertEquals(MessageStatus.SENDING, MessageStatus.fromWire("sending"))
+        assertEquals(MessageStatus.SENT, MessageStatus.fromWire("SeNt"))
+        assertEquals(MessageStatus.FAILED, MessageStatus.fromWire("FAILED"))
+        assertEquals(MessageStatus.FAILED, MessageStatus.fromWire("Failed"))
+    }
+
+    @Test
+    fun `higherDeliveryStatus picks the higher rank and stays transparent for FAILED`() {
+        assertEquals(MessageStatus.SENT, higherDeliveryStatus(MessageStatus.SENDING, MessageStatus.SENT))
+        assertEquals(MessageStatus.READ, higherDeliveryStatus(MessageStatus.READ, MessageStatus.SENDING))
+        assertEquals(MessageStatus.SENT, higherDeliveryStatus(MessageStatus.SENT, MessageStatus.SENT))
+        assertEquals(MessageStatus.FAILED, higherDeliveryStatus(MessageStatus.FAILED, MessageStatus.FAILED))
+    }
+
+    @Test
+    fun `newer edit can clear star`() {
+        val local = base("m1").copy(editedAt = 10L, starred = true, content = "old")
+        val server = local.copy(editedAt = 20L, starred = false, content = "new")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("new", merged.content)
+        assertEquals(20L, merged.editedAt)
+        assertFalse(merged.starred)
+    }
+
+    @Test
+    fun `merge sorts equal timestamps by id`() {
+        val merged = mergeMessageVersions(listOf(base("b"), base("a")), emptyList())
+        assertEquals(listOf("a", "b"), merged.map { it.id })
+    }
+
     private fun base(id: String) = Message(
         id = id,
         chatId = "chat-1",
