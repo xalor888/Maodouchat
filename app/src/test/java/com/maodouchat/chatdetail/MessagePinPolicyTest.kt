@@ -299,4 +299,36 @@ class MessagePinPolicyTest {
         assertEquals(96, preview.length)
     }
 
+
+    @Test
+    fun `padded group role does not count as owner or admin`() {
+        assertFalse(MessagePinPolicy.canPin(true, " ADMIN ", MessageType.TEXT))
+        assertFalse(MessagePinPolicy.canPin(true, "owner ", MessageType.TEXT))
+    }
+
+    @Test
+    fun `gif maps to image preview and is pinnable`() {
+        assertTrue(MessagePinPolicy.canPin(false, null, MessageType.GIF))
+        assertEquals(PreviewKind.IMAGE, MessagePinPolicy.previewKind(MessageType.GIF))
+    }
+
+    @Test
+    fun `pin limit blocks exactly at max but not below`() {
+        assertTrue(MessagePinPolicy.wouldExceedLimit(20, alreadyPinned = false))
+        assertFalse(MessagePinPolicy.wouldExceedLimit(19, alreadyPinned = false))
+        assertFalse(MessagePinPolicy.wouldExceedLimit(20, alreadyPinned = true))
+        assertTrue(MessagePinPolicy.wouldExceedLimit(100, alreadyPinned = false))
+    }
+
+    @Test
+    fun `text preview collapses newlines to spaces`() {
+        assertEquals("hello world", MessagePinPolicy.textPreview("  hello\nworld  "))
+    }
+
+    @Test
+    fun `text preview of meta-only content is empty`() {
+        assertEquals("", MessagePinPolicy.textPreview("<meta>{\"a\":1}"))
+        assertEquals("", MessagePinPolicy.textPreview("   "))
+    }
+
 }
