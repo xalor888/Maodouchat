@@ -139,6 +139,69 @@ class ChatSearchModelTest {
         assertEquals(listOf("plain"), documents.map { it.message.id })
     }
 
+    @Test
+    fun `blank query on ALL scope returns empty even with matching text`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("hit", MessageType.TEXT, "hello world"))
+        )
+
+        assertTrue(searchChatDocuments(documents, "", ChatSearchScope.ALL, ChatSearchWindow.ALL).isEmpty())
+    }
+
+    @Test
+    fun `full phrase outranks token matches and timestamp breaks score ties`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("full", MessageType.TEXT, "release plan", timestamp = 1L),
+                message("notes", MessageType.TEXT, "release notes", timestamp = 3L),
+                message("planonly", MessageType.TEXT, "plan only", timestamp = 2L),
+                message("unrelated", MessageType.TEXT, "zzz", timestamp = 9L)
+            )
+        )
+
+        val ids = searchChatDocuments(documents, "release plan", ChatSearchScope.ALL, ChatSearchWindow.ALL).map { it.id }
+        assertEquals(listOf("full", "notes", "planonly"), ids)
+    }
+
+    @Test
+    fun `voice scope matches transcripts only`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("voice", MessageType.VOICE, "voice://1", MessageMeta(voiceTranscript = "morning brief")),
+                message("text", MessageType.TEXT, "evening", MessageMeta(translations = mapOf("English" to "morning light")))
+            )
+        )
+
+        assertEquals(listOf("voice"), searchChatDocuments(documents, "morning", ChatSearchScope.VOICE, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `thirty day window boundary is inclusive`() {
+        val now = 1_000_000_000L
+        val windowStart = now - 30L * 24L * 60L * 60L * 1_000L
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("edge", MessageType.TEXT, "keep me", timestamp = windowStart),
+                message("outside", MessageType.TEXT, "keep me", timestamp = windowStart - 1L)
+            )
+        )
+
+        assertEquals(listOf("edge"), searchChatDocuments(documents, "keep", ChatSearchScope.ALL, ChatSearchWindow.THIRTY_DAYS, now = now).map { it.id })
+    }
+
+    @Test
+    fun `sk_dist excluded from documents while media types kept`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("secret", MessageType.SK_DIST, "secret", timestamp = 1L),
+                message("pic", MessageType.IMAGE, "file://pic", timestamp = 2L),
+                message("sticker", MessageType.STICKER, "sticker://1", timestamp = 3L)
+            )
+        )
+
+        assertEquals(listOf("pic", "sticker"), documents.map { it.message.id })
+    }
+
     private fun message(
         id: String,
         type: MessageType,
