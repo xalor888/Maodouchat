@@ -152,6 +152,38 @@ class AttachmentContentInspectorTest {
     }
 
     @Test
+    fun `iso size field and brand string are ignored`() {
+        val iso = bytes(0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70, 0x78, 0x78, 0x78, 0x78)
+
+        assertTrue(isAttachmentContentCompatible(MessageType.VIDEO, iso))
+        assertTrue(isAttachmentContentCompatible(MessageType.VOICE, iso))
+    }
+
+    @Test
+    fun `three byte ebml prefix is not enough for video`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, bytes(0x1A, 0x45, 0xDF)))
+    }
+
+    @Test
+    fun `jpeg fourth byte is ignored`() {
+        assertTrue(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0xFF, 0xD8, 0xFF, 0x00)))
+    }
+
+    @Test
+    fun `image rejects iso and ebml headers`() {
+        val iso = bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70)
+        val ebml = bytes(0x1A, 0x45, 0xDF, 0xA3)
+
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, iso))
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, ebml))
+    }
+
+    @Test
+    fun `voice rejects jpeg header`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, bytes(0xFF, 0xD8, 0xFF)))
+    }
+
+    @Test
     fun `non media types reject every known header`() {
         val jpeg = bytes(0xFF, 0xD8, 0xFF)
         val gif = "GIF89a".encodeToByteArray()

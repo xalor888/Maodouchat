@@ -342,6 +342,84 @@ class ChatTimelineModelTest {
     }
 
     @Test
+    fun `blank unread id inserts no separator`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = ""
+        )
+
+        assertTrue(items.none { it is ChatItem.UnreadSeparator })
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `unread id of a filtered sk dist message falls back before oldest visible`() {
+        val items = buildChatItems(
+            listOf(
+                message("sk", "u1", 0L, MessageType.SK_DIST),
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "sk"
+        )
+
+        assertTrue(items[1] is ChatItem.UnreadSeparator)
+        assertEquals("unread_m1", (items[1] as ChatItem.UnreadSeparator).listKey)
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `same sender day boundary ends the earlier group`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { if (it == 1L) "day-1" else "day-2" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertTrue(rows[0].isGroupEdge)
+        assertTrue(rows[1].isGroupEdge)
+        assertTrue(rows[1].showAvatar)
+    }
+
+    @Test
+    fun `single message shows avatar and group edge`() {
+        val items = buildChatItems(
+            listOf(message("m1", "u1", 1L)),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(1, rows.size)
+        assertTrue(rows[0].showAvatar)
+        assertTrue(rows[0].showSenderName)
+        assertTrue(rows[0].isGroupEdge)
+    }
+
+    @Test
+    fun `unread separator lands after a date change right before its message`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { if (it == 1L) "day-1" else "day-2" },
+            unreadSeparatorId = "m2"
+        )
+
+        assertEquals(3, items.indexOfFirst { it is ChatItem.UnreadSeparator })
+        assertEquals("unread_m2", (items[3] as ChatItem.UnreadSeparator).listKey)
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
     fun `middle message of a three message group is not a group edge`() {
         val items = buildChatItems(
             listOf(
