@@ -464,6 +464,73 @@ class SenderDisplayNameTest {
         assertEquals("备注名", listSenderLabel(chat, "u2"))
     }
 
+@Test
+    fun directChat_contactDisplayNameBeatsMappedForOtherSender() {
+        val state = ChatDetailUiState(
+            contact = User(id = "peer", name = "原始名", nickname = "备注名"),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("other"),
+            isOwn = false,
+            participantNamesById = mapOf("other" to "列表名"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("备注名", name)
+    }
+
+    @Test
+    fun group_mappedNameBeatsShortId() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("abc"),
+            isOwn = false,
+            participantNamesById = mapOf("abc" to "群友"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("群友", name)
+    }
+
+    @Test
+    fun group_blankLabelsAndEmptySenderReturnsNull() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message(""),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "",
+            groupMemberLabel = "",
+        )
+        assertNull(name)
+    }
+
+    @Test
+    fun directChat_mappedMissFallsToTruncatedId() {
+        val state = ChatDetailUiState(
+            contact = User(id = "", name = ""),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("peer"),
+            isOwn = false,
+            participantNamesById = mapOf("other" to "别名"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("peer", name)
+    }
+
+    @Test
+    fun listSenderLabel_emptySenderIdUsesUnknownLabel() {
+        assertEquals("未知", listSenderLabel(null, "", unknownLabel = "未知"))
+    }
+
     private fun message(senderId: String) = Message(
         id = "m",
         chatId = "c",
