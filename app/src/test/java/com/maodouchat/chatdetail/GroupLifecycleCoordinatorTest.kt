@@ -309,6 +309,113 @@ class GroupLifecycleCoordinatorTest {
         assertFalse(invalidateCalled)
     }
 
+    @Test
+    fun `blank refresh token after commit warns and invalidates unknown revision`() = runTest {
+        val tokens = ArrayDeque(listOf("token-1", "  "))
+        var fetchCalled = false
+        var invalidatedRevision: Long? = 99L
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "owner-1" },
+            token = { tokens.removeFirst() },
+            sessionActive = { true },
+            fetchChat = { _, _ ->
+                fetchCalled = true
+                Result.success(null)
+            },
+            invalidateEpoch = { _, _, revision -> invalidatedRevision = revision },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertTrue(result.refreshError is GroupLifecycleSessionException)
+        assertEquals("group_refresh_session_missing", result.refreshError?.message)
+        assertFalse(fetchCalled)
+        assertNull(invalidatedRevision)
+        assertTrue(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `throwing refresh stays committed as a warning`() = runTest {
+        val refreshFailure = IOException("refresh boom")
+        var fetchCalled = false
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                fetchCalled = true
+                throw refreshFailure
+            },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertTrue(fetchCalled)
+        assertSame(refreshFailure, result.refreshError)
+        assertNull(result.refreshedChat)
+        assertTrue(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `padded owner is trimmed for session check and invalidation`() = runTest {
+        var sessionSeen = ""
+        var invalidatedOwner = ""
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "  owner-1  " },
+            token = { "token-1" },
+            sessionActive = { expected ->
+                sessionSeen = expected
+                expected == "owner-1"
+            },
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true, memberRevision = 12L))
+            },
+            invalidateEpoch = { _, owner, _ -> invalidatedOwner = owner },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertEquals("owner-1", sessionSeen)
+        assertEquals("owner-1", invalidatedOwner)
+    }
+
+    @Test
+    fun `invalidate cancellation propagates instead of warning`() = runTest {
+        val cancelled = CancellationException("invalidate cancelled")
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true, memberRevision = 12L))
+            },
+            invalidateEpoch = { _, _, _ -> throw cancelled },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) {}
+        }.exceptionOrNull()
+
+        assertSame(cancelled, thrown)
+    }
+
+    @Test
+    fun `padded token is trimmed for mutation and refresh`() = runTest {
+        val seen = mutableListOf<String>()
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "owner-1" },
+            token = { "  token-1  " },
+            sessionActive = { true },
+            fetchChat = { token, _ ->
+                seen += token
+                Result.success(ChatDto(id = "group-1", isGroup = true))
+            },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        coordinator.mutate("group-1") { token -> seen += token }
+
+        assertEquals(listOf("token-1", "token-1"), seen)
+    }
+
     private fun coordinator(
         sessionActive: (String) -> Boolean = { true },
         fetchChat: suspend (String, String) -> Result<ChatDto?> = { _, _ -> Result.success(null) },

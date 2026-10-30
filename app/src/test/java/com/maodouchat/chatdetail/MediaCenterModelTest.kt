@@ -193,6 +193,58 @@ class MediaCenterModelTest {
     }
 
     @Test
+    fun minimumLengthHttpUrlIsKept() {
+        val message = Message("m", "chat", "u", "看 http://a", MessageType.TEXT)
+
+        assertEquals(listOf("http://a"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun trailingBracketBraceSemicolonAndColonAreTrimmed() {
+        val message = Message(
+            "m", "chat", "u",
+            "见 https://a.com/x; 和 https://b.com/y: 再 (https://c.com/z] 尾 https://d.com/w}",
+            MessageType.TEXT
+        )
+
+        assertEquals(
+            listOf("https://a.com/x", "https://b.com/y", "https://c.com/z", "https://d.com/w"),
+            buildMediaCenterItems(listOf(message)).map { it.linkUrl }
+        )
+    }
+
+    @Test
+    fun queryAndFragmentSurviveTrimming() {
+        val message = Message("m", "chat", "u", "看 https://a.com/p?q=1&r=2#frag 好了", MessageType.TEXT)
+
+        assertEquals(listOf("https://a.com/p?q=1&r=2#frag"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun fileAndVideoContentUrlsNeverBecomeLinkItems() {
+        val messages = listOf(
+            Message("f", "chat", "u", "https://a.com/doc.pdf", MessageType.FILE, 20),
+            Message("v", "chat", "u", "https://a.com/clip.mp4", MessageType.VIDEO, 10)
+        )
+
+        val items = buildMediaCenterItems(messages)
+
+        assertEquals(2, items.size)
+        assertEquals(listOf(MediaCenterCategory.FILES, MediaCenterCategory.MEDIA), items.map { it.category })
+        assertEquals(listOf(null, null), items.map { it.linkUrl })
+    }
+
+    @Test
+    fun newlineTerminatesUrlMatch() {
+        val message = Message("m", "chat", "u", "看 https://a.com/path\n下一行 https://b.com/other", MessageType.TEXT)
+
+        assertEquals(
+            listOf("https://a.com/path", "https://b.com/other"),
+            buildMediaCenterItems(listOf(message)).map { it.linkUrl }
+        )
+    }
+
+    @Test
     fun sameTimestampItemsKeepInputOrder() {
         val messages = listOf(
             Message("file", "chat", "u", "content://cached/file", MessageType.FILE, 10),
