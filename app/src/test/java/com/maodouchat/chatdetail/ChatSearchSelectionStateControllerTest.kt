@@ -330,4 +330,77 @@ class ChatSearchSelectionStateControllerTest {
         assertEquals("id0", accepted.candidateIds.first())
         assertEquals("id59", accepted.candidateIds.last())
     }
+
+    @Test
+    fun `query of exactly three hundred chars passes unchanged`() {
+        val query = "q".repeat(300)
+
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true),
+            query,
+            listOf("a"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        assertEquals(query, (result as SemanticSearchAdmission.Accepted).query)
+    }
+
+    @Test
+    fun `secret precedence over disabled blank and empty candidates together`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(isSecretChat = true, aiEnabled = false),
+            "   ", emptyList(), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        assertEquals("secret", (result as SemanticSearchAdmission.Rejected).state.semanticSearchError)
+    }
+
+    @Test
+    fun `exactly one hundred distinct candidates all survive the cap`() {
+        val ids = (0 until 100).map { "id$it" }
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true), "query", ids, "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        val accepted = (result as SemanticSearchAdmission.Accepted)
+        assertEquals(100, accepted.candidateIds.size)
+        assertEquals("id0", accepted.candidateIds.first())
+        assertEquals("id99", accepted.candidateIds.last())
+    }
+
+    @Test
+    fun `clear resets the search query to empty`() {
+        val cleared = controller.clearSemanticSearch(
+            ChatDetailUiState(
+                semanticSearchResultIds = listOf("one"),
+                semanticSearchQuery = "query",
+                isSemanticSearching = true,
+                semanticSearchError = "error",
+            ),
+            showConsentDialog = false,
+        )
+
+        assertEquals("", cleared.semanticSearchQuery)
+        assertTrue(cleared.semanticSearchResultIds.isEmpty())
+        assertFalse(cleared.isSemanticSearching)
+        assertEquals(null, cleared.semanticSearchError)
+    }
+
+    @Test
+    fun `consume navigation twice stays null and keeps other state`() {
+        val state = ChatDetailUiState(
+            semanticSearchQuery = "query",
+            semanticSearchResultIds = listOf("result"),
+        )
+
+        val targeted = controller.navigateTo(state, "message")
+        val consumed = controller.consumeNavigation(targeted)
+        val consumedAgain = controller.consumeNavigation(consumed)
+
+        assertEquals(null, consumedAgain.navigationTargetMessageId)
+        assertEquals("query", consumedAgain.semanticSearchQuery)
+        assertEquals(listOf("result"), consumedAgain.semanticSearchResultIds)
+    }
 }

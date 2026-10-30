@@ -403,4 +403,91 @@ class MessageTerminalStoreTest {
         assertEquals("cache", failure?.message)
         assertEquals(listOf("search"), failure?.suppressed?.map { it.message })
     }
+
+    @Test
+    fun `revoke with placeholder never calls the local row delete`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { throw IllegalStateException("delete") },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        store.persistRevoked("message-1", sampleMessage())
+
+        assertEquals(listOf("media:message-1", "search:message-1", "upsert:message-1"), effects)
+    }
+
+    @Test
+    fun `delete with media and search failures reports first and suppresses second`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { throw IllegalStateException("cache") },
+            deleteSearchDocument = { throw IllegalStateException("search") },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = {}
+        )
+
+        val failure = runCatching { store.persistDeleted("message-1") }.exceptionOrNull()
+
+        assertEquals(listOf("delete:message-1"), effects)
+        assertEquals("cache", failure?.message)
+        assertEquals(listOf("search"), failure?.suppressed?.map { it.message })
+    }
+
+    @Test
+    fun `tab and newline ids are blank and skip every step`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        store.persistDeleted("\t")
+        store.persistRevoked("\t\n", sampleMessage())
+
+        assertTrue(effects.isEmpty())
+    }
+
+    @Test
+    fun `delete failure never reaches upsert`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { throw IllegalStateException("delete") },
+            upsertLocalMessage = { throw IllegalStateException("upsert") }
+        )
+
+        val failure = runCatching { store.persistDeleted("message-1") }.exceptionOrNull()
+
+        assertEquals(listOf("media:message-1", "search:message-1"), effects)
+        assertEquals("delete", failure?.message)
+        assertTrue(failure?.suppressed.isNullOrEmpty())
+    }
+
+    @Test
+    fun `repeated revoke runs the full cleanup and upsert each time`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        store.persistRevoked("message-1", sampleMessage())
+        store.persistRevoked("message-1", sampleMessage())
+
+        assertEquals(
+            listOf(
+                "media:message-1", "search:message-1", "upsert:message-1",
+                "media:message-1", "search:message-1", "upsert:message-1"
+            ),
+            effects
+        )
+    }
 }

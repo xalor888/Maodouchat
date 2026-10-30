@@ -318,4 +318,75 @@ class ChatTimelineStateControllerTest {
         assertEquals(listOf("one", "changed", "three"), updated.messages.map(Message::content))
     }
 
+    @Test
+    fun `initialHistoryLoaded merges out-of-order history sorted with separator`() {
+        val state = ChatDetailUiState(messages = listOf(message("b", 2L)))
+
+        val updated = controller.initialHistoryLoaded(
+            state,
+            listOf(message("c", 3L), message("a", 1L)),
+            "a",
+        )
+
+        assertEquals(listOf("a", "b", "c"), updated.messages.map(Message::id))
+        assertEquals("a", updated.unreadSeparatorId)
+        assertTrue(updated.initialTimelineReady)
+        assertFalse(updated.hasMoreOlderMessages)
+    }
+
+    @Test
+    fun `delivered rejects sent regression while sending jumps to delivered`() {
+        val delivered = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(status = MessageStatus.DELIVERED)),
+        )
+        val sending = ChatDetailUiState(messages = listOf(message("one", 1L)))
+
+        assertEquals(
+            MessageStatus.DELIVERED,
+            controller.updateStatus(delivered, "one", MessageStatus.SENT).messages.single().status,
+        )
+        assertEquals(
+            MessageStatus.DELIVERED,
+            controller.updateStatus(sending, "one", MessageStatus.DELIVERED).messages.single().status,
+        )
+    }
+
+    @Test
+    fun `mergeIncoming orders equal timestamps by id`() {
+        val state = ChatDetailUiState(messages = listOf(message("b", 2L)))
+
+        val updated = controller.mergeIncoming(state, listOf(message("a", 2L)))
+
+        assertEquals(listOf("a", "b"), updated.messages.map(Message::id))
+    }
+
+    @Test
+    fun `applyMutation Set replaces in place even when the timestamp moves`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L), message("two", 2L)))
+
+        val updated = controller.applyMutation(
+            state,
+            MessageMutationProjection.Set(message("one", 1L).copy(content = "moved", timestamp = 99L)),
+        )
+
+        assertEquals(listOf("one", "two"), updated.messages.map(Message::id))
+        assertEquals("moved", updated.messages[0].content)
+        assertEquals(99L, updated.messages[0].timestamp)
+    }
+
+    @Test
+    fun `mergeIncoming the same edit twice stays a single row`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L)))
+        val edited = message("one", 1L).copy(content = "edited", editedAt = 10L)
+
+        val once = controller.mergeIncoming(state, listOf(edited))
+        assertEquals(listOf("one"), once.messages.map(Message::id))
+        assertEquals("edited", once.messages.single().content)
+        assertEquals(10L, once.messages.single().editedAt)
+
+        val twice = controller.mergeIncoming(once, listOf(edited))
+        assertEquals(listOf("one"), twice.messages.map(Message::id))
+        assertEquals("edited", twice.messages.single().content)
+    }
+
 }

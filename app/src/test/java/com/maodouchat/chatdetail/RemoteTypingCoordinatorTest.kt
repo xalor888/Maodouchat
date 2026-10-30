@@ -361,4 +361,72 @@ class RemoteTypingCoordinatorTest {
         assertEquals(listOf("user-a", "user-b", "user-b", "user-a", "user-a", null), observed)
     }
 
+    @Test
+    fun `stopping the latest of three falls back to the middle user`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-b", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-c", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-c", false)
+
+        assertEquals(listOf("user-a", "user-b", "user-c", "user-b"), observed)
+    }
+
+    @Test
+    fun `whitespace-only user events are ignored in both directions`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "   ", true)
+        coordinator.onEvent("chat-1", "chat-1", "   ", false)
+        advanceTimeBy(3_000L)
+        runCurrent()
+
+        assertEquals(emptyList<String?>(), observed)
+    }
+
+    @Test
+    fun `expiry of the earliest of three re-emits the latest user`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(1_000L)
+        coordinator.onEvent("chat-1", "chat-1", "user-b", true)
+        advanceTimeBy(1_000L)
+        coordinator.onEvent("chat-1", "chat-1", "user-c", true)
+        advanceTimeBy(1_000L)
+        runCurrent()
+
+        assertEquals(listOf("user-a", "user-b", "user-c", "user-c"), observed)
+    }
+
+    @Test
+    fun `clear after natural expiry emits nothing new`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(3_000L)
+        runCurrent()
+        coordinator.clear()
+
+        assertEquals(listOf("user-a", null), observed)
+    }
+
+    @Test
+    fun `stopping the same user twice emits the fallback only once`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-b", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-a", false)
+        coordinator.onEvent("chat-1", "chat-1", "user-a", false)
+
+        assertEquals(listOf("user-a", "user-b", "user-b"), observed)
+    }
+
 }
