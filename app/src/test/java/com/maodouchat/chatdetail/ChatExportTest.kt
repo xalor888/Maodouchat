@@ -377,4 +377,67 @@ class ChatExportTest {
         assertTrue(text.contains("Alice: [\u6d88\u606f\u5df2\u64a4\u56de]"))
     }
 
+    @Test
+    fun buildText_textWithEmptyBodySkippedButCounted() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "me", content = "", type = MessageType.TEXT, timestamp = 1600000000000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("count=1"))
+        assertTrue(text.lines().none { it.startsWith("[") })
+    }
+
+    @Test
+    fun renderBody_textReturnsContentVerbatim() {
+        val msg = Message(id = "1", chatId = "c", senderId = "u", content = "**bold** text", type = MessageType.TEXT)
+        assertEquals("**bold** text", ChatExport.renderBody(msg))
+    }
+
+    @Test
+    fun writeStream_headerHasNoCountLine() {
+        val file = ChatExport.writeStream(
+            context = dummyContext,
+            fileName = "no_count",
+            chatName = "C",
+            ownerId = "me",
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "me", content = "kept", type = MessageType.TEXT, timestamp = 1600000000000L)
+            ).asSequence(),
+            resolveSenderName = { it },
+            exportedAt = 1600000100000L
+        )
+        assertNotNull(file)
+        val content = file!!.readText()
+        assertTrue(content.contains("kept"))
+        assertTrue(content.contains("format_version=1"))
+        assertFalse(content.contains("count="))
+    }
+
+    @Test
+    fun write_emptyFileNameProducesTxtOnly() {
+        val file = ChatExport.write(dummyContext, "", "hi")
+        assertNotNull(file)
+        assertEquals(".txt", file!!.name)
+        assertEquals("hi", file.readText())
+    }
+
+    @Test
+    fun buildText_gifRendersRawContent() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "me", content = "content://cached/a.gif", type = MessageType.GIF, timestamp = 1600000000000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("我: content://cached/a.gif"))
+        assertFalse(text.contains("[图片]"))
+    }
 }

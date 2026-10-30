@@ -397,4 +397,99 @@ class SemanticSearchCandidateFilterTest {
         assertEquals(listOf("fresh"), candidates.map { it.id })
     }
 
+    @Test
+    fun `media scope keeps media messages even when the query matches nothing`() {
+        val messages = listOf(
+            message("pic", "file://pic", type = MessageType.IMAGE, timestamp = 1L),
+            message("clip", "file://clip", type = MessageType.VIDEO, timestamp = 2L),
+            message("note", "hello", timestamp = 3L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.MEDIA,
+            ChatSearchWindow.ALL,
+            query = "zzz",
+            now = 10_000L
+        )
+        assertEquals(listOf("pic", "clip"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `keyword hits survive the per-sender cap ahead of plain messages`() {
+        val senderA = (0 until 80).map { i ->
+            val content = if (i >= 70) "hello target" else "plain text"
+            message("a$i", content, senderId = "senderA", timestamp = i.toLong())
+        }
+        val senderB = (0 until 10).map { i ->
+            message("b$i", "plain text", senderId = "senderB", timestamp = 1000L + i)
+        }
+        val senderC = (0 until 10).map { i ->
+            message("c$i", "plain text", senderId = "senderC", timestamp = 2000L + i)
+        }
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(senderA + senderB + senderC),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+        assertEquals(86, candidates.size)
+        val ids = candidates.map { it.id }.toSet()
+        assertTrue((70 until 80).all { "a$it" in ids })
+        assertTrue((56 until 70).none { "a$it" in ids })
+        assertTrue((0 until 56).all { "a$it" in ids })
+    }
+
+    @Test
+    fun `starred scope drops starred messages with no searchable part`() {
+        val messages = listOf(
+            message("starredBlank", "   ", starred = true),
+            message("starredGood", "hello", starred = true),
+            message("plainGood", "hello")
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.STARRED,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("starredGood"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `voice scope drops voice messages without a transcript`() {
+        val messages = listOf(
+            message("voiceBare", "voice://1", type = MessageType.VOICE, timestamp = 1L),
+            message("voiceWith", "voice://1", type = MessageType.VOICE, meta = MessageMeta(voiceTranscript = "hello"), timestamp = 2L),
+            message("textMsg", "hello", timestamp = 3L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.VOICE,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("voiceWith"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `seven-day window keeps the exact boundary message`() {
+        val now = 5_000_000_000L
+        val day = 24L * 3600 * 1000
+        val messages = listOf(
+            message("atBoundary", "edge", timestamp = now - 7 * day),
+            message("justBefore", "old", timestamp = now - 7 * day - 1),
+            message("fresh", "new", timestamp = now - 1_000L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.SEVEN_DAYS,
+            query = "",
+            now = now
+        )
+        assertEquals(listOf("atBoundary", "fresh"), candidates.map { it.id })
+    }
 }
