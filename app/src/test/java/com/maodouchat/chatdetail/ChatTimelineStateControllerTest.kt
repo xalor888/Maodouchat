@@ -256,4 +256,66 @@ class ChatTimelineStateControllerTest {
         assertEquals("back", reinserted.messages[0].content)
     }
 
+    @Test
+    fun `updateStatus to the same status leaves the row unchanged`() {
+        val sending = ChatDetailUiState(messages = listOf(message("one", 1L)))
+        val sent = ChatDetailUiState(messages = listOf(message("one", 1L).copy(status = MessageStatus.SENT)))
+
+        assertEquals(MessageStatus.SENDING, controller.updateStatus(sending, "one", MessageStatus.SENDING).messages.single().status)
+        assertEquals(MessageStatus.SENT, controller.updateStatus(sent, "one", MessageStatus.SENT).messages.single().status)
+    }
+
+    @Test
+    fun `failed recovers to sent and read`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L).copy(status = MessageStatus.FAILED)))
+
+        assertEquals(MessageStatus.SENT, controller.updateStatus(state, "one", MessageStatus.SENT).messages.single().status)
+        assertEquals(MessageStatus.READ, controller.updateStatus(state, "one", MessageStatus.READ).messages.single().status)
+    }
+
+    @Test
+    fun `mergeIncoming keeps unrelated state fields`() {
+        val state = ChatDetailUiState(
+            messages = listOf(message("b", 2L)),
+            isLoading = true,
+            unreadSeparatorId = "keep",
+            initialTimelineReady = false,
+        )
+
+        val updated = controller.mergeIncoming(state, listOf(message("a", 1L), message("c", 3L)))
+
+        assertEquals(listOf("a", "b", "c"), updated.messages.map(Message::id))
+        assertTrue(updated.isLoading)
+        assertEquals("keep", updated.unreadSeparatorId)
+        assertFalse(updated.initialTimelineReady)
+    }
+
+    @Test
+    fun `initialHistoryLoaded dedupes the same id keeping the newer edit`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L)))
+
+        val updated = controller.initialHistoryLoaded(
+            state,
+            listOf(message("one", 1L).copy(content = "edited", editedAt = 10L)),
+            null,
+        )
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals("edited", updated.messages.single().content)
+        assertEquals(10L, updated.messages.single().editedAt)
+        assertTrue(updated.initialTimelineReady)
+    }
+
+    @Test
+    fun `replaceMessage on the middle row keeps order when the timestamp changes`() {
+        val state = ChatDetailUiState(
+            messages = listOf(message("one", 1L), message("two", 2L), message("three", 3L)),
+        )
+
+        val updated = controller.replaceMessage(state, "two") { it.copy(content = "changed", timestamp = 99L) }
+
+        assertEquals(listOf("one", "two", "three"), updated.messages.map(Message::id))
+        assertEquals(listOf("one", "changed", "three"), updated.messages.map(Message::content))
+    }
+
 }

@@ -196,5 +196,39 @@ class AttachmentContentInspectorTest {
         }
     }
 
+    @Test
+    fun `video rejects gif and jpeg headers`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, "GIF89a".encodeToByteArray()))
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, bytes(0xFF, 0xD8, 0xFF)))
+    }
+
+    @Test
+    fun `gif rejects iso and ebml headers`() {
+        val iso = bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70)
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, iso))
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, bytes(0x1A, 0x45, 0xDF, 0xA3)))
+    }
+
+    @Test
+    fun `voice rejects empty and short iso headers`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, ByteArray(0)))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79)))
+    }
+
+    @Test
+    fun `file accepts every known header and empty input`() {
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, bytes(0xFF, 0xD8, 0xFF)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, "GIF89a".encodeToByteArray()))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, bytes(0x1A, 0x45, 0xDF, 0xA3)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, ByteArray(0)))
+    }
+
+    @Test
+    fun `gif rejects near miss version strings`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, "GIF88a".encodeToByteArray()))
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, "GIF89b".encodeToByteArray()))
+    }
+
     private fun bytes(vararg values: Int): ByteArray = values.map(Int::toByte).toByteArray()
 }
