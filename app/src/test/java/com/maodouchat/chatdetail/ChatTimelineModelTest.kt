@@ -214,4 +214,75 @@ class ChatTimelineModelTest {
         timestamp = timestamp,
         status = MessageStatus.SENT
     )
+
+    @Test
+    fun `exactly six minutes apart starts a new avatar group`() {
+        // sameSenderGroup uses a strict `<` window, so a 360000ms gap breaks the group.
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 360001L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+        assertTrue(rows[1].showAvatar)
+        assertTrue(rows[1].showSenderName)
+    }
+
+    @Test
+    fun `just under six minutes stays in the same avatar group`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 360000L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+        assertFalse(rows[1].showAvatar)
+        assertFalse(rows[1].showSenderName)
+    }
+
+    @Test
+    fun `blank id messages each get a distinct list key`() {
+        val items = buildChatItems(
+            listOf(
+                message("", "u1", 1L),
+                message("", "u2", 2L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+        assertEquals(listOf("msg_blank_1", "msg_blank_2"), rows.map { it.listKey })
+    }
+
+    @Test
+    fun `missing unread id with blank first message falls back to window key`() {
+        val items = buildChatItems(
+            listOf(
+                message("", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "missing"
+        )
+        assertTrue(items[1] is ChatItem.UnreadSeparator)
+        assertEquals("unread_window", (items[1] as ChatItem.UnreadSeparator).listKey)
+    }
+
+    @Test
+    fun `equal timestamps across senders still order by id`() {
+        val items = buildChatItems(
+            listOf(
+                message("b", "u2", 5L),
+                message("a", "u1", 5L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+        assertEquals(listOf("a", "b"), rows.map { it.message.id })
+        assertTrue(rows[0].showAvatar)
+        assertTrue(rows[1].showAvatar)
+    }
 }

@@ -84,4 +84,44 @@ class ChatHeaderStatusModelTest {
             resolveChatHeaderStatus(null, isOnline = false, customStatus = "  Busy  ")
         )
     }
+
+    @Test
+    fun `blank typing id falls through to online`() {
+        assertEquals(
+            ChatHeaderStatus.Online,
+            resolveChatHeaderStatus("   ", isOnline = true, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `negative lastSeen falls back to binary offline`() {
+        assertEquals(
+            ChatHeaderStatus.Offline,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = false, lastSeen = -5L)
+        )
+    }
+
+    @Test
+    fun `group online still shows online`() {
+        assertEquals(
+            ChatHeaderStatus.Online,
+            resolveChatHeaderStatus(null, isOnline = true, customStatus = "", isGroup = true)
+        )
+    }
+
+    @Test
+    fun `group custom status still shows custom`() {
+        assertEquals(
+            ChatHeaderStatus.Custom("Busy"),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "Busy", isGroup = true)
+        )
+    }
+
+    @Test
+    fun `typing outranks group none`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("u3"),
+            resolveChatHeaderStatus("u3", isOnline = false, customStatus = "", isGroup = true)
+        )
+    }
 }
