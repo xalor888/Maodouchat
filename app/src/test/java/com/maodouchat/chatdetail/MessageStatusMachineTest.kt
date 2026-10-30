@@ -1,6 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.Message
+import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.chooseMessageVersion
@@ -255,4 +256,53 @@ class MessageStatusMachineTest {
         assertEquals(listOf("m1"), merged.map { it.id })
         assertEquals("text", merged.single().content)
     }
+
+    @Test
+    fun `canAdvanceTo rejects backward steps from every rung`() {
+        assertFalse(MessageStatus.READ.canAdvanceTo(MessageStatus.DELIVERED))
+        assertFalse(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.SENT))
+        assertTrue(MessageStatus.READ.canAdvanceTo(MessageStatus.READ))
+    }
+
+    @Test
+    fun `higherDeliveryStatus failed against sending and read`() {
+        assertEquals(MessageStatus.SENDING, higherDeliveryStatus(MessageStatus.FAILED, MessageStatus.SENDING))
+        assertEquals(MessageStatus.READ, higherDeliveryStatus(MessageStatus.READ, MessageStatus.FAILED))
+    }
+
+    @Test
+    fun `merge equal revision lets server snapshot clear star and upgrade status`() {
+        val local = base("m1").copy(starred = true, status = MessageStatus.SENT, content = "old")
+        val server = local.copy(starred = false, status = MessageStatus.DELIVERED, content = "new")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("new", merged.content)
+        assertEquals(MessageStatus.DELIVERED, merged.status)
+        assertFalse(merged.starred)
+    }
+
+    @Test
+    fun `merge stale server edit keeps local reactions`() {
+        val reaction = MessageReaction("u1", "\u2764")
+        val local = base("m1").copy(
+            editedAt = 20L,
+            content = "newer",
+            reactions = listOf(reaction),
+        )
+        val server = local.copy(editedAt = 10L, content = "older", reactions = emptyList())
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("newer", merged.content)
+        assertEquals(20L, merged.editedAt)
+        assertEquals(listOf(reaction), merged.reactions)
+    }
+
+    @Test
+    fun `merge newer server failed edit keeps local read`() {
+        val local = base("m1").copy(status = MessageStatus.READ, editedAt = 10L, content = "old")
+        val server = local.copy(status = MessageStatus.FAILED, editedAt = 20L, content = "new")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("new", merged.content)
+        assertEquals(20L, merged.editedAt)
+        assertEquals(MessageStatus.READ, merged.status)
+    }
+
 }
