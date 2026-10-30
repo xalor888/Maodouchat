@@ -266,4 +266,37 @@ class MessagePinPolicyTest {
     fun text_preview_multibyte_truncates_by_chars_not_bytes() {
         assertEquals("\u4e00\u4e8c\u4e09\u2026", MessagePinPolicy.textPreview("\u4e00\u4e8c\u4e09\u56db\u4e94", 4))
     }
+
+    @Test
+    fun group_owner_can_pin_media_types() {
+        assertTrue(MessagePinPolicy.canPin(true, "OWNER", MessageType.FILE))
+        assertTrue(MessagePinPolicy.canPin(true, "OWNER", MessageType.VIDEO))
+        assertTrue(MessagePinPolicy.canPin(true, "OWNER", MessageType.VOICE))
+        assertTrue(MessagePinPolicy.canPin(true, "OWNER", MessageType.LOCATION))
+    }
+
+    @Test
+    fun group_lowercase_owner_pins_file() {
+        assertTrue(MessagePinPolicy.canPin(true, "owner", MessageType.FILE))
+        assertTrue(MessagePinPolicy.canPin(true, "Admin", MessageType.VIDEO))
+    }
+
+    @Test
+    fun text_preview_unclosed_meta_tag_kept_as_text() {
+        assertEquals("a<meta", MessagePinPolicy.textPreview("a<meta"))
+        assertEquals("a", MessagePinPolicy.textPreview("a<meta>"))
+    }
+
+    @Test
+    fun text_preview_tabs_not_folded() {
+        assertEquals("a\tb", MessagePinPolicy.textPreview("a\tb"))
+    }
+
+    @Test
+    fun text_preview_padding_trimmed_before_truncation_budget() {
+        val preview = MessagePinPolicy.textPreview("  " + "a".repeat(100) + "  ", 96)
+        assertEquals("a".repeat(95) + "…", preview)
+        assertEquals(96, preview.length)
+    }
+
 }

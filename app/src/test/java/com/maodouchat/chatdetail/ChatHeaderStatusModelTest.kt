@@ -208,4 +208,47 @@ class ChatHeaderStatusModelTest {
             resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", lastSeen = 1L)
         )
     }
+
+    @Test
+    fun `non-breaking-space padded typing id is trimmed to the bare id`() {
+        // Kotlin trim()/isWhitespace() treat NBSP as whitespace, unlike Java's trim().
+        assertEquals(
+            ChatHeaderStatus.Typing("u5"),
+            resolveChatHeaderStatus("\u00a0u5\u00a0", isOnline = false, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `typing id with an internal newline is kept`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("u\n2"),
+            resolveChatHeaderStatus("u\n2", isOnline = false, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `mixed whitespace custom status falls through to lastSeen`() {
+        assertEquals(
+            ChatHeaderStatus.LastSeen(42L),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "\r\n\t ", lastSeen = 42L)
+        )
+    }
+
+    @Test
+    fun `non-breaking-space-only custom status counts as blank`() {
+        // Kotlin isBlank() treats NBSP as whitespace, so it falls through to offline.
+        assertEquals(
+            ChatHeaderStatus.Offline,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "\u00a0")
+        )
+    }
+
+    @Test
+    fun `group with min lastSeen returns none`() {
+        assertEquals(
+            ChatHeaderStatus.None,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = true, lastSeen = Long.MIN_VALUE)
+        )
+    }
+
 }
