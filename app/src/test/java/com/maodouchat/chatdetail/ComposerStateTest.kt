@@ -231,4 +231,68 @@ class ComposerStateTest {
         assertTrue(snapshot.contactCardPickerVisible)
         assertTrue(snapshot.translationLanguagesVisible)
     }
+
+    @Test
+    fun `toggling expression panel twice returns to rest`() {
+        val state = ComposerState()
+        state.toggleExpressionPanel()
+        state.toggleExpressionPanel()
+
+        assertEquals(ComposerState().snapshot(), state.snapshot())
+    }
+
+    @Test
+    fun `dismiss top panel clears quick phrases before expression`() {
+        val state = ComposerState()
+        state.quickPhrases.value = true
+        state.expressionPanel.value = true
+
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().quickPhrasesVisible)
+        assertTrue(state.snapshot().expressionPanelVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().expressionPanelVisible)
+        assertFalse(state.dismissTopPanel())
+    }
+
+    @Test
+    fun `opening contact card picker dismisses quick phrases`() {
+        val state = ComposerState()
+        state.openQuickPhrases()
+        state.openContactCardPicker()
+
+        val snapshot = state.snapshot()
+        assertFalse(snapshot.quickPhrasesVisible)
+        assertTrue(snapshot.contactCardPickerVisible)
+    }
+
+    @Test
+    fun `saver round trip preserves ai menu and contact card picker`() {
+        val state = ComposerState()
+        state.aiMenu.value = true
+        state.contactCardPicker.value = true
+
+        val scope = object : SaverScope {
+            override fun canBeSaved(value: Any): Boolean = true
+        }
+        val saved = with(ComposerState.Saver) { scope.save(state) }
+        val restored = ComposerState.Saver.restore(saved!!)
+
+        assertEquals(state.snapshot(), restored?.snapshot())
+        assertTrue(restored!!.snapshot().aiMenuVisible)
+        assertTrue(restored.snapshot().contactCardPickerVisible)
+    }
+
+    @Test
+    fun `toggling attach menu while expression open switches panels`() {
+        val state = ComposerState()
+        state.toggleExpressionPanel()
+        assertTrue(state.snapshot().expressionPanelVisible)
+
+        state.toggleAttachMenu()
+        val snapshot = state.snapshot()
+        assertTrue(snapshot.attachMenuVisible)
+        assertFalse(snapshot.expressionPanelVisible)
+    }
+
 }
