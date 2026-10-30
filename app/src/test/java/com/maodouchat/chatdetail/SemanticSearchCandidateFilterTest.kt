@@ -310,4 +310,91 @@ class SemanticSearchCandidateFilterTest {
         starred: Boolean = false,
         senderId: String = "user"
     ) = Message(id, "chat", senderId, content, type, timestamp, MessageStatus.SENT, starred = starred, meta = meta)
+
+
+    @Test
+    fun `thirty-day window keeps twenty-day-old and drops forty-day-old`() {
+        val now = 5_000_000_000L
+        val day = 24L * 3600 * 1000
+        val messages = listOf(
+            message("fresh", "new text", timestamp = now - 20 * day),
+            message("stale", "old text", timestamp = now - 40 * day)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.THIRTY_DAYS,
+            query = "",
+            now = now
+        )
+        assertEquals(listOf("fresh"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `text scope keeps only messages with non-blank text`() {
+        val messages = listOf(
+            message("voice", "voice://1", type = MessageType.VOICE, meta = MessageMeta(voiceTranscript = "hello"), timestamp = 1L),
+            message("blank", "   ", timestamp = 2L),
+            message("text", "hello world", timestamp = 3L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.TEXT,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("text"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `voice scope keeps transcript messages and drops plain text`() {
+        val messages = listOf(
+            message("text", "hello world", timestamp = 1L),
+            message("voice", "voice://1", type = MessageType.VOICE, meta = MessageMeta(voiceTranscript = "hello"), timestamp = 2L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.VOICE,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("voice"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `translation scope keeps only messages carrying a translation`() {
+        val messages = listOf(
+            message("plain", "hello", timestamp = 1L),
+            message("translated", "bonjour", meta = MessageMeta(translations = mapOf("en" to "hello")), timestamp = 2L),
+            message("blankTranslation", "hola", meta = MessageMeta(translations = mapOf("en" to "  ")), timestamp = 3L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.TRANSLATION,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("translated"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `starred stale message does not survive the seven-day window`() {
+        val now = 10_000_000L
+        val messages = listOf(
+            message("starredStale", "old star", timestamp = now - 8L * 24 * 3600 * 1000, starred = true),
+            message("fresh", "new text", timestamp = now - 1_000L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.SEVEN_DAYS,
+            query = "",
+            now = now
+        )
+        assertEquals(listOf("fresh"), candidates.map { it.id })
+    }
+
 }

@@ -310,4 +310,71 @@ class ChatExportTest {
         val fileMsg = Message(id = "1", chatId = "c", senderId = "u", content = "", type = MessageType.FILE)
         assertEquals("[文件]", ChatExport.renderBody(fileMsg))
     }
+
+
+    @Test
+    fun renderBody_systemAndSkDistRenderEmpty() {
+        val sysMsg = Message(id = "1", chatId = "c", senderId = "u", content = "alert", type = MessageType.SYSTEM)
+        assertEquals("", ChatExport.renderBody(sysMsg))
+        val distMsg = Message(id = "2", chatId = "c", senderId = "u", content = "payload", type = MessageType.SK_DIST)
+        assertEquals("", ChatExport.renderBody(distMsg))
+    }
+
+    @Test
+    fun buildText_preservesInputOrderNotTimestampOrder() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "me", content = "laterFirst", type = MessageType.TEXT, timestamp = 1600000003000L),
+                Message(id = "m2", chatId = "c", senderId = "me", content = "earlierSecond", type = MessageType.TEXT, timestamp = 1600000001000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.indexOf("laterFirst") < text.indexOf("earlierSecond"))
+    }
+
+    @Test
+    fun writeStream_immediateCancellationReturnsNullAndLeavesNoFiles() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "me", content = "hi", type = MessageType.TEXT, timestamp = 1600000000000L)
+        )
+        val file = ChatExport.writeStream(
+            context = dummyContext,
+            fileName = "immediate_cancel",
+            chatName = "C",
+            ownerId = "me",
+            messages = messages.asSequence(),
+            resolveSenderName = { it },
+            isCancelled = { true }
+        )
+        assertNull(file)
+        val exportsDir = File(cacheDir, "exports")
+        assertFalse(File(exportsDir, "immediate_cancel.txt").exists())
+        assertFalse(File(exportsDir, "immediate_cancel.tmp").exists())
+    }
+
+    @Test
+    fun write_allUnsafeCharsSanitized() {
+        val file = ChatExport.write(dummyContext, "***", "hi")
+        assertNotNull(file)
+        assertEquals("___.txt", file!!.name)
+        assertEquals("hi", file.readText())
+    }
+
+    @Test
+    fun buildText_revokedBodyRendersForNonOwner() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { if (it == "friend") "Alice" else it },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "friend", content = "gone", type = MessageType.REVOKED, timestamp = 1600000000000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("Alice: [\u6d88\u606f\u5df2\u64a4\u56de]"))
+    }
+
 }
