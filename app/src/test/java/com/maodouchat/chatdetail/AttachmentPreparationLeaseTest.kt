@@ -298,6 +298,95 @@ class AttachmentPreparationLeaseTest {
     }
 
     @Test
+    fun `prepared deletion failure propagates and skips permission release`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = {
+                effects += "prepared:$it"
+                throw IllegalStateException("prep")
+            },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordEncryptedPath("/private/encrypted.bin")
+        lease.recordPreparedSource("file://prepared.jpg")
+
+        val thrown = assertThrows(IllegalStateException::class.java) {
+            lease.cleanupIfOwned()
+        }
+        assertEquals("prep", thrown.message)
+        assertEquals(
+            listOf("encrypted:/private/encrypted.bin", "prepared:file://prepared.jpg"),
+            effects
+        )
+        assertFalse(lease.cleanupIfOwned())
+    }
+
+    @Test
+    fun `blank encrypted record then value deletes the value`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordEncryptedPath("   ")
+        lease.recordEncryptedPath("second")
+
+        assertTrue(lease.cleanupIfOwned())
+        assertEquals(listOf("encrypted:second", "permission:content://original"), effects)
+    }
+
+    @Test
+    fun `blank prepared record then value deletes the value`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordPreparedSource("")
+        lease.recordPreparedSource("file://prepared.jpg")
+
+        assertTrue(lease.cleanupIfOwned())
+        assertEquals(listOf("prepared:file://prepared.jpg", "permission:content://original"), effects)
+    }
+
+    @Test
+    fun `fresh lease is not handed off and cleans only the permission`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+
+        assertFalse(lease.isHandedOff())
+        assertTrue(lease.cleanupIfOwned())
+        assertEquals(listOf("permission:content://original"), effects)
+        assertFalse(lease.cleanupIfOwned())
+    }
+
+    @Test
+    fun `empty lease with blank uri cleans nothing but still marks cleaned`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = " ",
+            deleteEncryptedFile = { effects += it },
+            deletePreparedSource = { effects += it },
+            releasePersistablePermission = { effects += it }
+        )
+
+        assertTrue(lease.cleanupIfOwned())
+        assertTrue(effects.isEmpty())
+        assertFalse(lease.cleanupIfOwned())
+    }
+
+    @Test
     fun `encrypted deletion runs before prepared source regardless of record order`() {
         val effects = mutableListOf<String>()
         val lease = AttachmentPreparationLease(
