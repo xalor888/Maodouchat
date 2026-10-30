@@ -5,6 +5,7 @@ import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.ChatSearchScope
+import com.maodouchat.ui.screen.chatdetail.MentionPolicy
 import com.maodouchat.ui.screen.chatdetail.ChatSearchWindow
 import com.maodouchat.ui.screen.chatdetail.buildChatSearchDocuments
 import com.maodouchat.ui.screen.chatdetail.semanticSearchCandidates
@@ -204,6 +205,100 @@ class SemanticSearchCandidateFilterTest {
             now = 10_000L
         )
         assertEquals(listOf("old", "mid", "new"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `final chronological order dominates keyword and starred priority`() {
+        val messages = listOf(
+            message("hit", "hello world", timestamp = 30L),
+            message("plain", "nothing here", timestamp = 10L),
+            message("star", "nothing here", timestamp = 20L, starred = true)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+
+        assertEquals(listOf("plain", "star", "hit"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `media scope candidates keep only media messages`() {
+        val messages = listOf(
+            message("pic", "file://pic", type = MessageType.IMAGE, timestamp = 1L),
+            message("clip", "file://clip", type = MessageType.VIDEO, timestamp = 2L),
+            message("note", "hello", timestamp = 3L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.MEDIA,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+
+        assertEquals(listOf("pic", "clip"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `mentions scope candidates keep direct and everyone mentions`() {
+        val messages = listOf(
+            message("direct", "hi", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
+            message("everyone", "all", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+            message("other", "them", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L),
+            message("plain", "yo", timestamp = 4L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.MENTIONS,
+            ChatSearchWindow.ALL,
+            query = "",
+            currentUserId = "me",
+            now = 10_000L
+        )
+
+        assertEquals(listOf("direct", "everyone"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `per-sender cap binds with ten heavy senders`() {
+        val messages = (0 until 10).flatMap { sender ->
+            (0 until 30).map { index ->
+                message("s${sender}_$index", "text $index", senderId = "sender$sender", timestamp = index * 10L + sender)
+            }
+        }
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+
+        assertEquals(100, candidates.size)
+        assertTrue(candidates.groupBy { it.senderId }.values.all { it.size == 10 })
+    }
+
+    @Test
+    fun `blank text and blank transcripts never become candidates`() {
+        val messages = listOf(
+            message("blank", "   "),
+            message("empty", ""),
+            message("voice", "voice://1", type = MessageType.VOICE, meta = MessageMeta(voiceTranscript = "  ")),
+            message("good", "hello")
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+
+        assertEquals(listOf("good"), candidates.map { it.id })
     }
 
     private fun message(

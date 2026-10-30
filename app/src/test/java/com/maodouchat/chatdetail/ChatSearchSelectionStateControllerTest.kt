@@ -136,4 +136,74 @@ class ChatSearchSelectionStateControllerTest {
         val consumed = controller.consumeNavigation(targeted)
         assertEquals(null, consumed.navigationTargetMessageId)
     }
+    @Test
+    fun `secret chat precedence over disabled ai`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(isSecretChat = true, aiEnabled = false),
+            "query", listOf("message"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        assertEquals("secret", (result as SemanticSearchAdmission.Rejected).state.semanticSearchError)
+    }
+
+    @Test
+    fun `candidate ids capped at one hundred`() {
+        val ids = (0 until 150).map { "id$it" }
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true), "query", ids, "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        result as SemanticSearchAdmission.Accepted
+        assertEquals(100, result.candidateIds.size)
+        assertEquals("id99", result.candidateIds.last())
+    }
+
+    @Test
+    fun `clear keeps consent when caller says it remains pending`() {
+        val cleared = controller.clearSemanticSearch(
+            ChatDetailUiState(
+                semanticSearchResultIds = listOf("one"),
+                semanticSearchQuery = "query",
+                isSemanticSearching = true,
+                semanticSearchError = "error",
+                showAiConsentDialog = false,
+            ),
+            showConsentDialog = true,
+        )
+
+        assertTrue(cleared.semanticSearchResultIds.isEmpty())
+        assertFalse(cleared.isSemanticSearching)
+        assertEquals(null, cleared.semanticSearchError)
+        assertTrue(cleared.showAiConsentDialog)
+    }
+
+    @Test
+    fun `blank query beats empty candidates in admission order`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true), "   ", emptyList(), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        assertEquals("blank", (result as SemanticSearchAdmission.Rejected).state.semanticSearchError)
+    }
+
+    @Test
+    fun `navigation overwrite keeps other state and consume only clears target`() {
+        val state = ChatDetailUiState(
+            navigationTargetMessageId = "old",
+            semanticSearchQuery = "query",
+            semanticSearchResultIds = listOf("result"),
+        )
+
+        val targeted = controller.navigateTo(state, "new")
+        assertEquals("new", targeted.navigationTargetMessageId)
+        assertEquals("query", targeted.semanticSearchQuery)
+
+        val consumed = controller.consumeNavigation(targeted)
+        assertEquals(null, consumed.navigationTargetMessageId)
+        assertEquals("query", consumed.semanticSearchQuery)
+        assertEquals(listOf("result"), consumed.semanticSearchResultIds)
+    }
 }
