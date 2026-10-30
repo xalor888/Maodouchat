@@ -519,4 +519,105 @@ class GroupLifecycleCoordinatorTest {
         fetchChat = fetchChat,
         invalidateEpoch = invalidateEpoch,
     )
+
+    @Test
+    fun `whitespace chatId rejected before any session read or mutation`() = runTest {
+        var mutationCalled = false
+        var sessionRead = false
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = {
+                sessionRead = true
+                "owner-1"
+            },
+            token = { "token-1" },
+            sessionActive = { sessionRead = true; true },
+            fetchChat = { _, _ -> Result.success(null) },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("   ", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is IllegalArgumentException)
+        assertEquals("group_chat_id_missing", thrown?.message)
+        assertFalse(mutationCalled)
+        assertFalse(sessionRead)
+    }
+
+    @Test
+    fun `negative revision invalidates with null revision`() = runTest {
+        var invalidatedRevision: Long? = 99L
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true, memberRevision = -5L))
+            },
+            invalidateEpoch = { _, _, revision -> invalidatedRevision = revision },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertNull(invalidatedRevision)
+        assertFalse(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `default revision invalidates with null revision`() = runTest {
+        var invalidatedRevision: Long? = 99L
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true))
+            },
+            invalidateEpoch = { _, _, revision -> invalidatedRevision = revision },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertEquals("group-1", result.refreshedChat?.id)
+        assertNull(invalidatedRevision)
+        assertFalse(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `default rotation skips invalidation on refresh success`() = runTest {
+        var invalidateCalled = false
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true, memberRevision = 12L))
+            },
+            invalidateEpoch = { _, _, _ -> invalidateCalled = true },
+        )
+
+        val result = coordinator.mutate("group-1") {}
+
+        assertTrue(result.committed)
+        assertEquals(12L, result.refreshedChat?.memberRevision)
+        assertFalse(result.hasPostCommitWarning)
+        assertFalse(invalidateCalled)
+    }
+
+    @Test
+    fun `session inactive pre-mutation reports session missing message`() = runTest {
+        var mutationCalled = false
+        var fetchCalled = false
+        val coordinator = coordinator(
+            sessionActive = { false },
+            fetchChat = { _, _ ->
+                fetchCalled = true
+                Result.success(null)
+            },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is GroupLifecycleSessionException)
+        assertEquals("group_mutation_session_missing", thrown?.message)
+        assertFalse(mutationCalled)
+        assertFalse(fetchCalled)
+    }
+
 }
