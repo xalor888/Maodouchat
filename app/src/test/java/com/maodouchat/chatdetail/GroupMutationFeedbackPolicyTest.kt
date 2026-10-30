@@ -219,4 +219,63 @@ class GroupMutationFeedbackPolicyTest {
         assertFalse(fb.shouldReload)
         assertEquals("offline", fb.detail)
     }
+
+    @Test
+    fun `410 gone is conflict and reloads`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.REMOVE_MEMBER,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 410, serverMessage = "gone")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+    }
+
+    @Test
+    fun `GROUP_NOT_FOUND code without status is conflict`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.LOAD,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "GROUP_NOT_FOUND")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_NOT_FOUND", fb.serverCode)
+    }
+
+    @Test
+    fun `GROUP_ACTOR_NOT_MEMBER code without status is permission`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ADD_MEMBER,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "GROUP_ACTOR_NOT_MEMBER")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_PERMISSION, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_ACTOR_NOT_MEMBER", fb.serverCode)
+    }
+
+    @Test
+    fun `invalid response kind without status is retryable`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.RENAME,
+            ApiException(kind = ApiFailureKind.INVALID_RESPONSE, serverMessage = "garbled")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_RETRYABLE, fb.kind)
+        assertTrue(fb.canRetry)
+        assertFalse(fb.shouldReload)
+        assertEquals("garbled", fb.detail)
+    }
+
+    @Test
+    fun `unexpected kind is fatal without retry`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.MUTE,
+            ApiException(kind = ApiFailureKind.UNEXPECTED, serverMessage = "weird")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_FATAL, fb.kind)
+        assertFalse(fb.canRetry)
+        assertFalse(fb.shouldReload)
+        assertEquals("weird", fb.detail)
+    }
 }

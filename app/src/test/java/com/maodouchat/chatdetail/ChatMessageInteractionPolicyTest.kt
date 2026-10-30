@@ -134,4 +134,39 @@ class ChatMessageInteractionPolicyTest {
         assertTrue(shouldTriggerSwipeReply(-100f, 100f))
         assertTrue(shouldTriggerSwipeReply(-101f, 100f))
     }
+
+    @Test
+    fun forwardableCoversMediaButNotSkDist() {
+        assertTrue(isMessageForwardable(MessageType.VIDEO))
+        assertTrue(isMessageForwardable(MessageType.LOCATION))
+        assertTrue(isMessageForwardable(MessageType.GIF))
+        assertFalse(isMessageForwardable(MessageType.SK_DIST))
+    }
+
+    @Test
+    fun forwardBlockFlagIsNotConsulted() {
+        // forwardBlockEnabled is currently not consulted by the implementation.
+        assertTrue(isMessageForwardable(MessageType.TEXT, isSecretChat = false, forwardBlockEnabled = true))
+        assertTrue(isMessageForwardable(MessageType.TEXT, isSecretChat = false, forwardBlockEnabled = false))
+        assertFalse(isMessageForwardable(MessageType.NUDGE, isSecretChat = false, forwardBlockEnabled = false))
+    }
+
+    @Test
+    fun replyableCoversMediaButNotSkDist() {
+        assertTrue(isMessageReplyable(MessageType.VIDEO))
+        assertTrue(isMessageReplyable(MessageType.LOCATION))
+        assertFalse(isMessageReplyable(MessageType.SK_DIST))
+    }
+
+    @Test
+    fun swipeReplyFractionalBoundary() {
+        assertFalse(shouldTriggerSwipeReply(-51.9f, 52f))
+        assertTrue(shouldTriggerSwipeReply(-52.1f, 52f))
+    }
+
+    @Test
+    fun secretChatBlocksMarkdownCopy() {
+        assertFalse(isMessageCopyable(MessageType.MARKDOWN, isSecretChat = true))
+        assertTrue(isMessageCopyable(MessageType.MARKDOWN, isSecretChat = false))
+    }
 }

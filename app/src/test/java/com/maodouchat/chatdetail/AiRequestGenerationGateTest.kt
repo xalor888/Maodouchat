@@ -134,4 +134,77 @@ class AiRequestGenerationGateTest {
         assertNotEquals(token, fresh)
         assertEquals(token + 2, fresh)
     }
+
+    @Test
+    fun `two gates hand out independent token sequences`() {
+        val first = AiRequestGenerationGate()
+        val second = AiRequestGenerationGate()
+
+        assertEquals(1L, first.next())
+        assertEquals(1L, second.next())
+        assertEquals(2L, first.next())
+
+        assertFalse(first.isCurrent(1L))
+        assertTrue(first.isCurrent(2L))
+        assertTrue(second.isCurrent(1L))
+    }
+
+    @Test
+    fun `double invalidate before the first request skips two generations`() {
+        val gate = AiRequestGenerationGate()
+
+        gate.invalidate()
+        gate.invalidate()
+        val fresh = gate.next()
+
+        assertEquals(3L, fresh)
+        assertFalse(gate.isCurrent(1L))
+        assertFalse(gate.isCurrent(2L))
+        assertTrue(gate.isCurrent(3L))
+    }
+
+    @Test
+    fun `invalidate after a run of requests leaves only the skipped generation unreachable`() {
+        val gate = AiRequestGenerationGate()
+        val tokens = List(5) { gate.next() }
+
+        gate.invalidate()
+        val fresh = gate.next()
+
+        assertEquals(7L, fresh)
+        assertTrue(tokens.none { gate.isCurrent(it) })
+        assertFalse(gate.isCurrent(6L))
+        assertTrue(gate.isCurrent(7L))
+    }
+
+    @Test
+    fun `the same numeric token belongs to only its own gate`() {
+        val first = AiRequestGenerationGate()
+        val second = AiRequestGenerationGate()
+
+        first.next()
+        first.next()
+        second.next()
+
+        assertFalse(first.isCurrent(1L))
+        assertTrue(second.isCurrent(1L))
+    }
+
+    @Test
+    fun `invalidate never resurrects a superseded token`() {
+        val gate = AiRequestGenerationGate()
+        val stale = gate.next()
+        gate.next()
+
+        gate.invalidate()
+        val fresh = gate.next()
+        gate.invalidate()
+        val newer = gate.next()
+
+        assertFalse(gate.isCurrent(stale))
+        assertFalse(gate.isCurrent(fresh))
+        assertFalse(gate.isCurrent(5L))
+        assertEquals(6L, newer)
+        assertTrue(gate.isCurrent(newer))
+    }
 }

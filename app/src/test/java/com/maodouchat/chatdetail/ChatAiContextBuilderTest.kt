@@ -251,4 +251,68 @@ class ChatAiContextBuilderTest {
         assertEquals(listOf("a text", "b text"), context.map { it.text })
     }
 
+    @Test
+    fun `plain context drops voice messages even when a transcript exists`() {
+        val voice = message(
+            "voice", "alice", "encrypted-reference", 10L,
+            MessageMeta(voiceTranscript = "语音内容"), MessageType.VOICE
+        )
+
+        assertTrue(buildPlainAiContextMessages(listOf(voice), senders, limit = 10).isEmpty())
+        assertEquals(
+            "语音内容",
+            buildSummaryAiContextMessages(listOf(voice), senders).single().text
+        )
+    }
+
+    @Test
+    fun `current user label wins over the names map`() {
+        val renamed = senders.copy(namesByUserId = mapOf("me" to "冒名", "alice" to "Alice"))
+
+        val context = buildPlainAiContextMessages(
+            listOf(message("m1", "me", "hi", 1L)),
+            renamed,
+            limit = 10
+        )
+
+        assertEquals("我", context.single().sender)
+    }
+
+    @Test
+    fun `plain context falls back for unmapped senders`() {
+        val context = buildPlainAiContextMessages(
+            listOf(message("m1", "stranger", "hi", 1L)),
+            senders,
+            limit = 10
+        )
+
+        assertEquals("对方", context.single().sender)
+    }
+
+    @Test
+    fun `summary keeps markdown text`() {
+        val context = buildSummaryAiContextMessages(
+            listOf(message("md", "alice", "# 标题", 10L, type = MessageType.MARKDOWN)),
+            senders
+        )
+
+        assertEquals("# 标题", context.single().text)
+    }
+
+    @Test
+    fun `summary keeps system messages only through translations`() {
+        val bare = message("sys", "alice", "system", 10L, type = MessageType.SYSTEM)
+        assertTrue(buildSummaryAiContextMessages(listOf(bare), senders).isEmpty())
+
+        val translated = message(
+            "sys2", "alice", "system", 20L,
+            MessageMeta(translations = mapOf("en" to "system translation")),
+            MessageType.SYSTEM
+        )
+        assertEquals(
+            "system translation",
+            buildSummaryAiContextMessages(listOf(translated), senders).single().text
+        )
+    }
+
 }
