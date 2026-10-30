@@ -330,4 +330,66 @@ class ChatExportControllerTest {
 
         assertTrue(controller.exportChatAsJson().contains("\"isGroup\":false"))
     }
+
+    @Test
+    fun `exportChatAsJson reports zero count for empty messages`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = emptyList(),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"messageCount\":0"))
+        assertTrue(json.contains("\"partial\":false"))
+    }
+
+    @Test
+    fun `exportChatAsJson includes blank group name verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "g1", isGroup = true, groupName = ""),
+            messages = emptyList(),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"groupName\":\"\""))
+    }
+
+    @Test
+    fun `exportChatAsJson preserves message order`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "one", type = MessageType.TEXT),
+                Message(id = "m2", chatId = "c1", senderId = "user_me", content = "two", type = MessageType.TEXT),
+                Message(id = "m3", chatId = "c1", senderId = "user_me", content = "three", type = MessageType.TEXT),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        val first = json.indexOf("\"id\":\"m1\"")
+        val second = json.indexOf("\"id\":\"m2\"")
+        val third = json.indexOf("\"id\":\"m3\"")
+        assertTrue(first >= 0 && first < second && second < third)
+    }
+
+    @Test
+    fun `exportChatAsJson includes plain text content verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "order 12345 confirmed", type = MessageType.TEXT),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("order 12345 confirmed"))
+    }
+
+    @Test
+    fun `clearExportInfo leaves other info message untouched`() {
+        uiState.value = ChatDetailUiState(exportInfoMessage = "done", infoMessage = "kept")
+
+        controller.clearExportInfo()
+
+        assertNull(uiState.value.exportInfoMessage)
+        assertEquals("kept", uiState.value.infoMessage)
+    }
 }
