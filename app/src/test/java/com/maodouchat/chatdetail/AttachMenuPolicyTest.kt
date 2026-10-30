@@ -508,4 +508,97 @@ class AttachMenuPolicyTest {
         }
     }
 
+    @Test
+    fun groupWithAiExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.CONTACT_CARD,
+                AttachMenuKind.AI,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(true, false, true, true, true, aiEnabled = true),
+        )
+    }
+
+    @Test
+    fun groupAllFlagsOffExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(true, false, false, false, false),
+        )
+    }
+
+    @Test
+    fun dmViewOnceOffWithAiAndContactCardExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.CONTACT_CARD,
+                AttachMenuKind.AI,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(false, false, false, true, true, aiEnabled = true),
+        )
+    }
+
+    @Test
+    fun groupViewOnceOffAiWithoutContactCardExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.AI,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(true, false, false, false, true, aiEnabled = true),
+        )
+    }
+
+    @Test
+    fun channelLacksNonMediaTiles() {
+        val items = AttachMenuPolicy.items(true, true, true, true, true)
+        assertFalse(AttachMenuKind.SPOILER in items)
+        assertFalse(AttachMenuKind.VOICE in items)
+        assertFalse(AttachMenuKind.LOCATION in items)
+        assertFalse(AttachMenuKind.QUICK_PHRASES in items)
+        assertTrue(AttachMenuKind.PASTE in items)
+        assertTrue(AttachMenuKind.SCHEDULE in items)
+    }
+
 }

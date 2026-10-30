@@ -325,4 +325,56 @@ class DecryptFailureDisplayPolicyTest {
         assertEquals(listOf("m1", "m2"), merged.map { it.id })
     }
 
+    @Test
+    fun `plaintext wins over padded english placeholder`() {
+        val readable = message("m1", "hello")
+        val padded = message("m1", "  decrypt failed  ")
+
+        assertEquals("hello", mergeMessageVersions(listOf(readable), listOf(padded)).single().content)
+        assertEquals("hello", mergeMessageVersions(listOf(padded), listOf(readable)).single().content)
+    }
+
+    @Test
+    fun `star follows candidate when readable content is kept`() {
+        val plain = message("m1", "hello").copy(starred = false)
+        val starredPlaceholder = message("m1", "无法解密").copy(starred = true)
+
+        val kept = mergeMessageVersions(listOf(plain), listOf(starredPlaceholder)).single()
+        assertEquals("hello", kept.content)
+        assertEquals(true, kept.starred)
+
+        val unstarredPlain = message("m1", "hello").copy(starred = false)
+        val starredCurrent = message("m1", "decrypt failed").copy(starred = true)
+        val keptReverse = mergeMessageVersions(listOf(starredCurrent), listOf(unstarredPlain)).single()
+        assertEquals("hello", keptReverse.content)
+        assertEquals(false, keptReverse.starred)
+    }
+
+    @Test
+    fun `revoked current survives newer plaintext edit`() {
+        val revoked = message("m1", "hello").copy(type = MessageType.REVOKED, editedAt = 100L)
+        val newerPlain = message("m1", "hello").copy(editedAt = 200L)
+
+        assertEquals(revoked, mergeMessageVersions(listOf(revoked), listOf(newerPlain)).single())
+    }
+
+    @Test
+    fun `failed never beats sending in either order`() {
+        val failed = message("m1", "hello").copy(status = MessageStatus.FAILED)
+        val sending = message("m1", "hello").copy(status = MessageStatus.SENDING)
+
+        assertEquals(MessageStatus.SENDING, mergeMessageVersions(listOf(failed), listOf(sending)).single().status)
+        assertEquals(MessageStatus.SENDING, mergeMessageVersions(listOf(sending), listOf(failed)).single().status)
+    }
+
+    @Test
+    fun `equal revision editedAt falls back to current when candidate has none`() {
+        val current = message("m1", "hello").copy(editedAt = 100L)
+        val candidate = message("m1", "hello")
+
+        val merged = mergeMessageVersions(listOf(current), listOf(candidate)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(100L, merged.editedAt)
+    }
+
 }

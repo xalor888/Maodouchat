@@ -441,4 +441,52 @@ class NudgeDisplayPolicyTest {
         assertEquals("李四 拍了拍hello", text)
     }
 
+    @Test
+    fun extractTargetNameStripsLeadingWhitespaceBeforePrefix() {
+        assertEquals("张三", NudgeDisplayPolicy.extractTargetName("  你拍了拍张三  "))
+        assertEquals("Alex", NudgeDisplayPolicy.extractTargetName("  You nudged Alex "))
+    }
+
+    @Test
+    fun ownMessagePaddedPlainContentRebuildsYouForm() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "  hello  ",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍hello", text)
+    }
+
+    @Test
+    fun nonOwnDirectPaddedPlainContentStillShowsTheyNudgedYou() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "  hello  ",
+            senderDisplayName = "李四",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍你", text)
+    }
+
+    @Test
+    fun ownMessageNudgedWithoutTrailingSpaceRebuildsFromRawText() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "You nudged",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍You nudged", text)
+    }
+
+    @Test
+    fun extractTargetNamePrefixOnlyWithSurroundingWhitespaceReturnsEmpty() {
+        assertEquals("", NudgeDisplayPolicy.extractTargetName("   你拍了拍   "))
+        assertEquals("", NudgeDisplayPolicy.extractTargetName("  You nudged  "))
+    }
+
 }

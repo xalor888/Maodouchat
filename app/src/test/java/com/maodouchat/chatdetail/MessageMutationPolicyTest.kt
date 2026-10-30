@@ -1,6 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.Message
+import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
@@ -12,6 +13,7 @@ import com.maodouchat.ui.screen.chatdetail.isAlreadyTerminalMutation
 import com.maodouchat.ui.screen.chatdetail.isAmbiguousTransportFailure
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
 import com.maodouchat.ui.screen.chatdetail.toOptimisticEdit
+import com.maodouchat.ui.screen.chatdetail.toRevokedPlaceholder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -325,6 +327,64 @@ class MessageMutationPolicyTest {
         val candidate = message("m1", "new", MessageType.TEXT)
         val merged = mergeMessageVersions(listOf(current), listOf(candidate)).single()
         assertEquals("new", merged.content)
+    }
+
+    @Test
+    fun `optimistic edit advances from timestamp when prior revision is older`() {
+        val original = message("m-oldrev", "old", MessageType.TEXT).copy(
+            timestamp = 1_000L,
+            editedAt = 500L
+        )
+
+        val edited = original.toOptimisticEdit("new")
+
+        assertEquals(1_001L, edited.editedAt)
+        assertEquals("new", edited.content)
+        assertEquals("m-oldrev", edited.id)
+        assertEquals(MessageType.TEXT, edited.type)
+    }
+
+    @Test
+    fun `optimistic edit at timestamp max saturates without prior revision`() {
+        val original = message("m-tsmax", "old", MessageType.TEXT).copy(timestamp = Long.MAX_VALUE)
+
+        val edited = original.toOptimisticEdit("new")
+
+        assertEquals(Long.MAX_VALUE, edited.editedAt)
+        assertEquals("new", edited.content)
+    }
+
+    @Test
+    fun `ambiguous transport covers 500 and 502 but not 404`() {
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 500)))
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 502)))
+        assertFalse(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 404)))
+    }
+
+    @Test
+    fun `rollback of edit ticket frees message for delete`() {
+        val tracker = MessageMutationTracker()
+        val ticket = tracker.begin("m-free", MessageMutationKind.EDIT)!!
+
+        assertTrue(tracker.shouldRollback(ticket))
+        assertTrue(tracker.begin("m-free", MessageMutationKind.DELETE) != null)
+        assertTrue(tracker.shouldDrop("m-free"))
+    }
+
+    @Test
+    fun `revoked placeholder replaces content and clears meta`() {
+        val original = message("m-revoked", "hello", MessageType.TEXT).copy(
+            status = MessageStatus.READ,
+            meta = MessageMeta(mentions = listOf("u1"), replyToId = "m0")
+        )
+
+        val placeholder = original.toRevokedPlaceholder("已撤回")
+
+        assertEquals("已撤回", placeholder.content)
+        assertEquals(MessageType.REVOKED, placeholder.type)
+        assertEquals(MessageMeta(), placeholder.meta)
+        assertEquals(MessageStatus.READ, placeholder.status)
+        assertEquals("m-revoked", placeholder.id)
     }
 
 }
