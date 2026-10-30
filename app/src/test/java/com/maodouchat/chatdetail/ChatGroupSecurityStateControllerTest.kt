@@ -1,5 +1,6 @@
 package com.maodouchat.chatdetail
 
+import com.maodouchat.crypto.DeviceSafetyState
 import com.maodouchat.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
@@ -204,4 +205,79 @@ class ChatGroupSecurityStateControllerTest {
         assertFalse(state.isLoadingDeviceSafety)
         assertEquals(IdentityTrustState.TRUSTED, state.trustState)
     }
+
+
+    @Test
+    fun `presentMembers duplicate userId keeps first self fields but last role in map`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(
+                GroupMemberDto(userId = "a", name = "A", role = "ADMIN", mutedUntil = 5L),
+                GroupMemberDto(userId = "a", name = "A2", role = "MEMBER", mutedUntil = 9L),
+            ),
+            currentUserId = "a",
+        )
+
+        assertEquals("ADMIN", state.myMemberRole)
+        assertEquals(5L, state.myMutedUntil)
+        assertEquals(mapOf("a" to "MEMBER"), state.memberRoleByUser)
+    }
+
+    @Test
+    fun `presentGroup empty warning string replaces existing warning`() {
+        val state = controller.presentGroup(
+            ChatDetailUiState(groupEncryptionWarning = "previous"),
+            Chat(id = "group", isGroup = true, groupName = "Team"),
+            User("group", "Team"),
+            warning = "",
+        )
+
+        assertEquals("", state.groupEncryptionWarning)
+    }
+
+    @Test
+    fun `resetDirectIdentityForGroup clears device safety list and warning`() {
+        val state = controller.resetDirectIdentityForGroup(
+            ChatDetailUiState(
+                deviceSafetyStates = listOf(
+                    DeviceSafetyState(1, "key", "fp", IdentityTrustState.TRUSTED, "code"),
+                ),
+                deviceSafetyWarning = "error",
+            ),
+        )
+
+        assertTrue(state.deviceSafetyStates.isEmpty())
+        assertEquals(null, state.deviceSafetyWarning)
+    }
+
+    @Test
+    fun `presentGroup preserves unrelated member fields`() {
+        val state = controller.presentGroup(
+            ChatDetailUiState(
+                myMemberRole = "ADMIN",
+                memberRoleByUser = mapOf("a" to "ADMIN"),
+                memberNicknameByUser = mapOf("a" to "Al"),
+            ),
+            Chat(id = "group", isGroup = true, groupName = "Team"),
+            User("group", "Team"),
+        )
+
+        assertEquals("ADMIN", state.myMemberRole)
+        assertEquals(mapOf("a" to "ADMIN"), state.memberRoleByUser)
+        assertEquals(mapOf("a" to "Al"), state.memberNicknameByUser)
+    }
+
+    @Test
+    fun `presentMembers preserves chat and group warning fields`() {
+        val group = Chat(id = "group", isGroup = true, groupName = "Team")
+        val state = controller.presentMembers(
+            ChatDetailUiState(chat = group, groupEncryptionWarning = "warn"),
+            listOf(GroupMemberDto(userId = "a", name = "A", role = "MEMBER")),
+            currentUserId = "me",
+        )
+
+        assertEquals(group, state.chat)
+        assertEquals("warn", state.groupEncryptionWarning)
+    }
+
 }
