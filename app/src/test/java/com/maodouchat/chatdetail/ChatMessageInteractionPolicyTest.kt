@@ -299,4 +299,38 @@ class ChatMessageInteractionPolicyTest {
             toggleMessageSelection(setOf("m1", "m2", "m3"), "m2").toList()
         )
     }
+
+    @Test
+    fun negativeThresholdNeverTriggersSwipeReply() {
+        assertFalse(shouldTriggerSwipeReply(-1000f, -52f))
+        assertFalse(shouldTriggerSwipeReply(-52f, -52f))
+        assertFalse(shouldTriggerSwipeReply(-1000f, -1f))
+    }
+
+    @Test
+    fun copyBlockFlagDoesNotAffectNonSecretTextCopy() {
+        assertTrue(isMessageCopyable(MessageType.TEXT, isSecretChat = false, copyBlockEnabled = true))
+        assertTrue(isMessageCopyable(MessageType.MARKDOWN, isSecretChat = false, copyBlockEnabled = true))
+        assertFalse(isMessageCopyable(MessageType.TEXT, isSecretChat = true, copyBlockEnabled = true))
+    }
+
+    @Test
+    fun forwardBlockFlagDoesNotAffectNonSecretMediaForward() {
+        assertTrue(isMessageForwardable(MessageType.VIDEO, isSecretChat = false, forwardBlockEnabled = true))
+        assertTrue(isMessageForwardable(MessageType.GIF, isSecretChat = false, forwardBlockEnabled = true))
+    }
+
+    @Test
+    fun selectionToggleFiveIdsRemoveMiddleReAddGoesLast() {
+        val removed = toggleMessageSelection(setOf("m1", "m2", "m3", "m4", "m5"), "m3")
+        assertEquals(listOf("m1", "m2", "m4", "m5"), removed.toList())
+        assertEquals(listOf("m1", "m2", "m4", "m5", "m3"), toggleMessageSelection(removed, "m3").toList())
+    }
+
+    @Test
+    fun swipeReplySubPixelThresholdBoundary() {
+        assertTrue(shouldTriggerSwipeReply(-0.001f, 0.001f))
+        assertFalse(shouldTriggerSwipeReply(-0.0009f, 0.001f))
+        assertTrue(shouldTriggerSwipeReply(-1f, 0.001f))
+    }
 }

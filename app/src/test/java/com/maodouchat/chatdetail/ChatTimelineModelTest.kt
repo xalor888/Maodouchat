@@ -682,4 +682,102 @@ class ChatTimelineModelTest {
         assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
     }
 
+    @Test
+    fun `duplicate id keeps the earliest sorted occurrence`() {
+        val items = buildChatItems(
+            listOf(
+                Message(
+                    id = "m1",
+                    chatId = "chat",
+                    senderId = "u1",
+                    content = "second",
+                    type = MessageType.TEXT,
+                    timestamp = 2L,
+                    status = MessageStatus.SENT
+                ),
+                Message(
+                    id = "m1",
+                    chatId = "chat",
+                    senderId = "u1",
+                    content = "first",
+                    type = MessageType.TEXT,
+                    timestamp = 1L,
+                    status = MessageStatus.SENT
+                )
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(1, rows.size)
+        assertEquals("first", rows[0].message.content)
+        assertEquals(1L, rows[0].message.timestamp)
+        assertEquals("msg_m1", rows[0].listKey)
+    }
+
+    @Test
+    fun `three blank ids get sequential keys`() {
+        val items = buildChatItems(
+            listOf(
+                message("", "u1", 1L),
+                message("", "u2", 2L),
+                message("", "u1", 3L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf("msg_blank_1", "msg_blank_2", "msg_blank_3"), rows.map { it.listKey })
+    }
+
+    @Test
+    fun `sender returning after another sender starts a new group`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u2", 2L),
+                message("m3", "u1", 3L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertTrue(rows.all { it.showAvatar && it.showSenderName })
+        assertTrue(rows[0].isGroupEdge)
+        assertTrue(rows[1].isGroupEdge)
+        assertTrue(rows[2].isGroupEdge)
+    }
+
+    @Test
+    fun `sk dist only first day leaves a single second day separator`() {
+        val items = buildChatItems(
+            listOf(
+                message("sk", "u1", 1L, MessageType.SK_DIST),
+                message("m1", "u1", 2L)
+            ),
+            labelForTimestamp = { if (it < 2L) "day-1" else "day-2" }
+        )
+
+        assertEquals(listOf("day-2"), items.filterIsInstance<ChatItem.DateSeparator>().map { it.label })
+        assertEquals(listOf("m1"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `equal timestamps same sender order by id and stay grouped`() {
+        val items = buildChatItems(
+            listOf(
+                message("b", "u1", 5L),
+                message("a", "u1", 5L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf("a", "b"), rows.map { it.message.id })
+        assertTrue(rows[0].showAvatar)
+        assertFalse(rows[1].showAvatar)
+        assertFalse(rows[1].showSenderName)
+        assertFalse(rows[0].isGroupEdge)
+        assertTrue(rows[1].isGroupEdge)
+    }
 }
