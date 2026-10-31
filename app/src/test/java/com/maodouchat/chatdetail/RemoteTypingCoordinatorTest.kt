@@ -513,4 +513,97 @@ class RemoteTypingCoordinatorTest {
 
         assertEquals(listOf("user-a", null), observed)
     }
+
+    @Test
+    fun `retyping an expired earlier user while another stays active`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(1_000L)
+        coordinator.onEvent("chat-1", "chat-1", "user-b", true)
+        advanceTimeBy(2_000L)
+        runCurrent()
+        assertEquals(listOf("user-a", "user-b", "user-b"), observed)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(1_000L)
+        runCurrent()
+        assertEquals(listOf("user-a", "user-b", "user-b", "user-a", "user-a"), observed)
+        advanceTimeBy(2_000L)
+        runCurrent()
+
+        assertEquals(listOf("user-a", "user-b", "user-b", "user-a", "user-a", null), observed)
+    }
+
+    @Test
+    fun `renewing the middle user moves it latest and expiries re-emit it`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(1_000L)
+        coordinator.onEvent("chat-1", "chat-1", "user-b", true)
+        advanceTimeBy(1_000L)
+        coordinator.onEvent("chat-1", "chat-1", "user-c", true)
+        advanceTimeBy(500L)
+        coordinator.onEvent("chat-1", "chat-1", "user-b", true)
+        advanceTimeBy(500L)
+        runCurrent()
+        assertEquals(listOf("user-a", "user-b", "user-c", "user-b", "user-b"), observed)
+        advanceTimeBy(2_000L)
+        runCurrent()
+        assertEquals(listOf("user-a", "user-b", "user-c", "user-b", "user-b", "user-b"), observed)
+        advanceTimeBy(500L)
+        runCurrent()
+
+        assertEquals(listOf("user-a", "user-b", "user-c", "user-b", "user-b", "user-b", null), observed)
+    }
+
+    @Test
+    fun `stopping all users one by one walks the fallback chain to null`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-b", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-c", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-c", false)
+        coordinator.onEvent("chat-1", "chat-1", "user-b", false)
+        coordinator.onEvent("chat-1", "chat-1", "user-a", false)
+
+        assertEquals(listOf("user-a", "user-b", "user-c", "user-b", "user-a", null), observed)
+    }
+
+    @Test
+    fun `same user retype after clear expires on the new schedule`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        coordinator.clear()
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(2_900L)
+        runCurrent()
+        assertEquals("user-a", observed.last())
+        advanceTimeBy(100L)
+        runCurrent()
+
+        assertEquals(listOf("user-a", null, "user-a", null), observed)
+    }
+
+    @Test
+    fun `blank active chat ignores a non-blank event chat`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+
+        coordinator.onEvent("", "chat-1", "user-a", true)
+        assertEquals(emptyList<String?>(), observed)
+
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(3_000L)
+        runCurrent()
+
+        assertEquals(listOf("user-a", null), observed)
+    }
 }
