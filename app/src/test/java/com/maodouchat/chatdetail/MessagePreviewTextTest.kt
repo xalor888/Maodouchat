@@ -848,7 +848,9 @@ class MessagePreviewTextTest {
 
 
     @Test
-    fun textWithTwoMetaTagsShowsBodyBeforeLastMeta() {
+    fun textWithTwoMetaTagsShowsBodyBeforeFirstMeta() {
+        // replyOrQuote 连剥两次 meta：parsedContent 先取到最后一个 <meta> 之前，
+        // redactedIfWire 里的 visiblePreviewText 又剥一次，字面 <meta> 不会残留。
         val msg = Message(
             id = "m1",
             chatId = "c1",
@@ -857,7 +859,7 @@ class MessagePreviewTextTest {
             type = MessageType.TEXT,
         )
         assertEquals(
-            "hello<meta>x",
+            "hello",
             MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
         )
     }

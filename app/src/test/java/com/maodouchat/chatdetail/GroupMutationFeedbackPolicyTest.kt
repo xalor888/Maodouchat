@@ -518,13 +518,14 @@ class GroupMutationFeedbackPolicyTest {
     }
 
     @Test
-    fun `unexpected kind with io cause is retryable`() {
+    fun `unexpected kind with io cause stays fatal`() {
+        // fromThrowable 只认顶层 throwable 本身是不是 IOException，ApiException 的 cause 不算。
         val fb = GroupMutationFeedbackPolicy.fromThrowable(
             GroupMutationAction.LOAD,
             ApiException(kind = ApiFailureKind.UNEXPECTED, cause = IOException("io"))
         )
-        assertEquals(GroupMutationFeedbackKind.ERROR_RETRYABLE, fb.kind)
-        assertTrue(fb.canRetry)
+        assertEquals(GroupMutationFeedbackKind.ERROR_FATAL, fb.kind)
+        assertFalse(fb.canRetry)
         assertFalse(fb.shouldReload)
     }
 }
