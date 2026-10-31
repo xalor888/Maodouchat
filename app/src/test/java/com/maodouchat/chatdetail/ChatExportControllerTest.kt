@@ -4,6 +4,7 @@ import android.content.Context
 import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
+import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
@@ -654,4 +655,76 @@ class ChatExportControllerTest {
         assertTrue(controller.exportChatAsJson().contains("a\\tb\\rc"))
     }
 
+
+    @Test
+    fun `exportChatAsJson includes id sender and type for each message`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m-a", chatId = "c1", senderId = "user_me", content = "one", type = MessageType.TEXT),
+                Message(id = "m-b", chatId = "c1", senderId = "other", content = "pic", type = MessageType.IMAGE),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"id\":\"m-a\""))
+        assertTrue(json.contains("\"sender\":\"user_me\""))
+        assertTrue(json.contains("\"type\":\"TEXT\""))
+        assertTrue(json.contains("\"id\":\"m-b\""))
+        assertTrue(json.contains("\"sender\":\"other\""))
+        assertTrue(json.contains("\"type\":\"IMAGE\""))
+    }
+
+    @Test
+    fun `exportChatAsJson includes failed status verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "oops", type = MessageType.TEXT, status = MessageStatus.FAILED),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"status\":\"FAILED\""))
+    }
+
+    @Test
+    fun `exportChatAsJson keeps max timestamp verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "hi", type = MessageType.TEXT, timestamp = Long.MAX_VALUE),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"timestamp\":9223372036854775807"))
+    }
+
+    @Test
+    fun `exportChatAsJson includes group id with messages and count`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "g9", isGroup = true, groupName = "Team"),
+            messages = listOf(
+                Message(id = "m1", chatId = "g9", senderId = "user_me", content = "one", type = MessageType.TEXT),
+                Message(id = "m2", chatId = "g9", senderId = "other", content = "two", type = MessageType.TEXT),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"chatId\":\"g9\""))
+        assertTrue(json.contains("\"isGroup\":true"))
+        assertTrue(json.contains("\"groupName\":\"Team\""))
+        assertTrue(json.contains("\"messageCount\":2"))
+    }
+
+    @Test
+    fun `exportChatAsJson includes punctuation content verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "a+b=c & d<e>", type = MessageType.TEXT),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("a+b=c & d<e>"))
+    }
 }

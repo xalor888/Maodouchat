@@ -304,4 +304,34 @@ class ChatRealtimeEventPolicyTest {
         )
     }
 
+
+    @Test
+    fun `whitespace-only active chat removal is ignored`() {
+        assertEquals(
+            GroupRevisionImpact.IGNORE,
+            groupRevisionImpact(" ", "user-1", " ", "user-1", "MEMBER_REMOVED")
+        )
+    }
+
+    @Test
+    fun `identically padded contact ids apply presence in direct chat only`() {
+        assertTrue(shouldApplyContactPresence(false, "user-2 ", "user-2 "))
+        assertFalse(shouldApplyContactPresence(true, "user-2 ", "user-2 "))
+    }
+
+    @Test
+    fun `tab-only chat ids never count as active`() {
+        assertFalse(isActiveChatEvent("\t", "\t"))
+    }
+
+    @Test
+    fun `tab-only contact id never applies presence`() {
+        assertFalse(shouldApplyContactPresence(false, "\t", "\t"))
+    }
+
+    @Test
+    fun `refresh invalidation is strict at long min boundary`() {
+        assertTrue(shouldInvalidateGroupKey(Long.MIN_VALUE, Long.MIN_VALUE + 1, GroupRevisionImpact.REFRESH))
+        assertFalse(shouldInvalidateGroupKey(Long.MIN_VALUE, Long.MIN_VALUE, GroupRevisionImpact.REFRESH))
+    }
 }

@@ -503,6 +503,66 @@ class ChatSearchModelTest {
         assertTrue(searchChatDocuments(documents, "hello", ChatSearchScope.ALL, ChatSearchWindow.ALL).isEmpty())
     }
 
+    @Test
+    fun `media scope matches gif by english type keyword`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("gif", MessageType.GIF, "file://gif"),
+                message("text", MessageType.TEXT, "gif notes")
+            )
+        )
+
+        assertEquals(listOf("gif"), searchChatDocuments(documents, "gif", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `starred voice still returns empty on blank voice query`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("voice", MessageType.VOICE, "voice://1", MessageMeta(voiceTranscript = "morning brief"), starred = true))
+        )
+
+        assertTrue(searchChatDocuments(documents, "", ChatSearchScope.VOICE, ChatSearchWindow.ALL).isEmpty())
+    }
+
+    @Test
+    fun `translation scope blank query returns empty even with translations`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("t", MessageType.TEXT, "hello", MessageMeta(translations = mapOf("中文" to "你好世界"))))
+        )
+
+        assertTrue(searchChatDocuments(documents, "", ChatSearchScope.TRANSLATION, ChatSearchWindow.ALL).isEmpty())
+    }
+
+    @Test
+    fun `mentions scope blank query returns mentioned message even with blank content`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("direct", MessageType.TEXT, "", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
+                message("other", MessageType.TEXT, "", meta = MessageMeta(mentions = listOf("other")), timestamp = 2L)
+            )
+        )
+
+        assertEquals(listOf("direct"), searchChatDocuments(documents, "", ChatSearchScope.MENTIONS, ChatSearchWindow.ALL, currentUserId = "me").map { it.id })
+    }
+
+    @Test
+    fun `today window at midnight keeps only the midnight message`() {
+        val now = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("midnight", MessageType.TEXT, "keep me", timestamp = now),
+                message("before", MessageType.TEXT, "keep me", timestamp = now - 1L)
+            )
+        )
+
+        assertEquals(listOf("midnight"), searchChatDocuments(documents, "keep", ChatSearchScope.ALL, ChatSearchWindow.TODAY, now = now).map { it.id })
+    }
+
     private fun message(
         id: String,
         type: MessageType,

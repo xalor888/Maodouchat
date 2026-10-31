@@ -675,4 +675,87 @@ class AttachMenuPolicyTest {
         assertTrue(items.indexOf(AttachMenuKind.LIVE_LOCATION) < items.indexOf(AttachMenuKind.SCHEDULE))
     }
 
+
+    @Test
+    fun channelGroupFlagStillReturnsChannelList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(true, true, true, true, true),
+        )
+    }
+
+    @Test
+    fun channelAiExactListWithGroupFlag() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.AI,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(true, true, false, false, false, aiEnabled = true),
+        )
+    }
+
+    @Test
+    fun groupContactCardWithoutAiExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.CONTACT_CARD,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(true, false, false, true, false),
+        )
+    }
+
+    @Test
+    fun dmAiNoViewOnceNoContactExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.AI,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(false, false, false, false, true, aiEnabled = true),
+        )
+    }
+
+    @Test
+    fun groupNeverShowsViewOnceLiveLocationOrNudge() {
+        val items = AttachMenuPolicy.items(true, false, true, true, true)
+
+        assertFalse(AttachMenuKind.VIEW_ONCE in items)
+        assertFalse(AttachMenuKind.LIVE_LOCATION in items)
+        assertFalse(AttachMenuKind.NUDGE in items)
+        assertTrue(AttachMenuKind.LOCATION in items)
+        assertTrue(AttachMenuKind.CONTACT_CARD in items)
+    }
 }

@@ -502,4 +502,61 @@ class MessageMutationPolicyTest {
         assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 599)))
         assertFalse(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 499)))
     }
+
+    @Test
+    fun `optimistic edit at zero timestamp advances to one`() {
+        val original = message("m-zero", "old", MessageType.TEXT).copy(timestamp = 0L)
+
+        val edited = original.toOptimisticEdit("new")
+
+        assertEquals("new", edited.content)
+        assertEquals(1L, edited.editedAt)
+        assertEquals(0L, edited.timestamp)
+    }
+
+    @Test
+    fun `revoked placeholder preserves star and reactions`() {
+        val reaction = MessageReaction("u1", "❤", reactedAt = 7L)
+        val original = message("m-rev", "hello", MessageType.TEXT).copy(
+            starred = true,
+            reactions = listOf(reaction)
+        )
+
+        val placeholder = original.toRevokedPlaceholder("已撤回")
+
+        assertEquals(MessageType.REVOKED, placeholder.type)
+        assertEquals(MessageMeta(), placeholder.meta)
+        assertTrue(placeholder.starred)
+        assertEquals(listOf(reaction), placeholder.reactions)
+    }
+
+    @Test
+    fun `merge equal timestamps sort by id`() {
+        val later = message("m-b", "b", MessageType.TEXT).copy(timestamp = 100L)
+        val earlier = message("m-a", "a", MessageType.TEXT).copy(timestamp = 100L)
+
+        val merged = mergeMessageVersions(listOf(later, earlier), emptyList())
+
+        assertEquals(listOf("m-a", "m-b"), merged.map { it.id })
+    }
+
+    @Test
+    fun `tracker pending edit does not block delete of another message`() {
+        val tracker = MessageMutationTracker()
+        assertTrue(tracker.begin("m1", MessageMutationKind.EDIT) != null)
+        assertTrue(tracker.begin("m2", MessageMutationKind.DELETE) != null)
+        assertTrue(tracker.shouldDrop("m2"))
+        assertFalse(tracker.shouldDrop("m1"))
+    }
+
+    @Test
+    fun `merge revoked candidate wins regardless of older edit revision`() {
+        val current = message("m1", "old", MessageType.TEXT).copy(editedAt = 500L)
+        val candidate = message("m1", "已撤回", MessageType.REVOKED).copy(editedAt = null)
+
+        val merged = mergeMessageVersions(listOf(current), listOf(candidate)).single()
+
+        assertEquals(MessageType.REVOKED, merged.type)
+        assertEquals("已撤回", merged.content)
+    }
 }

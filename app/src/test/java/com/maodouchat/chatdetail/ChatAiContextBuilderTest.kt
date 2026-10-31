@@ -500,4 +500,67 @@ class ChatAiContextBuilderTest {
 
         assertEquals(listOf("hello"), context.map { it.text })
     }
+
+    @Test
+    fun `plain context trims surrounding whitespace from kept text`() {
+        val context = buildPlainAiContextMessages(
+            listOf(message("m1", "alice", "  hello  ", 1L)),
+            senders,
+            limit = 10
+        )
+
+        assertEquals("hello", context.single().text)
+    }
+
+    @Test
+    fun `summary trims surrounding whitespace from text`() {
+        val context = buildSummaryAiContextMessages(
+            listOf(message("m1", "alice", "  hello  ", 1L)),
+            senders
+        )
+
+        assertEquals("hello", context.single().text)
+    }
+
+    @Test
+    fun `summary joins text transcript and translation in that order`() {
+        val text = message(
+            "m1", "alice", "正文", 10L,
+            MessageMeta(
+                voiceTranscript = "spoken",
+                translations = mapOf("en" to "译文")
+            )
+        )
+
+        val context = buildSummaryAiContextMessages(listOf(text), senders)
+
+        assertEquals("正文\nspoken\n译文", context.single().text)
+    }
+
+    @Test
+    fun `plain context drops location messages even when a transcript exists`() {
+        val location = message(
+            "loc", "alice", "place", 10L,
+            MessageMeta(voiceTranscript = "spoken"),
+            MessageType.LOCATION
+        )
+
+        assertTrue(buildPlainAiContextMessages(listOf(location), senders, limit = 10).isEmpty())
+        assertEquals(
+            "spoken",
+            buildSummaryAiContextMessages(listOf(location), senders).single().text
+        )
+    }
+
+    @Test
+    fun `summary drops a translation that equals the text`() {
+        val text = message(
+            "m1", "alice", "same", 10L,
+            MessageMeta(translations = mapOf("en" to "same"))
+        )
+
+        val context = buildSummaryAiContextMessages(listOf(text), senders)
+
+        assertEquals("same", context.single().text)
+    }
 }

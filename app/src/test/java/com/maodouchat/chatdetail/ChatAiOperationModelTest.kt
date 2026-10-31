@@ -691,4 +691,92 @@ class ChatAiOperationModelTest {
 
         assertEquals("", parameters.targetLanguage)
     }
+
+    @Test
+    fun `whitespace-only owner and chat fail closed for a recoverable action`() {
+        assertEquals(
+            AiOperationPreparation.InvalidContext,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.TranslateMessage("message-1", "en"),
+                ownerUserId = "   ",
+                chatId = "chat-1"
+            )
+        )
+        assertEquals(
+            AiOperationPreparation.InvalidContext,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.TranslateMessage("message-1", "en"),
+                ownerUserId = "user-1",
+                chatId = "   "
+            )
+        )
+    }
+
+    @Test
+    fun `summarize mixed blank and whitespace ids keeps valid ids in order`() {
+        val messages = listOf(" ", "m1", "", "m2", "m1").map { id ->
+            Message(id = id, chatId = "chat-1", senderId = "u", content = "text")
+        }
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.RECENT, messages),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.SUMMARIZE_MESSAGES, preparation.operation.type)
+        assertEquals(listOf("m1", "m2"), parameters.messageIds)
+    }
+
+    @Test
+    fun `summarize target message id is null`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.RECENT, emptyList()),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+
+        assertNull(preparation.operation.targetMessageId)
+    }
+
+    @Test
+    fun `transcribe voice parameters are all empty defaults`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranscribeVoice("voice-1"),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.TRANSCRIBE_VOICE, preparation.operation.type)
+        assertEquals("voice-1", preparation.operation.targetMessageId)
+        assertNull(parameters.targetLanguage)
+        assertNull(parameters.summaryScope)
+        assertTrue(parameters.messageIds.isEmpty())
+        assertNull(parameters.analysisMode)
+        assertNull(parameters.question)
+    }
+
+    @Test
+    fun `translate message persists its target message id`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranslateMessage("message-1", "en"),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.TRANSLATE_MESSAGE, preparation.operation.type)
+        assertEquals("message-1", preparation.operation.targetMessageId)
+        assertEquals("en", parameters.targetLanguage)
+    }
 }

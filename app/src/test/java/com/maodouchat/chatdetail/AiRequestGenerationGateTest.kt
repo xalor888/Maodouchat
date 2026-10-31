@@ -501,4 +501,87 @@ class AiRequestGenerationGateTest {
             assertTrue(gate.isCurrent(fresh))
         }
     }
+
+    @Test
+    fun `seven invalidates then the next token is eight`() {
+        val gate = AiRequestGenerationGate()
+
+        repeat(7) { gate.invalidate() }
+        val fresh = gate.next()
+
+        assertEquals(8L, fresh)
+        assertFalse(gate.isCurrent(7L))
+        assertFalse(gate.isCurrent(0L))
+        assertTrue(gate.isCurrent(8L))
+    }
+
+    @Test
+    fun `three gates with different counts keep different current tokens`() {
+        val first = AiRequestGenerationGate()
+        val second = AiRequestGenerationGate()
+        val third = AiRequestGenerationGate()
+
+        first.next()
+        second.next()
+        second.next()
+        third.next()
+        third.next()
+        third.next()
+
+        assertTrue(first.isCurrent(1L))
+        assertTrue(second.isCurrent(2L))
+        assertTrue(third.isCurrent(3L))
+        assertFalse(first.isCurrent(2L))
+        assertFalse(second.isCurrent(1L))
+        assertFalse(second.isCurrent(3L))
+        assertFalse(third.isCurrent(2L))
+    }
+
+    @Test
+    fun `two requests then an invalidate then a request leaves only the fourth token current`() {
+        val gate = AiRequestGenerationGate()
+        val first = gate.next()
+        val second = gate.next()
+
+        gate.invalidate()
+        val fresh = gate.next()
+
+        assertEquals(1L, first)
+        assertEquals(2L, second)
+        assertEquals(4L, fresh)
+        assertFalse(gate.isCurrent(1L))
+        assertFalse(gate.isCurrent(2L))
+        assertFalse(gate.isCurrent(3L))
+        assertTrue(gate.isCurrent(4L))
+    }
+
+    @Test
+    fun `parallel next calls on two gates each produce one through eight with only eight current`() {
+        val first = AiRequestGenerationGate()
+        val second = AiRequestGenerationGate()
+
+        val firstTokens = (1..8).toList().parallelStream().map { first.next() }.toList().sorted()
+        val secondTokens = (1..8).toList().parallelStream().map { second.next() }.toList().sorted()
+
+        assertEquals((1L..8L).toList(), firstTokens)
+        assertEquals((1L..8L).toList(), secondTokens)
+        assertTrue(first.isCurrent(8L))
+        assertTrue(second.isCurrent(8L))
+        assertFalse(first.isCurrent(9L))
+        assertFalse(second.isCurrent(9L))
+    }
+
+    @Test
+    fun `isCurrent with negative and extreme values stays false after two requests`() {
+        val gate = AiRequestGenerationGate()
+        gate.next()
+        gate.next()
+
+        assertFalse(gate.isCurrent(0L))
+        assertFalse(gate.isCurrent(-1L))
+        assertFalse(gate.isCurrent(Long.MIN_VALUE))
+        assertFalse(gate.isCurrent(Long.MAX_VALUE))
+        assertFalse(gate.isCurrent(3L))
+        assertTrue(gate.isCurrent(2L))
+    }
 }

@@ -385,4 +385,52 @@ class MediaCenterModelTest {
         assertEquals(listOf("https://a.com/a%20b?x=1&y=2"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
     }
 
+    @Test
+    fun trailingCommaAndSemicolonTrimmedFromUrl() {
+        val message = Message("m", "chat", "u", "见 https://a.com/x,; 好", MessageType.TEXT)
+
+        assertEquals(listOf("https://a.com/x"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun gifContentUrlIsNotCollectedAsLink() {
+        val message = Message("m", "chat", "u", "见 https://a.com/x", MessageType.GIF, 10)
+
+        val items = buildMediaCenterItems(listOf(message))
+
+        assertEquals(1, items.size)
+        assertEquals(listOf(MediaCenterCategory.MEDIA), items.map { it.category })
+        assertEquals(listOf(null), items.map { it.linkUrl })
+    }
+
+    @Test
+    fun uppercaseHttpSchemeKeepsOriginalCase() {
+        val message = Message("m", "chat", "u", "访问 HTTP://Example.com/Path", MessageType.TEXT)
+
+        assertEquals(listOf("HTTP://Example.com/Path"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun linkAtStartOfTextIsCollected() {
+        val message = Message("m", "chat", "u", "https://a.com/x is here", MessageType.TEXT)
+
+        val items = buildMediaCenterItems(listOf(message))
+
+        assertEquals(listOf("https://a.com/x"), items.map { it.linkUrl })
+        assertEquals(listOf(MediaCenterCategory.LINKS), items.map { it.category })
+    }
+
+    @Test
+    fun repeatedLinksInOneMessageCollapseAfterFirstTwo() {
+        val message = Message(
+            "m", "chat", "u",
+            "https://a.com/1 https://a.com/2 https://a.com/1",
+            MessageType.TEXT
+        )
+
+        assertEquals(
+            listOf("https://a.com/1", "https://a.com/2"),
+            buildMediaCenterItems(listOf(message)).map { it.linkUrl }
+        )
+    }
 }

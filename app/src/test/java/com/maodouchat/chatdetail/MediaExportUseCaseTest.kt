@@ -591,4 +591,70 @@ class MediaExportUseCaseTest {
         assertEquals("anim.gif", recorder.lastSaveRequest?.displayName)
     }
 
+    @Test
+    fun saveMessageMedia_derivesOctetStreamAndMediaNameForNudgeWithoutMeta() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(id = "m1", chatId = "c", senderId = "u", content = "poke", type = MessageType.NUDGE)
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("poke", recorder.lastSaveRequest?.rawUri)
+        assertEquals("application/octet-stream", recorder.lastSaveRequest?.mimeType)
+        val name = recorder.lastSaveRequest?.displayName.orEmpty()
+        assertTrue(name.startsWith("media_") && name.endsWith(".bin"))
+    }
+
+    @Test
+    fun shareMessageMedia_derivesOctetStreamAndEmptyNameForNudgeWithoutMeta() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(id = "m1", chatId = "c", senderId = "u", content = "poke", type = MessageType.NUDGE)
+
+        val result = recorder.shareMessageMedia(message, isSecretChat = false, chooserTitle = "Share")
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("application/octet-stream", recorder.lastShareRequest?.mimeType)
+        assertEquals("", recorder.lastShareRequest?.displayName)
+    }
+
+    @Test
+    fun saveMessageMedia_explicitVideoMimeDerivesMp4NameForFileWithoutFileName() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/clip", type = MessageType.FILE,
+            meta = MessageMeta(fileMimeType = "video/mp4"),
+        )
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("video/mp4", recorder.lastSaveRequest?.mimeType)
+        val name = recorder.lastSaveRequest?.displayName.orEmpty()
+        assertTrue(name.startsWith("media_") && name.endsWith(".mp4"))
+    }
+
+    @Test
+    fun shareMessageMedia_usesExplicitFileNameWithBlankMimeForImage() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/photo.jpg", type = MessageType.IMAGE,
+            meta = MessageMeta(fileName = "doc.pdf", fileMimeType = "   "),
+        )
+
+        val result = recorder.shareMessageMedia(message, isSecretChat = false, chooserTitle = "Share")
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("image/jpeg", recorder.lastShareRequest?.mimeType)
+        assertEquals("doc.pdf", recorder.lastShareRequest?.displayName)
+    }
+
+    @Test
+    fun resultEquality_successFailureAndSecretAreDistinct() {
+        assertEquals(MediaExportResult.Success, MediaExportResult.Success)
+        assertEquals(MediaExportResult.Failure(), MediaExportResult.Failure(null))
+        assertTrue(MediaExportResult.Success.isSuccess)
+        assertFalse(MediaExportResult.SecretBlocked.isSuccess)
+        assertFalse(MediaExportResult.Failure().isSuccess)
+        assertTrue(MediaExportResult.Success != MediaExportResult.SecretBlocked)
+    }
 }

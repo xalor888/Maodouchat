@@ -563,4 +563,73 @@ class ChatSearchSelectionStateControllerTest {
         assertEquals("e", consumed.semanticSearchError)
     }
 
+    @Test
+    fun `clear with consent false clears searching flag and consent`() {
+        val state = ChatDetailUiState(
+            semanticSearchResultIds = listOf("old"),
+            semanticSearchQuery = "oldq",
+            isSemanticSearching = true,
+            semanticSearchError = "e",
+            showAiConsentDialog = true,
+        )
+        val cleared = controller.clearSemanticSearch(state, showConsentDialog = false)
+
+        assertEquals(emptyList<String>(), cleared.semanticSearchResultIds)
+        assertEquals("", cleared.semanticSearchQuery)
+        assertFalse(cleared.isSemanticSearching)
+        assertEquals(null, cleared.semanticSearchError)
+        assertFalse(cleared.showAiConsentDialog)
+    }
+
+    @Test
+    fun `navigate to padded message id keeps padding`() {
+        val navigated = controller.navigateTo(ChatDetailUiState(), "  m  ")
+
+        assertEquals("  m  ", navigated.navigationTargetMessageId)
+    }
+
+    @Test
+    fun `admission trims ends but preserves internal tab in query`() {
+        val result = controller.admitSemanticSearch(
+            state = ChatDetailUiState(aiEnabled = true),
+            query = "\t hello\tworld \n",
+            candidateMessageIds = listOf("a"),
+            secretChatError = "secret",
+            aiDisabledError = "disabled",
+            blankQueryError = "blank",
+            noContextError = "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        assertEquals("hello\tworld", (result as SemanticSearchAdmission.Accepted).query)
+    }
+
+    @Test
+    fun `admission query of three hundred one chars after trim truncates to three hundred`() {
+        val result = controller.admitSemanticSearch(
+            state = ChatDetailUiState(aiEnabled = true),
+            query = " " + "a".repeat(301) + " ",
+            candidateMessageIds = listOf("a"),
+            secretChatError = "secret",
+            aiDisabledError = "disabled",
+            blankQueryError = "blank",
+            noContextError = "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        val accepted = result as SemanticSearchAdmission.Accepted
+        assertEquals(300, accepted.query.length)
+        assertTrue(accepted.query.all { it == 'a' })
+    }
+
+    @Test
+    fun `clear preserves ai enabled and secret chat flags`() {
+        val state = ChatDetailUiState(aiEnabled = true, isSecretChat = true, semanticSearchResultIds = listOf("old"))
+        val cleared = controller.clearSemanticSearch(state, showConsentDialog = false)
+
+        assertTrue(cleared.aiEnabled)
+        assertTrue(cleared.isSecretChat == true)
+        assertEquals(emptyList<String>(), cleared.semanticSearchResultIds)
+    }
+
 }

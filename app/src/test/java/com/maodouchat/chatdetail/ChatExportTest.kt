@@ -567,4 +567,75 @@ class ChatExportTest {
         assertFalse(content.contains("count="))
         assertTrue(content.lines().none { it.startsWith("[") })
     }
+
+
+    @Test
+    fun write_sanitizesBackslashPipeAndStar() {
+        val file = ChatExport.write(dummyContext, "a\\b|c*d", "hi")
+        assertNotNull(file)
+        assertEquals("a_b_c_d.txt", file!!.name)
+        assertEquals("hi", file.readText())
+    }
+
+    @Test
+    fun writeStream_skipsSkDistMessages() {
+        val messages = listOf(
+            Message(id = "d", chatId = "c", senderId = "me", content = "dist-payload", type = MessageType.SK_DIST, timestamp = 1600000000000L),
+            Message(id = "m1", chatId = "c", senderId = "me", content = "kept", type = MessageType.TEXT, timestamp = 1600000001000L)
+        )
+        val file = ChatExport.writeStream(
+            context = dummyContext,
+            fileName = "skip_skdist",
+            chatName = "C",
+            ownerId = "me",
+            messages = messages.asSequence(),
+            resolveSenderName = { it },
+            exportedAt = 1600000100000L
+        )
+        assertNotNull(file)
+        val content = file!!.readText()
+        assertTrue(content.contains("kept"))
+        assertFalse(content.contains("dist-payload"))
+        assertTrue(content.contains("format_version=1"))
+    }
+
+    @Test
+    fun buildText_nudgeAndVoiceRenderTagsForNonOwner() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "friend", content = "poke", type = MessageType.NUDGE, timestamp = 1600000000000L),
+                Message(id = "m2", chatId = "c", senderId = "friend", content = "audio", type = MessageType.VOICE, timestamp = 1600000001000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("[戳一戳]"))
+        assertTrue(text.contains("[语音]"))
+        assertTrue(text.contains("count=2"))
+    }
+
+    @Test
+    fun renderBody_imageRendersTagRegardlessOfContent() {
+        val imageMsg = Message(id = "1", chatId = "c", senderId = "u", content = "file:///x.png", type = MessageType.IMAGE)
+        assertEquals("[图片]", ChatExport.renderBody(imageMsg))
+    }
+
+    @Test
+    fun buildText_locationAndStickerRenderTags() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "friend", content = "here", type = MessageType.LOCATION, timestamp = 1600000000000L),
+                Message(id = "m2", chatId = "c", senderId = "friend", content = "", type = MessageType.STICKER, timestamp = 1600000001000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("[位置]"))
+        assertTrue(text.contains("[表情]"))
+        assertTrue(text.contains("count=2"))
+    }
 }

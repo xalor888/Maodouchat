@@ -442,4 +442,33 @@ class MessagePinPolicyTest {
         assertEquals("hello\r world", MessagePinPolicy.textPreview("hello\r\nworld<meta>x"))
     }
 
+    @Test
+    fun canPin_group_admin_pins_location() {
+        assertTrue(MessagePinPolicy.canPin(true, "ADMIN", MessageType.LOCATION))
+    }
+
+    @Test
+    fun textPreview_metaStripThenNewlineFoldsToSpace() {
+        assertEquals(
+            "a b",
+            MessagePinPolicy.textPreview("""a
+b<meta>x""")
+        )
+    }
+
+    @Test
+    fun canPin_direct_chat_emptyStringRole_pins_text() {
+        assertTrue(MessagePinPolicy.canPin(false, "", MessageType.TEXT))
+    }
+
+    @Test
+    fun textPreview_singleCharAtMaxLenOneIsKept() {
+        assertEquals("a", MessagePinPolicy.textPreview("a", 1))
+    }
+
+    @Test
+    fun canPin_group_mixedCaseAdmin_pins_voice() {
+        assertTrue(MessagePinPolicy.canPin(true, "AdMiN", MessageType.VOICE))
+    }
+
 }

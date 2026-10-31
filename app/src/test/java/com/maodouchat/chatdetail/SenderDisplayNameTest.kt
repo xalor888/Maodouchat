@@ -758,4 +758,56 @@ class SenderDisplayNameTest {
         assertEquals("群友", name)
     }
 
+
+    @Test
+    fun group_paddedSenderIdMissesUntrimmedMapButTruncates() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message(" abcdefghij "),
+            isOwn = false,
+            participantNamesById = mapOf("abcdefghij" to "群友名"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员"
+        )
+        assertEquals("abcdefgh", name)
+    }
+
+    @Test
+    fun group_paddedUnknownLabelIsTrimmed() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message(""),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = " 未知 ",
+            groupMemberLabel = ""
+        )
+        assertEquals("未知", name)
+    }
+
+    @Test
+    fun listSenderLabel_trimsPaddedParticipantDisplayName() {
+        val chat = Chat(
+            id = "c",
+            participants = listOf(User(id = "u2", name = "  小豆  ")),
+            isGroup = true
+        )
+        assertEquals("小豆", listSenderLabel(chat, "u2"))
+    }
+
+    @Test
+    fun resolveChatDetailSenderName_explicitNotOwnInGroupReturnsMappedName() {
+        val state = ChatDetailUiState(currentUserId = "me", chatIsGroup = true)
+        val name = com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+            message("me"), state, mapOf("me" to "自己"), "未知", "群成员", isOwn = false
+        )
+        assertEquals("自己", name)
+    }
+
+    @Test
+    fun listSenderLabel_emptySenderIdWithBlankUnknownReturnsEmpty() {
+        assertEquals("", listSenderLabel(null, "", unknownLabel = ""))
+    }
 }

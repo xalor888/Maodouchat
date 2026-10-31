@@ -200,6 +200,79 @@ class ChatTimelineModelTest {
         assertTrue(rows[2].isGroupEdge)
     }
 
+    @Test
+    fun `unread separator after sorting lands before sorted position not input position`() {
+        val items = buildChatItems(
+            listOf(
+                message("m3", "u1", 3L),
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "m2"
+        )
+
+        assertEquals(
+            listOf("day-1", "m1", "unread_m2", "m2", "m3"),
+            items.map { item ->
+                when (item) {
+                    is ChatItem.DateSeparator -> item.label
+                    is ChatItem.Msg -> item.message.id
+                    is ChatItem.UnreadSeparator -> "unread_${item.messageId}"
+                    else -> "?"
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `date separators follow sorted order when input is reversed across days`() {
+        val items = buildChatItems(
+            listOf(message("m2", "u1", 2L), message("m1", "u1", 1L)),
+            labelForTimestamp = { if (it < 2L) "day-1" else "day-2" }
+        )
+
+        assertEquals(listOf("day-1", "day-2"), items.filterIsInstance<ChatItem.DateSeparator>().map { it.label })
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
+    @Test
+    fun `blank id occurrence increments across date boundaries`() {
+        val items = buildChatItems(
+            listOf(message("", "u1", 1L), message("", "u1", 2L)),
+            labelForTimestamp = { if (it < 2L) "day-1" else "day-2" }
+        )
+
+        assertEquals(listOf("msg_blank_1", "msg_blank_2"), items.filterIsInstance<ChatItem.Msg>().map { it.listKey })
+    }
+
+    @Test
+    fun `duplicate id keeps first sender avatar and group edge`() {
+        val items = buildChatItems(
+            listOf(message("m1", "u2", 2L), message("m1", "u1", 1L)),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf("m1"), rows.map { it.message.id })
+        assertEquals("u1", rows.single().message.senderId)
+        assertTrue(rows.single().showAvatar)
+        assertTrue(rows.single().isGroupEdge)
+    }
+
+    @Test
+    fun `three message sender group shows avatar only on first and edge only on last`() {
+        val items = buildChatItems(
+            listOf(message("m1", "u1", 1L), message("m2", "u1", 2L), message("m3", "u1", 3L)),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf(true, false, false), rows.map { it.showAvatar })
+        assertEquals(listOf(false, false, true), rows.map { it.isGroupEdge })
+        assertEquals(listOf(true, false, false), rows.map { it.showSenderName })
+    }
+
     private fun message(
         id: String,
         senderId: String,

@@ -434,4 +434,55 @@ class DecryptFailureDisplayPolicyTest {
         assertEquals("eyJshort", mergeMessageVersions(listOf(old), listOf(short)).single().content)
         assertEquals("new", mergeMessageVersions(listOf(short), listOf(message("m1", "new"))).single().content)
     }
+
+    @Test
+    fun `newer wire edit keeps plaintext but takes candidate starred flag`() {
+        val plain = message("m1", "hello").copy(editedAt = 100L, starred = false)
+        val wire = message("m1", "MD:abcdefghijklmnop").copy(editedAt = 200L, starred = true)
+        val merged = mergeMessageVersions(listOf(plain), listOf(wire)).single()
+
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+        assertTrue(merged.starred)
+    }
+
+    @Test
+    fun `older wire edit keeps newer plaintext and its starred flag`() {
+        val plain = message("m1", "hello").copy(editedAt = 200L, starred = true)
+        val wire = message("m1", "MD:abcdefghijklmnop").copy(editedAt = 100L, starred = false)
+        val merged = mergeMessageVersions(listOf(plain), listOf(wire)).single()
+
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+        assertTrue(merged.starred)
+    }
+
+    @Test
+    fun `equal revision wire versus plaintext takes plaintext and candidate reactions`() {
+        val wire = message("m1", "MD:abcdefghijklmnop")
+        val plain = message("m1", "hello").copy(reactions = listOf(MessageReaction("u1", "❤")))
+        val merged = mergeMessageVersions(listOf(wire), listOf(plain)).single()
+
+        assertEquals("hello", merged.content)
+        assertEquals(listOf(MessageReaction("u1", "❤")), merged.reactions)
+    }
+
+    @Test
+    fun `padded wire envelope is not recognized as an envelope`() {
+        val plain = message("m1", "hello")
+        val padded = message("m1", " MD:abcdefghijklmnop")
+        val merged = mergeMessageVersions(listOf(plain), listOf(padded)).single()
+
+        assertEquals(" MD:abcdefghijklmnop", merged.content)
+    }
+
+    @Test
+    fun `uppercase decrypt failed is still recognized as a placeholder`() {
+        val plain = message("m1", "hello")
+        val failed = message("m1", "DECRYPT FAILED")
+        val merged = mergeMessageVersions(listOf(plain), listOf(failed)).single()
+
+        assertEquals("hello", merged.content)
+    }
+
 }

@@ -846,4 +846,82 @@ class MessagePreviewTextTest {
         )
     }
 
+
+    @Test
+    fun textWithTwoMetaTagsShowsBodyBeforeFirstMeta() {
+        // replyOrQuote 连剥两次 meta：parsedContent 先取到最后一个 <meta> 之前，
+        // redactedIfWire 里的 visiblePreviewText 又剥一次，字面 <meta> 不会残留。
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "hello<meta>x<meta>y",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "hello",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun videoSpacesOnlyMediaLabelFallsBackToEncryptedPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://v",
+            type = MessageType.VIDEO,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "   " }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun textWithAmpAndQuotEntitiesUnescapedTogether() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "a &amp; b &quot;c&quot;",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "a & b \"c\"",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun gifMediaLabelReceivesGifType() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "file://g",
+            type = MessageType.GIF,
+        )
+        assertEquals(
+            "[GIF]",
+            MessagePreviewText.replyOrQuote(msg, { "[${it.name}]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun nudgeWithMetaSuffixShowsBodyBeforeMeta() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "poke<meta>x",
+            type = MessageType.NUDGE,
+        )
+        assertEquals(
+            "poke",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
 }
