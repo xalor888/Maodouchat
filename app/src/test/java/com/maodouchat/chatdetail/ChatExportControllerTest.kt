@@ -392,4 +392,65 @@ class ChatExportControllerTest {
         assertNull(uiState.value.exportInfoMessage)
         assertEquals("kept", uiState.value.infoMessage)
     }
+
+    @Test
+    fun exportChatAsJson_blocksSecretChatByStateFlagAlone() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c_flag", isGroup = false),
+            messages = emptyList(),
+            isSecretChat = true,
+        )
+
+        assertEquals("{}", controller.exportChatAsJson())
+    }
+
+    @Test
+    fun exportChatAsJson_reportsEmptyWhenUserIdWhitespace() {
+        CurrentSession.override = { Snapshot("valid_token", "   ") }
+        try {
+            uiState.value = ChatDetailUiState(
+                chat = Chat(id = "c1", isGroup = false),
+                messages = emptyList(),
+            )
+
+            assertEquals("{}", controller.exportChatAsJson())
+        } finally {
+            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        }
+    }
+
+    @Test
+    fun `exportChatAsJson includes spaces group name verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "g1", isGroup = true, groupName = "   "),
+            messages = emptyList(),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"groupName\":\"   \""))
+    }
+
+    @Test
+    fun `exportChatAsJson includes empty content verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "", type = MessageType.TEXT),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"content\":\"\""))
+    }
+
+    @Test
+    fun `exportChatAsJson includes zero timestamp`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "hi", type = MessageType.TEXT, timestamp = 0L),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"timestamp\":0"))
+    }
+
 }
