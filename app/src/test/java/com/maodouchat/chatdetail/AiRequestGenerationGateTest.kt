@@ -434,4 +434,71 @@ class AiRequestGenerationGateTest {
         assertFalse(second.isCurrent(1L))
     }
 
+    @Test
+    fun `one thousand sequential invalidates skip one thousand generations`() {
+        val gate = AiRequestGenerationGate()
+
+        repeat(1000) { gate.invalidate() }
+        val fresh = gate.next()
+
+        assertEquals(1001L, fresh)
+        assertTrue(gate.isCurrent(fresh))
+        assertFalse(gate.isCurrent(1L))
+        assertFalse(gate.isCurrent(500L))
+        assertFalse(gate.isCurrent(1000L))
+    }
+
+    @Test
+    fun `parallel next and invalidate batches keep at most one token current`() {
+        val gate = AiRequestGenerationGate()
+
+        val tokens = (1..32).toList().parallelStream().map { gate.next() }.toList()
+        (1..32).toList().parallelStream().forEach { gate.invalidate() }
+
+        assertTrue(tokens.count { gate.isCurrent(it) } <= 1)
+        assertEquals(65L, gate.next())
+    }
+
+    @Test
+    fun `fifty next invalidate pairs advance the counter by one hundred`() {
+        val gate = AiRequestGenerationGate()
+
+        repeat(50) {
+            gate.next()
+            gate.invalidate()
+        }
+        val fresh = gate.next()
+
+        assertEquals(101L, fresh)
+        assertFalse(gate.isCurrent(100L))
+        assertTrue(gate.isCurrent(101L))
+    }
+
+    @Test
+    fun `skipped generations across a long run are never current`() {
+        val gate = AiRequestGenerationGate()
+        val tokens = List(10) { gate.next() }
+
+        gate.invalidate()
+        val fresh = gate.next()
+
+        assertEquals(12L, fresh)
+        assertTrue(tokens.none { gate.isCurrent(it) })
+        assertFalse(gate.isCurrent(11L))
+        assertTrue(gate.isCurrent(12L))
+    }
+
+    @Test
+    fun `repeated next invalidate cycles advance exactly two per cycle`() {
+        val gate = AiRequestGenerationGate()
+
+        repeat(10) {
+            val token = gate.next()
+            gate.invalidate()
+            val fresh = gate.next()
+
+            assertEquals(token + 2, fresh)
+            assertTrue(gate.isCurrent(fresh))
+        }
+    }
 }
