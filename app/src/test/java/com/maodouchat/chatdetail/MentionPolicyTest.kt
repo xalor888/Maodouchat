@@ -499,4 +499,39 @@ class MentionPolicyTest {
         )
     }
 
+    @Test
+    fun activeQuery_lastMentionWins_whenTwoQueriesInText() {
+        val q = MentionPolicy.activeQuery("hi @Al @Bo", cursor = 9)!!
+        assertEquals(7, q.atIndex)
+        assertEquals("B", q.filter)
+    }
+
+    @Test
+    fun extractMentionIds_userEveryoneUser_dedupesKeepingOrder() {
+        assertEquals(
+            listOf("u1", MentionPolicy.EVERYONE_ID),
+            MentionPolicy.extractMentionIds("@Alice @everyone @Alice", members, "me"),
+        )
+    }
+
+    @Test
+    fun shouldHighlightMention_mixedList_highlightsOnlyWithSelfOrEveryone() {
+        assertTrue(MentionPolicy.shouldHighlightMention(listOf("u1", "me"), "me", false))
+        assertTrue(MentionPolicy.shouldHighlightMention(listOf("u1", MentionPolicy.EVERYONE_ID), "me", false))
+        assertFalse(MentionPolicy.shouldHighlightMention(listOf("u1", "u2"), "me", false))
+    }
+
+    @Test
+    fun insertMention_keepsTextAfterCursor_afterInsertion() {
+        val r = MentionPolicy.insertMention("hi @Alx there", 6, "Alice")
+        assertEquals("hi @Alice x there", r.text)
+        assertEquals(10, r.cursor)
+    }
+
+    @Test
+    fun shouldShowPicker_cursorOnWhitespace_suppresses_cursorInsideToken_shows() {
+        assertFalse(MentionPolicy.shouldShowPicker("hi @Al x", isGroupChat = true, cursor = 6))
+        assertTrue(MentionPolicy.shouldShowPicker("hi @Al x", isGroupChat = true, cursor = 5))
+    }
+
 }

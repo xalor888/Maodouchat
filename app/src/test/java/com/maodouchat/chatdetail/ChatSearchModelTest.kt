@@ -379,6 +379,75 @@ class ChatSearchModelTest {
         assertTrue(searchChatDocuments(documents, "world", ChatSearchScope.TEXT, ChatSearchWindow.ALL).isEmpty())
     }
 
+
+    @Test
+    fun `media scope matches sticker and location by Chinese keyword`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("sticker", MessageType.STICKER, "sticker://1"),
+                message("loc", MessageType.LOCATION, "loc://1"),
+                message("gif", MessageType.GIF, "gif://1")
+            )
+        )
+
+        assertEquals(listOf("sticker"), searchChatDocuments(documents, "贴纸", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+        assertEquals(listOf("loc"), searchChatDocuments(documents, "位置", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+        assertEquals(listOf("gif"), searchChatDocuments(documents, "gif", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `media scope matches image by its translation text`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("pic", MessageType.IMAGE, "file://pic", MessageMeta(translations = mapOf("English" to "sunset view"))),
+                message("plain", MessageType.IMAGE, "file://plain")
+            )
+        )
+
+        assertEquals(listOf("pic"), searchChatDocuments(documents, "sunset", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `mentions scope with query filters by mention first then text`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("direct", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
+                message("everyone", MessageType.TEXT, "beta", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+                message("other", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L)
+            )
+        )
+
+        assertEquals(listOf("direct"), searchChatDocuments(documents, "alpha", ChatSearchScope.MENTIONS, ChatSearchWindow.ALL, currentUserId = "me").map { it.id })
+    }
+
+    @Test
+    fun `starred seven day window drops old starred message`() {
+        val now = 1_000_000L
+        val windowStart = now - 7L * 24L * 60L * 60L * 1_000L
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("old", MessageType.TEXT, "alpha", timestamp = windowStart - 1L, starred = true),
+                message("recent", MessageType.TEXT, "alpha", timestamp = now - 1_000L, starred = true)
+            )
+        )
+
+        assertEquals(listOf("recent"), searchChatDocuments(documents, "alpha", ChatSearchScope.STARRED, ChatSearchWindow.SEVEN_DAYS, now = now).map { it.id })
+        assertEquals(listOf("recent"), searchChatDocuments(documents, "", ChatSearchScope.STARRED, ChatSearchWindow.SEVEN_DAYS, now = now).map { it.id })
+    }
+
+    @Test
+    fun `semantic mentions scope returns only mentioned documents chronologically`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("direct", MessageType.TEXT, "a", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
+                message("everyone", MessageType.TEXT, "b", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+                message("other", MessageType.TEXT, "c", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L)
+            )
+        )
+
+        assertEquals(listOf("direct", "everyone"), semanticSearchCandidates(documents, ChatSearchScope.MENTIONS, ChatSearchWindow.ALL, currentUserId = "me").map { it.id })
+    }
+
     private fun message(
         id: String,
         type: MessageType,

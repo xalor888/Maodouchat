@@ -593,4 +593,93 @@ class ChatTimelineModelTest {
         assertEquals(listOf("m1"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
     }
 
+    @Test
+    fun `unread separator mid-group does not break sender grouping`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L),
+                message("m3", "u1", 3L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "m2"
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(2, items.indexOfFirst { it is ChatItem.UnreadSeparator })
+        assertEquals("unread_m2", items[2].listKey)
+        assertFalse(rows[1].showAvatar)
+        assertFalse(rows[1].showSenderName)
+        assertFalse(rows[1].isGroupEdge)
+        assertTrue(rows[2].isGroupEdge)
+    }
+
+    @Test
+    fun `blank ids still group by sender`() {
+        val items = buildChatItems(
+            listOf(
+                message("", "u1", 1L),
+                message("", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf("msg_blank_1", "msg_blank_2"), rows.map { it.listKey })
+        assertTrue(rows[0].showAvatar)
+        assertFalse(rows[1].showAvatar)
+        assertFalse(rows[1].showSenderName)
+    }
+
+    @Test
+    fun `three messages sharing one timestamp order by id with separate avatars`() {
+        val items = buildChatItems(
+            listOf(
+                message("c", "u3", 5L),
+                message("a", "u1", 5L),
+                message("b", "u2", 5L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf("a", "b", "c"), rows.map { it.message.id })
+        assertTrue(rows.all { it.showAvatar })
+    }
+
+    @Test
+    fun `group edge spans a filtered sk dist message`() {
+        val items = buildChatItems(
+            listOf(
+                message("m1", "u1", 1L),
+                message("sk", "u1", 2L, MessageType.SK_DIST),
+                message("m2", "u1", 3L)
+            ),
+            labelForTimestamp = { "day-1" }
+        )
+        val rows = items.filterIsInstance<ChatItem.Msg>()
+
+        assertEquals(listOf("m1", "m2"), rows.map { it.message.id })
+        assertFalse(rows[0].isGroupEdge)
+        assertTrue(rows[1].isGroupEdge)
+    }
+
+    @Test
+    fun `unread id of visible message after filtered sk dist lands before it`() {
+        val items = buildChatItems(
+            listOf(
+                message("sk", "u1", 0L, MessageType.SK_DIST),
+                message("m1", "u1", 1L),
+                message("m2", "u1", 2L)
+            ),
+            labelForTimestamp = { "day-1" },
+            unreadSeparatorId = "m1"
+        )
+
+        assertTrue(items[0] is ChatItem.DateSeparator)
+        assertTrue(items[1] is ChatItem.UnreadSeparator)
+        assertEquals("unread_m1", items[1].listKey)
+        assertEquals(listOf("m1", "m2"), items.filterIsInstance<ChatItem.Msg>().map { it.message.id })
+    }
+
 }
