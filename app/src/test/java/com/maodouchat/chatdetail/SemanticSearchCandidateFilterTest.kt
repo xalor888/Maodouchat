@@ -492,4 +492,101 @@ class SemanticSearchCandidateFilterTest {
         )
         assertEquals(listOf("atBoundary", "fresh"), candidates.map { it.id })
     }
+
+    @Test
+    fun `thirty-day window keeps the exact boundary message`() {
+        val now = 5_000_000_000L
+        val day = 24L * 3600 * 1000
+        val messages = listOf(
+            message("atBoundary", "edge", timestamp = now - 30 * day),
+            message("justBefore", "old", timestamp = now - 30 * day - 1),
+            message("fresh", "new", timestamp = now - 1_000L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.THIRTY_DAYS,
+            query = "",
+            now = now
+        )
+        assertEquals(listOf("atBoundary", "fresh"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `two senders are not diversity-capped below the global cap`() {
+        val senderA = (0 until 60).map { i -> message("a$i", "text $i", senderId = "senderA", timestamp = i.toLong()) }
+        val senderB = (0 until 60).map { i -> message("b$i", "text $i", senderId = "senderB", timestamp = 1000L + i) }
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(senderA + senderB),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(100, candidates.size)
+        assertEquals("a20", candidates.first().id)
+        assertTrue(candidates.any { it.senderId == "senderB" })
+    }
+
+    @Test
+    fun `starred messages keep priority under the per-sender cap`() {
+        val senderA = (0 until 80).map { i ->
+            message("a$i", "plain text", senderId = "senderA", timestamp = i.toLong(), starred = i >= 70)
+        }
+        val senderB = (0 until 10).map { i -> message("b$i", "plain text", senderId = "senderB", timestamp = 1000L + i) }
+        val senderC = (0 until 10).map { i -> message("c$i", "plain text", senderId = "senderC", timestamp = 2000L + i) }
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(senderA + senderB + senderC),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(86, candidates.size)
+        val ids = candidates.map { it.id }.toSet()
+        assertTrue((70 until 80).all { "a$it" in ids })
+        assertTrue("a55" in ids)
+        assertTrue("a56" !in ids)
+    }
+
+    @Test
+    fun `uppercase query still matches keyword hits ahead of plain messages`() {
+        val senderA = (0 until 80).map { i ->
+            val content = if (i >= 70) "Hello target" else "plain text"
+            message("a$i", content, senderId = "senderA", timestamp = i.toLong())
+        }
+        val senderB = (0 until 10).map { i -> message("b$i", "plain text", senderId = "senderB", timestamp = 1000L + i) }
+        val senderC = (0 until 10).map { i -> message("c$i", "plain text", senderId = "senderC", timestamp = 2000L + i) }
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(senderA + senderB + senderC),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "HELLO",
+            now = 10_000L
+        )
+        assertEquals(86, candidates.size)
+        val ids = candidates.map { it.id }.toSet()
+        assertTrue((70 until 80).all { "a$it" in ids })
+        assertTrue((56 until 70).none { "a$it" in ids })
+        assertTrue((0 until 56).all { "a$it" in ids })
+    }
+
+    @Test
+    fun `translation scope combined with the thirty-day window`() {
+        val now = 5_000_000_000L
+        val day = 24L * 3600 * 1000
+        val messages = listOf(
+            message("translatedFresh", "bonjour", meta = MessageMeta(translations = mapOf("en" to "hello")), timestamp = now - 1 * day),
+            message("translatedStale", "bonjour", meta = MessageMeta(translations = mapOf("en" to "hello")), timestamp = now - 40 * day),
+            message("plainFresh", "hello", timestamp = now - 1 * day)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.TRANSLATION,
+            ChatSearchWindow.THIRTY_DAYS,
+            query = "",
+            now = now
+        )
+        assertEquals(listOf("translatedFresh"), candidates.map { it.id })
+    }
 }
