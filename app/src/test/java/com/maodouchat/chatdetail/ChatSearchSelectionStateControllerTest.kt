@@ -483,4 +483,84 @@ class ChatSearchSelectionStateControllerTest {
         assertEquals("e", targeted.semanticSearchError)
     }
 
+    @Test
+    fun `tab and newline padded query trims to inner text`() {
+        val result = controller.admitSemanticSearch(
+            ChatDetailUiState(aiEnabled = true),
+            "\t\n hello world \n\t", listOf("x"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Accepted)
+        assertEquals("hello world", (result as SemanticSearchAdmission.Accepted).query)
+    }
+
+    @Test
+    fun `blank rejection preserves searching flag`() {
+        val state = ChatDetailUiState(
+            aiEnabled = true,
+            semanticSearchResultIds = listOf("old"),
+            isSemanticSearching = true,
+        )
+
+        val result = controller.admitSemanticSearch(
+            state, "   ", listOf("message"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        val rejected = (result as SemanticSearchAdmission.Rejected).state
+        assertEquals("blank", rejected.semanticSearchError)
+        assertTrue(rejected.isSemanticSearching)
+    }
+
+    @Test
+    fun `empty candidates rejection preserves existing query`() {
+        val state = ChatDetailUiState(
+            aiEnabled = true,
+            semanticSearchResultIds = listOf("old"),
+            semanticSearchQuery = "oldq",
+        )
+
+        val result = controller.admitSemanticSearch(
+            state, "query", listOf(" ", ""), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        val rejected = (result as SemanticSearchAdmission.Rejected).state
+        assertEquals("empty", rejected.semanticSearchError)
+        assertEquals("oldq", rejected.semanticSearchQuery)
+    }
+
+    @Test
+    fun `secret rejection preserves navigation target and consent flag`() {
+        val state = ChatDetailUiState(
+            isSecretChat = true,
+            aiEnabled = true,
+            navigationTargetMessageId = "nav",
+            showAiConsentDialog = true,
+        )
+
+        val result = controller.admitSemanticSearch(
+            state, "query", listOf("message"), "secret", "disabled", "blank", "empty",
+        )
+
+        assertTrue(result is SemanticSearchAdmission.Rejected)
+        val rejected = (result as SemanticSearchAdmission.Rejected).state
+        assertEquals("secret", rejected.semanticSearchError)
+        assertEquals("nav", rejected.navigationTargetMessageId)
+        assertTrue(rejected.showAiConsentDialog)
+    }
+
+    @Test
+    fun `consume navigation preserves search error`() {
+        val state = ChatDetailUiState(
+            navigationTargetMessageId = "m",
+            semanticSearchError = "e",
+        )
+
+        val consumed = controller.consumeNavigation(state)
+
+        assertEquals(null, consumed.navigationTargetMessageId)
+        assertEquals("e", consumed.semanticSearchError)
+    }
+
 }

@@ -9,6 +9,7 @@ import com.maodouchat.ui.screen.chatdetail.MentionPolicy
 import com.maodouchat.ui.screen.chatdetail.ChatSearchWindow
 import com.maodouchat.ui.screen.chatdetail.buildChatSearchDocuments
 import com.maodouchat.ui.screen.chatdetail.semanticSearchCandidates
+import java.util.Calendar
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -588,5 +589,106 @@ class SemanticSearchCandidateFilterTest {
             now = now
         )
         assertEquals(listOf("translatedFresh"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `media scope keeps gif file sticker and location messages`() {
+        val messages = listOf(
+            message("gif", "gif://1", type = MessageType.GIF, timestamp = 1L),
+            message("file", "file://1", type = MessageType.FILE, timestamp = 2L),
+            message("sticker", "sticker://1", type = MessageType.STICKER, timestamp = 3L),
+            message("loc", "loc://1", type = MessageType.LOCATION, timestamp = 4L),
+            message("note", "hello", timestamp = 5L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.MEDIA,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("gif", "file", "sticker", "loc"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `file message without searchable parts drops out of all scope`() {
+        val messages = listOf(
+            message("file", "file://1", type = MessageType.FILE, timestamp = 1L),
+            message("text", "hello", timestamp = 2L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("text"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `three senders cap the heavy sender at sixty-six`() {
+        val senderA = (0 until 90).map { i -> message("a$i", "text $i", senderId = "senderA", timestamp = i.toLong()) }
+        val senderB = (0 until 5).map { i -> message("b$i", "text $i", senderId = "senderB", timestamp = 1000L + i) }
+        val senderC = (0 until 5).map { i -> message("c$i", "text $i", senderId = "senderC", timestamp = 2000L + i) }
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(senderA + senderB + senderC),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(76, candidates.size)
+        assertEquals(66, candidates.count { it.senderId == "senderA" })
+        assertTrue(candidates.any { it.id == "a65" })
+        assertTrue(candidates.none { it.id == "a66" })
+    }
+
+    @Test
+    fun `starred keyword hit appears exactly once`() {
+        val messages = listOf(
+            message("plain", "hello there", timestamp = 1L),
+            message("star", "hello star", timestamp = 2L, starred = true),
+            message("other", "nothing here", timestamp = 3L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+        assertEquals(listOf("plain", "star", "other"), candidates.map { it.id })
+        assertEquals(1, candidates.count { it.id == "star" })
+    }
+
+    @Test
+    fun `today window keeps midnight message and drops yesterday message`() {
+        val noon = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 12)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val now = noon.timeInMillis
+        val midnight = (noon.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val messages = listOf(
+            message("yesterday", "old", timestamp = midnight - 1_000L),
+            message("midnight", "edge", timestamp = midnight),
+            message("noon", "new", timestamp = now)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.TODAY,
+            query = "",
+            now = now
+        )
+        assertEquals(listOf("midnight", "noon"), candidates.map { it.id })
     }
 }

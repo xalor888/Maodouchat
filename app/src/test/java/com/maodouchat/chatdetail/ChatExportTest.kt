@@ -488,4 +488,83 @@ class ChatExportTest {
         val msg = Message(id = "1", chatId = "c", senderId = "u", content = "gone", type = MessageType.REVOKED)
         assertEquals("[消息已撤回]", ChatExport.renderBody(msg))
     }
+
+    @Test
+    fun buildText_timestampsUseDateTimeFormats() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "me", content = "hi", type = MessageType.TEXT, timestamp = 1600000000000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains(Regex("exported_at=\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")))
+        assertTrue(text.contains(Regex("\\[\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}\\] 我: hi")))
+    }
+
+    @Test
+    fun writeStream_secondWriteOverwritesFirstFile() {
+        val first = ChatExport.writeStream(
+            context = dummyContext,
+            fileName = "overwrite",
+            chatName = "C",
+            ownerId = "me",
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "me", content = "first", type = MessageType.TEXT, timestamp = 1600000000000L)
+            ).asSequence(),
+            resolveSenderName = { it },
+            exportedAt = 1600000100000L
+        )
+        assertNotNull(first)
+        val second = ChatExport.writeStream(
+            context = dummyContext,
+            fileName = "overwrite",
+            chatName = "C",
+            ownerId = "me",
+            messages = listOf(
+                Message(id = "m2", chatId = "c", senderId = "me", content = "second", type = MessageType.TEXT, timestamp = 1600000001000L)
+            ).asSequence(),
+            resolveSenderName = { it },
+            exportedAt = 1600000100000L
+        )
+        assertNotNull(second)
+        val content = second!!.readText()
+        assertTrue(content.contains("second"))
+        assertFalse(content.contains("first"))
+    }
+
+    @Test
+    fun write_exactlyEightyCharFileNameKeepsFullLength() {
+        val file = ChatExport.write(dummyContext, "x".repeat(80), "hi")
+        assertNotNull(file)
+        assertEquals("x".repeat(80) + ".txt", file!!.name)
+        assertEquals(84, file.name.length)
+    }
+
+    @Test
+    fun renderBody_fileWithEmptyNameRendersTagWithTrailingSpace() {
+        val fileMsg = Message(id = "1", chatId = "c", senderId = "u", content = "", type = MessageType.FILE, meta = MessageMeta(fileName = ""))
+        assertEquals("[文件] ", ChatExport.renderBody(fileMsg))
+    }
+
+    @Test
+    fun writeStream_emptySequenceProducesHeaderOnlyFile() {
+        val file = ChatExport.writeStream(
+            context = dummyContext,
+            fileName = "header_only",
+            chatName = "C",
+            ownerId = "me",
+            messages = emptySequence(),
+            resolveSenderName = { it },
+            exportedAt = 1600000100000L
+        )
+        assertNotNull(file)
+        val content = file!!.readText()
+        assertTrue(content.contains("=== C ==="))
+        assertTrue(content.contains("format_version=1"))
+        assertFalse(content.contains("count="))
+        assertTrue(content.lines().none { it.startsWith("[") })
+    }
 }
