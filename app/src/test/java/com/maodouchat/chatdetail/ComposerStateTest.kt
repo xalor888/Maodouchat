@@ -482,4 +482,77 @@ class ComposerStateTest {
         assertTrue(snapshot.attachMenuVisible)
         assertFalse(snapshot.aiMenuVisible)
     }
+
+    @Test
+    fun `saver round trip preserves every panel and mode`() {
+        val state = ComposerState()
+        state.attachMenu.value = true
+        state.expressionPanel.value = true
+        state.expressionMode.value = "STICKER"
+        state.aiMenu.value = true
+        state.translationLanguages.value = true
+        state.quickPhrases.value = true
+        state.contactCardPicker.value = true
+
+        val scope = object : SaverScope {
+            override fun canBeSaved(value: Any): Boolean = true
+        }
+        val saved = with(ComposerState.Saver) { scope.save(state) }
+        val restored = ComposerState.Saver.restore(saved!!)
+
+        assertEquals(state.snapshot(), restored?.snapshot())
+        assertTrue(restored!!.snapshot().attachMenuVisible)
+        assertTrue(restored.snapshot().expressionPanelVisible)
+        assertTrue(restored.snapshot().aiMenuVisible)
+        assertTrue(restored.snapshot().translationLanguagesVisible)
+        assertTrue(restored.snapshot().quickPhrasesVisible)
+        assertTrue(restored.snapshot().contactCardPickerVisible)
+        assertEquals("STICKER", restored.snapshot().expressionMode)
+    }
+
+    @Test
+    fun `dismiss top panel with expression and picker clears expression only`() {
+        val state = ComposerState()
+        state.openContactCardPicker()
+        state.expressionPanel.value = true
+
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().expressionPanelVisible)
+        assertTrue(state.snapshot().contactCardPickerVisible)
+        assertFalse(state.dismissTopPanel())
+    }
+
+    @Test
+    fun `toggling expression panel while quick phrases open switches panels`() {
+        val state = ComposerState()
+        state.openQuickPhrases()
+
+        state.toggleExpressionPanel()
+        val snapshot = state.snapshot()
+        assertTrue(snapshot.expressionPanelVisible)
+        assertFalse(snapshot.quickPhrasesVisible)
+    }
+
+    @Test
+    fun `opening quick phrases while expression open switches panels`() {
+        val state = ComposerState()
+        state.toggleExpressionPanel()
+
+        state.openQuickPhrases()
+        val snapshot = state.snapshot()
+        assertTrue(snapshot.quickPhrasesVisible)
+        assertFalse(snapshot.expressionPanelVisible)
+    }
+
+    @Test
+    fun `opening contact card picker twice keeps picker and clears ai menu`() {
+        val state = ComposerState()
+        state.showAiMenu()
+        state.openContactCardPicker()
+        state.openContactCardPicker()
+
+        val snapshot = state.snapshot()
+        assertTrue(snapshot.contactCardPickerVisible)
+        assertFalse(snapshot.aiMenuVisible)
+    }
 }

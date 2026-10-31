@@ -347,4 +347,45 @@ class MessageStatusMachineTest {
         assertTrue(merged.starred)
     }
 
+    @Test
+    fun `json ciphertext envelope cannot overwrite plaintext on newer edit`() {
+        val local = base("m1").copy(content = "hello", editedAt = 10L)
+        val server = local.copy(content = "{\"ciphertext\":\"abc\",\"type\":\"TEXT\"}", editedAt = 20L)
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(20L, merged.editedAt)
+    }
+
+    @Test
+    fun `sk envelope cannot overwrite plaintext on equal revision`() {
+        val local = base("m1").copy(content = "hello")
+        val server = local.copy(content = "SK:0123456789abcdef")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("hello", merged.content)
+    }
+
+    @Test
+    fun `short eyJ content is not an envelope so candidate wins on equal revision`() {
+        val local = base("m1").copy(content = "old text")
+        val server = local.copy(content = "eyJshort")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("eyJshort", merged.content)
+    }
+
+    @Test
+    fun `both encrypted sides resolve to candidate on equal revision`() {
+        val local = base("m1").copy(content = "eyJjaXBoZXJ0ZXh0IjoiYWJjIn0=")
+        val server = local.copy(content = "MD:0123456789abcdef")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("MD:0123456789abcdef", merged.content)
+    }
+
+    @Test
+    fun `newer decrypt placeholder edit cannot overwrite plaintext`() {
+        val local = base("m1").copy(content = "hello", editedAt = 10L)
+        val server = local.copy(content = "[无法解密的消息]", editedAt = 20L)
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(20L, merged.editedAt)
+    }
 }

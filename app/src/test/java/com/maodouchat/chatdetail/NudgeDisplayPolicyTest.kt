@@ -489,4 +489,63 @@ class NudgeDisplayPolicyTest {
         assertEquals("", NudgeDisplayPolicy.extractTargetName("  You nudged  "))
     }
 
+    @Test
+    fun nonOwnGroupWithoutTrailingSpaceTargetFallsBackToRaw() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "You nudged",
+            senderDisplayName = "李四",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍You nudged", text)
+    }
+
+    @Test
+    fun ownMessageTabSeparatedTargetRebuildsYouForm() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "你拍了拍\t张三",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("你拍了拍张三", text)
+    }
+
+    @Test
+    fun nonOwnGroupPrefixOnlyStoredRebuildsFromRaw() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "你拍了拍",
+            senderDisplayName = "李四",
+            isDirectChat = false,
+            templates = templates
+        )
+        assertEquals("李四 拍了拍你拍了拍", text)
+    }
+
+    @Test
+    fun nonOwnDirectEmptyStoredAndBlankSenderShowsEllipsis() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "",
+            senderDisplayName = "  ",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("… 拍了拍你", text)
+    }
+
+    @Test
+    fun ownMessageEmptyStoredReturnsEmpty() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("", text)
+    }
 }
