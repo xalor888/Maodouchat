@@ -414,4 +414,32 @@ class MessagePinPolicyTest {
         assertTrue(MessagePinPolicy.wouldExceedLimit(Int.MAX_VALUE, alreadyPinned = false))
     }
 
+    @Test
+    fun textPreview_metaAtStartDropsTrailingLiteral() {
+        assertEquals("", MessagePinPolicy.textPreview("<meta>{\"a\":1}hello"))
+    }
+
+    @Test
+    fun textPreview_maxLenTwoKeepsOneCharPlusEllipsis() {
+        assertEquals("h\u2026", MessagePinPolicy.textPreview("hello", 2))
+    }
+
+    @Test
+    fun canPin_whitespaceOnlyRoleCannotPinInGroupButIgnoredInDirect() {
+        assertFalse(MessagePinPolicy.canPin(true, "   ", MessageType.TEXT))
+        assertTrue(MessagePinPolicy.canPin(false, "   ", MessageType.TEXT))
+    }
+
+    @Test
+    fun wouldExceedLimit_atMaxButAlreadyPinnedStaysAllowed() {
+        assertFalse(MessagePinPolicy.wouldExceedLimit(20, alreadyPinned = true))
+        assertFalse(MessagePinPolicy.wouldExceedLimit(21, alreadyPinned = true))
+        assertTrue(MessagePinPolicy.wouldExceedLimit(20, alreadyPinned = false))
+    }
+
+    @Test
+    fun textPreview_crlfAndMetaCombinedFoldsOnlyLineFeed() {
+        assertEquals("hello\r world", MessagePinPolicy.textPreview("hello\r\nworld<meta>x"))
+    }
+
 }

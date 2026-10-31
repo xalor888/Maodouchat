@@ -572,4 +572,50 @@ class MentionPolicyTest {
         assertFalse(one[0].isEveryone)
     }
 
+    @Test
+    fun extractMentionIds_chineseCommaBoundaryMatches() {
+        val xiaoming = User(id = "u3", name = "\u5c0f\u660e")
+        assertEquals(
+            listOf("u3"),
+            MentionPolicy.extractMentionIds("你好 @\u5c0f\u660e，明天见", listOf(me, xiaoming), "me"),
+        )
+        assertEquals(
+            listOf("u3"),
+            MentionPolicy.extractMentionIds("@\u5c0f\u660e！你好", listOf(me, xiaoming), "me"),
+        )
+    }
+
+    @Test
+    fun filterCandidates_currentUserExcludedEvenWhenFilterMatchesSelf() {
+        val found = MentionPolicy.filterCandidates(members, currentUserId = "me", filter = "Me")
+        assertFalse(found.any { it.userId == "me" })
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun activeQuery_midTextEmptyFilterAfterAtSign() {
+        val q = MentionPolicy.activeQuery("hi @", cursor = 4)!!
+        assertEquals(3, q.atIndex)
+        assertEquals("", q.filter)
+        assertNull(MentionPolicy.activeQuery("hi @ there", cursor = 4))
+    }
+
+    @Test
+    fun extractMentionIds_uppercaseAllAliasWithPunctuationBoundary() {
+        assertEquals(
+            listOf(MentionPolicy.EVERYONE_ID),
+            MentionPolicy.extractMentionIds("hi @ALL!", members, "me"),
+        )
+        assertEquals(
+            listOf(MentionPolicy.EVERYONE_ID),
+            MentionPolicy.extractMentionIds("hi @All, welcome", members, "me"),
+        )
+    }
+
+    @Test
+    fun shouldShowPicker_aiCommandWithTrailingSpaceSuppressed() {
+        assertFalse(MentionPolicy.shouldShowPicker("@AI ", isGroupChat = true))
+        assertFalse(MentionPolicy.shouldShowPicker("@ai ", isGroupChat = true))
+    }
+
 }
