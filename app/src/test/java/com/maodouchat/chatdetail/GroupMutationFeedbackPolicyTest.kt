@@ -399,4 +399,64 @@ class GroupMutationFeedbackPolicyTest {
         assertFalse(fb.canRetry)
         assertFalse(fb.shouldReload)
     }
+
+    @Test
+    fun `502 bad gateway is retryable`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.MUTE,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 502, serverMessage = "bad gateway")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_RETRYABLE, fb.kind)
+        assertTrue(fb.canRetry)
+        assertFalse(fb.shouldReload)
+        assertEquals("bad gateway", fb.detail)
+    }
+
+    @Test
+    fun `504 gateway timeout is retryable`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ANNOUNCEMENT,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 504, serverMessage = "timeout")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_RETRYABLE, fb.kind)
+        assertTrue(fb.canRetry)
+        assertFalse(fb.shouldReload)
+    }
+
+    @Test
+    fun `padded conflict code is trimmed and wins`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.LOAD,
+            ApiException(kind = ApiFailureKind.HTTP, serverCode = "  GROUP_NOT_FOUND  ")
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_NOT_FOUND", fb.serverCode)
+    }
+
+    @Test
+    fun `unknown code with 404 falls back to conflict and keeps code`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ADD_MEMBER,
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 404,
+                serverCode = "SOMETHING_ELSE"
+            )
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("SOMETHING_ELSE", fb.serverCode)
+    }
+
+    @Test
+    fun `success with detail carries detail without retry or reload`() {
+        val fb = GroupMutationFeedbackPolicy.success(GroupMutationAction.RENAME, "renamed")
+        assertEquals(GroupMutationFeedbackKind.SUCCESS, fb.kind)
+        assertEquals("renamed", fb.detail)
+        assertFalse(fb.canRetry)
+        assertFalse(fb.shouldReload)
+    }
 }

@@ -254,4 +254,49 @@ class ChatMessageInteractionPolicyTest {
         }
     }
 
+    @Test
+    fun forwardableMatchesGestureEligibilityForEveryNonSecretType() {
+        for (type in MessageType.entries) {
+            assertEquals(isMessageGestureEligible(type), isMessageForwardable(type))
+        }
+    }
+
+    @Test
+    fun secretChatBlocksForwardForEveryType() {
+        for (type in MessageType.entries) {
+            assertFalse(isMessageForwardable(type, isSecretChat = true))
+        }
+    }
+
+    @Test
+    fun copyableMatchesTextTypesForEveryType() {
+        for (type in MessageType.entries) {
+            assertEquals(
+                type == MessageType.TEXT || type == MessageType.MARKDOWN,
+                isMessageCopyable(type)
+            )
+        }
+    }
+
+    @Test
+    fun swipeReplyUnitThresholdBoundary() {
+        assertTrue(shouldTriggerSwipeReply(-1f, 1f))
+        assertFalse(shouldTriggerSwipeReply(-0.99f, 1f))
+        assertTrue(shouldTriggerSwipeReply(-1000f, 999f))
+        assertFalse(shouldTriggerSwipeReply(-999f, 1000f))
+        assertFalse(shouldTriggerSwipeReply(-52f, Float.POSITIVE_INFINITY))
+        assertFalse(shouldTriggerSwipeReply(Float.NEGATIVE_INFINITY, 0f))
+    }
+
+    @Test
+    fun selectionToggleAppendAndRemovePreserveOrder() {
+        assertEquals(
+            listOf("m1", "m2", "m3"),
+            toggleMessageSelection(setOf("m1", "m2"), "m3").toList()
+        )
+        assertEquals(
+            listOf("m1", "m3"),
+            toggleMessageSelection(setOf("m1", "m2", "m3"), "m2").toList()
+        )
+    }
 }
