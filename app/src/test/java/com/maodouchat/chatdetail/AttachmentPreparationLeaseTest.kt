@@ -589,4 +589,102 @@ class AttachmentPreparationLeaseTest {
             effects
         )
     }
+
+    @Test
+    fun `encrypted path with surrounding whitespace is kept verbatim`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordEncryptedPath("  /private/x  ")
+
+        assertTrue(lease.cleanupIfOwned())
+        assertEquals(
+            listOf(
+                "encrypted:  /private/x  ",
+                "permission:content://original"
+            ),
+            effects
+        )
+    }
+
+    @Test
+    fun `prepared source with surrounding whitespace is kept verbatim`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+        lease.recordPreparedSource("  file://p  ")
+
+        assertTrue(lease.cleanupIfOwned())
+        assertEquals(
+            listOf(
+                "prepared:  file://p  ",
+                "permission:content://original"
+            ),
+            effects
+        )
+    }
+
+    @Test
+    fun `original uri with surrounding whitespace is released verbatim`() {
+        val effects = mutableListOf<String>()
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "  content://original  ",
+            deleteEncryptedFile = { effects += "encrypted:$it" },
+            deletePreparedSource = { effects += "prepared:$it" },
+            releasePersistablePermission = { effects += "permission:$it" }
+        )
+
+        assertTrue(lease.cleanupIfOwned())
+        assertEquals(listOf("permission:  content://original  "), effects)
+    }
+
+    @Test
+    fun `two leases clean independently`() {
+        val effectsA = mutableListOf<String>()
+        val effectsB = mutableListOf<String>()
+        val leaseA = AttachmentPreparationLease(
+            originalSourceUri = "content://a",
+            deleteEncryptedFile = { effectsA += "encrypted:$it" },
+            deletePreparedSource = { effectsA += "prepared:$it" },
+            releasePersistablePermission = { effectsA += "permission:$it" }
+        )
+        val leaseB = AttachmentPreparationLease(
+            originalSourceUri = "content://b",
+            deleteEncryptedFile = { effectsB += "encrypted:$it" },
+            deletePreparedSource = { effectsB += "prepared:$it" },
+            releasePersistablePermission = { effectsB += "permission:$it" }
+        )
+        leaseA.recordEncryptedPath("a-enc")
+        leaseB.recordEncryptedPath("b-enc")
+
+        assertTrue(leaseA.cleanupIfOwned())
+        assertEquals(listOf("encrypted:a-enc", "permission:content://a"), effectsA)
+        assertTrue(effectsB.isEmpty())
+
+        assertTrue(leaseB.cleanupIfOwned())
+        assertEquals(listOf("encrypted:b-enc", "permission:content://b"), effectsB)
+    }
+
+    @Test
+    fun `cleanup without handoff leaves handed-off flag false`() {
+        val lease = AttachmentPreparationLease(
+            originalSourceUri = "content://original",
+            deleteEncryptedFile = { _ -> },
+            deletePreparedSource = { _ -> },
+            releasePersistablePermission = { _ -> }
+        )
+        lease.recordEncryptedPath("encrypted")
+
+        assertTrue(lease.cleanupIfOwned())
+        assertFalse(lease.isHandedOff())
+    }
+
 }
