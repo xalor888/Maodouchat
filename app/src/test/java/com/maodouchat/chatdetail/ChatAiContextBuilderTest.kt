@@ -375,4 +375,72 @@ class ChatAiContextBuilderTest {
 
         assertEquals(listOf("text 3"), context.map { it.text })
     }
+
+    @Test
+    fun `plain context limit counts only kept messages not filtered out images`() {
+        val messages = listOf(
+            message("t1", "alice", "text1", 10L),
+            message("img", "alice", "photo", 20L, type = MessageType.IMAGE),
+            message("t2", "alice", "text2", 30L),
+            message("t3", "alice", "text3", 40L)
+        )
+
+        val context = buildPlainAiContextMessages(messages, senders, limit = 2)
+
+        assertEquals(listOf("text2", "text3"), context.map { it.text })
+    }
+
+    @Test
+    fun `summary drops voice with blank transcript and blank translations`() {
+        val voice = message(
+            "voice", "alice", "encrypted-reference", 20L,
+            MessageMeta(
+                voiceTranscript = "   ",
+                translations = mapOf("en" to "   ")
+            ),
+            MessageType.VOICE
+        )
+
+        assertTrue(buildSummaryAiContextMessages(listOf(voice), senders).isEmpty())
+    }
+
+    @Test
+    fun `plain context max text length clamps to 1 and to 4000`() {
+        val short = buildPlainAiContextMessages(
+            listOf(message("m1", "alice", "hello", 1L)),
+            senders, limit = 10, maxTextLength = 0
+        )
+        assertEquals("h", short.single().text)
+
+        val long = buildPlainAiContextMessages(
+            listOf(message("m2", "alice", "x".repeat(4_500), 2L)),
+            senders, limit = 10, maxTextLength = 5_000
+        )
+        assertEquals(4_000, long.single().text.length)
+    }
+
+    @Test
+    fun `summary collapses identical translation values under different keys`() {
+        val text = message(
+            "t1", "alice", "正文", 10L,
+            MessageMeta(translations = mapOf("en" to "same", "fr" to "same"))
+        )
+
+        val context = buildSummaryAiContextMessages(listOf(text), senders)
+
+        assertEquals("正文\nsame", context.single().text)
+    }
+
+    @Test
+    fun `plain context keeps an exactly 80 char sender label unchanged`() {
+        val exactNames = senders.copy(namesByUserId = mapOf("alice" to "A".repeat(80)))
+
+        val context = buildPlainAiContextMessages(
+            listOf(message("m1", "alice", "hi", 1L)),
+            exactNames,
+            limit = 10
+        )
+
+        assertEquals(80, context.single().sender.length)
+    }
 }

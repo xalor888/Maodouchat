@@ -453,4 +453,80 @@ class ChatExportControllerTest {
         assertTrue(controller.exportChatAsJson().contains("\"timestamp\":0"))
     }
 
+    @Test
+    fun `exportChatAsJson counts messages from other chats without filtering`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "one", type = MessageType.TEXT),
+                Message(id = "m2", chatId = "c-other", senderId = "user_me", content = "two", type = MessageType.TEXT),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"messageCount\":2"))
+        assertTrue(json.contains("one") && json.contains("two"))
+    }
+
+    @Test
+    fun `exportChatAsJson reports empty when token is whitespace`() {
+        CurrentSession.override = { Snapshot("   ", "user_me") }
+        try {
+            uiState.value = ChatDetailUiState(
+                chat = Chat(id = "c1", isGroup = false),
+                messages = emptyList(),
+            )
+
+            assertEquals("{}", controller.exportChatAsJson())
+        } finally {
+            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        }
+    }
+
+    @Test
+    fun `exportChatAsJson marks partial with loaded messages`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "one", type = MessageType.TEXT),
+                Message(id = "m2", chatId = "c1", senderId = "user_me", content = "two", type = MessageType.TEXT),
+            ),
+            hasMoreOlderMessages = true,
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"partial\":true"))
+        assertTrue(json.contains("\"messageCount\":2"))
+    }
+
+    @Test
+    fun `exportChatAsJson keeps list order when timestamps run backwards`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "first", type = MessageType.TEXT, timestamp = 300L),
+                Message(id = "m2", chatId = "c1", senderId = "user_me", content = "second", type = MessageType.TEXT, timestamp = 100L),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        val first = json.indexOf("\"id\":\"m1\"")
+        val second = json.indexOf("\"id\":\"m2\"")
+        assertTrue(first >= 0 && first < second)
+    }
+
+    @Test
+    fun `exportChatAsJson twice returns full json both times`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "one", type = MessageType.TEXT),
+            ),
+        )
+
+        val first = controller.exportChatAsJson()
+        val second = controller.exportChatAsJson()
+        assertTrue(first.contains("\"chatId\":\"c1\"") && first.contains("\"messageCount\":1"))
+        assertTrue(second.contains("\"chatId\":\"c1\"") && second.contains("\"messageCount\":1"))
+    }
 }
