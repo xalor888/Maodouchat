@@ -422,4 +422,64 @@ class ComposerStateTest {
         assertTrue(restored.snapshot().expressionPanelVisible)
     }
 
+    @Test
+    fun `show ai menu keeps the contact card picker visible`() {
+        val state = ComposerState()
+        state.openContactCardPicker()
+        state.showAiMenu()
+        val snapshot = state.snapshot()
+        assertTrue(snapshot.contactCardPickerVisible)
+        assertTrue(snapshot.aiMenuVisible)
+    }
+
+    @Test
+    fun `opening quick phrases keeps the contact card picker visible`() {
+        val state = ComposerState()
+        state.openContactCardPicker()
+        state.openQuickPhrases()
+        val snapshot = state.snapshot()
+        assertTrue(snapshot.contactCardPickerVisible)
+        assertTrue(snapshot.quickPhrasesVisible)
+    }
+
+    @Test
+    fun `toggling the expression panel keeps the contact card picker visible`() {
+        val state = ComposerState()
+        state.openContactCardPicker()
+        state.toggleExpressionPanel()
+        val snapshot = state.snapshot()
+        assertTrue(snapshot.contactCardPickerVisible)
+        assertTrue(snapshot.expressionPanelVisible)
+    }
+
+    @Test
+    fun `dismiss top panel drains all four primary panels in priority order`() {
+        val state = ComposerState()
+        state.aiMenu.value = true
+        state.quickPhrases.value = true
+        state.attachMenu.value = true
+        state.expressionPanel.value = true
+
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().aiMenuVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().quickPhrasesVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().attachMenuVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().expressionPanelVisible)
+        assertFalse(state.dismissTopPanel())
+    }
+
+    @Test
+    fun `toggling attach menu while ai open switches to attach`() {
+        val state = ComposerState()
+        state.showAiMenu()
+        assertTrue(state.snapshot().aiMenuVisible)
+
+        state.toggleAttachMenu()
+        val snapshot = state.snapshot()
+        assertTrue(snapshot.attachMenuVisible)
+        assertFalse(snapshot.aiMenuVisible)
+    }
 }

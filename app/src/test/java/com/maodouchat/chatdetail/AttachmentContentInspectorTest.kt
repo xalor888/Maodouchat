@@ -231,4 +231,49 @@ class AttachmentContentInspectorTest {
     }
 
     private fun bytes(vararg values: Int): ByteArray = values.map(Int::toByte).toByteArray()
+
+    @Test
+    fun `minimal eight byte iso brand matches video and voice`() {
+        val iso = bytes(0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70)
+        assertTrue(isAttachmentContentCompatible(MessageType.VIDEO, iso))
+        assertTrue(isAttachmentContentCompatible(MessageType.VOICE, iso))
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, iso))
+    }
+
+    @Test
+    fun `empty header matches nothing except generic files`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, ByteArray(0)))
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, ByteArray(0)))
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, ByteArray(0)))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, ByteArray(0)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, ByteArray(0)))
+    }
+
+    @Test
+    fun `single byte header matches nothing except generic files`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0xFF)))
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, bytes(0xFF)))
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, bytes(0xFF)))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, bytes(0xFF)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, bytes(0xFF)))
+    }
+
+    @Test
+    fun `iso brand ignores nonzero bytes before the brand offset`() {
+        val iso = bytes(0x12, 0x34, 0x56, 0x78, 0x66, 0x74, 0x79, 0x70)
+        assertTrue(isAttachmentContentCompatible(MessageType.VIDEO, iso))
+        assertTrue(isAttachmentContentCompatible(MessageType.VOICE, iso))
+    }
+
+    @Test
+    fun `sk dist rejects every known header`() {
+        val jpeg = bytes(0xFF, 0xD8, 0xFF)
+        val gif = "GIF89a".encodeToByteArray()
+        val iso = bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70)
+        val ebml = bytes(0x1A, 0x45, 0xDF, 0xA3)
+        assertFalse(isAttachmentContentCompatible(MessageType.SK_DIST, jpeg))
+        assertFalse(isAttachmentContentCompatible(MessageType.SK_DIST, gif))
+        assertFalse(isAttachmentContentCompatible(MessageType.SK_DIST, iso))
+        assertFalse(isAttachmentContentCompatible(MessageType.SK_DIST, ebml))
+    }
 }

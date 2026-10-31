@@ -440,4 +440,52 @@ class ChatExportTest {
         assertTrue(text.contains("我: content://cached/a.gif"))
         assertFalse(text.contains("[图片]"))
     }
+
+    @Test
+    fun buildText_ownerAlwaysShowsWoEvenWhenResolverRenamesOwner() {
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { "Boss" },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "me", content = "hi", type = MessageType.TEXT, timestamp = 1600000000000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("我: hi"))
+        assertFalse(text.contains("Boss"))
+    }
+
+    @Test
+    fun buildText_fileMessageRendersFileNameInBody() {
+        val meta = MessageMeta(fileName = "deck.pdf")
+        val text = ChatExport.buildText(
+            chatName = "C",
+            ownerId = "me",
+            resolveSenderName = { it },
+            messages = listOf(
+                Message(id = "m1", chatId = "c", senderId = "friend", content = "", type = MessageType.FILE, meta = meta, timestamp = 1600000000000L)
+            ),
+            exportedAt = 1600000100000L
+        )
+        assertTrue(text.contains("friend: [文件] deck.pdf"))
+    }
+
+    @Test
+    fun write_emptyStringTextReturnsNull() {
+        assertNull(ChatExport.write(dummyContext, "x", ""))
+    }
+
+    @Test
+    fun write_fileNameWithQuestionAndQuotesSanitized() {
+        val file = ChatExport.write(dummyContext, "a?b\"c", "hi")
+        assertNotNull(file)
+        assertEquals("a_b_c.txt", file!!.name)
+    }
+
+    @Test
+    fun renderBody_revokedRendersTagRegardlessOfContent() {
+        val msg = Message(id = "1", chatId = "c", senderId = "u", content = "gone", type = MessageType.REVOKED)
+        assertEquals("[消息已撤回]", ChatExport.renderBody(msg))
+    }
 }
