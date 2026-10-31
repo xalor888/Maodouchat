@@ -445,4 +445,61 @@ class MessageMutationPolicyTest {
         assertEquals("已撤回", placeholder.content)
     }
 
+    @Test
+    fun `authoritative revoke still allows a later edit and keeps the render flag`() {
+        val tracker = MessageMutationTracker()
+        val ticket = tracker.begin("m1", MessageMutationKind.REVOKE)!!
+        tracker.observeAuthoritative("m1", MessageMutationKind.REVOKE)
+
+        assertTrue(tracker.shouldRenderRevoked("m1"))
+        assertTrue(tracker.begin("m1", MessageMutationKind.EDIT) != null)
+        assertTrue(tracker.shouldRenderRevoked("m1"))
+    }
+
+    @Test
+    fun `authoritatively observed ticket neither completes nor rolls back`() {
+        val tracker = MessageMutationTracker()
+        val ticket = tracker.begin("m1", MessageMutationKind.EDIT)!!
+        tracker.observeAuthoritative("m1", MessageMutationKind.EDIT)
+
+        assertFalse(tracker.complete(ticket))
+        assertFalse(tracker.shouldRollback(ticket))
+        assertTrue(tracker.begin("m1", MessageMutationKind.DELETE) != null)
+    }
+
+    @Test
+    fun `completed delete ticket allows a later edit and stops dropping`() {
+        val tracker = MessageMutationTracker()
+        val ticket = tracker.begin("m1", MessageMutationKind.DELETE)!!
+        assertTrue(tracker.shouldDrop("m1"))
+
+        assertTrue(tracker.complete(ticket))
+        assertFalse(tracker.shouldDrop("m1"))
+        assertTrue(tracker.begin("m1", MessageMutationKind.EDIT) != null)
+        assertFalse(tracker.shouldRenderRevoked("m1"))
+    }
+
+    @Test
+    fun `newer wire edit keeps plaintext but takes revision and star`() {
+        val current = message("m1", "hello", MessageType.TEXT).copy(editedAt = 100L, starred = false)
+        val wire = message(
+            "m1",
+            """{"version":1,"algorithm":"signal-sender-key-v1","ciphertext":"abc"}""",
+            MessageType.TEXT
+        ).copy(editedAt = 200L, starred = true)
+
+        val merged = mergeMessageVersions(listOf(current), listOf(wire)).single()
+
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+        assertTrue(merged.starred)
+    }
+
+    @Test
+    fun `ambiguous transport covers 505 511 599 but not 499`() {
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 505)))
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 511)))
+        assertTrue(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 599)))
+        assertFalse(isAmbiguousTransportFailure(ApiException(ApiFailureKind.HTTP, statusCode = 499)))
+    }
 }

@@ -3,6 +3,7 @@ package com.maodouchat.chatdetail
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
+import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -377,4 +378,59 @@ class DecryptFailureDisplayPolicyTest {
         assertEquals(100L, merged.editedAt)
     }
 
+    @Test
+    fun `both wire envelopes on newer edit take the candidate`() {
+        val current = message("m1", "eyJ2ZXJzaW9uIjoxLCJhbGdvcml0aG0iOiJzaWduYWwifQ==").copy(editedAt = 100L)
+        val candidate = message("m1", "MD:abcdefghijklmnop").copy(editedAt = 200L)
+
+        val merged = mergeMessageVersions(listOf(current), listOf(candidate)).single()
+        assertEquals("MD:abcdefghijklmnop", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
+    @Test
+    fun `newer plaintext edit replaces a wire envelope`() {
+        val wire = message(
+            "m1",
+            """{"version":1,"algorithm":"signal-sender-key-v1","ciphertext":"abc"}"""
+        ).copy(editedAt = 100L)
+        val plain = message("m1", "hello").copy(editedAt = 200L)
+
+        val merged = mergeMessageVersions(listOf(wire), listOf(plain)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
+    @Test
+    fun `older wire edit never overwrites newer plaintext`() {
+        val plain = message("m1", "hello").copy(editedAt = 200L)
+        val wire = message("m1", "MD:abcdefghijklmnop").copy(editedAt = 100L)
+
+        val merged = mergeMessageVersions(listOf(plain), listOf(wire)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+    }
+
+    @Test
+    fun `newer placeholder edit keeps plaintext but takes reactions`() {
+        val plain = message("m1", "hello").copy(
+            editedAt = 100L,
+            reactions = listOf(MessageReaction("u1", "❤"))
+        )
+        val failed = message("m1", "无法解密").copy(editedAt = 200L, reactions = emptyList())
+
+        val merged = mergeMessageVersions(listOf(plain), listOf(failed)).single()
+        assertEquals("hello", merged.content)
+        assertEquals(200L, merged.editedAt)
+        assertTrue(merged.reactions.isEmpty())
+    }
+
+    @Test
+    fun `short eyJ string under sixteen chars is not an envelope`() {
+        val old = message("m1", "old")
+        val short = message("m1", "eyJshort")
+
+        assertEquals("eyJshort", mergeMessageVersions(listOf(old), listOf(short)).single().content)
+        assertEquals("new", mergeMessageVersions(listOf(short), listOf(message("m1", "new"))).single().content)
+    }
 }
