@@ -347,4 +347,66 @@ class AttachmentPreparationModelTest {
         assertEquals("image/gif", normalized.mimeType)
     }
 
+    @Test
+    fun `image dots and spaces only name falls back to file jpg`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.IMAGE,
+            LocalFileMetadata(" . . ", "image/png", 6L)
+        )
+
+        assertEquals("file.jpg", normalized.fileName)
+        assertEquals("image/jpeg", normalized.mimeType)
+        assertEquals(6L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `video declared mime with whitespace and uppercase maps over unknown extension`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.avi", "  VIDEO/WEBM ", 4L)
+        )
+
+        assertEquals("clip.webm", normalized.fileName)
+        assertEquals("video/webm", normalized.mimeType)
+        assertEquals(4L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `video trailing dot name gains mp4`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.", "application/octet-stream", 5L)
+        )
+
+        assertEquals("clip.mp4", normalized.fileName)
+        assertEquals("video/mp4", normalized.mimeType)
+        assertEquals(5L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `file mime without slash or with two slashes fails closed`() {
+        val noSlash = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("doc.txt", "textplain", 8L)
+        )
+        assertEquals("application/octet-stream", noSlash.mimeType)
+
+        val twoSlashes = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("doc.txt", "a/b/c", 8L)
+        )
+        assertEquals("application/octet-stream", twoSlashes.mimeType)
+    }
+
+    @Test
+    fun `sticker blank name falls back to file keeping declared mime`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.STICKER,
+            LocalFileMetadata("   ", "image/webp", 7L)
+        )
+
+        assertEquals("file", normalized.fileName)
+        assertEquals("image/webp", normalized.mimeType)
+        assertEquals(7L, normalized.sizeBytes)
+    }
 }
