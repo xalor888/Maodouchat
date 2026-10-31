@@ -534,4 +534,42 @@ class MentionPolicyTest {
         assertTrue(MentionPolicy.shouldShowPicker("hi @Al x", isGroupChat = true, cursor = 5))
     }
 
+
+    @Test
+    fun extractMentionIds_nicknameShadowsLegalName() {
+        val people = listOf(me, User(id = "u9", name = "Robert", nickname = "Bobby"))
+        assertEquals(listOf("u9"), MentionPolicy.extractMentionIds("@Bobby", people, "me"))
+        assertEquals(emptyList<String>(), MentionPolicy.extractMentionIds("@Robert", people, "me"))
+    }
+
+    @Test
+    fun filterCandidates_nicknameIsDisplayNameAndMatchesFilter() {
+        val people = listOf(me, User(id = "u9", name = "Robert", nickname = "Bobby"))
+        val result = MentionPolicy.filterCandidates(people, "me", "bob")
+        assertEquals(1, result.size)
+        assertEquals("u9", result[0].userId)
+        assertEquals("Bobby", result[0].displayName)
+    }
+
+    @Test
+    fun displayTokenForUser_prefersNicknameOverName() {
+        assertEquals("@Bobby", MentionPolicy.displayTokenForUser(User(id = "u9", name = "Robert", nickname = "Bobby")))
+    }
+
+    @Test
+    fun insertMention_queryAtTextStart_insertsAtZero() {
+        val r = MentionPolicy.insertMention("@Al", 3, "Alice")
+        assertEquals("@Alice ", r.text)
+        assertEquals(7, r.cursor)
+    }
+
+    @Test
+    fun filterCandidates_limitOneWithoutEveryone_yieldsFirstSortedPerson() {
+        val one = MentionPolicy.filterCandidates(members, "me", "", includeEveryone = false, limit = 1)
+        assertEquals(1, one.size)
+        assertEquals("u1", one[0].userId)
+        assertEquals("Alice", one[0].displayName)
+        assertFalse(one[0].isEveryone)
+    }
+
 }

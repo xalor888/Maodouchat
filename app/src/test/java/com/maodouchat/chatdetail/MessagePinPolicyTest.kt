@@ -369,4 +369,49 @@ class MessagePinPolicyTest {
         assertEquals("", MessagePinPolicy.textPreview("   "))
     }
 
+
+    @Test
+    fun canPin_group_owner_pins_all_nine_pinnable_types() {
+        val types = listOf(
+            MessageType.TEXT,
+            MessageType.MARKDOWN,
+            MessageType.IMAGE,
+            MessageType.GIF,
+            MessageType.STICKER,
+            MessageType.LOCATION,
+            MessageType.VOICE,
+            MessageType.VIDEO,
+            MessageType.FILE,
+        )
+        for (type in types) {
+            assertTrue(MessagePinPolicy.canPin(true, "OWNER", type))
+        }
+    }
+
+    @Test
+    fun isPinnableType_rejects_nudge_sk_dist_system_and_revoked() {
+        assertFalse(MessagePinPolicy.isPinnableType(MessageType.NUDGE))
+        assertFalse(MessagePinPolicy.isPinnableType(MessageType.SK_DIST))
+        assertFalse(MessagePinPolicy.isPinnableType(MessageType.SYSTEM))
+        assertFalse(MessagePinPolicy.isPinnableType(MessageType.REVOKED))
+    }
+
+    @Test
+    fun previewKind_maps_system_and_sk_dist_to_generic() {
+        assertEquals(PreviewKind.GENERIC, MessagePinPolicy.previewKind(MessageType.SYSTEM))
+        assertEquals(PreviewKind.GENERIC, MessagePinPolicy.previewKind(MessageType.SK_DIST))
+    }
+
+    @Test
+    fun textPreview_crlf_folds_only_line_feed() {
+        assertEquals("a\r b", MessagePinPolicy.textPreview("a\r\nb"))
+        assertEquals("a\rb", MessagePinPolicy.textPreview("a\rb"))
+    }
+
+    @Test
+    fun wouldExceedLimit_huge_count_still_allowed_when_already_pinned() {
+        assertFalse(MessagePinPolicy.wouldExceedLimit(Int.MAX_VALUE, alreadyPinned = true))
+        assertTrue(MessagePinPolicy.wouldExceedLimit(Int.MAX_VALUE, alreadyPinned = false))
+    }
+
 }

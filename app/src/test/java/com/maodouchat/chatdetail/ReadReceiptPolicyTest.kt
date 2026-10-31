@@ -789,4 +789,44 @@ class ReadReceiptPolicyTest {
         assertTrue(ReadReceiptPolicy.isPrivilegedGroupRole("owner"))
     }
 
+
+    @Test
+    fun shouldShowGroupReadCount_paddedLowercaseAdminShows_adminLikeDenied() {
+        assertTrue(ReadReceiptPolicy.shouldShowGroupReadCount(true, false, " admin "))
+        assertTrue(ReadReceiptPolicy.shouldShowGroupReadCount(true, false, " owner "))
+        assertFalse(ReadReceiptPolicy.shouldShowGroupReadCount(true, false, "ADMINISTRATOR"))
+    }
+
+    @Test
+    fun computeGroupReadCount_viewerAbsentFromRoster_countsAllMembers() {
+        assertEquals(1 to 2, ReadReceiptPolicy.computeGroupReadCount("me", listOf("a", "b"), listOf("a")))
+        assertEquals(2 to 2, ReadReceiptPolicy.computeGroupReadCount("me", listOf("a", "b"), listOf("a", "b")))
+    }
+
+    @Test
+    fun canViewReceipts_dmMemberAndDmAdminCannotViewPeer() {
+        assertFalse(ReadReceiptPolicy.canViewReceipts("member", "peer", false, "MEMBER"))
+        assertFalse(ReadReceiptPolicy.canViewReceipts("member", "peer", false, "ADMIN"))
+    }
+
+    @Test
+    fun incompletePositiveReadWithZeroTotalCountsAsComplete() {
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("old", "me", true),
+                PrefetchMessage("new", "me", true),
+            ),
+            counts = mapOf("old" to ReadCountUi(read = 1, total = 0)),
+        )
+        assertEquals(listOf("new"), ids)
+    }
+
+    @Test
+    fun isPrivilegedGroupRole_nullBlankAndWhitespaceDenied() {
+        assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole(null))
+        assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole(""))
+        assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole("   "))
+    }
+
 }
