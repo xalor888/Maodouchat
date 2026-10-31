@@ -536,4 +536,72 @@ class ChatMediaStateControllerTest {
         )
         assertEquals(0.25f, updated.fileTransferProgress.getValue("neg"), 0.0001f)
     }
+
+    @Test
+    fun `updateSegmentProgress publishes an exactly one percent jump`() {
+        val state = ChatDetailUiState(fileTransferProgress = mapOf("jump" to 0.5f))
+        val updated = controller.updateSegmentProgress(
+            state,
+            messageId = "jump",
+            completed = 510L,
+            total = 1_000L,
+            start = 0f,
+            end = 1f,
+        )
+        assertEquals(0.51f, updated.fileTransferProgress.getValue("jump"), 0.0001f)
+    }
+
+    @Test
+    fun `updateSegmentProgress clamps an inverted window to its start`() {
+        val updated = controller.updateSegmentProgress(
+            ChatDetailUiState(),
+            messageId = "inv",
+            completed = 50L,
+            total = 100L,
+            start = 0.8f,
+            end = 0.2f,
+        )
+        assertEquals(0.8f, updated.fileTransferProgress.getValue("inv"), 0.0001f)
+    }
+
+    @Test
+    fun `applyTransfers maps paused with zero bytes to base progress`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u1", content = "a", type = MessageType.FILE),
+        )
+        val updated = controller.applyTransfers(
+            ChatDetailUiState(messages = messages),
+            listOf(transfer("m1", AttachmentTransferState.PAUSED)),
+        )
+
+        assertEquals(MessageStatus.SENDING, updated.messages.single().status)
+        assertEquals(0.35f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+    }
+
+    @Test
+    fun `finishDownload drops only its own progress and keeps siblings`() {
+        val state = ChatDetailUiState(
+            fileTransferProgress = mapOf("a" to 0.5f, "b" to 0.7f),
+            downloadingFileMessageIds = setOf("a", "b"),
+        )
+        val done = controller.finishDownload(state, "a", localUri = "content://a")
+
+        assertFalse(done.fileTransferProgress.containsKey("a"))
+        assertEquals(0.7f, done.fileTransferProgress.getValue("b"), 0.0001f)
+        assertTrue(done.downloadingFileMessageIds.contains("b"))
+    }
+
+    @Test
+    fun `beginDownload clears only its own failure marker and keeps siblings`() {
+        val state = ChatDetailUiState(
+            mediaDownloadErrorMessageIds = setOf("a", "b"),
+            groupEncryptionWarning = "stale",
+        )
+        val started = controller.beginDownload(state, "a")
+
+        assertFalse(started.mediaDownloadErrorMessageIds.contains("a"))
+        assertTrue(started.mediaDownloadErrorMessageIds.contains("b"))
+        assertEquals(null, started.groupEncryptionWarning)
+    }
+
 }

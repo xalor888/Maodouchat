@@ -22,10 +22,13 @@ object AttachmentProgressPolicy {
         if (total <= 0L) return null
         val startClamped = start.coerceIn(0f, 1f)
         val endClamped = end.coerceIn(startClamped, 1f)
-        val ratio = (completed.toDouble() / total.toDouble()).coerceIn(0.0, 1.0).toFloat()
-        val progress = (startClamped + ratio * (endClamped - startClamped)).coerceIn(0f, 1f)
+        val ratio = (completed.toDouble() / total.toDouble()).coerceIn(0.0, 1.0)
+        // Compare the delta in Double: in Float, 0.51f - 0.5f is just under
+        // 0.01f, so a true one-percent jump was wrongly suppressed.
+        val progressValue = (startClamped.toDouble() + ratio * (endClamped - startClamped)).coerceIn(0.0, 1.0)
+        val progress = progressValue.toFloat()
         val prev = if (previousPublished < 0f) -1f else previousPublished.coerceIn(0f, 1f)
-        if (prev >= 0f && kotlin.math.abs(prev - progress) < MIN_PUBLISH_DELTA && progress < 1f) {
+        if (prev >= 0f && kotlin.math.abs(prev.toDouble() - progressValue) < MIN_PUBLISH_DELTA.toDouble() && progress < 1f) {
             return null
         }
         return progress

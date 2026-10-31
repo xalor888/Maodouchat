@@ -514,4 +514,81 @@ class MediaExportUseCaseTest {
         assertEquals("report.pdf", recorder.lastSaveRequest?.displayName)
     }
 
+    @Test
+    fun saveMessageMedia_keepsExplicitQuickTimeMimeButDerivesMp4Name() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/clip.mov", type = MessageType.VIDEO,
+            meta = MessageMeta(fileMimeType = "video/quicktime"),
+        )
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("video/quicktime", recorder.lastSaveRequest?.mimeType)
+        val name = recorder.lastSaveRequest?.displayName.orEmpty()
+        assertTrue(name.startsWith("video_") && name.endsWith(".mp4"))
+    }
+
+    @Test
+    fun saveMessageMedia_uppercaseGifMimeStillDerivesGifName() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/anim.gif", type = MessageType.IMAGE,
+            meta = MessageMeta(fileMimeType = "image/GIF"),
+        )
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("image/GIF", recorder.lastSaveRequest?.mimeType)
+        val name = recorder.lastSaveRequest?.displayName.orEmpty()
+        assertTrue(name.startsWith("image_") && name.endsWith(".gif"))
+    }
+
+    @Test
+    fun shareMessageMedia_keepsPaddedExplicitFileNameVerbatim() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/photo.jpg", type = MessageType.IMAGE,
+            meta = MessageMeta(fileName = "  pic.jpg  "),
+        )
+
+        val result = recorder.shareMessageMedia(message, isSecretChat = false, chooserTitle = "Share")
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("  pic.jpg  ", recorder.lastShareRequest?.displayName)
+    }
+
+    @Test
+    fun saveMessageMedia_explicitPdfMimeStillDerivesBinNameForFile() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/report.pdf", type = MessageType.FILE,
+            meta = MessageMeta(fileMimeType = "application/pdf"),
+        )
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("application/pdf", recorder.lastSaveRequest?.mimeType)
+        val name = recorder.lastSaveRequest?.displayName.orEmpty()
+        assertTrue(name.startsWith("media_") && name.endsWith(".bin"))
+    }
+
+    @Test
+    fun saveMessageMedia_explicitGifNameWithBlankMimeFallsBackToGifMime() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/anim.gif", type = MessageType.GIF,
+            meta = MessageMeta(fileName = "anim.gif", fileMimeType = "   "),
+        )
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("image/gif", recorder.lastSaveRequest?.mimeType)
+        assertEquals("anim.gif", recorder.lastSaveRequest?.displayName)
+    }
+
 }
