@@ -447,4 +447,71 @@ class MediaExportUseCaseTest {
         assertEquals("application/octet-stream", recorder.lastSaveRequest?.mimeType)
     }
 
+    @Test
+    fun shareMessageMedia_unescapesEntityInContentForRawUri() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(id = "m1", chatId = "c", senderId = "u", content = "fish &amp; chips", type = MessageType.TEXT)
+
+        val result = recorder.shareMessageMedia(message, isSecretChat = false, chooserTitle = "Share")
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("fish & chips", recorder.lastShareRequest?.rawUri)
+        assertEquals("application/octet-stream", recorder.lastShareRequest?.mimeType)
+    }
+
+    @Test
+    fun shareMessageMedia_derivesOctetStreamAndEmptyNameForVoiceWithoutMeta() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(id = "m1", chatId = "c", senderId = "u", content = "file:///cache/voice", type = MessageType.VOICE)
+
+        val result = recorder.shareMessageMedia(message, isSecretChat = false, chooserTitle = "Share")
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("application/octet-stream", recorder.lastShareRequest?.mimeType)
+        assertEquals("", recorder.lastShareRequest?.displayName)
+    }
+
+    @Test
+    fun shareMessageMedia_derivesGifMimeAndEmptyNameWithoutMeta() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(id = "m1", chatId = "c", senderId = "u", content = "file:///cache/anim.gif", type = MessageType.GIF)
+
+        val result = recorder.shareMessageMedia(message, isSecretChat = false, chooserTitle = "Share")
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("image/gif", recorder.lastShareRequest?.mimeType)
+        assertEquals("", recorder.lastShareRequest?.displayName)
+    }
+
+    @Test
+    fun saveMessageMedia_derivesWebpNameFromExplicitMimeWithoutFileName() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/sticker.webp", type = MessageType.STICKER,
+            meta = MessageMeta(fileMimeType = "image/webp"),
+        )
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("image/webp", recorder.lastSaveRequest?.mimeType)
+        val name = recorder.lastSaveRequest?.displayName.orEmpty()
+        assertTrue(name.startsWith("media_") && name.endsWith(".webp"))
+    }
+
+    @Test
+    fun saveMessageMedia_usesExplicitFileNameWithOctetStreamForFileWithBlankMime() = runBlocking {
+        val recorder = RecordingMediaExportUseCase()
+        val message = Message(
+            id = "m1", chatId = "c", senderId = "u", content = "file:///cache/report.pdf", type = MessageType.FILE,
+            meta = MessageMeta(fileName = "report.pdf", fileMimeType = "   "),
+        )
+
+        val result = recorder.saveMessageMedia(message, isSecretChat = false)
+
+        assertEquals(MediaExportResult.Success, result)
+        assertEquals("application/octet-stream", recorder.lastSaveRequest?.mimeType)
+        assertEquals("report.pdf", recorder.lastSaveRequest?.displayName)
+    }
+
 }

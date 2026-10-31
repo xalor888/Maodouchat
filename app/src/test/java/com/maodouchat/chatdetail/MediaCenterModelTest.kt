@@ -345,4 +345,44 @@ class MediaCenterModelTest {
         assertEquals(listOf("https://a.com/x", "https://a.com/x", "https://a.com/x"), items.map { it.linkUrl })
     }
 
+    @Test
+    fun wholeContentUrlYieldsSingleLinkItem() {
+        val message = Message("m", "chat", "u", "https://a.com/x", MessageType.TEXT)
+        val items = buildMediaCenterItems(listOf(message))
+
+        assertEquals(1, items.size)
+        assertEquals(MediaCenterCategory.LINKS, items.single().category)
+        assertEquals("https://a.com/x", items.single().linkUrl)
+    }
+
+    @Test
+    fun overlongUrlDroppedWhileShortUrlInSameMessageKept() {
+        val okUrl = "https://a.com/ok"
+        val tooLong = "https://".plus("a".repeat(2041))
+        val message = Message("m", "chat", "u", "见 $okUrl 和 $tooLong", MessageType.TEXT)
+
+        assertEquals(listOf(okUrl), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun fullWidthClosingParenIsNotTrimmed() {
+        val message = Message("m", "chat", "u", "见 https://a.com/x） 好", MessageType.TEXT)
+
+        assertEquals(listOf("https://a.com/x）"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun userinfoInUrlSurvivesVerbatim() {
+        val message = Message("m", "chat", "u", "见 https://user:pass@a.com/x", MessageType.TEXT)
+
+        assertEquals(listOf("https://user:pass@a.com/x"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun percentEncodedUrlSurvivesVerbatim() {
+        val message = Message("m", "chat", "u", "见 https://a.com/a%20b?x=1&y=2", MessageType.TEXT)
+
+        assertEquals(listOf("https://a.com/a%20b?x=1&y=2"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
 }

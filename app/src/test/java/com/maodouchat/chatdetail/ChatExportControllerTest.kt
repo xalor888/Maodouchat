@@ -529,4 +529,65 @@ class ChatExportControllerTest {
         assertTrue(first.contains("\"chatId\":\"c1\"") && first.contains("\"messageCount\":1"))
         assertTrue(second.contains("\"chatId\":\"c1\"") && second.contains("\"messageCount\":1"))
     }
+
+    @Test
+    fun `exportChatAsJson reports null group name for direct chat`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = emptyList(),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"groupName\":null"))
+    }
+
+    @Test
+    fun `exportChatAsJson escapes quotes backslash and newline in content`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "say \"hi\" \\ path\nline", type = MessageType.TEXT),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("say \\\"hi\\\" \\\\ path\\nline"))
+    }
+
+    @Test
+    fun `exportChatAsJson uses default sent status when message omits status`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "one", type = MessageType.TEXT),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"status\":\"SENT\""))
+    }
+
+    @Test
+    fun `exportChatAsJson keeps negative timestamp verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "one", type = MessageType.TEXT, timestamp = -1L),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("\"timestamp\":-1"))
+    }
+
+    @Test
+    fun `exportChatAsJson reports zero count for empty group chat`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "g1", isGroup = true, groupName = "G"),
+            messages = emptyList(),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"messageCount\":0"))
+        assertTrue(json.contains("\"isGroup\":true"))
+        assertTrue(json.contains("\"partial\":false"))
+    }
+
 }
