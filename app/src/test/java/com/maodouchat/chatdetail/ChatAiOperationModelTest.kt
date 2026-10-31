@@ -619,4 +619,76 @@ class ChatAiOperationModelTest {
         assertEquals("x".repeat(500), overParams.question)
     }
 
+    @Test
+    fun `translate with blank owner fails closed`() {
+        assertEquals(
+            AiOperationPreparation.InvalidContext,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.TranslateMessage("message-1", "en"),
+                ownerUserId = "",
+                chatId = "chat-1"
+            )
+        )
+    }
+
+    @Test
+    fun `explicit operation id persists instead of a generated one`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranscribeVoice("voice-1"),
+            ownerUserId = "user-1",
+            chatId = "chat-1",
+            operationId = "op-1"
+        ) as AiOperationPreparation.Persisted
+
+        assertEquals("op-1", preparation.operation.id)
+    }
+
+    @Test
+    fun `summarize unread scope persists as enum name`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.UNREAD, emptyList()),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals("UNREAD", parameters.summaryScope)
+        assertTrue(parameters.messageIds.isEmpty())
+    }
+
+    @Test
+    fun `summarize keeps first occurrence order with interleaved duplicates`() {
+        val messages = listOf("m2", "m1", "m2", "m0").map { id ->
+            Message(id = id, chatId = "chat-1", senderId = "u", content = "text")
+        }
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.RECENT, messages),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(listOf("m2", "m1", "m0"), parameters.messageIds)
+    }
+
+    @Test
+    fun `translate with blank target language persists an empty string`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranslateMessage("message-1", ""),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals("", parameters.targetLanguage)
+    }
 }

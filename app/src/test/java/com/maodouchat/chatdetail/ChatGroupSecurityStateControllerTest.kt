@@ -524,4 +524,77 @@ class ChatGroupSecurityStateControllerTest {
         assertEquals("group", state.chat?.id)
     }
 
+    @Test
+    fun `presentMembers keeps surrounding whitespace in nicknames verbatim`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(
+                GroupMemberDto(userId = "a", name = "A", role = "ADMIN"),
+                GroupMemberDto(userId = "b", name = "B", role = "MEMBER", groupNickname = "  Bee  "),
+            ),
+            currentUserId = "me",
+        )
+
+        assertEquals(mapOf("b" to "  Bee  "), state.memberNicknameByUser)
+    }
+
+    @Test
+    fun `presentGroup forces disappearing timer to zero from a negative value`() {
+        val state = controller.presentGroup(
+            ChatDetailUiState(disappearingMessageSeconds = -5),
+            Chat(id = "group", isGroup = true, groupName = "Team"),
+            User("group", "Team"),
+        )
+
+        assertEquals(0, state.disappearingMessageSeconds)
+    }
+
+    @Test
+    fun `presentMembers with only self maps single role and empty nicknames`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(GroupMemberDto(userId = "me", name = "Me", role = "ADMIN", mutedUntil = 7L)),
+            currentUserId = "me",
+        )
+
+        assertEquals("ADMIN", state.myMemberRole)
+        assertEquals(7L, state.myMutedUntil)
+        assertEquals(mapOf("me" to "ADMIN"), state.memberRoleByUser)
+        assertTrue(state.memberNicknameByUser.isEmpty())
+    }
+
+    @Test
+    fun `resetDirectIdentityForGroup clears trust state from changed`() {
+        val state = controller.resetDirectIdentityForGroup(
+            ChatDetailUiState(
+                trustState = IdentityTrustState.CHANGED,
+                deviceSafetyStates = listOf(
+                    DeviceSafetyState(
+                        deviceId = 1,
+                        identityKey = "key",
+                        identityFingerprint = "fp",
+                        trustState = IdentityTrustState.CHANGED,
+                        safetyCode = "code",
+                    )
+                ),
+                deviceSafetyWarning = "warning",
+            ),
+        )
+
+        assertEquals(IdentityTrustState.TRUSTED, state.trustState)
+        assertTrue(state.deviceSafetyStates.isEmpty())
+        assertEquals(null, state.deviceSafetyWarning)
+    }
+
+    @Test
+    fun `presentMembers maps roles for members with empty names`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(GroupMemberDto(userId = "x", name = "", role = "MEMBER")),
+            currentUserId = "me",
+        )
+
+        assertEquals(mapOf("x" to "MEMBER"), state.memberRoleByUser)
+        assertEquals(null, state.myMemberRole)
+    }
 }

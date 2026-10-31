@@ -443,4 +443,61 @@ class ChatAiContextBuilderTest {
 
         assertEquals(80, context.single().sender.length)
     }
+
+    @Test
+    fun `plain context sorts equal timestamps by id`() {
+        val messages = listOf(
+            message("b", "alice", "second", 10L),
+            message("a", "alice", "first", 10L)
+        )
+
+        val context = buildPlainAiContextMessages(messages, senders, limit = 10)
+
+        assertEquals(listOf("first", "second"), context.map { it.text })
+    }
+
+    @Test
+    fun `plain context limit zero keeps only the latest message`() {
+        val messages = (1..3).map { message("m$it", "alice", "text $it", it.toLong()) }
+
+        val context = buildPlainAiContextMessages(messages, senders, limit = 0)
+
+        assertEquals(listOf("text 3"), context.map { it.text })
+    }
+
+    @Test
+    fun `plain context limit above sixty keeps sixty latest`() {
+        val messages = (1..70).map { message("m$it", "alice", "text $it", it.toLong()) }
+
+        val context = buildPlainAiContextMessages(messages, senders, limit = 100)
+
+        assertEquals(60, context.size)
+        assertEquals("text 11", context.first().text)
+        assertEquals("text 70", context.last().text)
+    }
+
+    @Test
+    fun `summary includes markdown text`() {
+        val md = message("md", "alice", "# heading", 10L, type = MessageType.MARKDOWN)
+
+        val context = buildSummaryAiContextMessages(listOf(md), senders)
+
+        assertEquals(listOf("# heading"), context.map { it.text })
+    }
+
+    @Test
+    fun `summary drops blank transcript but keeps translations`() {
+        val voice = message(
+            "voice", "alice", "encrypted-reference", 20L,
+            MessageMeta(
+                voiceTranscript = "   ",
+                translations = mapOf("en" to "hello")
+            ),
+            MessageType.VOICE
+        )
+
+        val context = buildSummaryAiContextMessages(listOf(voice), senders)
+
+        assertEquals(listOf("hello"), context.map { it.text })
+    }
 }
