@@ -741,4 +741,126 @@ class GroupLifecycleCoordinatorTest {
             calls,
         )
     }
+    @Test
+    fun `post-commit session gate throwing propagates without refresh or invalidation`() = runTest {
+        var mutationCalled = false
+        var fetchCalled = false
+        var invalidateCalled = false
+        var gateCalls = 0
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "owner-1" },
+            token = { "token-1" },
+            sessionActive = {
+                gateCalls++
+                if (gateCalls == 1) true else throw IllegalStateException("gate")
+            },
+            fetchChat = { _, _ ->
+                fetchCalled = true
+                Result.success(null)
+            },
+            invalidateEpoch = { _, _, _ -> invalidateCalled = true },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is IllegalStateException)
+        assertEquals("gate", thrown?.message)
+        assertTrue(mutationCalled)
+        assertFalse(fetchCalled)
+        assertFalse(invalidateCalled)
+    }
+
+    @Test
+    fun `padded chatId passes through untrimmed to fetch and invalidation`() = runTest {
+        var fetchedChatId: String? = null
+        var invalidatedChatId: String? = null
+        var invalidatedRevision: Long? = 99L
+        val coordinator = coordinator(
+            fetchChat = { _, chatId ->
+                fetchedChatId = chatId
+                Result.success(null)
+            },
+            invalidateEpoch = { chatId, _, revision ->
+                invalidatedChatId = chatId
+                invalidatedRevision = revision
+            },
+        )
+
+        val result = coordinator.mutate(" group-1 ", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertEquals(" group-1 ", fetchedChatId)
+        assertEquals(" group-1 ", invalidatedChatId)
+        assertNull(invalidatedRevision)
+    }
+
+    @Test
+    fun `no rotation with null refreshed chat commits without warning`() = runTest {
+        var invalidateCalled = false
+        val coordinator = coordinator(
+            invalidateEpoch = { _, _, _ -> invalidateCalled = true },
+        )
+
+        val result = coordinator.mutate("group-1") {}
+
+        assertTrue(result.committed)
+        assertNull(result.refreshedChat)
+        assertNull(result.refreshError)
+        assertNull(result.reconciliationError)
+        assertFalse(result.hasPostCommitWarning)
+        assertFalse(invalidateCalled)
+    }
+
+    @Test
+    fun `two rotation rounds invalidate each round's own revision`() = runTest {
+        val invalidatedRevisions = mutableListOf<Long?>()
+        var fetchCalls = 0
+        val coordinator = coordinator(
+            fetchChat = { _, chatId ->
+                fetchCalls++
+                val revision = if (fetchCalls == 1) 5L else 9L
+                Result.success(ChatDto(id = chatId, isGroup = true, memberRevision = revision))
+            },
+            invalidateEpoch = { _, _, revision -> invalidatedRevisions += revision },
+        )
+
+        val first = coordinator.mutate("group-1", rotateSenderKey = true) {}
+        val second = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(first.committed)
+        assertTrue(second.committed)
+        assertEquals(listOf(5L, 9L), invalidatedRevisions)
+    }
+
+    @Test
+    fun `blank owner short-circuits before the session gate but after the token read`() = runTest {
+        var tokenCalled = false
+        var sessionCalled = false
+        var mutationCalled = false
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "  " },
+            token = {
+                tokenCalled = true
+                "token-1"
+            },
+            sessionActive = {
+                sessionCalled = true
+                true
+            },
+            fetchChat = { _, _ -> Result.success(null) },
+            invalidateEpoch = { _, _, _ -> },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is GroupLifecycleSessionException)
+        assertTrue(tokenCalled)
+        assertFalse(sessionCalled)
+        assertFalse(mutationCalled)
+    }
+
 }

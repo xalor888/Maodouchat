@@ -264,4 +264,44 @@ class ChatRealtimeEventPolicyTest {
         assertFalse(shouldInvalidateGroupKey(0L, 0L, GroupRevisionImpact.REFRESH))
         assertTrue(shouldInvalidateGroupKey(0L, 1L, GroupRevisionImpact.REFRESH))
     }
+    @Test
+    fun `padded contact id never matches the event user`() {
+        assertFalse(shouldApplyContactPresence(false, " user-2", "user-2"))
+        assertTrue(shouldApplyContactPresence(false, "user-2", "user-2"))
+    }
+
+    @Test
+    fun `removed impact invalidates at revision extremes`() {
+        assertTrue(
+            shouldInvalidateGroupKey(Long.MAX_VALUE, Long.MIN_VALUE, GroupRevisionImpact.CURRENT_USER_REMOVED)
+        )
+        assertTrue(
+            shouldInvalidateGroupKey(Long.MIN_VALUE, Long.MIN_VALUE, GroupRevisionImpact.CURRENT_USER_REMOVED)
+        )
+    }
+
+    @Test
+    fun `equally padded chat ids still count as active`() {
+        assertTrue(isActiveChatEvent("chat-a ", "chat-a "))
+        assertFalse(isActiveChatEvent("chat-a", "chat-a "))
+    }
+
+    @Test
+    fun `blank event user never applies presence`() {
+        assertFalse(shouldApplyContactPresence(false, "user-2", ""))
+        assertTrue(shouldApplyContactPresence(false, "user-2", "user-2"))
+    }
+
+    @Test
+    fun `trailing space removal reason is plain refresh`() {
+        assertEquals(
+            GroupRevisionImpact.REFRESH,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "MEMBER_REMOVED ")
+        )
+        assertEquals(
+            GroupRevisionImpact.CURRENT_USER_REMOVED,
+            groupRevisionImpact("chat-a", "user-1", "chat-a", "user-1", "MEMBER_REMOVED")
+        )
+    }
+
 }

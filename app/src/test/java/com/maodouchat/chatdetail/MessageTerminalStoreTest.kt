@@ -587,4 +587,90 @@ class MessageTerminalStoreTest {
         assertTrue(failure is AssertionError)
         assertEquals("upsert-fatal", failure?.message)
     }
+    @Test
+    fun `delete with padded id runs every step verbatim`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        store.persistDeleted(" message-1 ")
+
+        assertEquals(
+            listOf("media: message-1 ", "search: message-1 ", "delete: message-1 "),
+            effects
+        )
+    }
+
+    @Test
+    fun `revoke with padded id cleans verbatim and upserts the placeholder`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        store.persistRevoked(" message-1 ", sampleMessage())
+
+        assertEquals(
+            listOf("media: message-1 ", "search: message-1 ", "upsert:message-1"),
+            effects
+        )
+    }
+
+    @Test
+    fun `delete reports search failure first and suppresses local row failure`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { throw IllegalStateException("search") },
+            deleteLocalMessage = { throw IllegalStateException("local") },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        val failure = runCatching { store.persistDeleted("message-1") }.exceptionOrNull()
+
+        assertEquals(listOf("media:message-1"), effects)
+        assertEquals("search", failure?.message)
+        assertEquals(listOf("local"), failure?.suppressed?.map { it.message })
+    }
+
+    @Test
+    fun `revoke reports search failure first and suppresses upsert failure`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { throw IllegalStateException("search") },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { throw IllegalStateException("upsert") }
+        )
+
+        val failure = runCatching { store.persistRevoked("message-1", sampleMessage()) }.exceptionOrNull()
+
+        assertEquals(listOf("media:message-1"), effects)
+        assertEquals("search", failure?.message)
+        assertEquals(listOf("upsert"), failure?.suppressed?.map { it.message })
+    }
+
+    @Test
+    fun `delete with fatal error in the search step skips the local row`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { throw AssertionError("fatal-search") },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = {}
+        )
+
+        val failure = runCatching { store.persistDeleted("message-1") }.exceptionOrNull()
+
+        assertTrue(failure is AssertionError)
+        assertEquals(listOf("media:message-1"), effects)
+    }
+
 }

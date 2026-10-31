@@ -601,4 +601,78 @@ class AttachMenuPolicyTest {
         assertTrue(AttachMenuKind.SCHEDULE in items)
     }
 
+    @Test
+    fun nudgeFlagNeverChangesAnyMenu() {
+        assertEquals(
+            AttachMenuPolicy.items(false, false, true, true, false),
+            AttachMenuPolicy.items(false, false, true, true, true),
+        )
+        assertEquals(
+            AttachMenuPolicy.items(true, false, true, true, false),
+            AttachMenuPolicy.items(true, false, true, true, true),
+        )
+        assertEquals(
+            AttachMenuPolicy.items(false, true, true, true, false),
+            AttachMenuPolicy.items(false, true, true, true, true),
+        )
+    }
+
+    @Test
+    fun groupIgnoresViewOnceFlag() {
+        assertEquals(
+            AttachMenuPolicy.items(true, false, false, true, true),
+            AttachMenuPolicy.items(true, false, true, true, true),
+        )
+    }
+
+    @Test
+    fun dmViewOnceWithoutContactCardExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.VIEW_ONCE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(false, false, true, false, true),
+        )
+    }
+
+    @Test
+    fun dmWithoutViewOnceWithContactCardExactList() {
+        assertEquals(
+            listOf(
+                AttachMenuKind.IMAGE,
+                AttachMenuKind.SPOILER,
+                AttachMenuKind.PASTE,
+                AttachMenuKind.VIDEO,
+                AttachMenuKind.FILE,
+                AttachMenuKind.VOICE,
+                AttachMenuKind.LOCATION,
+                AttachMenuKind.LIVE_LOCATION,
+                AttachMenuKind.SCHEDULE,
+                AttachMenuKind.QUICK_PHRASES,
+                AttachMenuKind.CONTACT_CARD,
+                AttachMenuKind.SILENT,
+            ),
+            AttachMenuPolicy.items(false, false, false, true, false),
+        )
+    }
+
+    @Test
+    fun dmVoiceLocationLiveLocationScheduleOrder() {
+        val items = AttachMenuPolicy.items(false, false, true, true, true)
+        assertTrue(items.indexOf(AttachMenuKind.VOICE) < items.indexOf(AttachMenuKind.LOCATION))
+        assertTrue(items.indexOf(AttachMenuKind.LOCATION) < items.indexOf(AttachMenuKind.LIVE_LOCATION))
+        assertTrue(items.indexOf(AttachMenuKind.LIVE_LOCATION) < items.indexOf(AttachMenuKind.SCHEDULE))
+    }
+
 }
