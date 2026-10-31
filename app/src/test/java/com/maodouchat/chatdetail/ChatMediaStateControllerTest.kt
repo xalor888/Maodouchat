@@ -469,4 +469,71 @@ class ChatMediaStateControllerTest {
         assertEquals(0.35f, updated.fileTransferProgress["fresh"])
     }
 
+    @Test
+    fun `updateSegmentProgress publishes a two percent jump`() {
+        val state = ChatDetailUiState(fileTransferProgress = mapOf("jump" to 0.5f))
+        val updated = controller.updateSegmentProgress(
+            state,
+            messageId = "jump",
+            completed = 520L,
+            total = 1_000L,
+            start = 0f,
+            end = 1f,
+        )
+        assertEquals(0.52f, updated.fileTransferProgress.getValue("jump"), 0.0001f)
+    }
+
+    @Test
+    fun `updateSegmentProgress publishes completion despite a tiny delta`() {
+        val state = ChatDetailUiState(fileTransferProgress = mapOf("done" to 0.995f))
+        val updated = controller.updateSegmentProgress(
+            state,
+            messageId = "done",
+            completed = 1_000L,
+            total = 1_000L,
+            start = 0f,
+            end = 1f,
+        )
+        assertEquals(1f, updated.fileTransferProgress.getValue("done"), 0.0001f)
+    }
+
+    @Test
+    fun `updateSegmentProgress clamps over-completion into the window`() {
+        val updated = controller.updateSegmentProgress(
+            ChatDetailUiState(),
+            messageId = "over",
+            completed = 150L,
+            total = 100L,
+            start = 0.5f,
+            end = 1f,
+        )
+        assertEquals(1f, updated.fileTransferProgress.getValue("over"), 0.0001f)
+    }
+
+    @Test
+    fun `updateSegmentProgress ignores negative totals`() {
+        val state = ChatDetailUiState(fileTransferProgress = mapOf("bad" to 0.2f))
+        val updated = controller.updateSegmentProgress(
+            state,
+            messageId = "bad",
+            completed = 5L,
+            total = -5L,
+            start = 0f,
+            end = 1f,
+        )
+        assertEquals(0.2f, updated.fileTransferProgress.getValue("bad"), 0.0001f)
+    }
+
+    @Test
+    fun `updateSegmentProgress clamps negative completion to the window start`() {
+        val updated = controller.updateSegmentProgress(
+            ChatDetailUiState(),
+            messageId = "neg",
+            completed = -10L,
+            total = 100L,
+            start = 0.25f,
+            end = 0.75f,
+        )
+        assertEquals(0.25f, updated.fileTransferProgress.getValue("neg"), 0.0001f)
+    }
 }

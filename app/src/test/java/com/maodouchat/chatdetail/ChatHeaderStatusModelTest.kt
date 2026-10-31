@@ -332,4 +332,43 @@ class ChatHeaderStatusModelTest {
         )
     }
 
+    @Test
+    fun `group with no signals returns none`() {
+        assertEquals(
+            ChatHeaderStatus.None,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = true)
+        )
+    }
+
+    @Test
+    fun `one-to-one with no signals and default lastSeen returns offline`() {
+        assertEquals(
+            ChatHeaderStatus.Offline,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ")
+        )
+    }
+
+    @Test
+    fun `nbsp-only typing id falls through to custom status`() {
+        assertEquals(
+            ChatHeaderStatus.Custom("Busy"),
+            resolveChatHeaderStatus("\u00a0", isOnline = false, customStatus = "Busy")
+        )
+    }
+
+    @Test
+    fun `group max lastSeen still returns none`() {
+        assertEquals(
+            ChatHeaderStatus.None,
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = true, lastSeen = Long.MAX_VALUE)
+        )
+    }
+
+    @Test
+    fun `tab and newline only typing id falls through to online`() {
+        assertEquals(
+            ChatHeaderStatus.Online,
+            resolveChatHeaderStatus(" \t\n ", isOnline = true, customStatus = "")
+        )
+    }
 }
