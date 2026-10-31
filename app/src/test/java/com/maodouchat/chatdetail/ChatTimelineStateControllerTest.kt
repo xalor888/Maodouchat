@@ -389,4 +389,76 @@ class ChatTimelineStateControllerTest {
         assertEquals("edited", twice.messages.single().content)
     }
 
+    @Test
+    fun `read rejects sent regression while sending accepts failed`() {
+        val read = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(status = MessageStatus.READ)),
+        )
+        val sending = ChatDetailUiState(messages = listOf(message("one", 1L)))
+
+        assertEquals(
+            MessageStatus.READ,
+            controller.updateStatus(read, "one", MessageStatus.SENT).messages.single().status,
+        )
+        assertEquals(
+            MessageStatus.FAILED,
+            controller.updateStatus(sending, "one", MessageStatus.FAILED).messages.single().status,
+        )
+    }
+
+    @Test
+    fun `mergeIncoming equal revision takes candidate content but keeps higher status`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L)))
+        val incoming = message("one", 1L).copy(content = "new", status = MessageStatus.DELIVERED)
+
+        val updated = controller.mergeIncoming(state, listOf(incoming))
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals("new", updated.messages.single().content)
+        assertEquals(MessageStatus.DELIVERED, updated.messages.single().status)
+    }
+
+    @Test
+    fun `mergeIncoming older edit loses to the current version`() {
+        val state = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(content = "current", editedAt = 10L)),
+        )
+
+        val updated = controller.mergeIncoming(
+            state,
+            listOf(message("one", 1L).copy(content = "stale", editedAt = 5L)),
+        )
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals("current", updated.messages.single().content)
+        assertEquals(10L, updated.messages.single().editedAt)
+    }
+
+    @Test
+    fun `mergeIncoming revoked frame beats a plain version with a newer edit`() {
+        val state = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(content = "plain", editedAt = 10L)),
+        )
+
+        val updated = controller.mergeIncoming(
+            state,
+            listOf(message("one", 1L).copy(content = "revoked", type = MessageType.REVOKED)),
+        )
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals(MessageType.REVOKED, updated.messages.single().type)
+        assertEquals("revoked", updated.messages.single().content)
+    }
+
+    @Test
+    fun `mergeIncoming sorts an incoming only list by timestamp then id`() {
+        val state = ChatDetailUiState(messages = emptyList())
+
+        val updated = controller.mergeIncoming(
+            state,
+            listOf(message("b", 2L), message("a", 2L), message("c", 1L)),
+        )
+
+        assertEquals(listOf("c", "a", "b"), updated.messages.map(Message::id))
+    }
 }

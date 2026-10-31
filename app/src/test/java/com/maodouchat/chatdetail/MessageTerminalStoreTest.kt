@@ -2,6 +2,7 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
+import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.MessageTerminalStore
 import com.maodouchat.ui.screen.chatdetail.toRevokedPlaceholder
@@ -489,5 +490,101 @@ class MessageTerminalStoreTest {
             ),
             effects
         )
+    }
+
+    @Test
+    fun `delete with fatal error in the local row step keeps earlier effects`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { throw AssertionError("fatal") },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        val failure = runCatching { store.persistDeleted("message-1") }.exceptionOrNull()
+
+        assertEquals(listOf("media:message-1", "search:message-1"), effects)
+        assertTrue(failure is AssertionError)
+    }
+
+    @Test
+    fun `revoke with fatal error in the search step skips the upsert`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { throw AssertionError("fatal") },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+
+        val failure = runCatching { store.persistRevoked("message-1", sampleMessage()) }.exceptionOrNull()
+
+        assertEquals(listOf("media:message-1"), effects)
+        assertTrue(failure is AssertionError)
+    }
+
+    @Test
+    fun `revoke with fatal error in the upsert keeps cleanup effects`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { throw AssertionError("fatal") }
+        )
+
+        val failure = runCatching { store.persistRevoked("message-1", sampleMessage()) }.exceptionOrNull()
+
+        assertEquals(listOf("media:message-1", "search:message-1"), effects)
+        assertTrue(failure is AssertionError)
+    }
+
+    @Test
+    fun `revoked placeholder preserves timestamp status and starred flag`() = runTest {
+        val persisted = mutableListOf<Message>()
+        val store = MessageTerminalStore({}, {}, {}, persisted::add)
+        val original = Message(
+            id = "message-1",
+            chatId = "chat-1",
+            senderId = "user-1",
+            content = "secret",
+            type = MessageType.IMAGE,
+            timestamp = 4242L,
+            status = MessageStatus.READ,
+            starred = true,
+            meta = MessageMeta(
+                translations = mapOf("a" to "b"),
+                attachmentKeyBase64 = "secret-key"
+            )
+        )
+
+        store.persistRevoked(original.id, original.toRevokedPlaceholder("已撤回"))
+
+        val saved = persisted.single()
+        assertEquals(4242L, saved.timestamp)
+        assertEquals(MessageStatus.READ, saved.status)
+        assertTrue(saved.starred)
+        assertEquals("已撤回", saved.content)
+        assertEquals(MessageType.REVOKED, saved.type)
+        assertTrue(saved.meta.translations.isEmpty())
+        assertTrue(saved.meta.attachmentKeyBase64 == null)
+    }
+
+    @Test
+    fun `revoke media error then fatal upsert propagates the fatal immediately`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { throw IllegalStateException("cache") },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { throw AssertionError("upsert-fatal") }
+        )
+
+        val failure = runCatching { store.persistRevoked("message-1", sampleMessage()) }.exceptionOrNull()
+
+        assertEquals(listOf("search:message-1"), effects)
+        assertTrue(failure is AssertionError)
+        assertEquals("upsert-fatal", failure?.message)
     }
 }
