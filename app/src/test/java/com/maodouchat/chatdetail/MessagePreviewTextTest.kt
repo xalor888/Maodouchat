@@ -769,4 +769,81 @@ class MessagePreviewTextTest {
             MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
         )
     }
+    @Test
+    fun videoAndGifTypesUseMediaLabel() {
+        for (type in listOf(MessageType.VIDEO, MessageType.GIF)) {
+            val msg = Message(
+                id = "m1",
+                chatId = "c1",
+                senderId = "u1",
+                content = "file://x",
+                type = type,
+            )
+            assertEquals(
+                "[${type.name}]",
+                MessagePreviewText.replyOrQuote(msg, { "[${it.name}]" }, "[encrypted]"),
+            )
+        }
+    }
+
+    @Test
+    fun spacesOnlyTextFallsBackToPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "   ",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun paddedTextReplyIsTrimmed() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "  hello world  ",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "hello world",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun systemTypeWithWireEnvelopeShowsPlaceholder() {
+        val wire = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = """{"version":1,"algorithm":"signal-sender-key-v1","ciphertext":"abc"}""",
+            type = MessageType.SYSTEM,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(wire, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun skDistWithTextContentStillPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "hello",
+            type = MessageType.SK_DIST,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
 }

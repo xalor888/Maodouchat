@@ -829,4 +829,61 @@ class ReadReceiptPolicyTest {
         assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole("   "))
     }
 
+    @Test
+    fun isPrivilegedGroupRole_paddedOwnerAndAdminArePrivileged() {
+        assertTrue(ReadReceiptPolicy.isPrivilegedGroupRole(" owner "))
+        assertTrue(ReadReceiptPolicy.isPrivilegedGroupRole("\tadmin\n"))
+    }
+
+    @Test
+    fun canViewReceipts_blankViewerOrSenderDenied() {
+        assertFalse(ReadReceiptPolicy.canViewReceipts("", "peer", true, "ADMIN"))
+        assertFalse(ReadReceiptPolicy.canViewReceipts("me", "", true, "ADMIN"))
+        assertFalse(ReadReceiptPolicy.canViewReceipts(" ", "peer", false, null))
+        assertFalse(ReadReceiptPolicy.canViewReceipts("", "", true, "ADMIN"))
+    }
+
+    @Test
+    fun computeGroupReadCount_ghostReceiptsDoNotInflateNumerator() {
+        assertEquals(
+            1 to 2,
+            ReadReceiptPolicy.computeGroupReadCount("me", listOf("me", "a", "b"), listOf("ghost", "a")),
+        )
+        assertEquals(
+            0 to 2,
+            ReadReceiptPolicy.computeGroupReadCount("me", listOf("me", "a", "b"), listOf("ghost")),
+        )
+    }
+
+    @Test
+    fun prefetch_paddedSenderIdDoesNotMatchTrimmedViewer() {
+        val messages = listOf(
+            PrefetchMessage(id = "m1", senderId = " me ", eligibleForGroupReadCount = true),
+            PrefetchMessage(id = "m2", senderId = "me", eligibleForGroupReadCount = true),
+        )
+        assertEquals(
+            listOf("m2"),
+            ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch("me", messages),
+        )
+    }
+
+    @Test
+    fun incomplete_zeroTotalZeroReadCountsAsComplete() {
+        val messages = listOf(
+            PrefetchMessage(id = "m1", senderId = "me", eligibleForGroupReadCount = true),
+        )
+        assertEquals(
+            emptyList<String>(),
+            ReadReceiptPolicy.incompleteGroupReadMessageIds(
+                "me",
+                messages,
+                mapOf("m1" to ReadCountUi(read = 0, total = 0)),
+            ),
+        )
+        assertEquals(
+            listOf("m1"),
+            ReadReceiptPolicy.incompleteGroupReadMessageIds("me", messages, emptyMap()),
+        )
+    }
+
 }
