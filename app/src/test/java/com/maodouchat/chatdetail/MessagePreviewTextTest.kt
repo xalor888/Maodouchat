@@ -584,6 +584,103 @@ class MessagePreviewTextTest {
     }
 
     @Test
+    fun stickerAndFileEmptyContentStillUseMediaLabel() {
+        val sticker = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "",
+            type = MessageType.STICKER,
+        )
+        assertEquals(
+            "[sticker]",
+            MessagePreviewText.replyOrQuote(sticker, { "[sticker]" }, "[encrypted]"),
+        )
+        val file = Message(
+            id = "m2",
+            chatId = "c1",
+            senderId = "u1",
+            content = "",
+            type = MessageType.FILE,
+        )
+        assertEquals(
+            "[file]",
+            MessagePreviewText.replyOrQuote(file, { "[file]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun revokedAndSkDistEmptyContentStillShowPlaceholder() {
+        val revoked = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "",
+            type = MessageType.REVOKED,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(revoked, { "[media]" }, "[encrypted]"),
+        )
+        val skDist = Message(
+            id = "m2",
+            chatId = "c1",
+            senderId = "u1",
+            content = "",
+            type = MessageType.SK_DIST,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(skDist, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun singleNewlineTextFallsBackToEncryptedPlaceholder() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "\n",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "[encrypted]",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun newlineFoldsWhileTabBetweenNewlineAndTextIsPreserved() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "a\n\tb",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            "a \tb",
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
+    fun sameMessagePreviewIsStableOnRepeat() {
+        val msg = Message(
+            id = "m1",
+            chatId = "c1",
+            senderId = "u1",
+            content = "hello\nworld",
+            type = MessageType.TEXT,
+        )
+        assertEquals(
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+            MessagePreviewText.replyOrQuote(msg, { "[media]" }, "[encrypted]"),
+        )
+    }
+
+    @Test
     fun tabPreservedWhileTrailingNewlineIsTrimmed() {
         val msg = Message(
             id = "m1",

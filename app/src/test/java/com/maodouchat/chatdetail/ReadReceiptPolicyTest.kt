@@ -703,6 +703,85 @@ class ReadReceiptPolicyTest {
     }
 
     @Test
+    fun canViewReceipts_groupOwnerWithPaddedLowercaseRoleViewsPeer() {
+        assertTrue(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "o",
+                senderId = "p",
+                isGroup = true,
+                viewerRole = " owner ",
+            )
+        )
+    }
+
+    @Test
+    fun canViewReceipts_adminLikeRolesCannotViewPeer() {
+        assertFalse(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "a",
+                senderId = "p",
+                isGroup = true,
+                viewerRole = "ADMINISTRATOR",
+            )
+        )
+        assertFalse(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = "a",
+                senderId = "p",
+                isGroup = true,
+                viewerRole = "OWNER2",
+            )
+        )
+    }
+
+    @Test
+    fun computeGroupReadCount_singleMemberAndEmptyFallbackBounds() {
+        val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = listOf("me", "a"),
+            receiptUserIds = listOf("a"),
+        )
+        assertEquals(1, read)
+        assertEquals(1, total)
+        val (emptyRead, emptyTotal) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = "me",
+            memberIds = listOf("me"),
+            receiptUserIds = emptyList(),
+        )
+        assertEquals(0, emptyRead)
+        assertEquals(0, emptyTotal)
+    }
+
+    @Test
+    fun prefetchReturnsAllEligibleWhenMaxExceedsCount() {
+        val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("old", "me", true),
+                PrefetchMessage("peer", "peer", true),
+                PrefetchMessage("new", "me", true),
+            ),
+            max = 8,
+        )
+        assertEquals(listOf("new", "old"), ids)
+    }
+
+    @Test
+    fun prefetchDedupesRepeatedIdsKeepingNewestFirst() {
+        val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("x", "me", true),
+                PrefetchMessage("y", "me", true),
+                PrefetchMessage("x", "me", true),
+                PrefetchMessage("z", "me", true),
+            ),
+            max = 8,
+        )
+        assertEquals(listOf("z", "x", "y"), ids)
+    }
+
+    @Test
     fun isPrivilegedGroupRoleRejectsAdminLikeVariants() {
         assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole("ADMINISTRATOR"))
         assertFalse(ReadReceiptPolicy.isPrivilegedGroupRole("SUPERADMIN"))

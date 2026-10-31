@@ -326,6 +326,44 @@ class MessagePinPolicyTest {
     }
 
     @Test
+    fun group_admin_pins_file_and_owner_pins_gif() {
+        assertTrue(MessagePinPolicy.canPin(true, "ADMIN", MessageType.FILE))
+        assertTrue(MessagePinPolicy.canPin(true, "OWNER", MessageType.GIF))
+        assertTrue(MessagePinPolicy.canPin(true, "admin", MessageType.FILE))
+    }
+
+    @Test
+    fun group_member_and_null_role_cannot_pin_media() {
+        assertFalse(MessagePinPolicy.canPin(true, "MEMBER", MessageType.FILE))
+        assertFalse(MessagePinPolicy.canPin(true, "MEMBER", MessageType.VIDEO))
+        assertFalse(MessagePinPolicy.canPin(true, null, MessageType.VIDEO))
+    }
+
+    @Test
+    fun text_preview_exact_budget_after_meta_strip_is_kept() {
+        assertEquals("ab", MessagePinPolicy.textPreview("ab<meta>cd", 2))
+        assertEquals("ab", MessagePinPolicy.textPreview("ab<meta>cd", 3))
+    }
+
+    @Test
+    fun text_preview_over_budget_after_meta_strip_truncates_and_multibyte_counts_chars() {
+        assertEquals("a\u2026", MessagePinPolicy.textPreview("abc<meta>x", 2))
+        assertEquals("\u4e00\u4e8c\u2026", MessagePinPolicy.textPreview("\u4e00\u4e8c\u4e09\u56db\u4e94", 3))
+    }
+
+    @Test
+    fun pin_and_preview_results_are_stable_on_repeat() {
+        assertEquals(
+            MessagePinPolicy.textPreview("hello<meta>x", 5),
+            MessagePinPolicy.textPreview("hello<meta>x", 5),
+        )
+        assertEquals(
+            MessagePinPolicy.canPin(true, "ADMIN", MessageType.FILE),
+            MessagePinPolicy.canPin(true, "ADMIN", MessageType.FILE),
+        )
+    }
+
+    @Test
     fun `text preview of meta-only content is empty`() {
         assertEquals("", MessagePinPolicy.textPreview("<meta>{\"a\":1}"))
         assertEquals("", MessagePinPolicy.textPreview("   "))

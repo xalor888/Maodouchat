@@ -608,6 +608,69 @@ class SenderDisplayNameTest {
         assertNull(name)
     }
 
+    @Test
+    fun listSenderLabel_matchedParticipantWithNameOnlyUsesName() {
+        val chat = Chat(
+            id = "c",
+            participants = listOf(User(id = "u2", name = "原始名")),
+            isGroup = true,
+        )
+        assertEquals("原始名", listSenderLabel(chat, "u2"))
+    }
+
+    @Test
+    fun group_longIdWithBlankLabelsTruncatesToEight() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("abcdefghij"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "",
+            groupMemberLabel = "",
+        )
+        assertEquals("abcdefgh", name)
+    }
+
+    @Test
+    fun listSenderLabel_nullChatEightAndNineCharIdBoundary() {
+        assertEquals("abcdefgh", listSenderLabel(null, "abcdefgh", unknownLabel = "未知"))
+        assertEquals("abcdefgh", listSenderLabel(null, "abcdefghi", unknownLabel = "未知"))
+    }
+
+    @Test
+    fun listSenderLabel_unmatchedShortIdReturnedAsIs() {
+        val chat = Chat(
+            id = "c",
+            participants = listOf(User(id = "other", name = "别人")),
+            isGroup = true,
+        )
+        assertEquals("abc", listSenderLabel(chat, "abc"))
+    }
+
+    @Test
+    fun group_mappedNameAndListLabelAreStableOnRepeat() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val first = senderDisplayName(
+            state = state,
+            message = message("abc"),
+            isOwn = false,
+            participantNamesById = mapOf("abc" to "群友"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        val second = senderDisplayName(
+            state = state,
+            message = message("abc"),
+            isOwn = false,
+            participantNamesById = mapOf("abc" to "群友"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals(first, second)
+        assertEquals("群友", first)
+    }
+
     private fun message(senderId: String) = Message(
         id = "m",
         chatId = "c",
