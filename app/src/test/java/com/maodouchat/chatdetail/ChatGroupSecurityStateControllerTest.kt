@@ -443,4 +443,85 @@ class ChatGroupSecurityStateControllerTest {
         assertEquals("New", state.contact?.name)
     }
 
+
+    @Test
+    fun `presentMembers other member mute never leaks into self mute`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(
+                GroupMemberDto(userId = "me", name = "Me", role = "ADMIN"),
+                GroupMemberDto(userId = "other", name = "Other", role = "MEMBER", mutedUntil = 999L),
+            ),
+            currentUserId = "me",
+        )
+
+        assertEquals("ADMIN", state.myMemberRole)
+        assertEquals(0L, state.myMutedUntil)
+        assertEquals(mapOf("me" to "ADMIN", "other" to "MEMBER"), state.memberRoleByUser)
+    }
+
+    @Test
+    fun `presentMembers blank current user matches nobody`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(
+                GroupMemberDto(userId = "a", name = "A", role = "ADMIN"),
+                GroupMemberDto(userId = "b", name = "B", role = "MEMBER"),
+            ),
+            currentUserId = "",
+        )
+
+        assertEquals(null, state.myMemberRole)
+        assertEquals(0L, state.myMutedUntil)
+        assertEquals(mapOf("a" to "ADMIN", "b" to "MEMBER"), state.memberRoleByUser)
+    }
+
+    @Test
+    fun `presentMembers finds self last among one hundred members`() {
+        val members = (0 until 99).map { index ->
+            GroupMemberDto(userId = "u$index", name = "U$index", role = "MEMBER")
+        } + GroupMemberDto(userId = "me", name = "Me", role = "ADMIN", mutedUntil = 42L)
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            members,
+            currentUserId = "me",
+        )
+
+        assertEquals("ADMIN", state.myMemberRole)
+        assertEquals(42L, state.myMutedUntil)
+        assertEquals(100, state.memberRoleByUser.size)
+    }
+
+    @Test
+    fun `resetDirectIdentityForGroup on a fresh state stays cleared`() {
+        val state = controller.resetDirectIdentityForGroup(ChatDetailUiState())
+
+        assertEquals(null, state.identityWarning)
+        assertEquals(null, state.safetyCode)
+        assertFalse(state.canVerifyIdentity)
+        assertFalse(state.isLoadingDeviceSafety)
+        assertTrue(state.deviceSafetyStates.isEmpty())
+        assertEquals(null, state.deviceSafetyWarning)
+        assertEquals(IdentityTrustState.TRUSTED, state.trustState)
+    }
+
+    @Test
+    fun `second presentGroup without warning keeps the first warning`() {
+        val first = controller.presentGroup(
+            ChatDetailUiState(),
+            Chat(id = "group", isGroup = true, groupName = "Team"),
+            User("group", "Team"),
+            warning = "first",
+        )
+        val state = controller.presentGroup(
+            first,
+            Chat(id = "group", isGroup = true, groupName = "Renamed"),
+            User("group", "Renamed"),
+        )
+
+        assertEquals("first", state.groupEncryptionWarning)
+        assertEquals("Renamed", state.contact?.name)
+        assertEquals("group", state.chat?.id)
+    }
+
 }

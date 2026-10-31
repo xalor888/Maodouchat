@@ -506,4 +506,117 @@ class ChatAiOperationModelTest {
             )
         )
     }
+
+    @Test
+    fun `analyze image describe persists the describe wire mode`() {
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeImage("m1", AiImageAnalysisMode.DESCRIBE),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(AiOperationType.ANALYZE_IMAGE, preparation.operation.type)
+        assertEquals("m1", preparation.operation.targetMessageId)
+        assertEquals("describe", parameters.analysisMode)
+    }
+
+    @Test
+    fun `rewrite with a target language stays untracked`() {
+        assertEquals(
+            AiOperationPreparation.Untracked,
+            ChatAiOperationFactory.prepare(
+                PendingAiAction.Rewrite("formal", "English"), "user-1", "chat-1"
+            )
+        )
+    }
+
+    @Test
+    fun `summarize keeps forty-eight ids and drops the forty-ninth`() {
+        val messages = (0 until 49).map { index ->
+            Message(id = "m$index", chatId = "chat-1", senderId = "u", content = "text")
+        }
+        val preparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.RECENT, messages),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val parameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            preparation.operation.parametersJson
+        )
+
+        assertEquals(48, parameters.messageIds.size)
+        assertEquals((0 until 48).map { "m$it" }, parameters.messageIds)
+
+        val exact = (0 until 48).map { index ->
+            Message(id = "m$index", chatId = "chat-1", senderId = "u", content = "text")
+        }
+        val exactPreparation = ChatAiOperationFactory.prepare(
+            PendingAiAction.Summarize(AiSummaryScope.RECENT, exact),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val exactParameters = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            exactPreparation.operation.parametersJson
+        )
+
+        assertEquals(48, exactParameters.messageIds.size)
+        assertEquals((0 until 48).map { "m$it" }, exactParameters.messageIds)
+    }
+
+    @Test
+    fun `translate message keeps exactly forty chars and clips the forty-first`() {
+        val exact = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranslateMessage("message-1", "x".repeat(40)),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val exactParams = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            exact.operation.parametersJson
+        )
+        assertEquals("x".repeat(40), exactParams.targetLanguage)
+
+        val over = ChatAiOperationFactory.prepare(
+            PendingAiAction.TranslateMessage("message-1", "x".repeat(41)),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val overParams = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            over.operation.parametersJson
+        )
+        assertEquals("x".repeat(40), overParams.targetLanguage)
+    }
+
+    @Test
+    fun `analyze file question keeps exactly five hundred chars after trimming`() {
+        val exact = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.QUESTION, "  " + "x".repeat(500) + "  "),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val exactParams = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            exact.operation.parametersJson
+        )
+        assertEquals("x".repeat(500), exactParams.question)
+
+        val over = ChatAiOperationFactory.prepare(
+            PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.QUESTION, "x".repeat(501)),
+            ownerUserId = "user-1",
+            chatId = "chat-1"
+        ) as AiOperationPreparation.Persisted
+        val overParams = json.decodeFromString(
+            AiOperationParameters.serializer(),
+            over.operation.parametersJson
+        )
+        assertEquals("x".repeat(500), overParams.question)
+    }
+
 }
