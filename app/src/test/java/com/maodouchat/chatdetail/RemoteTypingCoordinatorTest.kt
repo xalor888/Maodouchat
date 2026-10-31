@@ -606,4 +606,63 @@ class RemoteTypingCoordinatorTest {
 
         assertEquals(listOf("user-a", null), observed)
     }
+
+
+    @Test
+    fun `padded chat ids never match each other`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+        coordinator.onEvent("chat-1 ", "chat-1", "user-a", true)
+        coordinator.onEvent("chat-1", "chat-1 ", "user-a", true)
+        assertEquals(emptyList<String?>(), observed)
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        assertEquals(listOf("user-a"), observed)
+    }
+
+    @Test
+    fun `a padded user id is kept verbatim, not trimmed`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+        coordinator.onEvent("chat-1", "chat-1", " user-a ", true)
+        coordinator.onEvent("chat-1", "chat-1", "user-a", false)
+        assertEquals(listOf(" user-a "), observed)
+        advanceTimeBy(3_000L)
+        runCurrent()
+        assertEquals(listOf(" user-a ", null), observed)
+    }
+
+    @Test
+    fun `a padded stop id does not stop the unpadded typer`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        coordinator.onEvent("chat-1", "chat-1", " user-a ", false)
+        assertEquals(listOf("user-a"), observed)
+        advanceTimeBy(3_000L)
+        runCurrent()
+        assertEquals(listOf("user-a", null), observed)
+    }
+
+    @Test
+    fun `an event with both chat ids blank is ignored`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+        coordinator.onEvent("", "", "user-a", true)
+        assertEquals(emptyList<String?>(), observed)
+    }
+
+    @Test
+    fun `a renewal one tick before expiry keeps the user alive`() = runTest {
+        val observed = mutableListOf<String?>()
+        val coordinator = RemoteTypingCoordinator(this, timeoutMs = 3_000L, observed::add)
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(2_999L)
+        coordinator.onEvent("chat-1", "chat-1", "user-a", true)
+        advanceTimeBy(2_999L)
+        runCurrent()
+        assertEquals("user-a", observed.last())
+        advanceTimeBy(1L)
+        runCurrent()
+        assertEquals(listOf("user-a", "user-a", null), observed)
+    }
 }

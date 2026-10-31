@@ -691,4 +691,110 @@ class SemanticSearchCandidateFilterTest {
         )
         assertEquals(listOf("midnight", "noon"), candidates.map { it.id })
     }
+
+
+    @Test
+    fun `video message with no text is kept only in media scope`() {
+        val messages = listOf(
+            message("clip", "", type = MessageType.VIDEO, timestamp = 1L)
+        )
+        val media = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.MEDIA,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        val all = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("clip"), media.map { it.id })
+        assertEquals(emptyList<String>(), all.map { it.id })
+    }
+
+    @Test
+    fun `voice transcript keyword matches in all scope but not in text scope`() {
+        val messages = listOf(
+            message("voice", "voice://1", type = MessageType.VOICE, meta = MessageMeta(voiceTranscript = "hello"), timestamp = 1L)
+        )
+        val all = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+        val text = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.TEXT,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+        assertEquals(listOf("voice"), all.map { it.id })
+        assertEquals(emptyList<String>(), text.map { it.id })
+    }
+
+    @Test
+    fun `translation keyword matches in all scope but not in voice scope`() {
+        val messages = listOf(
+            message("translated", "bonjour", meta = MessageMeta(translations = mapOf("en" to "hello")), timestamp = 1L)
+        )
+        val all = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+        val voice = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.VOICE,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+        assertEquals(listOf("translated"), all.map { it.id })
+        assertEquals(emptyList<String>(), voice.map { it.id })
+    }
+
+    @Test
+    fun `mentions scope with a blank current user keeps only everyone mentions`() {
+        val messages = listOf(
+            message("direct", "hi", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
+            message("everyone", "all", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+            message("plain", "yo", timestamp = 3L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.MENTIONS,
+            ChatSearchWindow.ALL,
+            query = "",
+            currentUserId = "",
+            now = 10_000L
+        )
+        assertEquals(listOf("everyone"), candidates.map { it.id })
+    }
+
+    @Test
+    fun `duplicate document ids collapse to the first occurrence`() {
+        val messages = listOf(
+            message("dup", "hello", timestamp = 1L),
+            message("dup", "hello again", timestamp = 2L),
+            message("other", "world", timestamp = 3L)
+        )
+        val candidates = semanticSearchCandidates(
+            buildChatSearchDocuments(messages),
+            ChatSearchScope.ALL,
+            ChatSearchWindow.ALL,
+            query = "hello",
+            now = 10_000L
+        )
+        assertEquals(listOf("dup", "other"), candidates.map { it.id })
+        assertEquals("hello", candidates.first().content)
+    }
 }

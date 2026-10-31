@@ -863,4 +863,99 @@ class GroupLifecycleCoordinatorTest {
         assertFalse(mutationCalled)
     }
 
+    @Test
+    fun `session gate is checked twice on a successful round`() = runTest {
+        var gateCalls = 0
+        val coordinator = coordinator(
+            sessionActive = { gateCalls++; true },
+            fetchChat = { _, chatId -> Result.success(ChatDto(id = chatId, isGroup = true, memberRevision = 5L)) },
+            invalidateEpoch = { _, _, _ -> },
+        )
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertEquals(2, gateCalls)
+        assertEquals(5L, result.refreshedChat?.memberRevision)
+        assertFalse(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `session switch after commit sets refresh error and still invalidates null revision`() = runTest {
+        var gateCalls = 0
+        var invalidatedRevision: Long? = 99L
+        var fetchCalled = false
+        val coordinator = coordinator(
+            sessionActive = { gateCalls++; gateCalls == 1 },
+            fetchChat = { _, _ -> fetchCalled = true; Result.success(null) },
+            invalidateEpoch = { _, _, revision -> invalidatedRevision = revision },
+        )
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertTrue(result.hasPostCommitWarning)
+        assertEquals("group_mutation_session_changed_after_commit", result.refreshError?.message)
+        assertFalse(fetchCalled)
+        assertNull(invalidatedRevision)
+    }
+
+    @Test
+    fun `mutate twice with different chatIds keeps rounds independent`() = runTest {
+        val fetched = mutableListOf<String>()
+        val invalidated = mutableListOf<String>()
+        val coordinator = coordinator(
+            fetchChat = { _, chatId -> fetched += chatId; Result.success(ChatDto(id = chatId, isGroup = true, memberRevision = 3L)) },
+            invalidateEpoch = { chatId, _, _ -> invalidated += chatId },
+        )
+        val first = coordinator.mutate("group-1", rotateSenderKey = true) {}
+        val second = coordinator.mutate("group-2", rotateSenderKey = true) {}
+
+        assertTrue(first.committed)
+        assertTrue(second.committed)
+        assertEquals(listOf("group-1", "group-2"), fetched)
+        assertEquals(listOf("group-1", "group-2"), invalidated)
+    }
+
+    @Test
+    fun `padded owner is trimmed while padded chatId is not trimmed`() = runTest {
+        var sessionOwner: String? = null
+        var fetchedChatId: String? = null
+        var invalidatedChatId: String? = null
+        var invalidatedOwner: String? = null
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { " owner-1 " },
+            token = { "token-1" },
+            sessionActive = { sessionOwner = it; true },
+            fetchChat = { _, chatId -> fetchedChatId = chatId; Result.success(null) },
+            invalidateEpoch = { chatId, owner, _ -> invalidatedChatId = chatId; invalidatedOwner = owner },
+        )
+        val result = coordinator.mutate(" group-1 ", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertEquals("owner-1", sessionOwner)
+        assertEquals(" group-1 ", fetchedChatId)
+        assertEquals(" group-1 ", invalidatedChatId)
+        assertEquals("owner-1", invalidatedOwner)
+    }
+
+    @Test
+    fun `refresh failure in one round does not block the next round`() = runTest {
+        var fetchCalls = 0
+        val coordinator = coordinator(
+            fetchChat = { _, chatId ->
+                fetchCalls++
+                if (fetchCalls == 1) Result.failure<ChatDto?>(IllegalStateException("fetch")) else Result.success(ChatDto(id = chatId, isGroup = true, memberRevision = 7L))
+            },
+            invalidateEpoch = { _, _, _ -> },
+        )
+        val first = coordinator.mutate("group-1", rotateSenderKey = true) {}
+        val second = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(first.committed)
+        assertEquals("fetch", first.refreshError?.message)
+        assertTrue(first.hasPostCommitWarning)
+        assertTrue(second.committed)
+        assertEquals(7L, second.refreshedChat?.memberRevision)
+        assertFalse(second.hasPostCommitWarning)
+    }
+
 }

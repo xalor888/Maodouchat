@@ -305,4 +305,43 @@ class AttachmentContentInspectorTest {
     fun `jpeg exif E1 marker is accepted`() {
         assertTrue(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x10)))
     }
+
+    @Test
+    fun `ebml header is video only and never voice`() {
+        val ebml = bytes(0x1A, 0x45, 0xDF, 0xA3)
+
+        assertTrue(isAttachmentContentCompatible(MessageType.VIDEO, ebml))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, ebml))
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, ebml))
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, ebml))
+    }
+
+    @Test
+    fun `jpeg third byte must be FF`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0xFF, 0xD8, 0x00)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, bytes(0xFF, 0xD8, 0x00)))
+    }
+
+    @Test
+    fun `iso brand with a ninth byte still matches`() {
+        val iso = bytes(0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69)
+
+        assertTrue(isAttachmentContentCompatible(MessageType.VIDEO, iso))
+        assertTrue(isAttachmentContentCompatible(MessageType.VOICE, iso))
+    }
+
+    @Test
+    fun `gif header with a leading byte is rejected`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, "XGIF89a".encodeToByteArray()))
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, "XGIF89a".encodeToByteArray()))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, "XGIF89a".encodeToByteArray()))
+    }
+
+    @Test
+    fun `voice accepts iso brand regardless of the size field bytes`() {
+        val iso = bytes(0xFF, 0xFF, 0xFF, 0xFF, 0x66, 0x74, 0x79, 0x70)
+
+        assertTrue(isAttachmentContentCompatible(MessageType.VOICE, iso))
+        assertTrue(isAttachmentContentCompatible(MessageType.VIDEO, iso))
+    }
 }

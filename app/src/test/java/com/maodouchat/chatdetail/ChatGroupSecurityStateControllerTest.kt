@@ -597,4 +597,77 @@ class ChatGroupSecurityStateControllerTest {
         assertEquals(mapOf("x" to "MEMBER"), state.memberRoleByUser)
         assertEquals(null, state.myMemberRole)
     }
+
+
+    @Test
+    fun `presentGroup keeps spaces in group name verbatim`() {
+        val state = controller.presentGroup(
+            ChatDetailUiState(),
+            Chat(id = "g-9", isGroup = true, groupName = "  Team  "),
+            User("g-9", "Team"),
+        )
+        assertEquals("g-9", state.chat?.id)
+        assertEquals("  Team  ", state.chat?.groupName)
+        assertTrue(state.chatIsGroup)
+    }
+
+    @Test
+    fun `presentGroup keeps empty contact name verbatim`() {
+        val state = controller.presentGroup(
+            ChatDetailUiState(),
+            Chat(id = "group", isGroup = true, groupName = "Team"),
+            User("group", ""),
+        )
+        assertEquals("", state.contact?.name)
+    }
+
+    @Test
+    fun `presentMembers role map keeps first key order for duplicate user`() {
+        val state = controller.presentMembers(
+            ChatDetailUiState(),
+            listOf(
+                GroupMemberDto(userId = "a", name = "A", role = "ADMIN"),
+                GroupMemberDto(userId = "b", name = "B", role = "MEMBER"),
+                GroupMemberDto(userId = "a", name = "A2", role = "MEMBER"),
+            ),
+            currentUserId = "me",
+        )
+        assertEquals(listOf("a", "b"), state.memberRoleByUser.keys.toList())
+        assertEquals("MEMBER", state.memberRoleByUser["a"])
+        assertEquals("MEMBER", state.memberRoleByUser["b"])
+    }
+
+    @Test
+    fun `resetDirectIdentityForGroup clears loading and verify flags while keeping group warning`() {
+        val state = controller.resetDirectIdentityForGroup(
+            ChatDetailUiState(
+                groupEncryptionWarning = "warn",
+                identityWarning = "changed",
+                safetyCode = "code",
+                canVerifyIdentity = true,
+                isLoadingDeviceSafety = true,
+                deviceSafetyWarning = "error",
+            ),
+        )
+        assertEquals("warn", state.groupEncryptionWarning)
+        assertEquals(null, state.identityWarning)
+        assertEquals(null, state.safetyCode)
+        assertFalse(state.canVerifyIdentity)
+        assertFalse(state.isLoadingDeviceSafety)
+        assertEquals(null, state.deviceSafetyWarning)
+        assertEquals(IdentityTrustState.TRUSTED, state.trustState)
+        assertTrue(state.deviceSafetyStates.isEmpty())
+    }
+
+    @Test
+    fun `presentGroup copies secret chat type while clearing secret flag`() {
+        val state = controller.presentGroup(
+            ChatDetailUiState(isSecretChat = true),
+            Chat(id = "s1", isGroup = false, chatType = "SECRET"),
+            User("s1", "Secret"),
+        )
+        assertFalse(state.isSecretChat == true)
+        assertTrue(state.chatIsGroup)
+        assertEquals("SECRET", state.chat?.chatType)
+    }
 }

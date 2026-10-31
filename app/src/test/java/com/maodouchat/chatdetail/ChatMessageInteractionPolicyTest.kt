@@ -333,4 +333,35 @@ class ChatMessageInteractionPolicyTest {
         assertFalse(shouldTriggerSwipeReply(-0.0009f, 0.001f))
         assertTrue(shouldTriggerSwipeReply(-1f, 0.001f))
     }
+
+
+    @Test
+    fun swipeReplyBoundaryIsInclusiveAtThreePointFive() {
+        assertTrue(shouldTriggerSwipeReply(-3.5f, 3.5f))
+        assertFalse(shouldTriggerSwipeReply(-3.49f, 3.5f))
+        assertFalse(shouldTriggerSwipeReply(3.5f, 3.5f))
+    }
+
+    @Test
+    fun selectionToggleRemovingLastIdThenReAddingRestoresOrder() {
+        val removed = toggleMessageSelection(setOf("m1", "m2", "m3"), "m3")
+        assertEquals(listOf("m1", "m2"), removed.toList())
+        assertEquals(listOf("m1", "m2", "m3"), toggleMessageSelection(removed, "m3").toList())
+    }
+
+    @Test
+    fun selectionToggleAddingSecondIdPreservesOrder() {
+        val first = toggleMessageSelection(emptySet(), "m1")
+        assertEquals(listOf("m1", "m2"), toggleMessageSelection(first, "m2").toList())
+    }
+
+    @Test
+    fun defaultQuickReactionLengthIsTwoUtf16Units() {
+        assertEquals(2, DEFAULT_QUICK_REACTION.length)
+    }
+
+    @Test
+    fun copyableRejectsStickerInSecretChatEvenWithCopyBlockOff() {
+        assertFalse(isMessageCopyable(MessageType.STICKER, isSecretChat = true, copyBlockEnabled = false))
+    }
 }

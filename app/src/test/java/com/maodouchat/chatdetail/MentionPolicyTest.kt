@@ -618,4 +618,45 @@ class MentionPolicyTest {
         assertFalse(MentionPolicy.shouldShowPicker("@ai ", isGroupChat = true))
     }
 
+    @Test
+    fun activeQuery_filterWithUnderscoreAndDigits() {
+        val query = MentionPolicy.activeQuery("hi @Al_1", cursor = 8)!!
+        assertEquals(3, query.atIndex)
+        assertEquals("Al_1", query.filter)
+    }
+
+    @Test
+    fun filterCandidates_everyoneEntryFirstAndEveryoneIdParticipantExcluded() {
+        val people = listOf(
+            me,
+            User(id = MentionPolicy.EVERYONE_ID, name = "Fake"),
+            alice,
+            bob,
+        )
+        val result = MentionPolicy.filterCandidates(people, "me", "")
+        assertEquals(listOf(MentionPolicy.EVERYONE_ID, "u1", "u2"), result.map { it.userId })
+        assertEquals(1, result.count { it.isEveryone })
+    }
+
+    @Test
+    fun extractMentionIds_allWithExclamationMapsToEveryone() {
+        assertEquals(
+            listOf(MentionPolicy.EVERYONE_ID),
+            MentionPolicy.extractMentionIds("hi @all!", members, "me")
+        )
+    }
+
+    @Test
+    fun insertMention_blankDisplayNameWithNoQueryKeepsTextAndCursor() {
+        assertEquals(
+            InsertResult("hello", 5),
+            MentionPolicy.insertMention("hello", 5, "   ")
+        )
+    }
+
+    @Test
+    fun displayTokenForUser_blankNicknameFallsBackToId() {
+        assertEquals("@u9", MentionPolicy.displayTokenForUser(User(id = "u9", name = "", nickname = "  ")))
+    }
+
 }

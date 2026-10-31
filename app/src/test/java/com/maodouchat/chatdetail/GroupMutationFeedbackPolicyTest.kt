@@ -459,4 +459,72 @@ class GroupMutationFeedbackPolicyTest {
         assertFalse(fb.canRetry)
         assertFalse(fb.shouldReload)
     }
+
+    @Test
+    fun `permission code wins over 500 status`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.REMOVE_MEMBER,
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 500,
+                serverCode = "GROUP_PERMISSION_DENIED"
+            )
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_PERMISSION, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+        assertEquals("GROUP_PERMISSION_DENIED", fb.serverCode)
+    }
+
+    @Test
+    fun `conflict code wins over 401 status`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.ADD_MEMBER,
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 401,
+                serverCode = "GROUP_NOT_FOUND"
+            )
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_CONFLICT, fb.kind)
+        assertFalse(fb.canRetry)
+        assertTrue(fb.shouldReload)
+    }
+
+    @Test
+    fun `http 418 is fatal without reload`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.RENAME,
+            ApiException(kind = ApiFailureKind.HTTP, statusCode = 418)
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_FATAL, fb.kind)
+        assertFalse(fb.canRetry)
+        assertFalse(fb.shouldReload)
+        assertNull(fb.serverCode)
+    }
+
+    @Test
+    fun `blank server message yields null detail on permission`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.MUTE,
+            ApiException(
+                kind = ApiFailureKind.HTTP,
+                statusCode = 403,
+                serverMessage = "   "
+            )
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_PERMISSION, fb.kind)
+        assertNull(fb.detail)
+    }
+
+    @Test
+    fun `unexpected kind with io cause is retryable`() {
+        val fb = GroupMutationFeedbackPolicy.fromThrowable(
+            GroupMutationAction.LOAD,
+            ApiException(kind = ApiFailureKind.UNEXPECTED, cause = IOException("io"))
+        )
+        assertEquals(GroupMutationFeedbackKind.ERROR_RETRYABLE, fb.kind)
+        assertTrue(fb.canRetry)
+        assertFalse(fb.shouldReload)
+    }
 }

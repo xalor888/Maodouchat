@@ -673,4 +673,85 @@ class MessageTerminalStoreTest {
         assertEquals(listOf("media:message-1"), effects)
     }
 
+
+    @Test
+    fun `revoked placeholder preserves identity and scheduling fields`() = runTest {
+        val original = Message(
+            id = "message-1",
+            chatId = "chat-9",
+            senderId = "user-9",
+            content = "secret",
+            type = MessageType.IMAGE,
+            timestamp = 4242L,
+            status = MessageStatus.READ,
+            starred = true,
+            editedAt = 99L,
+            meta = MessageMeta(translations = mapOf("a" to "b")),
+            expiresAt = 777L,
+            sealedSender = true
+        )
+        val saved = original.toRevokedPlaceholder("revoked")
+        assertEquals("chat-9", saved.chatId)
+        assertEquals("user-9", saved.senderId)
+        assertEquals(99L, saved.editedAt)
+        assertEquals(777L, saved.expiresAt)
+        assertTrue(saved.sealedSender)
+        assertEquals(MessageType.REVOKED, saved.type)
+        assertEquals("revoked", saved.content)
+        assertTrue(saved.meta.translations.isEmpty())
+    }
+
+    @Test
+    fun `revoke upserts a blank-content placeholder without any content check`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+        store.persistRevoked("message-1", sampleMessage().copy(content = ""))
+        assertEquals(listOf("media:message-1", "search:message-1", "upsert:message-1"), effects)
+    }
+
+    @Test
+    fun `delete continues past a runtime exception, not only an illegal state`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { throw RuntimeException("runtime") },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+        val failure = runCatching { store.persistDeleted("message-1") }.exceptionOrNull()
+        assertEquals(listOf("search:message-1", "delete:message-1"), effects)
+        assertTrue(failure is RuntimeException)
+        assertEquals("runtime", failure?.message)
+    }
+
+    @Test
+    fun `revoke reports the media failure first and suppresses both search and upsert failures`() = runTest {
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { throw IllegalStateException("media") },
+            deleteSearchDocument = { throw IllegalStateException("search") },
+            deleteLocalMessage = {},
+            upsertLocalMessage = { throw IllegalStateException("upsert") }
+        )
+        val failure = runCatching { store.persistRevoked("message-1", sampleMessage()) }.exceptionOrNull()
+        assertEquals("media", (failure as? IllegalStateException)?.message)
+        assertEquals(listOf("search", "upsert"), failure?.suppressed?.map { it.message })
+    }
+
+    @Test
+    fun `revoke with null message and padded id cleans verbatim without upsert`() = runTest {
+        val effects = mutableListOf<String>()
+        val store = MessageTerminalStore(
+            deleteCachedMedia = { effects += "media:$it" },
+            deleteSearchDocument = { effects += "search:$it" },
+            deleteLocalMessage = { effects += "delete:$it" },
+            upsertLocalMessage = { effects += "upsert:${it.id}" }
+        )
+        store.persistRevoked(" message-1 ", null)
+        assertEquals(listOf("media: message-1 ", "search: message-1 "), effects)
+    }
 }

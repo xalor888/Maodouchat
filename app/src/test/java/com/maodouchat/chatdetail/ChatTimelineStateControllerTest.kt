@@ -541,4 +541,53 @@ class ChatTimelineStateControllerTest {
         assertEquals("revoked", updated.messages.single().content)
         assertTrue(updated.initialTimelineReady)
     }
+
+    @Test
+    fun `updateStatus from failed jumps directly to read`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L).copy(status = MessageStatus.FAILED)))
+        val updated = controller.updateStatus(state, "one", MessageStatus.READ)
+
+        assertEquals(MessageStatus.READ, updated.messages.single().status)
+    }
+
+    @Test
+    fun `updateStatus from sending jumps directly to read`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L)))
+        val updated = controller.updateStatus(state, "one", MessageStatus.READ)
+
+        assertEquals(MessageStatus.READ, updated.messages.single().status)
+    }
+
+    @Test
+    fun `applyMutation Set with revoked message replaces existing row in place`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L), message("two", 2L)))
+        val revoked = message("two", 2L).copy(type = MessageType.REVOKED, content = "revoked")
+        val updated = controller.applyMutation(state, MessageMutationProjection.Set(revoked))
+
+        assertEquals(listOf("one", "two"), updated.messages.map(Message::id))
+        assertEquals(MessageType.REVOKED, updated.messages[1].type)
+        assertEquals("revoked", updated.messages[1].content)
+    }
+
+    @Test
+    fun `initialHistoryLoaded with empty incoming keeps existing messages and clears error`() {
+        val state = ChatDetailUiState(messages = listOf(message("one", 1L)), initialLoadError = "old")
+        val updated = controller.initialHistoryLoaded(state, emptyList(), null)
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals(null, updated.initialLoadError)
+        assertTrue(updated.initialTimelineReady)
+        assertFalse(updated.hasMoreOlderMessages)
+    }
+
+    @Test
+    fun `initialHistoryLoaded with empty incoming still sets separator`() {
+        val state = ChatDetailUiState(messages = emptyList())
+        val updated = controller.initialHistoryLoaded(state, emptyList(), "sep")
+
+        assertEquals("sep", updated.unreadSeparatorId)
+        assertTrue(updated.messages.isEmpty())
+        assertTrue(updated.initialTimelineReady)
+    }
+
 }

@@ -476,4 +476,50 @@ class AttachmentPreparationModelTest {
         assertEquals("video/mp4", normalized.mimeType)
         assertEquals(6L, normalized.sizeBytes)
     }
+
+    @Test
+    fun `video declared webm wins over mp4 extension`() {
+        assertMetadata(MessageType.VIDEO, "clip.mp4", "video/webm", "clip.webm", "video/webm")
+    }
+
+    @Test
+    fun `video mkv declared mime wins over mov extension`() {
+        assertMetadata(MessageType.VIDEO, "clip.mov", "video/x-matroska", "clip.mkv", "video/x-matroska")
+    }
+
+    @Test
+    fun `else branch with negative size zeroes size for location`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.LOCATION,
+            LocalFileMetadata("place.txt", "text/plain", -3L)
+        )
+
+        assertEquals("place.txt", normalized.fileName)
+        assertEquals("text/plain", normalized.mimeType)
+        assertEquals(0L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `voice with blank name and negative size still returns fixed voice file with zero size`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VOICE,
+            LocalFileMetadata("", "audio/wav", -9L)
+        )
+
+        assertEquals("voice.m4a", normalized.fileName)
+        assertEquals("audio/mp4", normalized.mimeType)
+        assertEquals(0L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `file control character in name is sanitized to underscore`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("a\u0001b.txt", "text/plain", 8L)
+        )
+
+        assertEquals("a_b.txt", normalized.fileName)
+        assertEquals("text/plain", normalized.mimeType)
+        assertEquals(8L, normalized.sizeBytes)
+    }
 }

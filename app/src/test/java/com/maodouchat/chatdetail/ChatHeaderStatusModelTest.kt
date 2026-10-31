@@ -371,4 +371,45 @@ class ChatHeaderStatusModelTest {
             resolveChatHeaderStatus(" \t\n ", isOnline = true, customStatus = "")
         )
     }
+
+
+    @Test
+    fun `typing id with digits is trimmed before priority check`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("123"),
+            resolveChatHeaderStatus("  123  ", isOnline = false, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `typing id with internal space is kept as one id`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("user name"),
+            resolveChatHeaderStatus("user name", isOnline = false, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `lastSeen max value is returned verbatim`() {
+        assertEquals(
+            ChatHeaderStatus.LastSeen(Long.MAX_VALUE),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "  ", isGroup = false, lastSeen = Long.MAX_VALUE)
+        )
+    }
+
+    @Test
+    fun `single character typing id is not blank`() {
+        assertEquals(
+            ChatHeaderStatus.Typing("x"),
+            resolveChatHeaderStatus("x", isOnline = false, customStatus = "")
+        )
+    }
+
+    @Test
+    fun `custom status single punctuation is kept`() {
+        assertEquals(
+            ChatHeaderStatus.Custom("!"),
+            resolveChatHeaderStatus(null, isOnline = false, customStatus = "!")
+        )
+    }
 }

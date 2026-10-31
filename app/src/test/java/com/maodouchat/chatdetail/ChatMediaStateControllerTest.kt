@@ -604,4 +604,61 @@ class ChatMediaStateControllerTest {
         assertEquals(null, started.groupEncryptionWarning)
     }
 
+
+
+    @Test
+    fun `updateSegmentProgress clamps window bounds outside zero to one`() {
+        val updated = controller.updateSegmentProgress(
+            ChatDetailUiState(),
+            "m",
+            completed = 50L,
+            total = 100L,
+            start = -0.2f,
+            end = 1.5f,
+        )
+        assertEquals(0.5f, updated.fileTransferProgress.getValue("m"), 0.0001f)
+    }
+
+    @Test
+    fun `updateSegmentProgress reversed window collapses to window start`() {
+        val updated = controller.updateSegmentProgress(
+            ChatDetailUiState(),
+            "m",
+            completed = 5L,
+            total = 10L,
+            start = 0.8f,
+            end = 0.2f,
+        )
+        assertEquals(0.8f, updated.fileTransferProgress.getValue("m"), 0.0001f)
+    }
+
+    @Test
+    fun `applyTransfers keeps progress for ids without a transfer state`() {
+        val state = ChatDetailUiState(
+            fileTransferProgress = mapOf("keep" to 0.3f, "stale" to 0.4f),
+            fileTransferStates = mapOf("stale" to AttachmentTransferState.SENDING),
+        )
+        val updated = controller.applyTransfers(state, listOf(transfer("fresh", AttachmentTransferState.QUEUED)))
+        assertEquals(0.3f, updated.fileTransferProgress.getValue("keep"), 0.0001f)
+        assertFalse(updated.fileTransferProgress.containsKey("stale"))
+        assertEquals(0.35f, updated.fileTransferProgress.getValue("fresh"), 0.0001f)
+    }
+
+    @Test
+    fun `applyTransfers uploading with zero cipher size gives base progress`() {
+        val entity = transfer("m1", AttachmentTransferState.UPLOADING).copy(cipherSize = 0L, uploadedBytes = 0L)
+        val updated = controller.applyTransfers(ChatDetailUiState(), listOf(entity))
+        assertEquals(0.35f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+    }
+
+    @Test
+    fun `applyTransfers failed with zero uploaded bytes gives base progress and failed status`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u", content = "x"),
+        )
+        val entity = transfer("m1", AttachmentTransferState.FAILED).copy(uploadedBytes = 0L)
+        val updated = controller.applyTransfers(ChatDetailUiState(messages = messages), listOf(entity))
+        assertEquals(0.35f, updated.fileTransferProgress.getValue("m1"), 0.0001f)
+        assertEquals(MessageStatus.FAILED, updated.messages.first().status)
+    }
 }

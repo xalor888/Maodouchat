@@ -886,4 +886,57 @@ class ReadReceiptPolicyTest {
         )
     }
 
+
+    @Test
+    fun canViewReceipts_paddedViewerIdStillPrivilegedInGroup() {
+        assertTrue(
+            ReadReceiptPolicy.canViewReceipts(
+                viewerId = " admin ",
+                senderId = "peer",
+                isGroup = true,
+                viewerRole = " admin "
+            )
+        )
+    }
+
+    @Test
+    fun shouldShowGroupReadCount_dmOwnMessageWithAdminRoleDenied() {
+        assertFalse(ReadReceiptPolicy.shouldShowGroupReadCount(false, true, "ADMIN"))
+    }
+
+    @Test
+    fun computeGroupReadCount_paddedViewerIdIsTrimmedBeforeExclusion() {
+        val (read, total) = ReadReceiptPolicy.computeGroupReadCount(
+            viewerId = " me ",
+            memberIds = listOf("me", "a"),
+            receiptUserIds = listOf("a")
+        )
+        assertEquals(1, read)
+        assertEquals(1, total)
+    }
+
+    @Test
+    fun incompleteZeroTotalWithZeroReadCountsAsComplete() {
+        val ids = ReadReceiptPolicy.incompleteGroupReadMessageIds(
+            viewerId = "me",
+            messagesNewestLast = listOf(PrefetchMessage("a", "me", true)),
+            counts = mapOf("a" to ReadCountUi(0, 0)),
+            max = 4
+        )
+        assertEquals(emptyList(), ids)
+    }
+
+    @Test
+    fun prefetchBlankNewestIdDoesNotConsumeMaxSlot() {
+        val ids = ReadReceiptPolicy.outgoingMessageIdsForGroupReadPrefetch(
+            viewerId = "me",
+            messagesNewestLast = listOf(
+                PrefetchMessage("new", "me", true),
+                PrefetchMessage("", "me", true)
+            ),
+            max = 1
+        )
+        assertEquals(listOf("new"), ids)
+    }
+
 }

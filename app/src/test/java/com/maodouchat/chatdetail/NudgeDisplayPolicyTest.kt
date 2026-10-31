@@ -548,4 +548,44 @@ class NudgeDisplayPolicyTest {
         )
         assertEquals("", text)
     }
+
+
+    @Test
+    fun extractTargetName_newlineAfterChinesePrefixIsTrimmed() {
+        assertEquals("张三", NudgeDisplayPolicy.extractTargetName("你拍了拍\n张三"))
+    }
+
+    @Test
+    fun ownMessageWhitespaceOnlyStoredReturnsWhitespaceAsIs() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = true,
+            storedContent = "   ",
+            senderDisplayName = "ignored",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("   ", text)
+    }
+
+    @Test
+    fun nonOwnDirectWhitespaceStoredAndBlankSenderShowsEllipsis() {
+        val text = NudgeDisplayPolicy.displayText(
+            isOwnMessage = false,
+            storedContent = "   ",
+            senderDisplayName = "  ",
+            isDirectChat = true,
+            templates = templates
+        )
+        assertEquals("… 拍了拍你", text)
+    }
+
+    @Test
+    fun extractTargetName_chinesePrefixKeepsEnglishTargetVerbatim() {
+        assertEquals("You nudged Alex", NudgeDisplayPolicy.extractTargetName("你拍了拍You nudged Alex"))
+    }
+
+    @Test
+    fun extractTargetName_allCapsPrefixWithoutSpaceReturnsEmpty() {
+        assertEquals("", NudgeDisplayPolicy.extractTargetName("YOU NUDGED"))
+    }
 }

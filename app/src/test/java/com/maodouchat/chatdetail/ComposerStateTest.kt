@@ -555,4 +555,67 @@ class ComposerStateTest {
         assertTrue(snapshot.contactCardPickerVisible)
         assertFalse(snapshot.aiMenuVisible)
     }
+
+    @Test
+    fun `dismiss transient panels keeps contact card picker and translation languages together`() {
+        val state = ComposerState()
+        state.openContactCardPicker()
+        state.translationLanguages.value = true
+        state.toggleAttachMenu()
+        state.dismissTransientPanels()
+        val snapshot = state.snapshot()
+
+        assertTrue(snapshot.contactCardPickerVisible)
+        assertTrue(snapshot.translationLanguagesVisible)
+        assertFalse(snapshot.attachMenuVisible)
+    }
+
+    @Test
+    fun `show ai menu clears expression but keeps contact card picker`() {
+        val state = ComposerState()
+        state.openContactCardPicker()
+        state.expressionPanel.value = true
+        state.showAiMenu()
+        val snapshot = state.snapshot()
+
+        assertTrue(snapshot.aiMenuVisible)
+        assertFalse(snapshot.expressionPanelVisible)
+        assertTrue(snapshot.contactCardPickerVisible)
+    }
+
+    @Test
+    fun `dismiss top panel with only translation languages returns false and keeps flag`() {
+        val state = ComposerState()
+        state.translationLanguages.value = true
+
+        assertFalse(state.dismissTopPanel())
+        assertTrue(state.snapshot().translationLanguagesVisible)
+    }
+
+    @Test
+    fun `expression mode survives dismiss transient and dismiss top panels`() {
+        val state = ComposerState()
+        state.expressionMode.value = "STICKER"
+        state.toggleAttachMenu()
+        state.dismissTransientPanels()
+        assertEquals("STICKER", state.snapshot().expressionMode)
+        state.toggleExpressionPanel()
+        assertTrue(state.dismissTopPanel())
+        assertEquals("STICKER", state.snapshot().expressionMode)
+    }
+
+    @Test
+    fun `toggle expression after ai menu then dismiss top clears expression`() {
+        val state = ComposerState()
+        state.showAiMenu()
+        state.toggleExpressionPanel()
+        val before = state.snapshot()
+
+        assertFalse(before.aiMenuVisible)
+        assertTrue(before.expressionPanelVisible)
+        assertTrue(state.dismissTopPanel())
+        assertFalse(state.snapshot().expressionPanelVisible)
+        assertFalse(state.snapshot().aiMenuVisible)
+    }
+
 }

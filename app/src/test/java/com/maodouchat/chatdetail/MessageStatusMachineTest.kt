@@ -388,4 +388,55 @@ class MessageStatusMachineTest {
         assertEquals("hello", merged.content)
         assertEquals(20L, merged.editedAt)
     }
+
+
+    @Test
+    fun `canAdvanceTo skips rungs forward and holds DELIVERED and FAILED same-status`() {
+        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.READ))
+        assertTrue(MessageStatus.SENT.canAdvanceTo(MessageStatus.READ))
+        assertTrue(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.DELIVERED))
+        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.FAILED))
+    }
+
+    @Test
+    fun `stale server edit still upgrades delivery status without regressing content`() {
+        val local = base("m1").copy(editedAt = 20L, content = "newer", status = MessageStatus.SENT)
+        val server = local.copy(editedAt = 10L, content = "older", status = MessageStatus.DELIVERED)
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("newer", merged.content)
+        assertEquals(20L, merged.editedAt)
+        assertEquals(MessageStatus.DELIVERED, merged.status)
+    }
+
+    @Test
+    fun `equal revision failed on both sides keeps the server content and FAILED status`() {
+        val local = base("m1").copy(status = MessageStatus.FAILED, content = "boom1")
+        val server = local.copy(status = MessageStatus.FAILED, content = "boom2")
+        val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
+        assertEquals("boom2", merged.content)
+        assertEquals(MessageStatus.FAILED, merged.status)
+    }
+
+    @Test
+    fun `merge incoming duplicate id twice resolves to the newest edit`() {
+        val existing = listOf(base("m1").copy(editedAt = 10L, content = "v1"))
+        val incoming = listOf(
+            base("m1").copy(editedAt = 20L, content = "v2"),
+            base("m1").copy(editedAt = 30L, content = "v3")
+        )
+        val merged = mergeMessageVersions(existing, incoming)
+        assertEquals(1, merged.size)
+        assertEquals("v3", merged.single().content)
+        assertEquals(30L, merged.single().editedAt)
+    }
+
+    @Test
+    fun `merge duplicate id keeps timestamp order with the server content`() {
+        val merged = mergeMessageVersions(
+            listOf(base("m2").copy(timestamp = 2000L), base("m1").copy(timestamp = 1000L)),
+            listOf(base("m1").copy(content = "server"))
+        )
+        assertEquals(listOf("m1", "m2"), merged.map { it.id })
+        assertEquals("server", merged.first().content)
+    }
 }
