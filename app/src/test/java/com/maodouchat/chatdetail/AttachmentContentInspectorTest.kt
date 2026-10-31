@@ -276,4 +276,33 @@ class AttachmentContentInspectorTest {
         assertFalse(isAttachmentContentCompatible(MessageType.SK_DIST, iso))
         assertFalse(isAttachmentContentCompatible(MessageType.SK_DIST, ebml))
     }
+
+    @Test
+    fun `jpeg second byte must be D8`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0xFF, 0xD9, 0xFF)))
+        assertTrue(isAttachmentContentCompatible(MessageType.FILE, bytes(0xFF, 0xD9, 0xFF)))
+    }
+
+    @Test
+    fun `jpeg first byte must be FF`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0x00, 0xD8, 0xFF)))
+    }
+
+    @Test
+    fun `gif rejects GIF87b and GIF89c version variants`() {
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, "GIF87b".encodeToByteArray()))
+        assertFalse(isAttachmentContentCompatible(MessageType.GIF, "GIF89c".encodeToByteArray()))
+    }
+
+    @Test
+    fun `iso ftyp starting one byte late is rejected`() {
+        val late = bytes(0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x74, 0x79, 0x70)
+        assertFalse(isAttachmentContentCompatible(MessageType.VIDEO, late))
+        assertFalse(isAttachmentContentCompatible(MessageType.VOICE, late))
+    }
+
+    @Test
+    fun `jpeg exif E1 marker is accepted`() {
+        assertTrue(isAttachmentContentCompatible(MessageType.IMAGE, bytes(0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x10)))
+    }
 }

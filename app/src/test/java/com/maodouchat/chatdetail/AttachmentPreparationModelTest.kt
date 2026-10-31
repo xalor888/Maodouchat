@@ -409,4 +409,71 @@ class AttachmentPreparationModelTest {
         assertEquals("image/webp", normalized.mimeType)
         assertEquals(7L, normalized.sizeBytes)
     }
+
+    @Test
+    fun `gif unsafe chars are sanitized before forcing extension`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.GIF,
+            LocalFileMetadata("my:pic?.png", "image/png", 5L)
+        )
+
+        assertEquals("my_pic_.gif", normalized.fileName)
+        assertEquals("image/gif", normalized.mimeType)
+        assertEquals(5L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `video valid but unmapped mime falls back to existing mov extension`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.mov", "video/unknown", 4L)
+        )
+
+        assertEquals("clip.mov", normalized.fileName)
+        assertEquals("video/quicktime", normalized.mimeType)
+        assertEquals(4L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `file blank mime fails closed keeping name and size`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata("doc.txt", "", 8L)
+        )
+
+        assertEquals("doc.txt", normalized.fileName)
+        assertEquals("application/octet-stream", normalized.mimeType)
+        assertEquals(8L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `file vendor mime with dots and dashes is kept verbatim`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.FILE,
+            LocalFileMetadata(
+                "doc.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                8L
+            )
+        )
+
+        assertEquals("doc.xlsx", normalized.fileName)
+        assertEquals(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            normalized.mimeType
+        )
+        assertEquals(8L, normalized.sizeBytes)
+    }
+
+    @Test
+    fun `video declared mp4 wins over unknown extension`() {
+        val normalized = normalizeAttachmentMetadata(
+            MessageType.VIDEO,
+            LocalFileMetadata("clip.xyz", "video/mp4", 6L)
+        )
+
+        assertEquals("clip.mp4", normalized.fileName)
+        assertEquals("video/mp4", normalized.mimeType)
+        assertEquals(6L, normalized.sizeBytes)
+    }
 }
