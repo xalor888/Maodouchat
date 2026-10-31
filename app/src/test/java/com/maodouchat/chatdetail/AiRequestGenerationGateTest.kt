@@ -351,4 +351,87 @@ class AiRequestGenerationGateTest {
         assertTrue(gate.isCurrent(9L))
     }
 
+
+    @Test
+    fun `each request invalidated between requests leaves only the last current`() {
+        val gate = AiRequestGenerationGate()
+        val first = gate.next()
+        gate.invalidate()
+        val second = gate.next()
+        gate.invalidate()
+        val third = gate.next()
+
+        assertEquals(1L, first)
+        assertEquals(3L, second)
+        assertEquals(5L, third)
+        assertFalse(gate.isCurrent(first))
+        assertFalse(gate.isCurrent(2L))
+        assertFalse(gate.isCurrent(second))
+        assertFalse(gate.isCurrent(4L))
+        assertTrue(gate.isCurrent(third))
+    }
+
+    @Test
+    fun `one hundred sequential invalidates skip one hundred generations`() {
+        val gate = AiRequestGenerationGate()
+
+        repeat(100) { gate.invalidate() }
+        val fresh = gate.next()
+
+        assertEquals(101L, fresh)
+        assertTrue(gate.isCurrent(fresh))
+        assertFalse(gate.isCurrent(1L))
+        assertFalse(gate.isCurrent(50L))
+        assertFalse(gate.isCurrent(100L))
+    }
+
+    @Test
+    fun `ten thousand tokens then invalidate leaves only the next token current`() {
+        val gate = AiRequestGenerationGate()
+        val tokens = List(10000) { gate.next() }
+
+        gate.invalidate()
+        val fresh = gate.next()
+
+        assertEquals(10002L, fresh)
+        assertTrue(gate.isCurrent(fresh))
+        assertFalse(gate.isCurrent(10000L))
+        assertFalse(gate.isCurrent(10001L))
+        assertTrue(tokens.none { gate.isCurrent(it) })
+    }
+
+    @Test
+    fun `repeated isCurrent checks never advance the counter`() {
+        val gate = AiRequestGenerationGate()
+        val token = gate.next()
+
+        repeat(100) { assertTrue(gate.isCurrent(token)) }
+        repeat(100) { assertFalse(gate.isCurrent(token + 1)) }
+
+        assertEquals(2L, gate.next())
+        assertTrue(gate.isCurrent(2L))
+    }
+
+    @Test
+    fun `interleaved invalidates on two gates stay independent`() {
+        val first = AiRequestGenerationGate()
+        val second = AiRequestGenerationGate()
+
+        first.invalidate()
+        val firstToken = first.next()
+        val secondToken = second.next()
+        second.invalidate()
+        val secondFresh = second.next()
+        val firstFresh = first.next()
+
+        assertEquals(2L, firstToken)
+        assertEquals(1L, secondToken)
+        assertEquals(3L, secondFresh)
+        assertEquals(3L, firstFresh)
+        assertTrue(first.isCurrent(3L))
+        assertTrue(second.isCurrent(3L))
+        assertFalse(first.isCurrent(2L))
+        assertFalse(second.isCurrent(1L))
+    }
+
 }

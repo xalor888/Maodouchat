@@ -299,4 +299,50 @@ class MediaCenterModelTest {
         assertEquals(listOf("https://a.com/x"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
     }
 
+
+    @Test
+    fun urlWithPortAndQuerySurvivesIntact() {
+        val message = Message("m", "chat", "u", "看 https://a.com:8080/p?q=1&r=2 好了", MessageType.TEXT)
+
+        assertEquals(listOf("https://a.com:8080/p?q=1&r=2"), buildMediaCenterItems(listOf(message)).map { it.linkUrl })
+    }
+
+    @Test
+    fun schemesWithoutHttpAndBareWwwYieldNoLinks() {
+        val message = Message("m", "chat", "u", "见 www.a.com 和 ftp://f.com/x", MessageType.TEXT)
+
+        assertEquals(emptyList(), buildMediaCenterItems(listOf(message)))
+    }
+
+    @Test
+    fun hiddenSkDistMessagesYieldNoItems() {
+        val message = Message("m", "chat", "u", "见 https://a.com/x", MessageType.SK_DIST)
+
+        assertEquals(emptyList(), buildMediaCenterItems(listOf(message)))
+    }
+
+    @Test
+    fun voiceMessageContentUrlNeverBecomesALinkItem() {
+        val message = Message("m", "chat", "u", "https://a.com/x", MessageType.VOICE, 10)
+        val items = buildMediaCenterItems(listOf(message))
+
+        assertEquals(1, items.size)
+        assertEquals(MediaCenterCategory.VOICE, items.single().category)
+        assertEquals(null, items.single().linkUrl)
+    }
+
+    @Test
+    fun sameUrlInThreeMessagesYieldsOneItemPerMessageNewestFirst() {
+        val messages = listOf(
+            Message("m1", "chat", "u", "见 https://a.com/x", MessageType.TEXT, 10),
+            Message("m2", "chat", "u", "见 https://a.com/x", MessageType.TEXT, 30),
+            Message("m3", "chat", "u", "见 https://a.com/x", MessageType.TEXT, 20)
+        )
+        val items = buildMediaCenterItems(messages)
+
+        assertEquals(3, items.size)
+        assertEquals(listOf("m2", "m3", "m1"), items.map { it.message.id })
+        assertEquals(listOf("https://a.com/x", "https://a.com/x", "https://a.com/x"), items.map { it.linkUrl })
+    }
+
 }
