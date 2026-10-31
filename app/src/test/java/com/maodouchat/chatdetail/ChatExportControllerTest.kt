@@ -590,4 +590,68 @@ class ChatExportControllerTest {
         assertTrue(json.contains("\"partial\":false"))
     }
 
+    @Test
+    fun `exportChatAsJson includes unicode content verbatim`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "你好世界 🌍", type = MessageType.TEXT),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("你好世界 🌍"))
+    }
+
+    @Test
+    fun `exportChatAsJson exports a positive numeric exportedAt`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = emptyList(),
+        )
+
+        val json = controller.exportChatAsJson()
+        val raw = json.substringAfter("\"exportedAt\":").substringBefore(",").substringBefore("}")
+        assertTrue((raw.trim().toLongOrNull() ?: 0L) > 0L)
+    }
+
+    @Test
+    fun `exportChatAsJson includes video failed message fields`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(
+                    id = "m1", chatId = "c1", senderId = "user_me", content = "clip", type = MessageType.VIDEO,
+                    timestamp = 777L, status = com.maodouchat.data.model.MessageStatus.FAILED,
+                ),
+            ),
+        )
+
+        val json = controller.exportChatAsJson()
+        assertTrue(json.contains("\"type\":\"VIDEO\""))
+        assertTrue(json.contains("\"status\":\"FAILED\""))
+        assertTrue(json.contains("\"timestamp\":777"))
+    }
+
+    @Test
+    fun `clearExportInfo keeps null export info null`() {
+        uiState.value = ChatDetailUiState(exportInfoMessage = null, infoMessage = "kept")
+
+        controller.clearExportInfo()
+
+        assertNull(uiState.value.exportInfoMessage)
+        assertEquals("kept", uiState.value.infoMessage)
+    }
+
+    @Test
+    fun `exportChatAsJson escapes tab and carriage return in content`() {
+        uiState.value = ChatDetailUiState(
+            chat = Chat(id = "c1", isGroup = false),
+            messages = listOf(
+                Message(id = "m1", chatId = "c1", senderId = "user_me", content = "a\tb\rc", type = MessageType.TEXT),
+            ),
+        )
+
+        assertTrue(controller.exportChatAsJson().contains("a\\tb\\rc"))
+    }
+
 }

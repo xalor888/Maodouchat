@@ -78,6 +78,13 @@ class AttachmentProgressPolicyTest {
     }
 
     @Test
+    fun `exactly threshold delta publishes despite float rounding`() {
+        // 0.51f - 0.5f is just under 0.01f, so the delta check must not run in Float.
+        val p = AttachmentProgressPolicy.mapSegmentProgress(510, 1000, 0f, 1f, 0.5f)
+        assertEquals(0.51f, p!!, 0.0001f)
+    }
+
+    @Test
     fun `sub threshold delta inside segment suppressed`() {
         val first = AttachmentProgressPolicy.mapSegmentProgress(50, 100, 0f, 1f, -1f)!!
         assertNull(AttachmentProgressPolicy.mapSegmentProgress(505, 1000, 0f, 1f, first))
