@@ -678,4 +678,84 @@ class SenderDisplayNameTest {
         content = "hi",
         status = MessageStatus.SENT,
     )
+
+    @Test
+    fun directChat_contactNicknameBeatsName() {
+        val state = ChatDetailUiState(
+            contact = User(id = "peer", name = "大名", nickname = "小名"),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("peer"),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("小名", name)
+    }
+
+    @Test
+    fun directChat_mappedNameWithSurroundingSpacesIsTrimmed() {
+        val state = ChatDetailUiState(
+            contact = User(id = "", name = ""),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message("peer"),
+            isOwn = false,
+            participantNamesById = mapOf("peer" to "  备注  "),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("备注", name)
+    }
+
+    @Test
+    fun directChat_emptySenderWithPaddedUnknownLabelReturnsTrimmed() {
+        val state = ChatDetailUiState(
+            contact = User(id = "", name = ""),
+            chatIsGroup = false,
+        )
+        val name = senderDisplayName(
+            state = state,
+            message = message(""),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "  未知  ",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("未知", name)
+    }
+
+    @Test
+    fun group_emptySenderWithBlankMemberLabelFallsToUnknown() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message(""),
+            isOwn = false,
+            participantNamesById = emptyMap(),
+            unknownLabel = "未知",
+            groupMemberLabel = "",
+        )
+        assertEquals("未知", name)
+    }
+
+    @Test
+    fun group_mappedNameBeatsTruncatedIdForLongId() {
+        val state = ChatDetailUiState(chatIsGroup = true)
+        val name = senderDisplayName(
+            state = state,
+            message = message("abcdefghij"),
+            isOwn = false,
+            participantNamesById = mapOf("abcdefghij" to "群友"),
+            unknownLabel = "未知",
+            groupMemberLabel = "群成员",
+        )
+        assertEquals("群友", name)
+    }
+
 }
