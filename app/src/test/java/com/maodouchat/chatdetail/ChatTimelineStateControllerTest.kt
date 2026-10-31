@@ -461,4 +461,84 @@ class ChatTimelineStateControllerTest {
 
         assertEquals(listOf("c", "a", "b"), updated.messages.map(Message::id))
     }
+
+    @Test
+    fun `sent advances to delivered then to read`() {
+        val state = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(status = MessageStatus.SENT)),
+        )
+
+        val delivered = controller.updateStatus(state, "one", MessageStatus.DELIVERED)
+        val read = controller.updateStatus(delivered, "one", MessageStatus.READ)
+
+        assertEquals(MessageStatus.DELIVERED, delivered.messages.single().status)
+        assertEquals(MessageStatus.READ, read.messages.single().status)
+    }
+
+    @Test
+    fun `delivered rejects failed and read rejects delivered regression`() {
+        val delivered = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(status = MessageStatus.DELIVERED)),
+        )
+        val read = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(status = MessageStatus.READ)),
+        )
+
+        assertEquals(
+            MessageStatus.DELIVERED,
+            controller.updateStatus(delivered, "one", MessageStatus.FAILED).messages.single().status,
+        )
+        assertEquals(
+            MessageStatus.READ,
+            controller.updateStatus(read, "one", MessageStatus.DELIVERED).messages.single().status,
+        )
+    }
+
+    @Test
+    fun `failed recovers to sending then jumps to delivered`() {
+        val state = ChatDetailUiState(
+            messages = listOf(message("one", 1L).copy(status = MessageStatus.FAILED)),
+        )
+
+        val sending = controller.updateStatus(state, "one", MessageStatus.SENDING)
+        val delivered = controller.updateStatus(sending, "one", MessageStatus.DELIVERED)
+
+        assertEquals(MessageStatus.SENDING, sending.messages.single().status)
+        assertEquals(MessageStatus.DELIVERED, delivered.messages.single().status)
+    }
+
+    @Test
+    fun `mergeIncoming equal revision keeps higher local status but takes candidate content`() {
+        val state = ChatDetailUiState(
+            messages = listOf(
+                message("one", 1L).copy(status = MessageStatus.DELIVERED, content = "old"),
+            ),
+        )
+
+        val updated = controller.mergeIncoming(state, listOf(message("one", 1L).copy(content = "new")))
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals("new", updated.messages.single().content)
+        assertEquals(MessageStatus.DELIVERED, updated.messages.single().status)
+    }
+
+    @Test
+    fun `initialHistoryLoaded keeps revoked row over a newer plain edit`() {
+        val state = ChatDetailUiState(
+            messages = listOf(
+                message("one", 1L).copy(type = MessageType.REVOKED, content = "revoked"),
+            ),
+        )
+
+        val updated = controller.initialHistoryLoaded(
+            state,
+            listOf(message("one", 1L).copy(content = "plain", editedAt = 10L)),
+            null,
+        )
+
+        assertEquals(listOf("one"), updated.messages.map(Message::id))
+        assertEquals(MessageType.REVOKED, updated.messages.single().type)
+        assertEquals("revoked", updated.messages.single().content)
+        assertTrue(updated.initialTimelineReady)
+    }
 }
