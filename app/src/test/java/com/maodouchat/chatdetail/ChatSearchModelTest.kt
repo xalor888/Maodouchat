@@ -448,6 +448,61 @@ class ChatSearchModelTest {
         assertEquals(listOf("direct", "everyone"), semanticSearchCandidates(documents, ChatSearchScope.MENTIONS, ChatSearchWindow.ALL, currentUserId = "me").map { it.id })
     }
 
+    @Test
+    fun `media scope blank query orders media by timestamp descending`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("pic", MessageType.IMAGE, "file://pic", timestamp = 2L),
+                message("clip", MessageType.VIDEO, "file://clip", timestamp = 9L)
+            )
+        )
+
+        assertEquals(listOf("clip", "pic"), searchChatDocuments(documents, "", ChatSearchScope.MEDIA, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `text scope ignores voice transcripts`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("voice", MessageType.VOICE, "voice://1", MessageMeta(voiceTranscript = "morning brief")))
+        )
+
+        assertTrue(searchChatDocuments(documents, "morning", ChatSearchScope.TEXT, ChatSearchWindow.ALL).isEmpty())
+    }
+
+    @Test
+    fun `mentions scope with query returns everyone match and drops other mention`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("everyone", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+                message("other", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L)
+            )
+        )
+
+        assertEquals(listOf("everyone"), searchChatDocuments(documents, "alpha", ChatSearchScope.MENTIONS, ChatSearchWindow.ALL, currentUserId = "me").map { it.id })
+    }
+
+    @Test
+    fun `startsWith bonus orders release plan before plan release`() {
+        val documents = buildChatSearchDocuments(
+            listOf(
+                message("planFirst", MessageType.TEXT, "release plan", timestamp = 1L),
+                message("planLast", MessageType.TEXT, "plan release", timestamp = 9L)
+            )
+        )
+
+        assertEquals(listOf("planFirst", "planLast"), searchChatDocuments(documents, "release", ChatSearchScope.ALL, ChatSearchWindow.ALL).map { it.id })
+    }
+
+    @Test
+    fun `markdown message becomes a document but is not searchable`() {
+        val documents = buildChatSearchDocuments(
+            listOf(message("md", MessageType.MARKDOWN, "hello world"))
+        )
+
+        assertEquals(listOf("md"), documents.map { it.message.id })
+        assertTrue(searchChatDocuments(documents, "hello", ChatSearchScope.ALL, ChatSearchWindow.ALL).isEmpty())
+    }
+
     private fun message(
         id: String,
         type: MessageType,
