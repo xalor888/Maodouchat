@@ -620,4 +620,125 @@ class GroupLifecycleCoordinatorTest {
         assertFalse(fetchCalled)
     }
 
+    @Test
+    fun `session switch after commit with rotation invalidates null revision`() = runTest {
+        var active = true
+        var invalidatedOwner = ""
+        var invalidatedRevision: Long? = 99L
+        val coordinator = coordinator(
+            sessionActive = { active },
+            fetchChat = { _, _ -> Result.success(null) },
+            invalidateEpoch = { _, owner, revision ->
+                invalidatedOwner = owner
+                invalidatedRevision = revision
+            },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {
+            active = false
+        }
+
+        assertTrue(result.committed)
+        assertTrue(result.refreshError is GroupLifecycleSessionException)
+        assertEquals("owner-1", invalidatedOwner)
+        assertNull(invalidatedRevision)
+        assertTrue(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `session gate throwing pre-mutation propagates without mutation or refresh`() = runTest {
+        var mutationCalled = false
+        var fetchCalled = false
+        var invalidateCalled = false
+        val coordinator = GroupLifecycleCoordinator(
+            ownerUserId = { "owner-1" },
+            token = { "token-1" },
+            sessionActive = { throw IllegalStateException("gate boom") },
+            fetchChat = { _, _ ->
+                fetchCalled = true
+                Result.success(null)
+            },
+            invalidateEpoch = { _, _, _ -> invalidateCalled = true },
+        )
+
+        val thrown = runCatching {
+            coordinator.mutate("group-1", rotateSenderKey = true) { mutationCalled = true }
+        }.exceptionOrNull()
+
+        assertTrue(thrown is IllegalStateException)
+        assertEquals("gate boom", thrown?.message)
+        assertFalse(mutationCalled)
+        assertFalse(fetchCalled)
+        assertFalse(invalidateCalled)
+    }
+
+    @Test
+    fun `revision one invalidates with one`() = runTest {
+        var invalidatedRevision: Long? = null
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-1", isGroup = true, memberRevision = 1L))
+            },
+            invalidateEpoch = { _, _, revision -> invalidatedRevision = revision },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertEquals(1L, invalidatedRevision)
+        assertFalse(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `refreshed chat with a different id is kept as-is with its revision`() = runTest {
+        var invalidatedRevision: Long? = null
+        val coordinator = coordinator(
+            fetchChat = { _, _ ->
+                Result.success(ChatDto(id = "group-9", isGroup = true, memberRevision = 7L))
+            },
+            invalidateEpoch = { _, _, revision -> invalidatedRevision = revision },
+        )
+
+        val result = coordinator.mutate("group-1", rotateSenderKey = true) {}
+
+        assertTrue(result.committed)
+        assertEquals("group-9", result.refreshedChat?.id)
+        assertEquals(7L, invalidatedRevision)
+        assertFalse(result.hasPostCommitWarning)
+    }
+
+    @Test
+    fun `same coordinator mutated twice runs two full commit rounds`() = runTest {
+        val calls = mutableListOf<String>()
+        val coordinator = coordinator(
+            fetchChat = { token, chatId ->
+                calls += "fetch:$token:$chatId"
+                Result.success(ChatDto(id = chatId, isGroup = true, memberRevision = 12L))
+            },
+            invalidateEpoch = { chatId, owner, revision ->
+                calls += "invalidate:$chatId:$owner:$revision"
+            },
+        )
+
+        val first = coordinator.mutate("group-1", rotateSenderKey = true) { token ->
+            calls += "mutate:$token"
+        }
+        val second = coordinator.mutate("group-1", rotateSenderKey = true) { token ->
+            calls += "mutate:$token"
+        }
+
+        assertTrue(first.committed)
+        assertTrue(second.committed)
+        assertEquals(
+            listOf(
+                "mutate:token-1",
+                "fetch:token-1:group-1",
+                "invalidate:group-1:owner-1:12",
+                "mutate:token-1",
+                "fetch:token-1:group-1",
+                "invalidate:group-1:owner-1:12",
+            ),
+            calls,
+        )
+    }
 }
