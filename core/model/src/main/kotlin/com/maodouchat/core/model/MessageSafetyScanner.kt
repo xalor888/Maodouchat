@@ -1,6 +1,5 @@
-package com.maodouchat.security
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Finding
 import java.util.Locale
 import java.util.regex.Pattern
 
