@@ -243,7 +243,7 @@
 - [ ] `:core:network`：HTTP client、认证拦截、错误映射、分域 API。
 - [ ] `:core:realtime`：WebSocket 生命周期、事件总线和连接状态。
 - [ ] `:core:crypto`：libsignal 存储适配与密码学原语。
-- [ ] `:core:session`：认证会话、账号世代、凭据库和安全销毁。
+- [~] `:core:session`：认证会话、账号世代、凭据库和安全销毁。
 - [ ] `:core:testing`：fake clock、fake transport、数据库和多账号夹具。
 - [ ] `:domain:messaging`、`:domain:conversation`、`:domain:groups`、`:domain:calls` 等纯领域模块。
 - [ ] `:feature:chat`、`:feature:contacts`、`:feature:explore`、`:feature:settings` 等 UI 模块。

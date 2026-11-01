@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import android.util.Log
 import com.maodouchat.R
+import com.maodouchat.core.session.SessionContextProvider
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.network.RealtimeDisconnectPolicy
@@ -14,7 +15,6 @@ import com.maodouchat.network.resolveTypingSignalAction
 import com.maodouchat.network.resolveUserVisibility
 import com.maodouchat.session.AccountScopedRealtimeConnectionManager
 import com.maodouchat.session.RealtimeConnectionManager
-import com.maodouchat.session.SessionContextProvider
 import com.maodouchat.util.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.Flag

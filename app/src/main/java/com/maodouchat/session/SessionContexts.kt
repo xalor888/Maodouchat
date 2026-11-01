@@ -1,6 +1,7 @@
 package com.maodouchat.session
 
 import android.content.Context
+import com.maodouchat.core.session.SessionContextProvider
 import com.maodouchat.network.TokenManager
 
 /**

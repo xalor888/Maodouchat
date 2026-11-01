@@ -122,7 +122,7 @@ class MaodouchatApp : Application() {
             realtimeConnectionManager.start(
                 serverUrl = ApiConfig.WS_URL,
                 accessToken = token,
-                owner = com.maodouchat.session.SessionContext(ownerUserId = userId, generation = currentSessionGeneration()),
+                owner = com.maodouchat.core.session.SessionContext(ownerUserId = userId, generation = currentSessionGeneration()),
                 reconnect = true
             )
         }

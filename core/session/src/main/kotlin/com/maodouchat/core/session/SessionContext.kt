@@ -1,4 +1,4 @@
-package com.maodouchat.session
+package com.maodouchat.core.session
 
 import kotlinx.coroutines.flow.StateFlow
 
