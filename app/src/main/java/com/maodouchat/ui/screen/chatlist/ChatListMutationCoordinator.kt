@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatlist
 import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.conversation.ConversationLocalCleanupSession
+import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
@@ -10,7 +11,6 @@ import com.maodouchat.network.ChatDto
 import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.security.SecretChatPolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

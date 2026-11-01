@@ -78,7 +78,7 @@ internal fun ChatListScreenDialogs(
             DropdownMenuItem(text = { Text(stringResource(if (chat.notificationsMuted) R.string.chat_unmute_notifications else R.string.chat_mute_notifications)) }, onClick = { viewModel.toggleNotificationsMuted(chat.id); onMenuChatChange(null)})
             // 1.31：临时静音至快捷项（本地，1/8/24 小时）
             if (
-                com.maodouchat.security.SecretChatPolicy.canStartFromDirect(
+                com.maodouchat.core.session.SecretChatPolicy.canStartFromDirect(
                     isGroup = chat.isGroup,
                     chatType = chat.chatType
                 )

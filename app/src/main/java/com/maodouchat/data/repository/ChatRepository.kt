@@ -155,7 +155,7 @@ class ChatRepository(
                 User(id = peerUserId, name = ""),
             ),
             isGroup = false,
-            chatType = if (isSecret) com.maodouchat.security.SecretChatPolicy.CHAT_TYPE else "DIRECT",
+            chatType = if (isSecret) com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE else "DIRECT",
             lastMessage = "",
             lastMessageTime = System.currentTimeMillis(),
         )

@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.session
 
 /**
  * 钉钉式密聊：独立 1:1 会话（chatType=SECRET），双方同步。
