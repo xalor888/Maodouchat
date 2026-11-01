@@ -9,7 +9,7 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.session.CurrentSession
-import com.maodouchat.session.Snapshot
+import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.ChatExportController
 import com.maodouchat.util.ChatExport
@@ -50,7 +50,7 @@ class ChatExportControllerTest {
 
         every { tokenManager.getUserId() } returns "user_me"
 
-        CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+        CurrentSession.override = { SessionSnapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         every { tokenManager.getToken() } returns "valid_token"
 
         controller = ChatExportController(
@@ -152,7 +152,7 @@ class ChatExportControllerTest {
 
     @Test
     fun exportChatAsJson_blocksWhenTokenBlank() {
-        CurrentSession.override = { Snapshot(null, "user_me") }
+        CurrentSession.override = { SessionSnapshot(null, "user_me") }
         try {
             uiState.value = ChatDetailUiState(
                 chat = Chat(id = "c1", isGroup = false),
@@ -161,7 +161,7 @@ class ChatExportControllerTest {
 
             assertEquals("{}", controller.exportChatAsJson())
         } finally {
-            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+            CurrentSession.override = { SessionSnapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         }
     }
 
@@ -190,7 +190,7 @@ class ChatExportControllerTest {
 
     @Test
     fun exportChatAsJson_reportsEmptyWhenUserIdBlank() {
-        CurrentSession.override = { Snapshot("valid_token", "") }
+        CurrentSession.override = { SessionSnapshot("valid_token", "") }
         try {
             uiState.value = ChatDetailUiState(
                 chat = Chat(id = "c1", isGroup = false),
@@ -199,13 +199,13 @@ class ChatExportControllerTest {
 
             assertEquals("{}", controller.exportChatAsJson())
         } finally {
-            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+            CurrentSession.override = { SessionSnapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         }
     }
 
     @Test
     fun exportChatAsJson_reportsEmptyWhenUserIdMissing() {
-        CurrentSession.override = { Snapshot("valid_token", null) }
+        CurrentSession.override = { SessionSnapshot("valid_token", null) }
         try {
             uiState.value = ChatDetailUiState(
                 chat = Chat(id = "c1", isGroup = false),
@@ -214,7 +214,7 @@ class ChatExportControllerTest {
 
             assertEquals("{}", controller.exportChatAsJson())
         } finally {
-            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+            CurrentSession.override = { SessionSnapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         }
     }
 
@@ -283,7 +283,7 @@ class ChatExportControllerTest {
 
     @Test
     fun exportChatAsJson_returnsEmptyWhenOwnerIsFallbackMe() {
-        CurrentSession.override = { Snapshot("valid_token", "me") }
+        CurrentSession.override = { SessionSnapshot("valid_token", "me") }
         try {
             uiState.value = ChatDetailUiState(
                 chat = Chat(id = "c1", isGroup = false),
@@ -292,7 +292,7 @@ class ChatExportControllerTest {
 
             assertEquals("{}", controller.exportChatAsJson())
         } finally {
-            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+            CurrentSession.override = { SessionSnapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         }
     }
 
@@ -407,7 +407,7 @@ class ChatExportControllerTest {
 
     @Test
     fun exportChatAsJson_reportsEmptyWhenUserIdWhitespace() {
-        CurrentSession.override = { Snapshot("valid_token", "   ") }
+        CurrentSession.override = { SessionSnapshot("valid_token", "   ") }
         try {
             uiState.value = ChatDetailUiState(
                 chat = Chat(id = "c1", isGroup = false),
@@ -416,7 +416,7 @@ class ChatExportControllerTest {
 
             assertEquals("{}", controller.exportChatAsJson())
         } finally {
-            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+            CurrentSession.override = { SessionSnapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         }
     }
 
@@ -471,7 +471,7 @@ class ChatExportControllerTest {
 
     @Test
     fun `exportChatAsJson reports empty when token is whitespace`() {
-        CurrentSession.override = { Snapshot("   ", "user_me") }
+        CurrentSession.override = { SessionSnapshot("   ", "user_me") }
         try {
             uiState.value = ChatDetailUiState(
                 chat = Chat(id = "c1", isGroup = false),
@@ -480,7 +480,7 @@ class ChatExportControllerTest {
 
             assertEquals("{}", controller.exportChatAsJson())
         } finally {
-            CurrentSession.override = { Snapshot(tokenManager.getToken(), tokenManager.getUserId()) }
+            CurrentSession.override = { SessionSnapshot(tokenManager.getToken(), tokenManager.getUserId()) }
         }
     }
 

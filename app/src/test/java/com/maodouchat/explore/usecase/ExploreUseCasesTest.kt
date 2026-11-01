@@ -21,7 +21,7 @@ import com.maodouchat.network.SetUsernameResponse
 import com.maodouchat.network.UserDto
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.session.CurrentSession
-import com.maodouchat.session.Snapshot
+import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.explore.repository.FeedSession
 import kotlinx.coroutines.CancellationException
@@ -145,7 +145,7 @@ class ExploreUseCasesTest {
 
     @Test
     fun publishPostUseCase_nullToken_fallsBackToLiveSessionToken() = runTest {
-        CurrentSession.override = { Snapshot("live-token-9", "user-1") }
+        CurrentSession.override = { SessionSnapshot("live-token-9", "user-1") }
         val fakeMutationRepo = FakePostMutationRepository()
         val useCase = PublishPostUseCase(fakeMutationRepo, FakeDraftRepository(), FakeMediaUploadQueue())
 

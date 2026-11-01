@@ -1,5 +1,6 @@
 package com.maodouchat.session
 
+import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.network.TokenManager
 
 // 当前账号身份的进程内唯一读取点：调用方只拿身份、拿不到令牌，网络层不会被拖进渲染路径。
@@ -7,18 +8,18 @@ import com.maodouchat.network.TokenManager
 object CurrentSession {
 
     @Volatile
-    internal var override: (() -> Snapshot)? = null
+    internal var override: (() -> SessionSnapshot)? = null
 
     /**
      * 读一次实时会话。
      *
-     * 无会话时返回 `Snapshot(null, null)` 而不是抛异常：登出后仍有在途代码会调用它，
+     * 无会话时返回 `SessionSnapshot(null, null)` 而不是抛异常：登出后仍有在途代码会调用它，
      * 那些路径本来就该按「没有会话」处理。
      */
-    fun snapshot(): Snapshot {
+    fun snapshot(): SessionSnapshot {
         override?.let { return it() }
-        val manager = TokenManager.getInstanceOrNull() ?: return Snapshot(null, null)
-        return Snapshot(manager.getToken(), manager.getUserId())
+        val manager = TokenManager.getInstanceOrNull() ?: return SessionSnapshot(null, null)
+        return SessionSnapshot(manager.getToken(), manager.getUserId())
     }
 
     /** 当前账号 id；无会话时空串（与 `TokenManager.getUserId().orEmpty()` 同样的约定）。 */
