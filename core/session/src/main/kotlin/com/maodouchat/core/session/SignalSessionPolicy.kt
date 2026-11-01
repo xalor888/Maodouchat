@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.session
 
 /**
  * 何时向对端（含自己的其他设备）建立 Signal session。
