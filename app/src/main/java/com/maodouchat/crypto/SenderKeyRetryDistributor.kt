@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import android.content.Context
 import android.util.Log
+import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState

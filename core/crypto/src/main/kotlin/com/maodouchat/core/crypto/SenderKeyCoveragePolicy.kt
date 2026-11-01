@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 /** 判断本端是否需要重新分发群 sender key 的纯决策。 */
 object SenderKeyCoveragePolicy {
