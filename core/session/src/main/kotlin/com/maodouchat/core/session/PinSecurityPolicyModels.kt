@@ -1,4 +1,4 @@
-package com.maodouchat.security.pin
+package com.maodouchat.core.session
 
 import java.util.concurrent.ConcurrentHashMap
 

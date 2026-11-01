@@ -1,6 +1,10 @@
 package com.maodouchat.security.pin
 
 import android.content.SharedPreferences
+import com.maodouchat.core.session.AuthenticatedSessionCache
+import com.maodouchat.core.session.PinSecurityPolicy
+import com.maodouchat.core.session.RateLimiter
+import com.maodouchat.core.session.VerificationOutcome
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -3,7 +3,10 @@ package com.maodouchat.security.pin
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import com.maodouchat.security.pin.VerificationOutcome
+import com.maodouchat.core.session.AuthenticatedSessionCache
+import com.maodouchat.core.session.PinSecurityPolicy
+import com.maodouchat.core.session.RateLimiter
+import com.maodouchat.core.session.VerificationOutcome
 
 interface PinLockRepository {
     suspend fun hasPin(targetId: String): Boolean
@@ -66,8 +69,8 @@ class DefaultPinLockRepository(
                 if (userId.isNotBlank()) {
                     sessionCache.markAuthenticated(targetId, userId)
                 }
-                if (outcome.needsUpgrade && outcome.upgradedHash != null) {
-                    val upgraded = outcome.upgradedHash
+                val upgraded = outcome.upgradedHash
+                if (outcome.needsUpgrade && upgraded != null) {
                     prefs.edit {
                         putString(key(KEY_PIN_HASH, targetId), upgraded.formattedString)
                         putString(key(KEY_PIN_SALT, targetId), upgraded.saltHex)

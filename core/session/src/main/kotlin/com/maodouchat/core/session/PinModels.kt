@@ -1,4 +1,4 @@
-package com.maodouchat.security.pin
+package com.maodouchat.core.session
 
 sealed interface VerificationOutcome {
     data class Success(val needsUpgrade: Boolean, val upgradedHash: StoredPinHash? = null) : VerificationOutcome
