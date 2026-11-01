@@ -1,11 +1,11 @@
-package com.maodouchat.ui
+package com.maodouchat.core.session
 
-internal data class OwnerSessionSnapshot(
+data class OwnerSessionSnapshot(
     val ownerUserId: String,
     val sessionGeneration: Long,
 )
 
-internal object OwnerSessionPolicy {
+object OwnerSessionPolicy {
     fun isCurrent(
         snapshot: OwnerSessionSnapshot,
         liveUserId: String?,

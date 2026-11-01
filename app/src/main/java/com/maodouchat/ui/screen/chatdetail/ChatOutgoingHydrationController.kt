@@ -5,8 +5,8 @@ import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.UserRepository
-import com.maodouchat.ui.OwnerSessionPolicy
-import com.maodouchat.ui.OwnerSessionSnapshot
+import com.maodouchat.core.session.OwnerSessionPolicy
+import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 

@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.chatlist.ChatListPorts
-import com.maodouchat.ui.OwnerSessionPolicy
-import com.maodouchat.ui.OwnerSessionSnapshot
+import com.maodouchat.core.session.OwnerSessionPolicy
+import com.maodouchat.core.session.OwnerSessionSnapshot
 
 /**
  * 会话守卫：owner 会话快照构造 / 有效性判定 / 带守卫的 Room 写事务。

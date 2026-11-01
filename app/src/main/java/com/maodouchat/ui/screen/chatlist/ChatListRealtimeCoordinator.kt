@@ -12,7 +12,7 @@ import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.ui.OwnerSessionSnapshot
+import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

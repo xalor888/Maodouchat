@@ -6,7 +6,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.ChatListPreviewPolicy
-import com.maodouchat.ui.OwnerSessionSnapshot
+import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy
 import com.maodouchat.ui.screen.chatdetail.Templates
 import kotlinx.coroutines.CancellationException
