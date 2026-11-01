@@ -189,7 +189,7 @@ internal class ChatDetailDeps(
                     listOf(recipientId),
                     isGroup = false,
                     groupName = null,
-                    chatType = if (secret) com.maodouchat.security.SecretChatPolicy.CHAT_TYPE else null,
+                    chatType = if (secret) com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE else null,
                 ).getOrThrow().toDomainChat()
             },
             cacheConversation = { chatRepo.cacheChats(listOf(it)) },

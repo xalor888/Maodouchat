@@ -72,7 +72,7 @@ internal fun ChatDetailViewModel.startSecretChat() {
         _uiState.update { it.copy(errorMessage = text(R.string.secret_chat_already)) }
         return
     }
-    if (!com.maodouchat.security.SecretChatPolicy.canStartFromDirect(
+    if (!com.maodouchat.core.session.SecretChatPolicy.canStartFromDirect(
             isGroup = snapshot.chatIsGroup,
             chatType = snapshot.chat?.chatType
         )
@@ -100,7 +100,7 @@ internal fun ChatDetailViewModel.startSecretChat() {
             listOf(peerId),
             isGroup = false,
             groupName = null,
-            chatType = com.maodouchat.security.SecretChatPolicy.CHAT_TYPE
+            chatType = com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE
         )
         result.fold(
             onSuccess = { chatDto ->

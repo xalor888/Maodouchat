@@ -281,7 +281,7 @@ FloatingGlassTopBar(
                 // 钉钉式：从普通单聊发起一场独立密聊；群没有密聊。
                 if (
                     state.isSecretChat != true &&
-                    com.maodouchat.security.SecretChatPolicy.canStartFromDirect(
+                    com.maodouchat.core.session.SecretChatPolicy.canStartFromDirect(
                         isGroup = state.chatIsGroup,
                         chatType = state.chat?.chatType
                     )

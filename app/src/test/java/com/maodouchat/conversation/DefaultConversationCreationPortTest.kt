@@ -1,8 +1,8 @@
 package com.maodouchat.conversation
 
+import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.UserDto
-import com.maodouchat.security.SecretChatPolicy
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

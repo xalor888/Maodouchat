@@ -52,7 +52,7 @@ data class ChatListUiState(
             val visible = chats.filter { it.archived == showArchived }
             val folderFiltered = when {
                 selectedFolderId.isNullOrBlank() ->
-                    visible.filter { !com.maodouchat.security.SecretChatPolicy.excludeFromAllChats(it.isSecret) }
+                    visible.filter { !com.maodouchat.core.session.SecretChatPolicy.excludeFromAllChats(it.isSecret) }
                 selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_GROUPS_ID ->
                     visible.filter { it.isGroup }
                 selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_DIRECT_ID ->

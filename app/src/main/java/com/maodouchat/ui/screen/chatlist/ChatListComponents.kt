@@ -79,7 +79,7 @@ internal fun ChatListItem(
         else -> otherUser?.displayName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_unknown)
     }
     val displayName = if (isSecret || chat.isSecret) {
-        com.maodouchat.security.SecretChatPolicy.mosaicDisplayName(rawDisplayName)
+        com.maodouchat.core.session.SecretChatPolicy.mosaicDisplayName(rawDisplayName)
     } else rawDisplayName
     val haptic = LocalHapticFeedback.current
     val hapticContext = LocalContext.current
