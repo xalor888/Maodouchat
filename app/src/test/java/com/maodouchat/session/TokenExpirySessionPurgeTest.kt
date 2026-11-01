@@ -2,7 +2,7 @@ package com.maodouchat.session
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.SessionSnapshot
-import com.maodouchat.network.TokenExpiredEvent
+import com.maodouchat.core.session.TokenExpiredEvent
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

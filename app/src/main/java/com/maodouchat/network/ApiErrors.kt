@@ -36,14 +36,3 @@ internal fun apiExceptionForIOException(error: java.io.IOException): ApiExceptio
         cause = error
     )
 }
-
-internal object TokenExpiredEventPolicy {
-    fun shouldHandle(
-        eventOwnerUserId: String,
-        eventSessionGeneration: Long,
-        currentOwnerUserId: String?,
-        currentSessionGeneration: Long,
-    ): Boolean = eventOwnerUserId.isNotBlank() &&
-        eventOwnerUserId == currentOwnerUserId &&
-        eventSessionGeneration == currentSessionGeneration
-}

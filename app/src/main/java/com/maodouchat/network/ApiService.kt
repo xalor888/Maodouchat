@@ -15,6 +15,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
+import com.maodouchat.core.session.TokenExpiredEvent
 import com.maodouchat.network.api.ApiEndpointClients
 import com.maodouchat.network.api.ApiSurface
 import com.maodouchat.network.api.AuthApi
@@ -115,7 +116,6 @@ object ApiService :
         return use { it.body?.string() ?: "" }
     }
 
-    // HTTP 错误语义已抽到同包 ApiHttpErrors；11 个端点客户端仍走这里，签名不变。
     internal fun parseError(body: String): String? = ApiHttpErrors.parseError(body)
 
     private fun accessTokenSubject(token: String?): String? = runCatching {

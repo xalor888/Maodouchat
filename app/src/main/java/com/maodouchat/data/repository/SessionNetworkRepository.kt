@@ -1,7 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.TokenExpiredEvent
+import com.maodouchat.core.session.TokenExpiredEvent
 import kotlinx.coroutines.flow.SharedFlow
 
 /**

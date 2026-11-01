@@ -1,8 +1,8 @@
 package com.maodouchat.session
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.network.TokenExpiredEvent
-import com.maodouchat.network.TokenExpiredEventPolicy
+import com.maodouchat.core.session.TokenExpiredEvent
+import com.maodouchat.core.session.TokenExpiredEventPolicy
 import com.maodouchat.security.LogoutStorePolicy
 import com.maodouchat.security.Reason
 
