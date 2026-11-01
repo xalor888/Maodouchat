@@ -1,5 +1,7 @@
 package com.maodouchat.security
 
+import com.maodouchat.core.session.LogoutStorePolicy
+import com.maodouchat.core.session.Reason
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
