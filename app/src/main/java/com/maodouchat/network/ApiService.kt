@@ -35,7 +35,6 @@ import com.maodouchat.network.api.MessagingApi
 import com.maodouchat.network.api.MessagingApiClient
 import com.maodouchat.network.api.SocialApi
 
-
 /**
  * REST API client compatibility facade.
  *
