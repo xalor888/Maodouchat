@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.session
 
 /**
  * 敏感操作二次验证策略（纯函数）。

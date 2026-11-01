@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.security.SensitiveAction
+import com.maodouchat.core.session.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.settings.model.SettingsUiState
 import com.maodouchat.ui.theme.LocalChatPalette

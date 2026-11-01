@@ -63,7 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.security.SensitiveAction
+import com.maodouchat.core.session.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.theme.LocalChatPalette

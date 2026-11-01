@@ -6,6 +6,8 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.fragment.app.FragmentActivity
+import com.maodouchat.core.session.SensitiveAction
+import com.maodouchat.core.session.SensitiveActionPolicy
 import com.maodouchat.network.TokenManager
 
 /**

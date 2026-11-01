@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.Build
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.core.session.ScreenSecurePolicy
-import com.maodouchat.security.SensitiveAction
+import com.maodouchat.core.session.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import java.io.File
 
