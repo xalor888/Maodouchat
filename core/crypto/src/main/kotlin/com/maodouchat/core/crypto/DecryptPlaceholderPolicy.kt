@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 /**
  * Recognizes decrypt-failure UI text that older clients may have persisted as message content.

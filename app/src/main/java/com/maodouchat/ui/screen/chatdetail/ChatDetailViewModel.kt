@@ -7,7 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
-import com.maodouchat.crypto.DecryptHistoryPolicy
+import com.maodouchat.core.crypto.DecryptHistoryPolicy
 import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message

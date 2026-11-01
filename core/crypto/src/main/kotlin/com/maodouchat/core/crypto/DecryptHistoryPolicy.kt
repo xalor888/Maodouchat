@@ -1,6 +1,5 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
-import com.maodouchat.core.crypto.DecryptResult
 
 /**
  * History restore / decrypt-failure rules that must stay off ChatDetailViewModel.

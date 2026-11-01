@@ -1,5 +1,6 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.DecryptHistoryPolicy
 import com.maodouchat.core.crypto.DecryptResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

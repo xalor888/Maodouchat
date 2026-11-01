@@ -2,7 +2,9 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import android.util.Log
+import com.maodouchat.core.crypto.DecryptFailurePolicy
 import com.maodouchat.core.crypto.DecryptResult
+import com.maodouchat.core.crypto.TrackingAction
 import org.signal.libsignal.protocol.InvalidMessageException
 import org.signal.libsignal.protocol.NoSessionException
 import org.signal.libsignal.protocol.SessionCipher
