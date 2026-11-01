@@ -3,6 +3,7 @@ package com.maodouchat.security
 import android.os.Build
 import android.view.WindowManager
 import androidx.fragment.app.FragmentActivity
+import com.maodouchat.core.session.ScreenSecurePolicy
 import com.maodouchat.util.RuntimeFlags
 
 /**

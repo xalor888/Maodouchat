@@ -37,7 +37,7 @@ import com.maodouchat.util.AppLocaleManager
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.security.FakeChatManager
 import com.maodouchat.security.ScreenSecureManager
-import com.maodouchat.security.ScreenSecurePolicy
+import com.maodouchat.core.session.ScreenSecurePolicy
 import com.maodouchat.security.SecretChatSession
 import com.maodouchat.ui.AppSurfaceGateController
 import com.maodouchat.ui.AppSurfaceGateState
