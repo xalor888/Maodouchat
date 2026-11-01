@@ -241,7 +241,7 @@
 - [~] `:core:model`：稳定 ID、错误、分页、时间、账号上下文等纯模型。（§4.1 续拆：会话快照纯模型 SessionSnapshot 由 app 侧迁入 :core:model，CurrentSession 仍是 app 侧读取点；其余模型仍在 app 侧，未标 [x]）。
 - [ ] `:core:database`：SQLCipher、Room、迁移、事务和领域 DAO 适配。
 - [ ] `:core:network`：HTTP client、认证拦截、错误映射、分域 API。
-- [~] `:core:realtime`：WebSocket 生命周期、事件总线和连接状态。（§4.1 续拆首块：断连横幅策略 RealtimeDisconnectPolicy 与事件总线/会话门/打字信号策略 RealtimeEventPolicy 由 app 侧迁入 :core:realtime；WebSocket 传输与 UI 控制器仍在 app 侧，未标 [x]。）
+- [~] `:core:realtime`：WebSocket 生命周期、事件总线和连接状态。（§4.1 续拆首块：断连横幅策略 RealtimeDisconnectPolicy 与事件总线/会话门/打字信号策略 RealtimeEventPolicy 由 app 侧迁入 :core:realtime；聊天列表会话事件 ChatReadEvent / ChatMessageSentEvent 由 app 侧迁入 :core:realtime；WebSocket 传输与 UI 控制器仍在 app 侧，未标 [x]。）
 - [ ] `:core:crypto`：libsignal 存储适配与密码学原语。
 - [~] `:core:session`：认证会话、账号世代、凭据库和安全销毁。（§4.1 续拆：TokenExpiredEvent / TokenExpiredEventPolicy 由 app 侧迁入 :core:session；条件保存结果 ConditionalSessionSaveResult 由 app 侧迁入 :core:session；进程内聊天锁判定 ChatLockPolicy 由 app 侧迁入 :core:session；密聊会话类型判定 SecretChatPolicy 由 app 侧迁入 :core:session；会话表面防截屏策略 ScreenSecurePolicy 由 app 侧迁入 :core:session；敏感操作二次验证策略 SensitiveActionPolicy 与 SensitiveAction 由 app 侧迁入 :core:session；账号隔离策略 AccountIsolationPolicy 由 app 侧迁入 :core:session；安全码核验策略 QrSafetyScanEvaluator 由 app 侧迁入 :core:session；TokenManager 绑定实现仍在 app 侧。）
 - [ ] `:core:testing`：fake clock、fake transport、数据库和多账号夹具。

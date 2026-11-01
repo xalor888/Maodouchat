@@ -1,7 +1,7 @@
 package com.maodouchat
 
-import com.maodouchat.realtime.ChatMessageSentEvent
-import com.maodouchat.realtime.ChatReadEvent
+import com.maodouchat.core.realtime.ChatMessageSentEvent
+import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.notification.MessageNotificationService
 import android.app.Application

@@ -9,6 +9,8 @@ import com.maodouchat.ai.Suggestion
 import com.maodouchat.conversation.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
 import com.maodouchat.core.realtime.RealtimeEventDispatcher
+import com.maodouchat.core.realtime.ChatMessageSentEvent
+import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.repository.AnnouncementNetworkRepository
@@ -51,8 +53,8 @@ internal class ChatListPorts(
     val sessionGeneration: () -> Long,
     val activeChatId: () -> String?,
     val isPurgeInProgress: () -> Boolean,
-    val chatReadEvents: SharedFlow<com.maodouchat.realtime.ChatReadEvent>,
-    val chatMessageSentEvents: SharedFlow<com.maodouchat.realtime.ChatMessageSentEvent>,
+    val chatReadEvents: SharedFlow<ChatReadEvent>,
+    val chatMessageSentEvents: SharedFlow<ChatMessageSentEvent>,
     val withRoomTransaction: suspend (block: suspend () -> Boolean) -> Boolean,
     val fetchRemoteChats: suspend () -> Result<List<ChatDto>>,
     val fetchActiveAnnouncements: suspend () -> Result<String>,
