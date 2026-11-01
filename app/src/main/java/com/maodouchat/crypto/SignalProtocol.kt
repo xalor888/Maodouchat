@@ -14,6 +14,7 @@ import com.maodouchat.core.crypto.IdentityTrustService
 import com.maodouchat.core.crypto.PreKeyInventory
 import com.maodouchat.core.crypto.PreKeyPublisher
 import com.maodouchat.core.model.ConversationId
+import com.maodouchat.core.session.SessionCoverage
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import com.maodouchat.messaging.DecryptEnvelopeGate
