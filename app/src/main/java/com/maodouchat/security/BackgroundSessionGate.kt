@@ -1,5 +1,6 @@
 package com.maodouchat.security
 
+import com.maodouchat.core.session.BackgroundSessionGatePolicy
 import com.maodouchat.session.CurrentSession
 
 /**
@@ -8,20 +9,7 @@ import com.maodouchat.session.CurrentSession
  * no longer matches the batch owner.
  */
 object BackgroundSessionGate {
-    /**
-     * 只给「期望的账号」——**实时会话由本方法自己读**。
-     *
-     * 为什么这样更好：调用点原本要自己写
-     * `liveToken = tokenManager.getToken(), liveUserId = tokenManager.getUserId()`，
-     * 而这两个值唯一的用途就是交回给这里判断。全项目有 240 处这样的重复
-     * （`ui/` 内 220 处），每处都可能写错——漏读一次就变成「用旧令牌判断当前会话还在不在」，
-     * 而那正是本门禁要防的事。把读会话的责任收进判断本身，就不会漏。
-     *
-     * 实时会话的读法只有一处：[com.maodouchat.session.CurrentSession]。
-     * 无会话时那里返回空快照，这里按「会话不可用」处理，与读到空令牌同义。
-     *
-     * `:pushdaemon` 是另一个进程，但它不使用本门禁（`push/` 下零引用）。
-     */
+    // 实时会话由本方法自己读：调用点若先读令牌再传进来，漏读一次就会拿旧令牌做判断。
     fun mayContinue(expectedUserId: String): Boolean {
         val session = CurrentSession.snapshot()
         return mayContinue(expectedUserId, session.token, session.userId)
@@ -36,10 +24,10 @@ object BackgroundSessionGate {
         expectedUserId: String,
         liveToken: String?,
         liveUserId: String?,
-    ): Boolean {
-        if (SecureSessionManager.isPurgeInProgress()) return false
-        if (expectedUserId.isBlank()) return false
-        if (liveToken.isNullOrBlank() || liveUserId.isNullOrBlank()) return false
-        return liveUserId == expectedUserId
-    }
+    ): Boolean = BackgroundSessionGatePolicy.mayContinue(
+        expectedUserId = expectedUserId,
+        liveToken = liveToken,
+        liveUserId = liveUserId,
+        purgeInProgress = SecureSessionManager.isPurgeInProgress(),
+    )
 }
