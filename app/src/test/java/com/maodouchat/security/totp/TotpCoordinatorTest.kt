@@ -1,5 +1,6 @@
 package com.maodouchat.security.totp
 
+import com.maodouchat.core.session.TotpState
 import com.maodouchat.network.api.AuthApi
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
