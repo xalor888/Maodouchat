@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.session
 
 /**
  * 截屏/录屏防护策略（纯函数）。

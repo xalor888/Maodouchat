@@ -3,7 +3,7 @@ package com.maodouchat.security.coordinator
 import android.content.Context
 import android.os.Build
 import com.maodouchat.security.AppLockManager
-import com.maodouchat.security.ScreenSecurePolicy
+import com.maodouchat.core.session.ScreenSecurePolicy
 import com.maodouchat.security.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import java.io.File
