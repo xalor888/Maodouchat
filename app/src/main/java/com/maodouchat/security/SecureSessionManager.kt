@@ -1,5 +1,4 @@
 package com.maodouchat.security
-
 import com.maodouchat.notification.NotificationInfrastructure
 import android.content.Context
 import android.util.Log
@@ -12,6 +11,7 @@ import com.maodouchat.core.session.AccountIsolationPolicy
 import com.maodouchat.core.session.AccountSwitchAction
 import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Reason
+import com.maodouchat.core.session.SessionUiResetEvent
 import com.maodouchat.crypto.SealedSenderSupport
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.crypto.SenderKeyRetryWorkScheduler
