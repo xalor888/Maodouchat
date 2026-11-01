@@ -1,4 +1,4 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
 /** Single source of truth for whether MainActivity may remain visible over keyguard. */
 object CallLockScreenFlagPolicy {
