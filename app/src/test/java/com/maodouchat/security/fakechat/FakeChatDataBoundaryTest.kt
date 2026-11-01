@@ -1,5 +1,7 @@
 package com.maodouchat.security.fakechat
 
+import com.maodouchat.core.session.FakeChatDataBoundary
+import com.maodouchat.core.session.FakeChatThreatModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

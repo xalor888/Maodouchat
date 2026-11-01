@@ -1,4 +1,4 @@
-package com.maodouchat.security.fakechat
+package com.maodouchat.core.session
 
 /**
  * 假聊天威胁模型与数据边界守卫。
