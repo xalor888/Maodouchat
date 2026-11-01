@@ -1,4 +1,4 @@
-package com.maodouchat.security.pin
+package com.maodouchat.core.session
 
 import java.security.MessageDigest
 import java.security.SecureRandom
