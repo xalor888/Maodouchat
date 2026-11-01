@@ -1025,16 +1025,16 @@ class ClientArchitectureTest {
      * 每个 core 模块**今天**有没有被生产代码用到——把「未采纳」变成一条会红的断言，
      * 而不是一句写在文档里的话。
      *
-     * 为什么要这条：`settings.gradle.kts` 里列着 9 个 core 模块，但其中四个
-     * （util/serialization/network/session）**零生产引用**，只被 `:core:testing` 的
+     * 为什么要这条：`settings.gradle.kts` 里列着 9 个 core 模块，但其中三个
+     * （util/serialization/network）**零生产引用**，只被 `:core:testing` 的
      * testImplementation 引用。审计把这类「声明了却没用的架构」列为问题——
-     * 当时处理的是 8 个连源码都没有的空壳（已删）；这四个有真实内容且带契约测试，
+     * 当时处理的是 8 个连源码都没有的空壳（已删）；这三个有真实内容且带契约测试，
      * 删了等于把已设计好的边界和那份契约一起丢掉，所以选择**登记**：
      * 状态写在这里，改它就等于改架构决定，测试会逼着改的人一起更新文档。
      *
      * 判据是「零 / 非零」，不是精确条数——精确条数会让每次正常使用都红，
      * 那样的门禁只会被绕过。实测条数（G332 当时）：crypto 44、realtime 23、model 5，
-     * 其余四个 0。重新测量：
+     * 其余三个 0；session 自本轮起被生产代码采纳（SessionContext 迁入）。重新测量：
      * `for m in util serialization network session realtime model crypto; do
      *    grep -rn "com\.maodouchat\.core\.$m" app/src core domain server/src | grep -v "^core/$m/";
      *  done`
@@ -1043,7 +1043,6 @@ class ClientArchitectureTest {
         "util",
         "serialization",
         "network",
-        "session",
     )
 
     @Test
