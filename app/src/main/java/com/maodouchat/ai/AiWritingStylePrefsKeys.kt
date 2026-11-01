@@ -1,8 +1,8 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.session.AccountIsolationPolicy
 import com.maodouchat.network.TokenManager
-import com.maodouchat.security.AccountIsolationPolicy
 
 // 键与账号簇：prefs 文件名、键名、账号隔离键拼装、当前账号 userId。原 AiWritingStylePreferences 私有逻辑逐字搬入。
 internal object AiWritingStylePrefsKeys {

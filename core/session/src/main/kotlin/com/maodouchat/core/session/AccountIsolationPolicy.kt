@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.session
 
 /**
  * W2-02: pure rules for logout / account-switch data boundaries.
