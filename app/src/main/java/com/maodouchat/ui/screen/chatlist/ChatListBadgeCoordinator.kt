@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatlist
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.notification.NotificationCenterType
 import com.maodouchat.security.SecureSessionAccess
-import com.maodouchat.security.SessionUiResetEvent
+import com.maodouchat.core.session.SessionUiResetEvent
 import com.maodouchat.util.TypingPresenceStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow

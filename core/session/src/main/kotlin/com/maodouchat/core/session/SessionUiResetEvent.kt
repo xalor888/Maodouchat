@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.session
 
 /**
  * SecureSessionManager 发出的 UI 侧复位事件（登出 / 切号 / 删号清理时）。
