@@ -24,12 +24,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.crypto.SenderKeyCoveragePolicy
+import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
 import com.maodouchat.network.SenderKeyDistributionStatusDto
 import com.maodouchat.group.GroupMemberUi
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
-import com.maodouchat.crypto.Reason
+import com.maodouchat.core.crypto.Reason
 
 private const val SENDER_KEY_TARGET_PAGE = 20
 

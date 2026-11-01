@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 enum class Reason {
     LOCAL_MISSING,

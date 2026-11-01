@@ -1,5 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.Reason
+import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
