@@ -1,6 +1,8 @@
 package com.maodouchat.security
 
 import com.maodouchat.ai.AiPrivacyPreferences
+import com.maodouchat.core.session.AccountIsolationPolicy
+import com.maodouchat.core.session.AccountSwitchAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals

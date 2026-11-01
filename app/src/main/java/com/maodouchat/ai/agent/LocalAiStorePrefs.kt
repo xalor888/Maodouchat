@@ -4,8 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.maodouchat.core.session.AccountIsolationPolicy
 import com.maodouchat.network.TokenManager
-import com.maodouchat.security.AccountIsolationPolicy
 import org.json.JSONObject
 
 // 三簇共用的加密 prefs：账号隔离的 key 派生与 EncryptedSharedPreferences 打开逻辑。

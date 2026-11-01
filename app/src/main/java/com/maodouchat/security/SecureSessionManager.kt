@@ -8,6 +8,8 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferScheduler
+import com.maodouchat.core.session.AccountIsolationPolicy
+import com.maodouchat.core.session.AccountSwitchAction
 import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Reason
 import com.maodouchat.crypto.SealedSenderSupport

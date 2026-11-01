@@ -215,7 +215,7 @@ class TokenManager private constructor(private val context: Context) {
 
     /**
      * Last account that owned the local encrypted store. Logout clears [getUserId] but
-     * must keep this so [com.maodouchat.security.AccountIsolationPolicy] can tell
+     * must keep this so [com.maodouchat.core.session.AccountIsolationPolicy] can tell
      * same-account re-login from a real account switch.
      */
     fun getLastOwnerUserId(): String? =
