@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import android.util.Log
+import com.maodouchat.core.crypto.ConfirmedDevicePolicy
 import com.maodouchat.core.crypto.DirectSessionManager
 import com.maodouchat.core.session.SessionCoverage
 import com.maodouchat.core.session.SignalSessionPolicy
