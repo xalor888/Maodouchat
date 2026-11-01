@@ -27,7 +27,7 @@ rootProject.name = "Maodouchat"
 // 留下的 core/util、core/serialization、core/network 有真实内容
 // （clock/id/dispatcher、MaodouJson、NetworkResult），
 // 但目前只被 :core:testing 的 testImplementation 引用——即「已冻结的共享契约，尚未被生产代码采纳」。
-// core/session 自本轮起被生产代码采纳：SessionContext / SessionContextProvider 已迁入，:app 直接依赖。
+// core/session 自本轮起被生产代码采纳：SessionContext / SessionContextProvider / MutableSessionContextProvider 已迁入，:app 直接依赖。
 // 要判断某个模块是不是真在用，跑 `grep -rn "com.maodouchat.core.<模块>" app/src core domain server/src`。
 include(":app")
 include(
