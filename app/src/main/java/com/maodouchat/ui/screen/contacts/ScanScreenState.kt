@@ -13,10 +13,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.contacts.QrScanFeedbackPolicy
+import com.maodouchat.core.session.SafetyScanStatus
 import com.maodouchat.data.model.User
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.security.SafetyScanStatus
 import com.maodouchat.util.QrCodeGenerator
 import com.maodouchat.util.QrTarget
 import kotlinx.coroutines.CoroutineScope
@@ -79,8 +79,8 @@ internal class ScanScreenUiState(
                         // 本处只做「QrTarget → 请求」「状态 → 结果」的映射。
                         val currentUserId = com.maodouchat.session.CurrentSession.ownerUserId()
                         val result = withContext(Dispatchers.IO) {
-                            val status = com.maodouchat.security.QrSafetyScanEvaluator.evaluate(
-                                request = com.maodouchat.security.SafetyScanRequest(
+                            val status = com.maodouchat.core.session.QrSafetyScanEvaluator.evaluate(
+                                request = com.maodouchat.core.session.SafetyScanRequest(
                                     ownerUserId = target.ownerUserId,
                                     ownerDeviceId = target.ownerDeviceId,
                                     peerUserId = target.peerUserId,

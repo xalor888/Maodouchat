@@ -1,6 +1,7 @@
 package com.maodouchat.security
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.session.SafetySignalPort
 
 object SignalIdentityAccess : SafetySignalPort {
 

@@ -1,5 +1,9 @@
 package com.maodouchat.security
 
+import com.maodouchat.core.session.QrSafetyScanEvaluator
+import com.maodouchat.core.session.SafetyScanRequest
+import com.maodouchat.core.session.SafetyScanStatus
+import com.maodouchat.core.session.SafetySignalPort
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

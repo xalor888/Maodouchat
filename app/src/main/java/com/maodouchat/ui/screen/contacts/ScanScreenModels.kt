@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.contacts
 
-import com.maodouchat.security.SafetyScanStatus
+import com.maodouchat.core.session.SafetyScanStatus
 import com.maodouchat.util.QrTarget
 
 internal data class SafetyScanResult(
