@@ -1,7 +1,7 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
 /**
- * ABI + checksum helpers for [WebRtcNativeLibraryLoader].
+ * ABI + checksum helpers for WebRtcNativeLibraryLoader.
  * Release APK is arm64-only; debug emulator is typically x86_64.
  */
 object WebRtcNativeDownloadPolicy {
@@ -15,7 +15,7 @@ object WebRtcNativeDownloadPolicy {
             ?: "arm64-v8a"
     }
 
-    fun isOriginTrusted(url: String): Boolean {
+    fun isOriginTrusted(url: String, runtimeHost: String? = null): Boolean {
         val trimmed = url.trim().lowercase()
         // Allow loopback in debug/emulator environments
         if (trimmed.startsWith("http://10.0.2.2:") || trimmed.startsWith("http://localhost:") || trimmed.startsWith("http://127.0.0.1:")) {
@@ -27,8 +27,8 @@ object WebRtcNativeDownloadPolicy {
             host.equals("mdou.me", ignoreCase = true) ||
             host.endsWith(".mdou.me", ignoreCase = true)
         if (isOfficial) return true
-        val runtimeHost = com.maodouchat.network.ApiConfig.BASE_URL.substringAfter("://", "").substringBefore('/').substringBefore(':').trim()
-        return runtimeHost.isNotBlank() && host.equals(runtimeHost, ignoreCase = true)
+        val runtime = runtimeHost?.trim().orEmpty()
+        return runtime.isNotBlank() && host.equals(runtime, ignoreCase = true)
     }
 
     /**
