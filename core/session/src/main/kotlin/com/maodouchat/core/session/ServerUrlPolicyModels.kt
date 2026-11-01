@@ -1,6 +1,6 @@
-package com.maodouchat.network
+package com.maodouchat.core.session
 
-internal enum class Problem {
+enum class Problem {
     EMPTY,
     INVALID,
     SCHEME,
