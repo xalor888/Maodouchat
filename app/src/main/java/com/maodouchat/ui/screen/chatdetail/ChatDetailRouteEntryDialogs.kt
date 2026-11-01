@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import com.maodouchat.security.SensitiveAction
+import com.maodouchat.core.session.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 
 /** 聊天详情主界面入口三弹窗：清空历史确认 / 实时位置时长 / 密聊确认（从 ChatDetailRoute.kt 纯搬移）。 */

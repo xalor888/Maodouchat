@@ -33,7 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.security.SensitiveAction
+import com.maodouchat.core.session.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -293,7 +293,7 @@ internal fun SettingsTotpSection(userId: String) {
                                 // 先过 SensitiveActionGate step-up（App 锁 + 敏感操作验证开启时）
                                 com.maodouchat.security.SensitiveActionGate.confirm(
                                     context = context,
-                                    action = com.maodouchat.security.SensitiveAction.DISABLE_TOTP,
+                                    action = com.maodouchat.core.session.SensitiveAction.DISABLE_TOTP,
                                     title = disableTotpTitle,
                                     onSuccess = {
                                         totpBusy = true

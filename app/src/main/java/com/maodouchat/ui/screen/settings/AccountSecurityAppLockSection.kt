@@ -37,7 +37,7 @@ import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.security.ScreenSecureManager
-import com.maodouchat.security.SensitiveAction
+import com.maodouchat.core.session.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
 import com.maodouchat.security.findActivity
 import com.maodouchat.ui.theme.LocalChatPalette
