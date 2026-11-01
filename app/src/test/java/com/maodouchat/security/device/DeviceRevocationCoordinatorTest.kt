@@ -1,5 +1,6 @@
 package com.maodouchat.security.device
 
+import com.maodouchat.core.session.DeviceRevocationResult
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -1,5 +1,6 @@
 package com.maodouchat.security.device
 
+import com.maodouchat.core.session.DeviceRevocationResult
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
