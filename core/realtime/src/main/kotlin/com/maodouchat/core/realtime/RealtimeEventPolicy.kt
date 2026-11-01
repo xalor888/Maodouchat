@@ -1,4 +1,4 @@
-package com.maodouchat.network
+package com.maodouchat.core.realtime
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicLong
  * 队列有界（DROP_OLDEST）：极端积压时丢弃最旧事件而非无限堆积直至 OOM——
  * Durable inbox wake-ups can be dropped safely; typing/presence are intentionally best effort.
  */
-internal class NonReplayingEventBus<T>(capacity: Int, scope: CoroutineScope) {
+class NonReplayingEventBus<T>(capacity: Int, scope: CoroutineScope) {
     private val events = MutableSharedFlow<T>(
         replay = 0,
         extraBufferCapacity = capacity.coerceAtLeast(1),
@@ -41,7 +41,7 @@ internal class NonReplayingEventBus<T>(capacity: Int, scope: CoroutineScope) {
 }
 
 /** Rejects callbacks from sockets superseded by token/account changes or explicit disconnect. */
-internal class WebSocketSessionGate {
+class WebSocketSessionGate {
     private val generation = AtomicLong(0L)
 
     fun nextSession(): Long = generation.incrementAndGet()
@@ -56,16 +56,16 @@ internal class WebSocketSessionGate {
     fun isCurrent(session: Long): Boolean = generation.get() == session
 }
 
-internal fun shouldApplyTypingEvent(activeChatId: String, eventChatId: String): Boolean =
+fun shouldApplyTypingEvent(activeChatId: String, eventChatId: String): Boolean =
     activeChatId.isNotBlank() && activeChatId == eventChatId
 
-internal enum class TypingSignalAction { START, STOP, NONE }
+enum class TypingSignalAction { START, STOP, NONE }
 
-internal fun resolveTypingSignalAction(isAnnounced: Boolean, hasInput: Boolean): TypingSignalAction =
+fun resolveTypingSignalAction(isAnnounced: Boolean, hasInput: Boolean): TypingSignalAction =
     when {
         hasInput && !isAnnounced -> TypingSignalAction.START
         !hasInput && isAnnounced -> TypingSignalAction.STOP
         else -> TypingSignalAction.NONE
     }
 
-internal const val REMOTE_TYPING_TIMEOUT_MS = 3_000L
+const val REMOTE_TYPING_TIMEOUT_MS = 3_000L

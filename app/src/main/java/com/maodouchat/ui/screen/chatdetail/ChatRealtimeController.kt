@@ -5,13 +5,13 @@ import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.core.session.SessionContextProvider
 import com.maodouchat.network.ApiConfig
-import com.maodouchat.network.REMOTE_TYPING_TIMEOUT_MS
-import com.maodouchat.network.RealtimeDisconnectPolicy
-import com.maodouchat.network.TypingSignalAction
+import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
+import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
+import com.maodouchat.core.realtime.TypingSignalAction
 import com.maodouchat.network.WebSocketErrorKind
 import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.network.WebSocketTransport
-import com.maodouchat.network.resolveTypingSignalAction
+import com.maodouchat.core.realtime.resolveTypingSignalAction
 import com.maodouchat.network.resolveUserVisibility
 import com.maodouchat.session.AccountScopedRealtimeConnectionManager
 import com.maodouchat.session.RealtimeConnectionManager

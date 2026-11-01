@@ -8,7 +8,7 @@ import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.NotificationCenterRepository
-import com.maodouchat.network.RealtimeDisconnectPolicy
+import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException

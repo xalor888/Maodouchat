@@ -1,4 +1,4 @@
-package com.maodouchat.network
+package com.maodouchat.core.realtime
 
 /**
  * Brief WS drops (NAT, heartbeat cancel, token refresh) must not flash
