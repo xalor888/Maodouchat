@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.session
 
 /** 核验所需的本机信号能力。 */
 interface SafetySignalPort {

@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.session
 
 enum class SafetyScanStatus {
     SESSION_EXPIRED,
