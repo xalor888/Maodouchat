@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// 采纳状态：**已采纳第一块**——`SessionContext` / `SessionContextProvider`
-// 已从 app 侧 `com.maodouchat.session` 迁入本模块，:app 生产代码直接引用。
+// 采纳状态：**已采纳第二块**——`SessionContext` / `SessionContextProvider` /
+// `MutableSessionContextProvider` 已从 app 侧 `com.maodouchat.session` 迁入本模块，:app 生产代码直接引用。
 //
 // 其余会话实现仍在 app 侧（`TokenManager`、刚加的 `CurrentSession`）+
 // `ApiService` 的刷新逻辑里；本模块的 `TokenRefreshSingleFlight` /
