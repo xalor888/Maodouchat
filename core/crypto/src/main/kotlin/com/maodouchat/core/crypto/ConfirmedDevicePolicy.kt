@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 /**
  * Picks a Signal device to talk to when the caller still uses the legacy default (1).
