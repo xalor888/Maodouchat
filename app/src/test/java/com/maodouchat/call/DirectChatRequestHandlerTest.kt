@@ -3,7 +3,7 @@ package com.maodouchat.call
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.network.ChatDto
 import com.maodouchat.session.CurrentSession
-import com.maodouchat.session.Snapshot
+import com.maodouchat.core.model.SessionSnapshot
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -32,42 +32,42 @@ class DirectChatRequestHandlerTest {
 
     @Test
     fun noSessionShortCircuitsToSessionExpired() {
-        CurrentSession.override = { Snapshot(null, null) }
+        CurrentSession.override = { SessionSnapshot(null, null) }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
         assertEquals(Outcome.SessionExpired, outcome)
     }
 
     @Test
     fun tokenWithoutOwnerShortCircuitsToSessionExpired() {
-        CurrentSession.override = { Snapshot("tok", null) }
+        CurrentSession.override = { SessionSnapshot("tok", null) }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
         assertEquals(Outcome.SessionExpired, outcome)
     }
 
     @Test
     fun tokenMissingWithOwnerShortCircuitsToSessionExpired() {
-        CurrentSession.override = { Snapshot(null, "u1") }
+        CurrentSession.override = { SessionSnapshot(null, "u1") }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
         assertEquals(Outcome.SessionExpired, outcome)
     }
 
     @Test
     fun whitespaceTokenShortCircuitsToSessionExpired() {
-        CurrentSession.override = { Snapshot("   ", "u1") }
+        CurrentSession.override = { SessionSnapshot("   ", "u1") }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
         assertEquals(Outcome.SessionExpired, outcome)
     }
 
     @Test
     fun blankOwnerWithTokenShortCircuitsToSessionExpired() {
-        CurrentSession.override = { Snapshot("tok", "") }
+        CurrentSession.override = { SessionSnapshot("tok", "") }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
         assertEquals(Outcome.SessionExpired, outcome)
     }
 
     @Test
     fun whitespaceOwnerWithTokenShortCircuitsToSessionExpired() {
-        CurrentSession.override = { Snapshot("tok", "  ") }
+        CurrentSession.override = { SessionSnapshot("tok", "  ") }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
         assertEquals(Outcome.SessionExpired, outcome)
     }
@@ -75,7 +75,7 @@ class DirectChatRequestHandlerTest {
     @Test
     fun sessionGateIgnoresRequestFields() {
         // 门禁只看会话不看请求字段：同一个无会话快照下，换 userId 结果恒定。
-        CurrentSession.override = { Snapshot(null, null) }
+        CurrentSession.override = { SessionSnapshot(null, null) }
         val other = DirectChatRequest(userId = "u-other", userName = "Other")
         val first = runBlocking { DirectChatRequestHandler.handle(request) }
         val second = runBlocking { DirectChatRequestHandler.handle(other) }
@@ -103,7 +103,7 @@ class DirectChatRequestHandlerTest {
         mockkConstructor(ChatNetworkRepository::class)
         coEvery { anyConstructed<ChatNetworkRepository>().createChat(any(), any()) } returns
             Result.success(ChatDto(id = "c-42"))
-        CurrentSession.override = { Snapshot("tok", "u1") }
+        CurrentSession.override = { SessionSnapshot("tok", "u1") }
 
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
 
@@ -122,7 +122,7 @@ class DirectChatRequestHandlerTest {
         mockkConstructor(ChatNetworkRepository::class)
         coEvery { anyConstructed<ChatNetworkRepository>().createChat(any(), any()) } returns
             Result.failure(RuntimeException("boom"))
-        CurrentSession.override = { Snapshot("tok", "u1") }
+        CurrentSession.override = { SessionSnapshot("tok", "u1") }
 
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
 
@@ -134,10 +134,10 @@ class DirectChatRequestHandlerTest {
         // 取消：在途会话失效——建聊返回前登出，第二次门禁不过，静默 Dropped 而非 OpenChat。
         mockkConstructor(ChatNetworkRepository::class)
         coEvery { anyConstructed<ChatNetworkRepository>().createChat(any(), any()) } coAnswers {
-            CurrentSession.override = { Snapshot(null, null) }
+            CurrentSession.override = { SessionSnapshot(null, null) }
             Result.success(ChatDto(id = "c-1"))
         }
-        CurrentSession.override = { Snapshot("tok", "u1") }
+        CurrentSession.override = { SessionSnapshot("tok", "u1") }
 
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
 
@@ -150,7 +150,7 @@ class DirectChatRequestHandlerTest {
         mockkConstructor(ChatNetworkRepository::class)
         coEvery { anyConstructed<ChatNetworkRepository>().createChat(any(), any()) } returns
             Result.success(ChatDto(id = "c-1"))
-        CurrentSession.override = { Snapshot("tok", "u1") }
+        CurrentSession.override = { SessionSnapshot("tok", "u1") }
 
         val first = runBlocking { DirectChatRequestHandler.handle(request) }
         val second = runBlocking { DirectChatRequestHandler.handle(request) }
@@ -168,10 +168,10 @@ class DirectChatRequestHandlerTest {
         mockkConstructor(ChatNetworkRepository::class)
         coEvery { anyConstructed<ChatNetworkRepository>().createChat(any(), any()) } returns
             Result.success(ChatDto(id = "c-1"))
-        CurrentSession.override = { Snapshot("tok1", "u1") }
+        CurrentSession.override = { SessionSnapshot("tok1", "u1") }
         runBlocking { DirectChatRequestHandler.handle(request) }
 
-        CurrentSession.override = { Snapshot("tok2", "u2") }
+        CurrentSession.override = { SessionSnapshot("tok2", "u2") }
         val outcome = runBlocking { DirectChatRequestHandler.handle(request) }
 
         assertEquals(Outcome.OpenChat("c-1"), outcome)

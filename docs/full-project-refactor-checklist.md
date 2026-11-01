@@ -238,7 +238,7 @@
 
 ### 4.1 Android 目标模块
 
-- [ ] `:core:model`：稳定 ID、错误、分页、时间、账号上下文等纯模型。
+- [~] `:core:model`：稳定 ID、错误、分页、时间、账号上下文等纯模型。（§4.1 续拆：会话快照纯模型 SessionSnapshot 由 app 侧迁入 :core:model，CurrentSession 仍是 app 侧读取点；其余模型仍在 app 侧，未标 [x]）。
 - [ ] `:core:database`：SQLCipher、Room、迁移、事务和领域 DAO 适配。
 - [ ] `:core:network`：HTTP client、认证拦截、错误映射、分域 API。
 - [ ] `:core:realtime`：WebSocket 生命周期、事件总线和连接状态。

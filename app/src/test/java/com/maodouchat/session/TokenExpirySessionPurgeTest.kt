@@ -1,6 +1,7 @@
 package com.maodouchat.session
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.network.TokenExpiredEvent
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -28,31 +29,31 @@ class TokenExpirySessionPurgeTest {
 
     @Test
     fun matchingOwnerAndGenerationIsHandled() {
-        CurrentSession.override = { Snapshot("tok", "u-1") }
+        CurrentSession.override = { SessionSnapshot("tok", "u-1") }
         assertTrue(TokenExpirySessionPurge.shouldHandle(event("u-1", currentGeneration)))
     }
 
     @Test
     fun mismatchedGenerationIsNotHandled() {
-        CurrentSession.override = { Snapshot("tok", "u-1") }
+        CurrentSession.override = { SessionSnapshot("tok", "u-1") }
         assertFalse(TokenExpirySessionPurge.shouldHandle(event("u-1", currentGeneration - 1L)))
     }
 
     @Test
     fun otherOwnerIsNotHandled() {
-        CurrentSession.override = { Snapshot("tok", "u-1") }
+        CurrentSession.override = { SessionSnapshot("tok", "u-1") }
         assertFalse(TokenExpirySessionPurge.shouldHandle(event("u-2", currentGeneration)))
     }
 
     @Test
     fun blankOwnerIsNotHandled() {
-        CurrentSession.override = { Snapshot("tok", "u-1") }
+        CurrentSession.override = { SessionSnapshot("tok", "u-1") }
         assertFalse(TokenExpirySessionPurge.shouldHandle(event("", currentGeneration)))
     }
 
     @Test
     fun noLocalSessionIsNotHandled() {
-        CurrentSession.override = { Snapshot(null, null) }
+        CurrentSession.override = { SessionSnapshot(null, null) }
         assertFalse(TokenExpirySessionPurge.shouldHandle(event("u-1", currentGeneration)))
     }
 }

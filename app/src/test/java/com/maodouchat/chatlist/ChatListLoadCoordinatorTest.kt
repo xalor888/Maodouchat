@@ -6,7 +6,7 @@ import com.maodouchat.data.model.MissedCall
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ChatDto
-import com.maodouchat.session.Snapshot
+import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListLoadCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListReloadPolicy
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
@@ -33,7 +33,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun userRefreshShowsLoadingAndAppliesRemoteSnapshot() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(Chat(id = "old"))))
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val cached = mutableListOf<List<Chat>>()
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -57,7 +57,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun reconnectDebouncesSilentReload() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState(isLoading = true, chats = listOf(Chat(id = "keep"))))
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         var fetchCount = 0
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -86,7 +86,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun deletedChatIdsAreNotReinserted() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val coordinator = buildCoordinator(
             uiState = uiState,
             deletedChatIds = mutableSetOf("gone"),
@@ -110,7 +110,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun missedCallsProjectIntoUiState() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val missed = listOf(
             MissedCall(
                 id = "m1",
@@ -135,7 +135,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun remoteFailureFallsBackToCachedChats() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val cached = listOf(Chat(id = "cached"))
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -154,7 +154,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun rateLimitedFailureKeepsExistingError() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val coordinator = buildCoordinator(
             uiState = uiState,
             fetchRemoteChats = {
@@ -173,7 +173,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun noSessionWithBlankOwnerShowsExpiredMessage() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot(null, null) }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot(null, null) }
         val coordinator = buildCoordinator(
             uiState = uiState,
             ownerUserId = { "" },
@@ -191,7 +191,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun staleLocalChatsAreCleanedUp() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val cleaned = mutableListOf<String>()
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -214,7 +214,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun debouncedReconnectIsCancelledByUserRefresh() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         var fetchCount = 0
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -236,7 +236,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun foregroundReloadIsImmediateSilent() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(Chat(id = "old"))))
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val cached = mutableListOf<List<Chat>>()
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -259,7 +259,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun groupRevisionDebouncesSilentReload() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(Chat(id = "keep"))))
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         var fetchCount = 0
         val coordinator = buildCoordinator(
             uiState = uiState,
@@ -289,7 +289,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun silentReloadFailureKeepsCurrentError() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState(chats = listOf(Chat(id = "cached"))))
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val coordinator = buildCoordinator(
             uiState = uiState,
             getAllChats = { flowOf(listOf(Chat(id = "cached"))) },
@@ -307,7 +307,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun secretChatDtoProjectsSecretChatIds() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val coordinator = buildCoordinator(
             uiState = uiState,
             getAllChats = { flowOf(emptyList()) },
@@ -328,7 +328,7 @@ class ChatListLoadCoordinatorTest {
     @Test
     fun emptyServerListEmptiesChatsAndCleansStale() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        com.maodouchat.session.CurrentSession.override = { Snapshot("tok", "me") }
+        com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val cleaned = mutableListOf<String>()
         val coordinator = buildCoordinator(
             uiState = uiState,
