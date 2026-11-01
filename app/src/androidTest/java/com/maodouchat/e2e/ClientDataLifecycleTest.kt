@@ -8,8 +8,8 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.ChatEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.security.LogoutStorePolicy
-import com.maodouchat.security.Reason
+import com.maodouchat.core.session.LogoutStorePolicy
+import com.maodouchat.core.session.Reason
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

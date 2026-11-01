@@ -3,7 +3,8 @@ package com.maodouchat.ui.screen.settings
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
-import com.maodouchat.security.Reason
+import com.maodouchat.core.session.LogoutStorePolicy
+import com.maodouchat.core.session.Reason
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -73,7 +74,7 @@ fun SettingsViewModel.changePassword(old: String, new: String, confirm: String, 
                         // 断连窗口内换号会把新账号的会话一并清掉
                         com.maodouchat.security.SecureSessionAccess.manager
                             .purgeLocalSession(
-                                destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
+                                destroyEncryptedDatabase = LogoutStorePolicy.destroyEncryptedDatabase(
                                     Reason.LOGOUT
                                 ),
                                 expectedOwnerUserId = ownerUserId

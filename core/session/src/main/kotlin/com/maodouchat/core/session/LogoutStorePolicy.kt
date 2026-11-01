@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.session
 
 /**
  * Whether logout / session-end should destroy SQLCipher + Signal identity.

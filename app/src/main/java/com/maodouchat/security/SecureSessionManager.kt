@@ -8,6 +8,8 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferScheduler
+import com.maodouchat.core.session.LogoutStorePolicy
+import com.maodouchat.core.session.Reason
 import com.maodouchat.crypto.SealedSenderSupport
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.crypto.SenderKeyRetryWorkScheduler
@@ -432,7 +434,6 @@ class SecureSessionManager(
         (context.applicationContext as? MaodouchatApp)?.notificationCenter?.refreshAccount()
     }
 
-
     @OptIn(coil.annotation.ExperimentalCoilApi::class)
     private fun clearCoilImageCaches(appContext: Context) {
         val loader = coil.Coil.imageLoader(appContext)
@@ -444,7 +445,6 @@ class SecureSessionManager(
         private const val TAG = "SecureSessionManager"
         private val purgeMutex = kotlinx.coroutines.sync.Mutex()
         private val purgeInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
-
         fun isPurgeInProgress(): Boolean = purgeInProgress.get()
     }
 }

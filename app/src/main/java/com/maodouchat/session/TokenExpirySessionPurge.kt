@@ -3,8 +3,8 @@ package com.maodouchat.session
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.session.TokenExpiredEvent
 import com.maodouchat.core.session.TokenExpiredEventPolicy
-import com.maodouchat.security.LogoutStorePolicy
-import com.maodouchat.security.Reason
+import com.maodouchat.core.session.LogoutStorePolicy
+import com.maodouchat.core.session.Reason
 
 object TokenExpirySessionPurge {
 

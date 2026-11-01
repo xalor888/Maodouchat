@@ -2,9 +2,10 @@ package com.maodouchat.network
 
 import android.content.Context
 import com.maodouchat.BuildConfig
+import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Problem
+import com.maodouchat.core.session.Reason
 import com.maodouchat.core.session.ServerUrlPolicy
-import com.maodouchat.security.Reason
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
@@ -132,7 +133,7 @@ object ApiConfig {
         val app = context.applicationContext as? com.maodouchat.MaodouchatApp ?: return false
         return try {
             app.secureSessionManager.purgeLocalSession(
-                destroyEncryptedDatabase = com.maodouchat.security.LogoutStorePolicy.destroyEncryptedDatabase(
+                destroyEncryptedDatabase = LogoutStorePolicy.destroyEncryptedDatabase(
                     Reason.TRUST_DOMAIN_CHANGE
                 )
             )
