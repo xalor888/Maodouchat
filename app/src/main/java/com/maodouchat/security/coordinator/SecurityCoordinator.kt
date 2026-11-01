@@ -3,6 +3,9 @@ package com.maodouchat.security.coordinator
 import android.content.Context
 import android.os.Build
 import com.maodouchat.security.AppLockManager
+import com.maodouchat.core.session.AppLockStatus
+import com.maodouchat.core.session.DeviceRiskReport
+import com.maodouchat.core.session.RiskLevel
 import com.maodouchat.core.session.ScreenSecurePolicy
 import com.maodouchat.core.session.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate

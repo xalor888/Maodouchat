@@ -1,4 +1,4 @@
-package com.maodouchat.security.coordinator
+package com.maodouchat.core.session
 
 enum class RiskLevel {
     LOW,
