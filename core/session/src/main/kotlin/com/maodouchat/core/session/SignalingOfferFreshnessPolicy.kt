@@ -1,11 +1,14 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
 /**
  * Pure gates for whether a polled signaling offer is still actionable.
- * Server TTL is [SignalingRepository.SIGNALING_TTL_MS] (120s); client uses the same window
- * as [IncomingCallCoordinator.STALE_MS] so cold-start poll cannot re-ring ancient offers.
+ * Server TTL is 120s; client uses the same 120s window so cold-start poll cannot
+ * re-ring ancient offers. DEFAULT_MAX_AGE_MS mirrors IncomingCallCoordinator.STALE_MS.
  */
 object SignalingOfferFreshnessPolicy {
+
+    /** Freshness window; same value as IncomingCallCoordinator.STALE_MS. */
+    const val DEFAULT_MAX_AGE_MS = 120_000L
 
     /**
      * @param timestampMillis server store time; non-positive means "unknown" → accept
@@ -16,7 +19,7 @@ object SignalingOfferFreshnessPolicy {
     fun isOfferFresh(
         timestampMillis: Long,
         nowMillis: Long,
-        maxAgeMs: Long = IncomingCallCoordinator.STALE_MS,
+        maxAgeMs: Long = DEFAULT_MAX_AGE_MS,
     ): Boolean {
         if (timestampMillis <= 0L) return true
         if (maxAgeMs <= 0L) return false
@@ -32,7 +35,7 @@ object SignalingOfferFreshnessPolicy {
         terminatedCallIds: Set<String>,
         timestampMillis: Long,
         nowMillis: Long,
-        maxAgeMs: Long = IncomingCallCoordinator.STALE_MS,
+        maxAgeMs: Long = DEFAULT_MAX_AGE_MS,
     ): Boolean {
         if (!type.equals("offer", ignoreCase = true)) return false
         if (callId.isNotBlank() && callId in terminatedCallIds) return false
