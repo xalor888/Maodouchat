@@ -1,6 +1,10 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.DecryptFailurePolicy
 import com.maodouchat.core.crypto.DecryptResult
+import com.maodouchat.core.crypto.DecryptRetryTracker
+import com.maodouchat.core.crypto.Disposition
+import com.maodouchat.core.crypto.TrackingAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 enum class Disposition {
     /** 调用方应视为终态：ACK、写入占位、不再对同一密文调 SessionCipher。 */

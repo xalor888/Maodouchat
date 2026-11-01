@@ -393,7 +393,7 @@ class MessageMutationPolicyTest {
             timestamp = 1_000L,
             editedAt = 500L,
             starred = true,
-            reactions = listOf(MessageReaction("u1", "❤"))
+            reactions = listOf(MessageReaction("u1", "❤", reactedAt = 1L))
         )
 
         val edited = original.toOptimisticEdit("new")
@@ -402,7 +402,7 @@ class MessageMutationPolicyTest {
         assertEquals(1_001L, edited.editedAt)
         assertEquals(1_000L, edited.timestamp)
         assertTrue(edited.starred)
-        assertEquals(listOf(MessageReaction("u1", "❤")), edited.reactions)
+        assertEquals(listOf(MessageReaction("u1", "❤", reactedAt = 1L)), edited.reactions)
     }
 
     @Test

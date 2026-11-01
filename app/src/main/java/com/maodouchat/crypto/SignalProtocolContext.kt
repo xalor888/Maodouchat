@@ -1,5 +1,6 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.DecryptRetryTracker
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import kotlinx.coroutines.sync.Mutex

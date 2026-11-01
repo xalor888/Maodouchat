@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import android.util.Log
+import com.maodouchat.core.crypto.DecryptFailurePolicy
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.GroupMessageCipher
 import com.maodouchat.core.model.ConversationId

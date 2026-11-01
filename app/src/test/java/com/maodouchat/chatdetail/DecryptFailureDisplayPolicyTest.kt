@@ -460,11 +460,11 @@ class DecryptFailureDisplayPolicyTest {
     @Test
     fun `equal revision wire versus plaintext takes plaintext and candidate reactions`() {
         val wire = message("m1", "MD:abcdefghijklmnop")
-        val plain = message("m1", "hello").copy(reactions = listOf(MessageReaction("u1", "❤")))
+        val plain = message("m1", "hello").copy(reactions = listOf(MessageReaction("u1", "❤", reactedAt = 1L)))
         val merged = mergeMessageVersions(listOf(wire), listOf(plain)).single()
 
         assertEquals("hello", merged.content)
-        assertEquals(listOf(MessageReaction("u1", "❤")), merged.reactions)
+        assertEquals(listOf(MessageReaction("u1", "❤", reactedAt = 1L)), merged.reactions)
     }
 
     @Test

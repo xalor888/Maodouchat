@@ -1,6 +1,6 @@
 package com.maodouchat.data.repository
 
-import com.maodouchat.crypto.DecryptPlaceholderPolicy
+import com.maodouchat.core.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.MediaCache
