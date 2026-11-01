@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.network.REMOTE_TYPING_TIMEOUT_MS
-import com.maodouchat.network.shouldApplyTypingEvent
+import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
+import com.maodouchat.core.realtime.shouldApplyTypingEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job

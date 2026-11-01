@@ -1,4 +1,4 @@
-package com.maodouchat.network
+package com.maodouchat.core.realtime
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart

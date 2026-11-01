@@ -1,4 +1,4 @@
-package com.maodouchat.network
+package com.maodouchat.core.realtime
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

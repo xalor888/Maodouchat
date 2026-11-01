@@ -1,5 +1,7 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.realtime.NonReplayingEventBus
+import com.maodouchat.core.realtime.WebSocketSessionGate
 import com.maodouchat.session.RealtimeTransport
 import com.maodouchat.session.RealtimeTransportEvent
 import java.util.concurrent.atomic.AtomicLong
@@ -34,11 +36,9 @@ internal object WebSocketTransport : RealtimeTransport {
     private const val RECONNECT_SLOW_INTERVAL_MS = 60_000L
 
     // ── 9.3xx：Ideaura 式应用层心跳 + 连接看门狗 ─────────────────────
-    // Ideaura 的做法：MQTT-over-WebSocket 上订阅个人 inbox 主题，OkHttp pingInterval=5s、
-    // readTimeout=0，5s 连接超时看门狗，收到 publish 直接弹通知。我们对应实现：
+    // Ideaura 的做法：MQTT-over-WebSocket 订阅个人 inbox 主题，OkHttp ping 5s、读不超时、5s 看门狗，收到 publish 直接弹通知。我们对应实现：
     // ① 握手即绑定用户（等价于"订阅个人 inbox 主题"，少一次 SUBSCRIBE 往返，服务端 sendToUser 定向投递）；
-    // ② 应用层 PING/PONG 帧——协议层 WebSocket ping 可能被 NAT/代理吞掉，应用层心跳能
-    //    确定性检测死连接（20s 发 PING，30s 无任何流量即判定死亡并主动掐断触发重连）；
+    // ② 应用层 PING/PONG 帧——协议层 ping 可能被 NAT/代理吞掉，应用层心跳确定性检测死连接（20s 发 PING，30s 无流量即掐断重连）；
     // ③ 连接看门狗——发起连接 8s 内未 onOpen 即取消并重试（Ideaura 为 5s）。
     private const val HEARTBEAT_INTERVAL_MS = 20_000L
     private const val HEARTBEAT_DEAD_AFTER_MS = 30_000L
