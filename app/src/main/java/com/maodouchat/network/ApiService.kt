@@ -15,6 +15,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
+import com.maodouchat.core.session.ConditionalSessionSaveResult
 import com.maodouchat.core.session.TokenExpiredEvent
 import com.maodouchat.network.api.ApiEndpointClients
 import com.maodouchat.network.api.ApiSurface
