@@ -9,6 +9,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.maodouchat.core.session.MutableSessionContextProvider
 import com.maodouchat.core.session.SessionContext
+import com.maodouchat.core.session.SessionPresencePolicy
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.atomic.AtomicBoolean
 

@@ -1,10 +1,10 @@
-package com.maodouchat.network
+package com.maodouchat.core.session
 
 /**
  * Cold-start 登录态判定：无 userId 或缺 refresh 的过期 access 不能当已登录，
  * 否则 MainActivity 会直进 MAIN，表现为「token 过期进不去 / 恢复后空白」。
  */
-internal object SessionPresencePolicy {
+object SessionPresencePolicy {
     fun isLoggedIn(
         token: String?,
         userId: String?,
