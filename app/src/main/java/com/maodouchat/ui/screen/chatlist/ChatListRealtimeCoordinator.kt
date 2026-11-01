@@ -9,6 +9,8 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
+import com.maodouchat.core.realtime.ChatMessageSentEvent
+import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
@@ -32,8 +34,8 @@ internal class ChatListRealtimeCoordinator(
     private val uiState: MutableStateFlow<ChatListUiState>,
     private val realtimeEventDispatcher: RealtimeEventDispatcher,
     private val notificationCenter: NotificationCenterRepository,
-    private val chatReadEvents: SharedFlow<com.maodouchat.realtime.ChatReadEvent>,
-    private val chatMessageSentEvents: SharedFlow<com.maodouchat.realtime.ChatMessageSentEvent>,
+    private val chatReadEvents: SharedFlow<ChatReadEvent>,
+    private val chatMessageSentEvents: SharedFlow<ChatMessageSentEvent>,
     private val ownerUserId: () -> String,
     private val ownerSession: () -> OwnerSessionSnapshot,
     private val isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean,
