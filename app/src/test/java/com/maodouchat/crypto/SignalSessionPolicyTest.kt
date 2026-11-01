@@ -1,5 +1,6 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.session.SignalSessionPolicy
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
