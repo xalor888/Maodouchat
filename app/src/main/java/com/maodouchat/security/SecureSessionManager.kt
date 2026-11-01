@@ -434,7 +434,6 @@ class SecureSessionManager(
         (context.applicationContext as? MaodouchatApp)?.notificationCenter?.refreshAccount()
     }
 
-
     @OptIn(coil.annotation.ExperimentalCoilApi::class)
     private fun clearCoilImageCaches(appContext: Context) {
         val loader = coil.Coil.imageLoader(appContext)
@@ -446,7 +445,6 @@ class SecureSessionManager(
         private const val TAG = "SecureSessionManager"
         private val purgeMutex = kotlinx.coroutines.sync.Mutex()
         private val purgeInProgress = java.util.concurrent.atomic.AtomicBoolean(false)
-
         fun isPurgeInProgress(): Boolean = purgeInProgress.get()
     }
 }
