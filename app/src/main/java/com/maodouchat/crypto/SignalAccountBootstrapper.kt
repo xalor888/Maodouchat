@@ -3,6 +3,7 @@ package com.maodouchat.crypto
 import android.util.Base64
 import android.util.Log
 import com.maodouchat.core.crypto.CryptoAccountBootstrapper
+import com.maodouchat.core.crypto.SignalPreKeyIdPolicy
 import kotlinx.coroutines.sync.withLock
 import org.signal.libsignal.protocol.IdentityKeyPair
 import org.signal.libsignal.protocol.state.SignedPreKeyRecord

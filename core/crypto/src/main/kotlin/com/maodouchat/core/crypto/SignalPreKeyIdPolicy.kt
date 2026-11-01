@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 /**
  * Signal PreKey / Signed PreKey ID 合法区间与分配。
