@@ -1,5 +1,6 @@
 package com.maodouchat.call
 
+import com.maodouchat.core.session.CallSessionEpochPolicy
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
