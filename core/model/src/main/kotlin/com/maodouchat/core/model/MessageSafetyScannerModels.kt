@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.core.model
 
 data class Finding(
     val code: String,
