@@ -1,6 +1,5 @@
-package com.maodouchat.network
+package com.maodouchat.core.session
 
-import com.maodouchat.BuildConfig
 import java.net.URI
 import java.net.URISyntaxException
 
@@ -10,9 +9,9 @@ import java.net.URISyntaxException
  * `ApiConfig.BASE_URL` 后续会直接拼接 `/api/...` 和 `/ws`，所以服务器地址只应包含
  * scheme、host 和可选 port；带额外路径会让客户端把请求打到错误前缀。
  */
-internal object ServerUrlPolicy {
+object ServerUrlPolicy {
 
-    fun validate(value: String): Problem? {
+    fun validate(value: String, isDebug: Boolean = true): Problem? {
         val raw = value.trim()
         if (raw.isBlank()) return Problem.EMPTY
 
@@ -40,7 +39,7 @@ internal object ServerUrlPolicy {
         if (host.length > 255) return Problem.INVALID
 
         // 发布版禁止公网明文 HTTP：局域网内明文 HTTP/WS (私有IP/localhost/local域名) 允许以支持自托管与内网部署。
-        if (scheme == "http" && !BuildConfig.DEBUG && !isLocalOrPrivateHost(host)) return Problem.SCHEME
+        if (scheme == "http" && !isDebug && !isLocalOrPrivateHost(host)) return Problem.SCHEME
 
         if (uri.userInfo != null || uri.query != null || uri.fragment != null || hasUnsupportedPath(uri.rawPath)) {
             return Problem.EXTRA

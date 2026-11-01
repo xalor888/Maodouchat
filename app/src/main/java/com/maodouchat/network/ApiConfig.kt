@@ -2,6 +2,8 @@ package com.maodouchat.network
 
 import android.content.Context
 import com.maodouchat.BuildConfig
+import com.maodouchat.core.session.Problem
+import com.maodouchat.core.session.ServerUrlPolicy
 import com.maodouchat.security.Reason
 import java.net.HttpURLConnection
 import java.net.URL
@@ -162,7 +164,7 @@ object ApiConfig {
 
     // 8.48：校验错误资源化（此前硬编码中文，服务器设置页英文用户看到中文）
     private fun validateBaseUrl(value: String, context: Context): String? {
-        val problem = ServerUrlPolicy.validate(value) ?: return null
+        val problem = ServerUrlPolicy.validate(value, BuildConfig.DEBUG) ?: return null
         return when (problem) {
             Problem.EMPTY -> context.getString(com.maodouchat.R.string.server_url_empty)
             Problem.INVALID -> context.getString(com.maodouchat.R.string.server_url_invalid)
