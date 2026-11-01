@@ -5,7 +5,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MissedCall
 import com.maodouchat.data.model.User
 import com.maodouchat.core.model.SessionSnapshot
-import com.maodouchat.ui.OwnerSessionSnapshot
+import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListArchiveSuggestionCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListMissedCallCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState

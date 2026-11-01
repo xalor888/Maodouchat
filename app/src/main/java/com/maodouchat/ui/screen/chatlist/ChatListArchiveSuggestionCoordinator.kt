@@ -5,7 +5,7 @@ import com.maodouchat.ai.Suggestion
 import com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.session.CurrentSession
-import com.maodouchat.ui.OwnerSessionSnapshot
+import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

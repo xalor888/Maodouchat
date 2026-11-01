@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.OwnerSessionSnapshot
+import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListPreviewCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import io.mockk.every

@@ -3,7 +3,7 @@ package com.maodouchat.chatlist
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.SessionSnapshot
-import com.maodouchat.ui.OwnerSessionSnapshot
+import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import com.maodouchat.ui.screen.chatlist.ChatListUnreadBatchCoordinator
 import kotlin.test.Test
