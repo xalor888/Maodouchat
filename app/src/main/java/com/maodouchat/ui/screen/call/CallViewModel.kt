@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.call.CallSignalingIdempotencyStore
-import com.maodouchat.call.Cursor
+import com.maodouchat.core.session.Cursor
 import com.maodouchat.call.CallSignalingOutboundCursor
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.webrtc.CallType
