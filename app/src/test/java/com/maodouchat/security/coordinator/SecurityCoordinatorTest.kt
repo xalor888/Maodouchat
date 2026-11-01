@@ -1,5 +1,6 @@
 package com.maodouchat.security.coordinator
 
+import com.maodouchat.core.session.RiskLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
