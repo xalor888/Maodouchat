@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 /**
  * Pure DND window math for AI task reminders (W4-03).
