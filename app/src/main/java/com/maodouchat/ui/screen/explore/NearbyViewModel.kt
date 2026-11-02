@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.explore
 
+import com.maodouchat.core.model.LocationException
+import com.maodouchat.core.model.LocationFailure
 import com.maodouchat.data.repository.NearbyNetworkRepository
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
@@ -30,11 +32,11 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
     private fun locationErrorText(error: Throwable): String = when (
-        (error as? com.maodouchat.util.LocationException)?.failure
+        (error as? LocationException)?.failure
     ) {
-        com.maodouchat.util.LocationFailure.PERMISSION_REQUIRED -> text(R.string.location_error_permission)
-        com.maodouchat.util.LocationFailure.SERVICES_DISABLED -> text(R.string.location_error_services_disabled)
-        com.maodouchat.util.LocationFailure.UNAVAILABLE, null -> text(R.string.location_error_unavailable)
+        LocationFailure.PERMISSION_REQUIRED -> text(R.string.location_error_permission)
+        LocationFailure.SERVICES_DISABLED -> text(R.string.location_error_services_disabled)
+        LocationFailure.UNAVAILABLE, null -> text(R.string.location_error_unavailable)
     }
 
     init { loadStatus() }

@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 enum class LocationFailure {
     PERMISSION_REQUIRED,

@@ -10,6 +10,8 @@ import android.location.LocationManager
 import android.os.Bundle
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import com.maodouchat.core.model.LocationException
+import com.maodouchat.core.model.LocationFailure
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
