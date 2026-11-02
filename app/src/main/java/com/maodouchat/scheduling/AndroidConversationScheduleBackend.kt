@@ -4,7 +4,7 @@ import android.content.Context
 import com.maodouchat.util.MessageReminderScheduler
 import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
-import com.maodouchat.util.ScheduledMessagePolicy
+import com.maodouchat.core.model.ScheduledMessagePolicy
 import com.maodouchat.util.ScheduledMessageScheduler
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.AppDatabase

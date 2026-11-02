@@ -3,7 +3,7 @@ package com.maodouchat.scheduling
 import com.maodouchat.util.MessageReminderPolicy
 import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
-import com.maodouchat.util.ScheduledMessagePolicy
+import com.maodouchat.core.model.ScheduledMessagePolicy
 import java.util.UUID
 
 class ConversationScheduleCoordinator(

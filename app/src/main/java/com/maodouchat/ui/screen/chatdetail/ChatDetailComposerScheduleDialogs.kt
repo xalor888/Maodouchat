@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.ScheduledMessagePolicy
 
 /**
  * 日历跳转对话框：选日期后跳到该日第一条消息。
@@ -70,10 +71,10 @@ internal fun openScheduleDateTimePicker(
 ) {
     val now = java.util.Calendar.getInstance()
     val minCal = java.util.Calendar.getInstance().apply {
-        timeInMillis = now.timeInMillis + com.maodouchat.util.ScheduledMessagePolicy.MIN_DELAY_MS
+        timeInMillis = now.timeInMillis + ScheduledMessagePolicy.MIN_DELAY_MS
     }
     val maxCal = java.util.Calendar.getInstance().apply {
-        timeInMillis = now.timeInMillis + com.maodouchat.util.ScheduledMessagePolicy.MAX_DELAY_MS
+        timeInMillis = now.timeInMillis + ScheduledMessagePolicy.MAX_DELAY_MS
     }
     android.app.DatePickerDialog(
         context,

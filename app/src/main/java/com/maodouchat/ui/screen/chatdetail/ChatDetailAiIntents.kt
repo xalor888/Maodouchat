@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.VoiceTranscriptPolicy
 
 
 internal fun ChatDetailViewModel.normalizeAiRewriteMode(mode: String?): String {
@@ -177,13 +178,13 @@ fun ChatDetailViewModel.requestVoiceTranscription(messageId: String) {
     }
     val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
     val isTranscribing = messageId in _uiState.value.transcribingVoiceMessageIds
-    if (!com.maodouchat.util.VoiceTranscriptPolicy.canRequest(
+    if (!VoiceTranscriptPolicy.canRequest(
             isVoiceMessage = message.type == MessageType.VOICE,
             transcript = message.parsedMeta().voiceTranscript,
             isTranscribing = isTranscribing
         )
     ) {
-        if (com.maodouchat.util.VoiceTranscriptPolicy.hasTranscript(message.parsedMeta().voiceTranscript)) {
+        if (VoiceTranscriptPolicy.hasTranscript(message.parsedMeta().voiceTranscript)) {
             _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_ai_transcript_exists)) }
         }
         return

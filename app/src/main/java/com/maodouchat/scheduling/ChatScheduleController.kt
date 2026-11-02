@@ -2,7 +2,7 @@ package com.maodouchat.scheduling
 
 import com.maodouchat.util.MessageReminder
 import com.maodouchat.util.ScheduledMessage
-import com.maodouchat.util.ScheduledMessagePolicy
+import com.maodouchat.core.model.ScheduledMessagePolicy
 
 /**
  * Screen-independent application controller for scheduled messages and reminders.

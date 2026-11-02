@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.maodouchat.network.TokenManager
 import java.util.concurrent.TimeUnit
+import com.maodouchat.core.model.ScheduledMessagePolicy
 
 object ScheduledMessageScheduler {
     private fun uniqueName(id: String) = "scheduled_msg_$id"

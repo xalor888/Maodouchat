@@ -29,9 +29,10 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.util.Level
-import com.maodouchat.util.PasswordStrengthResult
-import com.maodouchat.util.Suggestion
+import com.maodouchat.core.model.Level
+import com.maodouchat.core.model.PasswordStrength
+import com.maodouchat.core.model.PasswordStrengthResult
+import com.maodouchat.core.model.Suggestion
 
 @Composable
 internal fun DeleteAccountDialog(
@@ -79,7 +80,7 @@ internal fun ChangePasswordDialog(
     onDismiss: () -> Unit,
     onSubmit: () -> Unit
 ) {
-    val strength = com.maodouchat.util.PasswordStrength.evaluate(newPassword)
+    val strength = PasswordStrength.evaluate(newPassword)
     AlertDialog(
         onDismissRequest = { if (!isSaving) onDismiss() },
         title = { Text(stringResource(R.string.account_change_password)) },
@@ -137,7 +138,6 @@ internal fun PasswordStrengthIndicator(strength: PasswordStrengthResult) {
             Text(stringResource(R.string.password_strength_label), style = MaterialTheme.typography.bodySmall, color = LocalChatPalette.current.textSecondary)
             Text(label, style = MaterialTheme.typography.bodySmall, color = color)
         }
-        // 简易强度条
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             repeat(4) { idx ->
                 val filled = idx < strength.score

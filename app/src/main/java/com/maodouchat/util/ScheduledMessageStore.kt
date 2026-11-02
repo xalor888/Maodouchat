@@ -7,6 +7,7 @@ import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
 import java.util.TimeZone
 import java.util.UUID
+import com.maodouchat.core.model.ScheduledMessagePolicy
 
 data class ScheduledMessage(
     val id: String,
