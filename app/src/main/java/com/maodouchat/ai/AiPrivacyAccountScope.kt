@@ -3,6 +3,7 @@ package com.maodouchat.ai
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.maodouchat.core.model.AiPrivacyKeys
 import com.maodouchat.network.TokenManager
 
 // 账号隔离簇：按 userId 隔离偏好 + 老版本设备级键的一次性迁移。
