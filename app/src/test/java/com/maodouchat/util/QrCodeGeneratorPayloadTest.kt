@@ -1,5 +1,6 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.QrTarget
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs

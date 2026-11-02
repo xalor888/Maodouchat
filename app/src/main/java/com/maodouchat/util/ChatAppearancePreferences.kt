@@ -3,6 +3,8 @@ package com.maodouchat.util
 import android.content.Context
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.maodouchat.core.model.ChatFontScale
+import com.maodouchat.core.model.ChatWallpaperPreset
 import com.maodouchat.theme.ChatBubbleColorPalette
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

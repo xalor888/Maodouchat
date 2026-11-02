@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 sealed class QrTarget {
     data class User(val userId: String) : QrTarget()
