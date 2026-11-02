@@ -1,4 +1,4 @@
-package com.maodouchat.contacts
+package com.maodouchat.core.model
 
 /**
  * 二维码解析结果密封类 (纯解析与校验，不包含任何导航、网络请求或加密执行逻辑)。

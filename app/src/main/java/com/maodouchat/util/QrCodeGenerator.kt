@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.set
+import com.maodouchat.core.model.QrParsedPayload
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -58,10 +59,10 @@ object QrCodeGenerator {
 
     fun parsePayload(text: String): QrTarget? {
         return when (val parsed = com.maodouchat.contacts.QrPayloadParser.parse(text)) {
-            is com.maodouchat.contacts.QrParsedPayload.User -> QrTarget.User(parsed.userId)
-            is com.maodouchat.contacts.QrParsedPayload.Chat -> QrTarget.Chat(parsed.chatId)
-            is com.maodouchat.contacts.QrParsedPayload.ChatInvite -> QrTarget.ChatInvite(parsed.token)
-            is com.maodouchat.contacts.QrParsedPayload.Safety -> QrTarget.Safety(
+            is QrParsedPayload.User -> QrTarget.User(parsed.userId)
+            is QrParsedPayload.Chat -> QrTarget.Chat(parsed.chatId)
+            is QrParsedPayload.ChatInvite -> QrTarget.ChatInvite(parsed.token)
+            is QrParsedPayload.Safety -> QrTarget.Safety(
                 ownerUserId = parsed.ownerUserId,
                 ownerDeviceId = parsed.ownerDeviceId,
                 peerUserId = parsed.peerUserId,
@@ -70,7 +71,7 @@ object QrCodeGenerator {
                 ownerIdentityFingerprint = parsed.ownerIdentityFingerprint,
                 peerIdentityFingerprint = parsed.peerIdentityFingerprint
             )
-            is com.maodouchat.contacts.QrParsedPayload.Invalid -> null
+            is QrParsedPayload.Invalid -> null
         }
     }
 
