@@ -1,5 +1,6 @@
 package com.maodouchat.call
 
+import com.maodouchat.core.session.Feature
 import com.maodouchat.webrtc.GroupCallPolicy
 
 /**

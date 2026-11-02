@@ -42,7 +42,7 @@ import com.maodouchat.navigation.Routes
 import com.maodouchat.realtime.AdminNoticeFeed
 import com.maodouchat.session.TokenExpirySessionPurge
 import com.maodouchat.call.DirectChatRequestHandler
-import com.maodouchat.call.Outcome
+import com.maodouchat.core.session.Outcome
 import com.maodouchat.navigation.callDestinations
 import com.maodouchat.navigation.exploreDestinations
 import com.maodouchat.navigation.groupPlayDestinations
