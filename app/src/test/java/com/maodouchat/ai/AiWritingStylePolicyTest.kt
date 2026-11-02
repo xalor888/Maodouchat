@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.AiWritingStylePolicy
 import com.maodouchat.core.model.Preset
 import com.maodouchat.core.model.Snapshot
 import org.junit.Assert.assertEquals

@@ -1,13 +1,13 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.ai.AiWritingStylePolicy
 import com.maodouchat.ai.AiWritingStylePrefsKeys.KEY_CUSTOM
 import com.maodouchat.ai.AiWritingStylePrefsKeys.KEY_ENABLED
 import com.maodouchat.ai.AiWritingStylePrefsKeys.KEY_PRESET
 import com.maodouchat.ai.AiWritingStylePrefsKeys.account
 import com.maodouchat.ai.AiWritingStylePrefsKeys.key
 import com.maodouchat.ai.AiWritingStylePrefsKeys.prefs
+import com.maodouchat.core.model.AiWritingStylePolicy
 import com.maodouchat.core.model.Snapshot
 
 // 读取簇：读 prefs 组装 Snapshot。原 AiWritingStylePreferences.snapshot 逐字搬入。

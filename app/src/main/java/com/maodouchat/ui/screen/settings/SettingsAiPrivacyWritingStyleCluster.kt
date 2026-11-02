@@ -4,8 +4,8 @@ import com.maodouchat.data.repository.ClientPrefsNetworkRepository
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.ai.AiWritingStylePolicy
 import com.maodouchat.ai.AiWritingStylePreferences
+import com.maodouchat.core.model.AiWritingStylePolicy
 import com.maodouchat.core.model.Preset
 import com.maodouchat.core.model.Snapshot
 import com.maodouchat.network.ClientPrefsUpdateRequest

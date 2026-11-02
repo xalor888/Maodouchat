@@ -2,13 +2,13 @@ package com.maodouchat.ai
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.ai.AiWritingStylePolicy
 import com.maodouchat.ai.AiWritingStylePrefsKeys.KEY_CUSTOM
 import com.maodouchat.ai.AiWritingStylePrefsKeys.KEY_ENABLED
 import com.maodouchat.ai.AiWritingStylePrefsKeys.KEY_PRESET
 import com.maodouchat.ai.AiWritingStylePrefsKeys.account
 import com.maodouchat.ai.AiWritingStylePrefsKeys.key
 import com.maodouchat.ai.AiWritingStylePrefsKeys.prefs
+import com.maodouchat.core.model.AiWritingStylePolicy
 import com.maodouchat.core.model.Preset
 
 // 写入簇：风格偏好的增删改写。原 AiWritingStylePreferences 写入函数逐字搬入。
