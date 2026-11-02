@@ -7,9 +7,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.util.EmojiRecentPreferences
-import com.maodouchat.util.StickerCatalog
-import com.maodouchat.util.StickerPack
-import com.maodouchat.util.StickerPolicy
+import com.maodouchat.core.model.StickerCatalog
+import com.maodouchat.core.model.StickerPack
+import com.maodouchat.core.model.StickerPolicy
 import com.maodouchat.util.StickerPreferences
 
 // 表情面板贴纸页签的状态簇：remember/rememberSaveable 的键与原内联一一对应，displayItems 保持原 when 判定。

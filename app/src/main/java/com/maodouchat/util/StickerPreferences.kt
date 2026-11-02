@@ -2,6 +2,8 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.StickerCatalog
+import com.maodouchat.core.model.StickerPolicy
 
 /**
  * 贴纸最近使用 / 启用包：按账号隔离。

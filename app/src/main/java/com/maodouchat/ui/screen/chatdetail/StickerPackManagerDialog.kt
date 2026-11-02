@@ -29,6 +29,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.StickerCatalog
+import com.maodouchat.core.model.StickerPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
@@ -75,14 +77,14 @@ internal fun StickerPackManagerDialog(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())
             ) {
-                com.maodouchat.util.StickerCatalog.BUILT_IN_PACKS.forEach { pack ->
+                StickerCatalog.BUILT_IN_PACKS.forEach { pack ->
                     val enabled = pack.id in enabledPackIds
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                val next = com.maodouchat.util.StickerPolicy.togglePackEnabled(
+                                val next = StickerPolicy.togglePackEnabled(
                                     enabledIds = enabledPackIds,
                                     packId = pack.id,
                                     enable = !enabled
@@ -90,7 +92,7 @@ internal fun StickerPackManagerDialog(
                                 enabledPackIds = next
                                 com.maodouchat.util.StickerPreferences.setEnabledPackIds(context, next)
                                 if (!enabled && stickerTab == pack.id) {
-                                    stickerTab = com.maodouchat.util.StickerCatalog.PACK_RECENT
+                                    stickerTab = StickerCatalog.PACK_RECENT
                                 }
                             }
                             .padding(vertical = 8.dp)

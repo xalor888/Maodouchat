@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.MediaCache
-import com.maodouchat.util.VoiceCapturePolicy
+import com.maodouchat.core.model.VoiceCapturePolicy
 import com.maodouchat.util.VoicePlayer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable

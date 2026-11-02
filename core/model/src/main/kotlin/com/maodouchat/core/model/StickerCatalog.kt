@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 object StickerCatalog {
     const val PACK_RECENT = "recent"
