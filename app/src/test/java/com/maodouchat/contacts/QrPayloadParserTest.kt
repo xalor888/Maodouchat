@@ -1,5 +1,6 @@
 package com.maodouchat.contacts
 
+import com.maodouchat.core.model.QrParsedPayload
 import com.maodouchat.util.QrCodeGenerator
 import com.maodouchat.util.QrTarget
 import org.junit.Assert.assertEquals
