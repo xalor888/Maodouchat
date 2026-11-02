@@ -13,7 +13,7 @@ import com.maodouchat.domain.messaging.SecretChatStateMachine
 import com.maodouchat.domain.messaging.SecretConversationController
 import com.maodouchat.network.TokenManager
 
-import com.maodouchat.util.DisappearingMessagePolicy
+import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
