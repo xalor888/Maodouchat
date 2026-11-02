@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 /**
  * Group AI assistant share / identity rules (W4-03).

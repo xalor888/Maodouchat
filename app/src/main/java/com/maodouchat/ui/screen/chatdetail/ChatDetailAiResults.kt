@@ -5,7 +5,8 @@ import com.maodouchat.util.RuntimeFlags
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
-import com.maodouchat.ai.TaskDraft
+import com.maodouchat.core.model.GroupAiSharePolicy
+import com.maodouchat.core.model.TaskDraft
 import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.data.model.MessageMeta
@@ -174,7 +175,7 @@ fun ChatDetailViewModel.saveGroupAiTasks() {
         val state = _uiState.value
         val targetChatId = activeChatId.takeIf(String::isNotBlank) ?: return
         if (state.isSavingGroupAiTasks || state.groupAiTasksSaved) return
-        val drafts = com.maodouchat.ai.GroupAiSharePolicy.sanitizeTasks(
+        val drafts = GroupAiSharePolicy.sanitizeTasks(
             state.groupAiTasks.map {
                 TaskDraft(
                     title = it.title,
@@ -231,7 +232,7 @@ fun ChatDetailViewModel.saveGroupAiTasks() {
 
 fun ChatDetailViewModel.shareGroupAiAnswer() {
         val state = _uiState.value
-        val decision = com.maodouchat.ai.GroupAiSharePolicy.decideShare(
+        val decision = GroupAiSharePolicy.decideShare(
             isGroup = state.chat?.isGroup == true,
             answer = state.groupAiAnswer,
             alreadyShared = state.groupAiAnswerShared
@@ -240,8 +241,8 @@ fun ChatDetailViewModel.shareGroupAiAnswer() {
         // Fail-closed: mark shared before send so double-tap cannot enqueue twice.
         _uiState.update { it.copy(groupAiAnswerShared = true) }
         val meta = com.maodouchat.data.model.MessageMeta(
-            aiAssisted = com.maodouchat.ai.GroupAiSharePolicy.shareAiAssistedFlag(),
-            aiAssistantMode = com.maodouchat.ai.GroupAiSharePolicy.shareAssistantMode(state.groupAiMode)
+            aiAssisted = GroupAiSharePolicy.shareAiAssistedFlag(),
+            aiAssistantMode = GroupAiSharePolicy.shareAssistantMode(state.groupAiMode)
         )
         // Always send as the current user with AI-assisted meta — never a system identity.
         sendMessage(
