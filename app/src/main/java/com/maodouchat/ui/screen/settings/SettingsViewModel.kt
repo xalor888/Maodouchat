@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
+import com.maodouchat.core.model.CustomStatusPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +22,6 @@ class SettingsViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
     /** G328c：账号/设备/拉黑这类**命令式**端点走 data 层仓库（ui 不再直接调 ApiService）。 */
     private val accountApi get() = com.maodouchat.data.repository.AccountSecurityNetworkRepository()
-
 
     internal fun text(id: Int, vararg args: Any): String =
         getApplication<Application>().getString(id, *args)
@@ -137,7 +137,7 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun onEditStatusChange(status: String) {
         _uiState.update {
-            it.copy(editStatus = status.take(com.maodouchat.util.CustomStatusPolicy.MAX_LENGTH))
+            it.copy(editStatus = status.take(CustomStatusPolicy.MAX_LENGTH))
         }
     }
 

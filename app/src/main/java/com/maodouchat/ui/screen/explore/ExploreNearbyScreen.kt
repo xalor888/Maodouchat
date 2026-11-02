@@ -61,7 +61,7 @@ import com.maodouchat.data.model.User
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.ui.component.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout
-import com.maodouchat.util.NearbyPolicy
+import com.maodouchat.core.model.NearbyPolicy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch

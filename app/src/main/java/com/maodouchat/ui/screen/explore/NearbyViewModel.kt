@@ -13,7 +13,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.AndroidViewModel
 import com.maodouchat.R
 import com.maodouchat.data.model.User
-import com.maodouchat.util.NearbyPolicy
+import com.maodouchat.core.model.NearbyPolicy
 import kotlinx.coroutines.launch
 
 class NearbyViewModel(application: Application) : AndroidViewModel(application) {

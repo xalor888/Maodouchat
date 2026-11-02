@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.settings
 import android.app.Application
 import android.net.Uri
 import com.maodouchat.R
+import com.maodouchat.core.model.CustomStatusPolicy
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.settings.model.SettingsUiState
 import com.maodouchat.util.ImagePicker
@@ -26,8 +27,8 @@ internal class SettingsProfileController(
 
     fun saveStatus() {
         if (profileSaveJob?.isActive == true) return
-        val status = com.maodouchat.util.CustomStatusPolicy.normalize(currentState().editStatus)
-        if (!com.maodouchat.util.CustomStatusPolicy.isValid(currentState().editStatus)) {
+        val status = CustomStatusPolicy.normalize(currentState().editStatus)
+        if (!CustomStatusPolicy.isValid(currentState().editStatus)) {
             updateState { it.copy(errorMessage = text(R.string.status_too_long)) }
             return
         }

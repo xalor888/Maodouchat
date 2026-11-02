@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.CustomStatusPolicy
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -60,8 +61,8 @@ internal fun StatusEditorDialog(
                     ),
                     supportingText = {
                         Text(
-                            "${status.length}/${com.maodouchat.util.CustomStatusPolicy.MAX_LENGTH}",
-                            color = if (status.length > com.maodouchat.util.CustomStatusPolicy.MAX_LENGTH - 10) MaterialTheme.colorScheme.error else LocalChatPalette.current.textSecondary,
+                            "${status.length}/${CustomStatusPolicy.MAX_LENGTH}",
+                            color = if (status.length > CustomStatusPolicy.MAX_LENGTH - 10) MaterialTheme.colorScheme.error else LocalChatPalette.current.textSecondary,
                             style = MaterialTheme.typography.labelSmall
                         )
                     },
@@ -69,7 +70,7 @@ internal fun StatusEditorDialog(
                 )
                 Text(stringResource(R.string.status_presets), style = MaterialTheme.typography.labelLarge, color = LocalChatPalette.current.textSecondary)
                 Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
-                    com.maodouchat.util.CustomStatusPolicy.PRESETS.chunked(3).forEach { row ->
+                    CustomStatusPolicy.PRESETS.chunked(3).forEach { row ->
                         Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
                             row.forEach { preset ->
                                 FilterChip(

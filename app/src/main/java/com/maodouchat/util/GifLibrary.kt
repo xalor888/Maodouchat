@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import com.maodouchat.core.model.LocalGifItem
 
 /**
  * 扫描本机 MediaStore 中的 GIF（只读，不上传）。
