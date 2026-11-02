@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.call
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.call.CallMediaBridge
-import com.maodouchat.call.CallSessionMachine
+import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType

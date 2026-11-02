@@ -1,5 +1,8 @@
 package com.maodouchat.call
 
+import com.maodouchat.core.session.CallSessionMachine
+import com.maodouchat.core.session.Phase
+import com.maodouchat.core.session.Snapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
