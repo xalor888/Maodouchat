@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.Snapshot
 
 /**
  * 账号隔离的写作风格偏好存储。默认全关；换号不串数据。

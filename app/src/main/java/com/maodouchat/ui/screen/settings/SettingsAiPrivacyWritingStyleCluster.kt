@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiWritingStylePolicy
 import com.maodouchat.ai.AiWritingStylePreferences
-import com.maodouchat.ai.Preset
-import com.maodouchat.ai.Snapshot
+import com.maodouchat.core.model.Preset
+import com.maodouchat.core.model.Snapshot
 import com.maodouchat.network.ClientPrefsUpdateRequest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch

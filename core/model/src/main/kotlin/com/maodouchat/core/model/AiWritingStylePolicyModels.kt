@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 private const val MAX_PRESET_ID_CHARS = 40
 

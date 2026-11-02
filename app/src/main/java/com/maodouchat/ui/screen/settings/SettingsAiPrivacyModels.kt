@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
-import com.maodouchat.ai.Preset
+import com.maodouchat.core.model.Preset
 import com.maodouchat.network.AiAuditLogResponse
 
 /** 「AI 与隐私」设置页的 UI 状态。 */
