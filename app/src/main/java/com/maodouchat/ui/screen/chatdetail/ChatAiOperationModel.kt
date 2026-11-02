@@ -8,7 +8,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.core.model.AiCostVisibilityPolicy
-import com.maodouchat.ai.AiRetryPolicyCategory
+import com.maodouchat.core.model.AiRetryPolicyCategory
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
