@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.ai.WeeklyReport
+import com.maodouchat.core.model.GroupAiSharePolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.CategoryCount
 
@@ -178,7 +179,7 @@ internal fun ChatDetailAiDialogs(
     var confirmShareGroupAi by remember { mutableStateOf(false) }
     state.groupAiAnswer?.let { answer ->
         val canShare = !state.groupAiAnswerShared &&
-            com.maodouchat.ai.GroupAiSharePolicy.decideShare(
+            GroupAiSharePolicy.decideShare(
                 isGroup = state.chatIsGroup || state.chat?.isGroup == true,
                 answer = answer,
                 alreadyShared = state.groupAiAnswerShared

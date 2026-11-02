@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 data class ShareDecision(
     val allowed: Boolean,
