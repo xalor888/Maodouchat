@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.maodouchat.core.model.SyncCursor
 import com.maodouchat.core.session.ConditionalSessionSaveResult
 import com.maodouchat.core.session.MutableSessionContextProvider
 import com.maodouchat.core.session.SessionContext
