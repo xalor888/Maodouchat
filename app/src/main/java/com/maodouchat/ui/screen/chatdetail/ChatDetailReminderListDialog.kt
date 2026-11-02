@@ -23,7 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.util.MessageReminder
+import com.maodouchat.core.model.MessageReminder
 
 /**
  * 稍后提醒列表对话框（G82 从 `ChatDetailRoute.kt` 拆出，原 65 行）。

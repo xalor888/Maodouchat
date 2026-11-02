@@ -2,7 +2,7 @@ package com.maodouchat.scheduling
 
 import android.content.Context
 import com.maodouchat.util.MessageReminderScheduler
-import com.maodouchat.util.MessageReminder
+import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.util.ScheduledMessage
 import com.maodouchat.core.model.ScheduledMessagePolicy
 import com.maodouchat.util.ScheduledMessageScheduler

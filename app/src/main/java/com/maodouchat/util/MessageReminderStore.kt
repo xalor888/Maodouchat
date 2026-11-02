@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import android.content.Context
+import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
