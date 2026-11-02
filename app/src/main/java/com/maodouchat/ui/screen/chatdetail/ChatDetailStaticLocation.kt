@@ -2,11 +2,11 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
+import com.maodouchat.core.model.LocationException
+import com.maodouchat.core.model.LocationFailure
 import com.maodouchat.data.model.LocationPayload
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.util.LocationException
-import com.maodouchat.util.LocationFailure
 import com.maodouchat.util.LocationProvider
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
