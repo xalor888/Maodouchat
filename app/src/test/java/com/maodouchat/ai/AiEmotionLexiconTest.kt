@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.Emotion
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

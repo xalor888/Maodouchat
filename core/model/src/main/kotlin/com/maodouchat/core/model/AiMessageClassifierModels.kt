@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 enum class AiMessageClassifierCategory(val wire: String, val labelKey: String) {
     NOTICE("notice", "ai_enhance_classify_notice"),
