@@ -1,5 +1,7 @@
 package com.maodouchat.bot
 
+import com.maodouchat.core.model.BotCommandItem
+import com.maodouchat.core.model.BotCommandPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

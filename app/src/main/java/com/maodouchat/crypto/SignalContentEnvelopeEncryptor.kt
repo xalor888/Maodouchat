@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import android.util.Base64
+import com.maodouchat.core.model.BotCommandPolicy
 import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.SessionCipher
 import org.signal.libsignal.protocol.SignalProtocolAddress
@@ -120,7 +121,7 @@ internal class SignalContentEnvelopeEncryptor(
                 .filter {
                     it.isNotBlank() &&
                         (includeCurrentUserDevices || it != context.currentUserId) &&
-                        !com.maodouchat.bot.BotCommandPolicy.isBotUserId(it)
+                        !BotCommandPolicy.isBotUserId(it)
                 }
                 .distinct()
                 .flatMap { recipientId ->

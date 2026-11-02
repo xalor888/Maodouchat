@@ -194,7 +194,7 @@ internal class ChatDetailDeps(
             },
             cacheConversation = { chatRepo.cacheChats(listOf(it)) },
             ensureLocalCryptoReady = signalProtocol::ensureLocalCryptoReady,
-            isBotUserId = com.maodouchat.bot.BotCommandPolicy::isBotUserId,
+            isBotUserId = com.maodouchat.core.model.BotCommandPolicy::isBotUserId,
             isOwnerSessionCurrent = { ownerUserId ->
                 com.maodouchat.security.BackgroundSessionGate.mayContinue(
                     expectedUserId = ownerUserId,

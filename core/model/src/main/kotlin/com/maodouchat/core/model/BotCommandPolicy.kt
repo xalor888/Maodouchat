@@ -1,4 +1,4 @@
-package com.maodouchat.bot
+package com.maodouchat.core.model
 
 /**
  * 群成员互发仍走 Sender Key。只有用户主动打出的 /命令、@bot、以及与 bot 的私聊明文，

@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.bot.BotCommandItem
+import com.maodouchat.core.model.BotCommandItem
 import com.maodouchat.crypto.DeviceSafetyState
 import com.maodouchat.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat

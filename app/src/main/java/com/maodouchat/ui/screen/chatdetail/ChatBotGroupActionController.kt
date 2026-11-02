@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.bot.BotCommandItem
-import com.maodouchat.bot.BotCommandPolicy
+import com.maodouchat.core.model.BotCommandItem
+import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import kotlinx.coroutines.CancellationException
