@@ -1,11 +1,11 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
-import com.maodouchat.ai.AiWritingStylePolicy.MAX_CUSTOM_CHARS
+import com.maodouchat.core.model.AiWritingStylePolicy.MAX_CUSTOM_CHARS
 import com.maodouchat.core.model.Preset
 import com.maodouchat.core.model.Snapshot
 
 // 归一化簇：预设 id 解析、自定义文本清洗、Snapshot 装配。原 AiWritingStylePolicy 逻辑逐字搬入。
-internal object AiWritingStyleNormalization {
+object AiWritingStyleNormalization {
     // 空白折叠正则：提到对象级复用，避免每次调用重复编译。
     private val styleTextWhitespaceRegex = Regex("\\s+")
 
