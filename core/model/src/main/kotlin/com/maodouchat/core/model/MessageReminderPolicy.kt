@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 消息「稍后提醒」时间窗口与档位（纯函数）。

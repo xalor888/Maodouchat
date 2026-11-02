@@ -27,6 +27,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.MessageReminderPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.OnSurface
@@ -178,7 +179,7 @@ internal fun MessageReminderTimeDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.message_reminder_menu), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
         text = {
-            val delays = com.maodouchat.util.MessageReminderPolicy.QUICK_DELAYS_MS
+            val delays = MessageReminderPolicy.QUICK_DELAYS_MS
             val labels = listOf(
                 R.string.schedule_delay_1m, R.string.schedule_delay_5m, R.string.schedule_delay_15m,
                 R.string.schedule_delay_30m, R.string.schedule_delay_1h, R.string.schedule_delay_2h,

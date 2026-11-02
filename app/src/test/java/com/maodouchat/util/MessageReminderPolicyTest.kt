@@ -1,5 +1,6 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.MessageReminderPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

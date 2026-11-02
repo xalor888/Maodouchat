@@ -3,7 +3,7 @@ package com.maodouchat.data.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import com.maodouchat.util.MessageReminder
+import com.maodouchat.core.model.MessageReminder
 
 @Entity(
     tableName = "message_reminders",

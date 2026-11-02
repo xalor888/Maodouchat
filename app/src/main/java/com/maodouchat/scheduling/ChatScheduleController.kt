@@ -1,6 +1,6 @@
 package com.maodouchat.scheduling
 
-import com.maodouchat.util.MessageReminder
+import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.util.ScheduledMessage
 import com.maodouchat.core.model.ScheduledMessagePolicy
 
