@@ -1,10 +1,10 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.Test
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 
 class WebRtcNativeDownloadPolicyTest {
 
@@ -133,4 +133,15 @@ class WebRtcNativeDownloadPolicyTest {
         assertEquals(sha, WebRtcNativeDownloadPolicy.parseChecksum("\"$sha\"", "a".repeat(63)))
     }
 
+    @Test
+    fun runtimeHostParamTrustsConfiguredServer() {
+        assertTrue(WebRtcNativeDownloadPolicy.isOriginTrusted("https://myserver.example/lib/arm64-v8a", runtimeHost = "myserver.example"))
+        assertFalse(WebRtcNativeDownloadPolicy.isOriginTrusted("https://myserver.example/lib/arm64-v8a"))
+    }
+
+    @Test
+    fun runtimeHostParamRejectsOtherHosts() {
+        assertFalse(WebRtcNativeDownloadPolicy.isOriginTrusted("https://myserver.example/lib", runtimeHost = "other.example"))
+        assertFalse(WebRtcNativeDownloadPolicy.isOriginTrusted("https://myserver.example/lib", runtimeHost = ""))
+    }
 }

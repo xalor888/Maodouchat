@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.maodouchat.core.session.WebRtcNativeDownloadPolicy
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.Dispatchers
@@ -128,7 +129,7 @@ object WebRtcNativeLibraryLoader {
     private fun download(target: File) {
         val abi = WebRtcNativeDownloadPolicy.requestAbi(Build.SUPPORTED_ABIS)
         val downloadUrl = "${ApiConfig.BASE_URL}$SERVER_ROUTE/$abi"
-        if (!WebRtcNativeDownloadPolicy.isOriginTrusted(downloadUrl)) {
+        if (!WebRtcNativeDownloadPolicy.isOriginTrusted(downloadUrl, runtimeHost = ApiConfig.BASE_URL.substringAfter("://", "").substringBefore('/').substringBefore(':').trim())) {
             throw SecurityException("untrusted_webrtc_download_origin")
         }
         Log.i(TAG, "downloading WebRTC native lib abi=$abi url=$downloadUrl")
