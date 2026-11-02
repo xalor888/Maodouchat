@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.AiEmotionLexicon
 import com.maodouchat.core.model.Emotion
 import com.maodouchat.core.model.EmotionResult
 import com.maodouchat.data.local.AppDatabase
