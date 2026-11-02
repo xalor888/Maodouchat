@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 /**
  * AI 调用重试 / 限流策略 — 把所有 AI 入口（改写 / 智能回复 / 翻译 / 转写 / 总结 / 语义搜索 / 图片分析 / 文件分析）

@@ -13,7 +13,7 @@ import com.maodouchat.ui.screen.chatdetail.classifyAiOperationError
 import com.maodouchat.ui.screen.chatdetail.classifyAiOperationErrorDetailed
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.ai.AiRetryPolicyCategory
+import com.maodouchat.core.model.AiRetryPolicyCategory
 import com.maodouchat.ui.screen.chatdetail.AiImageAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.invocationCategory
 import kotlinx.serialization.json.Json
