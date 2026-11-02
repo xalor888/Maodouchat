@@ -2,6 +2,7 @@ package com.maodouchat.notification
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.QuietWindow
 import com.maodouchat.util.currentUserId
 import org.json.JSONObject
 

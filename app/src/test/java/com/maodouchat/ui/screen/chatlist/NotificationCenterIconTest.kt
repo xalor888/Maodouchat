@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.ui.graphics.Color
+import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
@@ -19,7 +20,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import com.maodouchat.notification.NotificationCenterType
 
 /**
  * G159：`NotificationCenterScreen.iconForType` 的测试。

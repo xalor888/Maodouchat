@@ -1,4 +1,4 @@
-package com.maodouchat.notification
+package com.maodouchat.core.model
 
 /**
  * 勿扰偏好的遗留推断：小时级窗口曾是唯一控制，显式 [dnd_enabled] / 分钟 key 后加。

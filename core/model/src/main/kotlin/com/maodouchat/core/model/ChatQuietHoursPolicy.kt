@@ -1,4 +1,4 @@
-package com.maodouchat.notification
+package com.maodouchat.core.model
 
 /**
  * 会话级免打扰时段判定（纯函数）。窗口语义与全局 DND 一致：

@@ -1,5 +1,7 @@
 package com.maodouchat.notification
 
+import com.maodouchat.core.model.ChatQuietHoursPolicy
+import com.maodouchat.core.model.QuietWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

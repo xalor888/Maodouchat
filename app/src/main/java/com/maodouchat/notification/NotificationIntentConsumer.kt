@@ -4,8 +4,7 @@ import android.content.Context
 import android.content.Intent
 import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.network.TokenManager
-import com.maodouchat.telecom.TelecomHelper
+import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.navigation.AppLinkAuthGate
 import com.maodouchat.navigation.AppLinkDestination
 import com.maodouchat.navigation.AppLinkParseResult
@@ -17,6 +16,8 @@ import com.maodouchat.navigation.sanitizeChatIdStrict
 import com.maodouchat.navigation.sanitizeMessageIdStrict
 import com.maodouchat.navigation.sanitizePostIdStrict
 import com.maodouchat.navigation.sanitizeUserIdStrict
+import com.maodouchat.network.TokenManager
+import com.maodouchat.telecom.TelecomHelper
 
 /**
  * 系统入口 Intent 消费（P08：自 `MainActivity` 逐字迁出）。
@@ -156,7 +157,7 @@ class NotificationIntentConsumer(
             openIncomingCall || openMissedCalls || openContacts
         if (
             hasNotificationTarget &&
-            !com.maodouchat.notification.NotificationIntentPolicy.belongsToCurrentAccount(
+            !NotificationIntentPolicy.belongsToCurrentAccount(
                 notificationOwnerUserId = notificationOwnerUserId,
                 currentUserId = tokenManager.getUserId(),
                 sessionPurgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),

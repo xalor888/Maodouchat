@@ -12,11 +12,11 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.navigation.AppLinkDestination
 import com.maodouchat.navigation.AppLinkRouter
 import com.maodouchat.navigation.parseLegacyCenterDeeplink
-import com.maodouchat.notification.NotificationCenterType
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed

@@ -1,16 +1,16 @@
 package com.maodouchat.quickreply
 
-import com.maodouchat.notification.NotificationIntents
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.core.app.RemoteInput
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.conversation.ConversationReadReceiptCoordinator
+import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.domain.messaging.QuickReplyRequest
 import com.maodouchat.domain.messaging.QuickReplyUseCase
 import com.maodouchat.network.TokenManager
-import com.maodouchat.notification.NotificationIntentPolicy
+import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.security.SecureSessionManager
 
 import io.mockk.coEvery

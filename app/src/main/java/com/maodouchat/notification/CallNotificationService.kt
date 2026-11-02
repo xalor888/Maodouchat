@@ -9,8 +9,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
+import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.notification.NotificationCenterType
 
 
 /**
