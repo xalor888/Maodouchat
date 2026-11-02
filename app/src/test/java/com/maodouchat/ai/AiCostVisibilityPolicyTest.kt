@@ -1,5 +1,7 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.AiCostVisibilityPolicy
+import com.maodouchat.core.model.BillingHint
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

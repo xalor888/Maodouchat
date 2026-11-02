@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.AiOperationRepository
@@ -36,7 +37,7 @@ internal class ChatAiOperationsController(
                 updateState { state ->
                     state.copy(
                         aiOperations = operations.map { operation ->
-                            val waitSeconds = com.maodouchat.ai.AiCostVisibilityPolicy
+                            val waitSeconds = AiCostVisibilityPolicy
                                 .waitSecondsFor(operation.lastErrorCode)
                                 .takeIf { it > 0L }
                             AiOperationUi(

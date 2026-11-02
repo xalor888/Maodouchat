@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.data.local.entity.AiOperationType
@@ -54,9 +55,9 @@ internal fun AiOperationStatusBar(
         AiOperationType.ANALYZE_FILE -> stringResource(R.string.chat_ai_operation_file)
         else -> stringResource(R.string.chat_ai_consent_title)
     }
-    val errorBase = com.maodouchat.ai.AiCostVisibilityPolicy.baseErrorCode(operation.lastErrorCode)
+    val errorBase = AiCostVisibilityPolicy.baseErrorCode(operation.lastErrorCode)
     val waitSeconds = operation.retryAfterSeconds
-        ?: com.maodouchat.ai.AiCostVisibilityPolicy.waitSecondsFor(operation.lastErrorCode)
+        ?: AiCostVisibilityPolicy.waitSecondsFor(operation.lastErrorCode)
     val status = when {
         errorBase == AiOperationError.INTERRUPTED ->
             stringResource(R.string.chat_ai_operation_outcome_unknown)
@@ -93,7 +94,7 @@ internal fun AiOperationStatusBar(
         else -> stringResource(R.string.chat_ai_operation_failed)
     }
     val showRetryBillHint = isFailed &&
-        com.maodouchat.ai.AiCostVisibilityPolicy.shouldWarnRetryBills(operation.lastErrorCode)
+        AiCostVisibilityPolicy.shouldWarnRetryBills(operation.lastErrorCode)
     Row(
         modifier = Modifier
             .fillMaxWidth()

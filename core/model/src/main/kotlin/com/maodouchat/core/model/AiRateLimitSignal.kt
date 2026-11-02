@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 // HTTP 失败分类簇：从状态码 / 服务端 code / 文案判断限流或配额，生成限流信号。
 internal object AiRateLimitSignal {
