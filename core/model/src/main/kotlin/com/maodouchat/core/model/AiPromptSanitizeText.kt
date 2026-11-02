@@ -1,6 +1,5 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.SanitizedContextLine
 
 // 上下文文本消毒簇：剥离控制字符、截断、弱化伪 system 行首标记。
 object AiPromptSanitizeText {

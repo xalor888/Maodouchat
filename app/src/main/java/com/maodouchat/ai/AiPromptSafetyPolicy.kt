@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.AiPromptSanitization
 import com.maodouchat.core.model.SanitizedContextLine
 
 /** AI 提示注入与越权防护：薄门面，逻辑已按簇拆入 AiPromptSanitization / AiPrivilegeClaimScan。 */

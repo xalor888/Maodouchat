@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 // 注入意图检测簇：纯字符串模板匹配，命中任一模板即视为注入尝试。
 object AiPromptInjectionDetection {
