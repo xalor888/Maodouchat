@@ -39,8 +39,8 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.MaodouDimens
-import com.maodouchat.util.Level
-import com.maodouchat.util.PasswordStrength
+import com.maodouchat.core.model.Level
+import com.maodouchat.core.model.PasswordStrength
 
 // 登录表单字段区：按 tab 切换用户名 / 邮箱 / TOTP / 验证码 / 密码（含强度条）与错误提示
 @Composable

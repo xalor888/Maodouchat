@@ -57,6 +57,7 @@ import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.rememberMotionPulse
 import com.maodouchat.util.MediaCache
+import com.maodouchat.core.model.VoiceTranscriptPolicy
 
 /**
  * 语音消息气泡（G129 从 `MediaMessageBubbles.kt` 拆出，原 400 行）。
@@ -67,7 +68,6 @@ import com.maodouchat.util.MediaCache
  * 纯搬移，不改判断。
  */
 
-// ─── VoiceBubble ───
 @Composable
 internal fun VoiceBubble(
     message: Message,
@@ -370,7 +370,7 @@ internal fun VoiceBubble(
                     )
                 }
             }
-            val showInlineEntry = com.maodouchat.util.VoiceTranscriptPolicy.shouldShowInlineEntry(
+            val showInlineEntry = VoiceTranscriptPolicy.shouldShowInlineEntry(
                 isVoiceMessage = true,
                 transcript = voiceTranscript,
                 isTranscribing = isTranscribing
@@ -392,13 +392,13 @@ internal fun VoiceBubble(
                         color = if (isOwnMessage) LocalSentBubbleContent.current else Primary
                     )
                 }
-            } else if (isTranscribing || com.maodouchat.util.VoiceTranscriptPolicy.hasTranscript(voiceTranscript)) {
+            } else if (isTranscribing || VoiceTranscriptPolicy.hasTranscript(voiceTranscript)) {
                 var expanded by remember(message.id) { mutableStateOf(false) }
-                val needsToggle = com.maodouchat.util.VoiceTranscriptPolicy.needsExpandToggle(voiceTranscript)
+                val needsToggle = VoiceTranscriptPolicy.needsExpandToggle(voiceTranscript)
                 val body = if (isTranscribing) {
                     stringResource(R.string.message_transcribing)
                 } else {
-                    com.maodouchat.util.VoiceTranscriptPolicy.displayText(voiceTranscript, expanded)
+                    VoiceTranscriptPolicy.displayText(voiceTranscript, expanded)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Column(
@@ -435,7 +435,7 @@ internal fun VoiceBubble(
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    if (!isTranscribing && com.maodouchat.util.VoiceTranscriptPolicy.hasTranscript(voiceTranscript)) {
+                    if (!isTranscribing && VoiceTranscriptPolicy.hasTranscript(voiceTranscript)) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -459,7 +459,7 @@ internal fun VoiceBubble(
                                     color = if (isOwnMessage) LocalSentBubbleContent.current else Primary,
                                     modifier = Modifier.clickable {
                                         onCopyVoiceTranscript.invoke(
-                                            com.maodouchat.util.VoiceTranscriptPolicy.normalize(voiceTranscript)
+                                            VoiceTranscriptPolicy.normalize(voiceTranscript)
                                         )
                                     }
                                 )

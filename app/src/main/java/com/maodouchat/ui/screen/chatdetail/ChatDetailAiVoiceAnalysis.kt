@@ -9,6 +9,7 @@ import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.VoiceTranscriptPolicy
 
 // 语音转写链路（从 ChatDetailAiMediaAnalysis.kt 拆出，纯搬移）。
 
@@ -79,7 +80,7 @@ internal fun ChatDetailViewModel.transcribeVoiceMessage(messageId: String, opera
         ).fold(
             onSuccess = { rawTranscript ->
                 requireAiRequestCurrent(request)
-                val transcript = com.maodouchat.util.VoiceTranscriptPolicy.normalize(rawTranscript)
+                val transcript = VoiceTranscriptPolicy.normalize(rawTranscript)
                 if (transcript.isBlank()) {
                     failAiOperation(operationId, AiOperationError.EMPTY_RESULT)
                     _uiState.update {

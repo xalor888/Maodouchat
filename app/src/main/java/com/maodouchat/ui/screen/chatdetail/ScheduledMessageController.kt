@@ -6,7 +6,7 @@ import com.maodouchat.scheduling.ChatScheduleController
 import com.maodouchat.scheduling.ChatScheduleImmediateOutcome
 import com.maodouchat.scheduling.ChatScheduleMutationOutcome
 import com.maodouchat.scheduling.ChatScheduleRejection
-import com.maodouchat.util.ScheduledMessagePolicy
+import com.maodouchat.core.model.ScheduledMessagePolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 

@@ -30,6 +30,7 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.OnSurface
+import com.maodouchat.core.model.ScheduledMessagePolicy
 
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
@@ -49,7 +50,7 @@ internal fun ScheduleSendDialog(
     var repeatCountChoice by remember { mutableIntStateOf(0) }
     // 1.43：重排文案草稿
     var textDraft by remember(initialText) { mutableStateOf(initialText) }
-    val options = com.maodouchat.util.ScheduledMessagePolicy.QUICK_DELAYS_MS.zip(
+    val options = ScheduledMessagePolicy.QUICK_DELAYS_MS.zip(
         listOf(
             R.string.schedule_delay_1m,
             R.string.schedule_delay_5m,
@@ -77,7 +78,7 @@ internal fun ScheduleSendDialog(
                     OutlinedTextField(
                         value = textDraft,
                         onValueChange = {
-                            textDraft = it.take(com.maodouchat.util.ScheduledMessagePolicy.MAX_TEXT_LENGTH)
+                            textDraft = it.take(ScheduledMessagePolicy.MAX_TEXT_LENGTH)
                             onTextEdited(textDraft)
                         },
                         placeholder = { Text(stringResource(R.string.schedule_edit_hint)) },

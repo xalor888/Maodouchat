@@ -5,6 +5,7 @@ import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.model.ChatFolderPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.UnreadPriorityPolicy
 
 data class ChatListUiState(
     val chats: List<Chat> = emptyList(),
@@ -101,7 +102,7 @@ data class ChatListUiState(
                     .thenByDescending { it.pinnedAt }
                     .thenByDescending { chat ->
                         if (unreadPriorityEnabled) {
-                            com.maodouchat.util.UnreadPriorityPolicy.activityScore(
+                            UnreadPriorityPolicy.activityScore(
                                 lastMessageTime = chat.lastMessageTime,
                                 draftUpdatedAt = drafts[chat.id]?.updatedAt ?: 0L,
                                 unreadCount = chat.unreadCount,
@@ -118,13 +119,13 @@ data class ChatListUiState(
         }
 
     val unreadChatCount: Int
-        get() = com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
+        get() = UnreadPriorityPolicy.countUnreadChats(
             unreadCounts = chats.filter { !it.archived && !it.isSecret }.map { it.unreadCount },
             markedUnreadFlags = chats.filter { !it.archived && !it.isSecret }.map { it.markedUnread }
         )
 
     val showUnreadPriorityHint: Boolean
-        get() = com.maodouchat.util.UnreadPriorityPolicy.shouldShowHint(
+        get() = UnreadPriorityPolicy.shouldShowHint(
             enabled = unreadPriorityEnabled,
             totalUnreadChats = unreadChatCount,
             isSearching = searchQuery.isNotBlank()
@@ -132,13 +133,13 @@ data class ChatListUiState(
 
     fun unreadInFolder(folderId: String): Int {
         if (folderId == ChatFolderPolicy.SYSTEM_GROUPS_ID) {
-            return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
+            return UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = chats.filter { !it.archived && it.isGroup }.map { it.unreadCount },
                 markedUnreadFlags = chats.filter { !it.archived && it.isGroup }.map { it.markedUnread }
             )
         }
         if (folderId == ChatFolderPolicy.SYSTEM_DIRECT_ID) {
-            return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
+            return UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = chats.filter { !it.archived && !it.isGroup && !it.isSecret }.map { it.unreadCount },
                 markedUnreadFlags = chats.filter { !it.archived && !it.isGroup && !it.isSecret }.map { it.markedUnread }
             )
@@ -148,14 +149,14 @@ data class ChatListUiState(
         }
         if (folderId == ChatFolderPolicy.SYSTEM_SECRET_ID) {
             val secretVisible = chats.filter { !it.archived && (it.isSecret || it.id in secretChatIds) }
-            return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
+            return UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = secretVisible.map { it.unreadCount },
                 markedUnreadFlags = secretVisible.map { it.markedUnread }
             )
         }
         if (folderId == ChatFolderPolicy.SYSTEM_LOCKED_ID) {
             val lockedVisible = chats.filter { !it.archived && it.id in lockedChatIds && !it.isSecret }
-            return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
+            return UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = lockedVisible.map { it.unreadCount },
                 markedUnreadFlags = lockedVisible.map { it.markedUnread }
             )
