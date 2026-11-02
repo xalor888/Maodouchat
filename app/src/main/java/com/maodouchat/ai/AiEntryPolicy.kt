@@ -1,6 +1,8 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.ComposerSection
+import com.maodouchat.core.model.MessageAiAction
 
 /** AI 入口信息架构：薄门面，逻辑已按簇拆入 AiEntryVisibility / AiContextActionPolicy。 */
 object AiEntryPolicy {

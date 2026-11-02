@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.ComposerSection
 import com.maodouchat.util.RuntimeFlags
 
 /** AI 入口可见性簇：入口位置常量与「该不该画入口」的纯决策。 */

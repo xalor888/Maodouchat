@@ -1,5 +1,7 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.ComposerSection
+import com.maodouchat.core.model.MessageAiAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

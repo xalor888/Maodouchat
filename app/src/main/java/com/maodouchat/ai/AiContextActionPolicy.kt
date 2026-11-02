@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.MessageAiAction
 import com.maodouchat.util.RuntimeFlags
 
 /** 上下文动作簇：长按消息可用的 AI 动作与执行门闩。 */
