@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 enum class BillingHint {
     /** 正在请求，停止不会撤销已产生的上游调用 */

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import com.maodouchat.R
+import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 
 /**
@@ -26,8 +27,8 @@ import com.maodouchat.data.local.entity.AiOperationError
 
 @Composable
 internal fun aiStreamStatusText(errorCode: String?): String {
-    val base = com.maodouchat.ai.AiCostVisibilityPolicy.baseErrorCode(errorCode)
-    val wait = com.maodouchat.ai.AiCostVisibilityPolicy.waitSecondsFor(errorCode).coerceAtLeast(1L)
+    val base = AiCostVisibilityPolicy.baseErrorCode(errorCode)
+    val wait = AiCostVisibilityPolicy.waitSecondsFor(errorCode).coerceAtLeast(1L)
     // Android 的 getString(id, vararg) 会忽略多余实参，所以统一把 wait 传下去，
     // 只有限流那一支真的用到它。
     return stringResource(aiStreamStatusRes(base), wait)

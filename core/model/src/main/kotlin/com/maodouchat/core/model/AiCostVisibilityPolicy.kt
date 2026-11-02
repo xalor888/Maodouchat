@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 /**
  * AI 费用 / 限流 / 取消可感知策略（纯函数）。

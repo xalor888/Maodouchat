@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 // 等待秒数策略簇：展示用等待秒数，优先服务端 retry-after，其次错误码内嵌秒数、本地剩余毫秒，最后按错误码默认。
 internal object AiCostWaitPolicy {

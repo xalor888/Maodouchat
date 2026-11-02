@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 // 错误码编解码簇：持久化错误码 `基码:秒数` 后缀的解析、比较与编码。
 internal object AiCostErrorCodeCodec {
