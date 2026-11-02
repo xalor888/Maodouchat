@@ -1,6 +1,6 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.ai.Suggestion
+import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MissedCall
 import com.maodouchat.data.model.User
@@ -119,7 +119,7 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
 
     @Test
     fun dismissArchiveSuggestionPersistsAndFilters() = runTest(dispatcher) {
-        val suggestion = Suggestion("c1", 10, "idle")
+        val suggestion = ArchiveSuggestion("c1", 10, "idle")
         val uiState = MutableStateFlow(ChatListUiState(archiveSuggestions = listOf(suggestion)))
         com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "me") }
         val persisted = mutableListOf<Triple<String, String, Long>>()
@@ -149,7 +149,7 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
     @Test
     fun archiveChatFromSuggestionSkipsAlreadyArchived() = runTest(dispatcher) {
         val chat = Chat(id = "c1", archived = true)
-        val suggestion = Suggestion("c1", 10, "idle")
+        val suggestion = ArchiveSuggestion("c1", 10, "idle")
         val uiState = MutableStateFlow(
             ChatListUiState(chats = listOf(chat), archiveSuggestions = listOf(suggestion))
         )
@@ -190,8 +190,8 @@ class ChatListMissedCallAndArchiveCoordinatorTest {
             addDismissal = { _, _, _ -> },
             refreshSuggestions = {
                 listOf(
-                    Suggestion("keep", 5, "a"),
-                    Suggestion("gone", 9, "b"),
+                    ArchiveSuggestion("keep", 5, "a"),
+                    ArchiveSuggestion("gone", 9, "b"),
                 )
             },
             onArchiveChat = {},

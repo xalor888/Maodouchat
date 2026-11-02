@@ -5,7 +5,7 @@ import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ai.AiArchiveSuggestion
-import com.maodouchat.ai.Suggestion
+import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.conversation.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
 import com.maodouchat.core.realtime.RealtimeEventDispatcher
@@ -89,7 +89,7 @@ internal class ChatListPorts(
     val requestBacklogSync: () -> Unit,
     val loadDismissedArchiveIds: suspend (ownerUserId: String) -> List<String>,
     val addArchiveDismissal: suspend (ownerUserId: String, chatId: String, atMillis: Long) -> Unit,
-    val refreshArchiveSuggestions: suspend () -> List<Suggestion>,
+    val refreshArchiveSuggestions: suspend () -> List<ArchiveSuggestion>,
     val enqueueReadReceipt: suspend (
         conversationId: String,
         throughMessageId: String,
