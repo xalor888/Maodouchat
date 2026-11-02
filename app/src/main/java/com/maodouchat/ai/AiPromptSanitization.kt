@@ -1,5 +1,7 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.SanitizedContextLine
+
 /** 上下文消毒门面：文本消毒簇 + 注入检测簇的统一入口，全部透传。 */
 object AiPromptSanitization {
 
