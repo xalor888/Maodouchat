@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.AiClassifyLexicon
 import com.maodouchat.core.model.AiMessageClassifierCategory
 import com.maodouchat.core.model.Classification
 import org.junit.Assert.assertEquals

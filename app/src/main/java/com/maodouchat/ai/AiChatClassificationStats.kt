@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.AiClassifyLexicon
 import com.maodouchat.core.model.AiMessageClassifierCategory
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
