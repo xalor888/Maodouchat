@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 会话文件夹（本地 + 云端同步元数据；chatIds 为会话 id，非消息内容）。

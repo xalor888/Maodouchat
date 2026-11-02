@@ -2,6 +2,8 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.ChatFolder
+import com.maodouchat.core.model.ChatFolderPolicy
 import org.json.JSONArray
 import org.json.JSONObject
 

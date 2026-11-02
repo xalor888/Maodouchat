@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.data.model.Chat
-import com.maodouchat.util.ChatFolderPolicy
+import com.maodouchat.core.model.ChatFolderPolicy
 
 fun reduceSelection(
     state: ChatListSelection,

@@ -39,7 +39,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.navigation.MainTab
-import com.maodouchat.util.ChatFolderPolicy
+import com.maodouchat.core.model.ChatFolderPolicy
 
 /**
  * 会话列表的 Scaffold 外观（G140 从 `ChatListScreen.kt` 拆出，原 193 行）。
@@ -138,10 +138,10 @@ internal fun ChatListTopBar(
                     Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.chat_delete), tint = if (hasSelection) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                if (state.selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) {
+                if (state.selectedFolderId == ChatFolderPolicy.SYSTEM_UNREAD_ID) {
                     IconButton(
                         onClick = viewModel::markAllUnreadChatsRead,
-                        enabled = state.unreadInFolder(com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) > 0
+                        enabled = state.unreadInFolder(ChatFolderPolicy.SYSTEM_UNREAD_ID) > 0
                     ) {
                         Icon(
                             Icons.Outlined.DoneAll,

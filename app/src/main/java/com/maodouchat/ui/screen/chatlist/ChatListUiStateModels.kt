@@ -1,6 +1,8 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.ai.Suggestion
+import com.maodouchat.core.model.ChatFolder
+import com.maodouchat.core.model.ChatFolderPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 
@@ -20,7 +22,7 @@ data class ChatListUiState(
     val scheduledByChat: Map<String, Int> = emptyMap(),
     val showArchived: Boolean = false,
     /** 本地会话文件夹；null/all 表示全部 */
-    val folders: List<com.maodouchat.util.ChatFolder> = emptyList(),
+    val folders: List<ChatFolder> = emptyList(),
     val selectedFolderId: String? = null,
     /** 未读智能优先（本地排序，默认开） */
     val unreadPriorityEnabled: Boolean = true,
@@ -53,18 +55,18 @@ data class ChatListUiState(
             val folderFiltered = when {
                 selectedFolderId.isNullOrBlank() ->
                     visible.filter { !com.maodouchat.core.session.SecretChatPolicy.excludeFromAllChats(it.isSecret) }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_GROUPS_ID ->
+                selectedFolderId == ChatFolderPolicy.SYSTEM_GROUPS_ID ->
                     visible.filter { it.isGroup }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_DIRECT_ID ->
+                selectedFolderId == ChatFolderPolicy.SYSTEM_DIRECT_ID ->
                     visible.filter { !it.isGroup && !it.isSecret }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID ->
+                selectedFolderId == ChatFolderPolicy.SYSTEM_UNREAD_ID ->
                     visible.filter {
                         !it.isSecret &&
-                            com.maodouchat.util.ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread)
+                            ChatFolderPolicy.isUnreadChat(it.unreadCount, it.markedUnread)
                     }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_SECRET_ID ->
+                selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID ->
                     visible.filter { it.isSecret || it.id in secretChatIds }
-                selectedFolderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_LOCKED_ID ->
+                selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID ->
                     visible.filter { it.id in lockedChatIds && !it.isSecret }
                 else -> {
                     val folder = folders.firstOrNull { it.id == selectedFolderId }
@@ -129,29 +131,29 @@ data class ChatListUiState(
         )
 
     fun unreadInFolder(folderId: String): Int {
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_GROUPS_ID) {
+        if (folderId == ChatFolderPolicy.SYSTEM_GROUPS_ID) {
             return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = chats.filter { !it.archived && it.isGroup }.map { it.unreadCount },
                 markedUnreadFlags = chats.filter { !it.archived && it.isGroup }.map { it.markedUnread }
             )
         }
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_DIRECT_ID) {
+        if (folderId == ChatFolderPolicy.SYSTEM_DIRECT_ID) {
             return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = chats.filter { !it.archived && !it.isGroup && !it.isSecret }.map { it.unreadCount },
                 markedUnreadFlags = chats.filter { !it.archived && !it.isGroup && !it.isSecret }.map { it.markedUnread }
             )
         }
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_UNREAD_ID) {
+        if (folderId == ChatFolderPolicy.SYSTEM_UNREAD_ID) {
             return unreadChatCount
         }
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_SECRET_ID) {
+        if (folderId == ChatFolderPolicy.SYSTEM_SECRET_ID) {
             val secretVisible = chats.filter { !it.archived && (it.isSecret || it.id in secretChatIds) }
             return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = secretVisible.map { it.unreadCount },
                 markedUnreadFlags = secretVisible.map { it.markedUnread }
             )
         }
-        if (folderId == com.maodouchat.util.ChatFolderPolicy.SYSTEM_LOCKED_ID) {
+        if (folderId == ChatFolderPolicy.SYSTEM_LOCKED_ID) {
             val lockedVisible = chats.filter { !it.archived && it.id in lockedChatIds && !it.isSecret }
             return com.maodouchat.util.UnreadPriorityPolicy.countUnreadChats(
                 unreadCounts = lockedVisible.map { it.unreadCount },
@@ -160,6 +162,6 @@ data class ChatListUiState(
         }
         val folder = folders.firstOrNull { it.id == folderId } ?: return 0
         val unreadMap = chats.filter { !it.isSecret }.associate { it.id to it.unreadCount }
-        return com.maodouchat.util.ChatFolderPolicy.unreadInFolder(folder, unreadMap)
+        return ChatFolderPolicy.unreadInFolder(folder, unreadMap)
     }
 }
