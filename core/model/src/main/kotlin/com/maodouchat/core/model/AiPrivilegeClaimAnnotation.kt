@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 // fail-closed 标注：输出含特权幻觉时附加免责说明，不删用户可见原文，便于核对。
 internal object AiPrivilegeClaimAnnotation {
