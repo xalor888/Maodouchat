@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.maodouchat.R
+import com.maodouchat.core.model.GifSearchPolicy
+import com.maodouchat.core.model.LocalGifItem
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Outline
 import com.maodouchat.ui.theme.Primary
@@ -71,7 +73,7 @@ internal fun GifSearchDialog(
     val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
     var loading by remember { mutableStateOf(true) }
-    var items by remember { mutableStateOf<List<com.maodouchat.util.LocalGifItem>>(emptyList()) }
+    var items by remember { mutableStateOf<List<LocalGifItem>>(emptyList()) }
     val permission = if (android.os.Build.VERSION.SDK_INT >= 33) {
         Manifest.permission.READ_MEDIA_IMAGES
     } else {
@@ -94,7 +96,7 @@ internal fun GifSearchDialog(
 
     val recentIds = remember { com.maodouchat.util.GifSearchPreferences.getRecentIds(context) }
     val filtered = remember(items, query, recentIds) {
-        com.maodouchat.util.GifSearchPolicy.filterAndSort(items, query, recentIds)
+        GifSearchPolicy.filterAndSort(items, query, recentIds)
     }
 
     AlertDialog(

@@ -21,7 +21,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
-import com.maodouchat.util.MediaViewerPolicy
+import com.maodouchat.core.model.MediaViewerPolicy
 import kotlinx.coroutines.launch
 
 @Composable

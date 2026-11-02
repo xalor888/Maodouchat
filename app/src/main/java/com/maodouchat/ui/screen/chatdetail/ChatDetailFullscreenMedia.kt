@@ -41,7 +41,7 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.MediaExport
-import com.maodouchat.util.MediaViewerPolicy
+import com.maodouchat.core.model.MediaViewerPolicy
 
 /**
  * 全屏媒体查看器（G76 从 `ChatDetailRoute.kt` 拆出，原 207 行 = 图片 116 + 视频 91）。
@@ -73,8 +73,8 @@ internal fun FullscreenImageDialog(
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
     ) {
         val meta = remember(msg.id, msg.content) { msg.parsedMeta() }
-        val mime = com.maodouchat.util.MediaViewerPolicy.defaultMime(msg.type.name, meta.fileMimeType)
-        val displayName = com.maodouchat.util.MediaViewerPolicy.defaultFileName(
+        val mime = MediaViewerPolicy.defaultMime(msg.type.name, meta.fileMimeType)
+        val displayName = MediaViewerPolicy.defaultFileName(
             msg.type.name,
             meta.fileName,
             mime
@@ -123,7 +123,7 @@ internal fun FullscreenImageDialog(
                                 Toast.makeText(context, mediaExportBlockedTip, Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
-                            if (!localOk || !com.maodouchat.util.MediaViewerPolicy.canExportLocal(
+                            if (!localOk || !MediaViewerPolicy.canExportLocal(
                                     localOk,
                                     secretChat = isSecretChat == true,
                                     exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
@@ -156,7 +156,7 @@ internal fun FullscreenImageDialog(
                                 Toast.makeText(context, mediaExportBlockedTip, Toast.LENGTH_SHORT).show()
                                 return@TextButton
                             }
-                            if (!localOk || !com.maodouchat.util.MediaViewerPolicy.canShareLocal(
+                            if (!localOk || !MediaViewerPolicy.canShareLocal(
                                     localOk,
                                     secretChat = isSecretChat == true,
                                     exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
@@ -205,8 +205,8 @@ internal fun FullscreenVideoDialog(
     if (videoContent.isNullOrBlank()) { onDismiss(); return }
     // 0.82：视频保存到相册所需 meta
     val videoMeta = remember(msg.id, msg.content) { msg.parsedMeta() }
-    val videoMime = com.maodouchat.util.MediaViewerPolicy.defaultMime("VIDEO", videoMeta.fileMimeType)
-    val videoName = com.maodouchat.util.MediaViewerPolicy.defaultFileName("VIDEO", videoMeta.fileName, videoMime)
+    val videoMime = MediaViewerPolicy.defaultMime("VIDEO", videoMeta.fileMimeType)
+    val videoName = MediaViewerPolicy.defaultFileName("VIDEO", videoMeta.fileName, videoMime)
     val videoLocalOk = remember(msg.content) {
         com.maodouchat.util.MediaCache.isReadableLocalUri(context, videoContent)
     }
@@ -262,7 +262,7 @@ internal fun FullscreenVideoDialog(
                         Toast.makeText(context, mediaExportBlockedTip, Toast.LENGTH_SHORT).show()
                         return@TextButton
                     }
-                    if (!videoLocalOk || !com.maodouchat.util.MediaViewerPolicy.canExportLocal(
+                    if (!videoLocalOk || !MediaViewerPolicy.canExportLocal(
                             videoLocalOk,
                             secretChat = isSecretChat == true,
                             exportBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_MEDIA_EXPORT_BLOCK)
