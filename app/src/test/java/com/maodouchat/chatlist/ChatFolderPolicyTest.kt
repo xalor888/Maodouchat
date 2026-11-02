@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.util.ChatFolder
-import com.maodouchat.util.ChatFolderPolicy
+import com.maodouchat.core.model.ChatFolder
+import com.maodouchat.core.model.ChatFolderPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
