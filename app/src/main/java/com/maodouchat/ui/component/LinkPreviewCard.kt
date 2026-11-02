@@ -28,8 +28,8 @@ import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.util.LinkPreviewPolicy
-import com.maodouchat.util.Preview
+import com.maodouchat.core.model.LinkPreviewPolicy
+import com.maodouchat.core.model.Preview
 
 // ─── LinkPreviewCard ───
 @Composable
@@ -82,20 +82,22 @@ internal fun LinkPreviewCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (!preview.title.isNullOrBlank()) {
+            val title = preview.title
+            if (!title.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = preview.title,
+                    text = title,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = titleColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            if (!preview.description.isNullOrBlank()) {
+            val description = preview.description
+            if (!description.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = preview.description,
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = descColor,
                     maxLines = 2,

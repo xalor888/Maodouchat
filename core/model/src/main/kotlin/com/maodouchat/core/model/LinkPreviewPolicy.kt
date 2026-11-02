@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 import java.net.Inet6Address
 import java.net.InetAddress

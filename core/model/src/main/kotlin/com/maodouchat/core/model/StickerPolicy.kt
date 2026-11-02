@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 贴纸包选择 / 最近使用 / 搜索（纯函数，可单测）。

@@ -1,5 +1,8 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.StickerCatalog
+import com.maodouchat.core.model.StickerPack
+import com.maodouchat.core.model.StickerPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

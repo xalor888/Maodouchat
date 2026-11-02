@@ -26,6 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
+import com.maodouchat.core.model.StickerCatalog
+import com.maodouchat.core.model.StickerPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Outline
 import com.maodouchat.ui.theme.Primary
@@ -64,8 +66,8 @@ internal fun ColumnScope.ExpressionStickerTab(
         ) {
             StickerPackChip(
                 label = stringResource(R.string.sticker_pack_recent),
-                selected = stickerTab == com.maodouchat.util.StickerCatalog.PACK_RECENT,
-                onClick = { stickerTab = com.maodouchat.util.StickerCatalog.PACK_RECENT }
+                selected = stickerTab == StickerCatalog.PACK_RECENT,
+                onClick = { stickerTab = StickerCatalog.PACK_RECENT }
             )
             enabledPacks.forEach { pack ->
                 StickerPackChip(
@@ -89,7 +91,7 @@ internal fun ColumnScope.ExpressionStickerTab(
                 text = stringResource(
                     when {
                         stickerQuery.isNotBlank() -> R.string.sticker_search_empty
-                        stickerTab == com.maodouchat.util.StickerCatalog.PACK_RECENT -> R.string.sticker_recent_empty
+                        stickerTab == StickerCatalog.PACK_RECENT -> R.string.sticker_recent_empty
                         else -> R.string.sticker_search_empty
                     }
                 ),
@@ -109,7 +111,7 @@ internal fun ColumnScope.ExpressionStickerTab(
                             enabled = stickersEnabled,
                             onClick = {
                                 onStickerClick(item)
-                                recentStickers = com.maodouchat.util.StickerPolicy.pushRecent(recentStickers, item)
+                                recentStickers = StickerPolicy.pushRecent(recentStickers, item)
                             }
                         )
                     }

@@ -1,5 +1,8 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.HoldHint
+import com.maodouchat.core.model.VoiceCapturePolicy
+import com.maodouchat.core.model.VoiceRecordingWaveform
 import org.junit.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

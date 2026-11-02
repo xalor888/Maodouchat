@@ -9,6 +9,8 @@ import okhttp3.Request
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
+import com.maodouchat.core.model.LinkPreviewPolicy
+import com.maodouchat.core.model.Preview
 
 /**
  * 本机拉取首屏 HTML 并解析 OG。进程内缓存；失败静默。

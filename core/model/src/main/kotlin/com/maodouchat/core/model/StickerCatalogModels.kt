@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 内置贴纸包目录（本地资源，不依赖服务端）。

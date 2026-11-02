@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 录音波形环形缓冲：把瞬时振幅推入固定长度历史，供 Compose 绘制。

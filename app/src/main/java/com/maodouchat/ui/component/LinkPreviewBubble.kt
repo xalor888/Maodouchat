@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.R
 import com.maodouchat.navigation.AppLinkOpener
-import com.maodouchat.util.LinkPreviewPolicy
+import com.maodouchat.core.model.LinkPreviewPolicy
 import com.maodouchat.util.LinkPreviewPreferences
 import com.maodouchat.util.LinkPreviewRepository
 import com.maodouchat.util.RuntimeFlags

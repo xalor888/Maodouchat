@@ -34,7 +34,7 @@ import com.maodouchat.scheduling.ConversationScheduleCoordinator
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.VoiceRecorder
-import com.maodouchat.util.VoiceRecordingWaveform
+import com.maodouchat.core.model.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first

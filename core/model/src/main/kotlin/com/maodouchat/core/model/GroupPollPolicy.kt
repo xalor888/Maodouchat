@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 群玩法 B3 策略：群投票 / 群签到+排行 / 群接龙 / 群 PK。

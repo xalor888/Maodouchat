@@ -1,5 +1,7 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.LinkPreviewPolicy
+import com.maodouchat.core.model.Preview
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull

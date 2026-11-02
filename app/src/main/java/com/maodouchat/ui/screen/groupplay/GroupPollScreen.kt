@@ -48,7 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.util.GroupPollPolicy
+import com.maodouchat.core.model.GroupPollPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
