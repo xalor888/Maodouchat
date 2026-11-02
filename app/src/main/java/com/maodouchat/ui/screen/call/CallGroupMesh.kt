@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.call
 
 import com.maodouchat.R
-import com.maodouchat.call.CallSessionMachine
+import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.webrtc.CallReliabilityPolicy
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.webrtc.CallState

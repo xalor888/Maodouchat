@@ -1,4 +1,4 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
 class CallSessionMachine {
 

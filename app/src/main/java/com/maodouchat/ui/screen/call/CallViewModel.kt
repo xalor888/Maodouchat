@@ -34,7 +34,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingOfferSdp: String? = null
     private var activeCallId: String = ""
     private val callSessionGate = CallSessionGate()
-    private val callSessionMachine = com.maodouchat.call.CallSessionMachine()
+    private val callSessionMachine = com.maodouchat.core.session.CallSessionMachine()
     private val callSystemIntegration = CallSystemIntegration(application)
     private val foregroundService by lazy {
         CallForegroundServiceController(
