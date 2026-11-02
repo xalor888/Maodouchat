@@ -1,4 +1,4 @@
-package com.maodouchat.network
+package com.maodouchat.core.model
 
 /**
  * Per-chat incremental sync cursor (timestamp + optional message id for same-ms stability).
