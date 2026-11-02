@@ -1,4 +1,4 @@
-package com.maodouchat.settings.server
+package com.maodouchat.core.session
 
 sealed interface ServerSwitchResult {
     data class Success(val oldUrl: String, val newUrl: String) : ServerSwitchResult

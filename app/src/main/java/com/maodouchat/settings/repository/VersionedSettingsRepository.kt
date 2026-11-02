@@ -14,7 +14,7 @@ import com.maodouchat.settings.model.MultiDevicePreferences
 import com.maodouchat.settings.model.PreferencesPatch
 import com.maodouchat.settings.policy.ConflictResolutionResult
 import com.maodouchat.settings.policy.PreferenceConflictPolicy
-import com.maodouchat.settings.server.ServerSwitchResult
+import com.maodouchat.core.session.ServerSwitchResult
 import com.maodouchat.settings.server.ServerSwitchTransaction
 import com.maodouchat.settings.repository.SecurityPreferences
 import com.maodouchat.settings.repository.SecurityPreferencesPatch
