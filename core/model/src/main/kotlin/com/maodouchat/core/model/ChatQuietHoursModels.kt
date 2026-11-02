@@ -1,4 +1,4 @@
-package com.maodouchat.notification
+package com.maodouchat.core.model
 
 data class QuietWindow(
     val enabled: Boolean,

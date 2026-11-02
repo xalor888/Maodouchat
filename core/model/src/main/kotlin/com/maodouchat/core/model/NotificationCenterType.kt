@@ -1,4 +1,4 @@
-package com.maodouchat.notification
+package com.maodouchat.core.model
 
 /**
  * 通知中心的条目类型（字符串常量，服务端与本地共用同一组取值）。

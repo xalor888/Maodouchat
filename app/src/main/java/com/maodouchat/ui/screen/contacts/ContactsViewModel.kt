@@ -12,14 +12,14 @@ import com.maodouchat.contacts.usecase.DefaultFriendRequestUseCase
 import com.maodouchat.contacts.usecase.FriendRequestUseCase
 import com.maodouchat.conversation.ConversationCreationPort
 import com.maodouchat.conversation.DefaultConversationCreationPort
+import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.AppRepositories
+import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.network.GroupInvitationDto
 import com.maodouchat.network.GroupInviteAcceptResponse
-import com.maodouchat.notification.NotificationCenterType
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

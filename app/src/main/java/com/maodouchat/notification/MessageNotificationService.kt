@@ -10,10 +10,10 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
+import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.network.TokenManager
 import com.maodouchat.messaging.ChatMarkdown
-import com.maodouchat.notification.NotificationCenterType
+import com.maodouchat.network.TokenManager
 
 import com.maodouchat.util.RuntimeFlags
 

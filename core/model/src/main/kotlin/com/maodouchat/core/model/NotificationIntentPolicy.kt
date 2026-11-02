@@ -1,4 +1,4 @@
-package com.maodouchat.notification
+package com.maodouchat.core.model
 
 object NotificationIntentPolicy {
     fun belongsToCurrentAccount(

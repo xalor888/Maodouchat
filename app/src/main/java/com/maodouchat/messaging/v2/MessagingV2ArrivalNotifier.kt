@@ -1,13 +1,13 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatQuietHoursPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.notification.ChatQuietHoursPolicy
 import com.maodouchat.notification.ChatQuietHoursStore
 import com.maodouchat.notification.LocalNotificationSuppressPolicy
+import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.notification.NotificationPreferences
 
 import com.maodouchat.util.RuntimeFlags

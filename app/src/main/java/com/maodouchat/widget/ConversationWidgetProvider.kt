@@ -1,6 +1,5 @@
 package com.maodouchat.widget
 
-import com.maodouchat.notification.NotificationIntents
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -11,7 +10,9 @@ import androidx.core.app.RemoteInput
 import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.navigation.sanitizeChatIdStrict
+import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.quickreply.SyncVerdict
 
@@ -119,7 +120,7 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         val cleanChatId = com.maodouchat.navigation.AppLinkRouter.sanitizeChatIdStrict(chatId)
         if (cleanChatId != null) {
             // 账号归属校验（与通知点击同一套策略）
-            if (!com.maodouchat.notification.NotificationIntentPolicy.belongsToCurrentAccount(
+            if (!NotificationIntentPolicy.belongsToCurrentAccount(
                     notificationOwnerUserId = ownerUserId,
                     currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
                     sessionPurgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
@@ -165,7 +166,7 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         val chatId = intent.getStringExtra(ConversationWidgetContract.EXTRA_CHAT_ID).orEmpty()
         val widgetOwnerUserId = intent.getStringExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID).orEmpty()
         // 账号归属校验：旧账号残留 widget 不得用当前账号 token 发快捷回复。
-        if (!com.maodouchat.notification.NotificationIntentPolicy.belongsToCurrentAccount(
+        if (!NotificationIntentPolicy.belongsToCurrentAccount(
                 notificationOwnerUserId = widgetOwnerUserId,
                 currentUserId = com.maodouchat.network.TokenManager.getInstance(context).getUserId(),
                 sessionPurgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),

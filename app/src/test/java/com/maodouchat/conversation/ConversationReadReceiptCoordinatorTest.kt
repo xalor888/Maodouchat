@@ -1,8 +1,8 @@
 package com.maodouchat.conversation
 
-import com.maodouchat.notification.MessageNotificationService
 import android.content.Context
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.ChatDao
 import com.maodouchat.data.local.dao.MessageDao
@@ -12,7 +12,7 @@ import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.messaging.v2.MessagingV2Outbox
 import com.maodouchat.network.TokenManager
-import com.maodouchat.notification.NotificationIntentPolicy
+import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.security.DefaultSecretConversationController
 import com.maodouchat.security.SecureSessionManager
@@ -25,9 +25,9 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import kotlin.test.assertFailsWith
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
-import kotlin.test.assertFailsWith
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

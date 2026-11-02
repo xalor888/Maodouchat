@@ -29,12 +29,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.notification.QuietWindow
+import com.maodouchat.core.model.DisappearingMessagePolicy
+import com.maodouchat.core.model.QuietWindow
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.core.model.DisappearingMessagePolicy
 
 @Composable
 internal fun ChatQuietHoursDialog(
