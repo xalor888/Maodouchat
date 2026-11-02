@@ -1,5 +1,6 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.DisappearingMessagePolicy
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

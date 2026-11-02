@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
  * G195b：客户端与服务端两份 `DisappearingMessagePolicy` 的**一致性闸门**。
  *
  * 背景：这个策略有**两份独立实现**——
- * - `app/src/main/java/com/maodouchat/util/DisappearingMessagePolicy.kt`
+ * - `core/model/src/main/kotlin/com/maodouchat/core/model/DisappearingMessagePolicy.kt`
  * - `server/src/main/kotlin/com/maodouchat/server/service/DisappearingMessagePolicy.kt`
  *
  * 客户端 KDoc 写着「服务端与客户端共用同一套合法时长」。但 `server/` 是**独立的
@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
 class DisappearingMessagePolicyParityTest {
 
     private fun client(): File =
-        File("src/main/java/com/maodouchat/util/DisappearingMessagePolicy.kt")
+        File("../core/model/src/main/kotlin/com/maodouchat/core/model/DisappearingMessagePolicy.kt")
 
     private fun server(): File =
         File("../server/src/main/kotlin/com/maodouchat/server/service/DisappearingMessagePolicy.kt")

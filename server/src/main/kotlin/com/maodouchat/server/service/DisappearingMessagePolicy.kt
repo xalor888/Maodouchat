@@ -1,7 +1,7 @@
 package com.maodouchat.server.service
 
 /**
- * 与客户端 [com.maodouchat.util.DisappearingMessagePolicy] 对齐的服务端校验。
+ * 与客户端 [com.maodouchat.core.model.DisappearingMessagePolicy] 对齐的服务端校验。
  */
 object DisappearingMessagePolicy {
     const val OFF_SECONDS = 0

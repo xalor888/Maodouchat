@@ -27,7 +27,7 @@ internal fun formatTime(timestamp: Long): String {
 /** 阅后即焚剩余时间文案；无期限或已过期返回 null。 */
 @Composable
 internal fun formatDisappearCountdown(expiresAt: Long?, nowMs: Long): String? {
-    val remaining = com.maodouchat.util.DisappearingMessagePolicy.remainingMs(expiresAt, nowMs)
+    val remaining = com.maodouchat.core.model.DisappearingMessagePolicy.remainingMs(expiresAt, nowMs)
     if (remaining < 0L) return null
     val totalSec = (remaining / 1000L).coerceAtLeast(0L)
     return when {
@@ -56,7 +56,7 @@ internal fun DisappearCountdownLabel(
     LaunchedEffect(expiresAt) {
         while (true) {
             nowMs = System.currentTimeMillis()
-            val remaining = com.maodouchat.util.DisappearingMessagePolicy.remainingMs(expiresAt, nowMs)
+            val remaining = com.maodouchat.core.model.DisappearingMessagePolicy.remainingMs(expiresAt, nowMs)
             if (remaining <= 0L) break
             // 1 小时内每秒刷新；更长时每 15 秒刷新以省电
             val delayMs = if (remaining > 3_600_000L) 15_000L else 1_000L

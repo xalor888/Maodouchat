@@ -34,7 +34,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.util.DisappearingMessagePolicy
+import com.maodouchat.core.model.DisappearingMessagePolicy
 
 @Composable
 internal fun ChatQuietHoursDialog(

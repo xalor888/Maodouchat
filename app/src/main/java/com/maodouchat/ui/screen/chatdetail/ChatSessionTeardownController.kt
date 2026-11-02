@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
 import com.maodouchat.chatdetail.ChatDetailAccess
-import com.maodouchat.util.DisappearingMessagePolicy
+import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.VoicePlayer
 import com.maodouchat.util.VoiceRecorder
