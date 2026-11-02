@@ -6,23 +6,7 @@ import android.content.Context
 import android.os.Build
 import androidx.biometric.BiometricManager
 import com.maodouchat.network.TokenManager
-
-object AppLockPolicy {
-    fun shouldLock(
-        enabled: Boolean,
-        loggedIn: Boolean,
-        authenticatedForCurrentUser: Boolean,
-        backgroundAtMillis: Long,
-        timeoutMillis: Long,
-        nowMillis: Long
-    ): Boolean {
-        if (!enabled || !loggedIn) return false
-        if (!authenticatedForCurrentUser) return true
-        if (backgroundAtMillis <= 0L) return false
-        val elapsed = nowMillis - backgroundAtMillis
-        return elapsed < 0L || elapsed >= timeoutMillis.coerceAtLeast(1L)
-    }
-}
+import com.maodouchat.core.session.AppLockPolicy
 
 /** Account-scoped application lock backed by system biometric/device credentials. */
 object AppLockManager {
