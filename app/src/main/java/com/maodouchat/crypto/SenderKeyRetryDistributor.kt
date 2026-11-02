@@ -3,6 +3,7 @@ package com.maodouchat.crypto
 import android.content.Context
 import android.util.Log
 import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
+import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
@@ -62,7 +63,7 @@ class SenderKeyRetryDistributor(
         liveToken = tokenManager.getToken().orEmpty().ifBlank { liveToken }
         val members = ApiService.getGroupMembers(liveToken, task.chatId).getOrThrow()
         val recipientIds = members.map { it.userId }
-            .filter { it.isNotBlank() && !com.maodouchat.bot.BotCommandPolicy.isBotUserId(it) }
+            .filter { it.isNotBlank() && !BotCommandPolicy.isBotUserId(it) }
             .distinct()
         // 始终先 mint 本地 distribution：单成员群 / 仅本机多设备也必须有本地 SK，
         // 否则 encrypt 路径 hasGroupDistributionId=false 会永久失败。

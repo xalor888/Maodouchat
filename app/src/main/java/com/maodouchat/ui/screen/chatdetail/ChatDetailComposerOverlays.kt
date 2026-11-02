@@ -13,8 +13,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.maodouchat.bot.BotCommandItem
-import com.maodouchat.bot.BotCommandPolicy
+import com.maodouchat.core.model.BotCommandItem
+import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.data.model.Chat
 
 /**
@@ -222,14 +222,14 @@ Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp)) {
     )
     }
     val slashCandidates = remember(value, botCommands) {
-        com.maodouchat.bot.BotCommandPolicy.filterCommands(botCommands, value)
+        BotCommandPolicy.filterCommands(botCommands, value)
     }
     val multiBot = slashCandidates.map { it.botId }.distinct().size > 1
     // G90：slash 命令候选 + @AI 助手命令条（148 行）抽到 ChatDetailComposerPickers.kt，纯搬移不改判断。
     SlashCommandPicker(
         candidates = slashCandidates,
         onInsertCommand = { item ->
-            onValueChange(com.maodouchat.bot.BotCommandPolicy.insertCommand(item, multiBot))
+            onValueChange(BotCommandPolicy.insertCommand(item, multiBot))
         },
     )
     if (isGroupChat && value.startsWith("@AI", ignoreCase = true)) {

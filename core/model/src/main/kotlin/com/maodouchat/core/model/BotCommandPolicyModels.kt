@@ -1,4 +1,4 @@
-package com.maodouchat.bot
+package com.maodouchat.core.model
 
 data class SlashCommand(
     val command: String,

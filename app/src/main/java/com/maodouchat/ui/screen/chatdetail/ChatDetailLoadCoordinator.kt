@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 
@@ -95,7 +96,7 @@ internal object ChatDetailLoadCoordinator {
                     add(ChatLoadEffect.OccupySessionCipher(chat.id, peer.id))
                     add(ChatLoadEffect.RefreshBlockState(peer.id))
                     add(ChatLoadEffect.RefreshScheduledMessages)
-                    if (com.maodouchat.bot.BotCommandPolicy.isBotUserId(peer.id)) {
+                    if (BotCommandPolicy.isBotUserId(peer.id)) {
                         add(ChatLoadEffect.RefreshBotCommands(chat.id))
                     } else {
                         add(ChatLoadEffect.RefreshIdentitySafety(peer.id))
