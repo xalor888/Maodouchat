@@ -2,6 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.AiPrivacyKeys
 
 // AI 隐私同意写入簇：开关写入、一键开启默认配置、撤销。
 internal object AiPrivacyConsentWrites {

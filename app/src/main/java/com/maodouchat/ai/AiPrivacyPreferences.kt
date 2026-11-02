@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.AiPrivacyKeys
 
 // AI 隐私偏好门面：账号隔离的本地 AI 同意与端侧安全偏好。实现已按簇拆到
 // AiPrivacyKeys（键名）、AiPrivacyAccountScope（账号隔离/迁移）、

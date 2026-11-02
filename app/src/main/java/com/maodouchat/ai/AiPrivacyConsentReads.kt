@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.AiPrivacyKeys
 
 // AI 隐私同意读取簇：开关/同意/免打扰等读取，外加云端上下文上传门闩。
 internal object AiPrivacyConsentReads {
