@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.AiTaskDndPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
