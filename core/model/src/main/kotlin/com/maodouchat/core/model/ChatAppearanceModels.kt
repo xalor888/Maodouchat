@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 聊天壁纸预设 + 消息字体档位（本地，不进 E2EE 明文）。

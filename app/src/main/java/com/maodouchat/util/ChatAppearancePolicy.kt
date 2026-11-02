@@ -1,6 +1,8 @@
 package com.maodouchat.util
 
 import androidx.compose.ui.graphics.Color
+import com.maodouchat.core.model.ChatFontScale
+import com.maodouchat.core.model.ChatWallpaperPreset
 
 object ChatAppearancePolicy {
     fun normalizeWallpaper(raw: String?): ChatWallpaperPreset = ChatWallpaperPreset.fromId(raw)
