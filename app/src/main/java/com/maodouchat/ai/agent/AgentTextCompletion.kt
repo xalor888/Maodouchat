@@ -1,7 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.ai.AiWritingStylePolicy
-import com.maodouchat.ai.Snapshot
+import com.maodouchat.core.model.Snapshot
 
 // 单轮文本直连调用：改写/翻译/摘要等走这里，不经过工具轮次。
 object AgentTextCompletion {

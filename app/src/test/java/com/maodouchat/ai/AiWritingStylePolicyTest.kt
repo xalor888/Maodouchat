@@ -1,5 +1,7 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.Preset
+import com.maodouchat.core.model.Snapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
