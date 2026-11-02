@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
+import com.maodouchat.core.model.CaptureAlertPolicy
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.util.CaptureAlertPolicy
 import com.maodouchat.util.RuntimeFlags
 
 // 截屏/录屏检测的本地提示 + 对端 E2EE 告警（仅密聊或阅后即焚的 1:1 会话才告警，8s 节流）：

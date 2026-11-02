@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.QuickPhrasePolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
@@ -160,12 +161,12 @@ internal fun QuickPhrasesDialog(
                 OutlinedTextField(
                     value = newPhrase,
                     onValueChange = {
-                        newPhrase = it.take(com.maodouchat.util.QuickPhrasePolicy.MAX_PHRASE_LENGTH)
+                        newPhrase = it.take(QuickPhrasePolicy.MAX_PHRASE_LENGTH)
                         error = null
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text(stringResource(R.string.chat_quick_phrases_add_hint, com.maodouchat.util.QuickPhrasePolicy.MAX_PHRASE_LENGTH)) },
+                    placeholder = { Text(stringResource(R.string.chat_quick_phrases_add_hint, QuickPhrasePolicy.MAX_PHRASE_LENGTH)) },
                     textStyle = MaterialTheme.typography.bodyMedium,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Primary,
@@ -181,7 +182,7 @@ internal fun QuickPhrasesDialog(
                     TextButton(
                         enabled = newPhrase.isNotBlank(),
                         onClick = {
-                            if (!com.maodouchat.util.QuickPhrasePolicy.isAddable(
+                            if (!QuickPhrasePolicy.isAddable(
                                     com.maodouchat.util.QuickPhrasePreferences.getCustomPhrases(context),
                                     newPhrase
                                 )

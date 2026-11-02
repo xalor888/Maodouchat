@@ -1,5 +1,6 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.ChatTextDisplayPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

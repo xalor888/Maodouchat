@@ -1,6 +1,7 @@
 package com.maodouchat.ui.component
 
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.CaptureAlertPolicy
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -181,7 +182,6 @@ internal fun TextBubble(
                 }
             }
 
-            // 气泡
             // 9.267：TG 式角尾——showAvatar 即组尾（含单条消息组），尾角侧用小圆角
             val bubbleShape = resolveBubbleShape(isOwnMessage, isGroupEdge = isGroupEdge)
             Column(
@@ -233,9 +233,9 @@ internal fun TextBubble(
                     return@Column
                 }
                 val parsedBody = displayBody
-                if (com.maodouchat.util.CaptureAlertPolicy.isCaptureAlert(parsedBody)) {
+                if (CaptureAlertPolicy.isCaptureAlert(parsedBody)) {
                     // 8.49 防御：解析失败直接跳过（此前 parse()!! 依赖「isCaptureAlert 与 parse 永远一致」的脆弱不变量）
-                    val parsedAlert = com.maodouchat.util.CaptureAlertPolicy.parse(parsedBody) ?: return@Column
+                    val parsedAlert = CaptureAlertPolicy.parse(parsedBody) ?: return@Column
                     val (_, detail) = parsedAlert
                     Text(
                         text = "ALERT: $detail",

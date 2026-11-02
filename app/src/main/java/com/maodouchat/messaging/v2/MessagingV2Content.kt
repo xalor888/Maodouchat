@@ -1,9 +1,9 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.ChatTextDisplayPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.util.ChatTextDisplayPolicy
 import com.maodouchat.util.JsonFormat
 
 /** Versioned read/write adapter for v2 content and the legacy `<meta>` representation. */
