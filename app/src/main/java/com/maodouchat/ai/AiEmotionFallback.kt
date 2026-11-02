@@ -2,6 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.R
+import com.maodouchat.core.model.Emotion
 
 /** 情绪感知回复的本地回退模板簇：服务端不可用/未同意时回退，不消费 AI 预算。 */
 internal object AiEmotionFallback {

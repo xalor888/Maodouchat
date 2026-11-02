@@ -1,6 +1,8 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.Emotion
+import com.maodouchat.core.model.EmotionResult
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.network.AiContextMessage
