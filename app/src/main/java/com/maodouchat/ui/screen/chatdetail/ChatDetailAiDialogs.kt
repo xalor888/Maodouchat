@@ -12,8 +12,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
-import com.maodouchat.ai.WeeklyReport
 import com.maodouchat.core.model.GroupAiSharePolicy
+import com.maodouchat.core.model.WeeklyReport
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.CategoryCount
 
