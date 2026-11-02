@@ -1,5 +1,6 @@
 package com.maodouchat.data.model
 
+import com.maodouchat.core.model.ChatTextDisplayPolicy
 import kotlinx.serialization.Serializable
 
 enum class MessageType {
@@ -138,7 +139,7 @@ data class Message(
      * 含该字面量的消息会被截断显示（正文后段丢失）。 */
     fun parsedContent(): String = content.lastIndexOf(META_TAG_PREFIX).let { idx ->
         val body = if (idx < 0) content else content.substring(0, idx)
-        com.maodouchat.util.ChatTextDisplayPolicy.unescapeHtmlEntities(body)
+        ChatTextDisplayPolicy.unescapeHtmlEntities(body)
     }
 
     fun parsedMeta(): MessageMeta {

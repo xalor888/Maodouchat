@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * Display-only HTML entity unescape for chat bodies.

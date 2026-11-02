@@ -1,6 +1,6 @@
 package com.maodouchat.notification
 
-import com.maodouchat.util.NotificationPrivacyPolicy
+import com.maodouchat.core.model.NotificationPrivacyPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

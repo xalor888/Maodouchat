@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * Peer-visible capture alerts for secret / disappearing chats.
