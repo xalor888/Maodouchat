@@ -4,6 +4,7 @@ import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.network.ChatDto
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.core.model.SessionSnapshot
+import com.maodouchat.core.session.Outcome
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every

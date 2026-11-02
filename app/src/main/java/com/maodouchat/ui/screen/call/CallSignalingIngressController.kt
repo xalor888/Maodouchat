@@ -5,7 +5,7 @@ import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.call.CallSignalingAdmissionPolicy
 import com.maodouchat.core.session.Cursor
-import com.maodouchat.call.Decision
+import com.maodouchat.core.session.Decision
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.call.MissedCallTimeoutPolicy
