@@ -1,7 +1,7 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 // 周报时间窗口：本周一 00:00（本地时区）到下周一 00:00。
-internal object AiWeeklyReportWeekRange {
+object AiWeeklyReportWeekRange {
     private const val WEEK_MILLIS = 7L * 24L * 60L * 60L * 1000L
 
     /** 本周起点（周一 00:00）与终点（下周一 00:00），按本地时区。 */
