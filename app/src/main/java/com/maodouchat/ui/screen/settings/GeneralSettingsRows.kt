@@ -25,6 +25,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatFontScale
+import com.maodouchat.core.model.ChatWallpaperPreset
 import com.maodouchat.util.AppLocaleManager
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -192,22 +194,22 @@ internal fun ChatWallpaperRow(
     onClearCustomWallpaper: () -> Unit = {}
 ) {
     val options = listOf(
-        com.maodouchat.util.ChatWallpaperPreset.DEFAULT.id to stringResource(R.string.general_chat_wallpaper_default),
-        com.maodouchat.util.ChatWallpaperPreset.MINT.id to stringResource(R.string.general_chat_wallpaper_mint),
-        com.maodouchat.util.ChatWallpaperPreset.LAVENDER.id to stringResource(R.string.general_chat_wallpaper_lavender),
-        com.maodouchat.util.ChatWallpaperPreset.SAND.id to stringResource(R.string.general_chat_wallpaper_sand),
-        com.maodouchat.util.ChatWallpaperPreset.NIGHT.id to stringResource(R.string.general_chat_wallpaper_night),
-        com.maodouchat.util.ChatWallpaperPreset.ROSE.id to stringResource(R.string.general_chat_wallpaper_rose),
-        com.maodouchat.util.ChatWallpaperPreset.SKY.id to stringResource(R.string.general_chat_wallpaper_sky),
-        com.maodouchat.util.ChatWallpaperPreset.SLATE.id to stringResource(R.string.general_chat_wallpaper_slate),
-        com.maodouchat.util.ChatWallpaperPreset.PEACH.id to stringResource(R.string.general_chat_wallpaper_peach),
-        com.maodouchat.util.ChatWallpaperPreset.OLIVE.id to stringResource(R.string.general_chat_wallpaper_olive),
-        com.maodouchat.util.ChatWallpaperPreset.CORAL.id to stringResource(R.string.general_chat_wallpaper_coral),
-        com.maodouchat.util.ChatWallpaperPreset.PLUM.id to stringResource(R.string.general_chat_wallpaper_plum),
-        com.maodouchat.util.ChatWallpaperPreset.INDIGO.id to stringResource(R.string.general_chat_wallpaper_indigo),
-        com.maodouchat.util.ChatWallpaperPreset.AMBER.id to stringResource(R.string.general_chat_wallpaper_amber),
-            com.maodouchat.util.ChatWallpaperPreset.TEAL.id to stringResource(R.string.general_chat_wallpaper_teal),
-            com.maodouchat.util.ChatWallpaperPreset.GRAPHITE.id to stringResource(R.string.general_chat_wallpaper_graphite),
+        ChatWallpaperPreset.DEFAULT.id to stringResource(R.string.general_chat_wallpaper_default),
+        ChatWallpaperPreset.MINT.id to stringResource(R.string.general_chat_wallpaper_mint),
+        ChatWallpaperPreset.LAVENDER.id to stringResource(R.string.general_chat_wallpaper_lavender),
+        ChatWallpaperPreset.SAND.id to stringResource(R.string.general_chat_wallpaper_sand),
+        ChatWallpaperPreset.NIGHT.id to stringResource(R.string.general_chat_wallpaper_night),
+        ChatWallpaperPreset.ROSE.id to stringResource(R.string.general_chat_wallpaper_rose),
+        ChatWallpaperPreset.SKY.id to stringResource(R.string.general_chat_wallpaper_sky),
+        ChatWallpaperPreset.SLATE.id to stringResource(R.string.general_chat_wallpaper_slate),
+        ChatWallpaperPreset.PEACH.id to stringResource(R.string.general_chat_wallpaper_peach),
+        ChatWallpaperPreset.OLIVE.id to stringResource(R.string.general_chat_wallpaper_olive),
+        ChatWallpaperPreset.CORAL.id to stringResource(R.string.general_chat_wallpaper_coral),
+        ChatWallpaperPreset.PLUM.id to stringResource(R.string.general_chat_wallpaper_plum),
+        ChatWallpaperPreset.INDIGO.id to stringResource(R.string.general_chat_wallpaper_indigo),
+        ChatWallpaperPreset.AMBER.id to stringResource(R.string.general_chat_wallpaper_amber),
+            ChatWallpaperPreset.TEAL.id to stringResource(R.string.general_chat_wallpaper_teal),
+            ChatWallpaperPreset.GRAPHITE.id to stringResource(R.string.general_chat_wallpaper_graphite),
     )
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
         Text(stringResource(R.string.general_chat_wallpaper_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -249,11 +251,11 @@ internal fun ChatFontScaleRow(
     onChange: (String) -> Unit
 ) {
     val options = listOf(
-        com.maodouchat.util.ChatFontScale.SMALL.id to stringResource(R.string.general_chat_font_small),
-        com.maodouchat.util.ChatFontScale.NORMAL.id to stringResource(R.string.general_chat_font_normal),
-        com.maodouchat.util.ChatFontScale.LARGE.id to stringResource(R.string.general_chat_font_large),
-        com.maodouchat.util.ChatFontScale.XLARGE.id to stringResource(R.string.general_chat_font_xlarge),
-        com.maodouchat.util.ChatFontScale.XXLARGE.id to stringResource(R.string.general_chat_font_xxlarge),
+        ChatFontScale.SMALL.id to stringResource(R.string.general_chat_font_small),
+        ChatFontScale.NORMAL.id to stringResource(R.string.general_chat_font_normal),
+        ChatFontScale.LARGE.id to stringResource(R.string.general_chat_font_large),
+        ChatFontScale.XLARGE.id to stringResource(R.string.general_chat_font_xlarge),
+        ChatFontScale.XXLARGE.id to stringResource(R.string.general_chat_font_xxlarge),
     )
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
         Text(stringResource(R.string.general_chat_font_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)

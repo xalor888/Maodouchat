@@ -7,6 +7,7 @@ import android.media.MediaPlayer
 import android.os.Build
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.maodouchat.core.model.VoicePlayerState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

@@ -1,8 +1,8 @@
 package com.maodouchat.contacts
 
 import com.maodouchat.core.model.QrParsedPayload
+import com.maodouchat.core.model.QrTarget
 import com.maodouchat.util.QrCodeGenerator
-import com.maodouchat.util.QrTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
