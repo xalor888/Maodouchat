@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 /**
  * The encrypted NUDGE body is sender-centric (`你拍了拍{target}`). Recipients rewrite it for

@@ -3,6 +3,8 @@ package com.maodouchat.ui.screen.chatdetail
 import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
+import com.maodouchat.core.model.NudgeDisplayPolicy
+import com.maodouchat.core.model.Templates
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType

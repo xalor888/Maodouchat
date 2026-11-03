@@ -9,8 +9,8 @@ import androidx.compose.ui.unit.IntSize
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy
-import com.maodouchat.ui.screen.chatdetail.Templates
+import com.maodouchat.core.model.NudgeDisplayPolicy
+import com.maodouchat.core.model.Templates
 import com.maodouchat.ui.screen.chatlist.ChatListReceiptPolicy
 
 /**
