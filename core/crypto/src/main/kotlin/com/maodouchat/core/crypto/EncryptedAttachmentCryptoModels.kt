@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.crypto
 
 import java.io.File
 

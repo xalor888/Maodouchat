@@ -8,6 +8,8 @@ import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import com.maodouchat.core.crypto.AttachmentCryptoFailure
+import com.maodouchat.core.crypto.EncryptedFile
 import java.io.File
 import java.io.RandomAccessFile
 import java.util.Base64

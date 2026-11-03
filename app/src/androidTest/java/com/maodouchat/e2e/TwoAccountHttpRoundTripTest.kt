@@ -29,8 +29,8 @@ import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.local.entity.ScheduledMessageEntity
 import com.maodouchat.util.ScheduledMessageWorker
 import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.util.AttachmentCryptoException
-import com.maodouchat.util.AttachmentCryptoFailure
+import com.maodouchat.core.crypto.AttachmentCryptoException
+import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.MediaCache
 import com.maodouchat.messaging.v2.ApiMessagingV2ConversationSnapshotProvider

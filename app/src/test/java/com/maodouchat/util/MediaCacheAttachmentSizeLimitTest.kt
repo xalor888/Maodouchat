@@ -7,6 +7,8 @@ import org.robolectric.annotation.Config
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import com.maodouchat.core.crypto.AttachmentCryptoException
+import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

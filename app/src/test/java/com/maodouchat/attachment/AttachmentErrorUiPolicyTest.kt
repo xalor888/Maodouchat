@@ -2,8 +2,8 @@ package com.maodouchat.attachment
 
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.util.AttachmentCryptoException
-import com.maodouchat.util.AttachmentCryptoFailure
+import com.maodouchat.core.crypto.AttachmentCryptoException
+import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Test

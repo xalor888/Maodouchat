@@ -2,8 +2,8 @@ package com.maodouchat.attachment
 
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.util.AttachmentCryptoException
-import com.maodouchat.util.AttachmentCryptoFailure
+import com.maodouchat.core.crypto.AttachmentCryptoException
+import com.maodouchat.core.crypto.AttachmentCryptoFailure
 
 /**
  * Map transfer failures to UI string kinds (no Android resources here).
