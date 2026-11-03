@@ -1,5 +1,6 @@
 package com.maodouchat.attachment
 
+import com.maodouchat.core.model.AttachmentProgressPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

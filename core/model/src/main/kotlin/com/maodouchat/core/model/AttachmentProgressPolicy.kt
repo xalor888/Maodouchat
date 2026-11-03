@@ -1,4 +1,4 @@
-package com.maodouchat.attachment
+package com.maodouchat.core.model
 
 /**
  * UI progress mapping for attachment transfers (§6 pure extract).
