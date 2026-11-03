@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.AttachmentProgressPolicy
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.model.MessageStatus
@@ -73,7 +74,7 @@ internal class ChatMediaStateController {
         start: Float,
         end: Float,
     ): ChatDetailUiState {
-        val progress = com.maodouchat.attachment.AttachmentProgressPolicy.mapSegmentProgress(
+        val progress = AttachmentProgressPolicy.mapSegmentProgress(
             completed = completed,
             total = total,
             start = start,
