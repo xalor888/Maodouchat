@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.repository.AiProfileRepository
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,7 @@ object AiArchiveSuggestion {
     fun isAllowed(context: Context): Boolean = true
 
     /** 重新计算全部建议并覆盖落库；返回按分数降序的建议列表。 */
-    suspend fun refresh(context: Context, database: AppDatabase): List<Suggestion> {
+    suspend fun refresh(context: Context, database: AppDatabase): List<ArchiveSuggestion> {
         val suggestions = withContext(Dispatchers.IO) {
             AiArchiveScoring.compute(context, database)
         }
@@ -33,10 +34,10 @@ object AiArchiveSuggestion {
     }
 
     /** 读取上次计算并落库的建议（仅本地）。 */
-    suspend fun cached(context: Context): List<Suggestion> =
+    suspend fun cached(context: Context): List<ArchiveSuggestion> =
         withContext(Dispatchers.IO) {
             AiProfileRepository.getInstance(context).listArchiveSuggestions().map { row ->
-                Suggestion(row.chatId, row.score, row.reason)
+                ArchiveSuggestion(row.chatId, row.score, row.reason)
             }
         }
 }

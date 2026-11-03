@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.data.model.Chat
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -35,7 +36,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
  */
 @Composable
 internal fun ArchiveSuggestionsCard(
-    suggestions: List<com.maodouchat.ai.Suggestion>,
+    suggestions: List<ArchiveSuggestion>,
     chatsById: Map<String, Chat>,
     onArchive: (String) -> Unit,
     onDismissOne: (String) -> Unit,

@@ -1,6 +1,6 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
-data class Suggestion(
+data class ArchiveSuggestion(
     val chatId: String,
     val score: Int,
     val reason: String
