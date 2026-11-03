@@ -1,4 +1,4 @@
-package com.maodouchat.slim
+package com.maodouchat.core.model
 
 import java.io.File
 import java.security.MessageDigest
@@ -9,7 +9,7 @@ import java.security.MessageDigest
  * 远程清单中的 SHA-256 是下载文件的唯一可信来源。即使文件名和长度相同，也不能把
  * 旧服务器或旧清单留下的文件直接当作当前文件复用；所有“已缓存”判断都走这里。
  */
-internal object StickerFilePolicy {
+object StickerFilePolicy {
 
     // MessageDigest 非线程安全，ThreadLocal 每线程复用一个；异常路径走不到 digest()，取用前先 reset。
     private val sha256Digest: ThreadLocal<MessageDigest> =
