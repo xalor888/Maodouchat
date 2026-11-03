@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 群玩法的「隐私开关」一族（G88 从 `GroupPlayPolicy.kt` 拆出）。
@@ -12,7 +12,7 @@ package com.maodouchat.util
  * LinkLock / PreviewMute / UrlFence / NotifMask / ListBlur / TraySeal / ReactLock /
  * StarSeal / MetaFence / TypingSeal / ReadSeal / PresenceSeal / LastSeenSeal。
  */
-internal object GroupPlaySealPolicy {
+object GroupPlaySealPolicy {
 
     /** 与 [GroupPlayPolicy] 同一套转义：`|` 与 `^` 是负载分隔符，必须转义。 */
     private fun esc(s: String): String = s.replace("|", "\u0001").replace("^", "\u0002")
