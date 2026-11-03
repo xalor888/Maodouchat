@@ -1,4 +1,4 @@
-package com.maodouchat.conversation
+package com.maodouchat.core.model
 
 /**
  * Single source of privacy restrictions for command entry points.

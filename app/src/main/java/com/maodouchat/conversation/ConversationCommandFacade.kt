@@ -1,5 +1,10 @@
 package com.maodouchat.conversation
 
+import com.maodouchat.core.model.ConversationCapability
+import com.maodouchat.core.model.ConversationPrivacyContext
+import com.maodouchat.core.model.ConversationPrivacyDecision
+import com.maodouchat.core.model.ConversationPrivacyPolicy
+import com.maodouchat.core.model.ConversationPrivacyRejection
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta

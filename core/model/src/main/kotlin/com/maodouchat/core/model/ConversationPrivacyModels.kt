@@ -1,4 +1,4 @@
-package com.maodouchat.conversation
+package com.maodouchat.core.model
 
 /** Conversation capabilities used by every domain entry point before a durable command is staged. */
 enum class ConversationCapability {
