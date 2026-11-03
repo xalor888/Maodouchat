@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 /**
  * Draft save scheduling decisions (pure; §6 extract from ChatDetailViewModel).
