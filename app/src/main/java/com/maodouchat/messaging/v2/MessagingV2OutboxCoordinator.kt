@@ -1,6 +1,8 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.MessagingV2GroupControlPolicy
 import com.maodouchat.core.model.MessagingV2RetryPolicy
+import com.maodouchat.core.model.MessagingV2StaleGroupControlException
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
