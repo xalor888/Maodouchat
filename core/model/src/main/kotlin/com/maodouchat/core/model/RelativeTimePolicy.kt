@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.explore
+package com.maodouchat.core.model
 
 /**
  * 动态/附近等相对时间：刚发出或模拟器时钟略快时，Android DateUtils
