@@ -3,30 +3,30 @@ package com.maodouchat.util
 // 对决竞技类（RPS/数字炸弹/反应竞速等）：编解码实现（从 GroupPlayClassicPolicy 逐字搬出，零行为改动）。
 internal object GroupPlayClassicDuel {
 
-    fun rollRps(): String = com.maodouchat.group.play.GroupPkPolicy.rollRps()
+    fun rollRps(): String = com.maodouchat.core.model.GroupPkPolicy.rollRps()
 
     fun formatRps(choice: String, userLabel: String): String =
-        com.maodouchat.group.play.GroupPkPolicy.formatRps(choice, userLabel)
+        com.maodouchat.core.model.GroupPkPolicy.formatRps(choice, userLabel)
 
     fun parseRps(content: String): String? =
-        com.maodouchat.group.play.GroupPkPolicy.parseRps(content)
+        com.maodouchat.core.model.GroupPkPolicy.parseRps(content)
 
     fun rollNumberBomb(max: Int = 100): Pair<Int, Int> =
-        com.maodouchat.group.play.GroupPkPolicy.rollNumberBomb(max)
+        com.maodouchat.core.model.GroupPkPolicy.rollNumberBomb(max)
 
     fun formatNumberBomb(secret: Int, max: Int, hostLabel: String): String =
-        com.maodouchat.group.play.GroupPkPolicy.formatNumberBomb(secret, max, hostLabel)
+        com.maodouchat.core.model.GroupPkPolicy.formatNumberBomb(secret, max, hostLabel)
 
     fun parseNumberBomb(content: String): Triple<Int, Int, String>? =
-        com.maodouchat.group.play.GroupPkPolicy.parseNumberBomb(content)
+        com.maodouchat.core.model.GroupPkPolicy.parseNumberBomb(content)
 
-    fun randomRaceToken(): String = com.maodouchat.group.play.GroupPkPolicy.randomRaceToken()
+    fun randomRaceToken(): String = com.maodouchat.core.model.GroupPkPolicy.randomRaceToken()
 
     fun formatReactionRace(token: String, hostLabel: String): String =
-        com.maodouchat.group.play.GroupPkPolicy.formatReactionRace(token, hostLabel)
+        com.maodouchat.core.model.GroupPkPolicy.formatReactionRace(token, hostLabel)
 
     fun parseReactionRace(content: String): Pair<String, String>? =
-        com.maodouchat.group.play.GroupPkPolicy.parseReactionRace(content)
+        com.maodouchat.core.model.GroupPkPolicy.parseReactionRace(content)
 
     fun spinWheel(): String = spinOptions.random()
 
