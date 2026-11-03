@@ -1,6 +1,6 @@
 package com.maodouchat.explore
 
-import com.maodouchat.ui.screen.explore.RelativeTimePolicy
+import com.maodouchat.core.model.RelativeTimePolicy
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
