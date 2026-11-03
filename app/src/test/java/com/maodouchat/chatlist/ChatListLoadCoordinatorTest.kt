@@ -8,9 +8,9 @@ import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ChatDto
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListLoadCoordinator
-import com.maodouchat.ui.screen.chatlist.ChatListReloadPolicy
+import com.maodouchat.core.model.ChatListReloadPolicy
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
-import com.maodouchat.ui.screen.chatlist.Trigger
+import com.maodouchat.core.model.Trigger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

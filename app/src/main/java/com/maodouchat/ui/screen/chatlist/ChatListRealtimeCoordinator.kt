@@ -11,6 +11,7 @@ import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
+import com.maodouchat.core.model.Trigger
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException

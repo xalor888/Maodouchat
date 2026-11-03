@@ -8,6 +8,7 @@ import com.maodouchat.chatlist.AndroidChatListPorts
 import com.maodouchat.chatlist.ChatListPorts
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Trigger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
