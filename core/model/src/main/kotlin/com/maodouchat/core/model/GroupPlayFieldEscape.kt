@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 群玩法编解码共用的字段转义（G328c 从 `GroupPlayPolicy` 提出为包内共享）。
@@ -7,7 +7,7 @@ package com.maodouchat.util
  * `GroupPlayClassicPolicy` / `GroupPlayModePolicy` 之后，三处都要用同一套转义——
  * 复制两份会让「`|`/`^` 的转义规则」有两个可能漂移的定义，所以提到这里。
  */
-internal object GroupPlayFieldEscape {
+object GroupPlayFieldEscape {
     fun esc(s: String): String = s.replace("|", "\u0001").replace("^", "\u0002")
     fun unesc(s: String): String = s.replace("\u0001", "|").replace("\u0002", "^")
 }

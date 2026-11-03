@@ -25,7 +25,7 @@ object GroupPlayPolicy {
     fun parseDice(content: String): Pair<Int, Int>? {
         if (!content.startsWith(DICE_PREFIX)) return null
         val body = content.removePrefix(DICE_PREFIX)
-        val head = GroupPlayFieldEscape.unesc(body.substringBefore('|'))
+        val head = com.maodouchat.core.model.GroupPlayFieldEscape.unesc(body.substringBefore('|'))
         val parts = head.split(':')
         if (parts.size < 2) return null
         val sides = parts[0].toIntOrNull() ?: return null
@@ -48,13 +48,13 @@ object GroupPlayPolicy {
         com.maodouchat.group.play.GroupPollPolicy.parsePoll(content)
 
     fun formatLuckyDraw(pickerName: String, targetName: String): String {
-        return "LUCKY:${GroupPlayFieldEscape.esc(pickerName)}|$targetName"
+        return "LUCKY:${com.maodouchat.core.model.GroupPlayFieldEscape.esc(pickerName)}|$targetName"
     }
 
     fun parseLuckyDraw(content: String): Pair<String, String>? {
         if (!content.startsWith("LUCKY:")) return null
         val body = content.removePrefix("LUCKY:")
-        val a = GroupPlayFieldEscape.unesc(body.substringBefore('|'))
+        val a = com.maodouchat.core.model.GroupPlayFieldEscape.unesc(body.substringBefore('|'))
         val b = body.substringAfter('|', "")
         if (a.isBlank() || b.isBlank()) return null
         return a to b
