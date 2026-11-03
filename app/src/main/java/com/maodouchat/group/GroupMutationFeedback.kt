@@ -1,5 +1,8 @@
 package com.maodouchat.group
 
+import com.maodouchat.core.model.GroupMutationAction
+import com.maodouchat.core.model.GroupMutationFeedback
+import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 

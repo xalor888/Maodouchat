@@ -7,7 +7,7 @@ import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.group.GroupEncryptionHealthController
 import com.maodouchat.group.GroupLifecycleService
 import com.maodouchat.group.toUi
-import com.maodouchat.group.GroupMutationAction
+import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.group.GroupMutationFeedbackPolicy
 import com.maodouchat.messaging.v2.GroupMessagingCoordinator
 import kotlinx.coroutines.CoroutineScope

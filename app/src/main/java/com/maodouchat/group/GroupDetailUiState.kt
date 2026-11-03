@@ -4,6 +4,7 @@ package com.maodouchat.group
  * 群详情页界面状态（从 `ui/screen/chatdetail/GroupDetailViewModel.kt` 抽出）。
  * 与该 ViewModel 的其它 1000 行逻辑分开：状态模型是纯数据，改它不需要读懂整个 VM。
  */
+import com.maodouchat.core.model.GroupMutationFeedback
 import com.maodouchat.data.model.User
 import com.maodouchat.network.SenderKeyDistributionStatusDto
 import com.maodouchat.group.GroupOwnedBotUi
