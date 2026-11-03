@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.core.model.daysBetween
+import com.maodouchat.core.model.formatChatTime
 import java.util.Calendar
 import java.util.TimeZone
 import org.junit.Assert.assertEquals

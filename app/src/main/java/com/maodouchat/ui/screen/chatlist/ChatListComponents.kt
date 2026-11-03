@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.formatChatTime
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
@@ -64,7 +65,6 @@ internal fun ChatListItem(
     isSecret: Boolean = false,
     identityChanged: Boolean = false,
     isDeleting: Boolean = false,
-    // 1.368：多选模式勾选态（勾选时显示选中复选框 + 高亮背景）
     isSelecting: Boolean = false,
     isSelected: Boolean = false,
     receipt: Receipt? = null,
