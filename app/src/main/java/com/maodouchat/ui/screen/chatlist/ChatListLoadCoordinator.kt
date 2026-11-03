@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatlist
 import android.util.Log
 import com.maodouchat.conversation.ConversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.MissedCall
+import com.maodouchat.core.model.MissedCall
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ChatDto
 import com.maodouchat.security.BackgroundSessionGate

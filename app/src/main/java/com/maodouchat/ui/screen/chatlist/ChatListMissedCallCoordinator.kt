@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import android.util.Log
-import com.maodouchat.data.model.MissedCall
+import com.maodouchat.core.model.MissedCall
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

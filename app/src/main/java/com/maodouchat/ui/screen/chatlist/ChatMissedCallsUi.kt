@@ -22,7 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.maodouchat.R
-import com.maodouchat.data.model.MissedCall
+import com.maodouchat.core.model.MissedCall
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.foundation.background
