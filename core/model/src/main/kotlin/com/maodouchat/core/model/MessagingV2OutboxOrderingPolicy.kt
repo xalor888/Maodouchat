@@ -1,7 +1,7 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
 /** Mirrors the causal kinds enforced by the Room outbox selection query. */
-internal object MessagingV2OutboxOrderingPolicy {
+object MessagingV2OutboxOrderingPolicy {
     fun requiresConversationOrder(kind: String): Boolean = kind in CAUSAL_KINDS
     fun mayBypassConversationOrder(kind: String): Boolean = kind in BYPASS_KINDS
 

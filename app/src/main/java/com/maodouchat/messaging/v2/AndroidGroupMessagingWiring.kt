@@ -3,6 +3,7 @@ package com.maodouchat.messaging.v2
 import android.util.Log
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.attachment.AttachmentTransferScheduler
+import com.maodouchat.core.model.GroupMessagingSession
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.hasCompletedUpload

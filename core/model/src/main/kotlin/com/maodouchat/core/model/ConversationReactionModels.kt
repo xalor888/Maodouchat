@@ -1,6 +1,6 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-internal sealed interface ConversationReactionOutcome {
+sealed interface ConversationReactionOutcome {
     data class Applied(
         val localProjectionError: Throwable? = null,
     ) : ConversationReactionOutcome
