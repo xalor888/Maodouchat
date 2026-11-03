@@ -1,4 +1,4 @@
-package com.maodouchat.slim
+package com.maodouchat.core.model
 
 /**
  * 远程贴纸清单中的路径名约束。
@@ -6,7 +6,7 @@ package com.maodouchat.slim
  * 服务端有 canonical 路径校验，但客户端也不能盲信清单；这里保证 packId 和文件名
  * 只用于构造贴纸缓存目录内的相对路径，并明确拒绝 `.` / `..` 这类目录引用。
  */
-internal object StickerNamePolicy {
+object StickerNamePolicy {
 
     private val PACK_ID_REGEX = Regex("[^A-Za-z0-9_-]")
     private val FILE_NAME_REGEX = Regex("[^A-Za-z0-9._-]")
