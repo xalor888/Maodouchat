@@ -1,6 +1,6 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-internal object MessagingV2GroupControlPolicy {
+object MessagingV2GroupControlPolicy {
     fun isGroupControl(kind: String): Boolean = kind in GROUP_CONTROL_KINDS
 
     fun isStale(kind: String, queuedRevision: Long?, liveRevision: Long): Boolean =
@@ -9,5 +9,5 @@ internal object MessagingV2GroupControlPolicy {
     private val GROUP_CONTROL_KINDS = setOf("SENDER_KEY", "KEY_REQUEST")
 }
 
-internal class MessagingV2StaleGroupControlException :
+class MessagingV2StaleGroupControlException :
     IllegalStateException("messaging_v2_stale_group_control")
