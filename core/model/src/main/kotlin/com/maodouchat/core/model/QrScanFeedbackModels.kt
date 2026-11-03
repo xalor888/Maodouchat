@@ -1,4 +1,4 @@
-package com.maodouchat.contacts
+package com.maodouchat.core.model
 
 enum class Kind {
     INVALID_PAYLOAD,

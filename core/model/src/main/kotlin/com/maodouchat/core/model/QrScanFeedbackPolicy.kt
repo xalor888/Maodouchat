@@ -1,4 +1,4 @@
-package com.maodouchat.contacts
+package com.maodouchat.core.model
 
 /**
  * Maps QR parse / join-invite failures to stable, UI-localizable kinds (W3-04).

@@ -1,5 +1,7 @@
 package com.maodouchat.contacts
 
+import com.maodouchat.core.model.Kind
+import com.maodouchat.core.model.QrScanFeedbackPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

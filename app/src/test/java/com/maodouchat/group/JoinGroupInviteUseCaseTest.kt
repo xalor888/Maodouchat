@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
-import com.maodouchat.contacts.Kind
+import com.maodouchat.core.model.Kind
 
 class JoinGroupInviteUseCaseTest {
 
