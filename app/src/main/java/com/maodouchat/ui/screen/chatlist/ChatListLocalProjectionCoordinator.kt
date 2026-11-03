@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatlist
 
 import android.util.Log
 import com.maodouchat.R
-import com.maodouchat.data.local.LikeQueryPolicy
+import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.session.CurrentSession

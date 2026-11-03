@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.network.ApiService
 import kotlinx.coroutines.flow.first
 internal object AgentSocialContactReads {
@@ -10,7 +11,7 @@ internal object AgentSocialContactReads {
             val all = if (q.isBlank()) {
                 app.database.userDao().getAllUsers().first()
             } else {
-                val escaped = com.maodouchat.data.local.LikeQueryPolicy.escapeForContains(q.take(80))
+                val escaped = LikeQueryPolicy.escapeForContains(q.take(80))
                 if (escaped.isBlank()) emptyList() else app.database.userDao().searchUsers(escaped, 80)
             }
             val lines = all.take(80).map {

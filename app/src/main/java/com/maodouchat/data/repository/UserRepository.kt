@@ -1,5 +1,6 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
@@ -22,7 +23,7 @@ class UserRepository(private val userDao: UserDao) {
 
     /** 本地关键字搜索联系人（用于离线回退） */
     suspend fun searchUsers(keyword: String, limit: Int = 50): List<User> {
-        val escaped = com.maodouchat.data.local.LikeQueryPolicy.escapeForContains(keyword)
+        val escaped = LikeQueryPolicy.escapeForContains(keyword)
         if (escaped.isBlank()) return emptyList()
         return userDao.searchUsers(escaped, limit).map { it.toDomain() }
     }
