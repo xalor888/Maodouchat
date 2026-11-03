@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 data class Templates(
     val youNudged: (targetName: String) -> String,

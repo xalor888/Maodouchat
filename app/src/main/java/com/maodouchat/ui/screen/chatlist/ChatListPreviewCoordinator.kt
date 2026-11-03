@@ -7,8 +7,8 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.ChatListPreviewPolicy
 import com.maodouchat.core.session.OwnerSessionSnapshot
-import com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy
-import com.maodouchat.ui.screen.chatdetail.Templates
+import com.maodouchat.core.model.NudgeDisplayPolicy
+import com.maodouchat.core.model.Templates
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow

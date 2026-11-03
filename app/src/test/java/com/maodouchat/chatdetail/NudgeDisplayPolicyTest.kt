@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.ui.screen.chatdetail.NudgeDisplayPolicy
-import com.maodouchat.ui.screen.chatdetail.Templates
+import com.maodouchat.core.model.NudgeDisplayPolicy
+import com.maodouchat.core.model.Templates
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
