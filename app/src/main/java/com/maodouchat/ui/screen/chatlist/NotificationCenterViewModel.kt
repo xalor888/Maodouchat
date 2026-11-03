@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatlist
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.maodouchat.core.model.NotificationCenterReadPolicy
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.navigation.AppLinkDestination
@@ -66,7 +67,7 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
     fun removeChat(chatId: String) {
         if (chatId.isBlank()) return
         val affected = repo.snapshot().filter { item ->
-            com.maodouchat.notification.NotificationCenterReadPolicy.belongsToChat(
+            NotificationCenterReadPolicy.belongsToChat(
                 chatId = chatId,
                 mergeKey = item.mergeKey,
                 deeplink = item.deeplink,

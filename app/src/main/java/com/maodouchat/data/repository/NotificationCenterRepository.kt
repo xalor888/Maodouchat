@@ -2,6 +2,7 @@ package com.maodouchat.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.maodouchat.core.model.NotificationCenterReadPolicy
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
@@ -183,7 +184,7 @@ class NotificationCenterRepository(context: Context) {
             val current = _items.value
             val now = System.currentTimeMillis()
             val updated = current.map { item ->
-                val matches = com.maodouchat.notification.NotificationCenterReadPolicy.isChatMessageItem(
+                val matches = NotificationCenterReadPolicy.isChatMessageItem(
                     chatId = chatId,
                     mergeKey = item.mergeKey,
                     deeplink = item.deeplink,
@@ -250,7 +251,7 @@ class NotificationCenterRepository(context: Context) {
         withCurrentAccount { ownerUserId ->
             val current = _items.value
             val updated = current.filterNot { item ->
-                com.maodouchat.notification.NotificationCenterReadPolicy.belongsToChat(
+                NotificationCenterReadPolicy.belongsToChat(
                     chatId = chatId,
                     mergeKey = item.mergeKey,
                     deeplink = item.deeplink,
@@ -274,7 +275,7 @@ class NotificationCenterRepository(context: Context) {
         return withCurrentAccount { ownerUserId ->
             val current = _items.value
             val updated = current.filterNot { item ->
-                com.maodouchat.notification.NotificationCenterReadPolicy.referencesMessage(
+                NotificationCenterReadPolicy.referencesMessage(
                     messageId = messageId,
                     itemId = item.id,
                     extraMessageId = item.extra["messageId"]
@@ -297,7 +298,7 @@ class NotificationCenterRepository(context: Context) {
             val current = _items.value
             val updated = current.filterNot { item ->
                 ids.any { id ->
-                    com.maodouchat.notification.NotificationCenterReadPolicy.referencesMessage(
+                    NotificationCenterReadPolicy.referencesMessage(
                         messageId = id,
                         itemId = item.id,
                         extraMessageId = item.extra["messageId"]
@@ -322,7 +323,7 @@ class NotificationCenterRepository(context: Context) {
             val current = _items.value
             val now = System.currentTimeMillis()
             val updated = current.map { item ->
-                val matches = com.maodouchat.notification.NotificationCenterReadPolicy.referencesMessage(
+                val matches = NotificationCenterReadPolicy.referencesMessage(
                     messageId = messageId,
                     itemId = item.id,
                     extraMessageId = item.extra["messageId"]
