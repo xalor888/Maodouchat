@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiChatClassificationSource
 import com.maodouchat.ai.AiConversationProfileSource
-import com.maodouchat.ai.AiEmotionReplySource
 import com.maodouchat.ai.AiWeeklyReportSource
 import com.maodouchat.attachment.AttachmentDownloadCoordinator
 import com.maodouchat.attachment.AttachmentTransferSummaryRepository
@@ -34,6 +33,7 @@ import com.maodouchat.scheduling.ConversationScheduleCoordinator
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.VoiceRecorder
+import com.maodouchat.core.model.AiEmotionReplySource
 import com.maodouchat.core.model.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
