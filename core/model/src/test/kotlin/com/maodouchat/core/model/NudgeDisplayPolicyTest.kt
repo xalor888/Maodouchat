@@ -15,7 +15,7 @@ class NudgeDisplayPolicyTest {
     fun `group peer with blank target falls back to ellipsis`() {
         val text = NudgeDisplayPolicy.displayText(
             isOwnMessage = false,
-            storedContent = "hello",
+            storedContent = "   ",
             senderDisplayName = "李四",
             isDirectChat = false,
             templates = templates
