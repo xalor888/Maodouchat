@@ -1,4 +1,4 @@
-package com.maodouchat.group.play
+package com.maodouchat.core.model
 
 /**
  * 群签到玩法策略（U06 解耦）。

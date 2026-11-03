@@ -3,10 +3,10 @@ package com.maodouchat.util
 // 派对社交类（表情玩法/社交破冰/创意接龙等）：编解码实现（从 GroupPlayClassicPolicy 逐字搬出，零行为改动）。
 internal object GroupPlayClassicParty {
 
-    fun randomWordSeed(): String = com.maodouchat.group.play.GroupChainPolicy.randomWordSeed()
+    fun randomWordSeed(): String = com.maodouchat.core.model.GroupChainPolicy.randomWordSeed()
 
     fun formatWordChain(seed: String, userLabel: String): String =
-        com.maodouchat.group.play.GroupChainPolicy.formatWordChain(seed, userLabel)
+        com.maodouchat.core.model.GroupChainPolicy.formatWordChain(seed, userLabel)
 
     fun formatWouldYouRather(a: String, b: String, hostLabel: String): String {
         val left = a.trim().take(80)
