@@ -1,6 +1,6 @@
 package com.maodouchat.network.api
 
-import com.maodouchat.util.toHexString
+import com.maodouchat.core.model.toHexString
 import java.io.File
 import java.io.RandomAccessFile
 import java.security.MessageDigest

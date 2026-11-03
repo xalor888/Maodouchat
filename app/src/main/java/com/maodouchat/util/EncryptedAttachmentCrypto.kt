@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import android.net.Uri
+import com.maodouchat.core.model.toHexString
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
