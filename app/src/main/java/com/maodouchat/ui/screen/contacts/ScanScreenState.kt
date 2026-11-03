@@ -12,7 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
-import com.maodouchat.contacts.QrScanFeedbackPolicy
+import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.core.model.QrTarget
 import com.maodouchat.core.session.SafetyScanStatus
 import com.maodouchat.data.model.User
@@ -23,8 +23,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.contacts.Feedback
-import com.maodouchat.contacts.Kind
+import com.maodouchat.core.model.Feedback
+import com.maodouchat.core.model.Kind
 
 /**
  * 扫一扫页的可变状态与结果处理：从 ScanScreen 拆出的非 UI 簇。

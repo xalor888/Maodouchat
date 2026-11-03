@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.contacts.QrScanFeedbackPolicy
+import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.core.model.QrTarget
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize

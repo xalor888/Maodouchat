@@ -27,8 +27,8 @@ import com.maodouchat.group.JoinGroupInviteUseCase
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.contacts.Feedback
-import com.maodouchat.contacts.Kind
+import com.maodouchat.core.model.Feedback
+import com.maodouchat.core.model.Kind
 
 /**
  * P08：群邀请落地页（深链 / QR / 系统入口统一）。

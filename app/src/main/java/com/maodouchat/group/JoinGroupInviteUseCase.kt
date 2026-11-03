@@ -1,6 +1,6 @@
 package com.maodouchat.group
 
-import com.maodouchat.contacts.QrScanFeedbackPolicy
+import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ChatDto
