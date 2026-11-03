@@ -3,10 +3,10 @@ package com.maodouchat.ai
 import android.content.Context
 import com.maodouchat.core.model.AiClassifyLexicon
 import com.maodouchat.core.model.AiMessageClassifierCategory
+import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.repository.AiProfileRepository
-import com.maodouchat.data.repository.CategoryCount
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

@@ -2,6 +2,7 @@ package com.maodouchat.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.data.local.DatabasePassphraseProvider
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.Dispatchers
