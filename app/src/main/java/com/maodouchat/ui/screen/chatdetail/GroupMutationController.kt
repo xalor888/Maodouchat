@@ -4,9 +4,9 @@ import com.maodouchat.R
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.group.GroupLifecycleService
 import android.net.Uri
-import com.maodouchat.group.GroupMutationAction
-import com.maodouchat.group.GroupMutationFeedback
-import com.maodouchat.group.GroupMutationFeedbackKind
+import com.maodouchat.core.model.GroupMutationAction
+import com.maodouchat.core.model.GroupMutationFeedback
+import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.group.GroupMutationCommit
 import com.maodouchat.group.GroupMutationFeedbackPolicy
 import kotlinx.coroutines.CoroutineScope

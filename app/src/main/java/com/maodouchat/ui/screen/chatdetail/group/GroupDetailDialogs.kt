@@ -30,7 +30,7 @@ import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
 import com.maodouchat.group.GroupMemberUi
 import com.maodouchat.ui.screen.chatdetail.GroupMutePolicy
 import com.maodouchat.ui.screen.chatdetail.Preset
-import com.maodouchat.group.GroupMutationFeedbackKind
+import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.group.OwnedBotUi

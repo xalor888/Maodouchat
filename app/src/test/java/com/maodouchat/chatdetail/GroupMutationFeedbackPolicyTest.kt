@@ -2,8 +2,8 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
-import com.maodouchat.group.GroupMutationAction
-import com.maodouchat.group.GroupMutationFeedbackKind
+import com.maodouchat.core.model.GroupMutationAction
+import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.group.GroupMutationFeedbackPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
