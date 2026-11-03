@@ -3,13 +3,13 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import android.util.Log
 import com.maodouchat.R
+import com.maodouchat.core.model.ConversationReactionOutcome
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.messaging.v2.ConversationMessageMutationCoordinator
 import com.maodouchat.messaging.v2.ConversationMessageMutationOutcome
 import com.maodouchat.messaging.v2.ConversationReactionCoordinator
-import com.maodouchat.messaging.v2.ConversationReactionOutcome
 import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException

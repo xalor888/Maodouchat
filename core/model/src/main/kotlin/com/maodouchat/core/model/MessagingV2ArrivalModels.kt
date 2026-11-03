@@ -1,6 +1,6 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-internal data class MessagingV2ArrivalDecision(
+data class MessagingV2ArrivalDecision(
     val unreadDelta: Int,
     val shouldAttemptNotification: Boolean,
     val shouldSendDeliveryReceipt: Boolean,

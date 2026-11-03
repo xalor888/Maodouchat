@@ -1,5 +1,8 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.MessageMutationKind
+import com.maodouchat.core.model.MessageMutationTicket
+
 /** Single-flight and authoritative-terminal tracking for optimistic message mutations. */
 internal class MessageMutationTracker {
     private var generation = 0L
