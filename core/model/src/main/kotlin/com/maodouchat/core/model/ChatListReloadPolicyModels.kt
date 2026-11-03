@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
 enum class Trigger {
     /** User pull-to-refresh or explicit refresh(). */

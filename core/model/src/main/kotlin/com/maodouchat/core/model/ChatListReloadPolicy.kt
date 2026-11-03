@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
 /** 聊天列表刷新策略：各触发源如何经 getChats 刷新（重连静默、群修订合并）。 */
 object ChatListReloadPolicy {

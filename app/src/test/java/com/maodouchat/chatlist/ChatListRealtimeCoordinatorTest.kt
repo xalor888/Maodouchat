@@ -13,7 +13,7 @@ import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListRealtimeCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
-import com.maodouchat.ui.screen.chatlist.Trigger
+import com.maodouchat.core.model.Trigger
 import io.mockk.mockk
 import kotlin.test.Test
 import kotlin.test.assertEquals
