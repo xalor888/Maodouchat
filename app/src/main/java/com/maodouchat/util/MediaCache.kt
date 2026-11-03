@@ -5,6 +5,8 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Base64
 import android.util.Log
+import com.maodouchat.core.crypto.AttachmentCryptoException
+import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import com.maodouchat.data.model.MessageType
 import androidx.core.net.toUri
 import java.io.File
