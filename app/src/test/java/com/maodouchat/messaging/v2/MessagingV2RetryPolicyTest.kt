@@ -1,5 +1,6 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.MessagingV2RetryPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
