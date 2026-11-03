@@ -34,7 +34,7 @@ object GroupPlayPolicy {
     }
 
     fun formatCheckIn(dayStreak: Int, userLabel: String): String =
-        com.maodouchat.group.play.GroupCheckinPolicy.formatCheckIn(dayStreak, userLabel)
+        com.maodouchat.core.model.GroupCheckinPolicy.formatCheckIn(dayStreak, userLabel)
 
     fun buildPollPayload(
         pollId: String,
