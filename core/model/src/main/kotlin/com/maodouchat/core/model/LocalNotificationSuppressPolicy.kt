@@ -1,4 +1,4 @@
-package com.maodouchat.notification
+package com.maodouchat.core.model
 
 /**
  * Pure gates for local delivery of message notifications (FCM data-only + in-app WS path).
