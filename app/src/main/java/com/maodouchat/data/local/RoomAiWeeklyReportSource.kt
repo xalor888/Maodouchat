@@ -1,7 +1,7 @@
 package com.maodouchat.data.local
 
 import com.maodouchat.ai.AiWeeklyReport
-import com.maodouchat.ai.AiWeeklyReportSource
+import com.maodouchat.core.model.AiWeeklyReportSource
 import com.maodouchat.core.model.WeeklyReport
 
 /** `AiWeeklyReportSource` 的装配实现（G73）。 */
