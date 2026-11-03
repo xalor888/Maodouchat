@@ -1,6 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.MessagingV2InboxFailurePolicy
+import com.maodouchat.core.model.MessagingV2RetryPolicy
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.network.ApiService
