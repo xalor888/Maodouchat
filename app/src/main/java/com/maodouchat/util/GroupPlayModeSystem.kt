@@ -1,5 +1,7 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.GroupPlayFieldEscape
+
 // 系统效率类（提醒/冲刺/效率玩法）：编解码实现（从 GroupPlayModePolicy 逐字搬出，零行为改动）。
 internal object GroupPlayModeSystem {
 

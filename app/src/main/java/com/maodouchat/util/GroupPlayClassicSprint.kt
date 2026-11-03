@@ -1,5 +1,7 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.GroupPlayFieldEscape
+
 // 竞速反应类（倒计时/冲刺/打卡竞速等）：编解码实现（从 GroupPlayClassicPolicy 逐字搬出，零行为改动）。
 internal object GroupPlayClassicSprint {
 

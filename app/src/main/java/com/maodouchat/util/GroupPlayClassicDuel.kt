@@ -1,5 +1,7 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.GroupPlayFieldEscape
+
 // 对决竞技类（RPS/数字炸弹/反应竞速等）：编解码实现（从 GroupPlayClassicPolicy 逐字搬出，零行为改动）。
 internal object GroupPlayClassicDuel {
 
