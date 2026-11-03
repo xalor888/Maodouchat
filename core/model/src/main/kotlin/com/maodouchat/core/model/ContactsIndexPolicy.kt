@@ -1,4 +1,4 @@
-package com.maodouchat.contacts
+package com.maodouchat.core.model
 
 /**
  * Pure helpers for the contacts alphabet index (W3-04).
