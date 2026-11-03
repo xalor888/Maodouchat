@@ -1,7 +1,7 @@
 package com.maodouchat.data.local
 
-import com.maodouchat.ai.AiChatClassificationSource
-import com.maodouchat.data.repository.CategoryCount
+import com.maodouchat.core.model.AiChatClassificationSource
+import com.maodouchat.core.model.CategoryCount
 
 /** `AiChatClassificationSource` 的装配实现（G73）；端口在 ui，实现在 data。 */
 internal class RoomAiChatClassificationSource(

@@ -26,8 +26,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.data.repository.CategoryCount
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.core.model.WeeklyReport
 
 /** AI 画像与洞察对话框：会话画像、周报、消息分类。所需输入全经参数传入。 */

@@ -12,10 +12,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.core.model.GroupAiSharePolicy
 import com.maodouchat.core.model.WeeklyReport
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.repository.CategoryCount
 
 /**
  * 聊天页的 **AI 相关对话框簇**（G74 从 `ChatDetailRoute.kt` 拆出）。

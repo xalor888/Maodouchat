@@ -3,8 +3,8 @@ package com.maodouchat.ai
 import android.content.Context
 import com.maodouchat.core.model.AiClassifyLexicon
 import com.maodouchat.core.model.Classification
+import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.data.local.AppDatabase
-import com.maodouchat.data.repository.CategoryCount
 
 /**
  * B4 · 消息分类（纯本地 SQLCipher 规则分类，无服务端调用）。
