@@ -1,5 +1,6 @@
 package com.maodouchat.slim
 
+import com.maodouchat.core.model.StickerNamePolicy
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
