@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.core.net.toUri
 import com.maodouchat.R
+import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.ImagePicker
@@ -114,7 +115,7 @@ internal fun ChatDetailViewModel.analyzeImageMessage(messageId: String, mode: Ai
                     meta = updatedMeta
                 )
                 if (!commitAiMessageResult(operationId, updated, request.userId, request.chatId)) return@fold
-                val displayImageResult = com.maodouchat.ai.AiPromptSafetyPolicy
+                val displayImageResult = AiPromptSafetyPolicy
                     .annotateIfPrivilegedHallucination(
                         resultText,
                         text(R.string.chat_ai_privilege_hallucination_disclaimer)

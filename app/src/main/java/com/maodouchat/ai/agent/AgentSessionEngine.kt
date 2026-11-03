@@ -1,6 +1,6 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.ai.AiPromptSafetyPolicy
+import com.maodouchat.core.model.AiPromptSafetyPolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 

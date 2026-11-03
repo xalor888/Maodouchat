@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.ai.AiPromptSafetyPolicy
+import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.model.Message
 import com.maodouchat.network.AiContextMessage
@@ -119,7 +119,7 @@ internal fun ChatDetailViewModel.summarizeMessages(
                 if (!manualSummaryGate.isCurrent(generation)) return@fold
                 requireAiRequestCurrent(request)
                 if (!completeAiOperation(operationId)) return@fold
-                val displaySummary = com.maodouchat.ai.AiPromptSafetyPolicy
+                val displaySummary = AiPromptSafetyPolicy
                     .annotateIfPrivilegedHallucination(
                         generatedSummary,
                         text(R.string.chat_ai_privilege_hallucination_disclaimer)
