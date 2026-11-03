@@ -1,7 +1,7 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
 /** Decides when a poison envelope must stop blocking mailbox convergence. */
-internal object MessagingV2InboxFailurePolicy {
+object MessagingV2InboxFailurePolicy {
     const val MAX_RECOVERABLE_ATTEMPTS = 8
 
     fun shouldDeadLetter(errorCode: String, attemptsAfterFailure: Int): Boolean =
