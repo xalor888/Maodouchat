@@ -1,5 +1,6 @@
 package com.maodouchat.notification
 
+import com.maodouchat.core.model.NotificationSoundPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

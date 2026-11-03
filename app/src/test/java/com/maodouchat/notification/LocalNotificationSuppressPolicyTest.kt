@@ -1,5 +1,6 @@
 package com.maodouchat.notification
 
+import com.maodouchat.core.model.LocalNotificationSuppressPolicy
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

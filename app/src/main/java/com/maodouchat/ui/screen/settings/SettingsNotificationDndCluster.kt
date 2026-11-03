@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.settings
 
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.NotificationInfrastructure
+import com.maodouchat.core.model.LocalNotificationSuppressPolicy
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import com.maodouchat.R
@@ -45,7 +46,7 @@ internal fun NotificationSettingsViewModel.isDndActive(): Boolean {
     if (!_uiState.value.enableNotifications) return false
     val context = getApplication<Application>()
     val now = java.util.Calendar.getInstance()
-    return com.maodouchat.notification.LocalNotificationSuppressPolicy.shouldSuppress(
+    return LocalNotificationSuppressPolicy.shouldSuppress(
         notificationsEnabled = true,
         dndStartHour = _uiState.value.dndStartHour,
         dndEndHour = _uiState.value.dndEndHour,

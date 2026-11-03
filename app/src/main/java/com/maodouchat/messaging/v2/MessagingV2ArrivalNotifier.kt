@@ -6,7 +6,7 @@ import com.maodouchat.core.model.ChatQuietHoursPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.notification.ChatQuietHoursStore
-import com.maodouchat.notification.LocalNotificationSuppressPolicy
+import com.maodouchat.core.model.LocalNotificationSuppressPolicy
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.notification.NotificationPreferences
 

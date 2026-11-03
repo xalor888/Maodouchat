@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.notification.NotificationSlotPolicy
+import com.maodouchat.core.model.NotificationSlotPolicy
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
 import kotlin.test.assertEquals
