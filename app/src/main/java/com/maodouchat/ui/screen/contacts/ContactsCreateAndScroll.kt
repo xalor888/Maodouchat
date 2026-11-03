@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
+import com.maodouchat.core.model.ContactsIndexPolicy
 import com.maodouchat.data.model.User
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
@@ -418,14 +419,14 @@ internal fun findLetterIndex(
     groupInviteCount: Int,
     targetLetter: String
 ): Int {
-    val leadingFixedItems = com.maodouchat.contacts.ContactsIndexPolicy.leadingFixedItemCount(
+    val leadingFixedItems = ContactsIndexPolicy.leadingFixedItemCount(
         incomingCount = incomingCount,
         outgoingCount = outgoingCount,
         groupInviteCount = groupInviteCount
     )
     val ordered = grouped.keys.toList()
     val sizes = grouped.mapValues { it.value.size }
-    return com.maodouchat.contacts.ContactsIndexPolicy.letterListIndex(
+    return ContactsIndexPolicy.letterListIndex(
         orderedLetters = ordered,
         sizes = sizes,
         targetLetter = targetLetter,

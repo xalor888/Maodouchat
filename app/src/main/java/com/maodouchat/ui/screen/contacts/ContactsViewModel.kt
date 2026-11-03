@@ -3,7 +3,6 @@ package com.maodouchat.ui.screen.contacts
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.contacts.ContactsIndexPolicy
 import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.sync.DefaultContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.usecase.ContactMutationUseCase
@@ -12,6 +11,7 @@ import com.maodouchat.contacts.usecase.DefaultFriendRequestUseCase
 import com.maodouchat.contacts.usecase.FriendRequestUseCase
 import com.maodouchat.conversation.ConversationCreationPort
 import com.maodouchat.conversation.DefaultConversationCreationPort
+import com.maodouchat.core.model.ContactsIndexPolicy
 import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.AppRepositories
