@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import android.util.Log
+import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.core.session.SignalStoreLoadPolicy
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
@@ -369,7 +370,7 @@ class PersistentSignalProtocolStore(
 
     // 9.236：accountId 为服务端返回不可信数据，前缀经 escapeForPrefix 转义后与 DAO
     // 的 LIKE ... ESCAPE '\' 配套，防 %/_ 通配扩散作用域；写入/查询两侧必须同一转义
-    private fun prefix(): String = "user:${com.maodouchat.data.local.LikeQueryPolicy.escapeForPrefix(accountId)}:"
+    private fun prefix(): String = "user:${LikeQueryPolicy.escapeForPrefix(accountId)}:"
 
     private fun addressKey(address: SignalProtocolAddress): String = "${address.name}$ADDRESS_SEPARATOR${address.deviceId}"
 

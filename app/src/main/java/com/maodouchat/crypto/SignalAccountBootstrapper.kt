@@ -4,6 +4,7 @@ import android.util.Base64
 import android.util.Log
 import com.maodouchat.core.crypto.CryptoAccountBootstrapper
 import com.maodouchat.core.crypto.SignalPreKeyIdPolicy
+import com.maodouchat.core.model.LikeQueryPolicy
 import kotlinx.coroutines.sync.withLock
 import org.signal.libsignal.protocol.IdentityKeyPair
 import org.signal.libsignal.protocol.state.SignedPreKeyRecord
@@ -254,7 +255,7 @@ class SignalAccountBootstrapper internal constructor(
         val accountId = context.currentUserId
         invalidateInMemoryAccountStateLocked()
         if (accountId != null) {
-            context.signalKeyDao.deleteKeysWithPrefix("user:${com.maodouchat.data.local.LikeQueryPolicy.escapeForPrefix(accountId)}:")
+            context.signalKeyDao.deleteKeysWithPrefix("user:${LikeQueryPolicy.escapeForPrefix(accountId)}:")
             context.identityTrustDao.deleteForAccount(accountId)
         } else {
             context.signalKeyDao.deleteKeysWithPrefix("anonymous:")

@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.DecryptRetryTracker
+import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import kotlinx.coroutines.sync.Mutex
@@ -64,7 +65,7 @@ internal class SignalProtocolContext(
 
     fun scopedKey(keyType: String): String {
         return currentUserId?.let {
-            "user:${com.maodouchat.data.local.LikeQueryPolicy.escapeForPrefix(it)}:$keyType"
+            "user:${LikeQueryPolicy.escapeForPrefix(it)}:$keyType"
         } ?: "anonymous:$keyType"
     }
 

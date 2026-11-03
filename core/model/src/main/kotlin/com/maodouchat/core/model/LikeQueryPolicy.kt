@@ -1,17 +1,11 @@
-package com.maodouchat.data.local
+package com.maodouchat.core.model
 
-/**
- * Escape user input for SQL LIKE patterns that use ESCAPE '\'.
- * Without this, typing `%` / `_` / `\` turns the list search into a wildcard fan-out.
- */
+// LIKE-pattern escaping for queries using ESCAPE '\': without it, `%` / `_` / `\` in input would widen the match.
 object LikeQueryPolicy {
 
     const val ESCAPE_CHAR: Char = '\\'
 
-    /**
-     * Escape `\`, `%`, and `_` for use inside a `LIKE '%…%' ESCAPE '\'` clause.
-     * Returns blank when [raw] is blank after trim.
-     */
+    // Blank input stays blank; every `\`, `%`, `_` gets a `\` prefix.
     fun escapeForContains(raw: String): String {
         if (raw.isBlank()) return ""
         val sb = StringBuilder(raw.length + 4)
@@ -27,11 +21,7 @@ object LikeQueryPolicy {
         return sb.toString()
     }
 
-    /**
-     * 9.236：转义前缀片段（如服务端返回的 accountId）供 `LIKE prefix || '%' ESCAPE '\'` 使用。
-     * 与 [escapeForContains] 不同：空白也是合法前缀内容，不得归空。
-     * 写入侧若拼接同一前缀必须用同样转义，保证键字面量与查询匹配一致。
-     */
+    // Same escaping for a LIKE prefix, except blank input is kept: a blank prefix is legal key content.
     fun escapeForPrefix(raw: String): String {
         val sb = StringBuilder(raw.length + 4)
         for (ch in raw) {
