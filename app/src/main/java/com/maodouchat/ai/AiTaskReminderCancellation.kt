@@ -2,6 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import androidx.work.WorkManager
+import com.maodouchat.core.model.AiTaskReminderWorkNaming
 import com.maodouchat.notification.ReminderNotificationService
 
 // 单任务取消簇：取消单个 / 取消全部（通知一并撤回）。

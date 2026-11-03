@@ -6,6 +6,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.maodouchat.core.model.AiTaskReminderWorkNaming
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.network.TokenManager
 import java.util.concurrent.TimeUnit
