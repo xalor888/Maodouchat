@@ -1,6 +1,5 @@
-package com.maodouchat.group.play
+package com.maodouchat.core.model
 
-import com.maodouchat.util.rpsChoices
 import kotlin.random.Random
 
 /**
@@ -8,6 +7,7 @@ import kotlin.random.Random
  * 包含剪刀石头布、数字炸弹、手速抢答等 PK 模式。
  */
 object GroupPkPolicy {
+    private val rpsChoices = listOf("rock", "paper", "scissors")
     const val RPS_PREFIX = "RPS:"
     const val BOMB_PREFIX = "BOMB:"
     const val RACE_PREFIX = "RACE:"
@@ -15,8 +15,7 @@ object GroupPkPolicy {
     private fun esc(s: String): String = s.replace("|", "\u0001").replace("^", "\u0002")
     private fun unesc(s: String): String = s.replace("\u0001", "|").replace("\u0002", "^")
 
-    // G154c：猜拳选项原先在这里有一份成员副本，与 GroupPlayData.rpsChoices 重复；
-    // 改一处忘了另一处，客户端显示和编解码判定就会不一致。
+    // 猜拳选项的唯一来源，随策略一起迁入。
     fun rollRps(): String = rpsChoices.random()
 
     fun formatRps(choice: String, userLabel: String): String {

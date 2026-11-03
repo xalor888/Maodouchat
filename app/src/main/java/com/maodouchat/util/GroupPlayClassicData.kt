@@ -4,8 +4,6 @@ package com.maodouchat.util
  * 群玩法经典游戏只读数据表（从 GroupPlayData.kt 拆出，纯数据，无逻辑）。
  */
 
-internal val rpsChoices = listOf("rock", "paper", "scissors")
-
 
 internal val truthPrompts = listOf(
         "最近一次让你开心的小事是什么？",
