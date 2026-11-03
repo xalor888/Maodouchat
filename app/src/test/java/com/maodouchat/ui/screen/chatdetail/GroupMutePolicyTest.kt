@@ -1,5 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.GroupMutePolicy
+import com.maodouchat.core.model.GroupMutePreset
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,7 +22,7 @@ class GroupMutePolicyTest {
     @Test
     fun mutedUntilAddsDuration() {
         val now = 1_000_000L
-        val until = GroupMutePolicy.mutedUntil(now, Preset.HOUR_1)
+        val until = GroupMutePolicy.mutedUntil(now, GroupMutePreset.HOUR_1)
         assertEquals(now + 3_600_000L, until)
     }
 
@@ -46,15 +49,15 @@ class GroupMutePolicyTest {
         GroupMutePolicy.presets.forEach { preset ->
             assertTrue(GroupMutePolicy.mutedUntil(now, preset) <= now + GroupMutePolicy.MAX_MUTE_MS)
         }
-        assertEquals(now + GroupMutePolicy.MAX_MUTE_MS, GroupMutePolicy.mutedUntil(now, Preset.DAYS_30))
+        assertEquals(now + GroupMutePolicy.MAX_MUTE_MS, GroupMutePolicy.mutedUntil(now, GroupMutePreset.DAYS_30))
     }
 
     @Test
     fun smallPresetDurationsAreExact() {
         val now = 2_000_000L
-        assertEquals(now + 300_000L, GroupMutePolicy.mutedUntil(now, Preset.MINUTES_5))
-        assertEquals(now + 1_800_000L, GroupMutePolicy.mutedUntil(now, Preset.MINUTES_30))
-        assertEquals(now + 86_400_000L, GroupMutePolicy.mutedUntil(now, Preset.DAY_1))
+        assertEquals(now + 300_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.MINUTES_5))
+        assertEquals(now + 1_800_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.MINUTES_30))
+        assertEquals(now + 86_400_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.DAY_1))
     }
 
     @Test
@@ -66,17 +69,17 @@ class GroupMutePolicyTest {
 
     @Test
     fun namedPresetDurationsAreExact() {
-        assertEquals(600_000L, Preset.MINUTES_10.durationMs)
-        assertEquals(7_200_000L, Preset.HOURS_2.durationMs)
-        assertEquals(28_800_000L, Preset.HOURS_8.durationMs)
-        assertEquals(604_800_000L, Preset.DAYS_7.durationMs)
+        assertEquals(600_000L, GroupMutePreset.MINUTES_10.durationMs)
+        assertEquals(7_200_000L, GroupMutePreset.HOURS_2.durationMs)
+        assertEquals(28_800_000L, GroupMutePreset.HOURS_8.durationMs)
+        assertEquals(604_800_000L, GroupMutePreset.DAYS_7.durationMs)
     }
 
     @Test
     fun remainingPresetDurationsAreExact() {
-        assertEquals(10_800_000L, Preset.HOURS_3.durationMs)
-        assertEquals(21_600_000L, Preset.HOURS_6.durationMs)
-        assertEquals(GroupMutePolicy.MAX_MUTE_MS, Preset.DAYS_30.durationMs)
+        assertEquals(10_800_000L, GroupMutePreset.HOURS_3.durationMs)
+        assertEquals(21_600_000L, GroupMutePreset.HOURS_6.durationMs)
+        assertEquals(GroupMutePolicy.MAX_MUTE_MS, GroupMutePreset.DAYS_30.durationMs)
     }
 
     @Test
@@ -102,18 +105,18 @@ class GroupMutePolicyTest {
 
     @Test
     fun presetsListEqualsPresetEntries() {
-        assertEquals(Preset.entries, GroupMutePolicy.presets)
+        assertEquals(GroupMutePreset.entries, GroupMutePolicy.presets)
     }
 
     @Test
     fun mutedUntilExactForRemainingPresetsAtNonZeroNow() {
         val now = 3_000_000L
-        assertEquals(3_600_000L, GroupMutePolicy.mutedUntil(now, Preset.MINUTES_10))
-        assertEquals(10_200_000L, GroupMutePolicy.mutedUntil(now, Preset.HOURS_2))
-        assertEquals(13_800_000L, GroupMutePolicy.mutedUntil(now, Preset.HOURS_3))
-        assertEquals(24_600_000L, GroupMutePolicy.mutedUntil(now, Preset.HOURS_6))
-        assertEquals(31_800_000L, GroupMutePolicy.mutedUntil(now, Preset.HOURS_8))
-        assertEquals(607_800_000L, GroupMutePolicy.mutedUntil(now, Preset.DAYS_7))
+        assertEquals(3_600_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.MINUTES_10))
+        assertEquals(10_200_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.HOURS_2))
+        assertEquals(13_800_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.HOURS_3))
+        assertEquals(24_600_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.HOURS_6))
+        assertEquals(31_800_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.HOURS_8))
+        assertEquals(607_800_000L, GroupMutePolicy.mutedUntil(now, GroupMutePreset.DAYS_7))
     }
 
     @Test
@@ -144,7 +147,7 @@ class GroupMutePolicyTest {
 
     @Test
     fun mutedUntilFromNegativeNowAndNegativeUntilIsInactive() {
-        assertEquals(299_000L, GroupMutePolicy.mutedUntil(-1_000L, Preset.MINUTES_5))
+        assertEquals(299_000L, GroupMutePolicy.mutedUntil(-1_000L, GroupMutePreset.MINUTES_5))
         assertFalse(GroupMutePolicy.isActiveMute(-5L, 0L))
         assertEquals(0L, GroupMutePolicy.clearMuteUntil())
     }

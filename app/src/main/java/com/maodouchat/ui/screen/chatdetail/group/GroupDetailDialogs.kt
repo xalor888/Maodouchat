@@ -28,8 +28,8 @@ import com.maodouchat.R
 import com.maodouchat.ui.component.ZoomableAsyncImage
 import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
 import com.maodouchat.group.GroupMemberUi
-import com.maodouchat.ui.screen.chatdetail.GroupMutePolicy
-import com.maodouchat.ui.screen.chatdetail.Preset
+import com.maodouchat.core.model.GroupMutePolicy
+import com.maodouchat.core.model.GroupMutePreset
 import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.group.GroupDetailUiState
@@ -109,17 +109,17 @@ fun MuteMemberDialog(
     val label30d = stringResource(R.string.group_detail_mute_30_days)
     val choices = GroupMutePolicy.presets.map { preset ->
         val label = when (preset) {
-            Preset.MINUTES_5 -> label5
-            Preset.MINUTES_10 -> label10
-            Preset.MINUTES_30 -> label30
-            Preset.HOUR_1 -> label1h
-            Preset.HOURS_2 -> label2h
-            Preset.HOURS_3 -> label3h
-            Preset.HOURS_6 -> label6h
-            Preset.HOURS_8 -> label8h
-            Preset.DAY_1 -> label1d
-            Preset.DAYS_7 -> label7d
-            Preset.DAYS_30 -> label30d
+            GroupMutePreset.MINUTES_5 -> label5
+            GroupMutePreset.MINUTES_10 -> label10
+            GroupMutePreset.MINUTES_30 -> label30
+            GroupMutePreset.HOUR_1 -> label1h
+            GroupMutePreset.HOURS_2 -> label2h
+            GroupMutePreset.HOURS_3 -> label3h
+            GroupMutePreset.HOURS_6 -> label6h
+            GroupMutePreset.HOURS_8 -> label8h
+            GroupMutePreset.DAY_1 -> label1d
+            GroupMutePreset.DAYS_7 -> label7d
+            GroupMutePreset.DAYS_30 -> label30d
         }
         label to preset
     }
