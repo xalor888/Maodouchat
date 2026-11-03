@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.work.ListenableWorker
 import androidx.work.Data
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AiTaskReminderWorkNaming
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.security.BackgroundSessionGate
