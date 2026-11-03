@@ -1,6 +1,6 @@
 package com.maodouchat.data.local
 
-import com.maodouchat.ai.AiEmotionReplySource
+import com.maodouchat.core.model.AiEmotionReplySource
 
 /** `AiEmotionReplySource` 的装配实现（G73）。 */
 internal class RoomAiEmotionReplySource(

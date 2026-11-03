@@ -1,4 +1,4 @@
-package com.maodouchat.ai
+package com.maodouchat.core.model
 
 /**
  * 「情感回复」AI 能力的读取端口（G73）。同 `AiConversationProfileSource` 手法。
