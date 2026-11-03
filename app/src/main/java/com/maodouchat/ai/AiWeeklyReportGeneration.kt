@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiWeeklyReportWeekRange
 import com.maodouchat.core.model.WeeklyReport
 import com.maodouchat.data.local.AppDatabase

@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.PrivilegeClaimKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
+import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.network.AiContextMessage
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.network.AiSemanticSearchCandidate
@@ -84,7 +85,7 @@ internal fun ChatDetailViewModel.groupAssistant(query: String, mode: String) {
                     } else emptyList()
                     _uiState.update {
                         it.copy(
-                            groupAiAnswer = com.maodouchat.ai.AiPromptSafetyPolicy
+                            groupAiAnswer = AiPromptSafetyPolicy
                                 .annotateIfPrivilegedHallucination(
                                     answer.trim().take(4_000),
                                     text(R.string.chat_ai_privilege_hallucination_disclaimer)

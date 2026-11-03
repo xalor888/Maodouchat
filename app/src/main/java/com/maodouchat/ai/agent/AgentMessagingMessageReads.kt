@@ -1,7 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.ai.AiPromptSafetyPolicy
+import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.MessageSearchRepository
 import com.maodouchat.network.ApiService
