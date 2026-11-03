@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -15,14 +15,14 @@ private val chatWeekdayFormat: ThreadLocal<SimpleDateFormat> =
 private val chatDateFormat: ThreadLocal<SimpleDateFormat> =
     ThreadLocal.withInitial { SimpleDateFormat("MM/dd", Locale.getDefault()) }
 
-internal fun formatChatTime(ts: Long): String {
+fun formatChatTime(ts: Long): String {
     if (ts <= 0L) return ""
     val cal = Calendar.getInstance()
     val msg = Calendar.getInstance().apply { timeInMillis = ts }
     return if (cal.get(Calendar.YEAR) == msg.get(Calendar.YEAR) && cal.get(Calendar.DAY_OF_YEAR) == msg.get(Calendar.DAY_OF_YEAR)) {
         chatTimeFormat.get().format(Date(ts))
     } else {
-        // 9.278：TG 式时间分段——近一周内显示星期缩写（如「周一」/Mon），更早才显示日期
+        // TG 式时间分段：近一周内显示星期缩写，更早才显示日期
         val dayDiff = daysBetween(msg, cal)
         if (dayDiff in 1..6) {
             chatWeekdayFormat.get().format(Date(ts))
@@ -33,7 +33,7 @@ internal fun formatChatTime(ts: Long): String {
 }
 
 /** 两个日历之间的自然日差（按零点对齐）。 */
-internal fun daysBetween(earlier: Calendar, later: Calendar): Int {
+fun daysBetween(earlier: Calendar, later: Calendar): Int {
     val e = Calendar.getInstance().apply { timeInMillis = earlier.timeInMillis; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
     val l = Calendar.getInstance().apply { timeInMillis = later.timeInMillis; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
     return ((l.timeInMillis - e.timeInMillis) / 86400000L).toInt()
