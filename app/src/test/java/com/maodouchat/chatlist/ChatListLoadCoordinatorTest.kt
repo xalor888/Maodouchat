@@ -2,7 +2,7 @@ package com.maodouchat.chatlist
 
 import com.maodouchat.conversation.ConversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.MissedCall
+import com.maodouchat.core.model.MissedCall
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.network.ChatDto

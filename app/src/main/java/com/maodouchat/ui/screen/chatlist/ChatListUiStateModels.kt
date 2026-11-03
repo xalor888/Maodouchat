@@ -17,7 +17,7 @@ data class ChatListUiState(
     val realtimeBanner: String? = null,
     val ownerTransferRequiredChatId: String? = null,
     val selectedTab: Int = 0,
-    val missedCalls: List<com.maodouchat.data.model.MissedCall> = emptyList(),
+    val missedCalls: List<com.maodouchat.core.model.MissedCall> = emptyList(),
     val drafts: Map<String, ChatDraftEntity> = emptyMap(),
     /** 1.146：各会话待发送的本地定时消息数（chatId -> count） */
     val scheduledByChat: Map<String, Int> = emptyMap(),

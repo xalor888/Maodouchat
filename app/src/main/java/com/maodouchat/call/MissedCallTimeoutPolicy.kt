@@ -7,7 +7,7 @@ package com.maodouchat.call
 object MissedCallTimeoutPolicy {
 
     /**
-     * Stable primary key for [com.maodouchat.data.model.MissedCall] and tray notify id.
+     * Stable primary key for [com.maodouchat.core.model.MissedCall] and tray notify id.
      * Prefer the signaling [callId] so FCM incoming cancel + missed cancel share one slot
      * when possible; fall back to a synthetic id only when the offer had no callId.
      * 注意：空 callId 时用「固定前缀 + 联系人 + 分钟粒度时间桶」——NavGraph 30s 计时器与

@@ -1,4 +1,4 @@
-package com.maodouchat.data.model
+package com.maodouchat.core.model
 
 data class MissedCall(
     val id: String,

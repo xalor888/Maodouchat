@@ -16,7 +16,7 @@ data class MissedCallEntity(
     val receivedAt: Long,
     val isRead: Boolean = false
 ) {
-    fun toDomain(): com.maodouchat.data.model.MissedCall = com.maodouchat.data.model.MissedCall(
+    fun toDomain(): com.maodouchat.core.model.MissedCall = com.maodouchat.core.model.MissedCall(
         id = id,
         callerId = callerId,
         callerName = callerName,
@@ -26,7 +26,7 @@ data class MissedCallEntity(
     )
 }
 
-fun com.maodouchat.data.model.MissedCall.toEntity(): MissedCallEntity = MissedCallEntity(
+fun com.maodouchat.core.model.MissedCall.toEntity(): MissedCallEntity = MissedCallEntity(
     id = id,
     callerId = callerId,
     callerName = callerName,

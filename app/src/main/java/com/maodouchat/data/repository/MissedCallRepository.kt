@@ -3,7 +3,7 @@ package com.maodouchat.data.repository
 import com.maodouchat.data.local.dao.MissedCallDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
-import com.maodouchat.data.model.MissedCall
+import com.maodouchat.core.model.MissedCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
