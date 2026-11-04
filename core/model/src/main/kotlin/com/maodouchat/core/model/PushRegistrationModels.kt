@@ -1,4 +1,4 @@
-package com.maodouchat.push
+package com.maodouchat.core.model
 
 enum class RegistrationState {
     UNKNOWN, INITIALIZING, REGISTERED, FAILED

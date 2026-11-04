@@ -1,4 +1,4 @@
-package com.maodouchat.push
+package com.maodouchat.core.model
 
 /**
  * Pure gates for whether a wake payload (WebSocket / backlog) should surface a local notification.

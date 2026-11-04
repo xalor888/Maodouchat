@@ -1,6 +1,7 @@
 package com.maodouchat.push
 
 import android.content.Context
+import com.maodouchat.core.model.PushTransportState
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient

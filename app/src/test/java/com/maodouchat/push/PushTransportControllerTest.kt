@@ -1,5 +1,6 @@
 package com.maodouchat.push
 
+import com.maodouchat.core.model.PushTransportState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
