@@ -6,6 +6,7 @@ import com.maodouchat.chatdetail.ChatDetailDataAccess
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.DisappearingMessagePolicy
+import com.maodouchat.core.model.SeenSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
