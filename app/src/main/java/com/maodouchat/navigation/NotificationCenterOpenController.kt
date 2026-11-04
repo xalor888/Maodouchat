@@ -1,5 +1,6 @@
 package com.maodouchat.navigation
 
+import com.maodouchat.core.model.NotificationCenterOpenOutcome
 import com.maodouchat.data.repository.NotificationCenterItem
 
 class NotificationCenterOpenController(
