@@ -1,9 +1,9 @@
-package com.maodouchat.ui.component
+package com.maodouchat.core.model
 
 /** 扫描文本中的 http/https URL 起止区间（左闭右开），供 [RichTextContent] 渲染可点击链接。 */
 
 // ─── findUrlRanges ───
-internal fun findUrlRanges(text: String): List<Pair<Int, Int>> {
+fun findUrlRanges(text: String): List<Pair<Int, Int>> {
     val ranges = mutableListOf<Pair<Int, Int>>()
     var i = 0
     while (i < text.length) {
