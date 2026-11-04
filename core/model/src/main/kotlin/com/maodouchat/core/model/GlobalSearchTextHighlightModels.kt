@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
 data class HighlightSpan(val start: Int, val end: Int) {
     init {
