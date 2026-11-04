@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.groupplay
+package com.maodouchat.core.model
 
 /** 群 PK 列表项。 */
 data class PkListItem(
