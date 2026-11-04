@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.content.Context
 import com.maodouchat.R
+import com.maodouchat.core.model.WarningKind
 import com.maodouchat.crypto.IdentitySafetyPolicy
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.security.BackgroundSessionGate
@@ -13,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.crypto.WarningKind
 
 /**
  * 「安全码 / 身份核验」控制器。把对方设备安全状态加载、身份信任标记、一键验证等

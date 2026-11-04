@@ -1,5 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.model.WarningKind
+
 /**
  * Multi-device identity aggregation for chat safety UI (M2-9 / §6 extract).
  * Pure decisions only — no Android / network.
