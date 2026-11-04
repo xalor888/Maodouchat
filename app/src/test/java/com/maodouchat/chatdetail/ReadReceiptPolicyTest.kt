@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.PrefetchMessage
-import com.maodouchat.ui.screen.chatdetail.ReadCountUi
+import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.ui.screen.chatdetail.ReadReceiptPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals

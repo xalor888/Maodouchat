@@ -11,6 +11,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.conversation.ReadReceiptSource
 import com.maodouchat.core.model.PrefetchMessage
+import com.maodouchat.core.model.ReadCountUi
+import com.maodouchat.core.model.ReadReceiptUi
 
 internal class ChatReadReceiptCoordinator(
     private val scope: CoroutineScope,

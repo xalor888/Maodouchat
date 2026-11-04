@@ -2,8 +2,12 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
+import com.maodouchat.core.model.AiOperationUi
+import com.maodouchat.core.model.AiSummaryHistoryUi
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.BotCommandItem
+import com.maodouchat.core.model.ReadCountUi
+import com.maodouchat.core.model.ReadReceiptUi
 import com.maodouchat.crypto.DeviceSafetyState
 import com.maodouchat.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat
@@ -34,43 +38,6 @@ internal val RELIABLE_ATTACHMENT_TYPES = setOf(
     MessageType.VOICE
 )
 internal val AUTO_DOWNLOAD_MEDIA_TYPES = RELIABLE_ATTACHMENT_TYPES - MessageType.FILE
-
-// ── 数据类 ────────────────────────────
-
-/** 1.163：群聊消息已读人数（气泡下「已读 X/Y」）。 */
-data class ReadCountUi(
-    val read: Int,
-    val total: Int
-)
-
-data class ReadReceiptUi(
-    val userId: String,
-    val name: String,
-    val avatar: String? = null,
-    val readAt: Long? = null,
-    val playedAt: Long? = null,
-    /** 1.65：成员是否在线（阅读详情中显示在线点）。 */
-    val isOnline: Boolean = false
-)
-
-data class AiSummaryHistoryUi(
-    val cacheKey: String,
-    val summary: String,
-    val scope: AiSummaryScope,
-    val messageCount: Int,
-    val createdAt: Long
-)
-
-data class AiOperationUi(
-    val id: String,
-    val type: String,
-    val state: String,
-    val attempts: Int,
-    val lastErrorCode: String?,
-    val nextRetryAtMs: Long? = null,
-    /** 限流 / 配额时建议等待秒数（展示倒计时） */
-    val retryAfterSeconds: Long? = null
-)
 
 // ── UI 状态 ───────────────────────────
 

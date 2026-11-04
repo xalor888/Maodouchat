@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.AiCostVisibilityPolicy
+import com.maodouchat.core.model.AiOperationUi
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.data.local.entity.AiOperationType
