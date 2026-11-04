@@ -12,10 +12,10 @@ import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
-import com.maodouchat.quickreply.ChatGateVerdict
+import com.maodouchat.core.model.ChatGateVerdict
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.scheduling.ConversationScheduledMessageDispatcher
-import com.maodouchat.scheduling.ScheduledTimeCalculation
+import com.maodouchat.core.model.ScheduledTimeCalculation
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

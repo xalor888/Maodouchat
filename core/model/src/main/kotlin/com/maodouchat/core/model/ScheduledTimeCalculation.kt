@@ -1,4 +1,4 @@
-package com.maodouchat.scheduling
+package com.maodouchat.core.model
 
 import java.time.DayOfWeek
 import java.time.Duration

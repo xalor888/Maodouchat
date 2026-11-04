@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.SystemClock
 import androidx.core.content.edit
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.ChatGateVerdict
+import com.maodouchat.core.model.SyncVerdict
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.security.ChatLockSession

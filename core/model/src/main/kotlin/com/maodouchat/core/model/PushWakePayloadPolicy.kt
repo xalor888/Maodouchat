@@ -1,4 +1,4 @@
-package com.maodouchat.push
+package com.maodouchat.core.model
 
 /**
  * P07：离线/保活唤醒载荷隐私门禁。
@@ -45,19 +45,19 @@ object PushWakePayloadPolicy {
         "lastmessage",
     )
 
-    fun evaluate(data: Map<String, String>): Decision {
-        if (data.isEmpty()) return Decision.Reject("empty")
+    fun evaluate(data: Map<String, String>): PushWakeDecision {
+        if (data.isEmpty()) return PushWakeDecision.Reject("empty")
         val keys = data.keys.map { it.trim().lowercase() }.filter { it.isNotEmpty() }
         val forbidden = keys.filter { it in FORBIDDEN_SENSITIVE_KEYS }
         if (forbidden.isNotEmpty()) {
-            return Decision.Reject("sensitive_keys=${forbidden.sorted().joinToString(",")}")
+            return PushWakeDecision.Reject("sensitive_keys=${forbidden.sorted().joinToString(",")}")
         }
         val unknown = keys.filter { it !in ALLOWED_KEYS }
         if (unknown.isNotEmpty()) {
-            return Decision.Reject("unknown_keys=${unknown.sorted().joinToString(",")}")
+            return PushWakeDecision.Reject("unknown_keys=${unknown.sorted().joinToString(",")}")
         }
-        return Decision.Accept
+        return PushWakeDecision.Accept
     }
 
-    fun isSafe(data: Map<String, String>): Boolean = evaluate(data) is Decision.Accept
+    fun isSafe(data: Map<String, String>): Boolean = evaluate(data) is PushWakeDecision.Accept
 }

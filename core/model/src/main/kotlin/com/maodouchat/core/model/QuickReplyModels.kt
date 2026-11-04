@@ -1,4 +1,4 @@
-package com.maodouchat.quickreply
+package com.maodouchat.core.model
 
 /** 同步门禁结果 */
 sealed class SyncVerdict {

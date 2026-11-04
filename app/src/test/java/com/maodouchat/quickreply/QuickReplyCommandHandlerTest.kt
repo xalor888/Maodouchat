@@ -1,5 +1,6 @@
 package com.maodouchat.quickreply
 
+import com.maodouchat.core.model.ChatGateVerdict
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

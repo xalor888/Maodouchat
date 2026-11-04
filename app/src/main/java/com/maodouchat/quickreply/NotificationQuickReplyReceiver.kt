@@ -8,6 +8,7 @@ import androidx.core.app.RemoteInput
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.core.model.NotificationIntentPolicy
+import com.maodouchat.core.model.SyncVerdict
 import com.maodouchat.domain.messaging.QuickReplyRequest
 import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.security.SecureSessionManager

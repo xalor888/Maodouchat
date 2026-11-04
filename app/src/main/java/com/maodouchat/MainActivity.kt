@@ -25,7 +25,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
-import com.maodouchat.navigation.NotificationTargetReplayDecision
+import com.maodouchat.core.model.NotificationTargetReplayDecision
 import com.maodouchat.navigation.NotificationTargetReplayPolicy
 import com.maodouchat.navigation.Routes
 import com.maodouchat.navigation.toDestination
