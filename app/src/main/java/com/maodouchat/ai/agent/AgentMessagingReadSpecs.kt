@@ -1,5 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.Parameter
+import com.maodouchat.core.model.Risk
+import com.maodouchat.core.model.ToolSpec
+
 // 消息工具规格：只读（会话/消息查询与改写）。
 internal val listChatsToolSpec = ToolSpec(
     name = "list_chats",

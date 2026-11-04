@@ -1,5 +1,7 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.ToolSpec
+
 internal val agentToolCatalog: List<ToolSpec> = listOf(
     listChatsToolSpec,
     getChatHistoryToolSpec,

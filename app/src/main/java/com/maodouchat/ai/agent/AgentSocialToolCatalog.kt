@@ -1,5 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.Parameter
+import com.maodouchat.core.model.Risk
+import com.maodouchat.core.model.ToolSpec
+
 internal val getContactsToolSpec = ToolSpec(
     name = "get_contacts",
     description = "List local contacts (id, display name, status).",

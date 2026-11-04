@@ -1,5 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.Parameter
+import com.maodouchat.core.model.Risk
+import com.maodouchat.core.model.ToolSpec
+
 internal val createDirectChatToolSpec = ToolSpec(
     name = "create_direct_chat",
     description = "Open or create a 1:1 chat with a user. Requires approval.",

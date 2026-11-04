@@ -1,5 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.Parameter
+import com.maodouchat.core.model.Risk
+import com.maodouchat.core.model.ToolSpec
+
 internal val createTextPostToolSpec = ToolSpec(
     name = "create_text_post",
     description = "Create a text Explore post (no images). Requires approval.",

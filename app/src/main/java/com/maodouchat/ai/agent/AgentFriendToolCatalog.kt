@@ -1,5 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.Parameter
+import com.maodouchat.core.model.Risk
+import com.maodouchat.core.model.ToolSpec
+
 internal val sendFriendRequestToolSpec = ToolSpec(
     name = "send_friend_request",
     description = "Send a friend request. Requires approval.",

@@ -1,5 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.Parameter
+import com.maodouchat.core.model.Risk
+import com.maodouchat.core.model.ToolSpec
+
 // 消息工具规格：写操作（发送/会话设置/草稿/消息操作/备注/通知已读）。
 internal val sendTextMessageToolSpec = ToolSpec(
     name = "send_text_message",
