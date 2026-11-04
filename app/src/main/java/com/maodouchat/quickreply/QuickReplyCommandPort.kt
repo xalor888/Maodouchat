@@ -2,6 +2,8 @@ package com.maodouchat.quickreply
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.ChatGateVerdict
+import com.maodouchat.core.model.QuickReplyCommand
+import com.maodouchat.core.model.QuickReplyCommandResult
 import com.maodouchat.widget.ConversationQuickReplySender
 
 fun interface QuickReplyGatePort {
