@@ -2,7 +2,10 @@ package com.maodouchat.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.maodouchat.core.model.ArchiveRow
 import com.maodouchat.core.model.CategoryCount
+import com.maodouchat.core.model.ProfileRow
+import com.maodouchat.core.model.WeeklyReportRow
 import com.maodouchat.data.local.DatabasePassphraseProvider
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.Dispatchers
