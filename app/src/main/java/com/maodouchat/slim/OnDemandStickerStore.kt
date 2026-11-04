@@ -3,8 +3,12 @@ package com.maodouchat.slim
 import android.content.Context
 import android.util.Log
 import com.maodouchat.R
+import com.maodouchat.core.model.PackLock
+import com.maodouchat.core.model.RemotePack
+import com.maodouchat.core.model.RemoteSticker
 import com.maodouchat.core.model.StickerFilePolicy
 import com.maodouchat.core.model.StickerNamePolicy
+import com.maodouchat.core.model.StickerPackDownloadResult
 import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
