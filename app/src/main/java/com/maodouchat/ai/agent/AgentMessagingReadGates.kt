@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.security.ChatLockSession
 
 // 密聊/锁定门闩：读簇与写簇共用，先过门闩再碰数据。

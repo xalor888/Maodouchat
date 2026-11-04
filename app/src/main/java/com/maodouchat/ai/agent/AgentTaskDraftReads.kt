@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.security.ChatLockSession
 import kotlinx.coroutines.flow.first
 
