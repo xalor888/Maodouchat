@@ -1,5 +1,6 @@
 package com.maodouchat.ui.component
 
+import com.maodouchat.core.model.findUrlRanges
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
