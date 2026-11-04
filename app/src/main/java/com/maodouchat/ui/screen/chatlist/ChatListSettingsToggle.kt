@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.ChatSettingsToggle
 import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.network.UpdateChatSettingsRequest
 
