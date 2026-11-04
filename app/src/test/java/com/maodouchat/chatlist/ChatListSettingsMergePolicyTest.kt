@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.ui.screen.chatlist.ChatListSettingsMergePolicy
-import com.maodouchat.ui.screen.chatlist.SettingsSnapshot
+import com.maodouchat.core.model.ChatListSettingsMergePolicy
+import com.maodouchat.core.model.SettingsSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
 data class SettingsSnapshot(
     val pinnedAt: Long,
