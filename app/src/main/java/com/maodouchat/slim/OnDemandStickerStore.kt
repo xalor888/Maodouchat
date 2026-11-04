@@ -3,6 +3,7 @@ package com.maodouchat.slim
 import android.content.Context
 import android.util.Log
 import com.maodouchat.R
+import com.maodouchat.core.model.StickerFilePolicy
 import com.maodouchat.core.model.StickerNamePolicy
 import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
