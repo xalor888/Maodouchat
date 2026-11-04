@@ -1,5 +1,6 @@
 package com.maodouchat.scheduling
 
+import com.maodouchat.core.model.ScheduledTimeCalculation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

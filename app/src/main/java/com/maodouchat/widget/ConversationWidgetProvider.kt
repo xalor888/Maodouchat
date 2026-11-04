@@ -14,7 +14,7 @@ import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.navigation.sanitizeChatIdStrict
 import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.quickreply.QuickReplyPolicy
-import com.maodouchat.quickreply.SyncVerdict
+import com.maodouchat.core.model.SyncVerdict
 
 import kotlinx.coroutines.launch
 

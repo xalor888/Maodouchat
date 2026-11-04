@@ -1,5 +1,7 @@
 package com.maodouchat.push
 
+import com.maodouchat.core.model.PushWakeDecision
+import com.maodouchat.core.model.PushWakePayloadPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -32,7 +34,7 @@ class PushWakePayloadPolicyTest {
                 "preview" to "secret hello",
             )
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertTrue(decision.reason.contains("preview"))
     }
 
@@ -55,13 +57,13 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "GROUP_INVITE", "extraLeak" to "x")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("unknown_keys=extraleak", decision.reason)
     }
 
     @Test
     fun rejectsEmptyPayload() {
-        assertIs<Decision.Reject>(
+        assertIs<PushWakeDecision.Reject>(
             PushWakePayloadPolicy.evaluate(emptyMap())
         )
     }
@@ -84,7 +86,7 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "NEW_MESSAGE", "body" to "hi", "zzz" to "x")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("sensitive_keys=body", decision.reason)
     }
 
@@ -93,7 +95,7 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "NEW_MESSAGE", "text" to "hi", "body" to "hi")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("sensitive_keys=body,text", decision.reason)
     }
 
@@ -102,7 +104,7 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "NEW_MESSAGE", "zz" to "x", "aa" to "x")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("unknown_keys=aa,zz", decision.reason)
     }
 
@@ -119,7 +121,7 @@ class PushWakePayloadPolicyTest {
     fun acceptsFullAllowedKeySet() {
         val data = PushWakePayloadPolicy.ALLOWED_KEYS.associateWith { "v" }
         assertTrue(PushWakePayloadPolicy.isSafe(data))
-        assertIs<Decision.Accept>(PushWakePayloadPolicy.evaluate(data))
+        assertIs<PushWakeDecision.Accept>(PushWakePayloadPolicy.evaluate(data))
     }
 
     @Test
@@ -127,7 +129,7 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "NEW_MESSAGE", "envelope" to "x", "ciphertext" to "y")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("sensitive_keys=ciphertext,envelope", decision.reason)
     }
 
@@ -136,7 +138,7 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "NEW_MESSAGE", " Body " to "hi")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("sensitive_keys=body", decision.reason)
     }
 
@@ -158,7 +160,7 @@ class PushWakePayloadPolicyTest {
     @Test
     fun emptyPayloadRejectReasonIsEmpty() {
         val decision = PushWakePayloadPolicy.evaluate(emptyMap())
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("empty", decision.reason)
     }
 
@@ -167,13 +169,13 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "NEW_MESSAGE", "message" to "x", "lastMessage" to "y")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("sensitive_keys=lastmessage,message", decision.reason)
         val content = PushWakePayloadPolicy.evaluate(
             mapOf("type" to "NEW_MESSAGE", "content" to "x")
         )
-        assertIs<Decision.Reject>(content)
-        assertEquals("sensitive_keys=content", (content as Decision.Reject).reason)
+        assertIs<PushWakeDecision.Reject>(content)
+        assertEquals("sensitive_keys=content", (content as PushWakeDecision.Reject).reason)
     }
 
     @Test
@@ -181,7 +183,7 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf(" Preview " to "x", "zz" to "y")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("sensitive_keys=preview", decision.reason)
     }
 
@@ -190,7 +192,7 @@ class PushWakePayloadPolicyTest {
         val decision = PushWakePayloadPolicy.evaluate(
             mapOf("   " to "x", "zz" to "y")
         )
-        assertIs<Decision.Reject>(decision)
+        assertIs<PushWakeDecision.Reject>(decision)
         assertEquals("unknown_keys=zz", decision.reason)
     }
 

@@ -1,4 +1,4 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
 /** 通知/深链待办目标回放门闩的纯决策结果（原 NotificationTargetReplayPolicy.Decision，零行为改动搬出）。 */
 sealed interface NotificationTargetReplayDecision {

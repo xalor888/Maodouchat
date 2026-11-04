@@ -7,6 +7,7 @@ import androidx.core.app.RemoteInput
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.conversation.ConversationReadReceiptCoordinator
 import com.maodouchat.core.model.NotificationIntentPolicy
+import com.maodouchat.core.model.SyncVerdict
 import com.maodouchat.domain.messaging.QuickReplyRequest
 import com.maodouchat.domain.messaging.QuickReplyUseCase
 import com.maodouchat.network.TokenManager
