@@ -1,6 +1,6 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.ui.screen.chatdetail.AttachMenuKind
+import com.maodouchat.core.model.AttachMenuKind
 import com.maodouchat.ui.screen.chatdetail.AttachMenuPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals

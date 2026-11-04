@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.AttachMenuKind
+
 object AttachMenuPolicy {
 
     fun items(
