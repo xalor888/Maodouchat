@@ -1,5 +1,7 @@
 package com.maodouchat.notification
 
+import com.maodouchat.core.model.AnnouncementData
+
 /**
  * 系统公告展示策略（客户端）。
  *
