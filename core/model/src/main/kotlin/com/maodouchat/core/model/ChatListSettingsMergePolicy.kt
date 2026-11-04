@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
 /**
  * Prefer local optimistic chat settings when getChats races with an in-flight

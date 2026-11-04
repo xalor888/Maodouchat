@@ -1,6 +1,8 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.core.model.ChatListSettingsMergePolicy
 import com.maodouchat.core.model.ChatListUnreadPolicy
+import com.maodouchat.core.model.SettingsSnapshot
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
