@@ -4,9 +4,9 @@ import com.maodouchat.data.local.entity.AiOperationParameters
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationType
 import com.maodouchat.data.model.Message
-import com.maodouchat.ui.screen.chatdetail.AiFileAnalysisMode
+import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.AiOperationPreparation
-import com.maodouchat.ui.screen.chatdetail.AiSummaryScope
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.ui.screen.chatdetail.ChatAiOperationFactory
 import com.maodouchat.ui.screen.chatdetail.PendingAiAction
 import com.maodouchat.ui.screen.chatdetail.classifyAiOperationError
@@ -14,7 +14,7 @@ import com.maodouchat.ui.screen.chatdetail.classifyAiOperationErrorDetailed
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import com.maodouchat.core.model.AiRetryPolicyCategory
-import com.maodouchat.ui.screen.chatdetail.AiImageAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.invocationCategory
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals

@@ -12,6 +12,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.AiFileAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.core.model.GroupAiSharePolicy
 import com.maodouchat.core.model.WeeklyReport

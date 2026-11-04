@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.Composable
+import com.maodouchat.core.model.AiFileAnalysisMode
 
 /** 下半区弹窗簇：AI 图像/文件分析与文件问答弹窗，原在 ChatDetailLowerDialogHost 内联，纯搬移。 */
 @Composable

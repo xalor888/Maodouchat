@@ -3,6 +3,9 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
+import com.maodouchat.core.model.AiFileAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.data.local.entity.AiOperationEntity
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationParameters

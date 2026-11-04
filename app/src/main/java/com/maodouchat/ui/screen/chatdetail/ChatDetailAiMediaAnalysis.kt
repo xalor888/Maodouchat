@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.core.net.toUri
 import com.maodouchat.R
+import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.PreparedAiFile
 import com.maodouchat.data.local.entity.AiOperationError

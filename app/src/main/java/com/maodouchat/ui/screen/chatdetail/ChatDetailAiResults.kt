@@ -5,6 +5,7 @@ import com.maodouchat.util.RuntimeFlags
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.GroupAiSharePolicy
 import com.maodouchat.core.model.TaskDraft
 import com.maodouchat.data.local.entity.AiOperationState

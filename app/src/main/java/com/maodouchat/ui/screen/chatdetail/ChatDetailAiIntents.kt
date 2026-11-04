@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.VoiceTranscriptPolicy
 
 

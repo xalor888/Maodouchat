@@ -1,5 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.AiFileAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.BotCommandItem
 import com.maodouchat.crypto.DeviceSafetyState
 import com.maodouchat.crypto.IdentityTrustState
@@ -68,18 +71,6 @@ data class AiOperationUi(
     /** 限流 / 配额时建议等待秒数（展示倒计时） */
     val retryAfterSeconds: Long? = null
 )
-
-// ── 枚举 ──────────────────────────────
-
-enum class AiSummaryScope { RECENT, TODAY, SEVEN_DAYS, THIRTY_DAYS, SEARCH_RESULTS, UNREAD }
-
-enum class AiImageAnalysisMode(val wireValue: String) {
-    DESCRIBE("describe"), OCR("ocr"), SAFETY("safety")
-}
-
-enum class AiFileAnalysisMode(val wireValue: String) {
-    SUMMARIZE("summarize"), QUESTION("question")
-}
 
 // ── UI 状态 ───────────────────────────
 

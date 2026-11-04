@@ -3,6 +3,9 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.AiFileAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.data.model.MessageMeta
 
 /**

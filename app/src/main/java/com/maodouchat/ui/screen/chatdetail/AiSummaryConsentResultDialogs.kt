@@ -23,6 +23,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.ui.theme.LocalChatPalette
 
 // AI 摘要的授权确认与结果展示对话框；所需输入全经参数传入。
