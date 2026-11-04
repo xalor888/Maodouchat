@@ -1,6 +1,6 @@
 package com.maodouchat.explore.usecase
 
-import com.maodouchat.explore.policy.PostVisibility
+import com.maodouchat.core.model.PostVisibility
 import com.maodouchat.explore.policy.PostVisibilityPolicy
 import com.maodouchat.explore.repository.DraftRepository
 import com.maodouchat.explore.repository.MediaUploadQueue

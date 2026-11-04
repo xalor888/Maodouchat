@@ -1,5 +1,6 @@
 package com.maodouchat.explore.policy
 
+import com.maodouchat.core.model.PostVisibilityTier
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.UserDto
 import org.junit.Assert.assertEquals
