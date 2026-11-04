@@ -3,6 +3,7 @@ package com.maodouchat.push
 import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
+import com.maodouchat.core.model.RegistrationState
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
 import java.util.UUID

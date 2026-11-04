@@ -1,4 +1,4 @@
-package com.maodouchat.push
+package com.maodouchat.core.model
 
 sealed interface PushTransportState {
     data class Connected(val ownerUserId: String) : PushTransportState
