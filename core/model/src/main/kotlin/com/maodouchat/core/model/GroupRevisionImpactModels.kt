@@ -1,17 +1,17 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-internal fun isActiveChatEvent(activeChatId: String, eventChatId: String): Boolean =
+fun isActiveChatEvent(activeChatId: String, eventChatId: String): Boolean =
     activeChatId.isNotBlank() && eventChatId == activeChatId
 
-internal fun shouldApplyContactPresence(
+fun shouldApplyContactPresence(
     isGroupChat: Boolean,
     contactId: String,
     eventUserId: String
 ): Boolean = !isGroupChat && contactId.isNotBlank() && contactId == eventUserId
 
-internal enum class GroupRevisionImpact { IGNORE, REFRESH, CURRENT_USER_REMOVED }
+enum class GroupRevisionImpact { IGNORE, REFRESH, CURRENT_USER_REMOVED }
 
-internal fun groupRevisionImpact(
+fun groupRevisionImpact(
     activeChatId: String,
     currentUserId: String,
     eventChatId: String,
@@ -25,7 +25,7 @@ internal fun groupRevisionImpact(
     else -> GroupRevisionImpact.REFRESH
 }
 
-internal fun shouldInvalidateGroupKey(
+fun shouldInvalidateGroupKey(
     currentRevision: Long,
     eventRevision: Long,
     impact: GroupRevisionImpact
