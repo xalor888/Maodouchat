@@ -33,7 +33,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.maodouchat.call.State
+import com.maodouchat.core.model.State
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

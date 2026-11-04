@@ -2,6 +2,9 @@ package com.maodouchat.call
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.CallLogEntry
+import com.maodouchat.core.model.Direction
+import com.maodouchat.core.model.State
 import com.maodouchat.util.currentUserId
 import org.json.JSONArray
 import org.json.JSONObject
