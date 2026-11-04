@@ -2,7 +2,7 @@ package com.maodouchat.chatlist
 
 import com.maodouchat.data.model.Chat
 import com.maodouchat.network.ChatSettingsResponse
-import com.maodouchat.ui.screen.chatlist.ChatSettingsToggle
+import com.maodouchat.core.model.ChatSettingsToggle
 import com.maodouchat.ui.screen.chatlist.applyConfirmedSettings
 import com.maodouchat.ui.screen.chatlist.buildSettingsToggle
 import com.maodouchat.ui.screen.chatlist.bumpOptimisticSettingsClock
