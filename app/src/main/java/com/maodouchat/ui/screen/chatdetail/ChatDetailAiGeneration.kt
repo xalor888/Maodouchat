@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
+import com.maodouchat.core.model.AiRequestSnapshot
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.RuntimeFlags
@@ -41,7 +42,6 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
         throw kotlinx.coroutines.CancellationException("ai_request_context_changed")
     }
 }
-
 
     internal fun ChatDetailViewModel.rewriteDraft(mode: String, targetLanguage: String?) {
         val draft = _uiState.value.inputText.trim()
