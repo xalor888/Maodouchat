@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 /**
  * Attach-sheet contents by chat type. 1:1-only actions must not appear in groups/channels.
