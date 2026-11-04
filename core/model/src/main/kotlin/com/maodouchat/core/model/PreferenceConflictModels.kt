@@ -1,6 +1,5 @@
-package com.maodouchat.settings.policy
+package com.maodouchat.core.model
 
-import com.maodouchat.settings.model.MultiDevicePreferences
 
 /**
  * Outcome of resolving a synchronization conflict between local preferences and remote cloud preferences.

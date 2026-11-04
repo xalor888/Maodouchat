@@ -9,10 +9,10 @@ import com.maodouchat.network.ClientPrefsDto
 import com.maodouchat.network.ClientPrefsUpdateRequest
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.settings.model.LocalDevicePreferences
-import com.maodouchat.settings.model.MultiDevicePreferences
-import com.maodouchat.settings.model.PreferencesPatch
-import com.maodouchat.settings.policy.ConflictResolutionResult
+import com.maodouchat.core.model.ConflictResolutionResult
+import com.maodouchat.core.model.LocalDevicePreferences
+import com.maodouchat.core.model.MultiDevicePreferences
+import com.maodouchat.core.model.PreferencesPatch
 import com.maodouchat.settings.policy.PreferenceConflictPolicy
 import com.maodouchat.core.session.ServerSwitchResult
 import com.maodouchat.settings.server.ServerSwitchTransaction

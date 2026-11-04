@@ -1,4 +1,4 @@
-package com.maodouchat.settings.model
+package com.maodouchat.core.model
 
 /**
  * Defines whether a preference item roams across user's devices via cloud sync
