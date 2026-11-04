@@ -42,7 +42,7 @@ import com.maodouchat.security.SecretChatSession
 import com.maodouchat.ui.AppSurfaceGateController
 import com.maodouchat.ui.AppSurfaceGateState
 import com.maodouchat.ui.CallLockScreenFlagController
-import com.maodouchat.ui.StartupPermissionPolicy
+import com.maodouchat.core.model.StartupPermissionPolicy
 import com.maodouchat.ui.screen.lock.FakeChatScreen
 import com.maodouchat.ui.screen.lock.PasscodeLockScreen
 import androidx.navigation.compose.currentBackStackEntryAsState

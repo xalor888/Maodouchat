@@ -1,10 +1,6 @@
-package com.maodouchat.ui
+package com.maodouchat.core.model
 
-/**
- * P08：冷启动权限清单决策（纯逻辑，无 Android 依赖）。
- *
- * Activity 只负责检查授权态与发起 [ActivityResult]；录音/相机等按功能入口另请。
- */
+/** 冷启动权限清单决策（纯逻辑，无 Android 依赖）。 */
 object StartupPermissionPolicy {
     const val POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
     /** Android 13 (Tiramisu) API level. */
