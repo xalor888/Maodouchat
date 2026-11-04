@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.ui.screen.chatdetail.ChatHeaderStatus
-import com.maodouchat.ui.screen.chatdetail.resolveChatHeaderStatus
+import com.maodouchat.core.model.ChatHeaderStatus
+import com.maodouchat.core.model.resolveChatHeaderStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

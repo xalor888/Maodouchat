@@ -1,6 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-internal sealed interface ChatHeaderStatus {
+sealed interface ChatHeaderStatus {
     data class Typing(val userId: String) : ChatHeaderStatus
     data object Online : ChatHeaderStatus
     data object Offline : ChatHeaderStatus
@@ -18,7 +18,7 @@ internal sealed interface ChatHeaderStatus {
  * For 1:1 chats, offline shows last-seen when available; groups omit it.
  * Groups omit offline so the subtitle does not imply whole-group presence.
  */
-internal fun resolveChatHeaderStatus(
+fun resolveChatHeaderStatus(
     typingUserId: String?,
     isOnline: Boolean,
     customStatus: String,
