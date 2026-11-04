@@ -1,7 +1,8 @@
 package com.maodouchat.settings.policy
 
-import com.maodouchat.settings.model.MultiDevicePreferences
-import com.maodouchat.settings.model.PreferencesPatch
+import com.maodouchat.core.model.ConflictResolutionResult
+import com.maodouchat.core.model.MultiDevicePreferences
+import com.maodouchat.core.model.PreferencesPatch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
