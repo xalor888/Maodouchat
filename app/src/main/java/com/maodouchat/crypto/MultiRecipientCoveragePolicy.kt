@@ -1,5 +1,6 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.model.TransientCoverageException
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 

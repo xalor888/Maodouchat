@@ -1,8 +1,8 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.DeviceCiphertext
 import com.maodouchat.core.model.MessagingV2StaleGroupControlException
-import com.maodouchat.crypto.DeviceCiphertext
-import com.maodouchat.crypto.MultiRecipientEnvelopePayload
+import com.maodouchat.core.model.MultiRecipientEnvelopePayload
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import io.mockk.coEvery

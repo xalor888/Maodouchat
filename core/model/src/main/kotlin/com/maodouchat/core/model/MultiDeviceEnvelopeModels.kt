@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.model
 
 data class ParsedEnvelope(
     val version: Int,
