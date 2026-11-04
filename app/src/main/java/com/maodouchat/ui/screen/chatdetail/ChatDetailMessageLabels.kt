@@ -1,5 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ChatHeaderStatus
+import com.maodouchat.core.model.resolveChatHeaderStatus
+
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
