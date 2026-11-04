@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.HistoryLoadPlan
 import com.maodouchat.data.model.Message
 
 /**
