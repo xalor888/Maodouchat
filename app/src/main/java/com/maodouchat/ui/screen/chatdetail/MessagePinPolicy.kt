@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.PreviewKind
 import com.maodouchat.data.model.MessageType
 
 /**

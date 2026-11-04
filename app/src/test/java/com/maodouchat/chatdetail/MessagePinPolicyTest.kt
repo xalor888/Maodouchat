@@ -1,8 +1,8 @@
 package com.maodouchat.chatdetail
 
+import com.maodouchat.core.model.PreviewKind
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.MessagePinPolicy
-import com.maodouchat.ui.screen.chatdetail.PreviewKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
