@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ParticleAction
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf

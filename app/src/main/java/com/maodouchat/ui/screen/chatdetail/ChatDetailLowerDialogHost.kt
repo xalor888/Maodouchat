@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ParticleAction
+
 import android.annotation.SuppressLint
 import com.maodouchat.ui.component.ParticleDeleteEffect
 import com.maodouchat.util.RuntimeFlags

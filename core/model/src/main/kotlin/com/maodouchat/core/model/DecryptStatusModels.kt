@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 /**
  * 解密失败相关的界面文案（G328c 注入化）。
@@ -8,7 +8,7 @@ package com.maodouchat.ui.screen.chatdetail
  * 于是 `ChatDetailDecryptPolicyTest` 的注释里只能写「本机无 Robolectric 测不了」。
  * 注入之后同样的逻辑在纯 JVM 里可测（见 `ChatDetailDecryptStatusTest`）。
  */
-internal data class DecryptTexts(
+data class DecryptTexts(
     val failed: String,
     val pending: String,
     val sessionMissing: String,

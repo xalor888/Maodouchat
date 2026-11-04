@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.MediaExportResult
+
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -76,7 +78,6 @@ internal fun MediaCenterCategoryContent(
     val shareMedia = stringResource(R.string.common_share)
     val exportShareFailed = stringResource(R.string.media_export_share_failed)
     val hasCategoryItems = remember(state.items, category) { state.items.any { it.category == category } }
-
     Column(modifier = modifier) {
         if (!state.isLoading && state.isChatLocked == false && hasCategoryItems) {
             Row(
@@ -114,7 +115,6 @@ internal fun MediaCenterCategoryContent(
                 )
             }
         }
-
         AnimatedContent(
             targetState = category,
             transitionSpec = { fadeIn() togetherWith fadeOut() },

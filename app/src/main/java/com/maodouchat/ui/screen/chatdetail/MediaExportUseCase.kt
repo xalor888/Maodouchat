@@ -3,6 +3,8 @@ package com.maodouchat.ui.screen.chatdetail
 import android.content.Context
 import com.maodouchat.data.model.Message
 import com.maodouchat.util.MediaExport
+import com.maodouchat.core.model.MediaExportRequest
+import com.maodouchat.core.model.MediaExportResult
 import com.maodouchat.core.model.MediaViewerPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
