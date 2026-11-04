@@ -7,7 +7,7 @@ import androidx.navigation.compose.composable
 import com.maodouchat.ui.screen.chatlist.GlobalSearchScreen
 import com.maodouchat.ui.screen.chatlist.NotificationCenterScreen
 import com.maodouchat.navigation.NotificationCenterEffects
-import com.maodouchat.navigation.NotificationCenterOpenOutcome
+import com.maodouchat.core.model.NotificationCenterOpenOutcome
 import com.maodouchat.navigation.Routes
 
 /**
