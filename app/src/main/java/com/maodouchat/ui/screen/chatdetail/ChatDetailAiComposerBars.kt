@@ -59,6 +59,8 @@ internal fun AiOperationStatusBar(
     val errorBase = AiCostVisibilityPolicy.baseErrorCode(operation.lastErrorCode)
     val waitSeconds = operation.retryAfterSeconds
         ?: AiCostVisibilityPolicy.waitSecondsFor(operation.lastErrorCode)
+    // 跨模块属性不可智能转换，先取本地值
+    val nextRetryAtMs = operation.nextRetryAtMs
     val status = when {
         errorBase == AiOperationError.INTERRUPTED ->
             stringResource(R.string.chat_ai_operation_outcome_unknown)
@@ -74,9 +76,9 @@ internal fun AiOperationStatusBar(
         errorBase == AiOperationError.QUOTA_EXCEEDED ->
             stringResource(R.string.chat_ai_operation_quota_exceeded)
         errorBase == AiOperationError.CONNECTION_NOT_ESTABLISHED &&
-            operation.nextRetryAtMs != null -> stringResource(
+            nextRetryAtMs != null -> stringResource(
                 R.string.chat_ai_operation_retry_scheduled,
-                android.text.format.DateFormat.getTimeFormat(context).format(Date(operation.nextRetryAtMs))
+                android.text.format.DateFormat.getTimeFormat(context).format(Date(nextRetryAtMs))
             )
         errorBase == AiOperationError.CONTEXT_MISSING ->
             stringResource(R.string.chat_ai_operation_context_missing)
