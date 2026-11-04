@@ -13,8 +13,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.maodouchat.core.model.ActiveQuery
 import com.maodouchat.core.model.BotCommandItem
 import com.maodouchat.core.model.BotCommandPolicy
+import com.maodouchat.core.model.Candidate
 import com.maodouchat.data.model.Chat
 
 /**
