@@ -1,4 +1,4 @@
-package com.maodouchat.explore.policy
+package com.maodouchat.core.model
 
 enum class PostVisibilityTier {
     PUBLIC,

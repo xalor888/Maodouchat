@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.explore
 
 import android.net.Uri
 import com.maodouchat.R
-import com.maodouchat.explore.policy.PostVisibility
+import com.maodouchat.core.model.PostVisibility
 import com.maodouchat.explore.repository.UploadStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
