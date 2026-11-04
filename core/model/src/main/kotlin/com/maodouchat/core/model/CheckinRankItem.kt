@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.groupplay
+package com.maodouchat.core.model
 
 /** 签到排行项。 */
 data class CheckinRankItem(

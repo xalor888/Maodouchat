@@ -1,5 +1,8 @@
 package com.maodouchat.ui.screen.groupplay
 
+import com.maodouchat.core.model.CheckinRankItem
+import com.maodouchat.core.model.PkListItem
+
 data class GroupChainUiState(
     val loading: Boolean = true,
     val error: String? = null,
