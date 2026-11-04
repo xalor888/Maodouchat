@@ -34,7 +34,7 @@ import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.sync.BacklogSyncWorker
 import com.maodouchat.util.PushVerifyPrefs
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.util.Flag
+import com.maodouchat.core.model.Flag
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 

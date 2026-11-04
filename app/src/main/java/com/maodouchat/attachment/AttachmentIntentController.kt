@@ -22,7 +22,7 @@ import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.util.Flag
+import com.maodouchat.core.model.Flag
 import com.maodouchat.util.StickerPreferences
 import com.maodouchat.util.ViewOncePolicy
 import kotlinx.coroutines.CancellationException

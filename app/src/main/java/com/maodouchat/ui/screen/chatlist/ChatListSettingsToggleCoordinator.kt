@@ -5,7 +5,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.core.model.ChatSettingsToggle
 import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.util.Flag
+import com.maodouchat.core.model.Flag
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 

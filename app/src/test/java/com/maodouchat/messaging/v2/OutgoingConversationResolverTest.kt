@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.crypto.LocalCryptoNotReadyException
+import com.maodouchat.core.model.LocalCryptoNotReadyException
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import kotlinx.coroutines.CancellationException

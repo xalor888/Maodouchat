@@ -3,6 +3,7 @@ package com.maodouchat.util
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.maodouchat.core.model.Flag
 import org.junit.After
 import org.junit.Before
 import org.junit.Test

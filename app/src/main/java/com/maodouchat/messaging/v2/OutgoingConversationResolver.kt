@@ -146,7 +146,7 @@ class OutgoingConversationResolver(
 
     private suspend fun requireCrypto(request: OutgoingConversationRequest) {
         if (!ensureLocalCryptoReady(request.authToken, request.ownerUserId)) {
-            throw com.maodouchat.crypto.LocalCryptoNotReadyException()
+            throw com.maodouchat.core.model.LocalCryptoNotReadyException()
         }
         requireCurrentSession(request.ownerUserId)
     }
