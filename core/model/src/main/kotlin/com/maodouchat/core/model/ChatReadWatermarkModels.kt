@@ -1,7 +1,16 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
+
+data class Plan(
+    /** 本轮要标已读的消息 id（保序）。 */
+    val unreadIds: Set<String>,
+    /** 水印消息 id —— 「已读到这条为止」。 */
+    val watermarkMessageId: String,
+    /** 水印消息时间戳 —— 供 `markIncomingReadThrough` 用。 */
+    val watermarkTimestamp: Long,
+)
 
 /** 已处理过的消息 id 集合（保序，上界 PRUNE_THRESHOLD，防长会话缓慢增长）。 */
-internal class SeenSet {
+class SeenSet {
     private val ids = LinkedHashSet<String>()
 
     fun contains(id: String): Boolean = id in ids
