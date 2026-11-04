@@ -1,4 +1,4 @@
-package com.maodouchat.ui.component
+package com.maodouchat.core.model
 
 data class GroupParticipant(
     val name: String,

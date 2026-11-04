@@ -37,7 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.component.EmptyState
-import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.theme.LocalChatPalette
 import java.text.SimpleDateFormat
 import java.util.Date

@@ -42,7 +42,7 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.perf.CoalescedScroller
 import com.maodouchat.ui.component.EmptyState
-import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed

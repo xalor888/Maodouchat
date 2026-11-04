@@ -62,7 +62,7 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
-import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.ShimmerBox
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings

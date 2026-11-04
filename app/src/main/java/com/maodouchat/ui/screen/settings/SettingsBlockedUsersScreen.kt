@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.component.EmptyState
-import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.core.model.EmptyStateType
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue

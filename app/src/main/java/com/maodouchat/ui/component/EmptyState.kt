@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.theme.AvatarGradients
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionTokens
