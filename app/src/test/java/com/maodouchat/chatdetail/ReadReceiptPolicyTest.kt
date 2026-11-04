@@ -1,6 +1,6 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.ui.screen.chatdetail.PrefetchMessage
+import com.maodouchat.core.model.PrefetchMessage
 import com.maodouchat.ui.screen.chatdetail.ReadCountUi
 import com.maodouchat.ui.screen.chatdetail.ReadReceiptPolicy
 import kotlin.test.Test

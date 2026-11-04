@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.PrefetchMessage
+
 /**
  * Read-receipt visibility: sender always; group OWNER/ADMIN may inspect any message.
  * Other participants must not open the member list.

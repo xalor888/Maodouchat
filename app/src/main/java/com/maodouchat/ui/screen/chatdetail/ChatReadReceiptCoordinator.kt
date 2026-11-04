@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.conversation.ReadReceiptSource
+import com.maodouchat.core.model.PrefetchMessage
 
 internal class ChatReadReceiptCoordinator(
     private val scope: CoroutineScope,

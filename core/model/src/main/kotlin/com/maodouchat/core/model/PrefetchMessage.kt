@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 data class PrefetchMessage(
     val id: String,
