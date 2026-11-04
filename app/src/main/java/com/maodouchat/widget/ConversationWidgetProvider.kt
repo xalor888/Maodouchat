@@ -11,6 +11,8 @@ import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.NotificationIntentPolicy
+import com.maodouchat.core.model.QuickReplyCommand
+import com.maodouchat.core.model.QuickReplyCommandResult
 import com.maodouchat.navigation.sanitizeChatIdStrict
 import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.quickreply.QuickReplyPolicy
@@ -188,17 +190,17 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         app.applicationScope.launch {
             try {
                 val result = com.maodouchat.quickreply.androidQuickReplyCommandHandler(app).execute(
-                    com.maodouchat.quickreply.QuickReplyCommand(
+                    QuickReplyCommand(
                         ownerUserId = ownerUserId,
                         chatId = chatId,
                         text = text,
                     )
                 )
                 when (result) {
-                    com.maodouchat.quickreply.QuickReplyCommandResult.Sent,
-                    com.maodouchat.quickreply.QuickReplyCommandResult.Duplicate -> Unit
-                    is com.maodouchat.quickreply.QuickReplyCommandResult.Rejected,
-                    com.maodouchat.quickreply.QuickReplyCommandResult.Failed -> {
+                    QuickReplyCommandResult.Sent,
+                    QuickReplyCommandResult.Duplicate -> Unit
+                    is QuickReplyCommandResult.Rejected,
+                    QuickReplyCommandResult.Failed -> {
                         toast(app, com.maodouchat.R.string.quick_reply_rejected)
                     }
                 }
