@@ -1,4 +1,4 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 enum class Risk {
     READ,

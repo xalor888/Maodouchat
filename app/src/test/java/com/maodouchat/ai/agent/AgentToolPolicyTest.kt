@@ -1,5 +1,7 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.Approval
+import com.maodouchat.core.model.Risk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
