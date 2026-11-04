@@ -39,8 +39,8 @@ import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.maodouchat.call.Direction
-import com.maodouchat.call.State
+import com.maodouchat.core.model.Direction
+import com.maodouchat.core.model.State
 
 /**
  * 会话列表的「未拨来电 + 文件夹管理」弹层（G137 从 `ChatListScreen.kt` 拆出，原 222 行）。

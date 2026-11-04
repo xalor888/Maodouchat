@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.call.Direction
-import com.maodouchat.call.State
+import com.maodouchat.core.model.Direction
+import com.maodouchat.core.model.State
 
 internal data class CallLogRow(
     val id: String,

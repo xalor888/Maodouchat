@@ -62,8 +62,8 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.call.Direction
-import com.maodouchat.call.State
+import com.maodouchat.core.model.Direction
+import com.maodouchat.core.model.State
 
 /** 1.29：通话记录页——展示本地 CallLogStore 全量历史，点击回拨，可清空。 */
 @OptIn(ExperimentalMaterial3Api::class)

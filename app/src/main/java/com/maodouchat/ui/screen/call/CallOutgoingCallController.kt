@@ -10,7 +10,7 @@ import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import com.maodouchat.call.State
+import com.maodouchat.core.model.State
 
 // 呼出一族：从 CallViewModel 纯搬移；VM 留同签名委托。
 internal class CallOutgoingCallController(
