@@ -3,6 +3,9 @@ package com.maodouchat.crypto
 import android.content.Context
 import android.util.Log
 import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
+import com.maodouchat.core.model.SenderKeyCoveragePendingException
+import com.maodouchat.core.model.SenderKeyRetryView
+import com.maodouchat.core.model.TransientCoverageException
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
 import com.maodouchat.network.ApiService
@@ -173,9 +176,6 @@ class SenderKeyRetryManager(
         }
     }
 
-    /**
-     * Ensures this device's Sender Key covers every currently confirmed group device.
-     */
     suspend fun ensureCoverageNow(chatId: String, expectedEpoch: Long): Result<Long> {
         val token = tokenManager.getToken().orEmpty()
         val userId = tokenManager.getUserId().orEmpty()

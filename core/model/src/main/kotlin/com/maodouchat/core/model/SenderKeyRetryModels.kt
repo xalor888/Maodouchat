@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.model
 
 /**
  * 群 SenderKey 覆盖分发时的瞬态网络失败标记（8.41）。

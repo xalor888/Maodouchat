@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.model
 
 // SignalDirectCipher 的信封数据模型：从母文件纯搬移，零行为改动。
 data class EncryptedPayload(val type: String, val payload: ByteArray)

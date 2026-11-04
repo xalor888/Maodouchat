@@ -2,6 +2,9 @@ package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.DirectMessageCipher
+import com.maodouchat.core.model.EncryptedPayload
+import com.maodouchat.core.model.MultiRecipientEnvelopePayload
+import com.maodouchat.core.model.ParsedEnvelope
 
 /**
  * Signal 直接点对点消息与多设备信封加解密器（M03 解耦）。

@@ -5,6 +5,7 @@ import android.util.Log
 import com.maodouchat.core.crypto.DecryptFailurePolicy
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.TrackingAction
+import com.maodouchat.core.model.ParsedEnvelope
 import org.signal.libsignal.protocol.InvalidMessageException
 import org.signal.libsignal.protocol.NoSessionException
 import org.signal.libsignal.protocol.SessionCipher

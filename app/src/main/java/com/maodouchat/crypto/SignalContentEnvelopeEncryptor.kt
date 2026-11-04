@@ -2,6 +2,11 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import com.maodouchat.core.model.BotCommandPolicy
+import com.maodouchat.core.model.DeviceCiphertext
+import com.maodouchat.core.model.EncryptedPayload
+import com.maodouchat.core.model.MultiRecipientDeviceTarget
+import com.maodouchat.core.model.MultiRecipientEnvelopePayload
+import com.maodouchat.core.model.TransientCoverageException
 import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.SessionCipher
 import org.signal.libsignal.protocol.SignalProtocolAddress

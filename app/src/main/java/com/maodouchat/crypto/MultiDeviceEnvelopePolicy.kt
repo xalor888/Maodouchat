@@ -1,5 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.model.ParsedEntry
+import com.maodouchat.core.model.ParsedEnvelope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
