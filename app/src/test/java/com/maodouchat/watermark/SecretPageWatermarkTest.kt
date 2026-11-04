@@ -1,7 +1,7 @@
 package com.maodouchat.watermark
 
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.util.Flag
+import com.maodouchat.core.model.Flag
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin

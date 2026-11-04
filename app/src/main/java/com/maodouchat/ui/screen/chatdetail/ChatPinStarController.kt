@@ -5,7 +5,7 @@ import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.util.Flag
+import com.maodouchat.core.model.Flag
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

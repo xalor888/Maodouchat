@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.util.Flag
+import com.maodouchat.core.model.Flag
 import com.maodouchat.util.RuntimeFlags
 
 /**

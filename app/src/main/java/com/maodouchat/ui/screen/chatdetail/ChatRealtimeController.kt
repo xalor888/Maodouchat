@@ -17,7 +17,7 @@ import com.maodouchat.session.AccountScopedRealtimeConnectionManager
 import com.maodouchat.session.RealtimeConnectionManager
 import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.util.Flag
+import com.maodouchat.core.model.Flag
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

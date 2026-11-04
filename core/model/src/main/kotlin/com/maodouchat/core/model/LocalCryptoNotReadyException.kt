@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.model
 
 /** Local Signal state could not be restored yet; callers may retry without user action. */
 class LocalCryptoNotReadyException(

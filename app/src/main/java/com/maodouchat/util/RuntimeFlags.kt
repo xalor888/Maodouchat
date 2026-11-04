@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.Flag
 
 /**
  * 运行时功能开关集中表。
