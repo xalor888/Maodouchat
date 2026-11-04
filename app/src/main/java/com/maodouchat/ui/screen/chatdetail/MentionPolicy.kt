@@ -1,5 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ActiveQuery
+import com.maodouchat.core.model.Candidate
+import com.maodouchat.core.model.InsertResult
 import com.maodouchat.data.model.User
 
 /**

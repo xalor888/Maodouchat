@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.maodouchat.R
+import com.maodouchat.core.model.Candidate
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**

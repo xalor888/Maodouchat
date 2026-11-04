@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 data class ActiveQuery(
     /** `@` 在全文中的起始下标 */
