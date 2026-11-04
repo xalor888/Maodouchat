@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.ui.component.EmptyState
-import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.ShimmerChatRow
 import com.maodouchat.core.model.ChatFolderPolicy
 import androidx.compose.foundation.layout.fillMaxSize

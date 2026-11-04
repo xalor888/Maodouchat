@@ -63,7 +63,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.network.PostDto
 import com.maodouchat.ui.component.EmptyState
-import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.ShimmerPostCard
 import com.maodouchat.ui.theme.LocalChatPalette

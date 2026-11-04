@@ -39,7 +39,7 @@ import com.maodouchat.data.model.User
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
-import com.maodouchat.ui.component.EmptyStateType
+import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.SearchHighlightAccent
 import com.maodouchat.ui.theme.LocalChatPalette
