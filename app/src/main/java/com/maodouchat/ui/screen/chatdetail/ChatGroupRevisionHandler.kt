@@ -5,6 +5,9 @@ import com.maodouchat.R
 import com.maodouchat.conversation.ConversationLocalCleanupMode
 import com.maodouchat.conversation.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.conversationLocalCleanupSession
+import com.maodouchat.core.model.GroupRevisionImpact
+import com.maodouchat.core.model.groupRevisionImpact
+import com.maodouchat.core.model.shouldInvalidateGroupKey
 import com.maodouchat.messaging.v2.GroupMessagingCoordinator
 import com.maodouchat.network.WebSocketEvent
 import kotlinx.coroutines.Dispatchers
