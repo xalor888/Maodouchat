@@ -1,5 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.AiFileAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
+import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.data.local.entity.AiOperationEntity
 import com.maodouchat.data.model.Message
 

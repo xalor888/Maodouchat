@@ -34,6 +34,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.AiFileAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /** 图片/文件分析对话框：分析模式选择、提问输入与结果展示。所需输入全经参数传入。 */
@@ -75,8 +77,7 @@ internal fun AiImageAnalysisModeDialog(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(mode.localizedLabel(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(
-                                description,
+                            Text(description,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = LocalChatPalette.current.textHint,
                                 maxLines = 2,
@@ -86,8 +87,7 @@ internal fun AiImageAnalysisModeDialog(
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(top = 6.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
-                Text(
-                    stringResource(R.string.chat_ai_image_privacy),
+                Text(stringResource(R.string.chat_ai_image_privacy),
                     modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = LocalChatPalette.current.textHint

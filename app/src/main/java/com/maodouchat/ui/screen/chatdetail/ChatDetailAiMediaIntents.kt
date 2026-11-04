@@ -2,6 +2,8 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
+import com.maodouchat.core.model.AiFileAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
