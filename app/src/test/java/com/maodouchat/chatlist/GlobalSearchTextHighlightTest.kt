@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.ui.screen.chatlist.GlobalSearchTextHighlight
-import com.maodouchat.ui.screen.chatlist.HighlightSpan
+import com.maodouchat.core.model.GlobalSearchTextHighlight
+import com.maodouchat.core.model.HighlightSpan
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

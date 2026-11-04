@@ -8,7 +8,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import com.maodouchat.ui.screen.chatlist.GlobalSearchTextHighlight
+import com.maodouchat.core.model.GlobalSearchTextHighlight
 
 /**
  * 搜索结果高亮（G156：从全 app **12 处**重复的私有 `highlightedText` 收敛而来）。

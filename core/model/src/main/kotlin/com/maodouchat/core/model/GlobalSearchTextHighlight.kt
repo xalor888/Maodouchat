@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
 /**
  * W1-05: pure helpers for stable keyword highlighting / snippet windows in global search.
