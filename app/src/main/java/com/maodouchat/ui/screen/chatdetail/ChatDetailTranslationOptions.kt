@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.TranslationLanguageOption
+
 import com.maodouchat.R
 
 internal val translationLanguageOptions = listOf(

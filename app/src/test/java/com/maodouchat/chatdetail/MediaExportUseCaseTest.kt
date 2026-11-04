@@ -4,8 +4,8 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.DefaultMediaExportUseCase
-import com.maodouchat.ui.screen.chatdetail.MediaExportRequest
-import com.maodouchat.ui.screen.chatdetail.MediaExportResult
+import com.maodouchat.core.model.MediaExportRequest
+import com.maodouchat.core.model.MediaExportResult
 import com.maodouchat.ui.screen.chatdetail.MediaExportUseCase
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

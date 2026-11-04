@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.MediaExportResult
+
 import android.app.Application
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -124,9 +126,7 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
             onResult(ok)
         }
     }
-
     internal val mediaExportUseCase: MediaExportUseCase = DefaultMediaExportUseCase(application)
-
     fun saveMessageMedia(message: Message, onResult: (MediaExportResult) -> Unit) {
         viewModelScope.launch {
             val res = mediaExportUseCase.saveMessageMedia(message, _uiState.value.isSecretChat)
