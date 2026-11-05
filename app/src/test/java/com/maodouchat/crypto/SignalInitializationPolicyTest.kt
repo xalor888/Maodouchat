@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.SignalInitializationAction
+import com.maodouchat.core.model.SignalInitializationState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -6,6 +6,7 @@ import com.maodouchat.core.model.DeviceCiphertext
 import com.maodouchat.core.model.EncryptedPayload
 import com.maodouchat.core.model.MultiRecipientDeviceTarget
 import com.maodouchat.core.model.MultiRecipientEnvelopePayload
+import com.maodouchat.core.model.Target
 import com.maodouchat.core.model.TransientCoverageException
 import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.SessionCipher

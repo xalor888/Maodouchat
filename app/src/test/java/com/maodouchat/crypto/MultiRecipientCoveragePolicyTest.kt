@@ -4,6 +4,7 @@ import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.core.model.TransientCoverageException
 import com.maodouchat.network.ApiException
 import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.model.Target
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

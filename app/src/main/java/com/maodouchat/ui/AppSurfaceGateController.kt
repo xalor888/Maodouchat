@@ -1,5 +1,7 @@
 package com.maodouchat.ui
 
+import com.maodouchat.core.model.AppSurfaceGateState
+
 /**
  * P08：App 锁与假聊天表面门闩（从 MainActivity 抽出）。
  *
