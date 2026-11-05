@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.maodouchat.core.model.CallAudioRoute
+import com.maodouchat.core.model.CallIceServer
+import com.maodouchat.core.model.GroupPeerConnectionState
+import com.maodouchat.core.model.WebRTCException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -138,9 +141,6 @@ class WebRTCManager(
     // Bug #21: ICE 断连宽限期 — 网络切换(WiFi→4G)时 ICE 会短暂 DISCONNECTED 然后自动恢复
     // 不应立即终止通话，而是等待 grace period 后再通知断连
 
-    /**
-     * 设置远程媒体流回调
-     */
     fun setOnRemoteStreamListener(listener: (MediaStream) -> Unit) {
         if (!released) onRemoteStream = listener
     }

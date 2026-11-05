@@ -15,7 +15,7 @@ import com.maodouchat.session.AppRuntime
 import com.maodouchat.webrtc.CallReliabilityPolicy
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
-import com.maodouchat.webrtc.GroupPeerConnectionState
+import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.CancellationException

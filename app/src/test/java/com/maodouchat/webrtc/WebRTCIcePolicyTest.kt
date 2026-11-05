@@ -1,5 +1,6 @@
 package com.maodouchat.webrtc
 
+import com.maodouchat.core.model.CallIceServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame

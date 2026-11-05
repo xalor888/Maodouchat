@@ -2,6 +2,7 @@ package com.maodouchat.webrtc
 
 import com.maodouchat.core.model.FailureOperation
 import com.maodouchat.core.model.SignalingException
+import com.maodouchat.core.model.CallIceServer
 import com.maodouchat.network.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ApiService

@@ -31,7 +31,7 @@ import com.maodouchat.R
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.webrtc.GroupCallPolicy
-import com.maodouchat.webrtc.GroupPeerConnectionState
+import com.maodouchat.core.model.GroupPeerConnectionState
 
 @Composable
 internal fun GroupParticipantGrid(
