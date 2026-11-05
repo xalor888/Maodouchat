@@ -9,6 +9,7 @@ import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.NetworkQuality
 import com.maodouchat.core.model.State
+import com.maodouchat.core.model.CallUiState
 
 // 通话拆卸簇：从 CallViewModel 纯搬移——endCall 全量收尾（job 停摆、媒体释放、
 // 通知/Telecom 清理、通话记录回写、对端挂断信令、会话字段复位）。

@@ -6,6 +6,7 @@ import com.maodouchat.core.model.CallLogEntry
 import com.maodouchat.call.CallLogStore
 import com.maodouchat.core.model.Direction
 import com.maodouchat.core.model.State
+import com.maodouchat.core.model.CallUiState
 
 /**
  * G372：通话记录写入（8.52 幂等回写 / 呼出占位改 ANSWERED / 时长口径 / 8.53 属主守卫）

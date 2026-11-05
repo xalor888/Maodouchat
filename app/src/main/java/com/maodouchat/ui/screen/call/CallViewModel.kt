@@ -11,6 +11,7 @@ import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.core.model.CallType
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.core.model.CallAudioRoute
+import com.maodouchat.core.model.CallUiState
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -366,7 +367,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) =
         outgoingCallController.startGroupCall(chatId, memberIds, type)
-
 
     fun prepareIncomingCall(
         contactId: String,
