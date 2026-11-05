@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.explore
 
+import com.maodouchat.core.model.ExplorePublishErrorKind
 import com.maodouchat.network.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import org.junit.Assert.assertEquals
@@ -15,7 +16,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "你已被限制发布动态，解除时间 2026-08-01"
         )
-        assertEquals(Kind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
         val shown = ExplorePublishErrorPolicy.displayMessage(err, "发布失败")
         assertTrue(shown.contains("限制发布动态"))
     }
@@ -27,7 +28,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "你已被限制发消息"
         )
-        assertEquals(Kind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -37,7 +38,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "账号已被临时封禁"
         )
-        assertEquals(Kind.SUSPENDED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.SUSPENDED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -47,7 +48,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 401,
             serverMessage = "Unauthorized"
         )
-        assertEquals(Kind.AUTH, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.AUTH, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -57,7 +58,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 500,
             serverMessage = null
         )
-        assertEquals(Kind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
         assertEquals("发布失败", ExplorePublishErrorPolicy.displayMessage(err, "发布失败"))
     }
 
@@ -69,7 +70,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "动态发布暂时不可用"
         )
-        assertEquals(Kind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -79,7 +80,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "账号封禁中"
         )
-        assertEquals(Kind.SUSPENDED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.SUSPENDED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -90,7 +91,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "限制发布动态，账号存在封禁记录"
         )
-        assertEquals(Kind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -114,7 +115,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 500,
             serverMessage = "token 已过期"
         )
-        assertEquals(Kind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -125,7 +126,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "限制发消息，账号有临时封禁记录"
         )
-        assertEquals(Kind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -135,7 +136,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "你已被禁言"
         )
-        assertEquals(Kind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.MESSAGE_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -145,7 +146,7 @@ class ExplorePublishErrorPolicyTest {
             statusCode = 403,
             serverMessage = "You are restricted from posting for 7 days"
         )
-        assertEquals(Kind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.POST_RESTRICTED, ExplorePublishErrorPolicy.classify(err))
     }
 
     @Test
@@ -171,7 +172,7 @@ class ExplorePublishErrorPolicyTest {
     fun nonApiExceptionLoginCopyIsFallbackButKeepsMessage() {
         // 纯本地异常不算 AUTH，但展示时保留原始文案
         val err = RuntimeException("请先登录")
-        assertEquals(Kind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
+        assertEquals(ExplorePublishErrorKind.FALLBACK, ExplorePublishErrorPolicy.classify(err))
         assertEquals("请先登录", ExplorePublishErrorPolicy.displayMessage(err, "发布失败"))
     }
 }
