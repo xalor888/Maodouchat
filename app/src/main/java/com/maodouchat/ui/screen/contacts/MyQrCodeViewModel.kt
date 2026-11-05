@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
+import com.maodouchat.core.model.MyQrCodeDecision
+import com.maodouchat.core.model.RejectReason
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -44,7 +46,7 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
                     local = null,
                     remote = null,
                 )
-                if (precheck is Decision.Reject) {
+                if (precheck is MyQrCodeDecision.Reject) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,

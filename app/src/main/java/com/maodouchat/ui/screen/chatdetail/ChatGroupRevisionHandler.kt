@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.util.Log
 import com.maodouchat.R
-import com.maodouchat.conversation.ConversationLocalCleanupMode
+import com.maodouchat.core.model.ConversationLocalCleanupMode
 import com.maodouchat.conversation.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.core.model.GroupRevisionImpact

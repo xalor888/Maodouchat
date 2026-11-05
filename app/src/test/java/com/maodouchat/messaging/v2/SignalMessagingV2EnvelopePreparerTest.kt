@@ -1,6 +1,8 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.DeviceCiphertext
+import com.maodouchat.core.model.MessagingV2ConversationSnapshot
+import com.maodouchat.core.model.MessagingV2DeviceTarget
 import com.maodouchat.core.model.MessagingV2StaleGroupControlException
 import com.maodouchat.core.model.MultiRecipientEnvelopePayload
 import com.maodouchat.crypto.SignalProtocol

@@ -1,6 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.MessageMutationKind
+import com.maodouchat.core.model.MessagingV2MutationCommit
 import com.maodouchat.data.model.Message
 import kotlinx.coroutines.CancellationException
 

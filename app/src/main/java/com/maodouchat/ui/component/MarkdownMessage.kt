@@ -18,9 +18,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.maodouchat.core.model.MdBlock
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.OnSurface
-
 
 /**
  * Lightweight chat Markdown subset:

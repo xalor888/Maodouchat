@@ -1,5 +1,12 @@
 package com.maodouchat.conversation
 
+import com.maodouchat.core.model.ConversationLocalCleanupFailure
+import com.maodouchat.core.model.ConversationLocalCleanupMode
+import com.maodouchat.core.model.ConversationLocalCleanupReport
+import com.maodouchat.core.model.ConversationLocalCleanupSession
+import com.maodouchat.core.model.ConversationLocalCleanupStep
+import com.maodouchat.core.model.ConversationLocalStateBackend
+
 /**
  * Owns destructive local conversation convergence after a user command or authoritative leave.
  * Every step is isolated so one damaged cache cannot prevent the remaining private state cleanup.

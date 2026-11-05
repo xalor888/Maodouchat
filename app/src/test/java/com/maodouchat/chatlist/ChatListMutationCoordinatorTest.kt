@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.R
-import com.maodouchat.conversation.ConversationLocalCleanupSession
+import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.data.model.Chat
 import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.network.UpdateChatSettingsRequest

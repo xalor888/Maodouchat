@@ -1,6 +1,6 @@
-package com.maodouchat.ui.component
+package com.maodouchat.core.model
 
-internal sealed interface MdBlock {
+sealed interface MdBlock {
     data class Paragraph(val text: String) : MdBlock
     data class Heading(val level: Int, val text: String) : MdBlock
     data class Quote(val text: String) : MdBlock

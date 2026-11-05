@@ -36,6 +36,7 @@ import com.maodouchat.network.api.MessagingApi
 import com.maodouchat.network.api.MessagingApiClient
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.model.RefreshOutcome
 
 /**
  * REST API client compatibility facade.
@@ -51,7 +52,6 @@ object ApiService :
     GroupApi by GroupApiClient,
     KeyDeviceApi by KeyDeviceApiClient,
     CallSignalingApi by CallSignalingApiClient {
-
     val auth: AuthApi = AuthApiClient
     val messaging: MessagingApi = MessagingApiClient
     val conversations: ConversationApi = ConversationApiClient

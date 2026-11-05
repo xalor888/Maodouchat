@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatlist
 
 import android.util.Log
-import com.maodouchat.conversation.ConversationLocalCleanupMode
-import com.maodouchat.conversation.ConversationLocalCleanupSession
+import com.maodouchat.core.model.ConversationLocalCleanupMode
+import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.conversation.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import kotlinx.coroutines.CancellationException

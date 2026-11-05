@@ -1,17 +1,17 @@
-package com.maodouchat.conversation
+package com.maodouchat.core.model
 
-internal data class ConversationLocalCleanupSession(
+data class ConversationLocalCleanupSession(
     val ownerUserId: String,
     val generation: Long,
 )
 
-internal enum class ConversationLocalCleanupMode {
+enum class ConversationLocalCleanupMode {
     CLEAR_HISTORY,
     CLEAR_HISTORY_AND_LOCK,
     DELETE_CONVERSATION,
 }
 
-internal enum class ConversationLocalCleanupStep {
+enum class ConversationLocalCleanupStep {
     CAPTURE_MESSAGE_IDS,
     TOMBSTONE_MESSAGES,
     CANCEL_ATTACHMENTS,
@@ -40,12 +40,12 @@ internal enum class ConversationLocalCleanupStep {
     DELETE_CONVERSATION,
 }
 
-internal data class ConversationLocalCleanupFailure(
+data class ConversationLocalCleanupFailure(
     val step: ConversationLocalCleanupStep,
     val error: Throwable,
 )
 
-internal data class ConversationLocalCleanupReport(
+data class ConversationLocalCleanupReport(
     val sessionChanged: Boolean,
     val failures: List<ConversationLocalCleanupFailure>,
 ) {
@@ -55,7 +55,7 @@ internal data class ConversationLocalCleanupReport(
         failures.any { it.step == step }
 }
 
-internal interface ConversationLocalStateBackend {
+interface ConversationLocalStateBackend {
     suspend fun messageIds(chatId: String): List<String>
     suspend fun tombstoneMessages(ownerUserId: String, chatId: String)
     suspend fun cancelAttachments(chatId: String)
