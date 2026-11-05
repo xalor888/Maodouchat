@@ -11,6 +11,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.ui.screen.chatdetail.AiTasksScreen
 import com.maodouchat.ui.screen.chatdetail.ChatDetailScreen
 import com.maodouchat.ui.screen.chatdetail.GroupDetailScreen
@@ -46,7 +47,7 @@ fun NavGraphBuilder.chatDestinations(navController: NavHostController) {
             val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
             com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
         }
-        val themeFamily = com.maodouchat.ui.theme.ThemeFamily.normalize(
+        val themeFamily = ThemeFamily.normalize(
             com.maodouchat.util.ThemePreferences.family.collectAsState().value
         )
         val bubbleShapes = remember(chatIdArg, appearanceVersion, themeFamily) {

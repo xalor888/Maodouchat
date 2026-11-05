@@ -1,5 +1,6 @@
 package com.maodouchat.settings.theme
 
+import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.ui.theme.tokens.MaodouDesignTokens
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -33,11 +34,11 @@ class ThemeTokensTest {
 
     @Test
     fun `ThemeFamily normalization correctly maps Telegram variants and falls back to Maodou`() {
-        assertEquals(com.maodouchat.ui.theme.ThemeFamily.TG_CLASSIC, com.maodouchat.ui.theme.ThemeFamily.normalize("tg_classic"))
-        assertEquals(com.maodouchat.ui.theme.ThemeFamily.TG_CLASSIC, com.maodouchat.ui.theme.ThemeFamily.normalize("telegram"))
-        assertEquals(com.maodouchat.ui.theme.ThemeFamily.TG_MIDNIGHT, com.maodouchat.ui.theme.ThemeFamily.normalize("midnight"))
-        assertEquals(com.maodouchat.ui.theme.ThemeFamily.TG_GRAPHITE, com.maodouchat.ui.theme.ThemeFamily.normalize("graphite"))
-        assertEquals(com.maodouchat.ui.theme.ThemeFamily.MAODOU, com.maodouchat.ui.theme.ThemeFamily.normalize("unknown_random"))
-        assertEquals(com.maodouchat.ui.theme.ThemeFamily.MAODOU, com.maodouchat.ui.theme.ThemeFamily.normalize(null))
+        assertEquals(ThemeFamily.TG_CLASSIC, ThemeFamily.normalize("tg_classic"))
+        assertEquals(ThemeFamily.TG_CLASSIC, ThemeFamily.normalize("telegram"))
+        assertEquals(ThemeFamily.TG_MIDNIGHT, ThemeFamily.normalize("midnight"))
+        assertEquals(ThemeFamily.TG_GRAPHITE, ThemeFamily.normalize("graphite"))
+        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("unknown_random"))
+        assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize(null))
     }
 }

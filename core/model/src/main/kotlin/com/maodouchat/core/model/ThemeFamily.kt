@@ -1,4 +1,4 @@
-package com.maodouchat.ui.theme
+package com.maodouchat.core.model
 
 /**
  * 主题风格家族。MAODOU（白底液态玻璃）为品牌默认；TG_* 为 Telegram/Nekogram 扁平主题，
