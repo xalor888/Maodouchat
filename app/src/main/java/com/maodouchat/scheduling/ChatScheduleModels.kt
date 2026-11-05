@@ -1,6 +1,7 @@
 package com.maodouchat.scheduling
 
 import com.maodouchat.core.model.MessageReminder
+import com.maodouchat.core.model.ChatScheduleRejection
 import com.maodouchat.util.ScheduledMessage
 
 data class ChatScheduleCommand(
@@ -16,15 +17,6 @@ data class ChatScheduleCommand(
     val weekdaysOnly: Boolean = false,
 )
 
-enum class ChatScheduleRejection {
-    DISABLED,
-    INVALID_REQUEST,
-    SESSION_MISSING,
-    BLOCKED,
-    LIMIT_REACHED,
-    NOT_FOUND,
-    STORAGE,
-}
 
 sealed interface ChatScheduleMutationOutcome {
     data class Applied(
