@@ -1,6 +1,7 @@
 package com.maodouchat.attachment
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.Summary
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.network.TokenManager

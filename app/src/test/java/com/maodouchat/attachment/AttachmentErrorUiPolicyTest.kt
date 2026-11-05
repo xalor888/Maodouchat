@@ -2,6 +2,7 @@ package com.maodouchat.attachment
 
 import com.maodouchat.network.ApiException
 import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.model.AttachmentErrorKind
 import com.maodouchat.core.crypto.AttachmentCryptoException
 import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import java.io.IOException
@@ -13,19 +14,19 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun classifiesCryptoFailures() {
         assertEquals(
-            Kind.TOO_LARGE,
+            AttachmentErrorKind.TOO_LARGE,
             AttachmentErrorUiPolicy.classify(AttachmentCryptoException(AttachmentCryptoFailure.TOO_LARGE))
         )
         assertEquals(
-            Kind.INVALID_REFERENCE,
+            AttachmentErrorKind.INVALID_REFERENCE,
             AttachmentErrorUiPolicy.classify(AttachmentCryptoException(AttachmentCryptoFailure.INVALID_REFERENCE))
         )
         assertEquals(
-            Kind.INTEGRITY_FAILED,
+            AttachmentErrorKind.INTEGRITY_FAILED,
             AttachmentErrorUiPolicy.classify(AttachmentCryptoException(AttachmentCryptoFailure.INTEGRITY_FAILED))
         )
         assertEquals(
-            Kind.CONTENT_MISMATCH,
+            AttachmentErrorKind.CONTENT_MISMATCH,
             AttachmentErrorUiPolicy.classify(
                 AttachmentCryptoException(AttachmentCryptoFailure.UNSUPPORTED_MEDIA_CONTENT)
             )
@@ -35,7 +36,7 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun invalidApiResponseMapsToIntegrity() {
         assertEquals(
-            Kind.INTEGRITY_FAILED,
+            AttachmentErrorKind.INTEGRITY_FAILED,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.INVALID_RESPONSE, serverMessage = "bad")
             )
@@ -45,11 +46,11 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun classifiesWorkflowBoundaryFailures() {
         assertEquals(
-            Kind.TOO_LARGE,
+            AttachmentErrorKind.TOO_LARGE,
             AttachmentErrorUiPolicy.classify(AttachmentTooLargeException())
         )
         assertEquals(
-            Kind.INVALID_REFERENCE,
+            AttachmentErrorKind.INVALID_REFERENCE,
             AttachmentErrorUiPolicy.classify(AttachmentReferenceInvalidException())
         )
     }
@@ -57,7 +58,7 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun unknownFallsBack() {
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(IllegalStateException("x"))
         )
     }
@@ -65,13 +66,13 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun networkAndTimeoutKindsFallBack() {
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.NETWORK, serverMessage = "eof")
             )
         )
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.TIMEOUT, serverMessage = "slow")
             )
@@ -81,13 +82,13 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun httpStatusErrorsFallBack() {
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.HTTP, statusCode = 500, serverMessage = "boom")
             )
         )
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.HTTP, statusCode = 404, serverMessage = "nope")
             )
@@ -97,7 +98,7 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun invalidResponseAlwaysMapsToIntegrity() {
         assertEquals(
-            Kind.INTEGRITY_FAILED,
+            AttachmentErrorKind.INTEGRITY_FAILED,
             AttachmentErrorUiPolicy.classify(
                 ApiException(
                     kind = ApiFailureKind.INVALID_RESPONSE,
@@ -107,7 +108,7 @@ class AttachmentErrorUiPolicyTest {
             )
         )
         assertEquals(
-            Kind.INTEGRITY_FAILED,
+            AttachmentErrorKind.INTEGRITY_FAILED,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.INVALID_RESPONSE)
             )
@@ -117,12 +118,12 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun mapsEveryCryptoFailureDeterministically() {
         val expected = mapOf(
-            AttachmentCryptoFailure.TOO_LARGE to Kind.TOO_LARGE,
-            AttachmentCryptoFailure.READ_FAILED to Kind.FALLBACK,
-            AttachmentCryptoFailure.SIZE_MISMATCH to Kind.FALLBACK,
-            AttachmentCryptoFailure.INTEGRITY_FAILED to Kind.INTEGRITY_FAILED,
-            AttachmentCryptoFailure.INVALID_REFERENCE to Kind.INVALID_REFERENCE,
-            AttachmentCryptoFailure.UNSUPPORTED_MEDIA_CONTENT to Kind.CONTENT_MISMATCH
+            AttachmentCryptoFailure.TOO_LARGE to AttachmentErrorKind.TOO_LARGE,
+            AttachmentCryptoFailure.READ_FAILED to AttachmentErrorKind.FALLBACK,
+            AttachmentCryptoFailure.SIZE_MISMATCH to AttachmentErrorKind.FALLBACK,
+            AttachmentCryptoFailure.INTEGRITY_FAILED to AttachmentErrorKind.INTEGRITY_FAILED,
+            AttachmentCryptoFailure.INVALID_REFERENCE to AttachmentErrorKind.INVALID_REFERENCE,
+            AttachmentCryptoFailure.UNSUPPORTED_MEDIA_CONTENT to AttachmentErrorKind.CONTENT_MISMATCH
         )
         for (failure in AttachmentCryptoFailure.entries) {
             assertEquals(
@@ -138,12 +139,12 @@ class AttachmentErrorUiPolicyTest {
             AttachmentCryptoFailure.TOO_LARGE,
             IOException("disk")
         )
-        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(wrapped))
+        assertEquals(AttachmentErrorKind.TOO_LARGE, AttachmentErrorUiPolicy.classify(wrapped))
     }
     @Test
     fun invalidResponseKindBeatsHttp500Status() {
         assertEquals(
-            Kind.INTEGRITY_FAILED,
+            AttachmentErrorKind.INTEGRITY_FAILED,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.INVALID_RESPONSE, statusCode = 500, serverMessage = "boom")
             )
@@ -153,7 +154,7 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun httpKindWithoutStatusFallsBack() {
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.HTTP, serverMessage = "boom")
             )
@@ -163,7 +164,7 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun unexpectedKindFallsBack() {
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 ApiException(kind = ApiFailureKind.UNEXPECTED, serverMessage = "weird")
             )
@@ -173,7 +174,7 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun cryptoFailureWrappedInPlainExceptionFallsBack() {
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 RuntimeException("wrap", AttachmentCryptoException(AttachmentCryptoFailure.TOO_LARGE))
             )
@@ -183,11 +184,11 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun repeatedClassificationIsStable() {
         val tooLarge = AttachmentCryptoException(AttachmentCryptoFailure.TOO_LARGE)
-        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(tooLarge))
-        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(tooLarge))
+        assertEquals(AttachmentErrorKind.TOO_LARGE, AttachmentErrorUiPolicy.classify(tooLarge))
+        assertEquals(AttachmentErrorKind.TOO_LARGE, AttachmentErrorUiPolicy.classify(tooLarge))
         val unknown = IllegalStateException("x")
-        assertEquals(Kind.FALLBACK, AttachmentErrorUiPolicy.classify(unknown))
-        assertEquals(Kind.FALLBACK, AttachmentErrorUiPolicy.classify(unknown))
+        assertEquals(AttachmentErrorKind.FALLBACK, AttachmentErrorUiPolicy.classify(unknown))
+        assertEquals(AttachmentErrorKind.FALLBACK, AttachmentErrorUiPolicy.classify(unknown))
     }
 
 
@@ -196,7 +197,7 @@ class AttachmentErrorUiPolicyTest {
         for (kind in ApiFailureKind.entries) {
             if (kind == ApiFailureKind.INVALID_RESPONSE) continue
             assertEquals(
-                Kind.FALLBACK,
+                AttachmentErrorKind.FALLBACK,
                 AttachmentErrorUiPolicy.classify(
                     ApiException(kind = kind, statusCode = 400, serverMessage = "x")
                 )
@@ -207,13 +208,13 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun readFailedAndSizeMismatchWithCausesStillFallBack() {
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 AttachmentCryptoException(AttachmentCryptoFailure.READ_FAILED, IOException("disk"))
             )
         )
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(
                 AttachmentCryptoException(AttachmentCryptoFailure.SIZE_MISMATCH, IOException("disk"))
             )
@@ -223,13 +224,13 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun integrityAndContentMismatchIgnoreCause() {
         assertEquals(
-            Kind.INTEGRITY_FAILED,
+            AttachmentErrorKind.INTEGRITY_FAILED,
             AttachmentErrorUiPolicy.classify(
                 AttachmentCryptoException(AttachmentCryptoFailure.INTEGRITY_FAILED, IOException("disk"))
             )
         )
         assertEquals(
-            Kind.CONTENT_MISMATCH,
+            AttachmentErrorKind.CONTENT_MISMATCH,
             AttachmentErrorUiPolicy.classify(
                 AttachmentCryptoException(
                     AttachmentCryptoFailure.UNSUPPORTED_MEDIA_CONTENT,
@@ -242,21 +243,21 @@ class AttachmentErrorUiPolicyTest {
     @Test
     fun errorNotExceptionFallsBack() {
         assertEquals(
-            Kind.FALLBACK,
+            AttachmentErrorKind.FALLBACK,
             AttachmentErrorUiPolicy.classify(AssertionError("boom"))
         )
     }
 
     @Test
     fun workflowExceptionsAreInstanceIndependent() {
-        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(AttachmentTooLargeException()))
-        assertEquals(Kind.TOO_LARGE, AttachmentErrorUiPolicy.classify(AttachmentTooLargeException()))
+        assertEquals(AttachmentErrorKind.TOO_LARGE, AttachmentErrorUiPolicy.classify(AttachmentTooLargeException()))
+        assertEquals(AttachmentErrorKind.TOO_LARGE, AttachmentErrorUiPolicy.classify(AttachmentTooLargeException()))
         assertEquals(
-            Kind.INVALID_REFERENCE,
+            AttachmentErrorKind.INVALID_REFERENCE,
             AttachmentErrorUiPolicy.classify(AttachmentReferenceInvalidException())
         )
         assertEquals(
-            Kind.INVALID_REFERENCE,
+            AttachmentErrorKind.INVALID_REFERENCE,
             AttachmentErrorUiPolicy.classify(AttachmentReferenceInvalidException())
         )
     }

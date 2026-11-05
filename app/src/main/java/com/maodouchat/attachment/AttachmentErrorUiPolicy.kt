@@ -2,6 +2,7 @@ package com.maodouchat.attachment
 
 import com.maodouchat.network.ApiException
 import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.model.AttachmentErrorKind
 import com.maodouchat.core.crypto.AttachmentCryptoException
 import com.maodouchat.core.crypto.AttachmentCryptoFailure
 
@@ -10,19 +11,19 @@ import com.maodouchat.core.crypto.AttachmentCryptoFailure
  */
 object AttachmentErrorUiPolicy {
 
-    fun classify(error: Throwable): Kind = when {
-        error is AttachmentTooLargeException -> Kind.TOO_LARGE
+    fun classify(error: Throwable): AttachmentErrorKind = when {
+        error is AttachmentTooLargeException -> AttachmentErrorKind.TOO_LARGE
         error is AttachmentCryptoException && error.failure == AttachmentCryptoFailure.TOO_LARGE ->
-            Kind.TOO_LARGE
+            AttachmentErrorKind.TOO_LARGE
         error is AttachmentReferenceInvalidException ||
             error is AttachmentCryptoException && error.failure == AttachmentCryptoFailure.INVALID_REFERENCE ->
-            Kind.INVALID_REFERENCE
+            AttachmentErrorKind.INVALID_REFERENCE
         error is AttachmentCryptoException && error.failure == AttachmentCryptoFailure.INTEGRITY_FAILED ->
-            Kind.INTEGRITY_FAILED
+            AttachmentErrorKind.INTEGRITY_FAILED
         error is AttachmentCryptoException && error.failure == AttachmentCryptoFailure.UNSUPPORTED_MEDIA_CONTENT ->
-            Kind.CONTENT_MISMATCH
+            AttachmentErrorKind.CONTENT_MISMATCH
         error is ApiException && error.kind == ApiFailureKind.INVALID_RESPONSE ->
-            Kind.INTEGRITY_FAILED
-        else -> Kind.FALLBACK
+            AttachmentErrorKind.INTEGRITY_FAILED
+        else -> AttachmentErrorKind.FALLBACK
     }
 }
