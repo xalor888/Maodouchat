@@ -16,7 +16,7 @@ import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.core.model.QrTarget
 import com.maodouchat.core.session.SafetyScanStatus
 import com.maodouchat.data.model.User
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.util.QrCodeGenerator
 import kotlinx.coroutines.CoroutineScope

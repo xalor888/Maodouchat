@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.data.model.Chat
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import kotlinx.coroutines.flow.firstOrNull
 
 

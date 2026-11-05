@@ -8,7 +8,7 @@ import com.maodouchat.R
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.login.LoginAccess
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.toUserFacingMessage
+import com.maodouchat.core.model.toUserFacingMessage
 import com.maodouchat.push.PushRegistrationManager
 import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Reason

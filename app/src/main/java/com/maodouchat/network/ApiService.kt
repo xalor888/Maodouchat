@@ -35,8 +35,10 @@ import com.maodouchat.network.api.MediaApiClient
 import com.maodouchat.network.api.MessagingApi
 import com.maodouchat.network.api.MessagingApiClient
 import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.RefreshOutcome
+import com.maodouchat.core.model.apiExceptionForIOException
 
 /**
  * REST API client compatibility facade.
@@ -110,9 +112,6 @@ object ApiService :
         memoryAccessTokenOwnerUserId = null
     }
 
-    /**
-     * 安全读取响应体（只读一次，自动关闭）
-     */
     private fun okhttp3.Response.readBodyAndClose(): String {
         return use { it.body?.string() ?: "" }
     }

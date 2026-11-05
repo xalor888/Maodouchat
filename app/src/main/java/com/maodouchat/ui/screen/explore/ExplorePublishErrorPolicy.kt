@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.core.model.ExplorePublishErrorKind
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 
 /**
  * Map explore publish/upload failures to UI kinds (no Android resources here).

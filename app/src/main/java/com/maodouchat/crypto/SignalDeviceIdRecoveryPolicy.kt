@@ -5,7 +5,7 @@ import com.maodouchat.core.model.IdentityRecoveryFailedException
 /**
  * Decides whether a failed key upload is retryable with a newly allocated device id.
  *
- * The transport layer wraps [com.maodouchat.network.ApiException] as
+ * The transport layer wraps [com.maodouchat.core.model.ApiException] as
  * [SignalExchangeException], so callers must inspect the preserved server code rather
  * than rely on the exception class alone.
  */
@@ -31,7 +31,7 @@ internal object SignalDeviceIdRecoveryPolicy {
         repeat(4) {
             when (current) {
                 is SignalExchangeException -> return current.serverCode
-                is com.maodouchat.network.ApiException -> return current.serverCode
+                is com.maodouchat.core.model.ApiException -> return current.serverCode
             }
             current = current?.cause
         }

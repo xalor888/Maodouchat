@@ -1,6 +1,6 @@
 package com.maodouchat.attachment
 
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.AttachmentErrorKind
 import com.maodouchat.core.crypto.AttachmentCryptoException

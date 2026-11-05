@@ -1,6 +1,5 @@
-package com.maodouchat.call
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.CallType
 
 data class PendingIncomingCall(
     val contactId: String,

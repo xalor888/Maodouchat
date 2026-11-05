@@ -8,7 +8,7 @@ import com.maodouchat.core.session.Cursor
 import com.maodouchat.core.session.Decision
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.call.MissedCallRecorder
-import com.maodouchat.call.MissedCallTimeoutPolicy
+import com.maodouchat.core.model.MissedCallTimeoutPolicy
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.session.AppRuntime

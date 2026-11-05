@@ -1,4 +1,4 @@
-package com.maodouchat.webrtc
+package com.maodouchat.core.model
 
 /**
  * WebRTC 统计报告里的两个纯计算（G176 从 WebRTCManager 抽出）。
@@ -14,7 +14,7 @@ package com.maodouchat.webrtc
  * WebRTC 的 statsMap 值是 `Any`：数字直接来，字符串要能解析，
  * 其余（null / Boolean / 嵌套 Map）一律 null——调用方据此跳过该字段。
  */
-internal fun readStatNumber(value: Any?): Double? = when (value) {
+fun readStatNumber(value: Any?): Double? = when (value) {
     is Number -> value.toDouble()
     is String -> value.toDoubleOrNull()
     else -> null
@@ -25,7 +25,7 @@ internal fun readStatNumber(value: Any?): Double? = when (value) {
  *
  * 先转 Double 再除，避免大数场景下 `lost * 100` 溢出 Long。
  */
-internal fun packetLossPercent(lost: Long, received: Long): Double? {
+fun packetLossPercent(lost: Long, received: Long): Double? {
     val total = lost + received
     if (total <= 0L) return null
     return lost.toDouble() * 100.0 / total.toDouble()

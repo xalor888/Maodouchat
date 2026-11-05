@@ -6,7 +6,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.core.model.MissedCall
 import com.maodouchat.core.model.ChatListReloadPolicy
 import com.maodouchat.core.model.Trigger
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.network.ChatDto
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException

@@ -4,7 +4,7 @@ import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import com.maodouchat.ui.screen.chatlist.requiresGroupOwnershipTransfer
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
