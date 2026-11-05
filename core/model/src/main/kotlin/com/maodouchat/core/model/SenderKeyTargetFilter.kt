@@ -1,3 +1,3 @@
-package com.maodouchat.ui.screen.chatdetail.group
+package com.maodouchat.core.model
 
 enum class SenderKeyTargetFilter { ALL, FAILED, PENDING, SENT }

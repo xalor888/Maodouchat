@@ -30,6 +30,7 @@ import com.maodouchat.group.GroupMemberUi
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.core.crypto.Reason
+import com.maodouchat.core.model.SenderKeyTargetFilter
 
 private const val SENDER_KEY_TARGET_PAGE = 20
 

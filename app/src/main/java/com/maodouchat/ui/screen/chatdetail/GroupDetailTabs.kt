@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.MediaCenterCategory
 
 // 群详情页签枚举：原 GroupDetailScreen 私有声明，同包 internal 化后随页签区一起搬出。
 internal enum class GroupDetailTab(val mediaCategory: MediaCenterCategory? = null) {
