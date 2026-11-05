@@ -34,6 +34,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatSearchMode
+import com.maodouchat.core.model.ChatSearchScope
+import com.maodouchat.core.model.ChatSearchWindow
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary

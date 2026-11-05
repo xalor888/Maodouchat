@@ -1,13 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ChatSearchScope
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-
-internal enum class ChatSearchMode { KEYWORD, SEMANTIC }
-
-internal enum class ChatSearchScope { ALL, TEXT, VOICE, TRANSLATION, STARRED, MEDIA, MENTIONS }
-
-internal enum class ChatSearchWindow { ALL, TODAY, SEVEN_DAYS, THIRTY_DAYS }
 
 internal data class ChatSearchDocument(
     val message: Message,

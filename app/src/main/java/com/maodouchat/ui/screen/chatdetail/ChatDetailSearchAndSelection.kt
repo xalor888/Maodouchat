@@ -11,6 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatSearchMode
+import com.maodouchat.core.model.ChatSearchScope
+import com.maodouchat.core.model.ChatSearchWindow
 import com.maodouchat.data.model.Message
 
 @Composable

@@ -1,6 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.saveable.SaverScope
+import com.maodouchat.core.model.ChatSearchMode
+import com.maodouchat.core.model.ChatSearchScope
+import com.maodouchat.core.model.ChatSearchWindow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

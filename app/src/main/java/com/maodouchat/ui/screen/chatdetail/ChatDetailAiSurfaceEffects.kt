@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import com.maodouchat.core.model.ChatSearchMode
 
 // 从 ChatDetailRoute.kt 纯搬移：副作用簇抽出，块字节级一致。
 @Composable

@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ChatSearchScope
+import com.maodouchat.core.model.ChatSearchWindow
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import java.util.Calendar
