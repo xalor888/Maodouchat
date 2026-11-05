@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.call
 
 import android.app.Application
 import com.maodouchat.R
-import com.maodouchat.webrtc.SignalingException
+import com.maodouchat.core.model.SignalingException
 
 // 文案簇：从 CallViewModel 纯搬移——text()/failureReason() 原样搬入，
 // 各 controller 的接线 lambda 不变，VM 只留同签名委托。
