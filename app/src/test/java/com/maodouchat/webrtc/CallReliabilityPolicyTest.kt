@@ -6,6 +6,7 @@ import com.maodouchat.core.model.CallMediaPermission
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.IceReconnectAction
+import com.maodouchat.core.model.NetworkQuality
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -138,14 +139,14 @@ class CallReliabilityPolicyTest {
 
     @Test
     fun `network quality buckets from rtt and loss`() {
-        assertEquals(Level.UNKNOWN, CallNetworkQualityPolicy.fromStats(null, 0.0))
-        assertEquals(Level.GOOD, CallNetworkQualityPolicy.fromStats(120, 0.5))
-        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(350, 2.0))
-        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(800, 1.0))
-        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(100, 8.0))
-        assertEquals(Level.GOOD, CallNetworkQualityPolicy.fromStats(180, null))
-        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(400, null))
-        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(900, null))
+        assertEquals(NetworkQuality.UNKNOWN, CallNetworkQualityPolicy.fromStats(null, 0.0))
+        assertEquals(NetworkQuality.GOOD, CallNetworkQualityPolicy.fromStats(120, 0.5))
+        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(350, 2.0))
+        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(800, 1.0))
+        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(100, 8.0))
+        assertEquals(NetworkQuality.GOOD, CallNetworkQualityPolicy.fromStats(180, null))
+        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(400, null))
+        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(900, null))
     }
 
     @Test
@@ -194,13 +195,13 @@ class CallReliabilityPolicyTest {
 
     @Test
     fun `network quality pins boundary values`() {
-        assertEquals(Level.GOOD, CallNetworkQualityPolicy.fromStats(200, 1.0))
-        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(500, 4.0))
-        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(201, 1.0))
-        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(501, 0.0))
-        assertEquals(Level.GOOD, CallNetworkQualityPolicy.fromStats(200, null))
-        assertEquals(Level.FAIR, CallNetworkQualityPolicy.fromStats(500, null))
-        assertEquals(Level.POOR, CallNetworkQualityPolicy.fromStats(501, null))
+        assertEquals(NetworkQuality.GOOD, CallNetworkQualityPolicy.fromStats(200, 1.0))
+        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(500, 4.0))
+        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(201, 1.0))
+        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(501, 0.0))
+        assertEquals(NetworkQuality.GOOD, CallNetworkQualityPolicy.fromStats(200, null))
+        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(500, null))
+        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(501, null))
     }
 
     @Test

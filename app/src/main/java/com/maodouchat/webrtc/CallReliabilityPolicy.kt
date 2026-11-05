@@ -4,6 +4,7 @@ import com.maodouchat.core.model.CallMediaPermission
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.IceReconnectAction
+import com.maodouchat.core.model.NetworkQuality
 import java.util.concurrent.atomic.AtomicLong
 
 object CallReliabilityPolicy {
@@ -60,15 +61,15 @@ object CallReliabilityPolicy {
  * Null RTT or missing sample → UNKNOWN (still measuring).
  */
 object CallNetworkQualityPolicy {
-    fun fromStats(rttMs: Long?, packetLossPercent: Double?): Level {
-        if (rttMs == null) return Level.UNKNOWN
+    fun fromStats(rttMs: Long?, packetLossPercent: Double?): NetworkQuality {
+        if (rttMs == null) return NetworkQuality.UNKNOWN
         val loss = packetLossPercent
         return when {
-            loss != null && rttMs <= 200 && loss <= 1.0 -> Level.GOOD
-            loss != null && rttMs <= 500 && loss <= 4.0 -> Level.FAIR
-            loss == null && rttMs <= 200 -> Level.GOOD
-            loss == null && rttMs <= 500 -> Level.FAIR
-            else -> Level.POOR
+            loss != null && rttMs <= 200 && loss <= 1.0 -> NetworkQuality.GOOD
+            loss != null && rttMs <= 500 && loss <= 4.0 -> NetworkQuality.FAIR
+            loss == null && rttMs <= 200 -> NetworkQuality.GOOD
+            loss == null && rttMs <= 500 -> NetworkQuality.FAIR
+            else -> NetworkQuality.POOR
         }
     }
 }
