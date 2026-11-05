@@ -49,6 +49,7 @@ import com.maodouchat.R
 import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.GroupPollPolicy
+import com.maodouchat.core.model.PollListItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

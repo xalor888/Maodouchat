@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.groupplay
+package com.maodouchat.core.model
 
 /** 群接龙列表项。 */
 data class ChainListItem(
