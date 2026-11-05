@@ -11,32 +11,32 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 REQUIRED_PATHS = [
     "docs/app-update-release.md",
-    "app/src/main/java/com/maodouchat/update/AppUpdatePolicy.kt",
-    "app/src/main/java/com/maodouchat/update/AppUpdateInstallPolicy.kt",
-    "app/src/main/java/com/maodouchat/update/AppUpdateDownloadRetryPolicy.kt",
+    "core/model/src/main/kotlin/com/maodouchat/core/model/AppUpdatePolicy.kt",
+    "core/model/src/main/kotlin/com/maodouchat/core/model/AppUpdateInstallPolicy.kt",
+    "core/model/src/main/kotlin/com/maodouchat/core/model/AppUpdateDownloadRetryPolicy.kt",
     "app/src/main/java/com/maodouchat/update/OfficialApkInstaller.kt",
-    "app/src/test/java/com/maodouchat/update/AppUpdatePolicyTest.kt",
-    "app/src/test/java/com/maodouchat/update/AppUpdateInstallPolicyTest.kt",
-    "app/src/test/java/com/maodouchat/update/AppUpdateDownloadRetryPolicyTest.kt",
+    "core/model/src/test/kotlin/com/maodouchat/core/model/AppUpdatePolicyTest.kt",
+    "core/model/src/test/kotlin/com/maodouchat/core/model/AppUpdateInstallPolicyTest.kt",
+    "core/model/src/test/kotlin/com/maodouchat/core/model/AppUpdateDownloadRetryPolicyTest.kt",
     "server/src/main/kotlin/com/maodouchat/server/update/AppUpdatePublishPolicy.kt",
     "server/src/test/kotlin/com/maodouchat/server/update/AppUpdatePublishPolicyTest.kt",
 ]
 
 REQUIRED_SNIPPETS = [
     (
-        "app/src/main/java/com/maodouchat/update/AppUpdatePolicy.kt",
+        "core/model/src/main/kotlin/com/maodouchat/core/model/AppUpdatePolicy.kt",
         "fun shouldOfferUpdate",
     ),
     (
-        "app/src/main/java/com/maodouchat/update/AppUpdatePolicy.kt",
+        "core/model/src/main/kotlin/com/maodouchat/core/model/AppUpdatePolicy.kt",
         "fun isOfficialApkUrl",
     ),
     (
-        "app/src/main/java/com/maodouchat/update/AppUpdateInstallPolicy.kt",
+        "core/model/src/main/kotlin/com/maodouchat/core/model/AppUpdateInstallPolicy.kt",
         "fun acceptsArchiveVersion",
     ),
     (
-        "app/src/main/java/com/maodouchat/update/AppUpdateInstallPolicy.kt",
+        "core/model/src/main/kotlin/com/maodouchat/core/model/AppUpdateInstallPolicy.kt",
         "fun isPackageAndSignerTrusted",
     ),
     (

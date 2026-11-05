@@ -8,6 +8,9 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import com.maodouchat.core.model.AppUpdateInstallPolicy
+import com.maodouchat.core.model.AppUpdatePolicy
+import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -29,7 +32,7 @@ object OfficialApkInstaller {
         ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
 
     fun canOfferHttps(apkUrl: String): Boolean =
-        AppUpdatePolicy.isOfficialApkUrl(apkUrl)
+        AppUpdatePolicy.isOfficialApkUrl(apkUrl, runtimeBaseUrl = ApiConfig.BASE_URL)
 
     /**
      * Download + integrity gates only. Caller (UI or Worker) decides when to [promptInstall].
@@ -42,7 +45,7 @@ object OfficialApkInstaller {
         onProgress: suspend (percent: Int) -> Unit = {},
     ): Result<File> = withContext(Dispatchers.IO) {
         val url = apkUrl.trim()
-        if (!AppUpdatePolicy.isOfficialApkUrl(url)) {
+        if (!AppUpdatePolicy.isOfficialApkUrl(url, runtimeBaseUrl = ApiConfig.BASE_URL)) {
             return@withContext Result.failure(IllegalArgumentException("apk_not_official"))
         }
         if (!AppUpdatePolicy.hasExpectedApkSha256(expectedSha256)) {
@@ -61,7 +64,7 @@ object OfficialApkInstaller {
                     return@withContext Result.failure(IllegalStateException("http_${response.code}"))
                 }
                 val finalUrl = response.request.url.toString()
-                if (!AppUpdatePolicy.isOfficialApkUrl(finalUrl)) {
+                if (!AppUpdatePolicy.isOfficialApkUrl(finalUrl, runtimeBaseUrl = ApiConfig.BASE_URL)) {
                     return@withContext Result.failure(IllegalStateException("redirect_host_not_official"))
                 }
                 val body = response.body

@@ -35,7 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import com.maodouchat.network.PublicUpdatesDto
 import com.maodouchat.update.AppUpdateDownloadScheduler
-import com.maodouchat.update.AppUpdatePolicy
+import com.maodouchat.core.model.AppUpdatePolicy
 import com.maodouchat.update.AppUpdatePromptStore
 import androidx.work.WorkInfo
 import com.maodouchat.navigation.Routes
@@ -107,7 +107,7 @@ fun MaodouchatNavGraph(
             if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode.toInt() else @Suppress("DEPRECATION") info.versionCode
         }.getOrDefault(0)
         val remote = PublicServerInfoRepository().publicUpdates(ApiConfig.BASE_URL).getOrNull() ?: return@LaunchedEffect
-        if (!AppUpdatePolicy.shouldOfferUpdate(currentCode, remote.versionCode, remote.apkUrl, remote.apkSha256)) return@LaunchedEffect
+        if (!AppUpdatePolicy.shouldOfferUpdate(currentCode, remote.versionCode, remote.apkUrl, remote.apkSha256, runtimeBaseUrl = ApiConfig.BASE_URL)) return@LaunchedEffect
         if (AppUpdatePromptStore.lastOfferedVersionCode(context) >= remote.versionCode) return@LaunchedEffect
         AppUpdatePromptStore.markOffered(context, remote.versionCode)
         appUpdateOffer = remote
@@ -122,7 +122,7 @@ fun MaodouchatNavGraph(
                     if (appUpdateDownloading) {
                         stringResource(R.string.about_update_downloading, appUpdateProgress)
                     } else {
-                        com.maodouchat.update.AppUpdatePolicy.formatNotes(offer.notes).ifBlank { stringResource(R.string.about_update_notes) }
+                        AppUpdatePolicy.formatNotes(offer.notes).ifBlank { stringResource(R.string.about_update_notes) }
                     }
                 )
             },

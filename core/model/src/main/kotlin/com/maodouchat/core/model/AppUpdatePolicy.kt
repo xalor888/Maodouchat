@@ -1,4 +1,4 @@
-package com.maodouchat.update
+package com.maodouchat.core.model
 
 /**
  * In-app update offers always come from the official JSON
@@ -12,13 +12,16 @@ object AppUpdatePolicy {
         remoteVersionCode: Int,
         apkUrl: String,
         apkSha256: String = "",
+        // Callers pass ApiConfig.BASE_URL so a self-hosted runtime server can
+        // host its own official APK; null keeps the official-hosts-only rule.
+        runtimeBaseUrl: String? = null,
     ): Boolean {
         if (currentVersionCode < 0 || remoteVersionCode <= 0) return false
-        if (!isOfficialApkUrl(apkUrl) || !hasExpectedApkSha256(apkSha256)) return false
+        if (!isOfficialApkUrl(apkUrl, runtimeBaseUrl) || !hasExpectedApkSha256(apkSha256)) return false
         return remoteVersionCode > currentVersionCode
     }
 
-    fun isOfficialApkUrl(apkUrl: String): Boolean {
+    fun isOfficialApkUrl(apkUrl: String, runtimeBaseUrl: String? = null): Boolean {
         if (apkUrl.isBlank()) return false
         val trimmed = apkUrl.trim()
         if (!trimmed.lowercase().startsWith("https://")) return false
@@ -27,8 +30,8 @@ object AppUpdatePolicy {
             host.equals("mdou.me", ignoreCase = true) ||
             host.endsWith(".mdou.me", ignoreCase = true)
         if (isOfficial) return true
-        // Allow self-hosted runtime server hosting its own official APK
-        val runtimeHost = hostOf(com.maodouchat.network.ApiConfig.BASE_URL)
+        // Allow self-hosted runtime server hosting its own official APK.
+        val runtimeHost = runtimeBaseUrl?.let { hostOf(it) }
         return runtimeHost != null && host.equals(runtimeHost, ignoreCase = true)
     }
 
