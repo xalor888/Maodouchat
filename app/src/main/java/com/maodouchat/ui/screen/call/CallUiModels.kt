@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.call
 
 import com.maodouchat.core.model.CallAudioRoute
+import com.maodouchat.core.model.NetworkQuality
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.GroupPeerConnectionState
@@ -29,9 +30,6 @@ data class CallUiState(
     /** 0–100 while downloading the self-hosted WebRTC .so; 0 when idle. */
     val nativeDownloadProgress: Int = 0
 )
-
-/** 通话链路质量分级，供顶部小条 + ICE reconnect 提示使用 */
-enum class NetworkQuality { GOOD, FAIR, POOR, UNKNOWN }
 
 data class GroupCallParticipantUi(
     val userId: String,
