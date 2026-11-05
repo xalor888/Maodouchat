@@ -1,16 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.SignalExchangeFailure
 import kotlinx.serialization.Serializable
-
-enum class SignalExchangeFailure {
-    SIGNED_PREKEY_MISSING,
-    HTTP,
-    EMPTY_RESPONSE,
-    TIMEOUT,
-    NETWORK,
-    INVALID_RESPONSE,
-    UNEXPECTED
-}
 
 class SignalExchangeException(
     val failure: SignalExchangeFailure,

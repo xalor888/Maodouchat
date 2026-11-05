@@ -1,5 +1,6 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.network.ApiException
 import com.maodouchat.network.ApiFailureKind
 import org.junit.Assert.assertEquals

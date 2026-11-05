@@ -1,13 +1,8 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.crypto.SenderKeyDistOutcome
 import org.signal.libsignal.protocol.InvalidMessageException
 import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage
-
-enum class SenderKeyDistOutcome {
-    Installed,
-    Skipped,
-    Failed
-}
 
 internal object SenderKeyDistributionFailurePolicy {
     fun outcomeFor(error: Throwable): SenderKeyDistOutcome = when (error) {

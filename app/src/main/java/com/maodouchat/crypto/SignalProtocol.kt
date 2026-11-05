@@ -13,6 +13,7 @@ import com.maodouchat.core.crypto.GroupSenderKeyManager
 import com.maodouchat.core.crypto.IdentityTrustService
 import com.maodouchat.core.crypto.PreKeyInventory
 import com.maodouchat.core.crypto.PreKeyPublisher
+import com.maodouchat.core.crypto.SenderKeyDistOutcome
 import com.maodouchat.core.model.ConversationId
 import com.maodouchat.core.model.EncryptedPayload
 import com.maodouchat.core.model.MultiRecipientEnvelopePayload
