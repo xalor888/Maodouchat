@@ -3,6 +3,9 @@ package com.maodouchat.crypto
 import android.util.Base64
 import android.util.Log
 import com.maodouchat.core.crypto.DeviceIdMigrationCoordinator
+import com.maodouchat.core.model.DevicePendingApprovalException
+import com.maodouchat.core.model.DeviceStatusUnavailableException
+import com.maodouchat.core.model.IdentityRecoveryFailedException
 import com.maodouchat.data.local.entity.SignalKeyEntity
 import kotlin.concurrent.withLock
 

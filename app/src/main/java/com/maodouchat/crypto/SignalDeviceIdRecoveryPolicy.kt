@@ -1,5 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.model.IdentityRecoveryFailedException
+
 /**
  * Decides whether a failed key upload is retryable with a newly allocated device id.
  *

@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.Lease
 
 /**
  * 1:1 SessionCipher 按 (peer, device) 寻址，不能只按 chatId 门闩。

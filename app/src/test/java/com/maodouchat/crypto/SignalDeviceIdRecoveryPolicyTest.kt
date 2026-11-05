@@ -3,6 +3,9 @@ package com.maodouchat.crypto
 import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.network.ApiException
 import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.model.DevicePendingApprovalException
+import com.maodouchat.core.model.DeviceStatusUnavailableException
+import com.maodouchat.core.model.IdentityRecoveryFailedException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

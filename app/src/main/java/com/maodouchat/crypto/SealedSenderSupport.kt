@@ -1,5 +1,7 @@
 package com.maodouchat.crypto
 
+import com.maodouchat.core.model.CacheKey
+import com.maodouchat.core.model.Certificate
 import com.maodouchat.network.ApiService
 import org.json.JSONObject
 
