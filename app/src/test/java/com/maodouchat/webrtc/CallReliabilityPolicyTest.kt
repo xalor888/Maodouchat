@@ -2,6 +2,8 @@ package com.maodouchat.webrtc
 
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallAudioRoutePolicy
+import com.maodouchat.core.model.CallMediaPermission
+import com.maodouchat.core.model.IceReconnectAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
