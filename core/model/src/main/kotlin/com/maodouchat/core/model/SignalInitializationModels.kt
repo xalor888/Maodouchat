@@ -1,6 +1,6 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.model
 
-internal data class SignalInitializationState(
+data class SignalInitializationState(
     val accountId: String? = null,
     val localCryptoReady: Boolean = false,
     val publicationReady: Boolean = false,

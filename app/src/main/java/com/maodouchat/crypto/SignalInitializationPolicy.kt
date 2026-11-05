@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.SignalInitializationAction
+import com.maodouchat.core.model.SignalInitializationState
 
 internal object SignalInitializationPolicy {
     fun action(

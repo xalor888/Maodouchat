@@ -15,6 +15,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
+import com.maodouchat.core.model.HttpResult
 import com.maodouchat.core.session.ConditionalSessionSaveResult
 import com.maodouchat.core.session.TokenExpiredEvent
 import com.maodouchat.network.api.ApiEndpointClients
@@ -38,7 +39,6 @@ import com.maodouchat.core.model.ApiFailureKind
 
 /**
  * REST API client compatibility facade.
- *
  * Typed domain clients own endpoint construction; this object retains the shared authenticated
  * transport and preserves the existing static surface during call-site migration.
  */

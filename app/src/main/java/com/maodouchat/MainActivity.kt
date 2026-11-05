@@ -40,7 +40,7 @@ import com.maodouchat.security.ScreenSecureManager
 import com.maodouchat.core.session.ScreenSecurePolicy
 import com.maodouchat.security.SecretChatSession
 import com.maodouchat.ui.AppSurfaceGateController
-import com.maodouchat.ui.AppSurfaceGateState
+import com.maodouchat.core.model.AppSurfaceGateState
 import com.maodouchat.ui.CallLockScreenFlagController
 import com.maodouchat.core.model.StartupPermissionPolicy
 import com.maodouchat.ui.screen.lock.FakeChatScreen
