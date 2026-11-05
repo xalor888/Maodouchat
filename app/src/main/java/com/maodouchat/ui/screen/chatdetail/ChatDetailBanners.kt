@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.Composable
 import com.maodouchat.R
+import com.maodouchat.core.crypto.SafetyCodePolicy
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
@@ -102,7 +103,7 @@ state.groupEncryptionWarning?.let { warning ->
 state.identityWarning?.let { warning ->
     SecurityWarningBanner(
         warning = warning,
-        sticky = com.maodouchat.crypto.SafetyCodePolicy.isStickyIdentityWarning(state.trustState),
+        sticky = SafetyCodePolicy.isStickyIdentityWarning(state.trustState),
         onClick = {
             if (RuntimeFlags.isEnabled(context, RuntimeFlags.SAFETY_CODE)) viewModel.showSafetyCodeDialog()
         }

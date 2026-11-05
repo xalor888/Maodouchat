@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.crypto.DeviceSafetyState
-import com.maodouchat.crypto.IdentityTrustState
+import com.maodouchat.core.crypto.DeviceSafetyState
+import com.maodouchat.core.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
 import com.maodouchat.network.GroupMemberDto
