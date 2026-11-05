@@ -1,6 +1,6 @@
-package com.maodouchat.watermark
+package com.maodouchat.core.model
 
-internal class Quad(
+class Quad(
     val ca: Array<FloatArray>,
     val ch: Array<FloatArray>,
     val cv: Array<FloatArray>,

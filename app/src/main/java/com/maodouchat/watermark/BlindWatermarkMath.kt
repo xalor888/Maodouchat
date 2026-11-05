@@ -4,6 +4,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sqrt
+import com.maodouchat.core.model.Quad
 
 // DWT/DCT/SVD 数学工具：从 ReferenceBlindWatermark 拆出的纯函数簇，零行为改动。
 internal object BlindWatermarkMath {

@@ -2,6 +2,7 @@ package com.maodouchat.ui.component
 
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.CaptureAlertPolicy
+import com.maodouchat.core.model.ReplyPreview
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -62,7 +63,6 @@ import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.navigation.AppLinkOpener
 import com.maodouchat.messaging.ChatMarkdown
 
-// ─── TextBubble ───
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
 internal fun TextBubble(

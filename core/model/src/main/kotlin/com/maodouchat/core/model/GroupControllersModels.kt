@@ -1,4 +1,4 @@
-package com.maodouchat.group
+package com.maodouchat.core.model
 
 /**
  * 拥有/可管理的 Bot 信息 UI 模型。

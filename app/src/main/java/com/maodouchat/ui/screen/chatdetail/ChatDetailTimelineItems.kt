@@ -29,7 +29,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.ui.component.ReplyPreview
+import com.maodouchat.core.model.ReplyPreview
 
 /**
  * 主时间线的**单条 item** 渲染（G85 从 `ChatDetailRoute.kt` 拆出，原 231 行）。

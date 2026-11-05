@@ -10,6 +10,7 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.core.model.NudgeDisplayPolicy
+import com.maodouchat.core.model.ReplyPreview
 import com.maodouchat.core.model.Templates
 import com.maodouchat.ui.screen.chatlist.ChatListReceiptPolicy
 

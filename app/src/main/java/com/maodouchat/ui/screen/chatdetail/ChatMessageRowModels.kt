@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.data.model.Message
-import com.maodouchat.ui.component.ReplyPreview
+import com.maodouchat.core.model.ReplyPreview
 
 internal data class ChatMessageRowState(
     val message: Message,
