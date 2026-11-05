@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
 import com.maodouchat.chatdetail.ChatDetailAccess
+import com.maodouchat.core.model.ChatLoadEffect
 import com.maodouchat.crypto.OwnSentMediaRestorePolicy
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
